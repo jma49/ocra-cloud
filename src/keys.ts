@@ -44,16 +44,29 @@ keys.put("/:provider", async (c) => {
   }
   const sealed = await encryptSecret(c.env.MASTER_KEY, key);
   const check = await checkKey(provider, key);
-  await removeKey(c.var.data, provider);
-  await c.var.data.insert("providerKeys", {
-    id: crypto.randomUUID(),
-    provider,
-    ...sealed,
-    last4: key.slice(-4),
-    checkStatus: check.status,
-    checkedAt: new Date(),
-  });
-  await audit(c.var.data, "key.saved", { provider, check: check.status });
+  // One statement replaces the provider's key, so parallel saves leave one
+  // key, never two for keyFor to choose between.
+  const now = new Date();
+  await c.var.data.batch((w) => [
+    w.upsert(
+      "providerKeys",
+      {
+        id: crypto.randomUUID(),
+        provider,
+        ...sealed,
+        last4: key.slice(-4),
+        checkStatus: check.status,
+        checkedAt: now,
+        createdAt: now,
+      },
+      ["accountId", "provider"],
+    ),
+    w.insert("auditEvents", {
+      id: crypto.randomUUID(),
+      kind: "key.saved",
+      detail: { provider, check: check.status },
+    }),
+  ]);
   return c.json({ provider, last4: key.slice(-4), check });
 });
 

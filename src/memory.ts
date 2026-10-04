@@ -32,23 +32,20 @@ memory.post("/", requireSession(), async (c) => {
   if (!finding) return c.json({ error: "not_found" }, 404);
   const review = await c.var.data.get("reviews", finding.reviewId);
   if (!review || !HASH.test(review.repoHash)) return c.json({ error: "not_found" }, 404);
-  const existing = (await c.var.data.list("accountMemory")).filter(
-    (m) => m.repoHash === review.repoHash,
+  // The duplicate and cap checks are in the insert itself (audit D-hyg).
+  const stored = await c.var.data.remember(
+    {
+      id: crypto.randomUUID(),
+      repoHash: review.repoHash,
+      fingerprint: finding.fingerprint,
+      file: finding.file,
+      title: finding.title,
+      reason,
+    },
+    MAX_PER_REPO,
   );
-  const same = existing.find((m) => m.fingerprint === finding.fingerprint);
-  if (same) return c.json({ id: same.id, duplicate: true });
-  if (existing.length >= MAX_PER_REPO)
-    return c.json({ error: "memory_full", limit: MAX_PER_REPO }, 409);
-  const id = crypto.randomUUID();
-  await c.var.data.insert("accountMemory", {
-    id,
-    repoHash: review.repoHash,
-    fingerprint: finding.fingerprint,
-    file: finding.file,
-    title: finding.title,
-    reason,
-  });
-  return c.json({ id });
+  if (stored === "full") return c.json({ error: "memory_full", limit: MAX_PER_REPO }, 409);
+  return c.json(stored.duplicate ? stored : { id: stored.id });
 });
 
 memory.delete("/:id", requireSession(), async (c) => {
