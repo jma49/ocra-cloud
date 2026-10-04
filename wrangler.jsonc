@@ -18,7 +18,12 @@
   "vars": {
     "GITHUB_CLIENT_ID": "Iv23liQIb7RBK0JvrxbN",
     // Model calls one account may make through the gateway in a UTC day.
-    "GATEWAY_DAILY_CALLS": "2000"
+    "GATEWAY_DAILY_CALLS": "2000",
+    // Reviews one account may upload in a UTC day (POST /api/reviews).
+    "REVIEW_DAILY_UPLOADS": "500",
+    // Shared findings one account may keep; past it a review is stored
+    // without its findings.
+    "REVIEW_MAX_FINDINGS": "20000"
   },
   // The web app is a single-page app; the Worker answers /api first.
   "assets": {

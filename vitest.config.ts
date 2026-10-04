@@ -12,6 +12,8 @@ export default defineConfig({
           MASTER_KEY: btoa(String.fromCharCode(...new Uint8Array(32).fill(7))),
           SESSION_SECRET: "test-session-secret",
           GATEWAY_DAILY_CALLS: "3",
+          REVIEW_DAILY_UPLOADS: "500",
+          REVIEW_MAX_FINDINGS: "20000",
         },
       },
     })),

@@ -137,18 +137,36 @@ export function scoped(db: DrizzleD1Database, accountId: string) {
      * has the review's run: then nothing is written and the stored review's id
      * comes back. The findings go in as one statement over a JSON array, so
      * the number of D1 queries does not grow with them.
+     *
+     * Limits are checked inside the same batch, which D1 runs as one
+     * transaction, so concurrent uploads cannot all pass a count taken before
+     * any of them wrote. A review past dailyUploads (counting rows created
+     * since `since`) is removed again and `limited` comes back. Findings that
+     * would take the account past maxFindings are not stored, and
+     * `findingsSkipped` comes back; the review itself is kept.
      */
     async insertReview(
       review: NewRow<"reviews"> & { id: string },
       list: Omit<NewRow<"findings">, "id" | "reviewId">[],
-    ): Promise<{ id: string; duplicate: boolean }> {
+      limits: { since: Date; dailyUploads: number; maxFindings: number },
+    ): Promise<{ id: string; duplicate: boolean; limited: boolean; findingsSkipped: boolean }> {
       const r = accountTables.reviews;
       const insert = db
         .insert(r)
         .values({ ...review, accountId })
         .onConflictDoNothing({ target: [r.accountId, r.runId] });
+      // Removes this upload's row again when it is past the day's cap.
+      const overCap = db.delete(r).where(
+        and(
+          eq(r.id, review.id),
+          eq(r.accountId, accountId),
+          sql`(SELECT count(*) FROM reviews WHERE account_id = ${accountId}
+            AND created_at >= ${limits.since.getTime()}) > ${limits.dailyUploads}`,
+        ),
+      );
       const rows = JSON.stringify(list.map((f) => ({ ...f, id: crypto.randomUUID() })));
-      // Only when the review row above was this upload's own.
+      // Only when the review row above was this upload's own and kept, and
+      // all of its findings fit under the account's cap.
       // In the table's column order: insert … select names every column.
       const findings = db.insert(accountTables.findings).select(sql`
         SELECT json_extract(value, '$.id'), ${accountId}, ${review.id},
@@ -162,15 +180,33 @@ export function scoped(db: DrizzleD1Database, accountId: string) {
           coalesce(json_extract(value, '$.truncated'), 0),
           unixepoch('subsec') * 1000
         FROM json_each(${rows})
-        WHERE EXISTS (SELECT 1 FROM reviews WHERE id = ${review.id} AND account_id = ${accountId})`);
-      const [stored] = list.length > 0 ? await db.batch([insert, findings]) : [await insert.run()];
-      if (stored.meta.changes > 0) return { id: review.id, duplicate: false };
+        WHERE EXISTS (SELECT 1 FROM reviews WHERE id = ${review.id} AND account_id = ${accountId})
+          AND (SELECT count(*) FROM findings WHERE account_id = ${accountId})
+            + ${list.length} <= ${limits.maxFindings}`);
+      const [stored, removed, kept] =
+        list.length > 0
+          ? await db.batch([insert, overCap, findings])
+          : await db.batch([insert, overCap]);
+      if (stored.meta.changes > 0) {
+        const limited = removed.meta.changes > 0;
+        return {
+          id: review.id,
+          duplicate: false,
+          limited,
+          findingsSkipped: !limited && list.length > 0 && (kept?.meta.changes ?? 0) === 0,
+        };
+      }
       const existing = await db
         .select({ id: r.id })
         .from(r)
         .where(and(eq(r.accountId, accountId), eq(r.runId, review.runId)))
         .get();
-      return { id: existing?.id ?? review.id, duplicate: true };
+      return {
+        id: existing?.id ?? review.id,
+        duplicate: true,
+        limited: false,
+        findingsSkipped: false,
+      };
     },
     /** Deletes every row of this account in a table; returns how many. */
     async removeAll(name: Name): Promise<number> {

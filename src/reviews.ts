@@ -118,16 +118,25 @@ reviews.post("/", requireSession(["web", "cli"]), async (c) => {
       ? parseFindings(list)
       : { rows: [], truncated: false };
   // A run uploads once; a retry of the same run, even a concurrent one, is
-  // not a second review.
-  const { id, duplicate } = await c.var.data.insertReview(
+  // not a second review. Uploads per UTC day and stored findings are capped
+  // per account (audit S3): a loop of uploads cannot fill the database.
+  const limit = Number(c.env.REVIEW_DAILY_UPLOADS);
+  const { id, duplicate, limited, findingsSkipped } = await c.var.data.insertReview(
     { id: crypto.randomUUID(), ...row },
     parsed.rows,
+    {
+      since: new Date(new Date().toISOString().slice(0, 10)),
+      dailyUploads: limit,
+      maxFindings: Number(c.env.REVIEW_MAX_FINDINGS),
+    },
   );
   if (duplicate) return c.json({ id, duplicate: true });
+  if (limited) return c.json({ error: "daily_limit", limit }, 429);
   return c.json({
     id,
-    findings: parsed.rows.length,
+    findings: findingsSkipped ? 0 : parsed.rows.length,
     ...(parsed.truncated ? { truncated: true } : {}),
+    ...(findingsSkipped ? { findingsSkipped: "account_limit" } : {}),
   });
 });
 
