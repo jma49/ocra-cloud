@@ -1,8 +1,10 @@
+import type { ProviderGroup } from "../../src/api-types.js";
+
 export type Me = { login: string; githubId: number; session: "web" | "cli"; since: string };
 export type ProviderInfo = {
   name: string;
   label: string;
-  group: "Major" | "China" | "Platforms";
+  group: ProviderGroup;
   base: string;
   paths: string[];
 };
@@ -18,7 +20,7 @@ export type Key = {
   calls7d: number;
 };
 export type KeyCheck = { status: CheckStatus; httpStatus?: number };
-export type Call = {
+type Call = {
   id: string;
   provider: string;
   path: string;
@@ -167,4 +169,3 @@ export type Reviews = {
   >;
   reviews: Review[];
 };
-export type ModelChains = { top?: string[]; standard?: string[]; light?: string[] };

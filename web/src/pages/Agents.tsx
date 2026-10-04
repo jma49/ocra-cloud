@@ -118,6 +118,7 @@ export function Agents() {
             </div>
           </div>
           <Seg
+            label="Runtime"
             value={draft.runtime ?? "default"}
             options={[
               { value: "default", label: "Repository default" },

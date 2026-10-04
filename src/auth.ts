@@ -17,7 +17,7 @@ const STATE_COOKIE = "ocra_oauth_state";
 const DAY = 86_400_000;
 export const SESSION_DAYS = { web: 30, cli: 90 } as const;
 /** A CLI access token lives an hour; its refresh token, SESSION_DAYS.cli. */
-export const CLI_ACCESS_MS = 3_600_000;
+const CLI_ACCESS_MS = 3_600_000;
 /** How long a refresh token used once still answers, for a response that was lost. */
 export const REFRESH_GRACE_MS = 60_000;
 

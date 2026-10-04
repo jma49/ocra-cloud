@@ -13,5 +13,11 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["src", "vite.config.ts", "../src/capabilities.ts", "../src/db/schema.ts"]
+  "include": [
+    "src",
+    "vite.config.ts",
+    "../src/api-types.ts",
+    "../src/capabilities.ts",
+    "../src/db/schema.ts"
+  ]
 }

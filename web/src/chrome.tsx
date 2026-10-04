@@ -7,14 +7,28 @@ import { SmallSpider } from "./spider.js";
 // The bar across the top and the footer, on every page.
 
 export function TopBar(props: { me: Me | null }) {
+  // The account menu is a disclosure: a button that shows a few links.
+  // A click elsewhere closes it; Escape closes it and returns focus.
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const button = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     const close = (e: MouseEvent) => {
       if (!ref.current?.contains(e.target as Node)) setOpen(false);
     };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setOpen((was) => {
+        if (was) button.current?.focus();
+        return false;
+      });
+    };
     document.addEventListener("click", close);
-    return () => document.removeEventListener("click", close);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("click", close);
+      document.removeEventListener("keydown", onKey);
+    };
   }, []);
   const logout = async () => {
     await api("/auth/logout", { method: "POST" }).catch(() => {});
@@ -37,10 +51,13 @@ export function TopBar(props: { me: Me | null }) {
       {props.me && (
         <div ref={ref}>
           <button
+            ref={button}
             type="button"
             className="avatar-btn"
             onClick={() => setOpen(!open)}
             aria-expanded={open}
+            aria-controls="account-menu"
+            aria-label={`Account: ${props.me.login}`}
           >
             <img
               className="avatar"
@@ -50,7 +67,7 @@ export function TopBar(props: { me: Me | null }) {
             <span className="small">{props.me.login}</span>
           </button>
           {open && (
-            <div className="menu" role="menu">
+            <div className="menu" id="account-menu">
               <div className="menu-head">
                 <div style={{ fontWeight: 500 }}>{props.me.login}</div>
                 <div className="subtle small">Signed in with GitHub</div>

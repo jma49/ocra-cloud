@@ -3,7 +3,7 @@ import { redact } from "./redact.js";
 // A finding as the CLI uploads it when the account shares findings
 // (ADR-0028, 2), checked, redacted and bounded again on the server.
 
-export const MAX_FINDINGS = 200;
+const MAX_FINDINGS = 200;
 const MAX_FIELD = 4096;
 const MAX_TOTAL = 262_144;
 const SEVERITIES = ["critical", "warning", "suggestion"];

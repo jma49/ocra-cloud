@@ -14,26 +14,27 @@ export function PageHead(props: { title: string; sub?: ReactNode; actions?: Reac
   );
 }
 
+/** One choice of a few, as toggle buttons (not tabs: no panels follow). */
 export function Seg<T extends string | number>(props: {
   value: T;
   options: { value: T; label: string }[];
   onChange: (v: T) => void;
+  label: string;
 }) {
   return (
-    <div className="seg" role="tablist">
+    <fieldset className="seg" aria-label={props.label}>
       {props.options.map((o) => (
         <button
           key={String(o.value)}
           type="button"
-          role="tab"
-          aria-selected={o.value === props.value}
+          aria-pressed={o.value === props.value}
           className={o.value === props.value ? "on" : ""}
           onClick={() => props.onChange(o.value)}
         >
           {o.label}
         </button>
       ))}
-    </div>
+    </fieldset>
   );
 }
 

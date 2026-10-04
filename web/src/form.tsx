@@ -1,4 +1,5 @@
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
+import { useResets } from "./prefs.js";
 
 // Settings rows: a label, what it does, its built-in default, and a control.
 // Unset means "the repository's value, else the default", shown as such.
@@ -28,11 +29,18 @@ export function NumberField(props: {
   const [text, setText] = useState(props.value === undefined ? "" : String(props.value));
   // Follow a value that changes from outside (the settings loading, Discard,
   // a restored version), but not one this field is in the middle of typing.
+  // Discard and Reload always resync: text the draft never took ("abc")
+  // leaves the value unchanged, so only the reset count shows it is stale.
+  const resets = useResets();
+  const seen = useRef(resets);
   // biome-ignore lint/correctness/useExhaustiveDependencies: only an outside change of the value resyncs
   useEffect(() => {
+    const reset = seen.current !== resets;
+    seen.current = resets;
     const shown = text.trim() === "" ? undefined : Number(text);
-    if (shown !== props.value) setText(props.value === undefined ? "" : String(props.value));
-  }, [props.value]);
+    if (reset || shown !== props.value)
+      setText(props.value === undefined ? "" : String(props.value));
+  }, [props.value, resets]);
   const invalid =
     text !== "" &&
     (Number.isNaN(Number(text)) || Number(text) < props.min || Number(text) > props.max);

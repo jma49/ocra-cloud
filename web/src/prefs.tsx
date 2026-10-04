@@ -7,39 +7,25 @@ import {
   useMemo,
   useState,
 } from "react";
+import type {
+  AgentPrefs,
+  Effort,
+  ModelChains,
+  ReviewSettings,
+  Rule,
+  Runtime,
+  Tier,
+} from "../../src/api-types.js";
 import { ApiError, api, why } from "./api.js";
 
 // The account's preferences, shared by the configuration pages: one saved
 // copy, one draft, a save bar when they differ, and a toast after saving.
 
-export type Effort = "none" | "minimal" | "low" | "medium" | "high";
-export type Tier = "top" | "standard" | "light";
-export type Rule = { path: string | string[]; rule: string };
-export type Settings = {
-  ultra?: boolean;
-  concurrency?: number;
-  taskTimeoutMinutes?: number;
-  runTimeoutMinutes?: number;
-  maxCostUsd?: number;
-  maxTasks?: number;
-  verify?: boolean;
-  judge?: boolean;
-  sampling?: { temperature?: number; seed?: number };
-  include?: string[];
-  exclude?: string[];
-  github?: { requestChanges?: boolean };
-  rules?: Rule[];
-  plugins?: string[];
-  pluginSettings?: Record<string, unknown>;
-};
-export type AgentPrefs = {
-  effort?: Partial<Record<Tier, Effort>>;
-  reviewers?: Record<string, { enabled?: boolean; models?: string[]; effort?: Effort }>;
-  roles?: Partial<Record<"verifier" | "judge" | "helper", { models?: string[]; effort?: Effort }>>;
-};
+export type { AgentPrefs, Effort, Rule, Tier };
+export type Settings = ReviewSettings;
 export type Prefs = {
-  runtime: "direct" | "opencode" | null;
-  models: Partial<Record<Tier, string[]>>;
+  runtime: Runtime | null;
+  models: ModelChains;
   agents: AgentPrefs;
   settings: Settings;
   updatedAt?: string | null;
@@ -62,11 +48,31 @@ type Ctx = {
   stale: boolean;
   reload: () => Promise<void>;
   toast: (message: string) => void;
+  // Counts Discard and Reload: a field holding text that never reached the
+  // draft (such as "abc" in a number field) shows the saved value again.
+  resets: number;
 };
 
 const PrefsContext = createContext<Ctx | null>(null);
 
-const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+/**
+ * Whether two drafts hold the same values: key order does not matter, and a
+ * key set to undefined is the same as no key (neither is sent). Array order
+ * does matter (a model chain is tried in order).
+ */
+function same(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (Array.isArray(a) || Array.isArray(b)) {
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+    return a.every((x, i) => same(x, b[i]));
+  }
+  if (typeof a !== "object" || typeof b !== "object" || a === null || b === null) return false;
+  const defined = (o: object) =>
+    Object.entries(o).filter(([, v]) => v !== undefined) as [string, unknown][];
+  const ea = defined(a);
+  const eb = new Map(defined(b));
+  return ea.length === eb.size && ea.every(([k, v]) => eb.has(k) && same(v, eb.get(k)));
+}
 const strip = (p: Prefs) => ({
   runtime: p.runtime,
   models: p.models,
@@ -96,6 +102,7 @@ export function PrefsProvider(props: { children: ReactNode; clean?: (p: Prefs) =
   const [error, setError] = useState("");
   const [stale, setStale] = useState(false);
   const [message, setMessage] = useState("");
+  const [resets, setResets] = useState(0);
 
   useEffect(() => {
     api<Prefs>("/preferences").then(
@@ -152,6 +159,7 @@ export function PrefsProvider(props: { children: ReactNode; clean?: (p: Prefs) =
       setDraft(p);
       setStale(false);
       setError("");
+      setResets((n) => n + 1);
       toast("Loaded the latest settings");
     } catch {
       setError("Could not load your settings.");
@@ -163,6 +171,7 @@ export function PrefsProvider(props: { children: ReactNode; clean?: (p: Prefs) =
   const discard = useCallback(() => {
     setDraft(saved);
     setError("");
+    setResets((n) => n + 1);
   }, [saved]);
 
   // Leaving the page with unsaved changes asks first.
@@ -186,8 +195,9 @@ export function PrefsProvider(props: { children: ReactNode; clean?: (p: Prefs) =
       stale,
       reload,
       toast,
+      resets,
     }),
-    [saved, draft, update, dirty, saving, error, save, discard, stale, reload, toast],
+    [saved, draft, update, dirty, saving, error, save, discard, stale, reload, toast, resets],
   );
   return (
     <PrefsContext.Provider value={value}>
@@ -237,13 +247,17 @@ export function PrefsProvider(props: { children: ReactNode; clean?: (p: Prefs) =
   );
 }
 
+/** How many times the draft was reset; 0 outside a PrefsProvider. */
+export function useResets(): number {
+  return useContext(PrefsContext)?.resets ?? 0;
+}
+
 export function usePrefs(): Ctx {
   const ctx = useContext(PrefsContext);
   if (!ctx) throw new Error("usePrefs outside PrefsProvider");
   return ctx;
 }
 
-/** Updates one part of the draft's settings; an empty value removes the key. */
 const isEmpty = (value: unknown) =>
   value === undefined ||
   (Array.isArray(value) && value.length === 0) ||

@@ -6,7 +6,7 @@ import { auditEvents, deviceCodes, gatewayCalls, reviews, sessions } from "./db/
 // records and the audit log are deleted after RETENTION_DAYS; expired login
 // codes and sessions go at once. Runs daily from the cron trigger.
 
-export const RETENTION_DAYS = 90;
+const RETENTION_DAYS = 90;
 const DAY = 86_400_000;
 
 /** A `days` query clamped to 1..RETENTION_DAYS: older records are gone. */
