@@ -103,9 +103,9 @@ function importConfig(text: string, current: Prefs, keyed: Set<string>): Importe
       models: { ...current.models, ...models },
       agents: {
         ...current.agents,
-        ...(file.effort ? { effort: file.effort as Prefs["agents"]["effort"] } : {}),
+        ...(file.effort ? { effort: file.effort as NonNullable<Prefs["agents"]["effort"]> } : {}),
         reviewers: { ...current.agents.reviewers, ...reviewers },
-        ...(file.roles ? { roles: file.roles as Prefs["agents"]["roles"] } : {}),
+        ...(file.roles ? { roles: file.roles as NonNullable<Prefs["agents"]["roles"]> } : {}),
       },
       settings,
     },

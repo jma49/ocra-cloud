@@ -118,12 +118,12 @@ reviews.get("/:id", requireSession(), async (c) => {
 // Two fields are ocra Cloud's own: `redacted` (the server or the CLI
 // replaced a secret-looking string with [redacted]) and `truncated` (a
 // long field was cut).
-export const EXPORT_VERSION = 2;
+const EXPORT_VERSION = 2;
 
 type FindingRow = Awaited<ReturnType<Scoped["findingsOf"]>>[number];
 
 /** A review as the web and the export show it; the account id stays on the server. */
-export function reviewDto(r: Row<"reviews">) {
+function reviewDto(r: Row<"reviews">) {
   return {
     id: r.id,
     runId: r.runId,
@@ -159,7 +159,7 @@ function listedReview(r: Row<"reviews">) {
 }
 
 /** A finding as the web's detail page shows it. */
-export function findingDto(f: FindingRow) {
+function findingDto(f: FindingRow) {
   return {
     id: f.id,
     fingerprint: f.fingerprint,

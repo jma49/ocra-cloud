@@ -39,7 +39,7 @@ const split = (m: string) => {
  * The models of each provider with a key, asked for once per provider: each
  * request reaches the provider's own API with the account's key.
  */
-export function useModelInfo(providers: string[]) {
+function useModelInfo(providers: string[]) {
   const [info, setInfo] = useState<Record<string, ModelInfo[]>>({});
   const asked = useRef(new Set<string>());
   useEffect(() => {
@@ -198,10 +198,16 @@ export function Agents() {
                 const own = a.role
                   ? draft.agents.roles?.[a.id as Role]
                   : draft.agents.reviewers?.[a.id];
-                const update = (patch: { enabled?: boolean; models?: Chain; effort?: Effort }) => {
-                  const next = { ...own, ...patch };
-                  for (const k of Object.keys(next) as (keyof typeof next)[])
-                    if (next[k] === undefined) delete next[k];
+                // An undefined field is removed: the agent inherits it again.
+                const update = (patch: {
+                  enabled?: boolean | undefined;
+                  models?: Chain | undefined;
+                  effort?: Effort | undefined;
+                }) => {
+                  const merged = { ...own, ...patch };
+                  for (const k of Object.keys(merged) as (keyof typeof merged)[])
+                    if (merged[k] === undefined) delete merged[k];
+                  const next = merged as NonNullable<typeof own>;
                   if (a.role)
                     setAgents({ ...draft.agents, roles: { ...draft.agents.roles, [a.id]: next } });
                   else
@@ -300,14 +306,16 @@ export function completeAgents(p: Prefs): Prefs {
   const models = Object.fromEntries(
     TIERS.map((t) => [t.id, keep(p.models[t.id])]).filter(([, c]) => c),
   );
+  const withModels = <T extends { models?: Chain }>(r: T | undefined): T => {
+    const { models, ...rest } = r ?? ({} as T);
+    const done = keep(models);
+    return (done ? { ...rest, models: done } : rest) as T;
+  };
   const reviewers = Object.fromEntries(
-    Object.entries(p.agents.reviewers ?? {}).map(([id, r]) => [
-      id,
-      { ...r, models: keep(r?.models) },
-    ]),
+    Object.entries(p.agents.reviewers ?? {}).map(([id, r]) => [id, withModels(r)]),
   );
   const roles = Object.fromEntries(
-    Object.entries(p.agents.roles ?? {}).map(([id, r]) => [id, { ...r, models: keep(r?.models) }]),
+    Object.entries(p.agents.roles ?? {}).map(([id, r]) => [id, withModels(r)]),
   );
   return { ...p, models, agents: { ...p.agents, reviewers, roles } };
 }

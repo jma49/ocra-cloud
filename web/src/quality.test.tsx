@@ -39,13 +39,15 @@ function SetDraft(props: { to: (p: Prefs) => Prefs }) {
 describe("unsaved changes", () => {
   it("key order and undefined values are not changes", async () => {
     fakeApi();
-    const reorder = (p: Prefs): Prefs => ({
-      version: p.version,
-      settings: { sampling: { temperature: undefined, seed: 1 }, maxTasks: 20 },
-      agents: { effort: undefined },
-      models: { top: ["ocra-openai/gpt-5"], light: undefined },
-      runtime: null,
-    });
+    // Undefined fields are what an edited draft holds, though the type omits them.
+    const reorder = (p: Prefs): Prefs =>
+      ({
+        version: p.version,
+        settings: { sampling: { temperature: undefined, seed: 1 }, maxTasks: 20 },
+        agents: { effort: undefined },
+        models: { top: ["ocra-openai/gpt-5"], light: undefined },
+        runtime: null,
+      }) as unknown as Prefs;
     render(
       <PrefsProvider>
         <SetDraft to={reorder} />

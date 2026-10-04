@@ -19,7 +19,7 @@ function toBase64(bytes: Uint8Array): string {
   return btoa(bin);
 }
 
-export function base64url(bytes: Uint8Array): string {
+function base64url(bytes: Uint8Array): string {
   return toBase64(bytes).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
 }
 

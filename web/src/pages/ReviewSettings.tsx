@@ -1,4 +1,4 @@
-import { GlobList, NumberField, Row, TriSwitch } from "../form.js";
+import { GlobList, NumberField, Row, TriSwitch, withOptional } from "../form.js";
 import { usePrefs, useSettings } from "../prefs.js";
 import { PageHead } from "../ui.js";
 
@@ -144,7 +144,7 @@ export function ReviewSettings() {
             placeholder="provider default"
             min={0}
             max={2}
-            onChange={(v) => set("sampling", { ...sampling, temperature: v })}
+            onChange={(v) => set("sampling", withOptional(sampling, "temperature", v))}
           />
         </Row>
         <Row label="Seed" desc="Makes runs repeatable where the provider supports it.">
@@ -154,7 +154,7 @@ export function ReviewSettings() {
             placeholder="none"
             min={0}
             max={2 ** 31 - 1}
-            onChange={(v) => set("sampling", { ...sampling, seed: v && Math.round(v) })}
+            onChange={(v) => set("sampling", withOptional(sampling, "seed", v && Math.round(v)))}
           />
         </Row>
       </div>

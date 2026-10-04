@@ -11,7 +11,7 @@ export const exportRoute = new Hono<AppEnv>().use(requireSession());
 // a whole table; each stops at EXPORT_MAX_ROWS, and the tables cut short are
 // listed under `truncated`.
 const EXPORT_PAGE = 500;
-export const EXPORT_MAX_ROWS = 250_000;
+const EXPORT_MAX_ROWS = 250_000;
 
 type Table = Parameters<Scoped["page"]>[0];
 

@@ -131,7 +131,7 @@ export const reviews = sqliteTable(
     ocraVersion: text("ocra_version"),
     // ADR-0028, 1: numbers per reviewer and the run's outcomes; never text.
     byReviewer: text("by_reviewer", { mode: "json" }).$type<Record<string, ReviewerCounts>>(),
-    verification: text("verification", { mode: "json" }).$type<Record<string, number>>(),
+    verification: text("verification", { mode: "json" }).$type<Partial<Record<string, number>>>(),
     fixed: integer("fixed").notNull().default(0),
     dismissed: integer("dismissed").notNull().default(0),
     createdAt: createdAt(),

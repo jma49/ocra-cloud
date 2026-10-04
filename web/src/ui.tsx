@@ -103,7 +103,7 @@ export function useAction<A extends unknown[], R>(fn: (...args: A) => Promise<R>
 let providersOnce: Promise<ProviderInfo[]> | undefined;
 
 /** The providers the gateway forwards (public; the same list the CLI reads). */
-export function loadProviders(): Promise<ProviderInfo[]> {
+function loadProviders(): Promise<ProviderInfo[]> {
   providersOnce ??= api<{ providers: ProviderInfo[] }>("/providers").then(
     (r) => r.providers,
     (e) => {

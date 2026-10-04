@@ -32,7 +32,7 @@ export type Route = {
   page: (me: Me, params: string[]) => ReactNode;
 };
 
-export const ROUTES: readonly Route[] = [
+const ROUTES: readonly Route[] = [
   {
     path: "/",
     nav: { label: "Overview", icon: "home", group: "Console" },

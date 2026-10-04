@@ -17,7 +17,7 @@ import { ErrorBoundary, forgetProviders } from "./ui.js";
 
 type Handler = (path: string, init?: RequestInit) => Response | Promise<Response>;
 function fakeApi(handler: Handler) {
-  const calls: { path: string; init?: RequestInit }[] = [];
+  const calls: { path: string; init?: RequestInit | undefined }[] = [];
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: string, init?: RequestInit) => {

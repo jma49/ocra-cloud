@@ -20,9 +20,9 @@ import type { AppEnv } from "./types.js";
  * a sibling subdomain cannot plant a session (login CSRF). Renamed from
  * `ocra_session`, which signed browsers out once (#15).
  */
-export const SESSION_COOKIE = "__Host-ocra_session";
+const SESSION_COOKIE = "__Host-ocra_session";
 const DAY = 86_400_000;
-export const SESSION_DAYS = { web: 30, cli: 90 } as const;
+const SESSION_DAYS = { web: 30, cli: 90 } as const;
 /** A CLI access token lives an hour; its refresh token, SESSION_DAYS.cli. */
 const CLI_ACCESS_MS = 3_600_000;
 /** How long a refresh token used once still answers, for a response that was lost. */

@@ -103,13 +103,13 @@ export function SpiderMark({
 }: {
   size: number;
   // On a dark ground the body lifts slightly so the silhouette reads.
-  dark?: boolean;
+  dark?: boolean | undefined;
   // Offset of the aquamarine and pink plates; 0 prints one ink only.
   glitch?: number;
   slice?: boolean;
   // Adds the classes the glitch keyframes in landing.css target.
   animated?: boolean;
-  className?: string;
+  className?: string | undefined;
   label?: string;
 }) {
   const id = useId().replace(/:/g, "");
