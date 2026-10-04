@@ -17,9 +17,12 @@ import type {
   Tier,
 } from "../../src/api-types.js";
 import { ApiError, api, why } from "./api.js";
+import { useToast } from "./toast.js";
 
 // The account's preferences, shared by the configuration pages: one saved
 // copy, one draft, a save bar when they differ, and a toast after saving.
+// They load when a configuration page first shows (idle until then), and
+// the draft stays while the person visits other pages.
 
 export type { AgentPrefs, Effort, Rule, Tier };
 export type Settings = ReviewSettings;
@@ -47,7 +50,6 @@ type Ctx = {
   // Set when a save was refused because the settings changed elsewhere.
   stale: boolean;
   reload: () => Promise<void>;
-  toast: (message: string) => void;
   // Counts Discard and Reload: a field holding text that never reached the
   // draft (such as "abc" in a number field) shows the saved value again.
   resets: number;
@@ -95,16 +97,27 @@ function dropEmptyRules(p: Prefs): Prefs {
   return { ...p, settings: rules.length > 0 ? { ...rest, rules } : rest };
 }
 
-export function PrefsProvider(props: { children: ReactNode; clean?: (p: Prefs) => Prefs }) {
+export function PrefsProvider(props: {
+  children: ReactNode;
+  clean?: (p: Prefs) => Prefs;
+  /** No configuration page has shown yet: nothing to load. */
+  idle?: boolean;
+}) {
   const [saved, setSaved] = useState<Prefs | undefined>(undefined);
   const [draft, setDraft] = useState<Prefs | undefined>(undefined);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [stale, setStale] = useState(false);
-  const [message, setMessage] = useState("");
   const [resets, setResets] = useState(0);
+  const toast = useToast();
+  // Latched: once a configuration page has shown, the preferences stay loaded.
+  const [wanted, setWanted] = useState(!props.idle);
+  useEffect(() => {
+    if (!props.idle) setWanted(true);
+  }, [props.idle]);
 
   useEffect(() => {
+    if (!wanted) return;
     api<Prefs>("/preferences").then(
       (p) => {
         setSaved(p);
@@ -112,16 +125,11 @@ export function PrefsProvider(props: { children: ReactNode; clean?: (p: Prefs) =
       },
       () => setError("Could not load your settings."),
     );
-  }, []);
+  }, [wanted]);
 
   // Before the preferences load there is no draft to update.
   const update = useCallback((p: Prefs | ((prev: Prefs) => Prefs)) => {
     setDraft((prev) => (prev === undefined ? prev : typeof p === "function" ? p(prev) : p));
-  }, []);
-
-  const toast = useCallback((m: string) => {
-    setMessage(m);
-    setTimeout(() => setMessage(""), 2600);
   }, []);
 
   const dirty = !!saved && !!draft && !same(strip(saved), strip(draft));
@@ -194,10 +202,9 @@ export function PrefsProvider(props: { children: ReactNode; clean?: (p: Prefs) =
       discard,
       stale,
       reload,
-      toast,
       resets,
     }),
-    [saved, draft, update, dirty, saving, error, save, discard, stale, reload, toast, resets],
+    [saved, draft, update, dirty, saving, error, save, discard, stale, reload, resets],
   );
   return (
     <PrefsContext.Provider value={value}>
@@ -237,11 +244,6 @@ export function PrefsProvider(props: { children: ReactNode; clean?: (p: Prefs) =
             </button>
           </span>
         </section>
-      )}
-      {message && (
-        <div className="toast" role="status">
-          {message}
-        </div>
       )}
     </PrefsContext.Provider>
   );

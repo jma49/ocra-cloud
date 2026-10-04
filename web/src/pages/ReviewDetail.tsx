@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { ApiError, api, time } from "../api.js";
+import { ApiError, api } from "../api.js";
+import { time } from "../format.js";
 import { Link } from "../router.js";
 import { LoadError, Loading, PageHead, Seg, useLoad } from "../ui.js";
 
@@ -42,7 +43,7 @@ type Detail = {
 const SEV_CLASS = { critical: "badge-err", warning: "badge-warn", suggestion: "" } as const;
 
 export function ReviewDetail(props: { id: string }) {
-  const [data, error, reload] = useLoad(
+  const { data, error, reload } = useLoad(
     () => api<Detail>(`/reviews/${encodeURIComponent(props.id)}`),
     [props.id],
   );

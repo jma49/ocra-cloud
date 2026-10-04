@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { effortLevels } from "../../../src/capabilities.js";
 import { api, type Key, type ProviderInfo } from "../api.js";
 import { type AgentPrefs, type Effort, type Prefs, type Tier, usePrefs } from "../prefs.js";
 import { Link } from "../router.js";
-import { PageHead, Seg, useLoad } from "../ui.js";
+import { PageHead, Seg, useLoad, useProviders } from "../ui.js";
 
 // The runtime, the tier defaults and each agent's model and reasoning effort
 // (ADR-0025). The CLI layers these under a repository's own configuration.
@@ -35,29 +35,34 @@ const split = (m: string) => {
   return { provider: m.slice(5, slash), model: m.slice(slash + 1) };
 };
 
-/** The models of each provider with a key, loaded once per provider. */
-function useModelInfo(providers: string[]) {
+/**
+ * The models of each provider with a key, asked for once per provider: each
+ * request reaches the provider's own API with the account's key.
+ */
+export function useModelInfo(providers: string[]) {
   const [info, setInfo] = useState<Record<string, ModelInfo[]>>({});
+  const asked = useRef(new Set<string>());
   useEffect(() => {
     for (const p of providers) {
-      if (info[p]) continue;
+      if (asked.current.has(p)) continue;
+      asked.current.add(p);
       api<{ models: ModelInfo[] }>(`/keys/${p}/models`).then(
         (r) => setInfo((cur) => ({ ...cur, [p]: r.models })),
         () => setInfo((cur) => ({ ...cur, [p]: [] })),
       );
     }
-  }, [providers, info]);
+  }, [providers]);
   return info;
 }
 
 export function Agents() {
-  const [providers] = useLoad(() => api<{ providers: ProviderInfo[] }>("/providers"));
-  const [keys] = useLoad(() => api<{ keys: Key[] }>("/keys"));
+  const providers = useProviders();
+  const { data: keys } = useLoad(() => api<{ keys: Key[] }>("/keys"));
   const { draft, setDraft } = usePrefs();
 
   const usable = useMemo(() => {
     const have = new Set((keys?.keys ?? []).map((k) => k.provider));
-    return (providers?.providers ?? []).filter(
+    return (providers ?? []).filter(
       (p) => have.has(p.name) && p.paths.some((x) => x.endsWith("/chat/completions")),
     );
   }, [providers, keys]);

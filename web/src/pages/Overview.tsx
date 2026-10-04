@@ -1,11 +1,16 @@
-import { api, compact, type Key, num, type Usage } from "../api.js";
+import { api, type Key, type Usage } from "../api.js";
+import { compact, num } from "../format.js";
 import { Link } from "../router.js";
 import { anyProvider } from "../site.js";
 import { LoadError, Loading, PageHead, StackedBars, useLoad, useProviders } from "../ui.js";
 
 export function Overview(props: { login: string }) {
-  const [usage, usageError, reloadUsage] = useLoad(() => api<Usage>("/usage?days=14"));
-  const [keys] = useLoad(() => api<{ keys: Key[] }>("/keys"));
+  const {
+    data: usage,
+    error: usageError,
+    reload: reloadUsage,
+  } = useLoad(() => api<Usage>("/usage?days=14"));
+  const { data: keys } = useLoad(() => api<{ keys: Key[] }>("/keys"));
   const providers = useProviders();
   const week = usage?.series.slice(-7) ?? [];
   const sum = (f: (d: Usage["series"][number]) => number) => week.reduce((n, d) => n + f(d), 0);

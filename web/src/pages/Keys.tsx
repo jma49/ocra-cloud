@@ -1,20 +1,18 @@
 import { useMemo, useState } from "react";
-import { ago, api, type CheckStatus, date, type Key, num, type ProviderInfo, why } from "../api.js";
+import { api, type CheckStatus, type Key, type ProviderInfo, why } from "../api.js";
+import { ago, date, num } from "../format.js";
 import { anyProvider } from "../site.js";
-import { PageHead, ProviderLogo, useLoad } from "../ui.js";
+import { PageHead, ProviderLogo, useLoad, useProviders } from "../ui.js";
 import { AddKeyDrawer, formats, POPULAR } from "./KeyDrawer.js";
 
 // Like the channel pages of API relays: the page lists the keys you have;
 // adding one happens in a drawer (KeyDrawer.tsx).
 
 export function Keys() {
-  const [providers] = useLoad(() => api<{ providers: ProviderInfo[] }>("/providers"));
-  const [keys, keysError, reload] = useLoad(() => api<{ keys: Key[] }>("/keys"));
+  const providers = useProviders();
+  const { data: keys, error: keysError, reload } = useLoad(() => api<{ keys: Key[] }>("/keys"));
   const [drawer, setDrawer] = useState<{ provider: string | null } | null>(null);
-  const info = useMemo(
-    () => new Map((providers?.providers ?? []).map((p) => [p.name, p])),
-    [providers],
-  );
+  const info = useMemo(() => new Map((providers ?? []).map((p) => [p.name, p])), [providers]);
   const list = keys?.keys ?? [];
 
   return (
@@ -37,8 +35,8 @@ export function Keys() {
         <div className="card empty-hero">
           <h3>No provider keys yet</h3>
           <p>
-            Add a key from {anyProvider(providers?.providers.length)}. It is encrypted at rest and
-            never shown again.
+            Add a key from {anyProvider(providers?.length)}. It is encrypted at rest and never shown
+            again.
           </p>
           <button
             type="button"
@@ -100,7 +98,7 @@ export function Keys() {
       </p>
       {drawer && providers && (
         <AddKeyDrawer
-          providers={providers.providers}
+          providers={providers}
           configured={new Set(list.map((k) => k.provider))}
           initial={drawer.provider}
           onClose={() => setDrawer(null)}

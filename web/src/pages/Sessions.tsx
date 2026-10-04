@@ -1,25 +1,27 @@
 import { useState } from "react";
-import { ago, api, date, type Session, why } from "../api.js";
-import { LoadError, Loading, PageHead, useLoad } from "../ui.js";
+import { api, type Session, why } from "../api.js";
+import { ago, date } from "../format.js";
+import { LoadError, Loading, PageHead, useAction, useLoad } from "../ui.js";
 
 export function Sessions() {
-  const [data, loadError, reload] = useLoad(() => api<{ sessions: Session[] }>("/sessions"));
-  const [busy, setBusy] = useState<string | null>(null);
-  const [failed, setFailed] = useState("");
+  const {
+    data,
+    error: loadError,
+    reload,
+  } = useLoad(() => api<{ sessions: Session[] }>("/sessions"));
+  const [target, setTarget] = useState<Session | null>(null);
+  const end = useAction((s: Session) => api(`/sessions/${s.id}`, { method: "DELETE" }));
   const revoke = async (s: Session) => {
-    setBusy(s.id);
-    setFailed("");
-    try {
-      await api(`/sessions/${s.id}`, { method: "DELETE" });
-    } catch (e) {
-      setBusy(null);
-      setFailed(`Could not ${s.current ? "sign out" : "revoke the session"}: ${why(e)}.`);
-      return;
-    }
-    setBusy(null);
+    setTarget(s);
+    if ((await end.run(s)) === undefined) return;
     if (s.current) location.href = "/";
     else reload();
   };
+  const busy = end.busy ? target?.id : null;
+  const failed =
+    end.error && target
+      ? `Could not ${target.current ? "sign out" : "revoke the session"}: ${why(end.error)}.`
+      : "";
   return (
     <>
       <PageHead title="CLI & sessions" sub="Browsers and terminals signed in to your account." />

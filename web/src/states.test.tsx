@@ -9,7 +9,8 @@ import { Rules } from "./pages/Rules.js";
 import { Sessions } from "./pages/Sessions.js";
 import { PrefsProvider } from "./prefs.js";
 import { pageFor } from "./routes.js";
-import { ErrorBoundary } from "./ui.js";
+import { ToastProvider } from "./toast.js";
+import { ErrorBoundary, forgetProviders } from "./ui.js";
 
 // Honest states: a failure says what failed and why, loading is not "empty",
 // and a bad address or a throwing page does not blank the console.
@@ -32,6 +33,7 @@ const me = { login: "ada", githubId: 1, session: "web" as const, since: "" };
 const never = () => new Promise<Response>(() => {});
 
 afterEach(() => {
+  forgetProviders();
   cleanup();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
@@ -85,9 +87,11 @@ describe("saving settings", () => {
         : Response.json(prefs),
     );
     render(
-      <PrefsProvider>
-        <Rules />
-      </PrefsProvider>,
+      <ToastProvider>
+        <PrefsProvider>
+          <Rules />
+        </PrefsProvider>
+      </ToastProvider>,
     );
     fireEvent.click(await screen.findByRole("button", { name: "Write your first rule" }));
     fireEvent.click(await screen.findByRole("button", { name: "Save changes" }));

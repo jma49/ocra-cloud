@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { ago, api, why } from "../api.js";
-import { LoadError, Loading, PageHead, useLoad } from "../ui.js";
+import { api, why } from "../api.js";
+import { ago } from "../format.js";
+import { LoadError, Loading, PageHead, useAction, useLoad } from "../ui.js";
 
 // What the account remembers (ADR-0028, 4): applied with a repository's own
 // .ocra/memory.json, which wins on a conflict.
@@ -16,17 +16,12 @@ type Entry = {
 };
 
 export function Memory() {
-  const [data, loadError, reload] = useLoad(() => api<{ entries: Entry[] }>("/memory"));
-  const [failed, setFailed] = useState("");
+  const { data, error: loadError, reload } = useLoad(() => api<{ entries: Entry[] }>("/memory"));
+  const forget = useAction((id: string) => api(`/memory/${id}`, { method: "DELETE" }));
   const remove = async (id: string) => {
-    setFailed("");
-    try {
-      await api(`/memory/${id}`, { method: "DELETE" });
-      reload();
-    } catch (e) {
-      setFailed(`Could not forget it: ${why(e)}.`);
-    }
+    if ((await forget.run(id)) !== undefined) reload();
   };
+  const failed = forget.error ? `Could not forget it: ${why(forget.error)}.` : "";
   return (
     <>
       <PageHead

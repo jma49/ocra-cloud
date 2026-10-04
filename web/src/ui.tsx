@@ -1,5 +1,6 @@
-import { Component, type ReactNode, useEffect, useState } from "react";
-import { api, compact, type Day, type ProviderInfo, why } from "./api.js";
+import { Component, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { api, type Day, type ProviderInfo, why } from "./api.js";
+import { compact } from "./format.js";
 import { Link } from "./router.js";
 
 export function PageHead(props: { title: string; sub?: ReactNode; actions?: ReactNode }) {
@@ -38,35 +39,89 @@ export function Seg<T extends string | number>(props: {
   );
 }
 
-/** Loads once per change of deps; returns [data, error, reload]. */
+/**
+ * Loads once per change of deps. A change of deps starts again from no
+ * data, so a page never shows the previous period's while the new one
+ * loads; reload() keeps what is shown until the new answer arrives.
+ */
 export function useLoad<T>(load: () => Promise<T>, deps: unknown[] = []) {
-  const [data, setData] = useState<T | undefined>(undefined);
-  const [error, setError] = useState<unknown>(null);
+  const [state, setState] = useState<{ data?: T; error: unknown; loading: boolean }>({
+    error: null,
+    loading: true,
+  });
   const [n, setN] = useState(0);
+  const loadedFor = useRef(n);
   // biome-ignore lint/correctness/useExhaustiveDependencies: deps are the caller's
   useEffect(() => {
     let live = true;
+    // A reload keeps what is shown; new deps start from nothing.
+    const reloading = n !== loadedFor.current;
+    loadedFor.current = n;
+    setState((s) => (reloading ? { ...s, loading: true } : { error: null, loading: true }));
     load().then(
-      (d) => {
-        if (!live) return;
-        setData(d);
-        setError(null);
+      (data) => {
+        if (live) setState({ data, error: null, loading: false });
       },
-      (e) => {
-        if (live) setError(e);
+      (error) => {
+        if (live) setState((s) => ({ ...s, error, loading: false }));
       },
     );
     return () => {
       live = false;
     };
   }, [n, ...deps]);
-  return [data, error, () => setN((x) => x + 1)] as const;
+  const reload = useCallback(() => setN((x) => x + 1), []);
+  return { ...state, reload };
 }
 
+/**
+ * A change the page asks for (a delete, a save): run() resolves to the
+ * result, or undefined when it failed, and error holds why until the next run.
+ */
+export function useAction<A extends unknown[], R>(fn: (...args: A) => Promise<R>) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+  const latest = useRef(fn);
+  latest.current = fn;
+  const run = useCallback(async (...args: A): Promise<R | undefined> => {
+    setBusy(true);
+    setError(null);
+    try {
+      return await latest.current(...args);
+    } catch (e) {
+      setError(e);
+      return undefined;
+    } finally {
+      setBusy(false);
+    }
+  }, []);
+  return { run, busy, error };
+}
+
+// The providers list is the same for everyone and changes only with a
+// deploy: one request per page load, shared by every page.
+let providersOnce: Promise<ProviderInfo[]> | undefined;
+
 /** The providers the gateway forwards (public; the same list the CLI reads). */
+export function loadProviders(): Promise<ProviderInfo[]> {
+  providersOnce ??= api<{ providers: ProviderInfo[] }>("/providers").then(
+    (r) => r.providers,
+    (e) => {
+      // A failure is not kept: the next page asks again.
+      providersOnce = undefined;
+      throw e;
+    },
+  );
+  return providersOnce;
+}
+
+/** Forgets the shared providers list (for tests). */
+export function forgetProviders(): void {
+  providersOnce = undefined;
+}
+
 export function useProviders(): ProviderInfo[] | undefined {
-  const [data] = useLoad(() => api<{ providers: ProviderInfo[] }>("/providers"));
-  return data?.providers;
+  return useLoad(loadProviders).data;
 }
 
 /** Shown while a page's data is on its way, so "nothing yet" is never a guess. */

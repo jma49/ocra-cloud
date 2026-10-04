@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { api, compact, num, time, type Usage } from "../api.js";
+import { api, type Usage } from "../api.js";
+import { compact, num, time } from "../format.js";
 import { PageHead, Seg, StackedBars, useLoad } from "../ui.js";
 
 const RANGES = [
@@ -12,7 +13,7 @@ const RANGES = [
 export function Activity() {
   const [days, setDays] = useState(30);
   const [metric, setMetric] = useState<"calls" | "tokens">("calls");
-  const [usage, error] = useLoad(() => api<Usage>(`/usage?days=${days}`), [days]);
+  const { data: usage, error } = useLoad(() => api<Usage>(`/usage?days=${days}`), [days]);
   const total = usage?.series.reduce((n, d) => n + d.calls, 0) ?? 0;
   const tokens = usage?.series.reduce((n, d) => n + d.tokensIn + d.tokensOut, 0) ?? 0;
   const errors = usage?.series.reduce((n, d) => n + d.errors, 0) ?? 0;

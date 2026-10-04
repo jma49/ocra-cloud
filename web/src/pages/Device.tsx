@@ -1,5 +1,6 @@
 import { type FormEvent, useEffect, useState } from "react";
-import { ApiError, ago, api } from "../api.js";
+import { ApiError, api } from "../api.js";
+import { ago } from "../format.js";
 import { PageHead } from "../ui.js";
 
 type Info = { user_code: string; label: string | null; createdAt: string };
