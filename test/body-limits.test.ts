@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { call, resetDb, signIn } from "./helpers.js";
+import { call, JSON_TYPE, resetDb, signIn } from "./helpers.js";
 
 // Audit S-hard (#15): every body is counted as it arrives, so a chunked
 // request without a content-length is bounded too, and reading stops as
@@ -39,15 +39,16 @@ describe("streamed request bodies", () => {
       .mockImplementation(async () => new Response("{}", { status: 200 }));
     const put = await call("/api/keys/openrouter", {
       method: "PUT",
-      headers: { ...auth, "content-type": "application/json" },
-      body: JSON.stringify({ key: "sk-or-v1-0123456789abcdef" }),
+      auth: auth,
+      json: { key: "sk-or-v1-0123456789abcdef" },
     });
     expect(put.status).toBe(200);
     fetchSpy.mockClear();
     const { body, state } = chunked(padded(20 * MB, { model: "m" }), MB);
     const res = await call("/api/gateway/openrouter/v1/chat/completions", {
       method: "POST",
-      headers: { ...auth, "content-type": "application/json" },
+      auth,
+      headers: JSON_TYPE,
       body,
     });
     expect(res.status).toBe(413);
@@ -73,7 +74,7 @@ describe("streamed request bodies", () => {
     ];
     for (const [method, path, limit] of routes) {
       const text = padded(limit);
-      const headers = { ...auth, "content-type": "application/json", "cf-connecting-ip": path };
+      const headers = { ...auth, ...JSON_TYPE, "cf-connecting-ip": path };
       // Chunked, with no content-length to go by.
       const { body } = chunked(text);
       const streamed = await call(path, { method, headers, body });
@@ -85,7 +86,8 @@ describe("streamed request bodies", () => {
     // A body under the limit still reads.
     const ok = await call("/api/account/sharing", {
       method: "PUT",
-      headers: { ...auth, "content-type": "application/json" },
+      auth,
+      headers: JSON_TYPE,
       body: chunked(JSON.stringify({ enabled: false })).body,
     });
     expect(ok.status).toBe(200);

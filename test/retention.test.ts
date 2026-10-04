@@ -158,7 +158,7 @@ describe("export and deletion", () => {
       repoHash: "theirs",
       source: "local",
     });
-    const res = await call("/api/export", { headers: me.auth });
+    const res = await call("/api/export", { auth: me.auth });
     expect(res.headers.get("content-disposition")).toContain("attachment");
     const text = await res.text();
     const body = JSON.parse(text) as Record<string, unknown[]>;
@@ -167,7 +167,7 @@ describe("export and deletion", () => {
     ]);
     expect(body.reviews).toHaveLength(1);
     expect(text).not.toMatch(/WRAPPED|CIPHER|theirs|tokenHash|accountId/);
-    expect((await call("/api/export", { headers: other.auth })).status).toBe(403);
+    expect((await call("/api/export", { auth: other.auth })).status).toBe(403);
   });
 
   it("holds a row of every account table, the account's switch and its salt", async () => {
@@ -182,7 +182,7 @@ describe("export and deletion", () => {
     await setSharing(db, me.account.id, true);
     const salt = await accountSalt(db, me.account.id);
 
-    const body = (await (await call("/api/export", { headers: me.auth })).json()) as Record<
+    const body = (await (await call("/api/export", { auth: me.auth })).json()) as Record<
       string,
       unknown
     >;
@@ -204,9 +204,9 @@ describe("export and deletion", () => {
       repoHash: "h",
       source: "local",
     });
-    const theirs = await call("/api/reviews/r", { method: "DELETE", headers: other.auth });
+    const theirs = await call("/api/reviews/r", { method: "DELETE", auth: other.auth });
     expect(await theirs.json()).toEqual({ removed: false });
-    const mine = await call("/api/reviews/r", { method: "DELETE", headers: me.auth });
+    const mine = await call("/api/reviews/r", { method: "DELETE", auth: me.auth });
     expect(await mine.json()).toEqual({ removed: true });
   });
 });

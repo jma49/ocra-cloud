@@ -2,39 +2,37 @@ import { createExecutionContext, waitOnExecutionContext } from "cloudflare:test"
 import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, it } from "vitest";
 import app from "../src/index.js";
-import { call, ORIGIN, resetDb, signIn, signInCli } from "./helpers.js";
+import { call, ORIGIN, request, resetDb, signIn, signInCli } from "./helpers.js";
 
 // Audit S3: uploads per account per day and stored findings per account are
 // capped, so one account cannot fill the database.
 
 beforeEach(resetDb);
-const json = { "content-type": "application/json" };
 
-const upload = (runId: string, n = 0) =>
-  JSON.stringify({
-    runId,
-    repoHash: "d".repeat(64),
-    source: "local",
-    findings: { critical: 0, warning: n, suggestion: 0 },
-    findingList: Array.from({ length: n }, (_, i) => ({
-      fingerprint: `fp-${i}`,
-      reviewer: "security",
-      severity: "warning",
-      file: `src/f${i}.ts`,
-      title: `Finding ${i}`,
-      body: "Body.",
-    })),
-  });
+const upload = (runId: string, n = 0) => ({
+  runId,
+  repoHash: "d".repeat(64),
+  source: "local",
+  findings: { critical: 0, warning: n, suggestion: 0 },
+  findingList: Array.from({ length: n }, (_, i) => ({
+    fingerprint: `fp-${i}`,
+    reviewer: "security",
+    severity: "warning",
+    file: `src/f${i}.ts`,
+    title: `Finding ${i}`,
+    body: "Body.",
+  })),
+});
 
 /** Posts an upload with the limits set to the given values. */
 async function post(
   auth: { authorization: string },
-  body: string,
+  body: unknown,
   limits: { REVIEW_DAILY_UPLOADS?: string; REVIEW_MAX_FINDINGS?: string },
 ) {
   const ctx = createExecutionContext();
   const res = await app.fetch(
-    new Request(`${ORIGIN}/api/reviews`, { method: "POST", headers: { ...json, ...auth }, body }),
+    request("/api/reviews", { method: "POST", auth, json: body }),
     { ...env, ...limits },
     ctx,
   );
@@ -44,7 +42,7 @@ async function post(
 }
 
 async function stored(web: { authorization: string }) {
-  const res = await call("/api/reviews", { headers: web });
+  const res = await call("/api/reviews", { auth: web });
   return ((await res.json()) as { reviews: { id: string }[] }).reviews;
 }
 
@@ -84,8 +82,9 @@ describe("review upload limits", () => {
     const web = await signIn(1, "octo");
     await call("/api/account/sharing", {
       method: "PUT",
-      headers: { ...json, ...web.auth, origin: ORIGIN },
-      body: JSON.stringify({ enabled: true }),
+      auth: web.auth,
+      headers: { origin: ORIGIN },
+      json: { enabled: true },
     });
     const { auth } = await signInCli(1, "octo");
     const cap = { REVIEW_MAX_FINDINGS: "250" };
@@ -94,7 +93,7 @@ describe("review upload limits", () => {
     expect(second.status).toBe(200);
     expect(second.body).toMatchObject({ findings: 0, findingsSkipped: "account_limit" });
     const detail = (await (
-      await call(`/api/reviews/${second.body.id}`, { headers: web.auth })
+      await call(`/api/reviews/${second.body.id}`, { auth: web.auth })
     ).json()) as { review: { runId: string }; findings: unknown[] };
     expect(detail.review.runId).toBe("second");
     expect(detail.findings).toHaveLength(0);

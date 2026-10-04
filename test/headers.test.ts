@@ -15,7 +15,7 @@ describe("API response headers", () => {
     const { auth } = await signIn(1, "octo");
     const answers = await Promise.all([
       call("/api/health"),
-      call("/api/me", { headers: auth }),
+      call("/api/me", { auth: auth }),
       call("/api/me"),
       call("/api/nope"),
       call("/api/auth/github/login"),

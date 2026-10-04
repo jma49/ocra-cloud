@@ -14,9 +14,8 @@ beforeEach(async () => {
   await db.delete(schema.deviceCodes);
 });
 
-const json = { "content-type": "application/json" };
 const post = (path: string, body: unknown, headers: Record<string, string> = {}) =>
-  call(path, { method: "POST", headers: { ...json, ...headers }, body: JSON.stringify(body) });
+  call(path, { method: "POST", headers, json: body });
 
 type CodeAnswer = {
   device_code: string;
@@ -60,7 +59,7 @@ describe("ocra login (device flow)", () => {
     const info = await call(
       `/api/device/info?user_code=${code.user_code.toLowerCase().replace("-", "")}`,
       {
-        headers: me.auth,
+        auth: me.auth,
       },
     );
     expect(await info.json()).toMatchObject({
@@ -86,12 +85,12 @@ describe("ocra login (device flow)", () => {
 
     // The CLI token reaches whoami and the gateway, never keys or the account.
     const cli = { authorization: `Bearer ${tokens.access_token}` };
-    expect(await (await call("/api/me", { headers: cli })).json()).toMatchObject({
+    expect(await (await call("/api/me", { auth: cli })).json()).toMatchObject({
       login: "octo",
       session: "cli",
     });
-    expect((await call("/api/keys", { headers: cli })).status).toBe(403);
-    expect((await call("/api/sessions", { headers: cli })).status).toBe(403);
+    expect((await call("/api/keys", { auth: cli })).status).toBe(403);
+    expect((await call("/api/sessions", { auth: cli })).status).toBe(403);
     expect((await post("/api/device/decide", { user_code: "x", approve: true }, cli)).status).toBe(
       403,
     );
@@ -215,13 +214,13 @@ describe("ocra login (device flow)", () => {
   it("a CLI session is listed on the web until its refresh token expires, and can be revoked", async () => {
     const web = await signIn(1, "octo");
     const { tokens } = await signInCli(1, "octo");
-    const list = (await (await call("/api/sessions", { headers: web.auth })).json()) as {
+    const list = (await (await call("/api/sessions", { auth: web.auth })).json()) as {
       sessions: { id: string; kind: string; label: string; expiresAt: string }[];
     };
     const cli = list.sessions.find((s) => s.kind === "cli");
     expect(cli?.label).toBe("test terminal");
     expect(new Date(cli?.expiresAt ?? 0).getTime()).toBeGreaterThan(Date.now() + 80 * 86_400_000);
-    await call(`/api/sessions/${cli?.id}`, { method: "DELETE", headers: web.auth });
+    await call(`/api/sessions/${cli?.id}`, { method: "DELETE", auth: web.auth });
     const refresh = await post("/api/device/refresh", { refresh_token: tokens.refresh_token });
     expect(refresh.status).toBe(400);
   });
@@ -244,7 +243,7 @@ describe("ocra login (device flow)", () => {
       .set({ expiresAt: new Date(Date.now() - 1000) })
       .where(eq(schema.deviceCodes.userCode, old.user_code));
     expect((await poll(old.device_code)).body).toEqual({ error: "expired_token" });
-    const info = await call(`/api/device/info?user_code=${old.user_code}`, { headers: me.auth });
+    const info = await call(`/api/device/info?user_code=${old.user_code}`, { auth: me.auth });
     expect(info.status).toBe(404);
 
     expect((await poll("ocra_dev_nope")).body).toEqual({ error: "invalid_grant" });
@@ -281,7 +280,8 @@ describe("ocra login (device flow)", () => {
     const { auth } = await signIn(31, "guesser");
     const info = (ip: string) =>
       call("/api/device/info?user_code=BCDF-GHJK", {
-        headers: { ...auth, "cf-connecting-ip": ip },
+        auth: auth,
+        headers: { "cf-connecting-ip": ip },
       });
     const decide = (ip: string) =>
       post(
@@ -301,12 +301,14 @@ describe("ocra login (device flow)", () => {
     // Another account at a fresh address is not held back by it...
     const other = await signIn(32, "other");
     const fresh = await call("/api/device/info?user_code=BCDF-GHJK", {
-      headers: { ...other.auth, "cf-connecting-ip": "192.0.2.4" },
+      auth: other.auth,
+      headers: { "cf-connecting-ip": "192.0.2.4" },
     });
     expect(fresh.status).toBe(404);
     // ...but the busy address is.
     const sameIp = await call("/api/device/info?user_code=BCDF-GHJK", {
-      headers: { ...other.auth, "cf-connecting-ip": "192.0.2.1" },
+      auth: other.auth,
+      headers: { "cf-connecting-ip": "192.0.2.1" },
     });
     expect(sameIp.status).toBe(429);
     expect(env.DEVICE_LOOKUPS).toBeDefined();

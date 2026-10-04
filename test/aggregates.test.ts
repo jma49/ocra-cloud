@@ -38,7 +38,7 @@ describe("totals past 10,000 rows", () => {
     const other = await signIn(2, "other");
     await seedCalls(me.account.id);
     await seedCalls(other.account.id);
-    const body = (await (await call("/api/usage?days=14", { headers: me.auth })).json()) as {
+    const body = (await (await call("/api/usage?days=14", { auth: me.auth })).json()) as {
       today: number;
       series: {
         calls: number;
@@ -70,7 +70,7 @@ describe("totals past 10,000 rows", () => {
       .bind(me.account.id)
       .run();
     await seedCalls(me.account.id);
-    const body = (await (await call("/api/keys", { headers: me.auth })).json()) as {
+    const body = (await (await call("/api/keys", { auth: me.auth })).json()) as {
       keys: { provider: string; calls7d: number; lastUsedAt: string }[];
     };
     expect(body.keys).toEqual([
@@ -92,7 +92,7 @@ describe("totals past 10,000 rows", () => {
       me.account.id,
       Date.now(),
     );
-    const body = (await (await call("/api/reviews?days=365", { headers: me.auth })).json()) as {
+    const body = (await (await call("/api/reviews?days=365", { auth: me.auth })).json()) as {
       days: number;
       summary: Record<string, number>;
       reviewers: Record<string, { tasks: number; findingsTotal: number; acceptanceRate: number }>;
@@ -120,7 +120,7 @@ describe("totals past 10,000 rows", () => {
     const other = await signIn(2, "other");
     await seedCalls(me.account.id);
     await seedCalls(other.account.id);
-    const res = await call("/api/export", { headers: me.auth });
+    const res = await call("/api/export", { auth: me.auth });
     expect(res.headers.get("content-disposition")).toContain("attachment");
     const body = (await res.json()) as { gatewayCalls: { id: string }[]; truncated?: unknown };
     expect(body.gatewayCalls).toHaveLength(CALLS);

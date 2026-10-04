@@ -6,7 +6,6 @@ import { call, resetDb, signIn, signInCli } from "./helpers.js";
 beforeEach(resetDb);
 afterEach(() => vi.restoreAllMocks());
 
-const json = { "content-type": "application/json" };
 const HASH = "a".repeat(64);
 const upload = (over: Record<string, unknown> = {}) => ({
   runId: "20261004T055558Z-e60b25",
@@ -36,14 +35,14 @@ describe("review uploads", () => {
     const post = () =>
       call("/api/reviews", {
         method: "POST",
-        headers: { ...cli.auth, ...json },
-        body: JSON.stringify(upload()),
+        auth: cli.auth,
+        json: upload(),
       });
     const first = (await (await post()).json()) as { id: string };
     expect(first.id).toBeTruthy();
     expect(await (await post()).json()).toEqual({ id: first.id, duplicate: true });
 
-    const list = (await (await call("/api/reviews", { headers: web.auth })).json()) as {
+    const list = (await (await call("/api/reviews", { auth: web.auth })).json()) as {
       summary: Record<string, number>;
       reviews: Record<string, unknown>[];
     };
@@ -55,7 +54,7 @@ describe("review uploads", () => {
     });
     expect(JSON.stringify(list)).not.toContain("accountId");
     // The CLI uploads but cannot read the history.
-    expect((await call("/api/reviews", { headers: cli.auth })).status).toBe(403);
+    expect((await call("/api/reviews", { auth: cli.auth })).status).toBe(403);
   });
 
   it("keeps only the known fields and refuses a malformed upload", () => {
@@ -75,10 +74,10 @@ describe("review uploads", () => {
     const b = await signIn(2, "b");
     await call("/api/reviews", {
       method: "POST",
-      headers: { ...a.auth, ...json },
-      body: JSON.stringify(upload()),
+      auth: a.auth,
+      json: upload(),
     });
-    const list = (await (await call("/api/reviews", { headers: b.auth })).json()) as {
+    const list = (await (await call("/api/reviews", { auth: b.auth })).json()) as {
       reviews: unknown[];
     };
     expect(list.reviews).toEqual([]);
@@ -92,8 +91,8 @@ describe("default models", () => {
     const put = (models: unknown, auth = web.auth) =>
       call("/api/preferences", {
         method: "PUT",
-        headers: { ...auth, ...json },
-        body: JSON.stringify({ models }),
+        auth: auth,
+        json: { models },
       });
     expect(
       (await put({ standard: ["ocra-openrouter/qwen/qwen3.8-27b:free"], light: "" })).status,
@@ -103,7 +102,7 @@ describe("default models", () => {
       (await put({ top: ["ocra-a/1", "ocra-a/2", "ocra-a/3", "ocra-a/4", "ocra-a/5"] })).status,
     ).toBe(400);
     expect((await put({ standard: ["ocra-x/y"] }, cli.auth)).status).toBe(403);
-    const read = await call("/api/preferences/models", { headers: cli.auth });
+    const read = await call("/api/preferences/models", { auth: cli.auth });
     expect(await read.json()).toEqual({
       models: { standard: ["ocra-openrouter/qwen/qwen3.8-27b:free"] },
     });
@@ -118,8 +117,8 @@ describe("model lists", () => {
       .mockImplementation(async () => Response.json({}));
     await call("/api/keys/gemini", {
       method: "PUT",
-      headers: { ...web.auth, ...json },
-      body: JSON.stringify({ key: "AIza-0123456789" }),
+      auth: web.auth,
+      json: { key: "AIza-0123456789" },
     });
     const fake = vi
       .spyOn(globalThis, "fetch")
@@ -133,7 +132,7 @@ describe("model lists", () => {
           ],
         }),
       );
-    const res = await call("/api/keys/gemini/models", { headers: web.auth });
+    const res = await call("/api/keys/gemini/models", { auth: web.auth });
     expect(await res.json()).toEqual({
       provider: "gemini",
       models: [
@@ -154,16 +153,14 @@ describe("per-reviewer counts (ADR-0028, 1)", () => {
     const counts = { tasks: 1, findings: { critical: 0, warning: 1, suggestion: 0 } };
     const res = await call("/api/reviews", {
       method: "POST",
-      headers: { ...cli.auth, ...json },
-      body: JSON.stringify(
-        upload({
-          runId: "run-sarif",
-          reviewers: { "2ms": counts, [`semgrep-${"x".repeat(60)}`]: counts, "Bad Id": counts },
-        }),
-      ),
+      auth: cli.auth,
+      json: upload({
+        runId: "run-sarif",
+        reviewers: { "2ms": counts, [`semgrep-${"x".repeat(60)}`]: counts, "Bad Id": counts },
+      }),
     });
     expect(await res.json()).toMatchObject({ dropped: { reviewers: 1 } });
-    const body = (await (await call("/api/reviews", { headers: web.auth })).json()) as {
+    const body = (await (await call("/api/reviews", { auth: web.auth })).json()) as {
       reviewers: Record<string, unknown>;
     };
     expect(Object.keys(body.reviewers).sort()).toEqual(["2ms", `semgrep-${"x".repeat(60)}`]);
@@ -175,30 +172,28 @@ describe("per-reviewer counts (ADR-0028, 1)", () => {
     const send = (runId: string, fixed: number, dismissed: number) =>
       call("/api/reviews", {
         method: "POST",
-        headers: { ...cli.auth, ...json },
-        body: JSON.stringify(
-          upload({
-            runId,
-            reviewers: {
-              security: {
-                tasks: 2,
-                failedTasks: 1,
-                findings: { critical: 1, warning: 0, suggestion: 0 },
-                costUsd: 0.25,
-                fixed,
-                dismissed,
-                title: "leak me",
-              },
-              "Bad Id": { tasks: 9 },
+        auth: cli.auth,
+        json: upload({
+          runId,
+          reviewers: {
+            security: {
+              tasks: 2,
+              failedTasks: 1,
+              findings: { critical: 1, warning: 0, suggestion: 0 },
+              costUsd: 0.25,
+              fixed,
+              dismissed,
+              title: "leak me",
             },
-            verification: { confirmed: 1, uncertain: 2, unchecked: 0, bogus: 7 },
-            outcomes: { fixed, dismissed },
-          }),
-        ),
+            "Bad Id": { tasks: 9 },
+          },
+          verification: { confirmed: 1, uncertain: 2, unchecked: 0, bogus: 7 },
+          outcomes: { fixed, dismissed },
+        }),
       });
     await send("run-a", 1, 1);
     await send("run-b", 2, 0);
-    const body = (await (await call("/api/reviews", { headers: web.auth })).json()) as {
+    const body = (await (await call("/api/reviews", { auth: web.auth })).json()) as {
       summary: { fixed: number; dismissed: number };
       reviewers: Record<
         string,
@@ -240,13 +235,13 @@ describe("the engine's vocabulary", () => {
       for (const tier of ENGINE_TIERS) {
         const res = await call("/api/reviews", {
           method: "POST",
-          headers: { ...cli.auth, ...json },
-          body: JSON.stringify(upload({ runId: `run-${i++}`, verdict, tier, complete: true })),
+          auth: cli.auth,
+          json: upload({ runId: `run-${i++}`, verdict, tier, complete: true }),
         });
         expect(res.status).toBe(200);
       }
     }
-    const list = (await (await call("/api/reviews", { headers: web.auth })).json()) as {
+    const list = (await (await call("/api/reviews", { auth: web.auth })).json()) as {
       summary: { blocking: number };
       reviews: { verdict: string; tier: string }[];
     };
