@@ -83,11 +83,11 @@ describe("default models", () => {
   it("are set on the web and read by the CLI", async () => {
     const web = await signIn(1, "octo");
     const cli = await signInCli(1, "octo");
-    const put = (body: unknown, auth = web.auth) =>
-      call("/api/preferences/models", {
+    const put = (models: unknown, auth = web.auth) =>
+      call("/api/preferences", {
         method: "PUT",
         headers: { ...auth, ...json },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ models }),
       });
     expect(
       (await put({ standard: ["ocra-openrouter/qwen/qwen3.8-27b:free"], light: "" })).status,

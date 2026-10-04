@@ -15,6 +15,7 @@ import {
 } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
+import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
 import { accountTables } from "./schema.js";
 
 type Tables = typeof accountTables;
@@ -42,6 +43,26 @@ export function scoped(db: DrizzleD1Database, accountId: string) {
         .update(accountTables[name])
         .set(rest as never)
         .where(byId(name, id));
+    },
+    /**
+     * Inserts a row, or when this account already has one with the same
+     * values in the columns of on (a unique index), sets the rest of the
+     * row's fields on that one instead. The stored row keeps its id.
+     */
+    upsert<N extends Name>(
+      name: N,
+      row: NewRow<N> & { id: string },
+      on: readonly (keyof NewRow<N> | "accountId")[],
+    ): BatchItem<"sqlite"> {
+      const t = accountTables[name] as unknown as Record<string, SQLiteColumn>;
+      const { id: _id, ...set } = row as Record<string, unknown>;
+      return db
+        .insert(accountTables[name])
+        .values({ ...row, accountId } as never)
+        .onConflictDoUpdate({
+          target: on.map((k) => t[k as string] as SQLiteColumn),
+          set: set as never,
+        });
     },
     /** Deletes this account's rows beyond the newest keep. */
     keepNewest(name: Name, keep: number): BatchItem<"sqlite"> {
@@ -118,6 +139,29 @@ export function scoped(db: DrizzleD1Database, accountId: string) {
       if ((ahead?.n ?? 0) <= cap) return true;
       await db.delete(t).where(byId(name, row.id)).run();
       return false;
+    },
+    /**
+     * Remembers a finding for a repository in one statement, so parallel
+     * callers cannot all pass a count taken before any of them wrote: only
+     * when the repository has no entry with its fingerprint and fewer than
+     * cap entries. Returns the entry that has the fingerprint, or "full".
+     */
+    async remember(
+      row: NewRow<"accountMemory"> & { id: string },
+      cap: number,
+    ): Promise<{ id: string; duplicate: boolean } | "full"> {
+      const m = accountTables.accountMemory;
+      const sameRepo = and(own("accountMemory"), eq(m.repoHash, row.repoHash));
+      const same = and(sameRepo, eq(m.fingerprint, row.fingerprint));
+      const inserted = await db.insert(m).select(sql`
+        SELECT ${row.id}, ${accountId}, ${row.repoHash}, ${row.fingerprint},
+          ${row.file ?? null}, ${row.title ?? null}, ${row.reason},
+          unixepoch('subsec') * 1000
+        WHERE NOT EXISTS (SELECT 1 FROM ${m} WHERE ${same})
+          AND (SELECT count(*) FROM ${m} WHERE ${sameRepo}) < ${cap}`);
+      if (inserted.meta.changes > 0) return { id: row.id, duplicate: false };
+      const existing = await db.select({ id: m.id }).from(m).where(same).get();
+      return existing ? { id: existing.id, duplicate: true } : "full";
     },
     /** Runs the statements built from writes in one D1 batch: all of them or none. */
     async batch(build: (w: typeof writes) => BatchItem<"sqlite">[]): Promise<void> {

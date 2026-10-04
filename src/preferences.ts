@@ -35,17 +35,9 @@ export function parseModels(body: unknown): ModelChains | undefined {
   return out;
 }
 
+// The 0.4.0 CLI reads this; saving goes through PUT / (versioned and audited).
 preferences.get("/models", requireSession(["web", "cli"]), async (c) => {
   return c.json({ models: (await current(c.var.data))?.models ?? {} });
-});
-
-preferences.put("/models", requireSession(), async (c) => {
-  const models = parseModels(await c.req.json().catch(() => null));
-  if (!models) return c.json({ error: "bad_models" }, 400);
-  const row = await current(c.var.data);
-  if (row) await c.var.data.update("preferences", row.id, { models });
-  else await c.var.data.insert("preferences", { id: crypto.randomUUID(), models });
-  return c.json({ models });
 });
 
 const ROLES = ["verifier", "judge", "helper"] as const;
@@ -157,10 +149,9 @@ async function store(
   if (changed.length === 0) return { version: await latestVersion(data), changed };
   const fields = { ...next, updatedAt: new Date() };
   const version = crypto.randomUUID();
+  // An upsert on the account: two first saves at once both land, not a 500.
   await data.batch((w) => [
-    row
-      ? w.update("preferences", row.id, fields)
-      : w.insert("preferences", { id: crypto.randomUUID(), ...fields }),
+    w.upsert("preferences", { id: crypto.randomUUID(), ...fields }, ["accountId"]),
     w.insert("preferenceVersions", { id: version, snapshot: next, changed }),
     w.keepNewest("preferenceVersions", KEEP_VERSIONS),
     w.insert("auditEvents", {

@@ -2,7 +2,7 @@ import { createExecutionContext, waitOnExecutionContext } from "cloudflare:test"
 import { env } from "cloudflare:workers";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { scoped } from "../src/db/scoped.js";
-import { parseUsage } from "../src/gateway.js";
+import { parseUsage, topLevelModel } from "../src/gateway.js";
 import app from "../src/index.js";
 import { call, db, ORIGIN, resetDb, signIn } from "./helpers.js";
 
@@ -132,6 +132,31 @@ describe("gateway", () => {
       },
     ]);
     expect(JSON.stringify(calls)).not.toContain(PROMPT);
+  });
+
+  it("records the request's own model and Anthropic's cached input", async () => {
+    const { auth, account } = await withKey();
+    upstreamFake(
+      () =>
+        new Response(
+          sse([
+            { usage: { input_tokens: 10, cache_read_input_tokens: 900, output_tokens: 1 } },
+            { usage: { output_tokens: 20 } },
+          ]),
+          { headers: { "content-type": "text/event-stream" } },
+        ),
+    );
+    await call("/api/gateway/openrouter/v1/chat/completions", {
+      method: "POST",
+      headers: { ...auth, "content-type": "application/json" },
+      body: JSON.stringify({
+        messages: [{ role: "user", content: [{ type: "x", model: "nested/decoy" }] }],
+        model: "vendor/model-b",
+      }),
+    });
+    expect(await scoped(db, account.id).list("gatewayCalls")).toMatchObject([
+      { model: "vendor/model-b", tokensIn: 910, tokensOut: 20 },
+    ]);
   });
 
   it("logs nothing of the request or the answer", async () => {
@@ -392,5 +417,36 @@ describe("parseUsage", () => {
       '...\nevent: message_delta\ndata: {"usage":{"output_tokens":45}}\n';
     expect(parseUsage(anthropic)).toEqual({ tokensIn: 300, tokensOut: 45 });
     expect(parseUsage("no counts")).toEqual({ tokensIn: 0, tokensOut: 0 });
+  });
+
+  it("adds Anthropic's cache reads and writes to the input count", () => {
+    const anthropic =
+      'event: message_start\ndata: {"message":{"usage":{"input_tokens":12,' +
+      '"cache_creation_input_tokens":2000,"cache_read_input_tokens":30000,"output_tokens":1}}}\n' +
+      '...\nevent: message_delta\ndata: {"usage":{"output_tokens":45}}\n';
+    expect(parseUsage(anthropic)).toEqual({ tokensIn: 32_012, tokensOut: 45 });
+    // OpenAI's cached tokens are already part of prompt_tokens.
+    expect(
+      parseUsage(
+        '{"usage":{"prompt_tokens":100,"prompt_tokens_details":{"cached_tokens":80},"completion_tokens":5}}',
+      ),
+    ).toEqual({ tokensIn: 100, tokensOut: 5 });
+  });
+});
+
+describe("topLevelModel", () => {
+  it("reads the request's own model, never one nested in it", () => {
+    expect(
+      topLevelModel(
+        JSON.stringify({
+          messages: [{ role: "user", content: [{ type: "x", model: "nested-a" }] }],
+          tools: [{ model: "nested-b" }],
+          model: "vendor/real",
+        }),
+      ),
+    ).toBe("vendor/real");
+    expect(topLevelModel(JSON.stringify({ messages: [{ model: "nested" }] }))).toBeNull();
+    expect(topLevelModel("not json")).toBeNull();
+    expect(topLevelModel(JSON.stringify({ model: 5 }))).toBeNull();
   });
 });

@@ -28,7 +28,7 @@ gateway.post("/:provider/*", async (c) => {
 
   const body = await c.req.text();
   if (body.length > MAX_BODY) return c.json({ error: "body_too_large" }, 413);
-  const model = match.model ?? body.match(/(?<!\\)"model"\s*:\s*"([^"\\]{1,200})"/)?.[1] ?? null;
+  const model = match.model ?? topLevelModel(body);
 
   // The call's row is written before forwarding and is the reservation
   // against the daily cap, so parallel calls cannot all pass, and a call
@@ -155,6 +155,10 @@ export function usageMeter(
   });
 }
 
+/**
+ * Input counts: OpenAI-style and Gemini prompt counts include cached tokens;
+ * Anthropic's input_tokens does not, so its cache reads and writes are added.
+ */
 export function parseUsage(text: string): Usage {
   const max = (re: RegExp) => {
     let v = 0;
@@ -162,7 +166,22 @@ export function parseUsage(text: string): Usage {
     return v;
   };
   return {
-    tokensIn: max(/"(?:prompt_tokens|input_tokens|promptTokenCount)"\s*:\s*(\d+)/g),
+    tokensIn:
+      max(/"(?:prompt_tokens|input_tokens|promptTokenCount)"\s*:\s*(\d+)/g) +
+      max(/"cache_read_input_tokens"\s*:\s*(\d+)/g) +
+      max(/"cache_creation_input_tokens"\s*:\s*(\d+)/g),
     tokensOut: max(/"(?:completion_tokens|output_tokens|candidatesTokenCount)"\s*:\s*(\d+)/g),
   };
+}
+
+/** The request's own model field; never one nested in messages or tools. */
+export function topLevelModel(body: string): string | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    return null;
+  }
+  const model = (parsed as { model?: unknown } | null)?.model;
+  return typeof model === "string" && model.length > 0 && model.length <= 200 ? model : null;
 }

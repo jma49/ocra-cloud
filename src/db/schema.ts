@@ -98,7 +98,8 @@ export const providerKeys = sqliteTable(
     checkedAt: integer("checked_at", { mode: "timestamp_ms" }),
     createdAt: createdAt(),
   },
-  (t) => [index("provider_keys_account").on(t.accountId)],
+  // One key per provider: a save replaces it in place (audit D-hyg).
+  (t) => [uniqueIndex("provider_keys_account_provider").on(t.accountId, t.provider)],
 );
 
 // Review metadata the CLI uploads after a review: counts only. The
