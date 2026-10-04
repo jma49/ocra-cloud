@@ -9,6 +9,7 @@ import {
   gte,
   type InferInsertModel,
   type InferSelectModel,
+  isNull,
   lte,
   notInArray,
   sql,
@@ -20,9 +21,20 @@ import { accountTables } from "./schema.js";
 
 type Tables = typeof accountTables;
 type Name = keyof Tables;
+/** The tables whose rows have their own id; preferences is one row per account, keyed by it. */
+type IdName = { [N in Name]: "id" extends keyof Tables[N]["$inferSelect"] ? N : never }[Name];
 export type Row<N extends Name> = InferSelectModel<Tables[N]>;
 type NewRow<N extends Name> = Omit<InferInsertModel<Tables[N]>, "accountId">;
+/** A new row; its id is made here unless the caller needs it first. */
+type Insert<N extends Name> = N extends IdName
+  ? Omit<NewRow<N>, "id"> & { id?: string }
+  : NewRow<N>;
 type Changes<N extends Name> = Partial<Omit<NewRow<N>, "id">>;
+/** Column equality, ANDed with the account; null matches IS NULL. */
+export type Where<N extends Name> = { [K in keyof Row<N>]?: Row<N>[K] };
+
+/** A new row's id. */
+export const newId = (): string => crypto.randomUUID();
 
 /**
  * The one way to read and write an account's rows: every query filters by
@@ -31,13 +43,27 @@ type Changes<N extends Name> = Partial<Omit<NewRow<N>, "id">>;
  */
 export function scoped(db: DrizzleD1Database, accountId: string) {
   const own = (name: Name) => eq(accountTables[name].accountId, accountId);
-  const byId = (name: Name, id: string) => and(own(name), eq(accountTables[name].id, id));
+  const byId = (name: IdName, id: string) => and(own(name), eq(accountTables[name].id, id));
+  const matching = <N extends Name>(name: N, where: Where<N>) => {
+    const t = accountTables[name] as unknown as Record<string, SQLiteColumn>;
+    return and(
+      own(name),
+      ...Object.entries(where).map(([column, value]) => {
+        const c = t[column];
+        if (!c || column === "accountId") throw new Error(`no column ${column} to match`);
+        return value === null ? isNull(c) : eq(c, value);
+      }),
+    );
+  };
+  // An id-keyed table's row gets an id unless it brings one.
+  const withId = <N extends Name>(name: N, row: Insert<N>) =>
+    ("id" in accountTables[name] ? { id: newId(), ...row } : row) as NewRow<N> & { id?: string };
   // Unrun statements for batch(), scoped like the methods below.
   const writes = {
-    insert<N extends Name>(name: N, row: NewRow<N>): BatchItem<"sqlite"> {
-      return db.insert(accountTables[name]).values({ ...row, accountId } as never);
+    insert<N extends Name>(name: N, row: Insert<N>): BatchItem<"sqlite"> {
+      return db.insert(accountTables[name]).values({ ...withId(name, row), accountId } as never);
     },
-    update<N extends Name>(name: N, id: string, changes: Changes<N>): BatchItem<"sqlite"> {
+    update<N extends IdName>(name: N, id: string, changes: Changes<N>): BatchItem<"sqlite"> {
       const { accountId: _ignored, ...rest } = changes as Record<string, unknown>;
       return db
         .update(accountTables[name])
@@ -51,21 +77,21 @@ export function scoped(db: DrizzleD1Database, accountId: string) {
      */
     upsert<N extends Name>(
       name: N,
-      row: NewRow<N> & { id: string },
+      row: Insert<N>,
       on: readonly (keyof NewRow<N> | "accountId")[],
     ): BatchItem<"sqlite"> {
       const t = accountTables[name] as unknown as Record<string, SQLiteColumn>;
       const { id: _id, ...set } = row as Record<string, unknown>;
       return db
         .insert(accountTables[name])
-        .values({ ...row, accountId } as never)
+        .values({ ...withId(name, row), accountId } as never)
         .onConflictDoUpdate({
           target: on.map((k) => t[k as string] as SQLiteColumn),
           set: set as never,
         });
     },
     /** Deletes this account's rows beyond the newest keep. */
-    keepNewest(name: Name, keep: number): BatchItem<"sqlite"> {
+    keepNewest(name: IdName, keep: number): BatchItem<"sqlite"> {
       const t = accountTables[name];
       const newest = db
         .select({ id: t.id })
@@ -82,13 +108,51 @@ export function scoped(db: DrizzleD1Database, accountId: string) {
       // The generic table loses drizzle's row type; the row is the table's.
       return db.select().from(accountTables[name]).where(own(name)).all() as Promise<Row<N>[]>;
     },
-    async get<N extends Name>(name: N, id: string): Promise<Row<N> | undefined> {
+    /** This account's rows whose columns equal where's values. */
+    find<N extends Name>(name: N, where: Where<N>, limit = 10_000): Promise<Row<N>[]> {
+      return db
+        .select()
+        .from(accountTables[name])
+        .where(matching(name, where))
+        .limit(limit)
+        .all() as Promise<Row<N>[]>;
+    },
+    /** The first such row; for preferences, the account's one row (where is {}). */
+    async findOne<N extends Name>(name: N, where: Where<N>): Promise<Row<N> | undefined> {
+      return (await db.select().from(accountTables[name]).where(matching(name, where)).get()) as
+        | Row<N>
+        | undefined;
+    },
+    /** How many such rows, counted in SQL. */
+    async count<N extends Name>(name: N, where: Where<N> = {}): Promise<number> {
+      const row = await db
+        .select({ n: count() })
+        .from(accountTables[name])
+        .where(matching(name, where))
+        .get();
+      return row?.n ?? 0;
+    },
+    /** This account's newest rows, newest first. */
+    listNewest<N extends IdName>(name: N, limit: number): Promise<Row<N>[]> {
+      const t = accountTables[name];
+      return db
+        .select()
+        .from(t)
+        .where(own(name))
+        .orderBy(desc(t.createdAt))
+        .limit(limit)
+        .all() as Promise<Row<N>[]>;
+    },
+    async get<N extends IdName>(name: N, id: string): Promise<Row<N> | undefined> {
       return (await db.select().from(accountTables[name]).where(byId(name, id)).get()) as
         | Row<N>
         | undefined;
     },
-    async insert<N extends Name>(name: N, row: NewRow<N>): Promise<void> {
-      await db.insert(accountTables[name]).values({ ...row, accountId } as never);
+    /** Inserts a row; returns its id (made here unless the row brings one). */
+    async insert<N extends Name>(name: N, row: Insert<N>): Promise<string> {
+      const full = withId(name, row);
+      await db.insert(accountTables[name]).values({ ...full, accountId } as never);
+      return full.id ?? accountId;
     },
     /** This account's rows created at or after since, newest first. */
     listSince<N extends Name>(name: N, since: Date, limit = 10_000): Promise<Row<N>[]> {
@@ -118,27 +182,28 @@ export function scoped(db: DrizzleD1Database, accountId: string) {
      * reservation, so parallel callers cannot all pass a count taken before
      * any of them wrote. Returns whether the row was kept.
      */
-    async reserve<N extends Name>(
+    async reserve<N extends IdName>(
       name: N,
-      row: NewRow<N> & { id: string },
+      row: Insert<N>,
       since: Date,
       cap: number,
-    ): Promise<boolean> {
+    ): Promise<string | undefined> {
       const t = accountTables[name];
       const seq = sql<number>`rowid`;
+      const id = newId();
       const [mine] = await db
         .insert(t)
-        .values({ ...row, accountId } as never)
+        .values({ ...row, id, accountId } as never)
         .returning({ seq });
-      if (!mine) return false;
+      if (!mine) return undefined;
       const ahead = await db
         .select({ n: count() })
         .from(t)
         .where(and(own(name), gte(t.createdAt, since), lte(seq, mine.seq)))
         .get();
-      if ((ahead?.n ?? 0) <= cap) return true;
-      await db.delete(t).where(byId(name, row.id)).run();
-      return false;
+      if ((ahead?.n ?? 0) <= cap) return id;
+      await db.delete(t).where(byId(name, id)).run();
+      return undefined;
     },
     /**
      * Remembers a finding for a repository in one statement, so parallel
@@ -147,9 +212,10 @@ export function scoped(db: DrizzleD1Database, accountId: string) {
      * cap entries. Returns the entry that has the fingerprint, or "full".
      */
     async remember(
-      row: NewRow<"accountMemory"> & { id: string },
+      entry: Omit<NewRow<"accountMemory">, "id">,
       cap: number,
     ): Promise<{ id: string; duplicate: boolean } | "full"> {
+      const row = { ...entry, id: newId() };
       const m = accountTables.accountMemory;
       const sameRepo = and(own("accountMemory"), eq(m.repoHash, row.repoHash));
       const same = and(sameRepo, eq(m.fingerprint, row.fingerprint));
@@ -169,7 +235,7 @@ export function scoped(db: DrizzleD1Database, accountId: string) {
       if (first) await db.batch([first, ...rest]);
     },
     /** Returns whether a row of this account changed. */
-    async update<N extends Name>(name: N, id: string, changes: Changes<N>): Promise<boolean> {
+    async update<N extends IdName>(name: N, id: string, changes: Changes<N>): Promise<boolean> {
       const { accountId: _ignored, ...rest } = changes as Record<string, unknown>;
       if (Object.keys(rest).length === 0) return false;
       const result = await db
@@ -193,10 +259,11 @@ export function scoped(db: DrizzleD1Database, accountId: string) {
      * `findingsSkipped` comes back; the review itself is kept.
      */
     async insertReview(
-      review: NewRow<"reviews"> & { id: string },
+      counts: Omit<NewRow<"reviews">, "id">,
       list: Omit<NewRow<"findings">, "id" | "reviewId">[],
       limits: { since: Date; dailyUploads: number; maxFindings: number },
     ): Promise<{ id: string; duplicate: boolean; limited: boolean; findingsSkipped: boolean }> {
+      const review = { ...counts, id: newId() };
       const r = accountTables.reviews;
       const insert = db
         .insert(r)
@@ -211,7 +278,7 @@ export function scoped(db: DrizzleD1Database, accountId: string) {
             AND created_at >= ${limits.since.getTime()}) > ${limits.dailyUploads}`,
         ),
       );
-      const rows = JSON.stringify(list.map((f) => ({ ...f, id: crypto.randomUUID() })));
+      const rows = JSON.stringify(list.map((f) => ({ ...f, id: newId() })));
       // Only when the review row above was this upload's own and kept, and
       // all of its findings fit under the account's cap.
       // In the table's column order: insert … select names every column.
@@ -254,11 +321,6 @@ export function scoped(db: DrizzleD1Database, accountId: string) {
         limited: false,
         findingsSkipped: false,
       };
-    },
-    /** Every row of this account in a table, counted in SQL. */
-    async countAll(name: Name): Promise<number> {
-      const row = await db.select({ n: count() }).from(accountTables[name]).where(own(name)).get();
-      return row?.n ?? 0;
     },
     /**
      * Up to limit rows of this account after the row numbered after, in
@@ -396,13 +458,28 @@ export function scoped(db: DrizzleD1Database, accountId: string) {
       ]);
       return { summary, byReviewer };
     },
-    /** Deletes every row of this account in a table; returns how many. */
-    async removeAll(name: Name): Promise<number> {
-      const result = await db.delete(accountTables[name]).where(own(name)).run();
+    /** Deletes this account's rows whose columns equal where's values; returns how many. */
+    async removeWhere<N extends Name>(name: N, where: Where<N>): Promise<number> {
+      const result = await db.delete(accountTables[name]).where(matching(name, where)).run();
       return result.meta.changes;
     },
+    /** This account's sessions not yet expired (a CLI session lives as long as its refresh token), newest first. */
+    liveSessions(now: Date): Promise<Row<"sessions">[]> {
+      const t = accountTables.sessions;
+      return db
+        .select()
+        .from(t)
+        .where(
+          and(
+            own("sessions"),
+            gt(sql`coalesce(${t.refreshExpiresAt}, ${t.expiresAt})`, now.getTime()),
+          ),
+        )
+        .orderBy(desc(t.createdAt))
+        .all();
+    },
     /** Returns whether a row of this account was deleted. */
-    async remove(name: Name, id: string): Promise<boolean> {
+    async remove(name: IdName, id: string): Promise<boolean> {
       const result = await db.delete(accountTables[name]).where(byId(name, id)).run();
       return result.meta.changes > 0;
     },

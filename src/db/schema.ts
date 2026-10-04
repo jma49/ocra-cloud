@@ -153,9 +153,9 @@ export type ReviewerCounts = {
 
 // Settings of an account, one row: the default models for a review with no
 // models configured (ADR-0024 zero configuration).
+// One row per account, keyed by it: a save is an upsert on the account.
 export const preferences = sqliteTable("preferences", {
-  id: text("id").primaryKey(),
-  accountId: accountId().unique(),
+  accountId: accountId().primaryKey(),
   models: text("models", { mode: "json" }).$type<ModelChains>(),
   // The runtime and per-agent settings (ADR-0025), layered under a
   // repository's configuration by the CLI.

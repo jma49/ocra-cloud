@@ -82,6 +82,23 @@ describe("query plans", () => {
     },
   );
 
+  it("find, count, listNewest and liveSessions search an index on account_id (#34)", async () => {
+    const seen: Captured[] = [];
+    const d = scoped(drizzle(recording(seen)), "acct");
+    await d.find("providerKeys", { provider: "openai" });
+    await d.findOne("accountMemory", { repoHash: "h" });
+    await d.count("findings");
+    await d.findOne("preferences", {});
+    await d.listNewest("preferenceVersions", 1);
+    await d.liveSessions(new Date());
+    expect(seen).toHaveLength(6);
+    for (const q of seen) {
+      const p = await plan(q);
+      expect(p, q.sql).toMatch(/SEARCH \w+ USING (COVERING )?(INDEX|PRIMARY KEY)/);
+      expect(p, q.sql).not.toMatch(/\bSCAN\b/);
+    }
+  });
+
   it("a review's findings are found by review_id, for the delete's cascade", async () => {
     const p = await plan({ sql: "SELECT id FROM findings WHERE review_id = ?", params: ["r"] });
     expect(p).toMatch(/SEARCH findings USING (COVERING )?INDEX findings_review/);

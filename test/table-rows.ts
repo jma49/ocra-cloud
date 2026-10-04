@@ -24,7 +24,7 @@ export const rows = {
     path: "/v1/chat/completions",
     status: 200,
   }),
-  preferences: (id: string) => ({ id, models: { standard: ["ocra-openrouter/m"] } }),
+  preferences: (_id: string) => ({ models: { standard: ["ocra-openrouter/m"] } }),
   preferenceVersions: (id: string) => ({ id, snapshot: { models: {} }, changed: ["models"] }),
   // The review it belongs to is made in beforeEach (the foreign key needs one).
   findings: (id: string) => ({

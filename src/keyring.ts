@@ -10,7 +10,7 @@ export function masterKeys(env: Pick<Env, "MASTER_KEY" | "MASTER_KEY_PREVIOUS">)
 
 /** The account's stored key row for a provider, still encrypted, or undefined. */
 export async function storedKey(data: Scoped, provider: string) {
-  return (await data.list("providerKeys")).find((r) => r.provider === provider);
+  return data.findOne("providerKeys", { provider });
 }
 
 /** A stored key row's plaintext, under the current or the previous master key. */

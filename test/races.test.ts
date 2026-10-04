@@ -91,7 +91,7 @@ describe("parallel writes", () => {
     // The same finding twice at once: one entry.
     const same = await Promise.all([remember("fp-c"), remember("fp-c")]);
     expect(same.map((r) => r.status)).toEqual([200, 200]);
-    expect(await data.countAll("accountMemory")).toBe(1);
+    expect(await data.count("accountMemory")).toBe(1);
 
     // 499 entries: two different findings at once, only one fits.
     await data.batch((w) =>
@@ -106,7 +106,7 @@ describe("parallel writes", () => {
     );
     const answers = await Promise.all([remember("fp-a"), remember("fp-b")]);
     expect(answers.map((r) => r.status).sort()).toEqual([200, 409]);
-    expect(await data.countAll("accountMemory")).toBe(500);
+    expect(await data.count("accountMemory")).toBe(500);
   });
 });
 

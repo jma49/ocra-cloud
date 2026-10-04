@@ -26,6 +26,18 @@ describe("the API boundary", () => {
     expect(Object.keys(sources).length).toBeGreaterThan(20);
   });
 
+  it("reads rows with queries, never by filtering a whole table (#34)", () => {
+    const wholeTables = Object.entries(sources)
+      .filter(([file]) => !file.includes("/db/") && !file.includes("/contract/"))
+      .flatMap(([file, text]) =>
+        [...text.matchAll(/\.list\("(\w+)"\)/g)].map(
+          (m) => `${file.replace("../src/", "")}: ${m[1]}`,
+        ),
+      );
+    // The keys page shows every key the account holds.
+    expect(wholeTables).toEqual(["keys.ts: providerKeys"]);
+  });
+
   it("answers a body that does not fit with invalid_body and where", async () => {
     const web = await signIn(1, "octo");
     const res = await call("/api/preferences", {

@@ -2,7 +2,6 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { audit } from "./audit.js";
 import { encryptSecret, keyBinding } from "./crypto.js";
-import type { Scoped } from "./db/scoped.js";
 import { apiError, jsonBody } from "./http.js";
 import { decryptKey, storedKey } from "./keyring.js";
 import { checkKey, listModels } from "./provider-keys.js";
@@ -63,7 +62,6 @@ keys.put("/:provider", jsonBody(keyRequest), async (c) => {
     w.upsert(
       "providerKeys",
       {
-        id: crypto.randomUUID(),
         provider,
         ...sealed,
         last4: key.slice(-4),
@@ -74,7 +72,6 @@ keys.put("/:provider", jsonBody(keyRequest), async (c) => {
       ["accountId", "provider"],
     ),
     w.insert("auditEvents", {
-      id: crypto.randomUUID(),
       kind: "key.saved",
       detail: { provider, check: check.status },
     }),
@@ -106,15 +103,7 @@ keys.get("/:provider/models", async (c) => {
 
 keys.delete("/:provider", async (c) => {
   const provider = c.req.param("provider");
-  const removed = await removeKey(c.var.data, provider);
+  const removed = (await c.var.data.removeWhere("providerKeys", { provider })) > 0;
   if (removed) await audit(c.var.data, "key.deleted", { provider });
   return c.json({ removed });
 });
-
-async function removeKey(data: Scoped, provider: string): Promise<boolean> {
-  let removed = false;
-  for (const row of await data.list("providerKeys")) {
-    if (row.provider === provider) removed = (await data.remove("providerKeys", row.id)) || removed;
-  }
-  return removed;
-}

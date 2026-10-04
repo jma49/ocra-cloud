@@ -8,7 +8,7 @@ import {
   type ReviewSettings,
   type Runtime,
 } from "./contract/index.js";
-import type { Scoped } from "./db/scoped.js";
+import { newId, type Scoped } from "./db/scoped.js";
 import { apiError, jsonBody } from "./http.js";
 import { hasChatRoute } from "./providers.js";
 import { requireSession } from "./session.js";
@@ -20,7 +20,7 @@ import type { AppEnv } from "./types.js";
 export const preferences = new Hono<AppEnv>();
 
 async function current(data: Scoped) {
-  return (await data.list("preferences"))[0];
+  return data.findOne("preferences", {});
 }
 
 // The 0.4.0 CLI reads this; saving goes through PUT / (versioned and audited).
@@ -121,14 +121,13 @@ async function store(
   const changed = changedKeys(flat(savedOf(row)), flat(next));
   if (changed.length === 0) return { version: await latestVersion(data), changed };
   const fields = { ...next, updatedAt: new Date() };
-  const version = crypto.randomUUID();
+  const version = newId();
   // An upsert on the account: two first saves at once both land, not a 500.
   await data.batch((w) => [
-    w.upsert("preferences", { id: crypto.randomUUID(), ...fields }, ["accountId"]),
+    w.upsert("preferences", fields, ["accountId"]),
     w.insert("preferenceVersions", { id: version, snapshot: next, changed }),
     w.keepNewest("preferenceVersions", KEEP_VERSIONS),
     w.insert("auditEvents", {
-      id: crypto.randomUUID(),
       kind: "settings.changed",
       detail: { keys: changed, version },
     }),
@@ -137,7 +136,7 @@ async function store(
 }
 
 async function latestVersion(data: Scoped): Promise<string | null> {
-  return (await data.listSince("preferenceVersions", new Date(0), 1))[0]?.id ?? null;
+  return (await data.listNewest("preferenceVersions", 1))[0]?.id ?? null;
 }
 
 preferences.get("/", requireSession(["web", "cli"]), async (c) => {
@@ -165,7 +164,7 @@ preferences.put("/", requireSession(), jsonBody(preferencesBody), async (c) => {
 });
 
 preferences.get("/versions", requireSession(), async (c) => {
-  const rows = await c.var.data.listSince("preferenceVersions", new Date(0), KEEP_VERSIONS);
+  const rows = await c.var.data.listNewest("preferenceVersions", KEEP_VERSIONS);
   return c.json({
     versions: rows.map((v) => ({ id: v.id, createdAt: v.createdAt, changed: v.changed })),
   });

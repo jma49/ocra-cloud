@@ -7,5 +7,5 @@ export async function audit(
   kind: string,
   detail: Record<string, unknown>,
 ): Promise<void> {
-  await data.insert("auditEvents", { id: crypto.randomUUID(), kind, detail });
+  await data.insert("auditEvents", { kind, detail });
 }
