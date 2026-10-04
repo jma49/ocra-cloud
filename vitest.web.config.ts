@@ -7,6 +7,6 @@ export default defineConfig({
   plugins: [react()],
   test: {
     environment: "happy-dom",
-    include: ["web/src/**/*.test.tsx"],
+    include: ["web/src/**/*.test.{ts,tsx}"],
   },
 });

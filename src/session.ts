@@ -14,7 +14,12 @@ import type { AppEnv } from "./types.js";
 // Sessions: the guard every signed-in route sits behind, the session cookie,
 // and starting, refreshing and reissuing web and CLI sessions.
 
-export const SESSION_COOKIE = "ocra_session";
+/**
+ * `__Host-`: the browser takes it only with Secure, Path=/ and no Domain, so
+ * a sibling subdomain cannot plant a session (login CSRF). Renamed from
+ * `ocra_session`, which signed browsers out once (#15).
+ */
+export const SESSION_COOKIE = "__Host-ocra_session";
 const DAY = 86_400_000;
 export const SESSION_DAYS = { web: 30, cli: 90 } as const;
 /** A CLI access token lives an hour; its refresh token, SESSION_DAYS.cli. */

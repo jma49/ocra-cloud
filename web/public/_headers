@@ -1,0 +1,9 @@
+# Security headers for the web app (Workers static assets). The API sets its
+# own in src/index.ts. The app has no inline scripts or styles: React applies
+# style={} props through the CSSOM, which style-src does not govern, so
+# 'unsafe-inline' is not needed (web/src/headers.test.ts checks this file).
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https://avatars.githubusercontent.com; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  X-Frame-Options: DENY

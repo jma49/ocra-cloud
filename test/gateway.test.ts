@@ -89,7 +89,7 @@ describe("gateway", () => {
     );
     const res = await call("/api/gateway/openrouter/v1/chat/completions", {
       method: "POST",
-      headers: { ...auth, "content-type": "application/json", cookie: "ocra_session=leak" },
+      headers: { ...auth, "content-type": "application/json", cookie: "__Host-ocra_session=leak" },
       body: chat(),
     });
     expect(res.status).toBe(200);

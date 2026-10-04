@@ -18,6 +18,21 @@ import { usage } from "./usage.js";
 
 export const app = new Hono<AppEnv>().basePath("/api");
 
+/**
+ * On every API answer, errors included: never read as another type, never
+ * framed, and no referrer. The web app's own headers are in web/public/_headers.
+ */
+export const API_HEADERS = {
+  "x-content-type-options": "nosniff",
+  "referrer-policy": "no-referrer",
+  "content-security-policy": "default-src 'none'; frame-ancestors 'none'",
+} as const;
+
+app.use(async (c, next) => {
+  await next();
+  for (const [name, value] of Object.entries(API_HEADERS)) c.res.headers.set(name, value);
+});
+
 app.use(async (c, next) => {
   c.set("db", drizzle(c.env.DB));
   await next();
