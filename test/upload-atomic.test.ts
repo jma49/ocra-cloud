@@ -107,6 +107,39 @@ describe("review uploads", () => {
     expect(again.body).toEqual({ id, duplicate: true });
   });
 
+  it("stores every field of a finding in its own column", async () => {
+    const web = await signIn(1, "octo");
+    await share(web.auth);
+    const { auth } = await signInCli(1, "octo");
+    const sent = {
+      fingerprint: "fp-distinct",
+      reviewer: "logic",
+      severity: "suggestion",
+      category: "naming",
+      verification: "uncertain",
+      file: "src/distinct.ts",
+      lineStart: 11,
+      lineEnd: 13,
+      title: "The title",
+      body: "The body",
+      suggestion: "The suggestion",
+      code: "the(code)",
+      truncated: true,
+    };
+    const res = await call("/api/reviews", {
+      method: "POST",
+      headers: { ...json, ...auth },
+      body: JSON.stringify({ ...JSON.parse(upload("run-cols")), findingList: [sent] }),
+    });
+    const { id } = (await res.json()) as { id: string };
+    const detail = (await (await call(`/api/reviews/${id}`, { headers: web.auth })).json()) as {
+      findings: Record<string, unknown>[];
+    };
+    expect(detail.findings).toEqual([
+      expect.objectContaining({ ...sent, redacted: false, truncated: true }),
+    ]);
+  });
+
   it("turning sharing off deletes the stored findings in a bounded number of statements", async () => {
     const web = await signIn(1, "octo");
     await share(web.auth);
