@@ -107,7 +107,7 @@ export type Review = {
   repo: string;
   source: "local" | "github" | "gitlab";
   tier: string | null;
-  verdict: "approved" | "approved_with_comments" | "changes_requested" | null;
+  verdict: "approved" | "approved_with_comments" | "minor_issues" | "significant_concerns" | null;
   complete: boolean;
   findings: number;
   critical: number;
@@ -131,7 +131,7 @@ export type Reviews = {
     repositories: number;
     findings: number;
     critical: number;
-    changesRequested: number;
+    blocking: number;
     incomplete: number;
     fixed: number;
     dismissed: number;

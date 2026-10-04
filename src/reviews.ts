@@ -10,8 +10,15 @@ export const reviews = new Hono<AppEnv>();
 
 const DAY = 86_400_000;
 const SOURCES = ["local", "github", "gitlab"] as const;
-const VERDICTS = ["approved", "approved_with_comments", "changes_requested"] as const;
-const TIERS = ["lite", "standard", "full"] as const;
+// The engine's own values (packages/core/src/domain.ts: verdictSchema,
+// riskTierSchema); test/reviews.test.ts pins them.
+export const VERDICTS = [
+  "approved",
+  "approved_with_comments",
+  "minor_issues",
+  "significant_concerns",
+] as const;
+export const TIERS = ["trivial", "lite", "full"] as const;
 
 const count = (v: unknown) =>
   typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= 1e12 ? v : undefined;
@@ -179,7 +186,8 @@ reviews.get("/", requireSession(), async (c) => {
       repositories: repos.size,
       findings: sum((r) => r.findings),
       critical: sum((r) => r.critical),
-      changesRequested: rows.filter((r) => r.verdict === "changes_requested").length,
+      // significant_concerns is the verdict that blocks a merge.
+      blocking: rows.filter((r) => r.verdict === "significant_concerns").length,
       incomplete: rows.filter((r) => !r.complete).length,
       fixed: sum((r) => r.fixed),
       dismissed: sum((r) => r.dismissed),

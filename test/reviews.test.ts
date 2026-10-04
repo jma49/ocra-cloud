@@ -198,3 +198,40 @@ describe("per-reviewer counts (ADR-0028, 1)", () => {
     expect(JSON.stringify(body)).not.toContain("leak me");
   });
 });
+
+describe("the engine's vocabulary", () => {
+  // Copied from the engine (packages/core/src/domain.ts: verdictSchema,
+  // riskTierSchema): a change there must change these and the server's.
+  const ENGINE_VERDICTS = [
+    "approved",
+    "approved_with_comments",
+    "minor_issues",
+    "significant_concerns",
+  ];
+  const ENGINE_TIERS = ["trivial", "lite", "full"];
+
+  it("stores every verdict and tier the engine sends, unchanged", async () => {
+    const cli = await signInCli(1, "octo");
+    const web = await signIn(1, "octo");
+    let i = 0;
+    for (const verdict of ENGINE_VERDICTS) {
+      for (const tier of ENGINE_TIERS) {
+        const res = await call("/api/reviews", {
+          method: "POST",
+          headers: { ...cli.auth, ...json },
+          body: JSON.stringify(upload({ runId: `run-${i++}`, verdict, tier, complete: true })),
+        });
+        expect(res.status).toBe(200);
+      }
+    }
+    const list = (await (await call("/api/reviews", { headers: web.auth })).json()) as {
+      summary: { blocking: number };
+      reviews: { verdict: string; tier: string }[];
+    };
+    const seen = new Set(list.reviews.map((r) => `${r.verdict}/${r.tier}`));
+    for (const verdict of ENGINE_VERDICTS) {
+      for (const tier of ENGINE_TIERS) expect(seen).toContain(`${verdict}/${tier}`);
+    }
+    expect(list.summary.blocking).toBe(ENGINE_TIERS.length);
+  });
+});
