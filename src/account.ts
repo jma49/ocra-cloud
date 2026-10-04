@@ -158,12 +158,8 @@ account.put("/account/sharing", async (c) => {
   } | null;
   if (typeof body?.enabled !== "boolean") return c.json({ error: "bad_request" }, 400);
   await setSharing(c.var.db, c.var.session.account.id, body.enabled);
-  let deleted = 0;
-  if (!body.enabled && body.deleteExisting === true) {
-    for (const f of await c.var.data.list("findings")) {
-      if (await c.var.data.remove("findings", f.id)) deleted++;
-    }
-  }
+  const deleted =
+    !body.enabled && body.deleteExisting === true ? await c.var.data.removeAll("findings") : 0;
   await audit(c.var.data, "sharing.changed", { shareFindings: body.enabled, deleted });
   return c.json({ shareFindings: body.enabled, deleted });
 });

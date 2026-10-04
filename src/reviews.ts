@@ -109,26 +109,26 @@ reviews.post("/", requireSession(["web", "cli"]), async (c) => {
   const body = (await c.req.json().catch(() => null)) as Record<string, unknown> | null;
   const row = parseUpload(body);
   if (!row) return c.json({ error: "bad_review" }, 400);
-  // A run uploads once; a retry of the same run is not a second review.
-  const existing = (await c.var.data.list("reviews")).find((r) => r.runId === row.runId);
-  if (existing) return c.json({ id: existing.id, duplicate: true });
-  const id = crypto.randomUUID();
-  await c.var.data.insert("reviews", { id, ...row });
   // Findings are kept only while the account shares them, whatever the CLI sent.
-  let stored = 0;
-  let truncated = false;
   // The list goes in findingList; `findings` holds the severity counts. A list
   // under `findings` is accepted too, from a CLI built before the two split.
   const list = body?.findingList ?? (Array.isArray(body?.findings) ? body?.findings : undefined);
-  if (c.var.session.account.shareFindings && list !== undefined) {
-    const parsed = parseFindings(list);
-    truncated = parsed.truncated;
-    for (const f of parsed.rows) {
-      await c.var.data.insert("findings", { id: crypto.randomUUID(), reviewId: id, ...f });
-    }
-    stored = parsed.rows.length;
-  }
-  return c.json({ id, findings: stored, ...(truncated ? { truncated: true } : {}) });
+  const parsed =
+    c.var.session.account.shareFindings && list !== undefined
+      ? parseFindings(list)
+      : { rows: [], truncated: false };
+  // A run uploads once; a retry of the same run, even a concurrent one, is
+  // not a second review.
+  const { id, duplicate } = await c.var.data.insertReview(
+    { id: crypto.randomUUID(), ...row },
+    parsed.rows,
+  );
+  if (duplicate) return c.json({ id, duplicate: true });
+  return c.json({
+    id,
+    findings: parsed.rows.length,
+    ...(parsed.truncated ? { truncated: true } : {}),
+  });
 });
 
 // One review with its findings, for the web's detail page.
