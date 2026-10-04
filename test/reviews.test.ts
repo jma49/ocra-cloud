@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { parseUpload } from "../src/reviews.js";
+import { exportFinding, parseUpload } from "../src/reviews.js";
 import { call, resetDb, signIn, signInCli } from "./helpers.js";
 
 beforeEach(resetDb);
@@ -254,5 +254,40 @@ describe("the engine's vocabulary", () => {
       for (const tier of ENGINE_TIERS) expect(seen).toContain(`${verdict}/${tier}`);
     }
     expect(list.summary.blocking).toBe(ENGINE_TIERS.length);
+  });
+});
+
+describe("review export", () => {
+  it("leaves out what was not uploaded instead of sending null", () => {
+    const bare = {
+      id: "f",
+      accountId: "a",
+      reviewId: "r",
+      fingerprint: "fp-1",
+      reviewer: "docs",
+      severity: "suggestion",
+      category: null,
+      verification: null,
+      file: "README.md",
+      lineStart: null,
+      lineEnd: null,
+      title: "t",
+      body: "b",
+      suggestion: null,
+      code: null,
+      redacted: false,
+      truncated: false,
+      createdAt: new Date(0),
+    };
+    expect(exportFinding(bare)).toEqual({
+      fingerprint: "fp-1",
+      reviewer: "docs",
+      severity: "suggestion",
+      file: "README.md",
+      title: "t",
+      body: "b",
+      redacted: false,
+      truncated: false,
+    });
   });
 });

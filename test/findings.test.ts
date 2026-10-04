@@ -132,11 +132,27 @@ describe("sharing findings", () => {
 
     const exported = await call(`/api/reviews/${on.id}/export`, { headers: web.auth });
     expect(exported.headers.get("content-disposition")).toContain("attachment");
-    expect(await exported.json()).toMatchObject({
-      format: "ocra-cloud/review-export",
-      version: 1,
-      findings: [{ lines: { start: 10, end: 12 } }],
-    });
+    const file = (await exported.json()) as { version: number; findings: unknown[] };
+    expect(file).toMatchObject({ format: "ocra-cloud/review-export", version: 2 });
+    // The report's findings[] names (engine docs/schema/report.v1.json), plus
+    // ocra Cloud's redacted and truncated; nothing unknown is sent as null.
+    expect(file.findings).toEqual([
+      {
+        fingerprint: "fp-1234",
+        reviewer: "security",
+        category: "injection",
+        severity: "critical",
+        verification: "confirmed",
+        file: "src/db.ts",
+        lines: { start: 10, end: 12 },
+        title: "SQL built from input",
+        body: expect.stringContaining("[redacted]"),
+        suggestion: "Use a parameter.",
+        code: 'db.query("SELECT * FROM t WHERE id=" + id)',
+        redacted: true,
+        truncated: false,
+      },
+    ]);
 
     const salt1 = (await (await call("/api/account/salt", { headers: cli.auth })).json()) as {
       salt: string;

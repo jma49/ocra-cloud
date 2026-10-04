@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { requireSession } from "./auth.js";
 import type { ReviewerCounts } from "./db/schema.js";
+import type { Scoped } from "./db/scoped.js";
 import { parseFindings, REVIEWER_ID } from "./findings.js";
 import { clampDays } from "./retention.js";
 import type { AppEnv } from "./types.js";
@@ -164,9 +165,43 @@ reviews.get("/:id", requireSession(), async (c) => {
   });
 });
 
-// ocra-cloud/review-export v1: the uploaded counts and findings in the
-// report's findings[] shape. Not a report: coverage, tasks and provenance
-// were never uploaded (ADR-0028, 3).
+// ocra-cloud/review-export: the uploaded counts and findings. Not a report:
+// coverage, tasks and provenance were never uploaded (ADR-0028, 3).
+//
+// Version 2 (audit K-export) names each finding's fields as the report's
+// findings[] does (docs/schema/report.v1.json in the engine): `lines`
+// {start, end} and `code`, the quoted code. Version 1 put the quoted code
+// in `evidence`, which in the report is a list of strings; v2 is a new
+// version because that field changed. A field the report makes optional
+// is left out when unknown, never null. The report's inDiff, status,
+// evidence, fix and provenance were never uploaded, so they are absent.
+// Two fields are ocra Cloud's own: `redacted` (the server or the CLI
+// replaced a secret-looking string with [redacted]) and `truncated` (a
+// long field was cut).
+export const EXPORT_VERSION = 2;
+
+type FindingRow = Awaited<ReturnType<Scoped["findingsOf"]>>[number];
+
+export function exportFinding(f: FindingRow) {
+  return {
+    fingerprint: f.fingerprint,
+    reviewer: f.reviewer,
+    ...(f.category !== null ? { category: f.category } : {}),
+    severity: f.severity,
+    ...(f.verification !== null ? { verification: f.verification } : {}),
+    file: f.file,
+    ...(f.lineStart !== null
+      ? { lines: { start: f.lineStart, end: f.lineEnd ?? f.lineStart } }
+      : {}),
+    title: f.title,
+    body: f.body,
+    ...(f.suggestion !== null ? { suggestion: f.suggestion } : {}),
+    ...(f.code !== null ? { code: f.code } : {}),
+    redacted: f.redacted,
+    truncated: f.truncated,
+  };
+}
+
 reviews.get("/:id/export", requireSession(), async (c) => {
   const review = await c.var.data.get("reviews", c.req.param("id"));
   if (!review) return c.json({ error: "not_found" }, 404);
@@ -175,23 +210,9 @@ reviews.get("/:id/export", requireSession(), async (c) => {
   c.header("content-disposition", `attachment; filename="ocra-review-${review.runId}.json"`);
   return c.json({
     format: "ocra-cloud/review-export",
-    version: 1,
+    version: EXPORT_VERSION,
     review: r,
-    findings: list.map((f) => ({
-      fingerprint: f.fingerprint,
-      reviewer: f.reviewer,
-      severity: f.severity,
-      category: f.category,
-      verification: f.verification,
-      file: f.file,
-      lines: f.lineStart === null ? null : { start: f.lineStart, end: f.lineEnd ?? f.lineStart },
-      title: f.title,
-      body: f.body,
-      suggestion: f.suggestion,
-      evidence: f.code,
-      redacted: f.redacted,
-      truncated: f.truncated,
-    })),
+    findings: list.map(exportFinding),
   });
 });
 
