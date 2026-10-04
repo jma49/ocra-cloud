@@ -1,204 +1,186 @@
-import { StrictMode, useCallback, useEffect, useState } from "react";
+import { StrictMode, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import "./style.css";
+import { api, type Me } from "./api.js";
+import { Activity } from "./pages/Activity.js";
+import { Keys } from "./pages/Keys.js";
+import { Overview } from "./pages/Overview.js";
+import { Sessions } from "./pages/Sessions.js";
+import { Settings } from "./pages/Settings.js";
+import { Link, usePath } from "./router.js";
+import { Icon, type icons } from "./ui.js";
+import "./styles.css";
 
-type Me = { login: string; githubId: number };
-type Key = { provider: string; last4: string; createdAt: string };
-type Call = {
-  id: string;
-  provider: string;
-  model: string | null;
-  status: number;
-  tokensIn: number;
-  tokensOut: number;
-  ms: number;
-  createdAt: string;
-};
-type Usage = { today: number; dailyLimit: number; calls: Call[] };
+const DOCS = "https://ocra.majincheng.com";
 
-async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const res = await fetch(`/api${path}`, {
-    ...init,
-    headers: { "content-type": "application/json", ...init.headers },
-  });
-  if (!res.ok) throw new Error(`${res.status}`);
-  return res.json() as Promise<T>;
+const NAV: { to: string; label: string; icon: keyof typeof icons }[] = [
+  { to: "/", label: "Overview", icon: "home" },
+  { to: "/activity", label: "Activity", icon: "activity" },
+  { to: "/keys", label: "Provider keys", icon: "key" },
+  { to: "/sessions", label: "CLI & sessions", icon: "terminal" },
+  { to: "/settings", label: "Settings", icon: "settings" },
+];
+
+function TopBar(props: { me: Me | null }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const close = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
+  }, []);
+  const logout = async () => {
+    await api("/auth/logout", { method: "POST" }).catch(() => {});
+    location.href = "/";
+  };
+  return (
+    <header className="topbar">
+      <Link to="/" className="brand">
+        <span className="brand-mark">o</span>
+        ocra
+        <span className="brand-tag">cloud · dev</span>
+      </Link>
+      <span className="spacer" />
+      <a className="toplink hide-sm" href={DOCS} target="_blank" rel="noreferrer">
+        Docs
+      </a>
+      <a
+        className="toplink hide-sm"
+        href="https://github.com/jma49/Open-CR-Agent"
+        target="_blank"
+        rel="noreferrer"
+      >
+        GitHub
+      </a>
+      {props.me && (
+        <div ref={ref}>
+          <button
+            type="button"
+            className="avatar-btn"
+            onClick={() => setOpen(!open)}
+            aria-expanded={open}
+          >
+            <img
+              className="avatar"
+              src={`https://avatars.githubusercontent.com/u/${props.me.githubId}?s=64`}
+              alt=""
+            />
+            <span className="small">{props.me.login}</span>
+          </button>
+          {open && (
+            <div className="menu" role="menu">
+              <div className="menu-head">
+                <div style={{ fontWeight: 500 }}>{props.me.login}</div>
+                <div className="subtle small">Signed in with GitHub</div>
+              </div>
+              <Link to="/settings" className="menu-item">
+                Settings
+              </Link>
+              <a className="menu-item" href={DOCS} target="_blank" rel="noreferrer">
+                Documentation
+              </a>
+              <button type="button" className="menu-item" onClick={logout}>
+                Sign out
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </header>
+  );
 }
 
 function SignIn() {
+  const points = [
+    [
+      "Your keys, encrypted.",
+      "Bring a key from any of 45 providers; it is encrypted and never shown again.",
+    ],
+    [
+      "Every call on record.",
+      "See each model call made with your keys: model, tokens, status and time.",
+    ],
+    ["Your code stays yours.", "Prompts and answers pass through and are never stored or logged."],
+  ];
   return (
-    <section className="card">
-      <h2>Sign in</h2>
-      <p>ocra Cloud keeps your model keys encrypted and shows your reviews and usage.</p>
-      <a className="button" href="/api/auth/github/login">
-        Sign in with GitHub
-      </a>
-    </section>
-  );
-}
-
-function Keys() {
-  const [keys, setKeys] = useState<Key[]>([]);
-  const [names, setNames] = useState<string[]>(["openrouter"]);
-  useEffect(() => {
-    api<{ providers: { name: string }[] }>("/providers").then(
-      (r) => setNames(r.providers.map((p) => p.name).sort()),
-      () => {},
-    );
-  }, []);
-  const [provider, setProvider] = useState<string>("openrouter");
-  const [value, setValue] = useState("");
-  const [error, setError] = useState("");
-  const load = useCallback(() => {
-    api<{ keys: Key[] }>("/keys").then(
-      (r) => setKeys(r.keys),
-      () => setError("Could not load keys."),
-    );
-  }, []);
-  useEffect(load, [load]);
-  const save = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    try {
-      await api(`/keys/${provider}`, { method: "PUT", body: JSON.stringify({ key: value }) });
-      setValue("");
-      load();
-    } catch {
-      setError("That key was not accepted.");
-    }
-  };
-  const remove = async (p: string) => {
-    await api(`/keys/${p}`, { method: "DELETE" }).catch(() => setError("Could not delete."));
-    load();
-  };
-  return (
-    <section className="card">
-      <h2>Model keys</h2>
-      <p className="muted">
-        Stored encrypted; never shown again after saving. Set a spending limit at your provider.
-      </p>
-      {keys.length === 0 ? (
-        <p>No keys yet.</p>
-      ) : (
-        <ul className="rows">
-          {keys.map((k) => (
-            <li key={k.provider}>
+    <div className="signin">
+      <div className="signin-box">
+        <h1>Code review agents, with your own keys</h1>
+        <p className="lead">Sign in to manage provider keys and see what ocra does with them.</p>
+        <a className="btn btn-primary btn-lg" href="/api/auth/github/login">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+            <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+          </svg>
+          Continue with GitHub
+        </a>
+        <div className="signin-points">
+          {points.map(([t, d]) => (
+            <div key={t}>
+              <span className="check">✓</span>
               <span>
-                <strong>{k.provider}</strong> <code>…{k.last4}</code>
+                <b>{t}</b> {d}
               </span>
-              <button type="button" onClick={() => remove(k.provider)}>
-                Delete
-              </button>
-            </li>
+            </div>
           ))}
-        </ul>
-      )}
-      <form onSubmit={save} className="row">
-        <select
-          value={provider}
-          onChange={(e) => setProvider(e.target.value)}
-          aria-label="Provider"
-        >
-          {names.map((p) => (
-            <option key={p}>{p}</option>
-          ))}
-        </select>
-        <input
-          type="password"
-          autoComplete="off"
-          placeholder="API key"
-          aria-label="API key"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-        />
-        <button type="submit" disabled={value.trim().length < 8}>
-          Save
-        </button>
-      </form>
-      {error && <p className="error">{error}</p>}
-    </section>
-  );
-}
-
-function UsageView() {
-  const [usage, setUsage] = useState<Usage | null>(null);
-  useEffect(() => {
-    api<Usage>("/usage").then(setUsage, () => setUsage(null));
-  }, []);
-  if (!usage) return null;
-  return (
-    <section className="card">
-      <h2>Gateway calls</h2>
-      <p className="muted">
-        Today: {usage.today} of {usage.dailyLimit}. Every use of your keys is listed here; request
-        and answer bodies are never stored.
-      </p>
-      {usage.calls.length === 0 ? (
-        <p>No calls yet.</p>
-      ) : (
-        <div className="table">
-          <table>
-            <thead>
-              <tr>
-                <th>When</th>
-                <th>Model</th>
-                <th>Status</th>
-                <th>Tokens in/out</th>
-                <th>ms</th>
-              </tr>
-            </thead>
-            <tbody>
-              {usage.calls.map((c) => (
-                <tr key={c.id}>
-                  <td>{new Date(c.createdAt).toLocaleString()}</td>
-                  <td>{c.model ?? c.provider}</td>
-                  <td>{c.status}</td>
-                  <td>
-                    {c.tokensIn}/{c.tokensOut}
-                  </td>
-                  <td>{c.ms}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
-      )}
-    </section>
+      </div>
+    </div>
   );
 }
 
 function App() {
   const [me, setMe] = useState<Me | null | undefined>(undefined);
+  const path = usePath();
   useEffect(() => {
     api<Me>("/me").then(setMe, () => setMe(null));
   }, []);
-  const logout = async () => {
-    await api("/auth/logout", { method: "POST" }).catch(() => {});
-    setMe(null);
-  };
-  return (
-    <main>
-      <header>
-        <h1>ocra Cloud</h1>
-        {me && (
-          <span>
-            {me.login}{" "}
-            <button type="button" onClick={logout}>
-              Sign out
-            </button>
-          </span>
-        )}
-      </header>
-      <p className="muted">Development build.</p>
-      {me === undefined ? null : me === null ? (
+  useEffect(() => {
+    const page = NAV.find((n) => n.to === path)?.label;
+    document.title = page && me ? `${page} · ocra Cloud` : "ocra Cloud";
+  }, [path, me]);
+
+  if (me === undefined) return <TopBar me={null} />;
+  if (me === null)
+    return (
+      <>
+        <TopBar me={null} />
         <SignIn />
-      ) : (
-        <>
-          <Keys />
-          <UsageView />
-        </>
-      )}
-    </main>
+      </>
+    );
+  const page =
+    path === "/activity" ? (
+      <Activity />
+    ) : path === "/keys" ? (
+      <Keys />
+    ) : path === "/sessions" ? (
+      <Sessions />
+    ) : path === "/settings" ? (
+      <Settings me={me} />
+    ) : (
+      <Overview login={me.login} />
+    );
+  return (
+    <>
+      <TopBar me={me} />
+      <div className="shell">
+        <nav className="sidebar" aria-label="Console">
+          <div className="side-label">Console</div>
+          {NAV.map((n) => (
+            <Link key={n.to} to={n.to} className={`side-link${path === n.to ? " active" : ""}`}>
+              <Icon name={n.icon} />
+              {n.label}
+            </Link>
+          ))}
+          <div className="side-label">Resources</div>
+          <a className="side-link" href={DOCS} target="_blank" rel="noreferrer">
+            <Icon name="book" />
+            Documentation
+          </a>
+        </nav>
+        <main className="content">{page}</main>
+      </div>
+    </>
   );
 }
 

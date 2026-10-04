@@ -22,7 +22,12 @@ export async function upsertAccount(
   return row;
 }
 
-export type SessionAccount = { account: Account; sessionId: string; kind: "web" | "cli" };
+export type SessionAccount = {
+  account: Account;
+  sessionId: string;
+  kind: "web" | "cli";
+  lastUsedAt: Date | null;
+};
 
 /** The live session with this token hash, and its account. */
 export async function sessionByTokenHash(
@@ -31,10 +36,20 @@ export async function sessionByTokenHash(
   now = new Date(),
 ): Promise<SessionAccount | undefined> {
   const row = await db
-    .select({ account: accounts, sessionId: sessions.id, kind: sessions.kind })
+    .select({
+      account: accounts,
+      sessionId: sessions.id,
+      kind: sessions.kind,
+      lastUsedAt: sessions.lastUsedAt,
+    })
     .from(sessions)
     .innerJoin(accounts, eq(accounts.id, sessions.accountId))
     .where(and(eq(sessions.tokenHash, tokenHash), gt(sessions.expiresAt, now)))
     .get();
   return row;
+}
+
+/** Deletes an account; its sessions, keys and records go with it (cascade). */
+export async function deleteAccount(db: DrizzleD1Database, accountId: string): Promise<void> {
+  await db.delete(accounts).where(eq(accounts.id, accountId));
 }

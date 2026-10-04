@@ -29,7 +29,13 @@ export function requireSession(): MiddlewareHandler<AppEnv> {
     const session = await sessionByTokenHash(c.var.db, await sha256Hex(token));
     if (!session) return c.json({ error: "unauthenticated" }, 401);
     c.set("session", session);
-    c.set("data", scoped(c.var.db, session.account.id));
+    const data = scoped(c.var.db, session.account.id);
+    c.set("data", data);
+    // When a session was last used, to the nearest few minutes.
+    const now = new Date();
+    if (!session.lastUsedAt || now.getTime() - session.lastUsedAt.getTime() > 5 * 60_000) {
+      c.executionCtx.waitUntil(data.update("sessions", session.sessionId, { lastUsedAt: now }));
+    }
     await next();
   };
 }

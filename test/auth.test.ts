@@ -56,7 +56,7 @@ describe("GitHub sign-in", () => {
     expect(String(exchange?.[1]?.body)).toContain("test-client-secret");
 
     const me = await call("/api/me", { headers: { cookie: `ocra_session=${session}` } });
-    expect(await me.json()).toEqual({ login: "octo", githubId: 42, session: "web" });
+    expect(await me.json()).toMatchObject({ login: "octo", githubId: 42, session: "web" });
   });
 
   it("refuses a callback whose state does not match the signed cookie", async () => {

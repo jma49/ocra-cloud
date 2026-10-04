@@ -1,4 +1,12 @@
-import { and, count, eq, gte, type InferInsertModel, type InferSelectModel } from "drizzle-orm";
+import {
+  and,
+  count,
+  desc,
+  eq,
+  gte,
+  type InferInsertModel,
+  type InferSelectModel,
+} from "drizzle-orm";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import { accountTables } from "./schema.js";
 
@@ -29,6 +37,17 @@ export function scoped(db: DrizzleD1Database, accountId: string) {
     },
     async insert<N extends Name>(name: N, row: NewRow<N>): Promise<void> {
       await db.insert(accountTables[name]).values({ ...row, accountId } as never);
+    },
+    /** This account's rows created at or after since, newest first. */
+    listSince<N extends Name>(name: N, since: Date, limit = 10_000): Promise<Row<N>[]> {
+      const t = accountTables[name];
+      return db
+        .select()
+        .from(t)
+        .where(and(own(name), gte(t.createdAt, since)))
+        .orderBy(desc(t.createdAt))
+        .limit(limit)
+        .all() as Promise<Row<N>[]>;
     },
     /** Rows of this account created at or after since. */
     async countSince(name: Name, since: Date): Promise<number> {

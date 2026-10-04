@@ -1,9 +1,10 @@
 import { drizzle } from "drizzle-orm/d1";
 import { Hono } from "hono";
+import { account } from "./account.js";
 import { auth, requireSession } from "./auth.js";
 import { gateway } from "./gateway.js";
 import { keys } from "./keys.js";
-import { providers } from "./providers.js";
+import { type ProviderName, providerInfo, providers } from "./providers.js";
 import type { AppEnv } from "./types.js";
 
 const app = new Hono<AppEnv>().basePath("/api");
@@ -25,6 +26,7 @@ app.get("/providers", (c) =>
   c.json({
     providers: Object.entries(providers).map(([name, p]) => ({
       name,
+      ...providerInfo[name as ProviderName],
       base: p.base,
       paths: p.routes.map((r) => (typeof r.path === "string" ? r.path : r.path.source)),
     })),
@@ -32,22 +34,15 @@ app.get("/providers", (c) =>
 );
 
 app.get("/me", requireSession(), (c) => {
-  const { account, kind } = c.var.session;
-  return c.json({ login: account.login, githubId: account.githubId, session: kind });
+  const { account: a, kind } = c.var.session;
+  return c.json({ login: a.login, githubId: a.githubId, session: kind, since: a.createdAt });
 });
 
-// The account's recent gateway calls (its key-use log) and today's count.
-app.get("/usage", requireSession(), async (c) => {
-  const today = new Date(new Date().toISOString().slice(0, 10));
-  const calls = (await c.var.data.list("gatewayCalls"))
-    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-    .slice(0, 50);
-  return c.json({
-    today: await c.var.data.countSince("gatewayCalls", today),
-    dailyLimit: Number(c.env.GATEWAY_DAILY_CALLS),
-    calls: calls.map(({ accountId: _a, ...call }) => call),
-  });
-});
+app.use("/usage", requireSession());
+app.use("/sessions/*", requireSession());
+app.use("/sessions", requireSession());
+app.use("/account", requireSession());
+app.route("/", account);
 
 app.use("/keys/*", requireSession());
 app.route("/keys", keys);
