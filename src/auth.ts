@@ -12,7 +12,11 @@ import type { AppEnv } from "./types.js";
 
 // Signing in with GitHub, and signing out.
 
-const STATE_COOKIE = "ocra_oauth_state";
+// `__Host-` needs Path=/, so the state cookie is sent site-wide for its ten
+// minutes; in return a sibling subdomain cannot plant a state it signed
+// for itself and finish a sign-in as its own account in this browser.
+const STATE_COOKIE = "__Host-ocra_oauth_state";
+const STATE_OPTIONS = { secure: true, path: "/" } as const;
 
 const unsafeChar = (ch: string) => ch.charCodeAt(0) < 0x20 || ch === "\x7f" || ch === "\\";
 
@@ -48,10 +52,9 @@ auth.get("/github/login", async (c) => {
   const next = safeNext(c.req.query("next"));
   await setSignedCookie(c, STATE_COOKIE, `${state} ${next}`, c.env.SESSION_SECRET, {
     httpOnly: true,
-    secure: true,
     sameSite: "Lax",
-    path: "/api/auth/github",
     maxAge: 600,
+    ...STATE_OPTIONS,
   });
   const url = new URL("https://github.com/login/oauth/authorize");
   url.searchParams.set("client_id", c.env.GITHUB_CLIENT_ID);
@@ -63,7 +66,7 @@ auth.get("/github/login", async (c) => {
 
 auth.get("/github/callback", async (c) => {
   const cookie = await getSignedCookie(c, c.env.SESSION_SECRET, STATE_COOKIE);
-  deleteCookie(c, STATE_COOKIE, { path: "/api/auth/github", secure: true });
+  deleteCookie(c, STATE_COOKIE, STATE_OPTIONS);
   const space = cookie ? cookie.indexOf(" ") : -1;
   const expected = cookie && space > 0 ? cookie.slice(0, space) : cookie || undefined;
   const next = cookie && space > 0 ? cookie.slice(space + 1) : undefined;
