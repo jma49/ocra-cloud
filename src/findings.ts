@@ -58,11 +58,11 @@ export function parseFindings(list: unknown): { rows: FindingRow[]; truncated: b
       fingerprint: f.fingerprint,
       reviewer: f.reviewer,
       severity: f.severity as string,
-      category: typeof f.category === "string" ? f.category.slice(0, 64) : null,
+      category: typeof f.category === "string" ? (text(f.category.slice(0, 64)) ?? null) : null,
       verification: VERIFICATIONS.includes(f.verification as string)
         ? (f.verification as string)
         : null,
-      file: f.file,
+      file: text(f.file) ?? "",
       lineStart: line(f.lineStart),
       lineEnd: line(f.lineEnd),
       title: text(f.title) ?? "",

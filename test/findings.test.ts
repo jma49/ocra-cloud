@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { parseFindings } from "../src/findings.js";
 import { redact } from "../src/redact.js";
 import { call, resetDb, signIn, signInCli } from "./helpers.js";
+import vectors from "./redaction-vectors.json";
 
 beforeEach(resetDb);
 const json = { "content-type": "application/json" };
@@ -31,24 +32,27 @@ const upload = (runId: string, findingList: unknown[]) => ({
 });
 
 describe("redaction", () => {
-  it("replaces common secrets and long random tokens, and leaves code alone", () => {
-    for (const secret of [
-      "AKIAABCDEFGHIJKLMNOP",
-      "ghp_abcdefghijklmnopqrstuvwxyz0123",
-      "sk-ant-api03-abcdefghijklmnopqrstuvwxyz",
-      "sk-or-v1-0123456789abcdef0123456789abcdef",
-      "AIzaSyA-1234567890abcdefghijklmnopqrstu",
-      "-----BEGIN RSA PRIVATE KEY-----\nMIIEow\n-----END RSA PRIVATE KEY-----",
-      "Zq3Xk9LmP2vR7tYb4NcW8sJh1Df6Ga5Ue0Oi",
-    ]) {
-      const r = redact(`const key = "${secret}";`);
-      expect(r.redacted).toBe(true);
-      expect(r.text).not.toContain(secret.slice(0, 12));
+  // The same vectors run in the CLI's pass (packages/cli/src/review/redact.test.ts).
+  it("redacts every shared secret vector and leaves the plain lines alone", () => {
+    for (const v of vectors.redact) {
+      const r = redact(v.line);
+      expect(r.redacted, v.line).toBe(true);
+      expect(r.text, v.line).not.toContain(v.secret);
     }
-    const plain = redact(
-      "const total = items.reduce((n, i) => n + i.price, 0); // a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
-    );
-    expect(plain.redacted).toBe(false);
+    for (const line of vectors.keep)
+      expect(redact(line), line).toEqual({ text: line, redacted: false });
+  });
+
+  it("redacts a finding's file and category too", () => {
+    const [row] = parseFindings([
+      finding({
+        file: "config/ghp_abcdefghijklmnopqrstuvwxyz0123.env",
+        category: "AKIAABCDEFGHIJKLMNOP",
+      }),
+    ]).rows;
+    expect(row?.file).toBe("config/[redacted].env");
+    expect(row?.category).toBe("[redacted]");
+    expect(row?.redacted).toBe(true);
   });
 });
 

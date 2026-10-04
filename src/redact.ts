@@ -1,8 +1,11 @@
 // Replaces secret-looking tokens before a finding is stored (ADR-0028, 2).
-// The CLI runs the same pass before upload; this one is the server's own.
-// It catches patterns, not every secret, and the data policy says so.
+// The CLI runs the same pass before upload (packages/cli/src/review/
+// redact.ts in the engine); both run test/redaction-vectors.json. It catches
+// patterns, not every secret, and the data policy says so.
 
-const PATTERNS: RegExp[] = [
+export const REDACTED = "[redacted]";
+
+const PATTERNS: readonly RegExp[] = [
   /-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----[\s\S]*?(-----END [A-Z0-9 ]*PRIVATE KEY-----|$)/g,
   /\b(AKIA|ASIA)[0-9A-Z]{16}\b/g,
   /\b(ghp|gho|ghs|ghu|ghr)_[A-Za-z0-9]{20,}\b/g,
@@ -12,19 +15,40 @@ const PATTERNS: RegExp[] = [
   /\bxox[abprs]-[A-Za-z0-9-]{10,}\b/g,
   /\bAIza[0-9A-Za-z_-]{35}\b/g,
   /\bnpm_[A-Za-z0-9]{36}\b/g,
+  /\bhttps:\/\/hooks\.slack\.com\/(services|workflows|triggers)\/[A-Za-z0-9/_-]+/g,
+  /\bhttps:\/\/(ptb\.|canary\.)?discord(app)?\.com\/api\/webhooks\/\d+\/[A-Za-z0-9_-]+/g,
 ];
 
-// A long run of base64-ish characters mixing cases and digits: a likely key.
-const HIGH_ENTROPY = /\b[A-Za-z0-9+/_-]{32,}={0,2}/g;
-function looksRandom(s: string): boolean {
-  return (
-    /[a-z]/.test(s) && /[A-Z]/.test(s) && /\d/.test(s) && !/^[a-z]+$/i.test(s) && !s.includes("/")
-  );
+// The password in a URL's userinfo: postgres://user:password@host.
+const USERINFO = /\b([a-z][a-z0-9+.-]*:\/\/[^\s:/@]*:)([^\s/@]+)@/gi;
+
+// A quoted value assigned to a name that says it is secret:
+// password = "…", "apiKey": "…", DB_PASSWORD: '…'.
+const ASSIGNED =
+  /\b([A-Za-z0-9_.-]*(?:passw(?:or)?d|pwd|secret|token|api[_-]?key|access[_-]?key|private[_-]?key|credentials?)["']?\s*[:=]\s*)(["'`])([^"'`\n]{4,})\2/gi;
+
+// A long hex run with letters and digits: a key or token in hex.
+const HEX = /\b[0-9a-f]{32,}\b/gi;
+const isHexKey = (s: string) => /[0-9]/.test(s) && /[a-f]/i.test(s);
+
+// A long base64-like run that looks random: high entropy and a digit.
+// Identifiers and paths stay under the entropy bar.
+const LONG_RUN = /[A-Za-z0-9+/_-]{32,}={0,2}/g;
+function entropy(s: string): number {
+  const counts = new Map<string, number>();
+  for (const ch of s) counts.set(ch, (counts.get(ch) ?? 0) + 1);
+  let bits = 0;
+  for (const n of counts.values()) bits -= (n / s.length) * Math.log2(n / s.length);
+  return bits;
 }
+const looksRandom = (s: string) => /\d/.test(s) && entropy(s) >= 4.3;
 
 export function redact(text: string): { text: string; redacted: boolean } {
   let out = text;
-  for (const p of PATTERNS) out = out.replace(p, "[redacted]");
-  out = out.replace(HIGH_ENTROPY, (m) => (looksRandom(m) ? "[redacted]" : m));
+  for (const p of PATTERNS) out = out.replace(p, REDACTED);
+  out = out.replace(USERINFO, (_m, head: string) => `${head}${REDACTED}@`);
+  out = out.replace(ASSIGNED, (_m, head: string, q: string) => `${head}${q}${REDACTED}${q}`);
+  out = out.replace(HEX, (m) => (isHexKey(m) ? REDACTED : m));
+  out = out.replace(LONG_RUN, (m) => (looksRandom(m) ? REDACTED : m));
   return { text: out, redacted: out !== text };
 }
