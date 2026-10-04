@@ -92,6 +92,13 @@
       "when": 1791115108403,
       "tag": "0012_provider_key_unique",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1791147228774,
+      "tag": "0013_preferences_by_account",
+      "breakpoints": true
     }
   ]
 }

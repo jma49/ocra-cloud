@@ -17,8 +17,7 @@ export const memory = new Hono<AppEnv>();
 
 memory.get("/", requireSession(["web", "cli"]), async (c) => {
   const repo = c.req.query("repo");
-  const rows = await c.var.data.list("accountMemory");
-  const list = repo ? rows.filter((m) => m.repoHash === repo) : rows;
+  const list = await c.var.data.find("accountMemory", repo ? { repoHash: repo } : {});
   return c.json({ entries: list.map(memoryEntryDto) });
 });
 
@@ -31,7 +30,6 @@ memory.post("/", requireSession(), jsonBody(rememberRequestSchema), async (c) =>
   // The duplicate and cap checks are in the insert itself (audit D-hyg).
   const stored = await c.var.data.remember(
     {
-      id: crypto.randomUUID(),
       repoHash: review.repoHash,
       fingerprint: finding.fingerprint,
       file: finding.file,

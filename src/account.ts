@@ -27,7 +27,7 @@ account.delete("/", requireSession(), jsonBody(deleteRequest), async (c) => {
 // Sharing findings (ADR-0028, 2): off by default. Turning it off can delete
 // every finding sent; the counts stay.
 account.get("/sharing", requireSession(), async (c) => {
-  const stored = await c.var.data.countAll("findings");
+  const stored = await c.var.data.count("findings");
   return c.json({ shareFindings: c.var.session.account.shareFindings, findingsStored: stored });
 });
 
@@ -40,7 +40,9 @@ account.put("/sharing", requireSession(), jsonBody(sharingRequest), async (c) =>
   const body = c.req.valid("json");
   await setSharing(c.var.db, c.var.session.account.id, body.enabled);
   const deleted =
-    !body.enabled && body.deleteExisting === true ? await c.var.data.removeAll("findings") : 0;
+    !body.enabled && body.deleteExisting === true
+      ? await c.var.data.removeWhere("findings", {})
+      : 0;
   await audit(c.var.data, "sharing.changed", { shareFindings: body.enabled, deleted });
   return c.json({ shareFindings: body.enabled, deleted });
 });

@@ -78,7 +78,7 @@ reviews.post("/", requireSession(["web", "cli"]), uploadBody, async (c) => {
   // per account (audit S3): a loop of uploads cannot fill the database.
   const limit = Number(c.env.REVIEW_DAILY_UPLOADS);
   const { id, duplicate, limited, findingsSkipped } = await c.var.data.insertReview(
-    { id: crypto.randomUUID(), ...row },
+    row,
     parsed.rows,
     {
       since: new Date(new Date().toISOString().slice(0, 10)),

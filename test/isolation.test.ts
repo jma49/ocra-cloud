@@ -80,7 +80,12 @@ it("covers every table with a foreign key to accounts, whatever the column's nam
   expect(Object.keys(rows).sort()).toEqual(Object.keys(schema.accountTables).sort());
 });
 
-describe.each(Object.keys(rows) as (keyof typeof rows)[])("%s", (name) => {
+// Tables whose rows have their own id; preferences is one row per account.
+const withIds = (Object.keys(rows) as (keyof typeof rows)[]).filter(
+  (n): n is Exclude<keyof typeof rows, "preferences"> => n !== "preferences",
+);
+
+describe.each(withIds)("%s", (name) => {
   beforeEach(async () => {
     // A finding needs a review to belong to (foreign key).
     if (name === "findings") {
@@ -121,5 +126,33 @@ describe.each(Object.keys(rows) as (keyof typeof rows)[])("%s", (name) => {
     await a.update(name, "row-3", { ...changes[name], accountId: B } as never);
     expect(await a.get(name, "row-3")).toMatchObject({ accountId: A });
     expect(await scoped(db, B).list(name)).toEqual([]);
+  });
+});
+
+describe("preferences, one row per account", () => {
+  it("one account cannot read, change or delete another's row", async () => {
+    const a = scoped(db, A);
+    const b = scoped(db, B);
+    expect(await a.insert("preferences", rows.preferences("ignored") as never)).toBe(A);
+    expect(await a.findOne("preferences", {})).toMatchObject({ accountId: A });
+    expect(await b.findOne("preferences", {})).toBeUndefined();
+    expect(await b.count("preferences")).toBe(0);
+    expect(await b.removeWhere("preferences", {})).toBe(0);
+    await b.batch((w) => [w.upsert("preferences", changes.preferences, ["accountId"])]);
+    expect(await a.findOne("preferences", {})).not.toMatchObject(changes.preferences);
+    expect(await b.findOne("preferences", {})).toMatchObject({
+      accountId: B,
+      ...changes.preferences,
+    });
+    await a.batch((w) => [w.upsert("preferences", changes.preferences, ["accountId"])]);
+    expect(await a.count("preferences")).toBe(1);
+    expect(await a.findOne("preferences", {})).toMatchObject(changes.preferences);
+  });
+
+  it("an insert cannot name another account", async () => {
+    const b = scoped(db, B);
+    await b.insert("preferences", { ...rows.preferences("x"), accountId: A } as never);
+    expect(await scoped(db, A).findOne("preferences", {})).toBeUndefined();
+    expect(await b.findOne("preferences", {})).toMatchObject({ accountId: B });
   });
 });

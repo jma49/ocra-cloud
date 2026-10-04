@@ -66,7 +66,6 @@ export function requireSession(kinds: readonly Kind[] = ["web"]): MiddlewareHand
 export async function startWebSession(db: DrizzleD1Database, accountId: string): Promise<string> {
   const token = randomToken("ocra_web_");
   await scoped(db, accountId).insert("sessions", {
-    id: crypto.randomUUID(),
     tokenHash: await sha256Hex(token),
     kind: "web",
     label: null,

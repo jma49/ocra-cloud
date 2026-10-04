@@ -34,13 +34,11 @@ gateway.post("/:provider/*", async (c) => {
   // The call's row is written before forwarding and is the reservation
   // against the daily cap, so parallel calls cannot all pass, and a call
   // that never finishes still shows in the log. It is updated at the end.
-  const id = crypto.randomUUID();
   const today = new Date(new Date().toISOString().slice(0, 10));
   const cap = Number(c.env.GATEWAY_DAILY_CALLS);
-  const row = { id, provider: name, path, model, status: PENDING };
-  if (!(await data.reserve("gatewayCalls", row, today, cap))) {
-    return apiError(c, "daily_limit", { limit: cap });
-  }
+  const row = { provider: name, path, model, status: PENDING };
+  const id = await data.reserve("gatewayCalls", row, today, cap);
+  if (!id) return apiError(c, "daily_limit", { limit: cap });
 
   const headers = new Headers({
     "content-type": c.req.header("content-type") ?? "application/json",
