@@ -22,11 +22,12 @@ const finding = (over: Record<string, unknown> = {}) => ({
   code: 'db.query("SELECT * FROM t WHERE id=" + id)',
   ...over,
 });
-const upload = (runId: string, findings: unknown[]) => ({
+const upload = (runId: string, findingList: unknown[]) => ({
   runId,
   repoHash: HASH,
   source: "local",
-  findings,
+  findings: { critical: 1, warning: 0, suggestion: 0 },
+  findingList,
 });
 
 describe("redaction", () => {
@@ -107,6 +108,11 @@ describe("sharing findings", () => {
       await post("run-on", [finding({ body: "leaked ghp_abcdefghijklmnopqrstuvwxyz0123 here" })])
     ).json()) as { id: string; findings: number };
     expect(on.findings).toBe(1);
+    // The counts and the list travel side by side.
+    const counts = (await (await call(`/api/reviews/${on.id}`, { headers: web.auth })).json()) as {
+      review: { critical: number };
+    };
+    expect(counts.review.critical).toBe(1);
     const detail = (await (await call(`/api/reviews/${on.id}`, { headers: web.auth })).json()) as {
       findings: { body: string; redacted: boolean; file: string }[];
     };

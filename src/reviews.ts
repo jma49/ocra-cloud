@@ -110,8 +110,11 @@ reviews.post("/", requireSession(["web", "cli"]), async (c) => {
   // Findings are kept only while the account shares them, whatever the CLI sent.
   let stored = 0;
   let truncated = false;
-  if (c.var.session.account.shareFindings && body?.findings !== undefined) {
-    const parsed = parseFindings(body.findings);
+  // The list goes in findingList; `findings` holds the severity counts. A list
+  // under `findings` is accepted too, from a CLI built before the two split.
+  const list = body?.findingList ?? (Array.isArray(body?.findings) ? body?.findings : undefined);
+  if (c.var.session.account.shareFindings && list !== undefined) {
+    const parsed = parseFindings(list);
     truncated = parsed.truncated;
     for (const f of parsed.rows) {
       await c.var.data.insert("findings", { id: crypto.randomUUID(), reviewId: id, ...f });
