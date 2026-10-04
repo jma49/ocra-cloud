@@ -54,3 +54,9 @@ jobs:
         with:
           node-version-file: .nvmrc
       - run: node scripts/sync-contract.mjs .engine --check
+
+  # Conventional Commits and no AI attribution, with the engine's own checks
+  # (AGENTS.md, Working with agents).
+  commits:
+    if: github.event_name == 'pull_request'
+    uses: jma49/Open-CR-Agent/.github/workflows/commits.yml@main
