@@ -100,10 +100,24 @@ export const reviews = sqliteTable(
     costUsd: real("cost_usd").notNull().default(0),
     durationMs: integer("duration_ms").notNull().default(0),
     ocraVersion: text("ocra_version"),
+    // ADR-0028, 1: numbers per reviewer and the run's outcomes; never text.
+    byReviewer: text("by_reviewer", { mode: "json" }).$type<Record<string, ReviewerCounts>>(),
+    verification: text("verification", { mode: "json" }).$type<Record<string, number>>(),
+    fixed: integer("fixed").notNull().default(0),
+    dismissed: integer("dismissed").notNull().default(0),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex("reviews_account_run").on(t.accountId, t.runId)],
 );
+
+export type ReviewerCounts = {
+  tasks: number;
+  failedTasks: number;
+  findings: { critical: number; warning: number; suggestion: number };
+  costUsd: number;
+  fixed: number;
+  dismissed: number;
+};
 
 // Settings of an account, one row: the default models for a review with no
 // models configured (ADR-0024 zero configuration).
@@ -126,6 +140,7 @@ export const preferences = sqliteTable("preferences", {
 });
 
 export type ReviewSettings = {
+  ultra?: boolean;
   concurrency?: number;
   taskTimeoutMinutes?: number;
   runTimeoutMinutes?: number;

@@ -59,6 +59,58 @@ export function Reviews() {
           <div className="stat-note">{s ? `${num(s.incomplete)} incomplete reviews` : " "}</div>
         </div>
       </div>
+      {data && Object.keys(data.reviewers).length > 0 && (
+        <div className="section card">
+          <div className="card-head">
+            <h3>By reviewer</h3>
+            <span className="subtle small">
+              Acceptance: findings later fixed, over fixed and dismissed
+              {s && s.fixed + s.dismissed > 0
+                ? ` · overall ${Math.round((s.fixed / (s.fixed + s.dismissed)) * 100)}%`
+                : ""}
+            </span>
+          </div>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Reviewer</th>
+                  <th className="num">Tasks</th>
+                  <th className="num">Failed</th>
+                  <th className="num">Findings</th>
+                  <th className="num">Critical</th>
+                  <th className="num">Fixed</th>
+                  <th className="num">Dismissed</th>
+                  <th className="num">Acceptance</th>
+                  <th className="num">Cost</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(data.reviewers)
+                  .sort((a, b) => b[1].findingsTotal - a[1].findingsTotal)
+                  .map(([id, r]) => (
+                    <tr key={id}>
+                      <td className="mono">{id}</td>
+                      <td className="num">{num(r.tasks)}</td>
+                      <td className="num">
+                        {r.failedTasks ? <span className="error">{r.failedTasks}</span> : 0}
+                      </td>
+                      <td className="num">{num(r.findingsTotal)}</td>
+                      <td className="num">{r.findings.critical}</td>
+                      <td className="num">{r.fixed}</td>
+                      <td className="num">{r.dismissed}</td>
+                      <td className="num">
+                        {r.acceptanceRate === null ? "–" : `${Math.round(r.acceptanceRate * 100)}%`}
+                      </td>
+                      <td className="num">${r.costUsd.toFixed(2)}</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       <div className="section card">
         <div className="card-head">
           <h3>History</h3>

@@ -140,3 +140,61 @@ describe("model lists", () => {
     );
   });
 });
+
+describe("per-reviewer counts (ADR-0028, 1)", () => {
+  it("are stored and summed per reviewer like ocra metrics, as numbers only", async () => {
+    const cli = await signInCli(1, "octo");
+    const web = await signIn(1, "octo");
+    const send = (runId: string, fixed: number, dismissed: number) =>
+      call("/api/reviews", {
+        method: "POST",
+        headers: { ...cli.auth, ...json },
+        body: JSON.stringify(
+          upload({
+            runId,
+            reviewers: {
+              security: {
+                tasks: 2,
+                failedTasks: 1,
+                findings: { critical: 1, warning: 0, suggestion: 0 },
+                costUsd: 0.25,
+                fixed,
+                dismissed,
+                title: "leak me",
+              },
+              "Bad Id": { tasks: 9 },
+            },
+            verification: { confirmed: 1, uncertain: 2, unchecked: 0, bogus: 7 },
+            outcomes: { fixed, dismissed },
+          }),
+        ),
+      });
+    await send("run-a", 1, 1);
+    await send("run-b", 2, 0);
+    const body = (await (await call("/api/reviews", { headers: web.auth })).json()) as {
+      summary: { fixed: number; dismissed: number };
+      reviewers: Record<
+        string,
+        {
+          tasks: number;
+          failedTasks: number;
+          findingsTotal: number;
+          costUsd: number;
+          acceptanceRate: number;
+        }
+      >;
+      reviews: { verification: Record<string, number> }[];
+    };
+    expect(body.summary).toMatchObject({ fixed: 3, dismissed: 1 });
+    expect(body.reviewers.security).toMatchObject({
+      tasks: 4,
+      failedTasks: 2,
+      findingsTotal: 2,
+      costUsd: 0.5,
+      acceptanceRate: 0.75,
+    });
+    expect(Object.keys(body.reviewers)).toEqual(["security"]);
+    expect(body.reviews[0]?.verification).toEqual({ confirmed: 1, uncertain: 2, unchecked: 0 });
+    expect(JSON.stringify(body)).not.toContain("leak me");
+  });
+});

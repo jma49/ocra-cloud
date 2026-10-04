@@ -16,6 +16,7 @@ export type Effort = "none" | "minimal" | "low" | "medium" | "high";
 export type Tier = "top" | "standard" | "light";
 export type Rule = { path: string | string[]; rule: string };
 export type Settings = {
+  ultra?: boolean;
   concurrency?: number;
   taskTimeoutMinutes?: number;
   runTimeoutMinutes?: number;

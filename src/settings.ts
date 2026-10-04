@@ -21,6 +21,7 @@ export function parseSettings(body: unknown): Result {
   if (typeof body !== "object" || Array.isArray(body)) return undefined;
   const b = body as Record<string, unknown>;
   const allowed = new Set([
+    "ultra",
     "concurrency",
     "taskTimeoutMinutes",
     "runTimeoutMinutes",
@@ -56,7 +57,7 @@ export function parseSettings(body: unknown): Result {
     if (!int(b.maxTasks, 1, 1000)) return undefined;
     out.maxTasks = b.maxTasks as number;
   }
-  for (const k of ["verify", "judge"] as const) {
+  for (const k of ["ultra", "verify", "judge"] as const) {
     if (!has(k)) continue;
     if (typeof b[k] !== "boolean") return undefined;
     out[k] = b[k] as boolean;

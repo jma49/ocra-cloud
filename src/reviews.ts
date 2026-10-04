@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { requireSession } from "./auth.js";
+import type { ReviewerCounts } from "./db/schema.js";
 import type { AppEnv } from "./types.js";
 
 // Review metadata: the CLI uploads counts after a review, the web lists them.
@@ -35,7 +36,38 @@ export function parseUpload(body: unknown) {
     typeof usage.costUsd === "number" && usage.costUsd >= 0 && usage.costUsd < 1e6
       ? usage.costUsd
       : 0;
+  const byReviewer: Record<string, ReviewerCounts> = {};
+  const reviewers = (b.reviewers ?? {}) as Record<string, Record<string, unknown>>;
+  if (typeof reviewers === "object" && !Array.isArray(reviewers)) {
+    for (const [id, r] of Object.entries(reviewers).slice(0, 40)) {
+      if (!/^[a-z][a-z0-9-]{0,39}$/.test(id) || typeof r !== "object" || r === null) continue;
+      const rf = (r.findings ?? {}) as Record<string, unknown>;
+      byReviewer[id] = {
+        tasks: count(r.tasks) ?? 0,
+        failedTasks: count(r.failedTasks) ?? 0,
+        findings: {
+          critical: count(rf.critical) ?? 0,
+          warning: count(rf.warning) ?? 0,
+          suggestion: count(rf.suggestion) ?? 0,
+        },
+        costUsd: typeof r.costUsd === "number" && r.costUsd >= 0 && r.costUsd < 1e6 ? r.costUsd : 0,
+        fixed: count(r.fixed) ?? 0,
+        dismissed: count(r.dismissed) ?? 0,
+      };
+    }
+  }
+  const verification: Record<string, number> = {};
+  const v = (b.verification ?? {}) as Record<string, unknown>;
+  for (const key of ["confirmed", "uncertain", "unchecked"]) {
+    const n = count(v[key]);
+    if (n !== undefined) verification[key] = n;
+  }
+  const outcomes = (b.outcomes ?? {}) as Record<string, unknown>;
   return {
+    byReviewer: Object.keys(byReviewer).length > 0 ? byReviewer : null,
+    verification: Object.keys(verification).length > 0 ? verification : null,
+    fixed: count(outcomes.fixed) ?? 0,
+    dismissed: count(outcomes.dismissed) ?? 0,
     runId,
     repoHash,
     source,
@@ -88,10 +120,13 @@ reviews.get("/", requireSession(), async (c) => {
       critical: sum((r) => r.critical),
       changesRequested: rows.filter((r) => r.verdict === "changes_requested").length,
       incomplete: rows.filter((r) => !r.complete).length,
+      fixed: sum((r) => r.fixed),
+      dismissed: sum((r) => r.dismissed),
       tokensIn: sum((r) => r.tokensIn),
       tokensOut: sum((r) => r.tokensOut),
       costUsd: sum((r) => r.costUsd),
     },
+    reviewers: perReviewer(rows),
     reviews: rows.map(({ accountId: _a, ...r }) => ({ ...r, repo: r.repoHash.slice(0, 8) })),
   });
 });
@@ -99,3 +134,39 @@ reviews.get("/", requireSession(), async (c) => {
 reviews.delete("/:id", requireSession(), async (c) => {
   return c.json({ removed: await c.var.data.remove("reviews", c.req.param("id")) });
 });
+
+/** What `ocra metrics` shows per reviewer, summed over the uploaded runs. */
+function perReviewer(rows: { byReviewer: Record<string, ReviewerCounts> | null }[]) {
+  const out: Record<
+    string,
+    ReviewerCounts & { findingsTotal: number; acceptanceRate: number | null }
+  > = {};
+  for (const row of rows) {
+    for (const [id, r] of Object.entries(row.byReviewer ?? {})) {
+      const t = out[id] ?? {
+        tasks: 0,
+        failedTasks: 0,
+        findings: { critical: 0, warning: 0, suggestion: 0 },
+        costUsd: 0,
+        fixed: 0,
+        dismissed: 0,
+        findingsTotal: 0,
+        acceptanceRate: null,
+      };
+      t.tasks += r.tasks;
+      t.failedTasks += r.failedTasks;
+      t.findings.critical += r.findings.critical;
+      t.findings.warning += r.findings.warning;
+      t.findings.suggestion += r.findings.suggestion;
+      t.findingsTotal += r.findings.critical + r.findings.warning + r.findings.suggestion;
+      t.costUsd += r.costUsd;
+      t.fixed += r.fixed;
+      t.dismissed += r.dismissed;
+      out[id] = t;
+    }
+  }
+  for (const t of Object.values(out)) {
+    t.acceptanceRate = t.fixed + t.dismissed > 0 ? t.fixed / (t.fixed + t.dismissed) : null;
+  }
+  return out;
+}

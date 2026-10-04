@@ -133,10 +133,25 @@ export type Reviews = {
     critical: number;
     changesRequested: number;
     incomplete: number;
+    fixed: number;
+    dismissed: number;
     tokensIn: number;
     tokensOut: number;
     costUsd: number;
   };
+  reviewers: Record<
+    string,
+    {
+      tasks: number;
+      failedTasks: number;
+      findingsTotal: number;
+      findings: { critical: number; warning: number; suggestion: number };
+      costUsd: number;
+      fixed: number;
+      dismissed: number;
+      acceptanceRate: number | null;
+    }
+  >;
   reviews: Review[];
 };
 export type ModelChains = { top?: string[]; standard?: string[]; light?: string[] };
