@@ -94,4 +94,12 @@ describe("routes", () => {
       "/anthropic/v1/messages",
     );
   });
+
+  it("names OpenRouter's effort style, so the CLI sends reasoning.effort there", async () => {
+    const body = (await (await call("/api/providers")).json()) as {
+      providers: { name: string; effort?: string }[];
+    };
+    expect(body.providers.find((p) => p.name === "openrouter")?.effort).toBe("openrouter");
+    expect(body.providers.filter((p) => p.effort).map((p) => p.name)).toEqual(["openrouter"]);
+  });
 });

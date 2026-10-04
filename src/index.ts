@@ -35,6 +35,9 @@ app.get("/providers", (c) =>
       ...providerInfo[name as ProviderName],
       base: p.base,
       paths: p.routes.map((r) => (typeof r.path === "string" ? r.path : r.path.source)),
+      // How the CLI's direct runtime sends a reasoning effort: OpenRouter
+      // takes `reasoning.effort`; the rest the OpenAI-style default.
+      ...(name === "openrouter" ? { effort: "openrouter" } : {}),
     })),
   }),
 );
