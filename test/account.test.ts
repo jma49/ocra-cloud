@@ -57,7 +57,7 @@ describe("sessions", () => {
       sessions: { id: string; current: boolean; kind: string; lastUsedAt: string | null }[];
     };
     expect(list.sessions).toHaveLength(1);
-    expect(list.sessions[0]).toMatchObject({ current: true, kind: "cli" });
+    expect(list.sessions[0]).toMatchObject({ current: true, kind: "web" });
     const [row] = await scoped(db, me.account.id).list("sessions");
     expect(row?.lastUsedAt).toBeInstanceOf(Date);
   });

@@ -30,8 +30,32 @@ export const sessions = sqliteTable("sessions", {
   kind: text("kind", { enum: ["web", "cli"] }).notNull(),
   label: text("label"),
   createdAt: createdAt(),
+  // The access token's expiry. A CLI session also has a refresh token,
+  // rotated on each use, that outlives it.
   expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+  refreshHash: text("refresh_hash").unique(),
+  refreshExpiresAt: integer("refresh_expires_at", { mode: "timestamp_ms" }),
   lastUsedAt: integer("last_used_at", { mode: "timestamp_ms" }),
+});
+
+// An `ocra login` in progress (RFC 8628). It is found by its codes before
+// any account is known, so it is not an account table: approvedAccountId is
+// set when a signed-in user approves it, and the CLI session is made then.
+export const deviceCodes = sqliteTable("device_codes", {
+  id: text("id").primaryKey(),
+  deviceCodeHash: text("device_code_hash").notNull().unique(),
+  userCode: text("user_code").notNull().unique(),
+  label: text("label"),
+  status: text("status", { enum: ["pending", "approved", "denied", "consumed"] })
+    .notNull()
+    .default("pending"),
+  approvedAccountId: text("approved_account_id").references(() => accounts.id, {
+    onDelete: "cascade",
+  }),
+  intervalSeconds: integer("interval_seconds").notNull().default(5),
+  lastPolledAt: integer("last_polled_at", { mode: "timestamp_ms" }),
+  expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+  createdAt: createdAt(),
 });
 
 // A model provider key, encrypted with a data key that the master key wraps.

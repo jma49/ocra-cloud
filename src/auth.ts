@@ -2,7 +2,7 @@ import type { DrizzleD1Database } from "drizzle-orm/d1";
 import { Hono, type MiddlewareHandler } from "hono";
 import { deleteCookie, getCookie, getSignedCookie, setCookie, setSignedCookie } from "hono/cookie";
 import { randomToken, sha256Hex } from "./crypto.js";
-import { sessionByTokenHash, upsertAccount } from "./db/accounts.js";
+import { sessionByRefreshHash, sessionByTokenHash, upsertAccount } from "./db/accounts.js";
 import { scoped } from "./db/scoped.js";
 import type { AppEnv } from "./types.js";
 
@@ -10,6 +10,10 @@ export const SESSION_COOKIE = "ocra_session";
 const STATE_COOKIE = "ocra_oauth_state";
 const DAY = 86_400_000;
 export const SESSION_DAYS = { web: 30, cli: 90 } as const;
+/** A CLI access token lives an hour; its refresh token, SESSION_DAYS.cli. */
+export const CLI_ACCESS_MS = 3_600_000;
+
+type Kind = "web" | "cli";
 
 /**
  * The signed-in account, from the session cookie (the web app) or a bearer
@@ -17,7 +21,7 @@ export const SESSION_DAYS = { web: 30, cli: 90 } as const;
  * this origin: JSON requests from elsewhere already need a CORS preflight,
  * which this API never grants, and the Origin check covers the rest.
  */
-export function requireSession(): MiddlewareHandler<AppEnv> {
+export function requireSession(kinds: readonly Kind[] = ["web"]): MiddlewareHandler<AppEnv> {
   return async (c, next) => {
     const bearer = c.req.header("authorization")?.match(/^Bearer\s+(\S+)$/i)?.[1];
     const token = bearer ?? getCookie(c, SESSION_COOKIE);
@@ -28,6 +32,9 @@ export function requireSession(): MiddlewareHandler<AppEnv> {
     }
     const session = await sessionByTokenHash(c.var.db, await sha256Hex(token));
     if (!session) return c.json({ error: "unauthenticated" }, 401);
+    // A CLI token reaches only what the CLI needs (ADR-0024): never keys,
+    // sessions or the account.
+    if (!kinds.includes(session.kind)) return c.json({ error: "forbidden_for_session" }, 403);
     c.set("session", session);
     const data = scoped(c.var.db, session.account.id);
     c.set("data", data);
@@ -40,22 +47,80 @@ export function requireSession(): MiddlewareHandler<AppEnv> {
   };
 }
 
-/** Starts a session for an account and returns its token, shown once. */
-export async function startSession(
-  db: DrizzleD1Database,
-  accountId: string,
-  kind: "web" | "cli",
-  label: string | null,
-): Promise<string> {
-  const token = randomToken(kind === "cli" ? "ocra_cli_" : "ocra_web_");
+/** Starts a browser session and returns its token, set once as a cookie. */
+export async function startWebSession(db: DrizzleD1Database, accountId: string): Promise<string> {
+  const token = randomToken("ocra_web_");
   await scoped(db, accountId).insert("sessions", {
     id: crypto.randomUUID(),
     tokenHash: await sha256Hex(token),
-    kind,
-    label,
-    expiresAt: new Date(Date.now() + SESSION_DAYS[kind] * DAY),
+    kind: "web",
+    label: null,
+    expiresAt: new Date(Date.now() + SESSION_DAYS.web * DAY),
   });
   return token;
+}
+
+export type CliTokens = {
+  access_token: string;
+  refresh_token: string;
+  token_type: "Bearer";
+  expires_in: number;
+};
+
+async function cliTokens() {
+  const access = randomToken("ocra_cli_");
+  const refresh = randomToken("ocra_ref_");
+  const now = Date.now();
+  return {
+    tokens: {
+      access_token: access,
+      refresh_token: refresh,
+      token_type: "Bearer",
+      expires_in: CLI_ACCESS_MS / 1000,
+    } satisfies CliTokens,
+    row: {
+      tokenHash: await sha256Hex(access),
+      expiresAt: new Date(now + CLI_ACCESS_MS),
+      refreshHash: await sha256Hex(refresh),
+      refreshExpiresAt: new Date(now + SESSION_DAYS.cli * DAY),
+    },
+  };
+}
+
+/** Starts a CLI session: an access token and a refresh token, shown once. */
+export async function startCliSession(
+  db: DrizzleD1Database,
+  accountId: string,
+  label: string | null,
+): Promise<CliTokens> {
+  const { tokens, row } = await cliTokens();
+  await scoped(db, accountId).insert("sessions", {
+    id: crypto.randomUUID(),
+    kind: "cli",
+    label,
+    ...row,
+  });
+  return tokens;
+}
+
+/** Trades a refresh token for new tokens; the old pair stops working. */
+export async function refreshCliSession(
+  db: DrizzleD1Database,
+  refreshToken: string,
+): Promise<CliTokens | undefined> {
+  const found = await sessionByRefreshHash(db, await sha256Hex(refreshToken));
+  if (!found) return undefined;
+  const { tokens, row } = await cliTokens();
+  const changed = await scoped(db, found.accountId).update("sessions", found.sessionId, row);
+  return changed ? tokens : undefined;
+}
+
+/** A relative path on this site to return to after sign-in, or "/". */
+export function safeNext(next: string | undefined): string {
+  if (!next?.startsWith("/") || next.startsWith("//") || next.includes("\\") || next.length > 512) {
+    return "/";
+  }
+  return next;
 }
 
 export const auth = new Hono<AppEnv>();
@@ -66,7 +131,8 @@ function callbackUrl(requestUrl: string): string {
 
 auth.get("/github/login", async (c) => {
   const state = randomToken("");
-  await setSignedCookie(c, STATE_COOKIE, state, c.env.SESSION_SECRET, {
+  const next = safeNext(c.req.query("next"));
+  await setSignedCookie(c, STATE_COOKIE, `${state} ${next}`, c.env.SESSION_SECRET, {
     httpOnly: true,
     secure: true,
     sameSite: "Lax",
@@ -82,8 +148,11 @@ auth.get("/github/login", async (c) => {
 });
 
 auth.get("/github/callback", async (c) => {
-  const expected = await getSignedCookie(c, c.env.SESSION_SECRET, STATE_COOKIE);
+  const cookie = await getSignedCookie(c, c.env.SESSION_SECRET, STATE_COOKIE);
   deleteCookie(c, STATE_COOKIE, { path: "/api/auth/github", secure: true });
+  const space = cookie ? cookie.indexOf(" ") : -1;
+  const expected = cookie && space > 0 ? cookie.slice(0, space) : cookie || undefined;
+  const next = cookie && space > 0 ? cookie.slice(space + 1) : undefined;
   const { code, state } = c.req.query();
   if (!code || !state || !expected || state !== expected) {
     return c.json({ error: "bad_state" }, 400);
@@ -113,7 +182,7 @@ auth.get("/github/callback", async (c) => {
     return c.json({ error: "github_user" }, 502);
   }
   const account = await upsertAccount(c.var.db, user.id, user.login);
-  const token = await startSession(c.var.db, account.id, "web", null);
+  const token = await startWebSession(c.var.db, account.id);
   setCookie(c, SESSION_COOKIE, token, {
     httpOnly: true,
     secure: true,
@@ -121,10 +190,10 @@ auth.get("/github/callback", async (c) => {
     path: "/",
     maxAge: SESSION_DAYS.web * 86_400,
   });
-  return c.redirect("/", 302);
+  return c.redirect(safeNext(next), 302);
 });
 
-auth.post("/logout", requireSession(), async (c) => {
+auth.post("/logout", requireSession(["web", "cli"]), async (c) => {
   await c.var.data.remove("sessions", c.var.session.sessionId);
   deleteCookie(c, SESSION_COOKIE, { path: "/", secure: true });
   return c.json({ ok: true });

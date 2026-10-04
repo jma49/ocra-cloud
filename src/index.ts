@@ -2,6 +2,7 @@ import { drizzle } from "drizzle-orm/d1";
 import { Hono } from "hono";
 import { account } from "./account.js";
 import { auth, requireSession } from "./auth.js";
+import { device } from "./device.js";
 import { gateway } from "./gateway.js";
 import { keys } from "./keys.js";
 import { type ProviderName, providerInfo, providers } from "./providers.js";
@@ -20,6 +21,7 @@ app.get("/health", async (c) => {
 });
 
 app.route("/auth", auth);
+app.route("/device", device);
 
 // The providers and paths the gateway forwards, for the web app and the CLI.
 app.get("/providers", (c) =>
@@ -33,7 +35,7 @@ app.get("/providers", (c) =>
   }),
 );
 
-app.get("/me", requireSession(), (c) => {
+app.get("/me", requireSession(["web", "cli"]), (c) => {
   const { account: a, kind } = c.var.session;
   return c.json({ login: a.login, githubId: a.githubId, session: kind, since: a.createdAt });
 });
@@ -46,7 +48,7 @@ app.route("/", account);
 
 app.use("/keys/*", requireSession());
 app.route("/keys", keys);
-app.use("/gateway/*", requireSession());
+app.use("/gateway/*", requireSession(["web", "cli"]));
 app.route("/gateway", gateway);
 
 app.notFound((c) => c.json({ error: "not_found" }, 404));

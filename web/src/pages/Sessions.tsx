@@ -19,7 +19,7 @@ export function Sessions() {
         <div style={{ fontWeight: 500 }}>Sign in from the terminal</div>
         <div className="muted small" style={{ marginTop: 4 }}>
           <span className="cmd">ocra login</span> opens this site to approve the terminal, then
-          reviews use your keys through ocra Cloud. <span className="badge">coming soon</span>
+          reviews use your keys through ocra Cloud.
         </div>
       </div>
       <div className="card">

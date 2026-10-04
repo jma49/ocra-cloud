@@ -76,7 +76,7 @@ account.get("/sessions", async (c) => {
   const now = Date.now();
   return c.json({
     sessions: rows
-      .filter((s) => s.expiresAt.getTime() > now)
+      .filter((s) => (s.refreshExpiresAt ?? s.expiresAt).getTime() > now)
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
       .map((s) => ({
         id: s.id,
@@ -84,7 +84,7 @@ account.get("/sessions", async (c) => {
         label: s.label,
         createdAt: s.createdAt,
         lastUsedAt: s.lastUsedAt,
-        expiresAt: s.expiresAt,
+        expiresAt: s.refreshExpiresAt ?? s.expiresAt,
         current: s.id === c.var.session.sessionId,
       })),
   });

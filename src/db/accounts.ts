@@ -49,6 +49,19 @@ export async function sessionByTokenHash(
   return row;
 }
 
+/** The CLI session whose refresh token has this hash, while it is valid. */
+export async function sessionByRefreshHash(
+  db: DrizzleD1Database,
+  refreshHash: string,
+  now = new Date(),
+): Promise<{ sessionId: string; accountId: string } | undefined> {
+  return db
+    .select({ sessionId: sessions.id, accountId: sessions.accountId })
+    .from(sessions)
+    .where(and(eq(sessions.refreshHash, refreshHash), gt(sessions.refreshExpiresAt, now)))
+    .get();
+}
+
 /** Deletes an account; its sessions, keys and records go with it (cascade). */
 export async function deleteAccount(db: DrizzleD1Database, accountId: string): Promise<void> {
   await db.delete(accounts).where(eq(accounts.id, accountId));

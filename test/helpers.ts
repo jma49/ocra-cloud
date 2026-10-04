@@ -1,7 +1,7 @@
 import { createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import { drizzle } from "drizzle-orm/d1";
-import { startSession } from "../src/auth.js";
+import { startCliSession, startWebSession } from "../src/auth.js";
 import { upsertAccount } from "../src/db/accounts.js";
 import * as schema from "../src/db/schema.js";
 import app from "../src/index.js";
@@ -26,9 +26,16 @@ export async function resetDb(): Promise<void> {
   await db.delete(schema.accounts);
 }
 
-/** A signed-in account and its CLI token. */
+/** A signed-in account and its web session token, sent as a bearer token. */
 export async function signIn(githubId: number, login: string) {
   const account = await upsertAccount(db, githubId, login);
-  const token = await startSession(db, account.id, "cli", "test");
+  const token = await startWebSession(db, account.id);
   return { account, token, auth: { authorization: `Bearer ${token}` } };
+}
+
+/** A signed-in account with a CLI session, as `ocra login` leaves it. */
+export async function signInCli(githubId: number, login: string) {
+  const account = await upsertAccount(db, githubId, login);
+  const tokens = await startCliSession(db, account.id, "test terminal");
+  return { account, tokens, auth: { authorization: `Bearer ${tokens.access_token}` } };
 }
