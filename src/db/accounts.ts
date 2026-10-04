@@ -1,4 +1,4 @@
-import { and, eq, gt, isNull } from "drizzle-orm";
+import { and, eq, gt, isNull, or } from "drizzle-orm";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import { accounts, sessions } from "./schema.js";
 
@@ -44,22 +44,79 @@ export async function sessionByTokenHash(
     })
     .from(sessions)
     .innerJoin(accounts, eq(accounts.id, sessions.accountId))
-    .where(and(eq(sessions.tokenHash, tokenHash), gt(sessions.expiresAt, now)))
+    .where(
+      or(
+        and(eq(sessions.tokenHash, tokenHash), gt(sessions.expiresAt, now)),
+        // The access token before the last refresh, until its own expiry.
+        and(eq(sessions.prevTokenHash, tokenHash), gt(sessions.prevExpiresAt, now)),
+      ),
+    )
     .get();
   return row;
 }
 
-/** The CLI session whose refresh token has this hash, while it is valid. */
+export type RefreshSession = {
+  sessionId: string;
+  accountId: string;
+  tokenHash: string;
+  expiresAt: Date;
+  refreshHash: string | null;
+  refreshExpiresAt: Date | null;
+  prevRefreshHash: string | null;
+  rotatedAt: Date | null;
+};
+
+/**
+ * The CLI session whose current or previous refresh token has this hash,
+ * while the session lasts. The caller tells the two apart by refreshHash.
+ */
 export async function sessionByRefreshHash(
   db: DrizzleD1Database,
   refreshHash: string,
   now = new Date(),
-): Promise<{ sessionId: string; accountId: string } | undefined> {
+): Promise<RefreshSession | undefined> {
   return db
-    .select({ sessionId: sessions.id, accountId: sessions.accountId })
+    .select({
+      sessionId: sessions.id,
+      accountId: sessions.accountId,
+      tokenHash: sessions.tokenHash,
+      expiresAt: sessions.expiresAt,
+      refreshHash: sessions.refreshHash,
+      refreshExpiresAt: sessions.refreshExpiresAt,
+      prevRefreshHash: sessions.prevRefreshHash,
+      rotatedAt: sessions.rotatedAt,
+    })
     .from(sessions)
-    .where(and(eq(sessions.refreshHash, refreshHash), gt(sessions.refreshExpiresAt, now)))
+    .where(
+      and(
+        or(eq(sessions.refreshHash, refreshHash), eq(sessions.prevRefreshHash, refreshHash)),
+        gt(sessions.refreshExpiresAt, now),
+      ),
+    )
     .get();
+}
+
+/**
+ * Replaces a CLI session's tokens only while its refresh token is still
+ * `currentRefreshHash`: of two refreshes racing with the same token, one wins.
+ */
+export async function rotateSession(
+  db: DrizzleD1Database,
+  sessionId: string,
+  currentRefreshHash: string,
+  changes: Partial<typeof sessions.$inferInsert>,
+): Promise<boolean> {
+  const result = await db
+    .update(sessions)
+    .set(changes)
+    .where(and(eq(sessions.id, sessionId), eq(sessions.refreshHash, currentRefreshHash)))
+    .run();
+  return result.meta.changes > 0;
+}
+
+/** Ends a session, as when a refresh token is used again after its rotation. */
+export async function revokeSession(db: DrizzleD1Database, sessionId: string): Promise<void> {
+  await db.delete(sessions).where(eq(sessions.id, sessionId));
 }
 
 /** Deletes an account; its sessions, keys and records go with it (cascade). */
