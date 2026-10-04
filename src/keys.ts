@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { audit } from "./audit.js";
-import { encryptSecret } from "./crypto.js";
+import { encryptSecret, keyBinding } from "./crypto.js";
 import type { Scoped } from "./db/scoped.js";
 import { decryptKey, storedKey } from "./keyring.js";
 import { checkKey, isProvider, listModels, verifyRoutes } from "./providers.js";
@@ -43,7 +43,11 @@ keys.put("/:provider", async (c) => {
   if (key.length < 8 || key.length > 512 || /\s/.test(key)) {
     return c.json({ error: "bad_key" }, 400);
   }
-  const sealed = await encryptSecret(c.env.MASTER_KEY, key);
+  const sealed = await encryptSecret(
+    c.env.MASTER_KEY,
+    key,
+    keyBinding(c.var.session.account.id, provider),
+  );
   const check = await checkKey(provider, key);
   // One statement replaces the provider's key, so parallel saves leave one
   // key, never two for keyFor to choose between.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decryptSecret, encryptSecret } from "../src/crypto.js";
+import { decryptSecret, decryptWithAny, encryptSecret, keyBinding } from "../src/crypto.js";
 
 const master = btoa(String.fromCharCode(...new Uint8Array(32).fill(1)));
 const other = btoa(String.fromCharCode(...new Uint8Array(32).fill(2)));
@@ -46,9 +46,32 @@ describe("master key rotation", () => {
   });
 
   it("decrypts with the previous key while a rotation is under way", async () => {
-    const { decryptWithAny } = await import("../src/crypto.js");
     const old = await encryptSecret(master, "sk-old-row");
-    expect(await decryptWithAny({ current: other, previous: master }, old)).toBe("sk-old-row");
-    await expect(decryptWithAny({ current: other }, old)).rejects.toThrow();
+    const b = keyBinding("acct-1", "openai");
+    expect(await decryptWithAny({ current: other, previous: master }, old, b)).toBe("sk-old-row");
+    await expect(decryptWithAny({ current: other }, old, b)).rejects.toThrow();
+  });
+});
+
+describe("a sealed key is bound to its row", () => {
+  it("opens only for the account and provider it was sealed for", async () => {
+    const mine = keyBinding("acct-1", "openai");
+    const sealed = await encryptSecret(master, "sk-bound", mine);
+    expect(await decryptWithAny({ current: master }, sealed, mine)).toBe("sk-bound");
+    // Moved onto another account's row, or another provider's: it does not open.
+    await expect(
+      decryptWithAny({ current: master }, sealed, keyBinding("acct-2", "openai")),
+    ).rejects.toThrow();
+    await expect(
+      decryptWithAny({ current: master }, sealed, keyBinding("acct-1", "anthropic")),
+    ).rejects.toThrow();
+    await expect(decryptSecret(master, sealed)).rejects.toThrow();
+  });
+
+  it("still opens a key sealed before binding, until every row is bound", async () => {
+    const legacy = await encryptSecret(master, "sk-legacy");
+    expect(await decryptWithAny({ current: master }, legacy, keyBinding("a", "openai"))).toBe(
+      "sk-legacy",
+    );
   });
 });

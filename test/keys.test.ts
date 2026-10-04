@@ -1,4 +1,6 @@
+import { env } from "cloudflare:workers";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { decryptSecret, keyBinding } from "../src/crypto.js";
 import { scoped } from "../src/db/scoped.js";
 import { checkKey, verifyRoutes } from "../src/providers.js";
 import { call, db, resetDb, signIn } from "./helpers.js";
@@ -49,6 +51,26 @@ describe("checking a key", () => {
 });
 
 describe("keys API", () => {
+  it("stores a key bound to its account and provider", async () => {
+    const me = await signIn(1, "me");
+    answer(200);
+    await call("/api/keys/openai", {
+      method: "PUT",
+      headers: { ...me.auth, ...json },
+      body: JSON.stringify({ key: "sk-bound-12345" }),
+    });
+    const [row] = await scoped(db, me.account.id).list("providerKeys");
+    if (!row) throw new Error("no row");
+    const master = env.MASTER_KEY;
+    expect(await decryptSecret(master, row, keyBinding(me.account.id, "openai"))).toBe(
+      "sk-bound-12345",
+    );
+    await expect(decryptSecret(master, row)).rejects.toThrow();
+    await expect(
+      decryptSecret(master, row, keyBinding("someone-else", "openai")),
+    ).rejects.toThrow();
+  });
+
   it("checks a key when it is saved and on request, and reports use", async () => {
     const me = await signIn(1, "me");
     answer(401);
