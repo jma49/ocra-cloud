@@ -1,8 +1,10 @@
 import { Hono } from "hono";
 import { requireSession } from "./auth.js";
 import { EFFORTS } from "./capabilities.js";
-import type { AgentPrefs, Effort } from "./db/schema.js";
+import type { AgentPrefs, Effort, ReviewSettings } from "./db/schema.js";
 import type { Scoped } from "./db/scoped.js";
+import { audit } from "./keys.js";
+import { changedKeys, parseSettings } from "./settings.js";
 import type { AppEnv } from "./types.js";
 
 // Default models for a review that configures none (ADR-0024 zero
@@ -108,26 +110,97 @@ export function parseAgents(body: unknown): AgentPrefs | undefined {
 }
 
 // Everything the CLI layers under a repository's configuration.
-preferences.get("/", requireSession(["web", "cli"]), async (c) => {
-  const row = await current(c.var.data);
-  return c.json({
+type Saved = {
+  runtime: (typeof RUNTIMES)[number] | null;
+  models: ModelChains;
+  agents: AgentPrefs;
+  settings: ReviewSettings;
+};
+
+/** Checks a body against the saved preferences; a part it leaves out keeps its value. */
+function parseBody(body: Record<string, unknown> | null, saved: Saved): Saved | undefined {
+  const models = body && "models" in body ? parseModels(body.models ?? {}) : saved.models;
+  const agents = body && "agents" in body ? parseAgents(body.agents ?? {}) : saved.agents;
+  const settings = body && "settings" in body ? parseSettings(body.settings) : saved.settings;
+  const runtime = body && "runtime" in body ? (body.runtime ?? null) : saved.runtime;
+  if (!models || !agents || !settings) return undefined;
+  if (runtime !== null && !RUNTIMES.includes(runtime as never)) return undefined;
+  return { models, agents, settings, runtime: runtime as Saved["runtime"] };
+}
+
+function savedOf(row: Awaited<ReturnType<typeof current>>): Saved {
+  return {
     runtime: row?.runtime ?? null,
     models: row?.models ?? {},
     agents: row?.agents ?? {},
+    settings: row?.settings ?? {},
+  };
+}
+
+const flat = (p: Saved) => ({
+  runtime: p.runtime,
+  models: p.models,
+  agents: p.agents,
+  ...p.settings,
+});
+const KEEP_VERSIONS = 50;
+
+/** Saves the preferences as a new version; returns the version id, or the current one if nothing changed. */
+async function store(
+  data: Scoped,
+  next: Saved,
+): Promise<{ version: string | null; changed: string[] }> {
+  const row = await current(data);
+  const changed = changedKeys(flat(savedOf(row)), flat(next));
+  if (changed.length === 0) return { version: await latestVersion(data), changed };
+  const fields = { ...next, updatedAt: new Date() };
+  if (row) await data.update("preferences", row.id, fields);
+  else await data.insert("preferences", { id: crypto.randomUUID(), ...fields });
+  const version = crypto.randomUUID();
+  await data.insert("preferenceVersions", { id: version, snapshot: next, changed });
+  for (const old of (await data.listSince("preferenceVersions", new Date(0))).slice(
+    KEEP_VERSIONS,
+  )) {
+    await data.remove("preferenceVersions", old.id);
+  }
+  await audit(data, "settings.changed", { keys: changed, version });
+  return { version, changed };
+}
+
+async function latestVersion(data: Scoped): Promise<string | null> {
+  return (await data.listSince("preferenceVersions", new Date(0), 1))[0]?.id ?? null;
+}
+
+preferences.get("/", requireSession(["web", "cli"]), async (c) => {
+  const row = await current(c.var.data);
+  return c.json({
+    ...savedOf(row),
+    updatedAt: row?.updatedAt ?? null,
+    version: await latestVersion(c.var.data),
   });
 });
 
 preferences.put("/", requireSession(), async (c) => {
   const body = (await c.req.json().catch(() => null)) as Record<string, unknown> | null;
-  const models = parseModels(body?.models ?? {});
-  const agents = parseAgents(body?.agents ?? {});
-  const runtime = body?.runtime ?? null;
-  if (!models || !agents || (runtime !== null && !RUNTIMES.includes(runtime as never))) {
-    return c.json({ error: "bad_preferences" }, 400);
-  }
-  const fields = { models, agents, runtime: runtime as (typeof RUNTIMES)[number] | null };
-  const row = await current(c.var.data);
-  if (row) await c.var.data.update("preferences", row.id, fields);
-  else await c.var.data.insert("preferences", { id: crypto.randomUUID(), ...fields });
-  return c.json(fields);
+  const next = parseBody(body, savedOf(await current(c.var.data)));
+  if (!next) return c.json({ error: "bad_preferences" }, 400);
+  const { version } = await store(c.var.data, next);
+  return c.json({ ...next, updatedAt: new Date(), version });
+});
+
+preferences.get("/versions", requireSession(), async (c) => {
+  const rows = await c.var.data.listSince("preferenceVersions", new Date(0), KEEP_VERSIONS);
+  return c.json({
+    versions: rows.map((v) => ({ id: v.id, createdAt: v.createdAt, changed: v.changed })),
+  });
+});
+
+preferences.post("/versions/:id/restore", requireSession(), async (c) => {
+  const old = await c.var.data.get("preferenceVersions", c.req.param("id"));
+  if (!old) return c.json({ error: "not_found" }, 404);
+  // Checked again: a version saved under older rules must still fit today's.
+  const next = parseBody(old.snapshot as Record<string, unknown>, savedOf(undefined));
+  if (!next) return c.json({ error: "version_no_longer_valid" }, 409);
+  const { version } = await store(c.var.data, next);
+  return c.json({ ...next, updatedAt: new Date(), version });
 });

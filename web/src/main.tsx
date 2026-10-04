@@ -2,29 +2,55 @@ import { StrictMode, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { api, type Me } from "./api.js";
 import { Activity } from "./pages/Activity.js";
-import { Agents } from "./pages/Agents.js";
+import { Agents, completeAgents } from "./pages/Agents.js";
+import { Defaults } from "./pages/Defaults.js";
 import { Device } from "./pages/Device.js";
 import { Keys } from "./pages/Keys.js";
 import { Overview } from "./pages/Overview.js";
+import { Plugins } from "./pages/Plugins.js";
 import { Privacy } from "./pages/Privacy.js";
+import { ReviewSettings } from "./pages/ReviewSettings.js";
 import { Reviews } from "./pages/Reviews.js";
+import { Rules } from "./pages/Rules.js";
 import { Sessions } from "./pages/Sessions.js";
 import { Settings } from "./pages/Settings.js";
+import { PrefsProvider } from "./prefs.js";
 import { Link, usePath } from "./router.js";
 import { Icon, type icons } from "./ui.js";
 import "./styles.css";
 
 const DOCS = "https://ocra.majincheng.com";
 
-const NAV: { to: string; label: string; icon: keyof typeof icons }[] = [
-  { to: "/", label: "Overview", icon: "home" },
-  { to: "/activity", label: "Activity", icon: "activity" },
-  { to: "/reviews", label: "Reviews", icon: "check" },
-  { to: "/keys", label: "Provider keys", icon: "key" },
-  { to: "/agents", label: "Agents", icon: "layers" },
-  { to: "/sessions", label: "CLI & sessions", icon: "terminal" },
-  { to: "/settings", label: "Settings", icon: "settings" },
+type NavItem = { to: string; label: string; icon: keyof typeof icons };
+const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
+  {
+    label: "Console",
+    items: [
+      { to: "/", label: "Overview", icon: "home" },
+      { to: "/activity", label: "Activity", icon: "activity" },
+      { to: "/reviews", label: "Reviews", icon: "check" },
+    ],
+  },
+  {
+    label: "Configure",
+    items: [
+      { to: "/keys", label: "Provider keys", icon: "key" },
+      { to: "/agents", label: "Agents", icon: "layers" },
+      { to: "/review-settings", label: "Review settings", icon: "sliders" },
+      { to: "/rules", label: "Rules", icon: "list" },
+      { to: "/plugins", label: "Plugins", icon: "puzzle" },
+      { to: "/defaults", label: "Defaults & history", icon: "file" },
+    ],
+  },
+  {
+    label: "Account",
+    items: [
+      { to: "/sessions", label: "CLI & sessions", icon: "terminal" },
+      { to: "/settings", label: "Settings", icon: "settings" },
+    ],
+  },
 ];
+const NAV = NAV_GROUPS.flatMap((g) => g.items);
 
 function TopBar(props: { me: Me | null }) {
   const [open, setOpen] = useState(false);
@@ -200,6 +226,14 @@ function App() {
       <Reviews />
     ) : path === "/agents" || path === "/models" ? (
       <Agents />
+    ) : path === "/review-settings" ? (
+      <ReviewSettings />
+    ) : path === "/rules" ? (
+      <Rules />
+    ) : path === "/plugins" ? (
+      <Plugins />
+    ) : path === "/defaults" ? (
+      <Defaults />
     ) : path === "/keys" ? (
       <Keys />
     ) : path === "/sessions" ? (
@@ -214,12 +248,16 @@ function App() {
       <TopBar me={me} />
       <div className="shell">
         <nav className="sidebar" aria-label="Console">
-          <div className="side-label">Console</div>
-          {NAV.map((n) => (
-            <Link key={n.to} to={n.to} className={`side-link${path === n.to ? " active" : ""}`}>
-              <Icon name={n.icon} />
-              {n.label}
-            </Link>
+          {NAV_GROUPS.map((g) => (
+            <div key={g.label}>
+              <div className="side-label">{g.label}</div>
+              {g.items.map((n) => (
+                <Link key={n.to} to={n.to} className={`side-link${path === n.to ? " active" : ""}`}>
+                  <Icon name={n.icon} />
+                  {n.label}
+                </Link>
+              ))}
+            </div>
           ))}
           <div className="side-label">Resources</div>
           <a className="side-link" href={DOCS} target="_blank" rel="noreferrer">
@@ -231,7 +269,9 @@ function App() {
             Data policy
           </a>
         </nav>
-        <main className="content">{page}</main>
+        <main className="content">
+          <PrefsProvider clean={completeAgents}>{page}</PrefsProvider>
+        </main>
       </div>
     </>
   );

@@ -34,6 +34,7 @@ const rows = {
     status: 200,
   }),
   preferences: (id: string) => ({ id, models: { standard: ["ocra-openrouter/m"] } }),
+  preferenceVersions: (id: string) => ({ id, snapshot: { models: {} }, changed: ["models"] }),
 } satisfies { [N in keyof typeof schema.accountTables]: (id: string) => unknown };
 
 // A change to one column of each table's row.
@@ -44,6 +45,7 @@ const changes = {
   auditEvents: { kind: "changed" },
   gatewayCalls: { status: 500 },
   preferences: { models: { light: ["ocra-openrouter/x"] } },
+  preferenceVersions: { changed: ["runtime"] },
 } satisfies { [N in keyof typeof rows]: Record<string, unknown> };
 
 // Storage persists across tests in a file; deleting the accounts cascades.

@@ -119,8 +119,27 @@ export const preferences = sqliteTable("preferences", {
   // repository's configuration by the CLI.
   runtime: text("runtime", { enum: ["direct", "opencode"] }),
   agents: text("agents", { mode: "json" }).$type<AgentPrefs>(),
+  // The review's data settings (ADR-0027): never providers, extends or botLogin.
+  settings: text("settings", { mode: "json" }).$type<ReviewSettings>(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }),
   createdAt: createdAt(),
 });
+
+export type ReviewSettings = {
+  concurrency?: number;
+  taskTimeoutMinutes?: number;
+  runTimeoutMinutes?: number;
+  maxCostUsd?: number;
+  maxTasks?: number;
+  verify?: boolean;
+  judge?: boolean;
+  sampling?: { temperature?: number; seed?: number };
+  include?: string[];
+  exclude?: string[];
+  rules?: { path: string | string[]; rule: string }[];
+  plugins?: string[];
+  pluginSettings?: Record<string, unknown>;
+};
 
 export type Effort = "none" | "minimal" | "low" | "medium" | "high";
 export type AgentPrefs = {
@@ -153,6 +172,16 @@ export const gatewayCalls = sqliteTable("gateway_calls", {
   createdAt: createdAt(),
 });
 
+// Each save of the preferences (ADR-0027): what was saved and which keys
+// changed, so any version can be restored. The newest 50 are kept.
+export const preferenceVersions = sqliteTable("preference_versions", {
+  id: text("id").primaryKey(),
+  accountId: accountId(),
+  snapshot: text("snapshot", { mode: "json" }).notNull().$type<Record<string, unknown>>(),
+  changed: text("changed", { mode: "json" }).notNull().$type<string[]>(),
+  createdAt: createdAt(),
+});
+
 /** The tables scoped by account, by the name scoped() uses. */
 export const accountTables = {
   sessions,
@@ -161,4 +190,5 @@ export const accountTables = {
   auditEvents,
   gatewayCalls,
   preferences,
+  preferenceVersions,
 } as const;

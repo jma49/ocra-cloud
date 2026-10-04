@@ -84,7 +84,9 @@ describe("per-agent settings", () => {
       body: JSON.stringify(body),
     });
     expect(put.status).toBe(200);
-    expect(await (await call("/api/preferences", { headers: cli.auth })).json()).toEqual(body);
+    expect(await (await call("/api/preferences", { headers: cli.auth })).json()).toMatchObject(
+      body,
+    );
     // The 0.4.0 CLI's endpoint keeps answering with the tier models.
     expect(await (await call("/api/preferences/models", { headers: cli.auth })).json()).toEqual({
       models: { standard: ["ocra-openrouter/m"] },

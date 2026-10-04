@@ -1,25 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { effortLevels } from "../../../src/capabilities.js";
 import { api, type Key, type ProviderInfo } from "../api.js";
+import { type AgentPrefs, type Effort, type Prefs, type Tier, usePrefs } from "../prefs.js";
 import { Link } from "../router.js";
 import { PageHead, Seg, useLoad } from "../ui.js";
 
 // The runtime, the tier defaults and each agent's model and reasoning effort
 // (ADR-0025). The CLI layers these under a repository's own configuration.
 
-type Effort = "none" | "minimal" | "low" | "medium" | "high";
-type Tier = "top" | "standard" | "light";
 type Chain = string[];
-type AgentPrefs = {
-  effort?: Partial<Record<Tier, Effort>>;
-  reviewers?: Record<string, { enabled?: boolean; models?: Chain; effort?: Effort }>;
-  roles?: Partial<Record<Role, { models?: Chain; effort?: Effort }>>;
-};
-type Prefs = {
-  runtime: "direct" | "opencode" | null;
-  models: Partial<Record<Tier, Chain>>;
-  agents: AgentPrefs;
-};
 type Role = "verifier" | "judge" | "helper";
 type ModelInfo = { id: string; efforts: Effort[] };
 
@@ -64,13 +53,7 @@ function useModelInfo(providers: string[]) {
 export function Agents() {
   const [providers] = useLoad(() => api<{ providers: ProviderInfo[] }>("/providers"));
   const [keys] = useLoad(() => api<{ keys: Key[] }>("/keys"));
-  const [saved, , reload] = useLoad(() => api<Prefs>("/preferences"));
-  const [draft, setDraft] = useState<Prefs | null>(null);
-  const [status, setStatus] = useState("");
-
-  useEffect(() => {
-    if (saved) setDraft(saved);
-  }, [saved]);
+  const { draft, setDraft } = usePrefs();
 
   const usable = useMemo(() => {
     const have = new Set((keys?.keys ?? []).map((k) => k.provider));
@@ -107,34 +90,15 @@ export function Agents() {
   }
   if (!draft) return <PageHead title="Agents" />;
 
-  const set = (next: Prefs) => {
-    setDraft(next);
-    setStatus("");
-  };
+  const set = (next: Prefs) => setDraft(next);
   const setAgents = (agents: AgentPrefs) => set({ ...draft, agents });
-  const save = async () => {
-    try {
-      await api("/preferences", { method: "PUT", body: JSON.stringify(complete(draft)) });
-      setStatus("Saved.");
-      reload();
-    } catch {
-      setStatus("Could not save: check the model names.");
-    }
-  };
-
   const tierEffort = (t: Tier) => draft.agents.effort?.[t];
   return (
     <>
       <PageHead
         title="Agents"
         sub="Defaults for ocra review when you are signed in. A repository's .ocra/config.json wins where it sets the same thing."
-        actions={
-          <button type="button" className="btn btn-primary" onClick={save}>
-            Save
-          </button>
-        }
       />
-      {status && <p className={status === "Saved." ? "small" : "error"}>{status}</p>}
 
       <div className="card card-pad">
         <div
@@ -322,7 +286,7 @@ export function Agents() {
 }
 
 // Drops models whose id is not filled in yet, so a half-edited row is not sent.
-function complete(p: Prefs): Prefs {
+export function completeAgents(p: Prefs): Prefs {
   const keep = (c: Chain | undefined) => {
     const done = (c ?? []).filter((m) => !m.endsWith("/"));
     return done.length ? done : undefined;
