@@ -1,5 +1,7 @@
 import { Hono } from "hono";
+import { effortLevels } from "./capabilities.js";
 import { decryptWithAny, encryptSecret, type MasterKeys } from "./crypto.js";
+import type { Effort } from "./db/schema.js";
 import type { Scoped } from "./db/scoped.js";
 import { applyAuth, isProvider, providers, verifyRoutes } from "./providers.js";
 import type { AppEnv } from "./types.js";
@@ -128,7 +130,12 @@ export async function checkKey(provider: keyof typeof providers, key: string): P
  * Gemini API's models[].name. OpenRouter's list is public and is not its
  * key-checking route. Empty when the provider has no list.
  */
-export async function listModels(provider: keyof typeof providers, key: string): Promise<string[]> {
+export type ModelInfo = { id: string; efforts: Effort[] };
+
+export async function listModels(
+  provider: keyof typeof providers,
+  key: string,
+): Promise<ModelInfo[]> {
   const route =
     provider === "openrouter"
       ? { path: "/v1/models", auth: "bearer" as const }
@@ -145,14 +152,23 @@ export async function listModels(provider: keyof typeof providers, key: string):
       signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok) return [];
-    const body = (await res.json()) as { data?: { id?: unknown }[]; models?: { name?: unknown }[] };
-    const ids = [
-      ...(body.data ?? []).map((m) => m.id),
-      ...(body.models ?? []).map((m) =>
-        typeof m.name === "string" ? m.name.replace(/^models\//, "") : undefined,
-      ),
-    ].filter((id): id is string => typeof id === "string" && /^[\w./:@-]{1,200}$/.test(id));
-    return [...new Set(ids)].sort().slice(0, 2000);
+    const body = (await res.json()) as {
+      data?: { id?: unknown; supported_parameters?: unknown }[];
+      models?: { name?: unknown }[];
+    };
+    const found = new Map<string, ModelInfo>();
+    const add = (id: unknown, live?: { reasoning: boolean }) => {
+      if (typeof id !== "string" || !/^[\w./:@-]{1,200}$/.test(id)) return;
+      found.set(id, { id, efforts: effortLevels(id, live) });
+    };
+    for (const m of body.data ?? []) {
+      const params = Array.isArray(m.supported_parameters) ? m.supported_parameters : undefined;
+      add(m.id, params ? { reasoning: params.includes("reasoning") } : undefined);
+    }
+    for (const m of body.models ?? []) {
+      add(typeof m.name === "string" ? m.name.replace(/^models\//, "") : undefined);
+    }
+    return [...found.values()].sort((a, b) => a.id.localeCompare(b.id)).slice(0, 2000);
   } catch {
     return [];
   }

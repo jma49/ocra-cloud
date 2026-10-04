@@ -36,6 +36,13 @@
       "when": 1791093803318,
       "tag": "0004_reviews_preferences",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1791101359732,
+      "tag": "0005_agent_prefs",
+      "breakpoints": true
     }
   ]
 }

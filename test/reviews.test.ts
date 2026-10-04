@@ -130,7 +130,10 @@ describe("model lists", () => {
     const res = await call("/api/keys/gemini/models", { headers: web.auth });
     expect(await res.json()).toEqual({
       provider: "gemini",
-      models: ["gemini-3.1-pro", "gemini-3.5-flash"],
+      models: [
+        { id: "gemini-3.1-pro", efforts: ["low", "medium", "high"] },
+        { id: "gemini-3.5-flash", efforts: ["none", "low", "medium", "high"] },
+      ],
     });
     expect(new Headers(fake.mock.calls[0]?.[1]?.headers).get("x-goog-api-key")).toBe(
       "AIza-0123456789",

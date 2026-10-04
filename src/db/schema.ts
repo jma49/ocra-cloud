@@ -115,8 +115,19 @@ export const preferences = sqliteTable("preferences", {
     standard?: string[];
     light?: string[];
   }>(),
+  // The runtime and per-agent settings (ADR-0025), layered under a
+  // repository's configuration by the CLI.
+  runtime: text("runtime", { enum: ["direct", "opencode"] }),
+  agents: text("agents", { mode: "json" }).$type<AgentPrefs>(),
   createdAt: createdAt(),
 });
+
+export type Effort = "none" | "minimal" | "low" | "medium" | "high";
+export type AgentPrefs = {
+  effort?: { top?: Effort; standard?: Effort; light?: Effort };
+  reviewers?: Record<string, { enabled?: boolean; models?: string[]; effort?: Effort }>;
+  roles?: Partial<Record<"verifier" | "judge" | "helper", { models?: string[]; effort?: Effort }>>;
+};
 
 // Uses of a key and changes to an account, readable by its owner.
 export const auditEvents = sqliteTable("audit_events", {

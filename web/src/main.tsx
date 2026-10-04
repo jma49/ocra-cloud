@@ -2,9 +2,9 @@ import { StrictMode, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { api, type Me } from "./api.js";
 import { Activity } from "./pages/Activity.js";
+import { Agents } from "./pages/Agents.js";
 import { Device } from "./pages/Device.js";
 import { Keys } from "./pages/Keys.js";
-import { Models } from "./pages/Models.js";
 import { Overview } from "./pages/Overview.js";
 import { Privacy } from "./pages/Privacy.js";
 import { Reviews } from "./pages/Reviews.js";
@@ -21,7 +21,7 @@ const NAV: { to: string; label: string; icon: keyof typeof icons }[] = [
   { to: "/activity", label: "Activity", icon: "activity" },
   { to: "/reviews", label: "Reviews", icon: "check" },
   { to: "/keys", label: "Provider keys", icon: "key" },
-  { to: "/models", label: "Default models", icon: "layers" },
+  { to: "/agents", label: "Agents", icon: "layers" },
   { to: "/sessions", label: "CLI & sessions", icon: "terminal" },
   { to: "/settings", label: "Settings", icon: "settings" },
 ];
@@ -198,8 +198,8 @@ function App() {
       <Activity />
     ) : path === "/reviews" ? (
       <Reviews />
-    ) : path === "/models" ? (
-      <Models />
+    ) : path === "/agents" || path === "/models" ? (
+      <Agents />
     ) : path === "/keys" ? (
       <Keys />
     ) : path === "/sessions" ? (
