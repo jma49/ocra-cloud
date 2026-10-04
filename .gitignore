@@ -4,3 +4,4 @@ web/dist/
 .dev.vars*
 !.dev.vars.example
 .local/
+.engine/

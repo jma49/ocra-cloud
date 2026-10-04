@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import vectors from "../src/contract/fixtures/redaction-vectors.json";
+import { redact } from "../src/contract/index.js";
 import { parseFindings } from "../src/findings.js";
-import { redact } from "../src/redact.js";
 import { call, resetDb, signIn, signInCli } from "./helpers.js";
-import vectors from "./redaction-vectors.json";
 
 beforeEach(resetDb);
 const json = { "content-type": "application/json" };
@@ -32,7 +32,7 @@ const upload = (runId: string, findingList: unknown[]) => ({
 });
 
 describe("redaction", () => {
-  // The same vectors run in the CLI's pass (packages/cli/src/review/redact.test.ts).
+  // The contract's own vectors, which the CLI's pass runs too (#25).
   it("redacts every shared secret vector and leaves the plain lines alone", () => {
     for (const v of vectors.redact) {
       const r = redact(v.line);

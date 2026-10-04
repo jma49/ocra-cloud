@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { RISK_TIERS, VERDICTS } from "../src/contract/index.js";
 import { exportFinding, parseUpload } from "../src/reviews.js";
 import { call, resetDb, signIn, signInCli } from "./helpers.js";
 
@@ -221,15 +222,10 @@ describe("per-reviewer counts (ADR-0028, 1)", () => {
 });
 
 describe("the engine's vocabulary", () => {
-  // Copied from the engine (packages/core/src/domain.ts: verdictSchema,
-  // riskTierSchema): a change there must change these and the server's.
-  const ENGINE_VERDICTS = [
-    "approved",
-    "approved_with_comments",
-    "minor_issues",
-    "significant_concerns",
-  ];
-  const ENGINE_TIERS = ["trivial", "lite", "full"];
+  // The contract's (src/contract/vocabulary.ts), which the engine's core
+  // matches: a change there reaches this test with the next sync.
+  const ENGINE_VERDICTS = VERDICTS;
+  const ENGINE_TIERS = RISK_TIERS;
 
   it("stores every verdict and tier the engine sends, unchanged", async () => {
     const cli = await signInCli(1, "octo");
