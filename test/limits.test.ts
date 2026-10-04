@@ -1,13 +1,12 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import * as schema from "../src/db/schema.js";
 import { scoped } from "../src/db/scoped.js";
-import { call, db, resetDb, signIn, signInCli } from "./helpers.js";
+import { call, db, JSON_TYPE, resetDb, signIn, signInCli } from "./helpers.js";
 import { rows } from "./table-rows.js";
 
 // The refusals and bounds that had no test (audit K-hyg).
 
 beforeEach(resetDb);
-const json = { "content-type": "application/json" };
 const HASH = "c".repeat(64);
 
 describe("preference versions", () => {
@@ -23,8 +22,8 @@ describe("preference versions", () => {
     }
     const res = await call("/api/preferences", {
       method: "PUT",
-      headers: { ...me.auth, ...json },
-      body: JSON.stringify({ settings: { concurrency: 4 } }),
+      auth: me.auth,
+      json: { settings: { concurrency: 4 } },
     });
     expect(res.status).toBe(200);
     const { version } = (await res.json()) as { version: string };
@@ -47,7 +46,7 @@ describe("preference versions", () => {
     });
     const res = await call("/api/preferences/versions/old-rules/restore", {
       method: "POST",
-      headers: me.auth,
+      auth: me.auth,
     });
     expect(res.status).toBe(409);
     expect(await res.json()).toEqual({ error: "version_no_longer_valid" });
@@ -67,7 +66,8 @@ describe("bodies too large", () => {
     for (const declared of lengths) {
       const res = await call("/api/reviews", {
         method: "POST",
-        headers: { ...auth, ...json, ...declared },
+        auth,
+        headers: { ...JSON_TYPE, ...declared },
         body,
       });
       expect(res.status, JSON.stringify(declared)).toBe(413);
@@ -77,7 +77,8 @@ describe("bodies too large", () => {
     // Just under the bound is read as usual (and refused only for its content).
     const ok = await call("/api/reviews", {
       method: "POST",
-      headers: { ...auth, ...json },
+      auth,
+      headers: JSON_TYPE,
       body: big(1000),
     });
     expect(ok.status).toBe(200);
@@ -89,15 +90,16 @@ describe("bodies too large", () => {
     // A stored key, so the call gets as far as reading the body.
     await call("/api/keys/openrouter", {
       method: "PUT",
-      headers: { ...web.auth, ...json },
-      body: JSON.stringify({ key: "sk-0123456789" }),
+      auth: web.auth,
+      json: { key: "sk-0123456789" },
     });
     const body = JSON.stringify({ model: "m", pad: "x".repeat(8 * 1024 * 1024) });
     const lengths: Record<string, string>[] = [{ "content-length": String(body.length) }, {}];
     for (const declared of lengths) {
       const res = await call("/api/gateway/openrouter/v1/chat/completions", {
         method: "POST",
-        headers: { ...me.auth, ...json, ...declared },
+        auth: me.auth,
+        headers: { ...JSON_TYPE, ...declared },
         body,
       });
       expect(res.status, JSON.stringify(declared)).toBe(413);
@@ -134,8 +136,8 @@ describe("account memory", () => {
     const remember = (findingId: string) =>
       call("/api/memory", {
         method: "POST",
-        headers: { ...me.auth, ...json },
-        body: JSON.stringify({ findingId, reason: "accepted risk" }),
+        auth: me.auth,
+        json: { findingId, reason: "accepted risk" },
       });
 
     const full = await remember("f-full-repo");
@@ -158,7 +160,7 @@ describe("deleting a review", () => {
         await d.insert("findings", { ...rows.findings(`${review}-${n}`), reviewId: review });
       }
     }
-    const res = await call("/api/reviews/gone", { method: "DELETE", headers: me.auth });
+    const res = await call("/api/reviews/gone", { method: "DELETE", auth: me.auth });
     expect(await res.json()).toEqual({ removed: true });
     expect((await d.list("findings")).map((f) => f.id).sort()).toEqual(["kept-1", "kept-2"]);
   });

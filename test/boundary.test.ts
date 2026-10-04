@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import { beforeEach, describe, expect, it } from "vitest";
-import { call, resetDb, signIn } from "./helpers.js";
+import { call, JSON_TYPE, resetDb, signIn } from "./helpers.js";
 
 // One boundary layer (#31): bodies are read only by src/http.ts's jsonBody
 // (with src/body.ts's streamed limit) and checked by a schema; the gateway
@@ -42,11 +42,11 @@ describe("the API boundary", () => {
     const web = await signIn(1, "octo");
     const res = await call("/api/preferences", {
       method: "PUT",
-      headers: { ...web.auth, "content-type": "application/json" },
-      body: JSON.stringify({
+      auth: web.auth,
+      json: {
         settings: { concurrency: 64 },
         models: { top: ["ocra-anthropic/claude"] },
-      }),
+      },
     });
     expect(res.status).toBe(400);
     const body = (await res.json()) as { error: string; issues: { path: unknown[] }[] };
@@ -60,7 +60,8 @@ describe("the API boundary", () => {
     const web = await signIn(1, "octo");
     const res = await call("/api/account/sharing", {
       method: "PUT",
-      headers: { ...web.auth, "content-type": "application/json" },
+      auth: web.auth,
+      headers: JSON_TYPE,
       body: "{not json",
     });
     expect(res.status).toBe(400);

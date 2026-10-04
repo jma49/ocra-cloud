@@ -12,15 +12,15 @@ import { call, resetDb, signIn, signInCli } from "./helpers.js";
 // reaches this test with the next sync.
 
 beforeEach(resetDb);
-const json = { "content-type": "application/json" };
 const origin = { origin: "https://ocra.test" };
 const { about: _, ...body } = upload;
 
 async function shareFindings(web: { auth: Record<string, string> }) {
   const res = await call("/api/account/sharing", {
     method: "PUT",
-    headers: { ...web.auth, ...json, ...origin },
-    body: JSON.stringify({ enabled: true }),
+    auth: web.auth,
+    headers: origin,
+    json: { enabled: true },
   });
   expect(res.status).toBe(200);
 }
@@ -32,15 +32,16 @@ describe("the CLI's real upload", () => {
     await shareFindings(web);
     const res = await call("/api/reviews", {
       method: "POST",
-      headers: { ...cli.auth, ...json },
-      body: JSON.stringify(body),
+      auth: cli.auth,
+      json: body,
     });
     const answer = (await res.json()) as Record<string, unknown>;
     expect(answer).toEqual({ id: expect.any(String), findings: body.findingList.length });
 
-    const detail = (await (
-      await call(`/api/reviews/${answer.id}`, { headers: web.auth })
-    ).json()) as { review: Record<string, unknown>; findings: Record<string, unknown>[] };
+    const detail = (await (await call(`/api/reviews/${answer.id}`, { auth: web.auth })).json()) as {
+      review: Record<string, unknown>;
+      findings: Record<string, unknown>[];
+    };
     const { critical, warning, suggestion } = body.findings;
     expect(detail.review).toMatchObject({
       runId: body.runId,
@@ -81,11 +82,12 @@ describe("the account's preferences", () => {
     const { updatedAt: _u, version: _v, ...parts } = preferences.answer;
     const put = await call("/api/preferences", {
       method: "PUT",
-      headers: { ...web.auth, ...json, ...origin },
-      body: JSON.stringify(parts),
+      auth: web.auth,
+      headers: origin,
+      json: parts,
     });
     expect(put.status).toBe(200);
-    const got = (await (await call("/api/preferences", { headers: cli.auth })).json()) as Record<
+    const got = (await (await call("/api/preferences", { auth: cli.auth })).json()) as Record<
       string,
       unknown
     >;
@@ -101,20 +103,21 @@ describe("the account's memory", () => {
     const posted = (await (
       await call("/api/reviews", {
         method: "POST",
-        headers: { ...cli.auth, ...json },
-        body: JSON.stringify(body),
+        auth: cli.auth,
+        json: body,
       })
     ).json()) as { id: string };
-    const detail = (await (
-      await call(`/api/reviews/${posted.id}`, { headers: web.auth })
-    ).json()) as { findings: { id: string }[] };
+    const detail = (await (await call(`/api/reviews/${posted.id}`, { auth: web.auth })).json()) as {
+      findings: { id: string }[];
+    };
     await call("/api/memory", {
       method: "POST",
-      headers: { ...web.auth, ...json, ...origin },
-      body: JSON.stringify({ findingId: detail.findings[0]?.id, reason: "Accepted." }),
+      auth: web.auth,
+      headers: origin,
+      json: { findingId: detail.findings[0]?.id, reason: "Accepted." },
     });
     const list = (await (
-      await call(`/api/memory?repo=${body.repoHash}`, { headers: cli.auth })
+      await call(`/api/memory?repo=${body.repoHash}`, { auth: cli.auth })
     ).json()) as { entries: unknown[] };
     const [served] = list.entries;
     const [sample] = memory.answer.entries;

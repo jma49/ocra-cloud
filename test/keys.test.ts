@@ -9,7 +9,6 @@ import { call, db, resetDb, signIn } from "./helpers.js";
 beforeEach(resetDb);
 afterEach(() => vi.restoreAllMocks());
 
-const json = { "content-type": "application/json" };
 const answer = (status: number, body = "{}") =>
   vi
     .spyOn(globalThis, "fetch")
@@ -64,8 +63,8 @@ describe("keys API", () => {
     answer(200);
     await call("/api/keys/openai", {
       method: "PUT",
-      headers: { ...me.auth, ...json },
-      body: JSON.stringify({ key: "sk-bound-12345" }),
+      auth: me.auth,
+      json: { key: "sk-bound-12345" },
     });
     const [row] = await scoped(db, me.account.id).list("providerKeys");
     if (!row) throw new Error("no row");
@@ -84,13 +83,13 @@ describe("keys API", () => {
     answer(401);
     const put = await call("/api/keys/openai", {
       method: "PUT",
-      headers: { ...me.auth, ...json },
-      body: JSON.stringify({ key: "sk-wrong-12345" }),
+      auth: me.auth,
+      json: { key: "sk-wrong-12345" },
     });
     expect(await put.json()).toMatchObject({ check: { status: "invalid" } });
 
     answer(200);
-    const test = await call("/api/keys/openai/test", { method: "POST", headers: me.auth });
+    const test = await call("/api/keys/openai/test", { method: "POST", auth: me.auth });
     expect(await test.json()).toMatchObject({ check: { status: "ok" } });
 
     await scoped(db, me.account.id).insert("gatewayCalls", {
@@ -99,7 +98,7 @@ describe("keys API", () => {
       path: "/v1/chat/completions",
       status: 200,
     });
-    const list = (await (await call("/api/keys", { headers: me.auth })).json()) as {
+    const list = (await (await call("/api/keys", { auth: me.auth })).json()) as {
       keys: {
         provider: string;
         checkStatus: string;
@@ -120,10 +119,42 @@ describe("keys API", () => {
     answer(200);
     await call("/api/keys/openai", {
       method: "PUT",
-      headers: { ...me.auth, ...json },
-      body: JSON.stringify({ key: "sk-mine-12345" }),
+      auth: me.auth,
+      json: { key: "sk-mine-12345" },
     });
-    const res = await call("/api/keys/openai/test", { method: "POST", headers: other.auth });
+    const res = await call("/api/keys/openai/test", { method: "POST", auth: other.auth });
     expect(res.status).toBe(404);
+  });
+});
+
+describe("model lists with effort levels", () => {
+  it("reads reasoning support from OpenRouter's list", async () => {
+    const web = await signIn(1, "octo");
+    vi.spyOn(globalThis, "fetch")
+      .mockClear()
+      .mockImplementation(async () => Response.json({}));
+    await call("/api/keys/openrouter", {
+      method: "PUT",
+      auth: web.auth,
+      json: { key: "sk-or-0123456789" },
+    });
+    vi.spyOn(globalThis, "fetch")
+      .mockClear()
+      .mockImplementation(async () =>
+        Response.json({
+          data: [
+            { id: "qwen/qwen3.8-27b:free", supported_parameters: ["reasoning", "tools"] },
+            { id: "openai/gpt-4o", supported_parameters: ["tools"] },
+          ],
+        }),
+      );
+    const res = await call("/api/keys/openrouter/models", { auth: web.auth });
+    expect(await res.json()).toEqual({
+      provider: "openrouter",
+      models: [
+        { id: "openai/gpt-4o", efforts: [] },
+        { id: "qwen/qwen3.8-27b:free", efforts: ["low", "medium", "high"] },
+      ],
+    });
   });
 });

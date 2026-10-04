@@ -92,9 +92,9 @@ describe("sessions", () => {
     expect((await call("/api/me")).status).toBe(401);
     expect((await call("/api/me", { headers: { authorization: "Bearer nope" } })).status).toBe(401);
     const { auth } = await signIn(7, "u");
-    expect((await call("/api/me", { headers: auth })).status).toBe(200);
-    expect((await call("/api/auth/logout", { method: "POST", headers: auth })).status).toBe(200);
-    expect((await call("/api/me", { headers: auth })).status).toBe(401);
+    expect((await call("/api/me", { auth: auth })).status).toBe(200);
+    expect((await call("/api/auth/logout", { method: "POST", auth: auth })).status).toBe(200);
+    expect((await call("/api/me", { auth: auth })).status).toBe(401);
   });
 
   it("reads the session only from the __Host- cookie, not the old name", async () => {

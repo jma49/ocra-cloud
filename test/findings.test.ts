@@ -2,34 +2,10 @@ import { beforeEach, describe, expect, it } from "vitest";
 import vectors from "../src/contract/fixtures/redaction-vectors.json";
 import { redact } from "../src/contract/index.js";
 import { parseFindings } from "../src/findings.js";
+import { finding, upload } from "./finding-uploads.js";
 import { call, resetDb, signIn, signInCli } from "./helpers.js";
 
 beforeEach(resetDb);
-const json = { "content-type": "application/json" };
-const HASH = "b".repeat(64);
-
-const finding = (over: Record<string, unknown> = {}) => ({
-  fingerprint: "fp-1234",
-  reviewer: "security",
-  severity: "critical",
-  category: "injection",
-  verification: "confirmed",
-  file: "src/db.ts",
-  lineStart: 10,
-  lineEnd: 12,
-  title: "SQL built from input",
-  body: "The query concatenates user input.",
-  suggestion: "Use a parameter.",
-  code: 'db.query("SELECT * FROM t WHERE id=" + id)',
-  ...over,
-});
-const upload = (runId: string, findingList: unknown[]) => ({
-  runId,
-  repoHash: HASH,
-  source: "local",
-  findings: { critical: 1, warning: 0, suggestion: 0 },
-  findingList,
-});
 
 describe("redaction", () => {
   // The contract's own vectors, which the CLI's pass runs too (#25).
@@ -85,8 +61,8 @@ describe("sharing findings", () => {
     const post = (runId: string, list: unknown[]) =>
       call("/api/reviews", {
         method: "POST",
-        headers: { ...cli.auth, ...json },
-        body: JSON.stringify(upload(runId, list)),
+        auth: cli.auth,
+        json: upload(runId, list),
       });
 
     const off = (await (await post("run-off", [finding()])).json()) as {
@@ -94,14 +70,15 @@ describe("sharing findings", () => {
       findings: number;
     };
     expect(off.findings).toBe(0);
-    expect(await (await call("/api/account/salt", { headers: cli.auth })).json()).toEqual({
+    expect(await (await call("/api/account/salt", { auth: cli.auth })).json()).toEqual({
       salt: null,
     });
 
     const turnOn = await call("/api/account/sharing", {
       method: "PUT",
-      headers: { ...web.auth, ...json, origin: "https://ocra.test" },
-      body: JSON.stringify({ enabled: true }),
+      auth: web.auth,
+      headers: { origin: "https://ocra.test" },
+      json: { enabled: true },
     });
     expect(turnOn.status).toBe(200);
     // A CLI token cannot change the switch.
@@ -109,8 +86,8 @@ describe("sharing findings", () => {
       (
         await call("/api/account/sharing", {
           method: "PUT",
-          headers: { ...cli.auth, ...json },
-          body: "{}",
+          auth: cli.auth,
+          json: {},
         })
       ).status,
     ).toBe(403);
@@ -120,17 +97,17 @@ describe("sharing findings", () => {
     ).json()) as { id: string; findings: number };
     expect(on.findings).toBe(1);
     // The counts and the list travel side by side.
-    const counts = (await (await call(`/api/reviews/${on.id}`, { headers: web.auth })).json()) as {
+    const counts = (await (await call(`/api/reviews/${on.id}`, { auth: web.auth })).json()) as {
       review: { critical: number };
     };
     expect(counts.review.critical).toBe(1);
-    const detail = (await (await call(`/api/reviews/${on.id}`, { headers: web.auth })).json()) as {
+    const detail = (await (await call(`/api/reviews/${on.id}`, { auth: web.auth })).json()) as {
       findings: { body: string; redacted: boolean; file: string }[];
     };
     expect(detail.findings[0]).toMatchObject({ file: "src/db.ts", redacted: true });
     expect(detail.findings[0]?.body).not.toContain("ghp_");
 
-    const exported = await call(`/api/reviews/${on.id}/export`, { headers: web.auth });
+    const exported = await call(`/api/reviews/${on.id}/export`, { auth: web.auth });
     expect(exported.headers.get("content-disposition")).toContain("attachment");
     const file = (await exported.json()) as { version: number; findings: unknown[] };
     expect(file).toMatchObject({ format: "ocra-cloud/review-export", version: 2 });
@@ -154,10 +131,10 @@ describe("sharing findings", () => {
       },
     ]);
 
-    const salt1 = (await (await call("/api/account/salt", { headers: cli.auth })).json()) as {
+    const salt1 = (await (await call("/api/account/salt", { auth: cli.auth })).json()) as {
       salt: string;
     };
-    const salt2 = (await (await call("/api/account/salt", { headers: web.auth })).json()) as {
+    const salt2 = (await (await call("/api/account/salt", { auth: web.auth })).json()) as {
       salt: string;
     };
     expect(salt1.salt).toMatch(/^[0-9a-f]{64}$/);
@@ -165,11 +142,12 @@ describe("sharing findings", () => {
 
     const turnOff = await call("/api/account/sharing", {
       method: "PUT",
-      headers: { ...web.auth, ...json, origin: "https://ocra.test" },
-      body: JSON.stringify({ enabled: false, deleteExisting: true }),
+      auth: web.auth,
+      headers: { origin: "https://ocra.test" },
+      json: { enabled: false, deleteExisting: true },
     });
     expect(await turnOff.json()).toEqual({ shareFindings: false, deleted: 1 });
-    const after = (await (await call(`/api/reviews/${on.id}`, { headers: web.auth })).json()) as {
+    const after = (await (await call(`/api/reviews/${on.id}`, { auth: web.auth })).json()) as {
       findings: unknown[];
     };
     expect(after.findings).toEqual([]);
@@ -180,75 +158,18 @@ describe("sharing findings", () => {
     const b = await signIn(2, "b");
     await call("/api/account/sharing", {
       method: "PUT",
-      headers: { ...a.auth, ...json, origin: "https://ocra.test" },
-      body: JSON.stringify({ enabled: true }),
+      auth: a.auth,
+      headers: { origin: "https://ocra.test" },
+      json: { enabled: true },
     });
     const posted = (await (
       await call("/api/reviews", {
         method: "POST",
-        headers: { ...a.auth, ...json },
-        body: JSON.stringify(upload("r", [finding()])),
+        auth: a.auth,
+        json: upload("r", [finding()]),
       })
     ).json()) as { id: string };
-    expect((await call(`/api/reviews/${posted.id}`, { headers: b.auth })).status).toBe(404);
-    expect((await call(`/api/reviews/${posted.id}/export`, { headers: b.auth })).status).toBe(404);
-  });
-});
-
-describe("account memory", () => {
-  it("remembers a finding once per repository, lists it for the CLI, and deletes it", async () => {
-    const web = await signIn(1, "octo");
-    const cli = await signInCli(1, "octo");
-    await call("/api/account/sharing", {
-      method: "PUT",
-      headers: { ...web.auth, ...json, origin: "https://ocra.test" },
-      body: JSON.stringify({ enabled: true }),
-    });
-    const posted = (await (
-      await call("/api/reviews", {
-        method: "POST",
-        headers: { ...cli.auth, ...json },
-        body: JSON.stringify(upload("r", [finding()])),
-      })
-    ).json()) as { id: string };
-    const detail = (await (
-      await call(`/api/reviews/${posted.id}`, { headers: web.auth })
-    ).json()) as { findings: { id: string }[] };
-    const findingId = detail.findings[0]?.id;
-    const remember = (reason: string) =>
-      call("/api/memory", {
-        method: "POST",
-        headers: { ...web.auth, ...json, origin: "https://ocra.test" },
-        body: JSON.stringify({ findingId, reason }),
-      });
-    expect((await remember("")).status).toBe(400);
-    const first = (await (await remember("Accepted: internal tool")).json()) as { id: string };
-    expect(await (await remember("again")).json()).toEqual({ id: first.id, duplicate: true });
-
-    const list = (await (await call(`/api/memory?repo=${HASH}`, { headers: cli.auth })).json()) as {
-      entries: { fingerprint: string; reason: string }[];
-    };
-    expect(list.entries).toMatchObject([
-      { fingerprint: "fp-1234", reason: "Accepted: internal tool" },
-    ]);
-    expect(
-      (await call(`/api/memory?repo=${"c".repeat(64)}`, { headers: cli.auth }).then((r) =>
-        r.json(),
-      )) as unknown,
-    ).toEqual({ entries: [] });
-    // The CLI reads memory; only the web changes it.
-    expect(
-      (await call("/api/memory", { method: "POST", headers: { ...cli.auth, ...json }, body: "{}" }))
-        .status,
-    ).toBe(403);
-
-    await call(`/api/memory/${first.id}`, {
-      method: "DELETE",
-      headers: { ...web.auth, origin: "https://ocra.test" },
-    });
-    expect(
-      ((await (await call("/api/memory", { headers: web.auth })).json()) as { entries: unknown[] })
-        .entries,
-    ).toEqual([]);
+    expect((await call(`/api/reviews/${posted.id}`, { auth: b.auth })).status).toBe(404);
+    expect((await call(`/api/reviews/${posted.id}/export`, { auth: b.auth })).status).toBe(404);
   });
 });

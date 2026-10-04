@@ -8,7 +8,7 @@ import { call, db, ORIGIN, resetDb, signIn, signInCli } from "./helpers.js";
 beforeEach(resetDb);
 afterEach(() => vi.restoreAllMocks());
 
-const json = { "content-type": "application/json", origin: ORIGIN };
+const origin = { origin: ORIGIN };
 const HASH = "d".repeat(64);
 
 describe("parallel writes", () => {
@@ -18,8 +18,9 @@ describe("parallel writes", () => {
     const save = (key: string) =>
       call("/api/keys/openai", {
         method: "PUT",
-        headers: { ...me.auth, ...json },
-        body: JSON.stringify({ key }),
+        auth: me.auth,
+        headers: origin,
+        json: { key },
       });
     const answers = await Promise.all(
       ["sk-first-1111", "sk-second-2222", "sk-third-3333"].map(save),
@@ -39,8 +40,9 @@ describe("parallel writes", () => {
     const save = (runtime: string) =>
       call("/api/preferences", {
         method: "PUT",
-        headers: { ...me.auth, ...json },
-        body: JSON.stringify({ runtime }),
+        auth: me.auth,
+        headers: origin,
+        json: { runtime },
       });
     const answers = await Promise.all([save("direct"), save("opencode")]);
     expect(answers.map((r) => r.status)).toEqual([200, 200]);
@@ -52,8 +54,9 @@ describe("parallel writes", () => {
     const cli = await signInCli(1, "octo");
     await call("/api/account/sharing", {
       method: "PUT",
-      headers: { ...web.auth, ...json },
-      body: JSON.stringify({ enabled: true }),
+      auth: web.auth,
+      headers: origin,
+      json: { enabled: true },
     });
     const finding = (fingerprint: string) => ({
       fingerprint,
@@ -66,25 +69,27 @@ describe("parallel writes", () => {
     const posted = (await (
       await call("/api/reviews", {
         method: "POST",
-        headers: { ...cli.auth, ...json },
-        body: JSON.stringify({
+        auth: cli.auth,
+        headers: origin,
+        json: {
           runId: "r",
           repoHash: HASH,
           source: "local",
           findings: { critical: 0, warning: 3, suggestion: 0 },
           findingList: ["fp-a", "fp-b", "fp-c"].map(finding),
-        }),
+        },
       })
     ).json()) as { id: string };
-    const detail = (await (
-      await call(`/api/reviews/${posted.id}`, { headers: web.auth })
-    ).json()) as { findings: { id: string; fingerprint: string }[] };
+    const detail = (await (await call(`/api/reviews/${posted.id}`, { auth: web.auth })).json()) as {
+      findings: { id: string; fingerprint: string }[];
+    };
     const idOf = (fp: string) => detail.findings.find((f) => f.fingerprint === fp)?.id;
     const remember = (fp: string) =>
       call("/api/memory", {
         method: "POST",
-        headers: { ...web.auth, ...json },
-        body: JSON.stringify({ findingId: idOf(fp), reason: "accepted" }),
+        auth: web.auth,
+        headers: origin,
+        json: { findingId: idOf(fp), reason: "accepted" },
       });
     const data = scoped(db, web.account.id);
 
@@ -115,8 +120,9 @@ describe("the legacy models endpoint", () => {
     const me = await signIn(1, "me");
     const put = await call("/api/preferences/models", {
       method: "PUT",
-      headers: { ...me.auth, ...json },
-      body: JSON.stringify({ standard: ["ocra-openrouter/m"] }),
+      auth: me.auth,
+      headers: origin,
+      json: { standard: ["ocra-openrouter/m"] },
     });
     expect(put.status).toBe(404);
     expect(await scoped(db, me.account.id).list("preferences")).toEqual([]);

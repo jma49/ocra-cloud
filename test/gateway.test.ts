@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { scoped } from "../src/db/scoped.js";
 import { parseUsage, topLevelModel } from "../src/gateway.js";
 import app from "../src/index.js";
-import { call, db, ORIGIN, resetDb, signIn } from "./helpers.js";
+import { call, db, request, resetDb, signIn } from "./helpers.js";
 
 const KEY = "sk-or-v1-0123456789abcdef";
 const PROMPT = "PROMPT-BODY-should-never-be-logged";
@@ -16,8 +16,8 @@ async function withKey(githubId = 1) {
   const user = await signIn(githubId, `u${githubId}`);
   const res = await call("/api/keys/openrouter", {
     method: "PUT",
-    headers: { ...user.auth, "content-type": "application/json" },
-    body: JSON.stringify({ key: KEY }),
+    auth: user.auth,
+    json: { key: KEY },
   });
   expect(res.status).toBe(200);
   return user;
@@ -41,17 +41,18 @@ function upstreamFake(make: () => Response) {
     .mockImplementation(async () => make());
 }
 
-const chat = (stream = true) =>
-  JSON.stringify({
-    model: "vendor/model-a",
-    stream,
-    messages: [{ role: "user", content: PROMPT }],
-  });
+const chatRequest = (stream = true) => ({
+  model: "vendor/model-a",
+  stream,
+  messages: [{ role: "user", content: PROMPT }],
+});
+/** The request's exact bytes, as the gateway forwards them. */
+const chat = (stream = true) => JSON.stringify(chatRequest(stream));
 
 describe("keys", () => {
   it("stores a key encrypted, lists only its last four, and never returns it", async () => {
     const { auth, account } = await withKey();
-    const list = await call("/api/keys", { headers: auth });
+    const list = await call("/api/keys", { auth: auth });
     const text = await list.text();
     expect(text).not.toContain(KEY);
     expect(JSON.parse(text).keys).toMatchObject([{ provider: "openrouter", last4: "cdef" }]);
@@ -64,8 +65,8 @@ describe("keys", () => {
     const put = (provider: string, key: unknown) =>
       call(`/api/keys/${provider}`, {
         method: "PUT",
-        headers: { ...auth, "content-type": "application/json" },
-        body: JSON.stringify({ key }),
+        auth: auth,
+        json: { key },
       });
     const unknown = await put("evil", KEY);
     expect(unknown.status).toBe(404);
@@ -96,8 +97,9 @@ describe("gateway", () => {
     );
     const res = await call("/api/gateway/openrouter/v1/chat/completions", {
       method: "POST",
-      headers: { ...auth, "content-type": "application/json", cookie: "__Host-ocra_session=leak" },
-      body: chat(),
+      auth: auth,
+      headers: { cookie: "__Host-ocra_session=leak" },
+      json: chatRequest(),
     });
     expect(res.status).toBe(200);
     expect(res.headers.get("set-cookie")).toBeNull();
@@ -125,8 +127,8 @@ describe("gateway", () => {
     );
     await call("/api/gateway/openrouter/v1/chat/completions", {
       method: "POST",
-      headers: { ...auth, "content-type": "application/json" },
-      body: chat(),
+      auth: auth,
+      json: chatRequest(),
     });
     const calls = await scoped(db, account.id).list("gatewayCalls");
     expect(calls).toMatchObject([
@@ -155,11 +157,11 @@ describe("gateway", () => {
     );
     await call("/api/gateway/openrouter/v1/chat/completions", {
       method: "POST",
-      headers: { ...auth, "content-type": "application/json" },
-      body: JSON.stringify({
+      auth: auth,
+      json: {
         messages: [{ role: "user", content: [{ type: "x", model: "nested/decoy" }] }],
         model: "vendor/model-b",
-      }),
+      },
     });
     expect(await scoped(db, account.id).list("gatewayCalls")).toMatchObject([
       { model: "vendor/model-b", tokensIn: 910, tokensOut: 20 },
@@ -177,15 +179,15 @@ describe("gateway", () => {
     upstreamFake(() => new Response(sse([{ choices: [{ delta: { content: "ANSWER-TEXT" } }] }])));
     await call("/api/gateway/openrouter/v1/chat/completions", {
       method: "POST",
-      headers: { ...auth, "content-type": "application/json" },
-      body: chat(),
+      auth: auth,
+      json: chatRequest(),
     });
     // And an upstream that throws, which goes through the error path.
     vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error(PROMPT));
     await call("/api/gateway/openrouter/v1/chat/completions", {
       method: "POST",
-      headers: { ...auth, "content-type": "application/json" },
-      body: chat(),
+      auth: auth,
+      json: chatRequest(),
     });
     const all = logged.join("\n");
     for (const secret of [PROMPT, "ANSWER-TEXT", KEY]) expect(all).not.toContain(secret);
@@ -197,15 +199,15 @@ describe("gateway", () => {
     const post = (path: string) =>
       call(path, {
         method: "POST",
-        headers: { ...auth, "content-type": "application/json" },
-        body: chat(),
+        auth: auth,
+        json: chatRequest(),
       });
     expect((await post("/api/gateway/evil/v1/chat/completions")).status).toBe(404);
     expect((await post("/api/gateway/openrouter/v1/models")).status).toBe(404);
     expect((await post("/api/gateway/openrouter/v1/chat/completions/../../x")).status).toBe(404);
-    expect(
-      (await call("/api/gateway/openrouter/v1/chat/completions", { headers: auth })).status,
-    ).toBe(404);
+    expect((await call("/api/gateway/openrouter/v1/chat/completions", { auth: auth })).status).toBe(
+      404,
+    );
     const noKey = await post("/api/gateway/anthropic/v1/messages");
     expect(noKey.status).toBe(404);
     expect(await noKey.json()).toEqual({ error: "no_key", provider: "anthropic" });
@@ -222,8 +224,8 @@ describe("gateway", () => {
     const fake = upstreamFake(() => new Response("{}"));
     const res = await call("/api/gateway/openrouter/v1/chat/completions", {
       method: "POST",
-      headers: { ...other.auth, "content-type": "application/json" },
-      body: chat(),
+      auth: other.auth,
+      json: chatRequest(),
     });
     expect(res.status).toBe(404);
     expect(fake).not.toHaveBeenCalled();
@@ -235,8 +237,8 @@ describe("gateway", () => {
     const post = () =>
       call("/api/gateway/openrouter/v1/chat/completions", {
         method: "POST",
-        headers: { ...auth, "content-type": "application/json" },
-        body: chat(false),
+        auth: auth,
+        json: chatRequest(false),
       });
     // GATEWAY_DAILY_CALLS is 3 in the test configuration.
     for (let i = 0; i < 3; i++) expect((await post()).status).toBe(200);
@@ -255,8 +257,8 @@ describe("gateway", () => {
       Array.from({ length: 10 }, () =>
         call("/api/gateway/openrouter/v1/chat/completions", {
           method: "POST",
-          headers: { ...auth, "content-type": "application/json" },
-          body: chat(false),
+          auth: auth,
+          json: chatRequest(false),
         }).then((r) => r.status),
       ),
     );
@@ -288,10 +290,10 @@ describe("gateway", () => {
     );
     const ctx = createExecutionContext();
     const res = await app.fetch(
-      new Request(`${ORIGIN}/api/gateway/openrouter/v1/chat/completions`, {
+      request("/api/gateway/openrouter/v1/chat/completions", {
         method: "POST",
-        headers: { ...auth, "content-type": "application/json" },
-        body: chat(),
+        auth,
+        json: chatRequest(),
       }),
       env,
       ctx,
@@ -324,10 +326,10 @@ describe("gateway", () => {
     });
     const ctx = createExecutionContext();
     const res = await app.fetch(
-      new Request(`${ORIGIN}/api/gateway/openrouter/v1/chat/completions`, {
+      request("/api/gateway/openrouter/v1/chat/completions", {
         method: "POST",
-        headers: { ...auth, "content-type": "application/json" },
-        body: chat(),
+        auth,
+        json: chatRequest(),
       }),
       env,
       ctx,
@@ -350,8 +352,8 @@ describe("gateway", () => {
     );
     const res = await call("/api/gateway/openrouter/v1/chat/completions", {
       method: "POST",
-      headers: { ...auth, "content-type": "application/json" },
-      body: chat(false),
+      auth: auth,
+      json: chatRequest(false),
     });
     expect(fake.mock.calls[0]?.[1]?.redirect).toBe("manual");
     expect(res.status).toBe(502);
@@ -370,8 +372,8 @@ describe("gateway", () => {
     );
     const res = await call("/api/gateway/openrouter/v1/chat/completions", {
       method: "POST",
-      headers: { ...auth, "content-type": "application/json" },
-      body: chat(false),
+      auth: auth,
+      json: chatRequest(false),
     });
     expect(res.status).toBe(429);
     expect(res.headers.get("retry-after")).toBe("5");
@@ -397,8 +399,8 @@ describe("usage on a long stream", () => {
     );
     const res = await call("/api/gateway/openrouter/v1/chat/completions", {
       method: "POST",
-      headers: { ...auth, "content-type": "application/json" },
-      body: chat(),
+      auth: auth,
+      json: chatRequest(),
     });
     expect((await res.text()).length).toBeGreaterThan(80_000);
     expect(await scoped(db, account.id).list("gatewayCalls")).toMatchObject([
@@ -413,18 +415,18 @@ describe("usage view", () => {
     upstreamFake(() => Response.json({ usage: { prompt_tokens: 3, completion_tokens: 4 } }));
     await call("/api/gateway/openrouter/v1/chat/completions", {
       method: "POST",
-      headers: { ...auth, "content-type": "application/json" },
-      body: chat(false),
+      auth: auth,
+      json: chatRequest(false),
     });
     const other = await signIn(9, "z");
-    const mine = (await (await call("/api/usage", { headers: auth })).json()) as {
+    const mine = (await (await call("/api/usage", { auth: auth })).json()) as {
       today: number;
       calls: object[];
     };
     expect(mine.today).toBe(1);
     expect(mine.calls).toHaveLength(1);
     expect(JSON.stringify(mine)).not.toContain("accountId");
-    const theirs = (await (await call("/api/usage", { headers: other.auth })).json()) as {
+    const theirs = (await (await call("/api/usage", { auth: other.auth })).json()) as {
       calls: object[];
     };
     expect(theirs.calls).toEqual([]);

@@ -86,7 +86,7 @@ describe("every route", () => {
     "$route refuses a CLI token (403)",
     async (r) => {
       const { auth } = await signInCli(1, "cli-user");
-      const res = await call(r.url, { method: r.method, headers: auth });
+      const res = await call(r.url, { method: r.method, auth: auth });
       expect(res.status).toBe(403);
       expect(await res.json()).toEqual({ error: "forbidden_for_session" });
     },
@@ -96,7 +96,7 @@ describe("every route", () => {
     "$route lets a CLI token through",
     async (r) => {
       const { auth } = await signInCli(1, "cli-user");
-      const res = await call(r.url, { method: r.method, headers: auth });
+      const res = await call(r.url, { method: r.method, auth: auth });
       expect([401, 403]).not.toContain(res.status);
       expect(res.status).toBeLessThan(500);
     },
@@ -104,7 +104,7 @@ describe("every route", () => {
 
   it.each(guarded)("$route lets a web session through", async (r) => {
     const { auth } = await signIn(1, "web-user");
-    const res = await call(r.url, { method: r.method, headers: auth });
+    const res = await call(r.url, { method: r.method, auth: auth });
     expect([401, 403]).not.toContain(res.status);
     expect(res.status).toBeLessThan(500);
   });

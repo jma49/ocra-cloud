@@ -25,8 +25,8 @@ describe("every provider route", () => {
       const user = await signIn(1, "u");
       const put = await call(`/api/keys/${name}`, {
         method: "PUT",
-        headers: { ...user.auth, "content-type": "application/json" },
-        body: JSON.stringify({ key: KEY }),
+        auth: user.auth,
+        json: { key: KEY },
       });
       expect(put.status).toBe(200);
       const fake = vi
@@ -35,8 +35,8 @@ describe("every provider route", () => {
         .mockImplementation(async () => Response.json({}));
       const res = await call(`/api/gateway/${name}${path}?alt=sse&key=leak`, {
         method: "POST",
-        headers: { ...user.auth, "content-type": "application/json" },
-        body: '{"model":"m","messages":[]}',
+        auth: user.auth,
+        json: { model: "m", messages: [] },
       });
       expect(res.status).toBe(200);
       const [input, init] = fake.mock.calls[0] ?? [];

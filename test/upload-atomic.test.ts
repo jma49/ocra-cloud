@@ -2,10 +2,9 @@ import { createExecutionContext, waitOnExecutionContext } from "cloudflare:test"
 import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, it } from "vitest";
 import app from "../src/index.js";
-import { call, ORIGIN, resetDb, signIn, signInCli } from "./helpers.js";
+import { type CallInit, call, ORIGIN, request, resetDb, signIn, signInCli } from "./helpers.js";
 
 beforeEach(resetDb);
-const json = { "content-type": "application/json" };
 
 const finding = (i: number) => ({
   fingerprint: `fp-${i}`,
@@ -17,17 +16,16 @@ const finding = (i: number) => ({
   title: `Finding ${i}`,
   body: "Body.",
 });
-const upload = (runId: string, n = 0) =>
-  JSON.stringify({
-    runId,
-    repoHash: "c".repeat(64),
-    source: "local",
-    findings: { critical: 0, warning: n, suggestion: 0 },
-    findingList: Array.from({ length: n }, (_, i) => finding(i)),
-  });
+const upload = (runId: string, n = 0) => ({
+  runId,
+  repoHash: "c".repeat(64),
+  source: "local",
+  findings: { critical: 0, warning: n, suggestion: 0 },
+  findingList: Array.from({ length: n }, (_, i) => finding(i)),
+});
 
 /** Calls the app with a D1 binding that counts the statements it prepares. */
-async function counted(path: string, init: RequestInit) {
+async function counted(path: string, init: CallInit) {
   let statements = 0;
   const DB = new Proxy(env.DB, {
     get(target, prop) {
@@ -41,7 +39,7 @@ async function counted(path: string, init: RequestInit) {
     },
   });
   const ctx = createExecutionContext();
-  const res = await app.fetch(new Request(ORIGIN + path, init), { ...env, DB }, ctx);
+  const res = await app.fetch(request(path, init), { ...env, DB }, ctx);
   const body = await res.json();
   await waitOnExecutionContext(ctx);
   return { status: res.status, body, statements };
@@ -50,8 +48,9 @@ async function counted(path: string, init: RequestInit) {
 async function share(web: { authorization: string }) {
   await call("/api/account/sharing", {
     method: "PUT",
-    headers: { ...json, ...web, origin: ORIGIN },
-    body: JSON.stringify({ enabled: true }),
+    auth: web,
+    headers: { origin: ORIGIN },
+    json: { enabled: true },
   });
 }
 
@@ -62,8 +61,8 @@ describe("review uploads", () => {
       [1, 2, 3].map(() =>
         call("/api/reviews", {
           method: "POST",
-          headers: { ...json, ...auth },
-          body: upload("run-1"),
+          auth,
+          json: upload("run-1"),
         }),
       ),
     );
@@ -71,7 +70,7 @@ describe("review uploads", () => {
     const bodies = (await Promise.all(results.map((r) => r.json()))) as { id: string }[];
     expect(new Set(bodies.map((b) => b.id)).size).toBe(1);
     const web = await signIn(1, "octo");
-    const list = (await (await call("/api/reviews", { headers: web.auth })).json()) as {
+    const list = (await (await call("/api/reviews", { auth: web.auth })).json()) as {
       reviews: unknown[];
     };
     expect(list.reviews).toHaveLength(1);
@@ -83,14 +82,14 @@ describe("review uploads", () => {
     const { auth } = await signInCli(1, "octo");
     const res = await counted("/api/reviews", {
       method: "POST",
-      headers: { ...json, ...auth },
-      body: upload("run-big", 200),
+      auth,
+      json: upload("run-big", 200),
     });
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ findings: 200 });
     expect(res.statements).toBeLessThan(15);
     const id = (res.body as { id: string }).id;
-    const detail = (await (await call(`/api/reviews/${id}`, { headers: web.auth })).json()) as {
+    const detail = (await (await call(`/api/reviews/${id}`, { auth: web.auth })).json()) as {
       findings: { fingerprint: string; redacted: boolean; lineStart: number }[];
     };
     expect(detail.findings).toHaveLength(200);
@@ -101,8 +100,8 @@ describe("review uploads", () => {
     // A retry stores nothing more.
     const again = await counted("/api/reviews", {
       method: "POST",
-      headers: { ...json, ...auth },
-      body: upload("run-big", 200),
+      auth,
+      json: upload("run-big", 200),
     });
     expect(again.body).toEqual({ id, duplicate: true });
   });
@@ -128,11 +127,11 @@ describe("review uploads", () => {
     };
     const res = await call("/api/reviews", {
       method: "POST",
-      headers: { ...json, ...auth },
-      body: JSON.stringify({ ...JSON.parse(upload("run-cols")), findingList: [sent] }),
+      auth: auth,
+      json: { ...upload("run-cols"), findingList: [sent] },
     });
     const { id } = (await res.json()) as { id: string };
-    const detail = (await (await call(`/api/reviews/${id}`, { headers: web.auth })).json()) as {
+    const detail = (await (await call(`/api/reviews/${id}`, { auth: web.auth })).json()) as {
       findings: Record<string, unknown>[];
     };
     expect(detail.findings).toEqual([
@@ -146,13 +145,14 @@ describe("review uploads", () => {
     const { auth } = await signInCli(1, "octo");
     await call("/api/reviews", {
       method: "POST",
-      headers: { ...json, ...auth },
-      body: upload("r", 120),
+      auth,
+      json: upload("r", 120),
     });
     const off = await counted("/api/account/sharing", {
       method: "PUT",
-      headers: { ...json, ...web.auth, origin: ORIGIN },
-      body: JSON.stringify({ enabled: false, deleteExisting: true }),
+      auth: web.auth,
+      headers: { origin: ORIGIN },
+      json: { enabled: false, deleteExisting: true },
     });
     expect(off.body).toMatchObject({ shareFindings: false, deleted: 120 });
     expect(off.statements).toBeLessThan(10);

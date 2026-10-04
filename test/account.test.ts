@@ -7,8 +7,6 @@ import { rows } from "./table-rows.js";
 beforeEach(resetDb);
 afterEach(() => vi.restoreAllMocks());
 
-const json = { "content-type": "application/json" };
-
 describe("usage", () => {
   it("sums calls by day and by model for the caller only", async () => {
     const me = await signIn(1, "me");
@@ -31,7 +29,7 @@ describe("usage", () => {
     await mine.insert("gatewayCalls", row("old", "m2", 200, 40 * 86_400_000));
     await scoped(db, other.account.id).insert("gatewayCalls", row("x", "theirs", 200, 0));
 
-    const body = (await (await call("/api/usage?days=14", { headers: me.auth })).json()) as {
+    const body = (await (await call("/api/usage?days=14", { auth: me.auth })).json()) as {
       today: number;
       series: { day: string; calls: number; errors: number; tokensIn: number }[];
       models: { model: string; calls: number }[];
@@ -54,7 +52,7 @@ describe("sessions", () => {
   it("lists the caller's sessions, marks the current one, and records use", async () => {
     const me = await signIn(1, "me");
     await signIn(2, "other");
-    const list = (await (await call("/api/sessions", { headers: me.auth })).json()) as {
+    const list = (await (await call("/api/sessions", { auth: me.auth })).json()) as {
       sessions: { id: string; current: boolean; kind: string; lastUsedAt: string | null }[];
     };
     expect(list.sessions).toHaveLength(1);
@@ -67,13 +65,13 @@ describe("sessions", () => {
     const me = await signIn(1, "me");
     const other = await signIn(2, "other");
     const [theirs] = await scoped(db, other.account.id).list("sessions");
-    const del = await call(`/api/sessions/${theirs?.id}`, { method: "DELETE", headers: me.auth });
+    const del = await call(`/api/sessions/${theirs?.id}`, { method: "DELETE", auth: me.auth });
     expect(await del.json()).toEqual({ removed: false });
-    expect((await call("/api/me", { headers: other.auth })).status).toBe(200);
+    expect((await call("/api/me", { auth: other.auth })).status).toBe(200);
 
     const [mine] = await scoped(db, me.account.id).list("sessions");
-    await call(`/api/sessions/${mine?.id}`, { method: "DELETE", headers: me.auth });
-    expect((await call("/api/me", { headers: me.auth })).status).toBe(401);
+    await call(`/api/sessions/${mine?.id}`, { method: "DELETE", auth: me.auth });
+    expect((await call("/api/me", { auth: me.auth })).status).toBe(401);
   });
 });
 
@@ -127,18 +125,19 @@ describe("deleting an account", () => {
 
     const wrong = await call("/api/account", {
       method: "DELETE",
-      headers: { ...me.auth, ...json },
-      body: JSON.stringify({ confirm: "other" }),
+      auth: me.auth,
+      json: { confirm: "other" },
     });
     expect(wrong.status).toBe(400);
 
     const ok = await call("/api/account", {
       method: "DELETE",
-      headers: { ...me.auth, ...json, origin: ORIGIN },
-      body: JSON.stringify({ confirm: "me" }),
+      auth: me.auth,
+      headers: { origin: ORIGIN },
+      json: { confirm: "me" },
     });
     expect(await ok.json()).toEqual({ deleted: true });
-    expect((await call("/api/me", { headers: me.auth })).status).toBe(401);
+    expect((await call("/api/me", { auth: me.auth })).status).toBe(401);
     for (const [table, n] of Object.entries(await held(me.account.id))) {
       expect(n, table).toBe(0);
     }
@@ -146,6 +145,6 @@ describe("deleting an account", () => {
     for (const [table, n] of Object.entries(await held(other.account.id))) {
       expect(n, table).toBeGreaterThan(0);
     }
-    expect((await call("/api/me", { headers: other.auth })).status).toBe(200);
+    expect((await call("/api/me", { auth: other.auth })).status).toBe(200);
   });
 });
