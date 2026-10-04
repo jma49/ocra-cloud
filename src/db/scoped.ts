@@ -6,6 +6,8 @@ import {
   gte,
   type InferInsertModel,
   type InferSelectModel,
+  lte,
+  sql,
 } from "drizzle-orm";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import { accountTables } from "./schema.js";
@@ -58,6 +60,35 @@ export function scoped(db: DrizzleD1Database, accountId: string) {
         .where(and(own(name), gte(t.createdAt, since)))
         .get();
       return row?.n ?? 0;
+    },
+    /**
+     * Inserts a row, then keeps it only if at most cap rows of this account
+     * created since then were inserted up to and including it (in rowid
+     * order, which D1 assigns one insert at a time). The insert is the
+     * reservation, so parallel callers cannot all pass a count taken before
+     * any of them wrote. Returns whether the row was kept.
+     */
+    async reserve<N extends Name>(
+      name: N,
+      row: NewRow<N> & { id: string },
+      since: Date,
+      cap: number,
+    ): Promise<boolean> {
+      const t = accountTables[name];
+      const seq = sql<number>`rowid`;
+      const [mine] = await db
+        .insert(t)
+        .values({ ...row, accountId } as never)
+        .returning({ seq });
+      if (!mine) return false;
+      const ahead = await db
+        .select({ n: count() })
+        .from(t)
+        .where(and(own(name), gte(t.createdAt, since), lte(seq, mine.seq)))
+        .get();
+      if ((ahead?.n ?? 0) <= cap) return true;
+      await db.delete(t).where(byId(name, row.id)).run();
+      return false;
     },
     /** Returns whether a row of this account changed. */
     async update<N extends Name>(name: N, id: string, changes: Changes<N>): Promise<boolean> {

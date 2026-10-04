@@ -23,17 +23,23 @@ gateway.post("/:provider/*", async (c) => {
   if (length > MAX_BODY) return c.json({ error: "body_too_large" }, 413);
 
   const data = c.var.data;
-  const today = new Date(new Date().toISOString().slice(0, 10));
-  const cap = Number(c.env.GATEWAY_DAILY_CALLS);
-  if ((await data.countSince("gatewayCalls", today)) >= cap) {
-    return c.json({ error: "daily_limit", limit: cap }, 429);
-  }
   const key = await keyFor(data, masterKeys(c.env), name);
   if (!key) return c.json({ error: "no_key", provider: name }, 400);
 
   const body = await c.req.text();
   if (body.length > MAX_BODY) return c.json({ error: "body_too_large" }, 413);
   const model = match.model ?? body.match(/(?<!\\)"model"\s*:\s*"([^"\\]{1,200})"/)?.[1] ?? null;
+
+  // The call's row is written before forwarding and is the reservation
+  // against the daily cap, so parallel calls cannot all pass, and a call
+  // that never finishes still shows in the log. It is updated at the end.
+  const id = crypto.randomUUID();
+  const today = new Date(new Date().toISOString().slice(0, 10));
+  const cap = Number(c.env.GATEWAY_DAILY_CALLS);
+  const row = { id, provider: name, path, model, status: PENDING };
+  if (!(await data.reserve("gatewayCalls", row, today, cap))) {
+    return c.json({ error: "daily_limit", limit: cap }, 429);
+  }
 
   const headers = new Headers({
     "content-type": c.req.header("content-type") ?? "application/json",
@@ -51,22 +57,16 @@ gateway.post("/:provider/*", async (c) => {
   }
 
   const started = Date.now();
-  const record = (status: number, usage: Usage) =>
-    data.insert("gatewayCalls", {
-      id: crypto.randomUUID(),
-      provider: name,
-      path,
-      model,
-      status,
-      ...usage,
-      ms: Date.now() - started,
-    });
+  const finish = (status: number, usage: Usage) =>
+    c.executionCtx.waitUntil(
+      data.update("gatewayCalls", id, { status, ...usage, ms: Date.now() - started }),
+    );
 
   let upstream: Response;
   try {
     upstream = await fetch(target, { method: "POST", headers, body });
   } catch {
-    c.executionCtx.waitUntil(record(502, { tokensIn: 0, tokensOut: 0 }));
+    finish(502, { tokensIn: 0, tokensOut: 0 });
     return c.json({ error: "upstream_unreachable" }, 502);
   }
 
@@ -76,46 +76,81 @@ gateway.post("/:provider/*", async (c) => {
     if (v) out.set(h, v);
   }
   if (!upstream.body) {
-    c.executionCtx.waitUntil(record(upstream.status, { tokensIn: 0, tokensOut: 0 }));
+    finish(upstream.status, { tokensIn: 0, tokensOut: 0 });
     return new Response(null, { status: upstream.status, headers: out });
   }
-  const meter = usageMeter((usage) => c.executionCtx.waitUntil(record(upstream.status, usage)));
-  return new Response(upstream.body.pipeThrough(meter), { status: upstream.status, headers: out });
+  const metered = usageMeter(upstream.body, (end, usage) =>
+    finish(end === "done" ? upstream.status : END_STATUS[end], usage),
+  );
+  return new Response(metered, { status: upstream.status, headers: out });
 });
+
+/** The status of a call still being forwarded. */
+export const PENDING = 0;
+/** Recorded when the client went away (499) or upstream broke off (502) mid-answer. */
+const END_STATUS = { cancelled: 499, failed: 502 } as const;
 
 export type Usage = { tokensIn: number; tokensOut: number };
 
 /**
  * Passes the answer through unchanged, keeping its first and last EDGE
- * bytes, and reports the token counts found there when the stream ends.
- * Counts sit at the end of OpenAI-style answers and streams; Anthropic
- * streams put the input count in the first event.
+ * bytes, and reports the token counts found there once, when the stream
+ * ends, fails, or is cancelled by the reader. Counts sit at the end of
+ * OpenAI-style answers and streams; Anthropic streams put the input count
+ * in the first event.
  */
-export function usageMeter(done: (usage: Usage) => void): TransformStream<Uint8Array, Uint8Array> {
+export function usageMeter(
+  body: ReadableStream<Uint8Array>,
+  done: (end: "done" | "failed" | "cancelled", usage: Usage) => void,
+): ReadableStream<Uint8Array> {
   let head = new Uint8Array(0);
   let tail: Uint8Array[] = [];
   let tailBytes = 0;
-  return new TransformStream({
-    transform(chunk, controller) {
-      controller.enqueue(chunk);
-      if (head.length < EDGE) {
-        const take = chunk.subarray(0, EDGE - head.length);
-        const next = new Uint8Array(head.length + take.length);
-        next.set(head);
-        next.set(take, head.length);
-        head = next;
+  let ended = false;
+  const end = (how: "done" | "failed" | "cancelled") => {
+    if (ended) return;
+    ended = true;
+    const dec = new TextDecoder();
+    const text = `${dec.decode(head)}\n${tail.map((c) => dec.decode(c, { stream: true })).join("")}`;
+    tail = [];
+    done(how, parseUsage(text));
+  };
+  const keep = (chunk: Uint8Array) => {
+    if (head.length < EDGE) {
+      const take = chunk.subarray(0, EDGE - head.length);
+      const next = new Uint8Array(head.length + take.length);
+      next.set(head);
+      next.set(take, head.length);
+      head = next;
+    }
+    tail.push(chunk);
+    tailBytes += chunk.length;
+    while (tail.length > 1 && tailBytes - (tail[0]?.length ?? 0) >= EDGE) {
+      tailBytes -= tail.shift()?.length ?? 0;
+    }
+  };
+  const reader = body.getReader();
+  return new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      let next: ReadableStreamReadResult<Uint8Array>;
+      try {
+        next = await reader.read();
+      } catch (err) {
+        end("failed");
+        controller.error(err);
+        return;
       }
-      tail.push(chunk);
-      tailBytes += chunk.length;
-      while (tail.length > 1 && tailBytes - (tail[0]?.length ?? 0) >= EDGE) {
-        tailBytes -= tail.shift()?.length ?? 0;
+      if (next.done) {
+        end("done");
+        controller.close();
+        return;
       }
+      keep(next.value);
+      controller.enqueue(next.value);
     },
-    flush() {
-      const dec = new TextDecoder();
-      const text = `${dec.decode(head)}\n${tail.map((c) => dec.decode(c, { stream: true })).join("")}`;
-      tail = [];
-      done(parseUsage(text));
+    async cancel(reason) {
+      end("cancelled");
+      await reader.cancel(reason).catch(() => {});
     },
   });
 }
