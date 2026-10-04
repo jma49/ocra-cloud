@@ -17,8 +17,9 @@ function Verdict(props: { r: Review }) {
         Incomplete
       </span>
     );
-  if (verdict === "changes_requested")
-    return <span className="badge badge-err">Changes requested</span>;
+  if (verdict === "significant_concerns")
+    return <span className="badge badge-err">Significant concerns</span>;
+  if (verdict === "minor_issues") return <span className="badge badge-warn">Minor issues</span>;
   if (verdict === "approved_with_comments") return <span className="badge">Comments</span>;
   if (verdict === "approved") return <span className="badge badge-ok">Approved</span>;
   return <span className="badge">–</span>;
@@ -48,10 +49,10 @@ export function Reviews() {
           <div className="stat-note">{s ? `${num(s.critical)} critical` : " "}</div>
         </div>
         <div className="card stat">
-          <div className="stat-label">Changes requested</div>
-          <div className="stat-value">{s ? num(s.changesRequested) : "–"}</div>
+          <div className="stat-label">Significant concerns</div>
+          <div className="stat-value">{s ? num(s.blocking) : "–"}</div>
           <div className="stat-note">
-            {s?.reviews ? `${Math.round((s.changesRequested / s.reviews) * 100)}% of reviews` : " "}
+            {s?.reviews ? `${Math.round((s.blocking / s.reviews) * 100)}% of reviews` : " "}
           </div>
         </div>
         <div className="card stat">
