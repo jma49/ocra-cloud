@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as schema from "../src/db/schema.js";
 import { scoped } from "../src/db/scoped.js";
 import { call, db, ORIGIN, resetDb, signIn } from "./helpers.js";
+import { rows } from "./table-rows.js";
 
 beforeEach(resetDb);
 afterEach(() => vi.restoreAllMocks());
@@ -77,14 +78,53 @@ describe("sessions", () => {
 });
 
 describe("deleting an account", () => {
+  /** One row in every account table (and an approved login code) for the account. */
+  async function fill(accountId: string) {
+    const d = scoped(db, accountId);
+    // Ids are global: each account's rows get its own.
+    const id = (table: string) => `${accountId}-${table}`;
+    // The findings' review first (the foreign key needs it), then one row per table.
+    await d.insert("reviews", rows.reviews(id("reviews")));
+    for (const [table, row] of Object.entries(rows)) {
+      if (table === "reviews" || table === "findings") continue;
+      await d.insert(table as keyof typeof rows, row(id(table)) as never);
+    }
+    await d.insert("findings", { ...rows.findings(id("findings")), reviewId: id("reviews") });
+    await db.insert(schema.deviceCodes).values({
+      id: `dc-${accountId}`,
+      deviceCodeHash: `dch-${accountId}`,
+      userCode: `U-${accountId}`,
+      status: "approved",
+      approvedAccountId: accountId,
+      expiresAt: new Date(Date.now() + 600_000),
+    });
+  }
+
+  /** The account's rows in every account table, by table. */
+  async function held(accountId: string) {
+    const out: Record<string, number> = {};
+    for (const [name, t] of Object.entries(schema.accountTables)) {
+      const all = await db.select().from(t).all();
+      out[name] = all.filter((r) => r.accountId === accountId).length;
+    }
+    const codes = await db.select().from(schema.deviceCodes).all();
+    out.deviceCodes = codes.filter((c) => c.approvedAccountId === accountId).length;
+    return out;
+  }
+
   it("needs the login typed back, then removes the account and everything it owns", async () => {
     const me = await signIn(1, "me");
     const other = await signIn(2, "other");
-    await call("/api/keys/openrouter", {
-      method: "PUT",
-      headers: { ...me.auth, ...json },
-      body: JSON.stringify({ key: "sk-0123456789" }),
-    });
+    await fill(me.account.id);
+    await fill(other.account.id);
+    // Every table holds a row of each account, so a table left out of the
+    // cascade keeps one and fails below.
+    for (const id of [me.account.id, other.account.id]) {
+      for (const [table, n] of Object.entries(await held(id))) {
+        expect(n, table).toBeGreaterThan(0);
+      }
+    }
+
     const wrong = await call("/api/account", {
       method: "DELETE",
       headers: { ...me.auth, ...json },
@@ -99,9 +139,12 @@ describe("deleting an account", () => {
     });
     expect(await ok.json()).toEqual({ deleted: true });
     expect((await call("/api/me", { headers: me.auth })).status).toBe(401);
-    for (const t of Object.values(schema.accountTables)) {
-      const rows = await db.select().from(t).all();
-      expect(rows.filter((r) => r.accountId === me.account.id)).toEqual([]);
+    for (const [table, n] of Object.entries(await held(me.account.id))) {
+      expect(n, table).toBe(0);
+    }
+    // The other account keeps everything.
+    for (const [table, n] of Object.entries(await held(other.account.id))) {
+      expect(n, table).toBeGreaterThan(0);
     }
     expect((await call("/api/me", { headers: other.auth })).status).toBe(200);
   });

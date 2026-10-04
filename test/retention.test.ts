@@ -4,13 +4,13 @@ import {
   waitOnExecutionContext,
 } from "cloudflare:test";
 import { env } from "cloudflare:workers";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { accountSalt, setSharing } from "../src/db/accounts.js";
+import { enforceRetention } from "../src/db/retention.js";
 import * as schema from "../src/db/schema.js";
 import { scoped } from "../src/db/scoped.js";
 import { EXPORTED } from "../src/export.js";
 import worker from "../src/index.js";
-import { enforceRetention } from "../src/retention.js";
 import { call, db, resetDb, signIn, signInCli } from "./helpers.js";
 import { rows } from "./table-rows.js";
 
@@ -18,6 +18,7 @@ beforeEach(async () => {
   await resetDb();
   await db.delete(schema.deviceCodes);
 });
+afterEach(() => vi.restoreAllMocks());
 
 const DAY = 86_400_000;
 const now = new Date("2026-10-04T12:00:00Z");
@@ -65,6 +66,61 @@ describe("retention", () => {
     const ids = (await d.list("sessions")).map((s) => s.id);
     expect(ids).toContain("cli-live");
     expect(ids).not.toContain("web-dead");
+  });
+
+  it("deletes an old review's findings with it", async () => {
+    const { account } = await signIn(1, "octo");
+    const d = scoped(db, account.id);
+    for (const [id, days] of [
+      ["old", 91],
+      ["new", 1],
+    ] as const) {
+      await d.insert("reviews", { ...rows.reviews(id), createdAt: ago(days) });
+      await d.insert("findings", { ...rows.findings(`f-${id}`), reviewId: id });
+    }
+    await enforceRetention(db, now);
+    expect((await d.list("findings")).map((f) => f.id)).toEqual(["f-new"]);
+  });
+
+  it("runs every delete when one fails, logs only its own message, then throws", async () => {
+    const { account } = await signIn(1, "octo");
+    const d = scoped(db, account.id);
+    await d.insert("reviews", { ...rows.reviews("old"), createdAt: ago(91) });
+    await d.insert("gatewayCalls", { ...rows.gatewayCalls("old"), createdAt: ago(91) });
+    await d.insert("auditEvents", { ...rows.auditEvents("old"), createdAt: ago(91) });
+    await d.insert("sessions", { ...rows.sessions("dead"), expiresAt: ago(1) });
+    await db.insert(schema.deviceCodes).values({
+      id: "dc",
+      deviceCodeHash: "dch",
+      userCode: "ABCD-EFGH",
+      expiresAt: ago(1),
+    });
+    // The first delete fails, with an error whose text must not reach the log.
+    const failing = new Proxy(db, {
+      get(target, prop) {
+        if (prop === "delete") {
+          return (table: unknown) => {
+            if (table === schema.reviews) throw new Error("D1 said: row sk-secret-123");
+            return target.delete(table as typeof schema.reviews);
+          };
+        }
+        return Reflect.get(target, prop);
+      },
+    });
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(enforceRetention(failing, now)).rejects.toThrow("retention failed for: reviews");
+    expect(await d.list("reviews")).toHaveLength(1);
+    for (const t of ["gatewayCalls", "auditEvents"] as const) {
+      expect(await d.list(t), t).toEqual([]);
+    }
+    // The sign-in's own session is live; the expired one is gone.
+    expect((await d.list("sessions")).map((s) => s.id)).not.toContain("dead");
+    expect(await d.list("sessions")).toHaveLength(1);
+    expect(await db.select().from(schema.deviceCodes).all()).toEqual([]);
+    expect(log).toHaveBeenCalledTimes(1);
+    expect(log.mock.calls.flat().join(" ")).toContain("reviews");
+    expect(log.mock.calls.flat().join(" ")).not.toContain("sk-secret");
   });
 
   it("runs from the cron trigger", async () => {

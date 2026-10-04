@@ -1,8 +1,8 @@
 import { Hono } from "hono";
+import { clampDays } from "./db/retention.js";
 import type { ReviewerCounts } from "./db/schema.js";
 import type { Scoped } from "./db/scoped.js";
 import { parseFindings, REVIEWER_ID } from "./findings.js";
-import { clampDays } from "./retention.js";
 import { requireSession } from "./session.js";
 import type { AppEnv } from "./types.js";
 
@@ -103,12 +103,25 @@ export function parseUpload(body: unknown) {
   };
 }
 
+const MAX_UPLOAD = 600_000;
+
+function parseJson(raw: ArrayBuffer): Record<string, unknown> | null {
+  try {
+    return JSON.parse(new TextDecoder().decode(raw)) as Record<string, unknown> | null;
+  } catch {
+    return null;
+  }
+}
+
 reviews.post("/", requireSession(["web", "cli"]), async (c) => {
   // Counts are small; findings, sent only when the account shares them, are
   // bounded to 256 KB of text (ADR-0028).
-  if (Number(c.req.header("content-length") ?? "0") > 600_000)
+  if (Number(c.req.header("content-length") ?? "0") > MAX_UPLOAD)
     return c.json({ error: "body_too_large" }, 413);
-  const body = (await c.req.json().catch(() => null)) as Record<string, unknown> | null;
+  // Checked again once read: a chunked upload declares no length.
+  const raw = await c.req.arrayBuffer();
+  if (raw.byteLength > MAX_UPLOAD) return c.json({ error: "body_too_large" }, 413);
+  const body = parseJson(raw);
   const row = parseUpload(body);
   if (!row) return c.json({ error: "bad_review" }, 400);
   // Findings are kept only while the account shares them, whatever the CLI sent.

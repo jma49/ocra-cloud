@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { clampDays } from "./retention.js";
+import { clampDays } from "./db/retention.js";
 import { requireSession } from "./session.js";
 import type { AppEnv } from "./types.js";
 
