@@ -1,5 +1,6 @@
-import { ago, api } from "../api.js";
-import { PageHead, useLoad } from "../ui.js";
+import { useState } from "react";
+import { ago, api, why } from "../api.js";
+import { LoadError, Loading, PageHead, useLoad } from "../ui.js";
 
 // What the account remembers (ADR-0028, 4): applied with a repository's own
 // .ocra/memory.json, which wins on a conflict.
@@ -15,10 +16,16 @@ type Entry = {
 };
 
 export function Memory() {
-  const [data, , reload] = useLoad(() => api<{ entries: Entry[] }>("/memory"));
+  const [data, loadError, reload] = useLoad(() => api<{ entries: Entry[] }>("/memory"));
+  const [failed, setFailed] = useState("");
   const remove = async (id: string) => {
-    await api(`/memory/${id}`, { method: "DELETE" }).catch(() => {});
-    reload();
+    setFailed("");
+    try {
+      await api(`/memory/${id}`, { method: "DELETE" });
+      reload();
+    } catch (e) {
+      setFailed(`Could not forget it: ${why(e)}.`);
+    }
   };
   return (
     <>
@@ -26,7 +33,16 @@ export function Memory() {
         title="Memory"
         sub="Findings your team accepts: signed-in reviews of the same repository stop reporting them, and each report says what memory hid."
       />
-      {data && data.entries.length === 0 ? (
+      {failed && (
+        <p className="error" role="alert">
+          {failed}
+        </p>
+      )}
+      {loadError && !data ? (
+        <LoadError what="memory" error={loadError} retry={reload} />
+      ) : !data ? (
+        <Loading what="memory" />
+      ) : data.entries.length === 0 ? (
         <div className="card empty-hero">
           <h3>Nothing remembered yet</h3>
           <p>
@@ -48,7 +64,7 @@ export function Memory() {
                 </tr>
               </thead>
               <tbody>
-                {(data?.entries ?? []).map((m) => (
+                {data.entries.map((m) => (
                   <tr key={m.id}>
                     <td className="mono">{m.repo}</td>
                     <td style={{ whiteSpace: "normal", minWidth: 220 }}>

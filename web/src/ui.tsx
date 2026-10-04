@@ -1,5 +1,6 @@
-import { type ReactNode, useEffect, useState } from "react";
-import { api, compact, type Day, type ProviderInfo } from "./api.js";
+import { Component, type ReactNode, useEffect, useState } from "react";
+import { api, compact, type Day, type ProviderInfo, why } from "./api.js";
+import { Link } from "./router.js";
 
 export function PageHead(props: { title: string; sub?: ReactNode; actions?: ReactNode }) {
   return (
@@ -65,6 +66,68 @@ export function useLoad<T>(load: () => Promise<T>, deps: unknown[] = []) {
 export function useProviders(): ProviderInfo[] | undefined {
   const [data] = useLoad(() => api<{ providers: ProviderInfo[] }>("/providers"));
   return data?.providers;
+}
+
+/** Shown while a page's data is on its way, so "nothing yet" is never a guess. */
+export function Loading(props: { what: string }) {
+  return (
+    <div className="empty" aria-busy="true">
+      Loading {props.what}…
+    </div>
+  );
+}
+
+/** A load that failed: what, why, and a way to try again. */
+export function LoadError(props: { what: string; error: unknown; retry: () => void }) {
+  return (
+    <div className="card empty-hero" role="alert">
+      <h3>Could not load {props.what}</h3>
+      <p>{capital(why(props.error))}.</p>
+      <button type="button" className="btn" onClick={props.retry}>
+        Try again
+      </button>
+    </div>
+  );
+}
+
+const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+export function NotFound() {
+  return (
+    <>
+      <PageHead title="Page not found" />
+      <div className="card empty-hero">
+        <h3>There is no page at this address</h3>
+        <p>The link may be mistyped, or the page has moved.</p>
+        <Link to="/" className="btn">
+          Back to overview
+        </Link>
+      </div>
+    </>
+  );
+}
+
+/** Keeps a page that throws from blanking the whole console. */
+export class ErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  render() {
+    if (!this.state.failed) return this.props.children;
+    return (
+      <>
+        <PageHead title="Something went wrong" />
+        <div className="card empty-hero" role="alert">
+          <h3>This page could not be shown</h3>
+          <p>Reload to try again. The rest of the console still works.</p>
+          <button type="button" className="btn" onClick={() => location.reload()}>
+            Reload
+          </button>
+        </div>
+      </>
+    );
+  }
 }
 
 const COLORS = ["var(--c1)", "var(--c2)", "var(--c3)", "var(--c4)", "var(--c5)"];

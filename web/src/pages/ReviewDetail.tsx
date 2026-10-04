@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
-import { api, time } from "../api.js";
+import { ApiError, api, time } from "../api.js";
 import { Link } from "../router.js";
-import { PageHead, Seg, useLoad } from "../ui.js";
+import { LoadError, Loading, PageHead, Seg, useLoad } from "../ui.js";
 
 // One review and, when the account shares findings, its findings (ADR-0028).
 // Every text is rendered as plain text: findings quote untrusted code.
@@ -42,7 +42,10 @@ type Detail = {
 const SEV_CLASS = { critical: "badge-err", warning: "badge-warn", suggestion: "" } as const;
 
 export function ReviewDetail(props: { id: string }) {
-  const [data, error] = useLoad(() => api<Detail>(`/reviews/${props.id}`), [props.id]);
+  const [data, error, reload] = useLoad(
+    () => api<Detail>(`/reviews/${encodeURIComponent(props.id)}`),
+    [props.id],
+  );
   const [severity, setSeverity] = useState<"all" | Finding["severity"]>("all");
   const byFile = useMemo(() => {
     const groups = new Map<string, Finding[]>();
@@ -53,6 +56,14 @@ export function ReviewDetail(props: { id: string }) {
     return [...groups.entries()];
   }, [data, severity]);
 
+  if (error && !(error instanceof ApiError && error.status === 404)) {
+    return (
+      <>
+        <PageHead title="Review" />
+        <LoadError what="this review" error={error} retry={reload} />
+      </>
+    );
+  }
   if (error) {
     return (
       <>
@@ -67,7 +78,13 @@ export function ReviewDetail(props: { id: string }) {
       </>
     );
   }
-  if (!data) return <PageHead title="Review" />;
+  if (!data)
+    return (
+      <>
+        <PageHead title="Review" />
+        <Loading what="the review" />
+      </>
+    );
   const r = data.review;
   return (
     <>
