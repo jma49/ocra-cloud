@@ -246,6 +246,7 @@ describe("helpers", () => {
 
   it("returns only to relative paths on this site after sign-in", () => {
     expect(safeNext("/device?code=BCDF-GHJK")).toBe("/device?code=BCDF-GHJK");
+    expect(safeNext("/reviews/1#findings")).toBe("/reviews/1#findings");
     for (const bad of [
       undefined,
       "",
@@ -253,6 +254,14 @@ describe("helpers", () => {
       "//evil.example",
       "/\\evil.example",
       "device",
+      "/\t/evil.example/x",
+      "/\n/evil.example/x",
+      "/\r/evil.example/x",
+      "/\u0000/evil.example",
+      "/\u007f/evil.example",
+      "/\t\\evil.example",
+      "http://evil.example/x",
+      "/".repeat(600),
     ]) {
       expect(safeNext(bad)).toBe("/");
     }
