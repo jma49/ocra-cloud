@@ -46,8 +46,8 @@ describe("master key rotation", () => {
   });
 
   it("decrypts with the previous key while a rotation is under way", async () => {
-    const old = await encryptSecret(master, "sk-old-row");
     const b = keyBinding("acct-1", "openai");
+    const old = await encryptSecret(master, "sk-old-row", b);
     expect(await decryptWithAny({ current: other, previous: master }, old, b)).toBe("sk-old-row");
     await expect(decryptWithAny({ current: other }, old, b)).rejects.toThrow();
   });
@@ -68,10 +68,10 @@ describe("a sealed key is bound to its row", () => {
     await expect(decryptSecret(master, sealed)).rejects.toThrow();
   });
 
-  it("still opens a key sealed before binding, until every row is bound", async () => {
+  it("no longer opens a key sealed without its binding", async () => {
     const legacy = await encryptSecret(master, "sk-legacy");
-    expect(await decryptWithAny({ current: master }, legacy, keyBinding("a", "openai"))).toBe(
-      "sk-legacy",
-    );
+    await expect(
+      decryptWithAny({ current: master }, legacy, keyBinding("a", "openai")),
+    ).rejects.toThrow();
   });
 });
