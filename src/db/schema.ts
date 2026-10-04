@@ -1,5 +1,8 @@
 import { sql } from "drizzle-orm";
 import { index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import type { AgentPrefs, ModelChains, ReviewSettings } from "../api-types.js";
+
+export type { AgentPrefs, Effort, ReviewSettings } from "../api-types.js";
 
 // Every table but accounts carries accountId, and is read and written only
 // through scoped() in ./scoped.ts, which filters by it. The isolation test
@@ -152,11 +155,7 @@ export type ReviewerCounts = {
 export const preferences = sqliteTable("preferences", {
   id: text("id").primaryKey(),
   accountId: accountId().unique(),
-  models: text("models", { mode: "json" }).$type<{
-    top?: string[];
-    standard?: string[];
-    light?: string[];
-  }>(),
+  models: text("models", { mode: "json" }).$type<ModelChains>(),
   // The runtime and per-agent settings (ADR-0025), layered under a
   // repository's configuration by the CLI.
   runtime: text("runtime", { enum: ["direct", "opencode"] }),
@@ -166,30 +165,6 @@ export const preferences = sqliteTable("preferences", {
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }),
   createdAt: createdAt(),
 });
-
-export type ReviewSettings = {
-  ultra?: boolean;
-  concurrency?: number;
-  taskTimeoutMinutes?: number;
-  runTimeoutMinutes?: number;
-  maxCostUsd?: number;
-  maxTasks?: number;
-  verify?: boolean;
-  judge?: boolean;
-  sampling?: { temperature?: number; seed?: number };
-  include?: string[];
-  exclude?: string[];
-  rules?: { path: string | string[]; rule: string }[];
-  plugins?: string[];
-  pluginSettings?: Record<string, unknown>;
-};
-
-export type Effort = "none" | "minimal" | "low" | "medium" | "high";
-export type AgentPrefs = {
-  effort?: { top?: Effort; standard?: Effort; light?: Effort };
-  reviewers?: Record<string, { enabled?: boolean; models?: string[]; effort?: Effort }>;
-  roles?: Partial<Record<"verifier" | "judge" | "helper", { models?: string[]; effort?: Effort }>>;
-};
 
 // Uses of a key and changes to an account, readable by its owner.
 export const auditEvents = sqliteTable(

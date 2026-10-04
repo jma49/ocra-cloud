@@ -1,3 +1,5 @@
+import type { ProviderGroup } from "./api-types.js";
+
 // The model providers the gateway forwards to, and the only paths it
 // forwards for each. A request to any other provider or path is refused.
 // Every endpoint here answered 401 or 403 to a request with a wrong key
@@ -202,8 +204,6 @@ export const verifyRoutes: Partial<Record<ProviderName, { path: string; auth: Au
   scaleway: { path: "/v1/models", auth: "bearer" },
   featherless: { path: "/v1/models", auth: "bearer" },
 };
-
-export type ProviderGroup = "Major" | "China" | "Platforms";
 
 /** How the web app shows each provider. */
 export const providerInfo: Record<ProviderName, { label: string; group: ProviderGroup }> = {

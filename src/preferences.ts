@@ -1,7 +1,7 @@
 import { Hono } from "hono";
+import type { AgentPrefs, Effort, ModelChains, ReviewSettings } from "./api-types.js";
 import { requireSession } from "./auth.js";
 import { EFFORTS } from "./capabilities.js";
-import type { AgentPrefs, Effort, ReviewSettings } from "./db/schema.js";
 import type { Scoped } from "./db/scoped.js";
 import { changedKeys, parseSettings } from "./settings.js";
 import type { AppEnv } from "./types.js";
@@ -9,7 +9,6 @@ import type { AppEnv } from "./types.js";
 // Default models for a review that configures none (ADR-0024 zero
 // configuration). The CLI reads them; only the web changes them.
 
-export type ModelChains = { top?: string[]; standard?: string[]; light?: string[] };
 const TIERS = ["top", "standard", "light"] as const;
 
 export const preferences = new Hono<AppEnv>();

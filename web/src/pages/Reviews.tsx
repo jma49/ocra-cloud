@@ -44,7 +44,7 @@ export function Reviews() {
       <PageHead
         title="Reviews"
         sub="Counts from each review the CLI ran while signed in. No code, paths or finding text are uploaded."
-        actions={<Seg value={days} options={RANGES} onChange={setDays} />}
+        actions={<Seg label="Time range" value={days} options={RANGES} onChange={setDays} />}
       />
       {error ? <p className="error">Could not load reviews: {why(error)}.</p> : null}
       {failed && (

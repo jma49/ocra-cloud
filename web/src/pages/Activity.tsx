@@ -22,7 +22,7 @@ export function Activity() {
       <PageHead
         title="Activity"
         sub="Every model call made with your keys. Request and answer bodies are never stored."
-        actions={<Seg value={days} options={RANGES} onChange={setDays} />}
+        actions={<Seg label="Time range" value={days} options={RANGES} onChange={setDays} />}
       />
       {error ? <p className="error">Could not load activity.</p> : null}
       <div className="stats" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
@@ -47,6 +47,7 @@ export function Activity() {
         <div className="card-head">
           <h3>By model</h3>
           <Seg
+            label="Measure"
             value={metric}
             options={[
               { value: "calls", label: "Requests" },

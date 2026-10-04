@@ -139,6 +139,7 @@ export function ReviewDetail(props: { id: string }) {
               {byFile.length === 1 ? "" : "s"}
             </span>
             <Seg
+              label="Severity"
               value={severity}
               options={[
                 { value: "all", label: "All" },
