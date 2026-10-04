@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { effortLevels } from "../src/capabilities.js";
-import { parseAgents } from "../src/preferences.js";
+import { parseAgents, parseModels } from "../src/preferences.js";
 import { call, resetDb, signIn, signInCli } from "./helpers.js";
 
 beforeEach(resetDb);
@@ -68,6 +68,30 @@ describe("per-agent settings", () => {
     ]) {
       expect(parseAgents(bad)).toBeUndefined();
     }
+  });
+
+  it("refuse models of providers without a chat route, which the CLI cannot use", async () => {
+    // ocra-anthropic and ocra-kimi-coding have only Anthropic-style routes.
+    for (const model of ["ocra-anthropic/claude-sonnet-5", "ocra-kimi-coding/k2", "ocra-nope/m"]) {
+      expect(parseModels({ standard: [model] }), model).toBeUndefined();
+      expect(parseAgents({ roles: { judge: { models: [model] } } }), model).toBeUndefined();
+      expect(parseAgents({ reviewers: { security: { models: [model] } } }), model).toBeUndefined();
+    }
+    for (const model of ["ocra-openai/gpt-5.5", "ocra-gemini/gemini-3.5-flash", "ocra-zai/glm"]) {
+      expect(parseModels({ standard: [model] }), model).toEqual({ standard: [model] });
+    }
+    const web = await signIn(1, "octo");
+    const put = await call("/api/preferences", {
+      method: "PUT",
+      headers: { ...web.auth, ...json },
+      body: JSON.stringify({ models: { top: ["ocra-anthropic/claude-opus-5"] } }),
+    });
+    expect(put.status).toBe(400);
+  });
+
+  it("accept reviewer ids the engine makes: SARIF slugs and plugin reviewers", () => {
+    const reviewers = { "2ms": { enabled: false }, "Acme.Style_2": { effort: "low" } };
+    expect(parseAgents({ reviewers })).toEqual({ reviewers });
   });
 
   it("are saved on the web and read by the CLI, with the runtime and tier models", async () => {

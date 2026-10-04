@@ -136,6 +136,19 @@ export function isProvider(name: string): name is ProviderName {
   return Object.hasOwn(providers, name);
 }
 
+/**
+ * Whether the provider has an OpenAI-compatible chat route, the one the CLI
+ * declares a gateway provider with (packages/cli/src/review/cloud-providers.ts).
+ */
+export function hasChatRoute(name: string): boolean {
+  return (
+    isProvider(name) &&
+    providers[name].routes.some(
+      (r) => typeof r.path === "string" && r.path.endsWith("/chat/completions"),
+    )
+  );
+}
+
 export type Match = { route: Route; model: string | null };
 
 /** The route this path takes at this provider, with a model named in the path. */

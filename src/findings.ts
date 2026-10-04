@@ -4,6 +4,13 @@ import { redact } from "./redact.js";
 // (ADR-0028, 2), checked, redacted and bounded again on the server.
 
 const MAX_FINDINGS = 200;
+
+/**
+ * A reviewer id as the engine makes them (audit K-models): built-in ids,
+ * SARIF tool slugs (which may start with a digit) and plugin reviewers.
+ * Bounded, and without spaces or punctuation that could mean something else.
+ */
+export const REVIEWER_ID = /^[A-Za-z0-9][\w.:@-]{0,99}$/;
 const MAX_FIELD = 4096;
 const MAX_TOTAL = 262_144;
 const SEVERITIES = ["critical", "warning", "suggestion"];
@@ -29,19 +36,23 @@ export type FindingRow = {
 const line = (v: unknown) =>
   typeof v === "number" && Number.isInteger(v) && v >= 0 && v < 10_000_000 ? v : null;
 
-export function parseFindings(list: unknown): { rows: FindingRow[]; truncated: boolean } {
-  if (!Array.isArray(list)) return { rows: [], truncated: false };
+/** dropped: findings left out because a field was missing or malformed. */
+export function parseFindings(list: unknown): {
+  rows: FindingRow[];
+  truncated: boolean;
+  dropped: number;
+} {
+  if (!Array.isArray(list)) return { rows: [], truncated: false, dropped: 0 };
+  let dropped = 0;
   let total = 0;
   let truncated = list.length > MAX_FINDINGS;
   const rows: FindingRow[] = [];
   for (const raw of list.slice(0, MAX_FINDINGS)) {
-    if (typeof raw !== "object" || raw === null) continue;
-    const f = raw as Record<string, unknown>;
-    if (typeof f.fingerprint !== "string" || !/^[\w:.-]{4,128}$/.test(f.fingerprint)) continue;
-    if (typeof f.reviewer !== "string" || !/^[a-z][a-z0-9-]{0,39}$/.test(f.reviewer)) continue;
-    if (!SEVERITIES.includes(f.severity as string)) continue;
-    if (typeof f.file !== "string" || f.file.length === 0 || f.file.length > 1024) continue;
-    if (typeof f.title !== "string" || typeof f.body !== "string") continue;
+    if (!wellFormed(raw)) {
+      dropped += 1;
+      continue;
+    }
+    const f = raw;
     let rowRedacted = false;
     let rowTruncated = false;
     const text = (v: unknown): string | null => {
@@ -83,5 +94,30 @@ export function parseFindings(list: unknown): { rows: FindingRow[]; truncated: b
     total += size;
     rows.push(row);
   }
-  return { rows, truncated };
+  return { rows, truncated, dropped };
+}
+
+type RawFinding = Record<string, unknown> & {
+  fingerprint: string;
+  reviewer: string;
+  file: string;
+  title: string;
+  body: string;
+};
+
+function wellFormed(raw: unknown): raw is RawFinding {
+  if (typeof raw !== "object" || raw === null) return false;
+  const f = raw as Record<string, unknown>;
+  return (
+    typeof f.fingerprint === "string" &&
+    /^[\w:.-]{4,128}$/.test(f.fingerprint) &&
+    typeof f.reviewer === "string" &&
+    REVIEWER_ID.test(f.reviewer) &&
+    SEVERITIES.includes(f.severity as string) &&
+    typeof f.file === "string" &&
+    f.file.length > 0 &&
+    f.file.length <= 1024 &&
+    typeof f.title === "string" &&
+    typeof f.body === "string"
+  );
 }

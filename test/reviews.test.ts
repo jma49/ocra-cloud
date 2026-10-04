@@ -142,6 +142,27 @@ describe("model lists", () => {
 });
 
 describe("per-reviewer counts (ADR-0028, 1)", () => {
+  it("keep SARIF and plugin reviewers and report the ids left out", async () => {
+    const cli = await signInCli(1, "octo");
+    const web = await signIn(1, "octo");
+    const counts = { tasks: 1, findings: { critical: 0, warning: 1, suggestion: 0 } };
+    const res = await call("/api/reviews", {
+      method: "POST",
+      headers: { ...cli.auth, ...json },
+      body: JSON.stringify(
+        upload({
+          runId: "run-sarif",
+          reviewers: { "2ms": counts, [`semgrep-${"x".repeat(60)}`]: counts, "Bad Id": counts },
+        }),
+      ),
+    });
+    expect(await res.json()).toMatchObject({ dropped: { reviewers: 1 } });
+    const body = (await (await call("/api/reviews", { headers: web.auth })).json()) as {
+      reviewers: Record<string, unknown>;
+    };
+    expect(Object.keys(body.reviewers).sort()).toEqual(["2ms", `semgrep-${"x".repeat(60)}`]);
+  });
+
   it("are stored and summed per reviewer like ocra metrics, as numbers only", async () => {
     const cli = await signInCli(1, "octo");
     const web = await signIn(1, "octo");
