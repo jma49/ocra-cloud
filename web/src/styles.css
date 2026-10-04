@@ -112,16 +112,6 @@ button {
   letter-spacing: -0.02em;
   font-size: 15px;
 }
-.brand-mark {
-  width: 22px;
-  height: 22px;
-  border-radius: 6px;
-  background: var(--primary);
-  color: var(--on-primary);
-  display: grid;
-  place-items: center;
-  font: 600 12px var(--mono);
-}
 .brand-tag {
   font: 500 11px var(--mono);
   color: var(--fg-subtle);
@@ -621,45 +611,6 @@ th.num {
   font: 12.5px var(--mono);
 }
 
-/* Sign in */
-.signin {
-  min-height: calc(100vh - 56px);
-  display: grid;
-  place-items: center;
-  padding: 48px 16px;
-}
-.signin-box {
-  width: 100%;
-  max-width: 440px;
-  text-align: center;
-}
-.signin h1 {
-  font-size: 32px;
-  font-weight: 600;
-  letter-spacing: -0.035em;
-  line-height: 1.15;
-}
-.signin .lead {
-  color: var(--fg-muted);
-  font-size: 15px;
-  margin: 12px 0 28px;
-}
-.signin-points {
-  text-align: left;
-  margin-top: 36px;
-  display: grid;
-  gap: 14px;
-}
-.signin-points div {
-  display: flex;
-  gap: 10px;
-  font-size: 13px;
-  color: var(--fg-muted);
-}
-.signin-points b {
-  color: var(--fg);
-  font-weight: 500;
-}
 .check {
   color: var(--primary);
   flex: none;
