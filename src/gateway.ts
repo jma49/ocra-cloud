@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { keyFor } from "./keys.js";
-import { isProvider, providers } from "./providers.js";
+import { applyAuth, isProvider, matchRoute, PASS_HEADERS, providers } from "./providers.js";
 import type { AppEnv } from "./types.js";
 
 // Forwards one model call with the user's stored key. The request body goes
@@ -16,11 +16,9 @@ export const gateway = new Hono<AppEnv>();
 gateway.post("/:provider/*", async (c) => {
   const name = c.req.param("provider");
   if (!isProvider(name)) return c.json({ error: "unknown_provider" }, 404);
-  const provider = providers[name];
   const path = c.req.path.slice(`/api/gateway/${name}`.length);
-  if (!(provider.paths as readonly string[]).includes(path)) {
-    return c.json({ error: "path_not_allowed" }, 404);
-  }
+  const match = matchRoute(providers[name], path);
+  if (!match) return c.json({ error: "path_not_allowed" }, 404);
   const length = Number(c.req.header("content-length") ?? "0");
   if (length > MAX_BODY) return c.json({ error: "body_too_large" }, 413);
 
@@ -35,17 +33,22 @@ gateway.post("/:provider/*", async (c) => {
 
   const body = await c.req.text();
   if (body.length > MAX_BODY) return c.json({ error: "body_too_large" }, 413);
-  const model = body.match(/(?<!\\)"model"\s*:\s*"([^"\\]{1,200})"/)?.[1] ?? null;
+  const model = match.model ?? body.match(/(?<!\\)"model"\s*:\s*"([^"\\]{1,200})"/)?.[1] ?? null;
 
   const headers = new Headers({
     "content-type": c.req.header("content-type") ?? "application/json",
     accept: c.req.header("accept") ?? "*/*",
   });
-  for (const h of provider.passHeaders) {
+  for (const h of PASS_HEADERS) {
     const v = c.req.header(h);
     if (v) headers.set(h, v);
   }
-  provider.auth(headers, key);
+  applyAuth(headers, match.route.auth, key);
+  const target = new URL(providers[name].base + path);
+  for (const q of match.route.query ?? []) {
+    const v = c.req.query(q);
+    if (v !== undefined) target.searchParams.set(q, v);
+  }
 
   const started = Date.now();
   const record = (status: number, usage: Usage) =>
@@ -61,7 +64,7 @@ gateway.post("/:provider/*", async (c) => {
 
   let upstream: Response;
   try {
-    upstream = await fetch(provider.base + path, { method: "POST", headers, body });
+    upstream = await fetch(target, { method: "POST", headers, body });
   } catch {
     c.executionCtx.waitUntil(record(502, { tokensIn: 0, tokensOut: 0 }));
     return c.json({ error: "upstream_unreachable" }, 502);
@@ -124,7 +127,7 @@ export function parseUsage(text: string): Usage {
     return v;
   };
   return {
-    tokensIn: max(/"(?:prompt_tokens|input_tokens)"\s*:\s*(\d+)/g),
-    tokensOut: max(/"(?:completion_tokens|output_tokens)"\s*:\s*(\d+)/g),
+    tokensIn: max(/"(?:prompt_tokens|input_tokens|promptTokenCount)"\s*:\s*(\d+)/g),
+    tokensOut: max(/"(?:completion_tokens|output_tokens|candidatesTokenCount)"\s*:\s*(\d+)/g),
   };
 }

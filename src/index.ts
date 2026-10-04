@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import { auth, requireSession } from "./auth.js";
 import { gateway } from "./gateway.js";
 import { keys } from "./keys.js";
+import { providers } from "./providers.js";
 import type { AppEnv } from "./types.js";
 
 const app = new Hono<AppEnv>().basePath("/api");
@@ -18,6 +19,17 @@ app.get("/health", async (c) => {
 });
 
 app.route("/auth", auth);
+
+// The providers and paths the gateway forwards, for the web app and the CLI.
+app.get("/providers", (c) =>
+  c.json({
+    providers: Object.entries(providers).map(([name, p]) => ({
+      name,
+      base: p.base,
+      paths: p.routes.map((r) => (typeof r.path === "string" ? r.path : r.path.source)),
+    })),
+  }),
+);
 
 app.get("/me", requireSession(), (c) => {
   const { account, kind } = c.var.session;

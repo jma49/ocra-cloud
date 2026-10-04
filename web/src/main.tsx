@@ -16,8 +16,6 @@ type Call = {
 };
 type Usage = { today: number; dailyLimit: number; calls: Call[] };
 
-const PROVIDERS = ["openrouter", "anthropic", "openai", "gemini"] as const;
-
 async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(`/api${path}`, {
     ...init,
@@ -41,6 +39,13 @@ function SignIn() {
 
 function Keys() {
   const [keys, setKeys] = useState<Key[]>([]);
+  const [names, setNames] = useState<string[]>(["openrouter"]);
+  useEffect(() => {
+    api<{ providers: { name: string }[] }>("/providers").then(
+      (r) => setNames(r.providers.map((p) => p.name).sort()),
+      () => {},
+    );
+  }, []);
   const [provider, setProvider] = useState<string>("openrouter");
   const [value, setValue] = useState("");
   const [error, setError] = useState("");
@@ -94,7 +99,7 @@ function Keys() {
           onChange={(e) => setProvider(e.target.value)}
           aria-label="Provider"
         >
-          {PROVIDERS.map((p) => (
+          {names.map((p) => (
             <option key={p}>{p}</option>
           ))}
         </select>
