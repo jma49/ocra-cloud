@@ -1,4 +1,6 @@
 import type { ProviderGroup } from "./api-types.js";
+import { effortLevels } from "./capabilities.js";
+import type { Effort } from "./db/schema.js";
 
 // The model providers the gateway forwards to, and the only paths it
 // forwards for each. A request to any other provider or path is refused.
@@ -266,3 +268,90 @@ export const providerInfo: Record<ProviderName, { label: string; group: Provider
   featherless: { label: "Featherless", group: "Platforms" },
   "opencode-zen": { label: "OpenCode Zen", group: "Platforms" },
 };
+
+// The provider HTTP calls the keys routes make with a stored key.
+
+export type KeyCheck = {
+  status: "ok" | "invalid" | "error" | "unchecked";
+  /** The provider's HTTP status, when it answered. */
+  httpStatus?: number;
+};
+
+/**
+ * Asks the provider whether the key works, with a request that costs no
+ * tokens. The answer's body is read only to tell a rejected key from another
+ * 400, and is never kept or logged.
+ */
+export async function checkKey(provider: keyof typeof providers, key: string): Promise<KeyCheck> {
+  const route = verifyRoutes[provider];
+  if (!route) return { status: "unchecked" };
+  const headers = new Headers({ accept: "application/json" });
+  if (route.auth === "x-api-key") headers.set("anthropic-version", "2023-06-01");
+  applyAuth(headers, route.auth, key);
+  let res: Response;
+  try {
+    res = await fetch(providers[provider].base + route.path, {
+      headers,
+      signal: AbortSignal.timeout(10_000),
+    });
+  } catch {
+    return { status: "error" };
+  }
+  const text = await res.text().catch(() => "");
+  if (res.ok) return { status: "ok", httpStatus: res.status };
+  if (res.status === 401 || res.status === 403)
+    return { status: "invalid", httpStatus: res.status };
+  if (res.status === 400 && /api[ _-]?key|token/i.test(text)) {
+    return { status: "invalid", httpStatus: res.status };
+  }
+  return { status: "error", httpStatus: res.status };
+}
+
+/**
+ * Model ids from the provider's model list: OpenAI-style data[].id, or the
+ * Gemini API's models[].name. OpenRouter's list is public and is not its
+ * key-checking route. Empty when the provider has no list.
+ */
+export type ModelInfo = { id: string; efforts: Effort[] };
+
+export async function listModels(
+  provider: keyof typeof providers,
+  key: string,
+): Promise<ModelInfo[]> {
+  const route =
+    provider === "openrouter"
+      ? { path: "/v1/models", auth: "bearer" as const }
+      : verifyRoutes[provider]?.path.endsWith("/models")
+        ? verifyRoutes[provider]
+        : undefined;
+  if (!route) return [];
+  const headers = new Headers({ accept: "application/json" });
+  if (route.auth === "x-api-key") headers.set("anthropic-version", "2023-06-01");
+  applyAuth(headers, route.auth, key);
+  try {
+    const res = await fetch(providers[provider].base + route.path, {
+      headers,
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) return [];
+    const body = (await res.json()) as {
+      data?: { id?: unknown; supported_parameters?: unknown }[];
+      models?: { name?: unknown }[];
+    };
+    const found = new Map<string, ModelInfo>();
+    const add = (id: unknown, live?: { reasoning: boolean }) => {
+      if (typeof id !== "string" || !/^[\w./:@-]{1,200}$/.test(id)) return;
+      found.set(id, { id, efforts: effortLevels(id, live) });
+    };
+    for (const m of body.data ?? []) {
+      const params = Array.isArray(m.supported_parameters) ? m.supported_parameters : undefined;
+      add(m.id, params ? { reasoning: params.includes("reasoning") } : undefined);
+    }
+    for (const m of body.models ?? []) {
+      add(typeof m.name === "string" ? m.name.replace(/^models\//, "") : undefined);
+    }
+    return [...found.values()].sort((a, b) => a.id.localeCompare(b.id)).slice(0, 2000);
+  } catch {
+    return [];
+  }
+}

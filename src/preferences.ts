@@ -1,10 +1,10 @@
 import { Hono } from "hono";
 import type { AgentPrefs, Effort, ModelChains, ReviewSettings } from "./api-types.js";
-import { requireSession } from "./auth.js";
 import { EFFORTS } from "./capabilities.js";
 import type { Scoped } from "./db/scoped.js";
 import { REVIEWER_ID } from "./findings.js";
 import { hasChatRoute } from "./providers.js";
+import { requireSession } from "./session.js";
 import { changedKeys, parseSettings } from "./settings.js";
 import type { AppEnv } from "./types.js";
 

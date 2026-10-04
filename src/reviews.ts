@@ -1,9 +1,9 @@
 import { Hono } from "hono";
-import { requireSession } from "./auth.js";
 import type { ReviewerCounts } from "./db/schema.js";
 import type { Scoped } from "./db/scoped.js";
 import { parseFindings, REVIEWER_ID } from "./findings.js";
 import { clampDays } from "./retention.js";
+import { requireSession } from "./session.js";
 import type { AppEnv } from "./types.js";
 
 // Review metadata: the CLI uploads counts after a review, the web lists them.

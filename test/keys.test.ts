@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { scoped } from "../src/db/scoped.js";
-import { checkKey } from "../src/keys.js";
-import { verifyRoutes } from "../src/providers.js";
+import { checkKey, verifyRoutes } from "../src/providers.js";
 import { call, db, resetDb, signIn } from "./helpers.js";
 
 beforeEach(resetDb);

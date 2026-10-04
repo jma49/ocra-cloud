@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { keyFor, masterKeys } from "./keys.js";
+import { keyFor, masterKeys } from "./keyring.js";
 import { applyAuth, isProvider, matchRoute, PASS_HEADERS, providers } from "./providers.js";
 import type { AppEnv } from "./types.js";
 

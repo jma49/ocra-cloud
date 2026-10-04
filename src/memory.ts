@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { requireSession } from "./auth.js";
+import { requireSession } from "./session.js";
 import type { AppEnv } from "./types.js";
 
 // Findings the account remembers (ADR-0028, 4). Set from the web; a

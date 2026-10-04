@@ -1,5 +1,4 @@
 import { Hono } from "hono";
-import { refreshCliSession, reissueCliSession, requireSession, startCliSession } from "./auth.js";
 import { randomToken, sha256Hex } from "./crypto.js";
 import {
   byDeviceCodeHash,
@@ -9,6 +8,12 @@ import {
   decide,
   recordPoll,
 } from "./db/device.js";
+import {
+  refreshCliSession,
+  reissueCliSession,
+  requireSession,
+  startCliSession,
+} from "./session.js";
 import type { AppEnv } from "./types.js";
 
 // `ocra login`: the OAuth 2.0 device authorization grant (RFC 8628). The CLI

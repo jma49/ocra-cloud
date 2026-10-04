@@ -1,11 +1,12 @@
 import { env } from "cloudflare:workers";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
-import { REFRESH_GRACE_MS, safeNext } from "../src/auth.js";
+import { safeNext } from "../src/auth.js";
 import { sha256Hex } from "../src/crypto.js";
 import { rotateSession, sessionByRefreshHash } from "../src/db/accounts.js";
 import * as schema from "../src/db/schema.js";
 import { normalizeUserCode } from "../src/device.js";
+import { REFRESH_GRACE_MS } from "../src/session.js";
 import { call, db, resetDb, signIn, signInCli } from "./helpers.js";
 
 beforeEach(async () => {

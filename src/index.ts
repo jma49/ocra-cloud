@@ -1,7 +1,7 @@
 import { drizzle } from "drizzle-orm/d1";
 import { Hono } from "hono";
 import { account } from "./account.js";
-import { auth, requireSession } from "./auth.js";
+import { auth } from "./auth.js";
 import { device } from "./device.js";
 import { gateway } from "./gateway.js";
 import { keys } from "./keys.js";
@@ -10,6 +10,7 @@ import { preferences } from "./preferences.js";
 import { type ProviderName, providerInfo, providers } from "./providers.js";
 import { enforceRetention } from "./retention.js";
 import { reviews } from "./reviews.js";
+import { requireSession } from "./session.js";
 import type { AppEnv } from "./types.js";
 
 const app = new Hono<AppEnv>().basePath("/api");
