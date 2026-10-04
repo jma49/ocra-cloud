@@ -3,17 +3,20 @@ import { Hono } from "hono";
 import { account } from "./account.js";
 import { auth } from "./auth.js";
 import { device } from "./device.js";
+import { exportRoute } from "./export.js";
 import { gateway } from "./gateway.js";
 import { keys } from "./keys.js";
+import { me } from "./me.js";
 import { memory } from "./memory.js";
 import { preferences } from "./preferences.js";
 import { type ProviderName, providerInfo, providers } from "./providers.js";
 import { enforceRetention } from "./retention.js";
 import { reviews } from "./reviews.js";
-import { requireSession } from "./session.js";
+import { sessions } from "./sessions.js";
 import type { AppEnv } from "./types.js";
+import { usage } from "./usage.js";
 
-const app = new Hono<AppEnv>().basePath("/api");
+export const app = new Hono<AppEnv>().basePath("/api");
 
 app.use(async (c, next) => {
   c.set("db", drizzle(c.env.DB));
@@ -43,27 +46,17 @@ app.get("/providers", (c) =>
   }),
 );
 
-app.get("/me", requireSession(["web", "cli"]), (c) => {
-  const { account: a, kind } = c.var.session;
-  return c.json({ login: a.login, githubId: a.githubId, session: kind, since: a.createdAt });
-});
-
-app.use("/usage", requireSession());
-app.use("/sessions/*", requireSession());
-app.use("/sessions", requireSession());
-app.use("/account", requireSession());
-app.use("/account/sharing", requireSession());
-app.use("/account/salt", requireSession(["web", "cli"]));
-app.use("/export", requireSession());
-app.route("/", account);
-
+// Every router applies its own session guard (test/routes.test.ts checks
+// each route): this file only composes them.
+app.route("/me", me);
+app.route("/usage", usage);
+app.route("/sessions", sessions);
+app.route("/export", exportRoute);
+app.route("/account", account);
 app.route("/reviews", reviews);
 app.route("/preferences", preferences);
 app.route("/memory", memory);
-
-app.use("/keys/*", requireSession());
 app.route("/keys", keys);
-app.use("/gateway/*", requireSession(["web", "cli"]));
 app.route("/gateway", gateway);
 
 app.notFound((c) => c.json({ error: "not_found" }, 404));

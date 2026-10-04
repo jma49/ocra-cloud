@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { keyFor, masterKeys } from "./keyring.js";
 import { applyAuth, isProvider, matchRoute, PASS_HEADERS, providers } from "./providers.js";
+import { requireSession } from "./session.js";
 import type { AppEnv } from "./types.js";
 
 // Forwards one model call with the user's stored key. The request body goes
@@ -11,7 +12,7 @@ import type { AppEnv } from "./types.js";
 const MAX_BODY = 8 * 1024 * 1024;
 const EDGE = 16 * 1024;
 
-export const gateway = new Hono<AppEnv>();
+export const gateway = new Hono<AppEnv>().use(requireSession(["web", "cli"]));
 
 gateway.post("/:provider/*", async (c) => {
   const name = c.req.param("provider");
