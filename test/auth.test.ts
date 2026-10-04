@@ -14,14 +14,17 @@ function cookieValue(res: Response, name: string): string | undefined {
 }
 
 function githubFake(user: { id: number; login: string }) {
-  return vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
-    const url = new Request(input).url;
-    if (url === "https://github.com/login/oauth/access_token") {
-      return Response.json({ access_token: "gho_test" });
-    }
-    if (url === "https://api.github.com/user") return Response.json(user);
-    throw new Error(`unexpected fetch ${url}`);
-  });
+  return vi
+    .spyOn(globalThis, "fetch")
+    .mockClear()
+    .mockImplementation(async (input) => {
+      const url = new Request(input).url;
+      if (url === "https://github.com/login/oauth/access_token") {
+        return Response.json({ access_token: "gho_test" });
+      }
+      if (url === "https://api.github.com/user") return Response.json(user);
+      throw new Error(`unexpected fetch ${url}`);
+    });
 }
 
 describe("GitHub sign-in", () => {

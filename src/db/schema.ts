@@ -42,6 +42,10 @@ export const providerKeys = sqliteTable("provider_keys", {
   wrappedKey: text("wrapped_key").notNull(),
   ciphertext: text("ciphertext").notNull(),
   last4: text("last4").notNull(),
+  // The last check of the key against the provider: ok, invalid, error, or
+  // unchecked when the provider has no way to check a key in advance.
+  checkStatus: text("check_status", { enum: ["ok", "invalid", "error", "unchecked"] }),
+  checkedAt: integer("checked_at", { mode: "timestamp_ms" }),
   createdAt: createdAt(),
 });
 

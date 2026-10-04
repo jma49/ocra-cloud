@@ -158,6 +158,51 @@ export function applyAuth(headers: Headers, style: AuthStyle, key: string): void
 /** Request headers passed through as sent, besides content-type and accept. */
 export const PASS_HEADERS = ["anthropic-version", "anthropic-beta"] as const;
 
+/**
+ * A request that needs a valid key and costs no tokens (most list models),
+ * used to check a key when it is saved. Providers whose list answers without
+ * a key are missing: their keys cannot be checked in advance.
+ */
+export const verifyRoutes: Partial<Record<ProviderName, { path: string; auth: AuthStyle }>> = {
+  openai: { path: "/v1/models", auth: "bearer" },
+  anthropic: { path: "/v1/models", auth: "x-api-key" },
+  openrouter: { path: "/v1/key", auth: "bearer" },
+  gemini: { path: "/v1beta/models", auth: "goog" },
+  deepseek: { path: "/models", auth: "bearer" },
+  mistral: { path: "/v1/models", auth: "bearer" },
+  groq: { path: "/v1/models", auth: "bearer" },
+  xai: { path: "/v1/models", auth: "bearer" },
+  together: { path: "/v1/models", auth: "bearer" },
+  fireworks: { path: "/v1/models", auth: "bearer" },
+  cerebras: { path: "/v1/models", auth: "bearer" },
+  moonshot: { path: "/v1/models", auth: "bearer" },
+  "moonshot-cn": { path: "/v1/models", auth: "bearer" },
+  "kimi-coding": { path: "/v1/models", auth: "both" },
+  zai: { path: "/paas/v4/models", auth: "bearer" },
+  zhipu: { path: "/paas/v4/models", auth: "bearer" },
+  qwen: { path: "/compatible-mode/v1/models", auth: "bearer" },
+  "qwen-cn": { path: "/compatible-mode/v1/models", auth: "bearer" },
+  minimax: { path: "/v1/models", auth: "bearer" },
+  "minimax-cn": { path: "/v1/models", auth: "bearer" },
+  siliconflow: { path: "/v1/models", auth: "bearer" },
+  "siliconflow-cn": { path: "/v1/models", auth: "bearer" },
+  volcengine: { path: "/models", auth: "bearer" },
+  hunyuan: { path: "/models", auth: "bearer" },
+  stepfun: { path: "/v1/models", auth: "bearer" },
+  baichuan: { path: "/v1/models", auth: "bearer" },
+  longcat: { path: "/v1/models", auth: "bearer" },
+  cohere: { path: "/v1/models", auth: "bearer" },
+  vercel: { path: "/v1/models", auth: "bearer" },
+  deepinfra: { path: "/models", auth: "bearer" },
+  nebius: { path: "/v1/models", auth: "bearer" },
+  "inference-net": { path: "/v1/models", auth: "bearer" },
+  chutes: { path: "/v1/models", auth: "bearer" },
+  upstage: { path: "/v1/models", auth: "bearer" },
+  ionos: { path: "/v1/models", auth: "bearer" },
+  scaleway: { path: "/v1/models", auth: "bearer" },
+  featherless: { path: "/v1/models", auth: "bearer" },
+};
+
 export type ProviderGroup = "Major" | "China" | "Platforms";
 
 /** How the web app shows each provider. */

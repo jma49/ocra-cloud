@@ -15,6 +15,13 @@
       "when": 1791089356932,
       "tag": "0001_gateway_calls",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1791090808770,
+      "tag": "0002_key_checks",
+      "breakpoints": true
     }
   ]
 }

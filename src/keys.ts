@@ -1,17 +1,37 @@
 import { Hono } from "hono";
 import { decryptSecret, encryptSecret } from "./crypto.js";
 import type { Scoped } from "./db/scoped.js";
-import { isProvider } from "./providers.js";
+import { applyAuth, isProvider, providers, verifyRoutes } from "./providers.js";
 import type { AppEnv } from "./types.js";
 
 // The user's model keys: stored encrypted, one per provider, never returned.
 
 export const keys = new Hono<AppEnv>();
 
+const DAY = 86_400_000;
+
 keys.get("/", async (c) => {
   const rows = await c.var.data.list("providerKeys");
+  const calls = await c.var.data.listSince("gatewayCalls", new Date(Date.now() - 90 * DAY));
+  const weekAgo = Date.now() - 7 * DAY;
+  const use = new Map<string, { lastUsedAt: Date; calls7d: number }>();
+  for (const call of calls) {
+    const u = use.get(call.provider) ?? { lastUsedAt: call.createdAt, calls7d: 0 };
+    if (call.createdAt > u.lastUsedAt) u.lastUsedAt = call.createdAt;
+    if (call.createdAt.getTime() >= weekAgo) u.calls7d++;
+    use.set(call.provider, u);
+  }
   return c.json({
-    keys: rows.map((r) => ({ provider: r.provider, last4: r.last4, createdAt: r.createdAt })),
+    keys: rows.map((r) => ({
+      provider: r.provider,
+      last4: r.last4,
+      createdAt: r.createdAt,
+      checkStatus: r.checkStatus,
+      checkedAt: r.checkedAt,
+      checkable: isProvider(r.provider) && r.provider in verifyRoutes,
+      lastUsedAt: use.get(r.provider)?.lastUsedAt ?? null,
+      calls7d: use.get(r.provider)?.calls7d ?? 0,
+    })),
   });
 });
 
@@ -24,15 +44,31 @@ keys.put("/:provider", async (c) => {
     return c.json({ error: "bad_key" }, 400);
   }
   const sealed = await encryptSecret(c.env.MASTER_KEY, key);
+  const check = await checkKey(provider, key);
   await removeKey(c.var.data, provider);
   await c.var.data.insert("providerKeys", {
     id: crypto.randomUUID(),
     provider,
     ...sealed,
     last4: key.slice(-4),
+    checkStatus: check.status,
+    checkedAt: new Date(),
   });
-  await audit(c.var.data, "key.saved", { provider });
-  return c.json({ provider, last4: key.slice(-4) });
+  await audit(c.var.data, "key.saved", { provider, check: check.status });
+  return c.json({ provider, last4: key.slice(-4), check });
+});
+
+keys.post("/:provider/test", async (c) => {
+  const provider = c.req.param("provider");
+  const row = (await c.var.data.list("providerKeys")).find((r) => r.provider === provider);
+  if (!row || !isProvider(provider)) return c.json({ error: "no_key" }, 404);
+  const check = await checkKey(provider, await decryptSecret(c.env.MASTER_KEY, row));
+  await c.var.data.update("providerKeys", row.id, {
+    checkStatus: check.status,
+    checkedAt: new Date(),
+  });
+  await audit(c.var.data, "key.checked", { provider, check: check.status });
+  return c.json({ provider, check });
 });
 
 keys.delete("/:provider", async (c) => {
@@ -41,6 +77,42 @@ keys.delete("/:provider", async (c) => {
   if (removed) await audit(c.var.data, "key.deleted", { provider });
   return c.json({ removed });
 });
+
+export type KeyCheck = {
+  status: "ok" | "invalid" | "error" | "unchecked";
+  /** The provider's HTTP status, when it answered. */
+  httpStatus?: number;
+};
+
+/**
+ * Asks the provider whether the key works, with a request that costs no
+ * tokens. The answer's body is read only to tell a rejected key from another
+ * 400, and is never kept or logged.
+ */
+export async function checkKey(provider: keyof typeof providers, key: string): Promise<KeyCheck> {
+  const route = verifyRoutes[provider];
+  if (!route) return { status: "unchecked" };
+  const headers = new Headers({ accept: "application/json" });
+  if (route.auth === "x-api-key") headers.set("anthropic-version", "2023-06-01");
+  applyAuth(headers, route.auth, key);
+  let res: Response;
+  try {
+    res = await fetch(providers[provider].base + route.path, {
+      headers,
+      signal: AbortSignal.timeout(10_000),
+    });
+  } catch {
+    return { status: "error" };
+  }
+  const text = await res.text().catch(() => "");
+  if (res.ok) return { status: "ok", httpStatus: res.status };
+  if (res.status === 401 || res.status === 403)
+    return { status: "invalid", httpStatus: res.status };
+  if (res.status === 400 && /api[ _-]?key|token/i.test(text)) {
+    return { status: "invalid", httpStatus: res.status };
+  }
+  return { status: "error", httpStatus: res.status };
+}
 
 async function removeKey(data: Scoped, provider: string): Promise<boolean> {
   let removed = false;

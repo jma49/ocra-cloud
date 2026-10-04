@@ -6,7 +6,18 @@ export type ProviderInfo = {
   base: string;
   paths: string[];
 };
-export type Key = { provider: string; last4: string; createdAt: string };
+export type CheckStatus = "ok" | "invalid" | "error" | "unchecked";
+export type Key = {
+  provider: string;
+  last4: string;
+  createdAt: string;
+  checkStatus: CheckStatus | null;
+  checkedAt: string | null;
+  checkable: boolean;
+  lastUsedAt: string | null;
+  calls7d: number;
+};
+export type KeyCheck = { status: CheckStatus; httpStatus?: number };
 export type Call = {
   id: string;
   provider: string;

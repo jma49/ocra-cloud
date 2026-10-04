@@ -29,7 +29,10 @@ describe("every provider route", () => {
         body: JSON.stringify({ key: KEY }),
       });
       expect(put.status).toBe(200);
-      const fake = vi.spyOn(globalThis, "fetch").mockImplementation(async () => Response.json({}));
+      const fake = vi
+        .spyOn(globalThis, "fetch")
+        .mockClear()
+        .mockImplementation(async () => Response.json({}));
       const res = await call(`/api/gateway/${name}${path}?alt=sse&key=leak`, {
         method: "POST",
         headers: { ...user.auth, "content-type": "application/json" },

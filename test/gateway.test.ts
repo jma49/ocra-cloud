@@ -32,7 +32,10 @@ function sse(events: unknown[]): ReadableStream<Uint8Array> {
 }
 
 function upstreamFake(make: () => Response) {
-  return vi.spyOn(globalThis, "fetch").mockImplementation(async () => make());
+  return vi
+    .spyOn(globalThis, "fetch")
+    .mockClear()
+    .mockImplementation(async () => make());
 }
 
 const chat = (stream = true) =>

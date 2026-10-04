@@ -175,8 +175,26 @@ export function StackedBars(props: { series: Day[]; metric: "calls" | "tokens" }
   );
 }
 
-export function ProviderLogo(props: { label: string }) {
-  return <span className="prov-logo">{props.label.slice(0, 2)}</span>;
+/** A monogram tile in a colour derived from the name (no third-party logos). */
+export function ProviderLogo(props: { label: string; size?: number }) {
+  let h = 0;
+  for (const ch of props.label) h = (h * 31 + ch.charCodeAt(0)) % 360;
+  const size = props.size ?? 32;
+  return (
+    <span
+      className="prov-logo"
+      style={{
+        width: size,
+        height: size,
+        fontSize: size * 0.4,
+        color: `hsl(${h} 55% 38%)`,
+        background: `hsl(${h} 70% 95%)`,
+        borderColor: `hsl(${h} 45% 86%)`,
+      }}
+    >
+      {props.label.replace(/[^A-Za-z0-9]/g, "").slice(0, 2)}
+    </span>
+  );
 }
 
 export const icons = {
