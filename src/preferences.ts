@@ -3,7 +3,6 @@ import { requireSession } from "./auth.js";
 import { EFFORTS } from "./capabilities.js";
 import type { AgentPrefs, Effort, ReviewSettings } from "./db/schema.js";
 import type { Scoped } from "./db/scoped.js";
-import { audit } from "./keys.js";
 import { changedKeys, parseSettings } from "./settings.js";
 import type { AppEnv } from "./types.js";
 
@@ -145,7 +144,11 @@ const flat = (p: Saved) => ({
 });
 const KEEP_VERSIONS = 50;
 
-/** Saves the preferences as a new version; returns the version id, or the current one if nothing changed. */
+/**
+ * Saves the preferences as a new version; returns the version id, or the
+ * current one if nothing changed. The update, the version, pruning to the
+ * newest KEEP_VERSIONS and the audit event are one D1 batch: all or none.
+ */
 async function store(
   data: Scoped,
   next: Saved,
@@ -154,16 +157,19 @@ async function store(
   const changed = changedKeys(flat(savedOf(row)), flat(next));
   if (changed.length === 0) return { version: await latestVersion(data), changed };
   const fields = { ...next, updatedAt: new Date() };
-  if (row) await data.update("preferences", row.id, fields);
-  else await data.insert("preferences", { id: crypto.randomUUID(), ...fields });
   const version = crypto.randomUUID();
-  await data.insert("preferenceVersions", { id: version, snapshot: next, changed });
-  for (const old of (await data.listSince("preferenceVersions", new Date(0))).slice(
-    KEEP_VERSIONS,
-  )) {
-    await data.remove("preferenceVersions", old.id);
-  }
-  await audit(data, "settings.changed", { keys: changed, version });
+  await data.batch((w) => [
+    row
+      ? w.update("preferences", row.id, fields)
+      : w.insert("preferences", { id: crypto.randomUUID(), ...fields }),
+    w.insert("preferenceVersions", { id: version, snapshot: next, changed }),
+    w.keepNewest("preferenceVersions", KEEP_VERSIONS),
+    w.insert("auditEvents", {
+      id: crypto.randomUUID(),
+      kind: "settings.changed",
+      detail: { keys: changed, version },
+    }),
+  ]);
   return { version, changed };
 }
 
@@ -184,6 +190,14 @@ preferences.put("/", requireSession(), async (c) => {
   const body = (await c.req.json().catch(() => null)) as Record<string, unknown> | null;
   const next = parseBody(body, savedOf(await current(c.var.data)));
   if (!next) return c.json({ error: "bad_preferences" }, 400);
+  // The web sends the version its draft started from; a save from a stale
+  // tab must not overwrite a newer one. A body without it (the CLI) saves.
+  if (body && "baseVersion" in body) {
+    const latest = await latestVersion(c.var.data);
+    if ((body.baseVersion ?? null) !== latest) {
+      return c.json({ error: "stale", version: latest }, 409);
+    }
+  }
   const { version } = await store(c.var.data, next);
   return c.json({ ...next, updatedAt: new Date(), version });
 });
