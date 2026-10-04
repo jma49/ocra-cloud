@@ -5,11 +5,5 @@
     "types": ["vite/client"],
     "jsx": "react-jsx"
   },
-  "include": [
-    "src",
-    "vite.config.ts",
-    "../src/api-types.ts",
-    "../src/capabilities.ts",
-    "../src/db/schema.ts"
-  ]
+  "include": ["src", "vite.config.ts", "../src/shared"]
 }

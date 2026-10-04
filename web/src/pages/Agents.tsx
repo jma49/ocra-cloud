@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { effortLevels } from "../../../src/capabilities.js";
+import {
+  type AgentRole,
+  BUILT_IN_REVIEWERS,
+  effortLevels,
+  formatModelId,
+  parseModelId,
+  ROLES,
+} from "../../../src/shared/index.js";
 import { api, type Key, type ProviderInfo } from "../api.js";
 import { type AgentPrefs, type Effort, type Prefs, type Tier, usePrefs } from "../prefs.js";
 import { Link } from "../router.js";
@@ -9,7 +16,6 @@ import { PageHead, Seg, useLoad, useProviders } from "../ui.js";
 // (ADR-0025). The CLI layers these under a repository's own configuration.
 
 type Chain = string[];
-type Role = "verifier" | "judge" | "helper";
 type ModelInfo = { id: string; efforts: Effort[] };
 
 const TIERS: { id: Tier; label: string; hint: string }[] = [
@@ -17,23 +23,9 @@ const TIERS: { id: Tier; label: string; hint: string }[] = [
   { id: "light", label: "Light", hint: "Docs, AGENTS.md and helper work" },
   { id: "top", label: "Top", hint: "The judge" },
 ];
-const REVIEWERS: { id: string; tier: Tier; hint: string }[] = [
-  { id: "correctness", tier: "standard", hint: "Bugs and broken logic" },
-  { id: "security", tier: "standard", hint: "Vulnerabilities and unsafe patterns" },
-  { id: "performance", tier: "standard", hint: "Slow paths and waste" },
-  { id: "docs", tier: "light", hint: "Docs that no longer match the code" },
-  { id: "agents-md", tier: "light", hint: "The repository's AGENTS.md rules" },
-];
-const ROLES: { id: Role; tier: Tier; hint: string }[] = [
-  { id: "verifier", tier: "standard", hint: "Checks each finding against the code" },
-  { id: "judge", tier: "top", hint: "Deduplicates and calibrates severity" },
-  { id: "helper", tier: "light", hint: "Groups files and relocates quotes" },
-];
 
-const split = (m: string) => {
-  const slash = m.indexOf("/");
-  return { provider: m.slice(5, slash), model: m.slice(slash + 1) };
-};
+// A row's model; the editor writes only ocra-<provider>/<model> names.
+const split = (m: string) => parseModelId(m) ?? { provider: "", model: m };
 
 /**
  * The models of each provider with a key, asked for once per provider: each
@@ -180,11 +172,11 @@ export function Agents() {
             </thead>
             <tbody>
               {[
-                ...REVIEWERS.map((r) => ({ ...r, role: false })),
+                ...BUILT_IN_REVIEWERS.map((r) => ({ ...r, role: false })),
                 ...ROLES.map((r) => ({ ...r, role: true })),
               ].map((a) => {
                 const own = a.role
-                  ? draft.agents.roles?.[a.id as Role]
+                  ? draft.agents.roles?.[a.id as AgentRole]
                   : draft.agents.reviewers?.[a.id];
                 // An undefined field is removed: the agent inherits it again.
                 const update = (patch: {
@@ -249,7 +241,7 @@ export function Agents() {
                             onClick={() =>
                               update({
                                 models: [
-                                  draft.models[a.tier]?.[0] ?? `ocra-${usable[0]?.name ?? ""}/`,
+                                  draft.models[a.tier]?.[0] ?? formatModelId(usable[0]?.name ?? ""),
                                 ],
                               })
                             }
@@ -361,7 +353,7 @@ function ChainEditor(props: {
               className="input"
               aria-label="Provider"
               value={provider}
-              onChange={(e) => setAt(i, `ocra-${e.target.value}/`)}
+              onChange={(e) => setAt(i, formatModelId(e.target.value))}
             >
               {props.usable.map((p) => (
                 <option key={p.name} value={p.name}>
@@ -375,7 +367,7 @@ function ChainEditor(props: {
               list={listId}
               placeholder="Model id"
               value={model}
-              onChange={(e) => setAt(i, `ocra-${provider}/${e.target.value}`)}
+              onChange={(e) => setAt(i, formatModelId(provider, e.target.value))}
             />
             <datalist id={listId}>
               {(props.info[provider] ?? []).map((x) => (
@@ -397,7 +389,7 @@ function ChainEditor(props: {
           type="button"
           className="btn btn-sm"
           disabled={rows.length >= 4}
-          onClick={() => props.onChange([...rows, `ocra-${props.usable[0]?.name ?? ""}/`])}
+          onClick={() => props.onChange([...rows, formatModelId(props.usable[0]?.name ?? "")])}
         >
           + {rows.length ? "Fallback" : "Model"}
         </button>

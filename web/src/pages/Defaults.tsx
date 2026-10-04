@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { formatModelId, parseModelId } from "../../../src/shared/index.js";
 import { api, type Key } from "../api.js";
 import { ago } from "../format.js";
 import { type Prefs, type Settings, usePrefs } from "../prefs.js";
@@ -59,10 +60,10 @@ function importConfig(text: string, current: Prefs, keyed: Set<string>): Importe
     if (k in file && k !== "$schema")
       notes.push(`${k} is not taken from a file (it can move code or keys, or is set per machine)`);
   const mapModel = (m: string): string | undefined => {
-    if (m.startsWith("ocra-")) return m;
+    if (parseModelId(m)) return m;
     const slash = m.indexOf("/");
     const provider = m.slice(0, slash);
-    if (slash > 0 && keyed.has(provider)) return `ocra-${provider}/${m.slice(slash + 1)}`;
+    if (slash > 0 && keyed.has(provider)) return formatModelId(provider, m.slice(slash + 1));
     notes.push(`${m} dropped: no ${provider || "matching"} key in your account`);
     return undefined;
   };

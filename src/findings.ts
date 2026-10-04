@@ -5,6 +5,7 @@ import {
   redact,
   sharedFindingSchema,
 } from "./contract/index.js";
+import type { Severity, Verification } from "./shared/index.js";
 
 // A finding as the CLI uploads it when the account shares findings
 // (ADR-0028, 2), checked with the contract's schema, then redacted and
@@ -14,9 +15,9 @@ import {
 export type FindingRow = {
   fingerprint: string;
   reviewer: string;
-  severity: string;
+  severity: Severity;
   category: string | null;
-  verification: string | null;
+  verification: Verification | null;
   file: string;
   lineStart: number | null;
   lineEnd: number | null;

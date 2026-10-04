@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import type { ProviderGroup } from "./api-types.js";
 import type { EffortStyle, ProviderId } from "./contract/index.js";
+import type { ProviderGroup } from "./shared/index.js";
 import type { AppEnv } from "./types.js";
 
 // The model providers the gateway forwards to, one record each: how the web

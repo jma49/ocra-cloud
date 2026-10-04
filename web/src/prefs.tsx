@@ -15,7 +15,7 @@ import type {
   Rule,
   Runtime,
   Tier,
-} from "../../src/api-types.js";
+} from "../../src/shared/index.js";
 import { ApiError, api, why } from "./api.js";
 import { useToast } from "./toast.js";
 

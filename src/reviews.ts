@@ -2,11 +2,11 @@ import { Hono } from "hono";
 import type { z } from "zod";
 import { config } from "./config.js";
 import { MAX_REVIEWERS, REVIEWER_ID, reviewUploadSchema } from "./contract/index.js";
-import type { ReviewerCounts } from "./db/schema.js";
 import type { Row, Scoped } from "./db/scoped.js";
 import { parseFindings } from "./findings.js";
 import { apiError, jsonBody, queryDays } from "./http.js";
 import { requireSession } from "./session.js";
+import type { ReviewerCounts } from "./shared/index.js";
 import { DAY, utcDayStart } from "./time.js";
 import type { AppEnv } from "./types.js";
 

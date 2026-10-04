@@ -1,4 +1,4 @@
-import type { Effort } from "./db/schema.js";
+import type { Effort } from "../contract/index.js";
 
 // Which reasoning effort levels a model takes (ADR-0025), for the web's
 // Agents page: it offers only these. The engine never refuses a level on

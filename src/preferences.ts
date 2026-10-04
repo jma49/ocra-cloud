@@ -2,7 +2,6 @@ import { Hono } from "hono";
 import type { z } from "zod";
 import {
   type AgentPrefs,
-  CLOUD_PREFIX,
   type ModelChains,
   preferencesUpdateSchema,
   type ReviewSettings,
@@ -12,6 +11,7 @@ import { newId, type Scoped } from "./db/scoped.js";
 import { apiError, jsonBody } from "./http.js";
 import { hasChatRoute } from "./providers.js";
 import { requireSession } from "./session.js";
+import { parseModelId } from "./shared/index.js";
 import type { AppEnv } from "./types.js";
 
 // Default models for a review that configures none (ADR-0024 zero
@@ -34,8 +34,8 @@ preferences.get("/models", requireSession(["web", "cli"]), async (c) => {
  * The contract checks the name's form; only the server knows the routes.
  */
 function chatModel(model: string): boolean {
-  const provider = model.slice(CLOUD_PREFIX.length, model.indexOf("/"));
-  return hasChatRoute(provider);
+  const ref = parseModelId(model);
+  return ref !== null && hasChatRoute(ref.provider);
 }
 
 /** PUT /api/preferences and a restored version: the contract's shape, and models the gateway can serve. */
