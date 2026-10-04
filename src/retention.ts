@@ -9,6 +9,10 @@ import { auditEvents, deviceCodes, gatewayCalls, reviews, sessions } from "./db/
 export const RETENTION_DAYS = 90;
 const DAY = 86_400_000;
 
+/** A `days` query clamped to 1..RETENTION_DAYS: older records are gone. */
+export const clampDays = (v: string | undefined, fallback: number) =>
+  Math.min(Math.max(Math.trunc(Number(v ?? fallback)) || fallback, 1), RETENTION_DAYS);
+
 export async function enforceRetention(db: DrizzleD1Database, now = new Date()): Promise<void> {
   const cutoff = new Date(now.getTime() - RETENTION_DAYS * DAY);
   await db.delete(reviews).where(lt(reviews.createdAt, cutoff));

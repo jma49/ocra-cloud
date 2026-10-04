@@ -14,15 +14,12 @@ const DAY = 86_400_000;
 
 keys.get("/", async (c) => {
   const rows = await c.var.data.list("providerKeys");
-  const calls = await c.var.data.listSince("gatewayCalls", new Date(Date.now() - 90 * DAY));
-  const weekAgo = Date.now() - 7 * DAY;
-  const use = new Map<string, { lastUsedAt: Date; calls7d: number }>();
-  for (const call of calls) {
-    const u = use.get(call.provider) ?? { lastUsedAt: call.createdAt, calls7d: 0 };
-    if (call.createdAt > u.lastUsedAt) u.lastUsedAt = call.createdAt;
-    if (call.createdAt.getTime() >= weekAgo) u.calls7d++;
-    use.set(call.provider, u);
-  }
+  // One row per provider, summed in SQL (audit D5).
+  const now = Date.now();
+  const sums = await c.var.data.keyUse(new Date(now - 90 * DAY), new Date(now - 7 * DAY));
+  const use = new Map(
+    sums.map((u) => [u.provider, { lastUsedAt: new Date(u.lastUsedAt), calls7d: u.recent }]),
+  );
   return c.json({
     keys: rows.map((r) => ({
       provider: r.provider,
