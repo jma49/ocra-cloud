@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { api, date, type Me } from "../api.js";
-import { PageHead } from "../ui.js";
+import { PageHead, useLoad } from "../ui.js";
 
 export function Settings(props: { me: Me }) {
   const [typed, setTyped] = useState("");
@@ -36,6 +36,8 @@ export function Settings(props: { me: Me }) {
           </dd>
         </dl>
       </div>
+
+      <Sharing />
 
       <div className="section card">
         <div className="card-head">
@@ -85,5 +87,80 @@ export function Settings(props: { me: Me }) {
         </div>
       </div>
     </>
+  );
+}
+
+function Sharing() {
+  const [data, , reload] = useLoad(() =>
+    api<{ shareFindings: boolean; findingsStored: number }>("/account/sharing"),
+  );
+  const [asking, setAsking] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const put = async (enabled: boolean, deleteExisting = false) => {
+    setBusy(true);
+    await api("/account/sharing", {
+      method: "PUT",
+      body: JSON.stringify({ enabled, deleteExisting }),
+    }).catch(() => {});
+    setBusy(false);
+    setAsking(false);
+    reload();
+  };
+  if (!data) return null;
+  return (
+    <div className="section card">
+      <div className="card-head">
+        <h3>Send findings and the code they quote to ocra Cloud</h3>
+        <button
+          type="button"
+          role="switch"
+          className="switch"
+          aria-label="Send findings and the code they quote"
+          aria-checked={data.shareFindings}
+          disabled={busy}
+          onClick={() => (data.shareFindings ? setAsking(true) : put(true))}
+        />
+      </div>
+      <div className="card-pad small muted" style={{ display: "grid", gap: 8 }}>
+        <span>
+          Off by default. When on, each signed-in review also sends its findings: file paths, line
+          ranges, titles, descriptions, suggestions and <b>the code each finding quotes</b>, after
+          replacing secret-looking tokens with [redacted] (this catches common patterns, not every
+          secret). You can then open a review's findings here, download them, and remember findings
+          so later reviews stop reporting them. Kept 90 days with their review.
+        </span>
+        <span className="subtle">{data.findingsStored} finding(s) stored now.</span>
+        {asking && (
+          <div
+            className="note"
+            style={{
+              marginTop: 4,
+              display: "flex",
+              gap: 8,
+              flexWrap: "wrap",
+              alignItems: "center",
+            }}
+          >
+            <span style={{ flex: 1, minWidth: 220 }}>
+              Stop sending findings. Delete the {data.findingsStored} already sent too?
+            </span>
+            <button
+              type="button"
+              className="btn btn-sm btn-danger-solid"
+              disabled={busy}
+              onClick={() => put(false, true)}
+            >
+              Turn off and delete
+            </button>
+            <button type="button" className="btn btn-sm" disabled={busy} onClick={() => put(false)}>
+              Turn off, keep them
+            </button>
+            <button type="button" className="btn btn-sm" onClick={() => setAsking(false)}>
+              Cancel
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

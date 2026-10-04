@@ -35,6 +35,23 @@ const rows = {
   }),
   preferences: (id: string) => ({ id, models: { standard: ["ocra-openrouter/m"] } }),
   preferenceVersions: (id: string) => ({ id, snapshot: { models: {} }, changed: ["models"] }),
+  // The review it belongs to is made in beforeEach (the foreign key needs one).
+  findings: (id: string) => ({
+    id,
+    reviewId: "review-of-a",
+    fingerprint: `fp-${id}`,
+    reviewer: "security",
+    severity: "warning",
+    file: "a.ts",
+    title: "t",
+    body: "b",
+  }),
+  accountMemory: (id: string) => ({
+    id,
+    repoHash: "h",
+    fingerprint: `fp-${id}`,
+    reason: "accepted",
+  }),
 } satisfies { [N in keyof typeof schema.accountTables]: (id: string) => unknown };
 
 // A change to one column of each table's row.
@@ -46,6 +63,8 @@ const changes = {
   gatewayCalls: { status: 500 },
   preferences: { models: { light: ["ocra-openrouter/x"] } },
   preferenceVersions: { changed: ["runtime"] },
+  findings: { severity: "critical" },
+  accountMemory: { reason: "changed" },
 } satisfies { [N in keyof typeof rows]: Record<string, unknown> };
 
 // Storage persists across tests in a file; deleting the accounts cascades.
@@ -66,6 +85,15 @@ it("covers every table that has an account column", () => {
 });
 
 describe.each(Object.keys(rows) as (keyof typeof rows)[])("%s", (name) => {
+  beforeEach(async () => {
+    // A finding needs a review to belong to (foreign key).
+    if (name === "findings") {
+      await db
+        .insert(schema.reviews)
+        .values({ id: "review-of-a", accountId: A, runId: "r", repoHash: "h", source: "local" });
+    }
+  });
+
   it("one account cannot read, change or delete another's rows", async () => {
     const a = scoped(db, A);
     const b = scoped(db, B);

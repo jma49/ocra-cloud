@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { requireSession } from "./auth.js";
 import type { ReviewerCounts } from "./db/schema.js";
+import { parseFindings } from "./findings.js";
 import type { AppEnv } from "./types.js";
 
 // Review metadata: the CLI uploads counts after a review, the web lists them.
@@ -94,16 +95,73 @@ export function parseUpload(body: unknown) {
 }
 
 reviews.post("/", requireSession(["web", "cli"]), async (c) => {
-  if (Number(c.req.header("content-length") ?? "0") > 16_384)
+  // Counts are small; findings, sent only when the account shares them, are
+  // bounded to 256 KB of text (ADR-0028).
+  if (Number(c.req.header("content-length") ?? "0") > 600_000)
     return c.json({ error: "body_too_large" }, 413);
-  const row = parseUpload(await c.req.json().catch(() => null));
+  const body = (await c.req.json().catch(() => null)) as Record<string, unknown> | null;
+  const row = parseUpload(body);
   if (!row) return c.json({ error: "bad_review" }, 400);
   // A run uploads once; a retry of the same run is not a second review.
   const existing = (await c.var.data.list("reviews")).find((r) => r.runId === row.runId);
   if (existing) return c.json({ id: existing.id, duplicate: true });
   const id = crypto.randomUUID();
   await c.var.data.insert("reviews", { id, ...row });
-  return c.json({ id });
+  // Findings are kept only while the account shares them, whatever the CLI sent.
+  let stored = 0;
+  let truncated = false;
+  if (c.var.session.account.shareFindings && body?.findings !== undefined) {
+    const parsed = parseFindings(body.findings);
+    truncated = parsed.truncated;
+    for (const f of parsed.rows) {
+      await c.var.data.insert("findings", { id: crypto.randomUUID(), reviewId: id, ...f });
+    }
+    stored = parsed.rows.length;
+  }
+  return c.json({ id, findings: stored, ...(truncated ? { truncated: true } : {}) });
+});
+
+// One review with its findings, for the web's detail page.
+reviews.get("/:id", requireSession(), async (c) => {
+  const review = await c.var.data.get("reviews", c.req.param("id"));
+  if (!review) return c.json({ error: "not_found" }, 404);
+  const list = (await c.var.data.list("findings")).filter((f) => f.reviewId === review.id);
+  const { accountId: _a, ...r } = review;
+  return c.json({
+    review: { ...r, repo: r.repoHash.slice(0, 8) },
+    findings: list.map(({ accountId: _x, reviewId: _y, ...f }) => f),
+  });
+});
+
+// ocra-cloud/review-export v1: the uploaded counts and findings in the
+// report's findings[] shape. Not a report: coverage, tasks and provenance
+// were never uploaded (ADR-0028, 3).
+reviews.get("/:id/export", requireSession(), async (c) => {
+  const review = await c.var.data.get("reviews", c.req.param("id"));
+  if (!review) return c.json({ error: "not_found" }, 404);
+  const list = (await c.var.data.list("findings")).filter((f) => f.reviewId === review.id);
+  const { accountId: _a, ...r } = review;
+  c.header("content-disposition", `attachment; filename="ocra-review-${review.runId}.json"`);
+  return c.json({
+    format: "ocra-cloud/review-export",
+    version: 1,
+    review: r,
+    findings: list.map((f) => ({
+      fingerprint: f.fingerprint,
+      reviewer: f.reviewer,
+      severity: f.severity,
+      category: f.category,
+      verification: f.verification,
+      file: f.file,
+      lines: f.lineStart === null ? null : { start: f.lineStart, end: f.lineEnd ?? f.lineStart },
+      title: f.title,
+      body: f.body,
+      suggestion: f.suggestion,
+      evidence: f.code,
+      redacted: f.redacted,
+      truncated: f.truncated,
+    })),
+  });
 });
 
 reviews.get("/", requireSession(), async (c) => {

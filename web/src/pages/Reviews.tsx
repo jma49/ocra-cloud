@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { api, compact, num, type Review, type Reviews as ReviewsData, time } from "../api.js";
+import { Link } from "../router.js";
 import { PageHead, Seg, useLoad } from "../ui.js";
 
 const RANGES = [
@@ -137,7 +138,9 @@ export function Reviews() {
               <tbody>
                 {data.reviews.map((r) => (
                   <tr key={r.id}>
-                    <td className="muted">{time(r.createdAt)}</td>
+                    <td>
+                      <Link to={`/reviews/${r.id}`}>{time(r.createdAt)}</Link>
+                    </td>
                     <td className="mono">{r.repo}</td>
                     <td className="muted">
                       {r.source === "local"

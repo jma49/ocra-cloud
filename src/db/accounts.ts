@@ -1,4 +1,4 @@
-import { and, eq, gt } from "drizzle-orm";
+import { and, eq, gt, isNull } from "drizzle-orm";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import { accounts, sessions } from "./schema.js";
 
@@ -65,4 +65,36 @@ export async function sessionByRefreshHash(
 /** Deletes an account; its sessions, keys and records go with it (cascade). */
 export async function deleteAccount(db: DrizzleD1Database, accountId: string): Promise<void> {
   await db.delete(accounts).where(eq(accounts.id, accountId));
+}
+
+export async function setSharing(
+  db: DrizzleD1Database,
+  accountId: string,
+  on: boolean,
+): Promise<void> {
+  await db.update(accounts).set({ shareFindings: on }).where(eq(accounts.id, accountId));
+}
+
+/** The account's salt, made on first use (64 hex characters). */
+export async function accountSalt(db: DrizzleD1Database, accountId: string): Promise<string> {
+  const row = await db
+    .select({ salt: accounts.salt })
+    .from(accounts)
+    .where(eq(accounts.id, accountId))
+    .get();
+  if (row?.salt) return row.salt;
+  const salt = Array.from(crypto.getRandomValues(new Uint8Array(32)), (b) =>
+    b.toString(16).padStart(2, "0"),
+  ).join("");
+  // Only the first writer's salt stands, so two machines cannot race to different ones.
+  await db
+    .update(accounts)
+    .set({ salt })
+    .where(and(eq(accounts.id, accountId), isNull(accounts.salt)));
+  const after = await db
+    .select({ salt: accounts.salt })
+    .from(accounts)
+    .where(eq(accounts.id, accountId))
+    .get();
+  return after?.salt ?? salt;
 }

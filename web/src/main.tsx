@@ -6,9 +6,11 @@ import { Agents, completeAgents } from "./pages/Agents.js";
 import { Defaults } from "./pages/Defaults.js";
 import { Device } from "./pages/Device.js";
 import { Keys } from "./pages/Keys.js";
+import { Memory } from "./pages/Memory.js";
 import { Overview } from "./pages/Overview.js";
 import { Plugins } from "./pages/Plugins.js";
 import { Privacy } from "./pages/Privacy.js";
+import { ReviewDetail } from "./pages/ReviewDetail.js";
 import { ReviewSettings } from "./pages/ReviewSettings.js";
 import { Reviews } from "./pages/Reviews.js";
 import { Rules } from "./pages/Rules.js";
@@ -39,6 +41,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
       { to: "/review-settings", label: "Review settings", icon: "sliders" },
       { to: "/rules", label: "Rules", icon: "list" },
       { to: "/plugins", label: "Plugins", icon: "puzzle" },
+      { to: "/memory", label: "Memory", icon: "check" },
       { to: "/defaults", label: "Defaults & history", icon: "file" },
     ],
   },
@@ -222,6 +225,10 @@ function App() {
       <Device />
     ) : path === "/activity" ? (
       <Activity />
+    ) : path.startsWith("/reviews/") ? (
+      <ReviewDetail id={decodeURIComponent(path.slice("/reviews/".length))} />
+    ) : path === "/memory" ? (
+      <Memory />
     ) : path === "/reviews" ? (
       <Reviews />
     ) : path === "/agents" || path === "/models" ? (

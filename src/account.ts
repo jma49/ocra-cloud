@@ -1,7 +1,8 @@
 import { Hono } from "hono";
 import { deleteCookie } from "hono/cookie";
 import { SESSION_COOKIE } from "./auth.js";
-import { deleteAccount } from "./db/accounts.js";
+import { accountSalt, deleteAccount, setSharing } from "./db/accounts.js";
+import { audit } from "./keys.js";
 import type { AppEnv } from "./types.js";
 
 // The signed-in account: usage, sessions, and deleting it all.
@@ -128,6 +129,8 @@ account.get("/export", async (c) => {
     reviews: strip(await d.list("reviews")),
     gatewayCalls: strip(await d.list("gatewayCalls")),
     auditEvents: strip(await d.list("auditEvents")),
+    findings: strip(await d.list("findings")),
+    memory: strip(await d.list("accountMemory")),
   });
 });
 
@@ -139,4 +142,35 @@ account.delete("/account", async (c) => {
   await deleteAccount(c.var.db, c.var.session.account.id);
   deleteCookie(c, SESSION_COOKIE, { path: "/", secure: true });
   return c.json({ deleted: true });
+});
+
+// Sharing findings (ADR-0028, 2): off by default. Turning it off can delete
+// every finding sent; the counts stay.
+account.get("/account/sharing", async (c) => {
+  const stored = (await c.var.data.list("findings")).length;
+  return c.json({ shareFindings: c.var.session.account.shareFindings, findingsStored: stored });
+});
+
+account.put("/account/sharing", async (c) => {
+  const body = (await c.req.json().catch(() => null)) as {
+    enabled?: unknown;
+    deleteExisting?: unknown;
+  } | null;
+  if (typeof body?.enabled !== "boolean") return c.json({ error: "bad_request" }, 400);
+  await setSharing(c.var.db, c.var.session.account.id, body.enabled);
+  let deleted = 0;
+  if (!body.enabled && body.deleteExisting === true) {
+    for (const f of await c.var.data.list("findings")) {
+      if (await c.var.data.remove("findings", f.id)) deleted++;
+    }
+  }
+  await audit(c.var.data, "sharing.changed", { shareFindings: body.enabled, deleted });
+  return c.json({ shareFindings: body.enabled, deleted });
+});
+
+// The account's repository-hash salt, so one repository hashes alike on all
+// its machines; only while findings are shared (ADR-0028, 4).
+account.get("/account/salt", async (c) => {
+  if (!c.var.session.account.shareFindings) return c.json({ salt: null });
+  return c.json({ salt: await accountSalt(c.var.db, c.var.session.account.id) });
 });

@@ -5,6 +5,7 @@ import { auth, requireSession } from "./auth.js";
 import { device } from "./device.js";
 import { gateway } from "./gateway.js";
 import { keys } from "./keys.js";
+import { memory } from "./memory.js";
 import { preferences } from "./preferences.js";
 import { type ProviderName, providerInfo, providers } from "./providers.js";
 import { enforceRetention } from "./retention.js";
@@ -47,11 +48,14 @@ app.use("/usage", requireSession());
 app.use("/sessions/*", requireSession());
 app.use("/sessions", requireSession());
 app.use("/account", requireSession());
+app.use("/account/sharing", requireSession());
+app.use("/account/salt", requireSession(["web", "cli"]));
 app.use("/export", requireSession());
 app.route("/", account);
 
 app.route("/reviews", reviews);
 app.route("/preferences", preferences);
+app.route("/memory", memory);
 
 app.use("/keys/*", requireSession());
 app.route("/keys", keys);

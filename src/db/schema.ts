@@ -19,6 +19,10 @@ export const accounts = sqliteTable("accounts", {
   id: text("id").primaryKey(),
   githubId: integer("github_id").notNull().unique(),
   login: text("login").notNull(),
+  // ADR-0028: findings and their quoted code are uploaded only when on.
+  shareFindings: integer("share_findings", { mode: "boolean" }).notNull().default(false),
+  // The repository-hash salt shared by the account's machines when sharing is on.
+  salt: text("salt"),
   createdAt: createdAt(),
 });
 
@@ -197,6 +201,44 @@ export const preferenceVersions = sqliteTable("preference_versions", {
   createdAt: createdAt(),
 });
 
+// A finding of an uploaded review, only while the account shares findings
+// (ADR-0028). Redacted and bounded; deleted with its review.
+export const findings = sqliteTable("findings", {
+  id: text("id").primaryKey(),
+  accountId: accountId(),
+  reviewId: text("review_id")
+    .notNull()
+    .references(() => reviews.id, { onDelete: "cascade" }),
+  fingerprint: text("fingerprint").notNull(),
+  reviewer: text("reviewer").notNull(),
+  severity: text("severity").notNull(),
+  category: text("category"),
+  verification: text("verification"),
+  file: text("file").notNull(),
+  lineStart: integer("line_start"),
+  lineEnd: integer("line_end"),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  suggestion: text("suggestion"),
+  code: text("code"),
+  redacted: integer("redacted", { mode: "boolean" }).notNull().default(false),
+  truncated: integer("truncated", { mode: "boolean" }).notNull().default(false),
+  createdAt: createdAt(),
+});
+
+// Findings the account remembers (ADR-0028, 4), applied with a repository's
+// .ocra/memory.json. Kept until deleted; at most 500 per repository.
+export const accountMemory = sqliteTable("account_memory", {
+  id: text("id").primaryKey(),
+  accountId: accountId(),
+  repoHash: text("repo_hash").notNull(),
+  fingerprint: text("fingerprint").notNull(),
+  file: text("file"),
+  title: text("title"),
+  reason: text("reason").notNull(),
+  createdAt: createdAt(),
+});
+
 /** The tables scoped by account, by the name scoped() uses. */
 export const accountTables = {
   sessions,
@@ -206,4 +248,6 @@ export const accountTables = {
   gatewayCalls,
   preferences,
   preferenceVersions,
+  findings,
+  accountMemory,
 } as const;
