@@ -5,7 +5,8 @@ import { encryptSecret, keyBinding } from "./crypto.js";
 import type { Scoped } from "./db/scoped.js";
 import { apiError, jsonBody } from "./http.js";
 import { decryptKey, storedKey } from "./keyring.js";
-import { checkKey, isProvider, listModels, verifyRoutes } from "./providers.js";
+import { checkKey, listModels } from "./provider-keys.js";
+import { isProvider, providers } from "./providers.js";
 import { requireSession } from "./session.js";
 import type { AppEnv } from "./types.js";
 
@@ -30,7 +31,7 @@ keys.get("/", async (c) => {
       createdAt: r.createdAt,
       checkStatus: r.checkStatus,
       checkedAt: r.checkedAt,
-      checkable: isProvider(r.provider) && r.provider in verifyRoutes,
+      checkable: isProvider(r.provider) && providers[r.provider].verify !== undefined,
       lastUsedAt: use.get(r.provider)?.lastUsedAt ?? null,
       calls7d: use.get(r.provider)?.calls7d ?? 0,
     })),
