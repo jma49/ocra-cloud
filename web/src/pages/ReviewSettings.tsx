@@ -1,12 +1,15 @@
 import { GlobList, NumberField, Row, TriSwitch } from "../form.js";
-import { useSettings } from "../prefs.js";
+import { usePrefs, useSettings } from "../prefs.js";
 import { PageHead } from "../ui.js";
 
 // Limits, checking and file selection (ADR-0027). Each applies only where
 // the repository's .ocra/config.json leaves it out; lists combine with it.
 
 export function ReviewSettings() {
+  const { draft } = usePrefs();
   const { settings, set } = useSettings();
+  // The fields start from the saved values, so they wait for them.
+  if (!draft) return <PageHead title="Review settings" />;
   const sampling = settings.sampling ?? {};
   return (
     <>

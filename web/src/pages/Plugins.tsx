@@ -8,7 +8,7 @@ import { PageHead } from "../ui.js";
 const PACKAGE = /^(@[a-z0-9][a-z0-9._~-]*\/)?[a-z0-9][a-z0-9._~-]*$/;
 
 export function Plugins() {
-  const { settings, set } = useSettings();
+  const { settings, set, setMany } = useSettings();
   const plugins = settings.plugins ?? [];
   const pluginSettings = settings.pluginSettings ?? {};
   const [name, setName] = useState("");
@@ -22,13 +22,11 @@ export function Plugins() {
     set("plugins", [...plugins, name.trim()]);
     setName("");
   };
+  // One update for both keys: two separate ones would each start from the
+  // same draft and the second would undo the first.
   const remove = (p: string) => {
-    set(
-      "plugins",
-      plugins.filter((x) => x !== p),
-    );
     const { [p]: _, ...rest } = pluginSettings;
-    set("pluginSettings", rest);
+    setMany({ plugins: plugins.filter((x) => x !== p), pluginSettings: rest });
   };
   const saveSettings = (p: string) => {
     try {
@@ -36,7 +34,7 @@ export function Plugins() {
       if (parsed !== undefined && (typeof parsed !== "object" || Array.isArray(parsed)))
         throw new Error();
       const { [p]: _, ...rest } = pluginSettings;
-      set("pluginSettings", parsed ? { ...rest, [p]: parsed } : rest);
+      setMany({ pluginSettings: parsed ? { ...rest, [p]: parsed } : rest });
       setEditing(null);
       setError("");
     } catch {

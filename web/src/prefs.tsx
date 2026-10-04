@@ -48,7 +48,9 @@ export type Prefs = {
 type Ctx = {
   saved: Prefs | undefined;
   draft: Prefs | undefined;
-  setDraft: (p: Prefs) => void;
+  // A value, or an update from the latest draft (two updates in one event
+  // must not overwrite each other).
+  setDraft: (p: Prefs | ((prev: Prefs) => Prefs)) => void;
   dirty: boolean;
   saving: boolean;
   error: string;
@@ -82,6 +84,11 @@ export function PrefsProvider(props: { children: ReactNode; clean?: (p: Prefs) =
       },
       () => setError("Could not load your settings."),
     );
+  }, []);
+
+  // Before the preferences load there is no draft to update.
+  const update = useCallback((p: Prefs | ((prev: Prefs) => Prefs)) => {
+    setDraft((prev) => (prev === undefined ? prev : typeof p === "function" ? p(prev) : p));
   }, []);
 
   const toast = useCallback((m: string) => {
@@ -124,8 +131,8 @@ export function PrefsProvider(props: { children: ReactNode; clean?: (p: Prefs) =
   }, [dirty]);
 
   const value = useMemo(
-    () => ({ saved, draft, setDraft, dirty, saving, error, save, discard, toast }),
-    [saved, draft, dirty, saving, error, save, discard, toast],
+    () => ({ saved, draft, setDraft: update, dirty, saving, error, save, discard, toast }),
+    [saved, draft, update, dirty, saving, error, save, discard, toast],
   );
   return (
     <PrefsContext.Provider value={value}>
@@ -164,22 +171,29 @@ export function usePrefs(): Ctx {
 }
 
 /** Updates one part of the draft's settings; an empty value removes the key. */
+const isEmpty = (value: unknown) =>
+  value === undefined ||
+  (Array.isArray(value) && value.length === 0) ||
+  (typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value) &&
+    Object.keys(value).length === 0);
+
+/** Updates the draft's settings from the latest draft; an empty value removes the key. */
 export function useSettings() {
   const { draft, setDraft } = usePrefs();
   const settings = draft?.settings ?? {};
-  const set = <K extends keyof Settings>(key: K, value: Settings[K] | undefined) => {
-    if (!draft) return;
-    const next = { ...settings };
-    const empty =
-      value === undefined ||
-      (Array.isArray(value) && value.length === 0) ||
-      (typeof value === "object" &&
-        value !== null &&
-        !Array.isArray(value) &&
-        Object.keys(value).length === 0);
-    if (empty) delete next[key];
-    else next[key] = value;
-    setDraft({ ...draft, settings: next });
+  const setMany = (changes: Partial<Settings>) => {
+    setDraft((prev) => {
+      const next: Settings = { ...prev.settings };
+      for (const [key, value] of Object.entries(changes) as [keyof Settings, unknown][]) {
+        if (isEmpty(value)) delete next[key];
+        else (next as Record<string, unknown>)[key] = value;
+      }
+      return { ...prev, settings: next };
+    });
   };
-  return { settings, set };
+  const set = <K extends keyof Settings>(key: K, value: Settings[K] | undefined) =>
+    setMany({ [key]: value } as Partial<Settings>);
+  return { settings, set, setMany };
 }

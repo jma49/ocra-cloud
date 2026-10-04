@@ -1,4 +1,4 @@
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 
 // Settings rows: a label, what it does, its built-in default, and a control.
 // Unset means "the repository's value, else the default", shown as such.
@@ -26,6 +26,13 @@ export function NumberField(props: {
   onChange: (v: number | undefined) => void;
 }) {
   const [text, setText] = useState(props.value === undefined ? "" : String(props.value));
+  // Follow a value that changes from outside (the settings loading, Discard,
+  // a restored version), but not one this field is in the middle of typing.
+  useEffect(() => {
+    const shown = text.trim() === "" ? undefined : Number(text);
+    if (shown !== props.value) setText(props.value === undefined ? "" : String(props.value));
+    // biome-ignore lint/correctness/useExhaustiveDependencies: only an outside change of the value resyncs
+  }, [props.value]);
   const invalid =
     text !== "" &&
     (Number.isNaN(Number(text)) || Number(text) < props.min || Number(text) > props.max);
