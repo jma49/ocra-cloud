@@ -1,0 +1,38 @@
+{
+  "name": "ocra-cloud",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.19"
+  },
+  "scripts": {
+    "dev": "npm run build:web && wrangler dev",
+    "build:web": "vite build --config web/vite.config.ts",
+    "check": "biome check --error-on-warnings .",
+    "format": "biome check --write .",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p web/tsconfig.json --noEmit",
+    "test": "vitest run",
+    "db:generate": "drizzle-kit generate",
+    "types": "wrangler types src/worker-configuration.d.ts",
+    "verify": "npm run check && npm run typecheck && npm test && npm run build:web",
+    "deploy": "npm run build:web && wrangler d1 migrations apply ocra-cloud --remote && wrangler deploy"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.45.3",
+    "hono": "^4.13.13"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.15",
+    "@cloudflare/vitest-pool-workers": "^0.22.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "drizzle-kit": "^0.31.11",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.2",
+    "vitest": "^4.1.11",
+    "wrangler": "^4.147.0"
+  }
+}
