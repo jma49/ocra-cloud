@@ -1,0 +1,4 @@
+# Copy to .dev.vars for wrangler dev. Values for local development only.
+GITHUB_CLIENT_SECRET=
+MASTER_KEY=
+SESSION_SECRET=

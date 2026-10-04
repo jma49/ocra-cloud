@@ -6,6 +6,9 @@
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
   "observability": { "enabled": true },
+  // The GitHub App "ocra Cloud dev" signs users in. Secrets (set with
+  // wrangler secret put): GITHUB_CLIENT_SECRET, MASTER_KEY, SESSION_SECRET.
+  "vars": { "GITHUB_CLIENT_ID": "Iv23liQIb7RBK0JvrxbN" },
   // The web app is a single-page app; the Worker answers /api first.
   "assets": {
     "directory": "./web/dist",
