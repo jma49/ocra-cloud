@@ -62,11 +62,11 @@ export function Memory() {
                 {data.entries.map((m) => (
                   <tr key={m.id}>
                     <td className="mono">{m.repo}</td>
-                    <td style={{ whiteSpace: "normal", minWidth: 220 }}>
+                    <td className="finding-cell">
                       <div>{m.title ?? <span className="subtle">(title removed)</span>}</div>
                       <div className="mono subtle small">{m.file ?? m.fingerprint}</div>
                     </td>
-                    <td style={{ whiteSpace: "normal" }}>{m.reason}</td>
+                    <td className="text">{m.reason}</td>
                     <td className="muted">{ago(m.createdAt)}</td>
                     <td className="num">
                       <button

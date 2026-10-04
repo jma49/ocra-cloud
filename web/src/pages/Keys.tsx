@@ -92,7 +92,7 @@ export function Keys() {
           </div>
         </div>
       )}
-      <p className="subtle small" style={{ marginTop: 14 }}>
+      <p className="subtle small keys-foot">
         Each key is encrypted with its own data key, wrapped by a master key kept apart from the
         database. Set a spending limit at your provider as well.
       </p>
@@ -177,10 +177,10 @@ function KeyRow(props: {
   return (
     <tr>
       <td>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div className="key-name">
           <ProviderLogo label={label} size={28} />
           <div>
-            <div style={{ fontWeight: 500 }}>{label}</div>
+            <div className="strong">{label}</div>
             <div className="subtle small">{p ? formats(p) : ""}</div>
           </div>
         </div>

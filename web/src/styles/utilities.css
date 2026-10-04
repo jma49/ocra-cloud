@@ -1,0 +1,47 @@
+/* A few single-purpose classes, imported last so they win over the
+   components they are combined with. */
+
+.strong {
+  font-weight: 500;
+}
+.semibold {
+  font-weight: 600;
+}
+.row-gap {
+  display: flex;
+  gap: 8px;
+}
+.grow {
+  flex: 1;
+}
+.wrap {
+  flex-wrap: wrap;
+}
+.stack {
+  display: grid;
+  gap: 8px;
+}
+.m-0 {
+  margin: 0;
+}
+.mt-0 {
+  margin-top: 0;
+}
+.mb-0 {
+  margin-bottom: 0;
+}
+.pre-wrap {
+  white-space: pre-wrap;
+}
+.capitalize {
+  text-transform: capitalize;
+}
+.footnote {
+  margin-top: 12px;
+}
+.center {
+  align-items: center;
+}
+.self-center {
+  align-self: center;
+}

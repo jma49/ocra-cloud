@@ -69,15 +69,9 @@ export function Rules() {
       ) : (
         <div className="card">
           {rules.map((r, i) => (
-            <div
-              className="list-row"
-              key={ids.current[i]}
-              style={{ alignItems: "flex-start", flexWrap: "wrap" }}
-            >
-              <span className="step-n" style={{ marginTop: 6 }}>
-                {i + 1}
-              </span>
-              <div className="grow" style={{ display: "grid", gap: 8 }}>
+            <div className="list-row row-top" key={ids.current[i]}>
+              <span className="step-n rule-n">{i + 1}</span>
+              <div className="grow stack">
                 {editing === i ? (
                   <>
                     <input
@@ -110,7 +104,7 @@ export function Rules() {
                   <>
                     <div className="chips">
                       {paths(r).map((p) => (
-                        <span key={p} className="chip-x" style={{ paddingRight: 10 }}>
+                        <span key={p} className="chip-x static">
                           {p}
                         </span>
                       ))}
@@ -137,7 +131,7 @@ export function Rules() {
           ))}
         </div>
       )}
-      <p className="subtle small" style={{ marginTop: 12 }}>
+      <p className="subtle small footnote">
         Up to {MAX} rules of 2,000 characters. A rule is shown to the reviewers as data, like a
         repository's; each report lists the rules it used and where they came from.
       </p>

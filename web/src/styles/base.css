@@ -1,0 +1,101 @@
+/* Base: fonts, colour tokens (light and dark), element defaults, text tones. Imported first. */
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
+
+:root {
+  --bg: #ffffff;
+  --bg-subtle: #fafafa;
+  --muted: #f4f4f5;
+  --fg: #09090b;
+  --fg-muted: #52525b;
+  --fg-subtle: #71717a;
+  --border: #e4e4e7;
+  --border-strong: #d4d4d8;
+  --primary: #0b7a5c;
+  --primary-soft: #e6f6f0;
+  --on-primary: #ffffff;
+  --button: #09090b;
+  --on-button: #ffffff;
+  --critical: #b91c1c;
+  --critical-soft: #fdecec;
+  --warning: #b45309;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.04);
+  --c1: #0b7a5c;
+  --c2: #6366f1;
+  --c3: #f59e0b;
+  --c4: #ec4899;
+  --c5: #06b6d4;
+  --c6: #a1a1aa;
+  --font: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --mono: "Geist Mono Variable", ui-monospace, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #09090b;
+    --bg-subtle: #0f0f11;
+    --muted: #18181b;
+    --fg: #fafafa;
+    --fg-muted: #a1a1aa;
+    --fg-subtle: #85858e;
+    --border: #27272a;
+    --border-strong: #3f3f46;
+    --primary: #7fffd4;
+    --primary-soft: #13261f;
+    --on-primary: #04110c;
+    --button: #fafafa;
+    --on-button: #09090b;
+    --critical: #f87171;
+    --critical-soft: #2a1416;
+    --warning: #fbbf24;
+    --shadow: none;
+    --c1: #34d399;
+    --c2: #818cf8;
+    --c3: #fbbf24;
+    --c4: #f472b6;
+    --c5: #22d3ee;
+    --c6: #52525b;
+    color-scheme: dark;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+}
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font: 14px / 1.55 var(--font);
+  -webkit-font-smoothing: antialiased;
+}
+a {
+  color: inherit;
+}
+code,
+.mono {
+  font-family: var(--mono);
+  font-size: 12.5px;
+}
+h1,
+h2,
+h3 {
+  margin: 0;
+  letter-spacing: -0.015em;
+}
+button {
+  font: inherit;
+}
+
+.muted {
+  color: var(--fg-muted);
+}
+.subtle {
+  color: var(--fg-subtle);
+}
+.small {
+  font-size: 12.5px;
+}

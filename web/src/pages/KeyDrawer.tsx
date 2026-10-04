@@ -99,8 +99,7 @@ export function AddKeyDrawer(props: {
         {!p ? (
           <div className="drawer-body">
             <input
-              className="input"
-              style={{ width: "100%", height: 38 }}
+              className="input provider-search"
               placeholder={`Search ${props.providers.length} providers by name or domain`}
               aria-label="Search providers"
               value={q}
@@ -154,15 +153,11 @@ export function AddKeyDrawer(props: {
             )}
           </div>
         ) : (
-          <form
-            className="drawer-body"
-            onSubmit={save}
-            style={{ display: "flex", flexDirection: "column" }}
-          >
+          <form className="drawer-body drawer-form" onSubmit={save}>
             <div className="chosen">
               <ProviderLogo label={p.label} size={36} />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 600 }}>{p.label}</div>
+              <div className="grow">
+                <div className="semibold">{p.label}</div>
                 <div className="subtle small mono">{new URL(p.base).host}</div>
               </div>
               {!props.initial && (
@@ -182,8 +177,7 @@ export function AddKeyDrawer(props: {
               <label htmlFor="key-input">API key</label>
               <input
                 id="key-input"
-                className="input mono"
-                style={{ height: 38 }}
+                className="input mono key-input"
                 type="password"
                 autoComplete="off"
                 spellCheck={false}
@@ -202,7 +196,7 @@ export function AddKeyDrawer(props: {
               <label htmlFor="key-endpoints">Endpoints you can call through ocra</label>
               <div id="key-endpoints" className="pick-list">
                 {p.paths.map((path) => (
-                  <div key={path} className="pick" style={{ cursor: "default" }}>
+                  <div key={path} className="pick static">
                     <span className="mono small">
                       {path.startsWith("^") ? "/v1beta/models/{model}:generateContent" : path}
                     </span>
@@ -213,8 +207,8 @@ export function AddKeyDrawer(props: {
             </div>
             {result && <CheckNote check={result} label={p.label} />}
             {error && <div className="note err">{error}</div>}
-            <div style={{ flex: 1 }} />
-            <div className="drawer-foot" style={{ margin: "20px -20px -20px" }}>
+            <div className="grow" />
+            <div className="drawer-foot">
               <button type="button" className="btn" onClick={props.onClose}>
                 {result ? "Done" : "Cancel"}
               </button>

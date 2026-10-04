@@ -69,7 +69,7 @@ export function TopBar(props: { me: Me | null }) {
           {open && (
             <div className="menu" id="account-menu">
               <div className="menu-head">
-                <div style={{ fontWeight: 500 }}>{props.me.login}</div>
+                <div className="strong">{props.me.login}</div>
                 <div className="subtle small">Signed in with GitHub</div>
               </div>
               <Link to="/settings" className="menu-item">

@@ -48,7 +48,7 @@ export function Plugins() {
         title="Plugins"
         sub="Reviewers, rule packs and runtimes from npm, with their settings."
       />
-      <div className="note" style={{ marginTop: 0, marginBottom: 16 }}>
+      <div className="note lead-note">
         <span>
           <b>Plugins run code on your machine.</b> ocra Cloud only names them: each machine installs
           a pinned version itself, and ocra loads a plugin listed here only after you allow it there
@@ -69,9 +69,7 @@ export function Plugins() {
           <div key={p}>
             <div className="list-row">
               <div className="grow">
-                <div className="mono" style={{ fontWeight: 500 }}>
-                  {p}
-                </div>
+                <div className="mono strong">{p}</div>
                 <div className="subtle small">
                   {pluginSettings[p] ? "Has settings" : "No settings"} · allow on each machine:{" "}
                   <span className="mono">ocra plugins allow {p}@&lt;version&gt;</span>
@@ -95,7 +93,7 @@ export function Plugins() {
               </div>
             </div>
             {editing === p && (
-              <div className="inline-form" style={{ display: "grid", paddingLeft: 20 }}>
+              <div className="inline-form plugin-settings">
                 <textarea
                   className="input mono"
                   rows={6}
@@ -104,7 +102,7 @@ export function Plugins() {
                   value={text}
                   onChange={(e) => setText(e.target.value)}
                 />
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <div className="row-gap center">
                   <button
                     type="button"
                     className="btn btn-sm btn-primary"

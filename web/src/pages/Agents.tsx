@@ -106,17 +106,9 @@ export function Agents() {
       />
 
       <div className="card card-pad">
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            gap: 16,
-            flexWrap: "wrap",
-            alignItems: "center",
-          }}
-        >
+        <div className="card-row">
           <div>
-            <div style={{ fontWeight: 600 }}>Runtime</div>
+            <div className="semibold">Runtime</div>
             <div className="subtle small">
               Direct calls the models itself and applies reasoning effort; OpenCode runs each agent
               in OpenCode (effort not applied yet).
@@ -145,13 +137,9 @@ export function Agents() {
           </span>
         </div>
         {TIERS.map((t) => (
-          <div
-            className="list-row"
-            key={t.id}
-            style={{ alignItems: "flex-start", flexWrap: "wrap" }}
-          >
-            <div style={{ width: 150 }}>
-              <div style={{ fontWeight: 500 }}>{t.label}</div>
+          <div className="list-row row-top" key={t.id}>
+            <div className="tier-label">
+              <div className="strong">{t.label}</div>
               <div className="subtle small">{t.hint}</div>
             </div>
             <div className="grow">
@@ -221,11 +209,9 @@ export function Agents() {
                   ? true
                   : (own as { enabled?: boolean } | undefined)?.enabled !== false;
                 return (
-                  <tr key={a.id} style={{ opacity: enabled ? 1 : 0.5 }}>
+                  <tr key={a.id} className={enabled ? undefined : "agent-off"}>
                     <td>
-                      <div className="mono" style={{ fontWeight: 500 }}>
-                        {a.id}
-                      </div>
+                      <div className="mono strong">{a.id}</div>
                       <div className="subtle small">
                         {a.hint} · {a.tier}
                       </div>
@@ -244,7 +230,7 @@ export function Agents() {
                         />
                       )}
                     </td>
-                    <td style={{ minWidth: 320 }}>
+                    <td className="chain-cell">
                       {own?.models ? (
                         <ChainEditor
                           chain={own.models}
@@ -288,7 +274,7 @@ export function Agents() {
           </table>
         </div>
       </div>
-      <p className="subtle small" style={{ marginTop: 12 }}>
+      <p className="subtle small footnote">
         Plugin reviewers can be set in the repository's configuration. Effort levels shown are the
         ones the model is known to take; a level a provider refuses is dropped for that run with a
         warning, never failing the review.
@@ -364,13 +350,13 @@ function ChainEditor(props: {
   const setAt = (i: number, value: string) =>
     props.onChange(rows.map((m, j) => (j === i ? value : m)));
   return (
-    <div style={{ display: "grid", gap: 6 }}>
+    <div className="chain">
       {rows.map((m, i) => {
         const { provider, model } = split(m);
         const listId = `chain-${provider}`;
         return (
           // biome-ignore lint/suspicious/noArrayIndexKey: a row is a position in the fallback chain; keying by the model id would remount it on every keystroke
-          <div key={`${i}-${provider}`} style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <div key={`${i}-${provider}`} className="chain-row">
             <select
               className="input"
               aria-label="Provider"
@@ -384,8 +370,7 @@ function ChainEditor(props: {
               ))}
             </select>
             <input
-              className="input mono"
-              style={{ flex: 1, minWidth: 180 }}
+              className="input mono chain-model"
               aria-label="Model"
               list={listId}
               placeholder="Model id"
