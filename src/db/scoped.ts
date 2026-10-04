@@ -20,7 +20,7 @@ import { accountTables } from "./schema.js";
 
 type Tables = typeof accountTables;
 type Name = keyof Tables;
-type Row<N extends Name> = InferSelectModel<Tables[N]>;
+export type Row<N extends Name> = InferSelectModel<Tables[N]>;
 type NewRow<N extends Name> = Omit<InferInsertModel<Tables[N]>, "accountId">;
 type Changes<N extends Name> = Partial<Omit<NewRow<N>, "id">>;
 

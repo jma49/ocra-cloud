@@ -9,6 +9,7 @@ import {
   sessionByTokenHash,
 } from "./db/accounts.js";
 import { scoped } from "./db/scoped.js";
+import { apiError } from "./http.js";
 import type { AppEnv } from "./types.js";
 
 // Sessions: the guard every signed-in route sits behind, the session cookie,
@@ -39,16 +40,16 @@ export function requireSession(kinds: readonly Kind[] = ["web"]): MiddlewareHand
   return async (c, next) => {
     const bearer = c.req.header("authorization")?.match(/^Bearer\s+(\S+)$/i)?.[1];
     const token = bearer ?? getCookie(c, SESSION_COOKIE);
-    if (!token) return c.json({ error: "unauthenticated" }, 401);
+    if (!token) return apiError(c, "unauthenticated");
     if (!bearer && !["GET", "HEAD"].includes(c.req.method)) {
       const origin = c.req.header("origin");
-      if (origin !== new URL(c.req.url).origin) return c.json({ error: "bad_origin" }, 403);
+      if (origin !== new URL(c.req.url).origin) return apiError(c, "bad_origin");
     }
     const session = await sessionByTokenHash(c.var.db, await sha256Hex(token));
-    if (!session) return c.json({ error: "unauthenticated" }, 401);
+    if (!session) return apiError(c, "unauthenticated");
     // A CLI token reaches only what the CLI needs (ADR-0024): never keys,
     // sessions or the account.
-    if (!kinds.includes(session.kind)) return c.json({ error: "forbidden_for_session" }, 403);
+    if (!kinds.includes(session.kind)) return apiError(c, "forbidden_for_session");
     c.set("session", session);
     const data = scoped(c.var.db, session.account.id);
     c.set("data", data);

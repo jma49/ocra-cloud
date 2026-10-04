@@ -1,5 +1,10 @@
 import { Hono, type MiddlewareHandler } from "hono";
-import { readJson } from "./body.js";
+import { z } from "zod";
+import {
+  deviceCodeRequestSchema,
+  deviceTokenRequestSchema,
+  refreshRequestSchema,
+} from "./contract/index.js";
 import { randomToken, sha256Hex } from "./crypto.js";
 import {
   byDeviceCodeHash,
@@ -9,6 +14,7 @@ import {
   decide,
   recordPoll,
 } from "./db/device.js";
+import { apiError, jsonBody } from "./http.js";
 import {
   refreshCliSession,
   reissueCliSession,
@@ -55,7 +61,7 @@ const limitLookups: MiddlewareHandler<AppEnv> = async (c, next) => {
   const ip = c.req.header("cf-connecting-ip") ?? "unknown";
   for (const key of [`account:${c.var.session.account.id}`, `ip:${ip}`]) {
     const { success } = await c.env.DEVICE_LOOKUPS.limit({ key });
-    if (!success) return c.json({ error: "slow_down" }, 429);
+    if (!success) return apiError(c, "slow_down", {}, 429);
   }
   await next();
 };
@@ -66,15 +72,18 @@ export function normalizeUserCode(input: string): string | undefined {
   return `${s.slice(0, 4)}-${s.slice(4)}`;
 }
 
-device.post("/code", async (c) => {
+// Any body, or none: the name only labels the session on the web.
+const codeRequest = deviceCodeRequestSchema.catch({});
+// What the web sends to approve or deny a code; the code itself is looked up.
+const decideRequest = z.object({ user_code: z.string(), approve: z.boolean() });
+const RFC_INVALID = { invalid: "invalid_request" } as const;
+
+device.post("/code", jsonBody(codeRequest), async (c) => {
   const ip = c.req.header("cf-connecting-ip") ?? "unknown";
   const { success } = await c.env.DEVICE_CODES.limit({ key: ip });
-  if (!success) return c.json({ error: "slow_down" }, 429);
-  const body = ((await readJson(c)) ?? {}) as { client_name?: unknown };
-  const label =
-    typeof body.client_name === "string"
-      ? body.client_name.slice(0, 80).replace(/[^\w .@()-]/g, "")
-      : null;
+  if (!success) return apiError(c, "slow_down", {}, 429);
+  const name = c.req.valid("json").client_name;
+  const label = name === undefined ? null : name.slice(0, 80).replace(/[^\w .@()-]/g, "");
   const deviceCode = randomToken("ocra_dev_");
   const userCode = newUserCode();
   await createDeviceCode(c.var.db, {
@@ -99,54 +108,51 @@ device.get("/info", requireSession(), limitLookups, async (c) => {
   const code = normalizeUserCode(c.req.query("user_code") ?? "");
   const row = code ? await byUserCode(c.var.db, code) : undefined;
   if (!row || row.expiresAt < new Date() || row.status !== "pending") {
-    return c.json({ error: "unknown_or_expired" }, 404);
+    return apiError(c, "unknown_or_expired");
   }
   return c.json({ user_code: row.userCode, label: row.label, createdAt: row.createdAt });
 });
 
-device.post("/decide", requireSession(), limitLookups, async (c) => {
-  const body = ((await readJson(c)) ?? {}) as { user_code?: unknown; approve?: unknown };
-  const code = typeof body.user_code === "string" ? normalizeUserCode(body.user_code) : undefined;
+device.post("/decide", requireSession(), limitLookups, jsonBody(decideRequest), async (c) => {
+  const body = c.req.valid("json");
+  const code = normalizeUserCode(body.user_code);
   const row = code ? await byUserCode(c.var.db, code) : undefined;
-  if (!row || row.expiresAt < new Date()) return c.json({ error: "unknown_or_expired" }, 404);
-  const approve = body.approve === true;
+  if (!row || row.expiresAt < new Date()) return apiError(c, "unknown_or_expired");
+  const approve = body.approve;
   const ok = await decide(c.var.db, row.id, approve, c.var.session.account.id);
-  if (!ok) return c.json({ error: "already_decided" }, 409);
+  if (!ok) return apiError(c, "already_decided");
   return c.json({ approved: approve });
 });
 
 // Polled by the CLI. Errors follow RFC 8628 section 3.5.
-device.post("/token", async (c) => {
-  const body = ((await readJson(c)) ?? {}) as { device_code?: unknown };
-  if (typeof body.device_code !== "string") return c.json({ error: "invalid_request" }, 400);
+device.post("/token", jsonBody(deviceTokenRequestSchema, RFC_INVALID), async (c) => {
+  const body = c.req.valid("json");
   const row = await byDeviceCodeHash(c.var.db, await sha256Hex(body.device_code));
-  if (!row) return c.json({ error: "invalid_grant" }, 400);
+  if (!row) return apiError(c, "invalid_grant");
   const now = new Date();
-  if (row.expiresAt < now) return c.json({ error: "expired_token" }, 400);
+  if (row.expiresAt < now) return apiError(c, "expired_token");
   if (row.lastPolledAt && now.getTime() - row.lastPolledAt.getTime() < row.intervalSeconds * 1000) {
     await recordPoll(c.var.db, row.id, now, row.intervalSeconds + 5);
-    return c.json({ error: "slow_down", interval: row.intervalSeconds + 5 }, 400);
+    return apiError(c, "slow_down", { interval: row.intervalSeconds + 5 });
   }
   await recordPoll(c.var.db, row.id, now, row.intervalSeconds);
-  if (row.status === "pending") return c.json({ error: "authorization_pending" }, 400);
-  if (row.status === "denied") return c.json({ error: "access_denied" }, 400);
-  if (!row.approvedAccountId) return c.json({ error: "invalid_grant" }, 400);
+  if (row.status === "pending") return apiError(c, "authorization_pending");
+  if (row.status === "denied") return apiError(c, "access_denied");
+  if (!row.approvedAccountId) return apiError(c, "invalid_grant");
   // The session takes the code's id, so a poll whose answer was lost can
   // find it again: within a minute, and while its tokens are unused, the
   // next poll gets a new pair for the same session (audit K-device).
   if (row.status === "consumed" || !(await consume(c.var.db, row.id))) {
     const again = await reissueCliSession(c.var.db, row.approvedAccountId, row.id, now);
-    return again ? c.json(again) : c.json({ error: "invalid_grant" }, 400);
+    return again ? c.json(again) : apiError(c, "invalid_grant");
   }
   return c.json(
     await startCliSession(c.var.db, row.approvedAccountId, row.label ?? "Terminal", row.id),
   );
 });
 
-device.post("/refresh", async (c) => {
-  const body = ((await readJson(c)) ?? {}) as { refresh_token?: unknown };
-  if (typeof body.refresh_token !== "string") return c.json({ error: "invalid_request" }, 400);
-  const tokens = await refreshCliSession(c.var.db, body.refresh_token);
-  if (!tokens) return c.json({ error: "invalid_grant" }, 400);
+device.post("/refresh", jsonBody(refreshRequestSchema, RFC_INVALID), async (c) => {
+  const tokens = await refreshCliSession(c.var.db, c.req.valid("json").refresh_token);
+  if (!tokens) return apiError(c, "invalid_grant");
   return c.json(tokens);
 });

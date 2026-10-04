@@ -1,7 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { scoped } from "../src/db/scoped.js";
-import { changedKeys, parseSettings } from "../src/settings.js";
+import { changedKeys } from "../src/preferences.js";
 import { call, db, resetDb, signIn, signInCli } from "./helpers.js";
+import { part } from "./parts.js";
+
+const parseSettings = (v: unknown) => part("settings", v);
 
 beforeEach(resetDb);
 const json = { "content-type": "application/json" };

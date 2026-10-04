@@ -72,7 +72,7 @@ describe("saving settings", () => {
   it("a 400 still names the value", async () => {
     fakeApi((_p, init) =>
       init?.method === "PUT"
-        ? Response.json({ error: "bad_preferences" }, { status: 400 })
+        ? Response.json({ error: "invalid_body", issues: [] }, { status: 400 })
         : Response.json(prefs),
     );
     expect(await editAndSave()).toMatch(/out of range/);

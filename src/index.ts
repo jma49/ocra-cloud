@@ -7,6 +7,7 @@ import { enforceRetention } from "./db/retention.js";
 import { device } from "./device.js";
 import { exportRoute } from "./export.js";
 import { gateway } from "./gateway.js";
+import { apiError } from "./http.js";
 import { keys } from "./keys.js";
 import { me } from "./me.js";
 import { memory } from "./memory.js";
@@ -75,12 +76,12 @@ app.route("/memory", memory);
 app.route("/keys", keys);
 app.route("/gateway", gateway);
 
-app.notFound((c) => c.json({ error: "not_found" }, 404));
+app.notFound((c) => apiError(c, "not_found"));
 app.onError((err, c) => {
-  if (err instanceof BodyTooLarge) return c.json({ error: "body_too_large" }, 413);
+  if (err instanceof BodyTooLarge) return apiError(c, "body_too_large");
   // The message only: an error may quote a request, and bodies are never logged.
   console.error(`api error on ${c.req.method} ${c.req.routePath}: ${err.name}`);
-  return c.json({ error: "internal" }, 500);
+  return apiError(c, "internal");
 });
 
 export default {

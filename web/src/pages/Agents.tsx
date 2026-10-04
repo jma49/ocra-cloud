@@ -298,7 +298,7 @@ export function completeAgents(p: Prefs): Prefs {
   const reviewers = Object.fromEntries(
     Object.entries(p.agents.reviewers ?? {}).map(([id, r]) => [
       id,
-      { ...r, models: keep(r.models) },
+      { ...r, models: keep(r?.models) },
     ]),
   );
   const roles = Object.fromEntries(

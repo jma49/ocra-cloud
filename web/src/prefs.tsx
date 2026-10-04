@@ -82,7 +82,7 @@ const strip = (p: Prefs) => ({
 
 /** Why a save failed: the server's own refusal, else what went wrong getting there. */
 export function saveError(e: unknown): string {
-  if (e instanceof ApiError && e.code === "bad_preferences")
+  if (e instanceof ApiError && e.code === "invalid_body")
     return "Not saved: a value is out of range or a model name is incomplete.";
   return `Not saved: ${why(e)}.`;
 }

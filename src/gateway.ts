@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { readText } from "./body.js";
+import { apiError } from "./http.js";
 import { keyFor, masterKeys } from "./keyring.js";
 import { applyAuth, isProvider, matchRoute, PASS_HEADERS, providers } from "./providers.js";
 import { requireSession } from "./session.js";
@@ -17,17 +18,17 @@ export const gateway = new Hono<AppEnv>().use(requireSession(["web", "cli"]));
 
 gateway.post("/:provider/*", async (c) => {
   const name = c.req.param("provider");
-  if (!isProvider(name)) return c.json({ error: "unknown_provider" }, 404);
+  if (!isProvider(name)) return apiError(c, "unknown_provider");
   const path = c.req.path.slice(`/api/gateway/${name}`.length);
   const match = matchRoute(providers[name], path);
-  if (!match) return c.json({ error: "path_not_allowed" }, 404);
+  if (!match) return apiError(c, "path_not_allowed");
 
   // Counted as it arrives, so a chunked body without a length is bounded too.
   const body = await readText(c, MAX_BODY);
 
   const data = c.var.data;
   const key = await keyFor(data, masterKeys(c.env), name);
-  if (!key) return c.json({ error: "no_key", provider: name }, 400);
+  if (!key) return apiError(c, "no_key", { provider: name });
   const model = match.model ?? topLevelModel(body);
 
   // The call's row is written before forwarding and is the reservation
@@ -38,7 +39,7 @@ gateway.post("/:provider/*", async (c) => {
   const cap = Number(c.env.GATEWAY_DAILY_CALLS);
   const row = { id, provider: name, path, model, status: PENDING };
   if (!(await data.reserve("gatewayCalls", row, today, cap))) {
-    return c.json({ error: "daily_limit", limit: cap }, 429);
+    return apiError(c, "daily_limit", { limit: cap });
   }
 
   const headers = new Headers({
@@ -68,12 +69,12 @@ gateway.post("/:provider/*", async (c) => {
     upstream = await fetch(target, { method: "POST", headers, body, redirect: "manual" });
   } catch {
     finish(502, { tokensIn: 0, tokensOut: 0 });
-    return c.json({ error: "upstream_unreachable" }, 502);
+    return apiError(c, "upstream_unreachable");
   }
   if (upstream.status >= 300 && upstream.status < 400) {
     await upstream.body?.cancel().catch(() => {});
     finish(502, { tokensIn: 0, tokensOut: 0 });
-    return c.json({ error: "upstream_redirect", status: upstream.status }, 502);
+    return apiError(c, "upstream_redirect", { status: upstream.status });
   }
 
   const out = new Headers();

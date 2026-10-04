@@ -1,4 +1,5 @@
 import type { ProviderGroup } from "../../src/api-types.js";
+import type { ErrorCode } from "../../src/contract/index.js";
 
 export type Me = { login: string; githubId: number; session: "web" | "cli"; since: string };
 export type ProviderInfo = {
@@ -57,13 +58,60 @@ export type Session = {
   current: boolean;
 };
 
+/** A refusal; `code` is undefined when the answer names no code this app knows (a proxy's page, say). */
 export class ApiError extends Error {
   constructor(
     readonly status: number,
-    readonly code: string,
+    readonly code: ErrorCode | undefined,
   ) {
-    super(code);
+    super(code ?? String(status));
   }
+}
+
+const SIGNED_OUT = "you are signed out; sign in again in a new tab";
+const NOT_ALLOWED = "this session may not do that";
+const GONE = "it no longer exists";
+const TOO_MANY = "too many requests; wait a moment and try again";
+const SERVER = "ocra Cloud had an error; try again";
+const REFUSED = "the request was refused";
+
+/** Every code ocra Cloud answers, in words for the person (no codes). */
+export const MESSAGES: Record<ErrorCode, string> = {
+  invalid_body: REFUSED,
+  body_too_large: REFUSED,
+  unauthenticated: SIGNED_OUT,
+  bad_origin: NOT_ALLOWED,
+  forbidden_for_session: NOT_ALLOWED,
+  not_found: GONE,
+  daily_limit: TOO_MANY,
+  stale: REFUSED,
+  version_no_longer_valid: REFUSED,
+  memory_full: REFUSED,
+  unknown_provider: GONE,
+  no_key: GONE,
+  path_not_allowed: GONE,
+  upstream_unreachable: SERVER,
+  upstream_redirect: SERVER,
+  confirm_with_login: REFUSED,
+  bad_state: REFUSED,
+  github_exchange: SERVER,
+  github_user: SERVER,
+  unknown_or_expired: GONE,
+  already_decided: REFUSED,
+  internal: SERVER,
+  invalid_request: REFUSED,
+  invalid_grant: REFUSED,
+  expired_token: REFUSED,
+  authorization_pending: REFUSED,
+  // From the web, only the device page's lookup limit (429).
+  slow_down: TOO_MANY,
+  access_denied: REFUSED,
+};
+
+function codeOf(error: unknown): ErrorCode | undefined {
+  return typeof error === "string" && Object.hasOwn(MESSAGES, error)
+    ? (error as ErrorCode)
+    : undefined;
 }
 
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -71,20 +119,21 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     ...init,
     headers: { "content-type": "application/json", ...init.headers },
   });
-  const body = (await res.json().catch(() => ({}))) as { error?: string };
-  if (!res.ok) throw new ApiError(res.status, body.error ?? String(res.status));
+  const body = (await res.json().catch(() => ({}))) as { error?: unknown };
+  if (!res.ok) throw new ApiError(res.status, codeOf(body.error));
   return body as T;
 }
 
 /** Why a request failed, in words for the person (no codes). */
 export function why(e: unknown): string {
   if (e instanceof ApiError) {
-    if (e.status === 401) return "you are signed out; sign in again in a new tab";
-    if (e.status === 403) return "this session may not do that";
-    if (e.status === 404) return "it no longer exists";
-    if (e.status === 429) return "too many requests; wait a moment and try again";
-    if (e.status >= 500) return "ocra Cloud had an error; try again";
-    return "the request was refused";
+    if (e.code) return MESSAGES[e.code];
+    if (e.status === 401) return SIGNED_OUT;
+    if (e.status === 403) return NOT_ALLOWED;
+    if (e.status === 404) return GONE;
+    if (e.status === 429) return TOO_MANY;
+    if (e.status >= 500) return SERVER;
+    return REFUSED;
   }
   return "ocra Cloud could not be reached; check your connection";
 }

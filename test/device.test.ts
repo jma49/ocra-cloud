@@ -96,7 +96,8 @@ describe("ocra login (device flow)", () => {
       403,
     );
     const gw = await post("/api/gateway/openrouter/v1/chat/completions", { model: "m" }, cli);
-    expect(gw.status).toBe(400); // no key stored: it got past the session check
+    // No key stored: it got past the session check.
+    expect(await gw.json()).toEqual({ error: "no_key", provider: "openrouter" });
 
     // The code works once.
     expect((await poll(code.device_code)).body).toEqual({ error: "invalid_grant" });

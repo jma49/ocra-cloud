@@ -1,10 +1,11 @@
 import { Hono } from "hono";
-import { readJson } from "./body.js";
+import type { z } from "zod";
 import { MAX_REVIEWERS, REVIEWER_ID, reviewUploadSchema } from "./contract/index.js";
 import { clampDays } from "./db/retention.js";
 import type { ReviewerCounts } from "./db/schema.js";
-import type { Scoped } from "./db/scoped.js";
+import type { Row, Scoped } from "./db/scoped.js";
 import { parseFindings } from "./findings.js";
+import { apiError, jsonBody } from "./http.js";
 import { requireSession } from "./session.js";
 import type { AppEnv } from "./types.js";
 
@@ -15,14 +16,10 @@ export const reviews = new Hono<AppEnv>();
 const DAY = 86_400_000;
 /** An upload's largest body, in bytes. */
 const MAX_UPLOAD = 600_000;
-// The CLI's findings go in findingList, read on their own by parseFindings.
-const countsSchema = reviewUploadSchema.omit({ findingList: true });
+type Upload = z.output<typeof reviewUploadSchema>;
 
-/** The upload's counts, checked with the contract's schema; undefined when it is not one. */
-export function parseUpload(body: unknown) {
-  const parsed = countsSchema.safeParse(body);
-  if (!parsed.success) return undefined;
-  const u = parsed.data;
+/** The review's row from a checked upload, and how many reviewers' counts it left out. */
+export function reviewRow(u: Upload) {
   const byReviewer = Object.fromEntries(
     Object.entries(u.reviewers ?? {})
       .slice(0, MAX_REVIEWERS)
@@ -58,15 +55,15 @@ export function parseUpload(body: unknown) {
   };
 }
 
-reviews.post("/", requireSession(["web", "cli"]), async (c) => {
-  // Counts are small; findings, sent only when the account shares them, are
-  // bounded to 256 KB of text (ADR-0028). Past MAX_UPLOAD bytes: 413.
-  const body = (await readJson(c, MAX_UPLOAD)) as Record<string, unknown> | null;
-  const upload = parseUpload(body);
-  if (!upload) return c.json({ error: "bad_review" }, 400);
-  const { reviewersDropped, ...row } = upload;
+// Counts are small; findings, sent only when the account shares them, are
+// bounded to 256 KB of text (ADR-0028). Past MAX_UPLOAD bytes: 413.
+const uploadBody = jsonBody(reviewUploadSchema, { max: MAX_UPLOAD });
+
+reviews.post("/", requireSession(["web", "cli"]), uploadBody, async (c) => {
+  const upload = c.req.valid("json");
+  const { reviewersDropped, ...row } = reviewRow(upload);
   // Findings are kept only while the account shares them, whatever the CLI sent.
-  const list = body?.findingList;
+  const list = upload.findingList;
   const parsed =
     c.var.session.account.shareFindings && list !== undefined
       ? parseFindings(list)
@@ -90,7 +87,7 @@ reviews.post("/", requireSession(["web", "cli"]), async (c) => {
     },
   );
   if (duplicate) return c.json({ id, duplicate: true });
-  if (limited) return c.json({ error: "daily_limit", limit }, 429);
+  if (limited) return apiError(c, "daily_limit", { limit });
   return c.json({
     id,
     findings: findingsSkipped ? 0 : parsed.rows.length,
@@ -103,13 +100,9 @@ reviews.post("/", requireSession(["web", "cli"]), async (c) => {
 // One review with its findings, for the web's detail page.
 reviews.get("/:id", requireSession(), async (c) => {
   const review = await c.var.data.get("reviews", c.req.param("id"));
-  if (!review) return c.json({ error: "not_found" }, 404);
+  if (!review) return apiError(c, "not_found");
   const list = await c.var.data.findingsOf(review.id);
-  const { accountId: _a, ...r } = review;
-  return c.json({
-    review: { ...r, repo: r.repoHash.slice(0, 8) },
-    findings: list.map(({ accountId: _x, reviewId: _y, ...f }) => f),
-  });
+  return c.json({ review: listedReview(review), findings: list.map(findingDto) });
 });
 
 // ocra-cloud/review-export: the uploaded counts and findings. Not a report:
@@ -128,6 +121,64 @@ reviews.get("/:id", requireSession(), async (c) => {
 export const EXPORT_VERSION = 2;
 
 type FindingRow = Awaited<ReturnType<Scoped["findingsOf"]>>[number];
+
+/** A review as the web and the export show it; the account id stays on the server. */
+export function reviewDto(r: Row<"reviews">) {
+  return {
+    id: r.id,
+    runId: r.runId,
+    repoHash: r.repoHash,
+    source: r.source,
+    tier: r.tier,
+    verdict: r.verdict,
+    complete: r.complete,
+    findings: r.findings,
+    critical: r.critical,
+    warning: r.warning,
+    suggestion: r.suggestion,
+    filesReviewed: r.filesReviewed,
+    filesNotReviewed: r.filesNotReviewed,
+    tasksCompleted: r.tasksCompleted,
+    tasksFailed: r.tasksFailed,
+    tokensIn: r.tokensIn,
+    tokensOut: r.tokensOut,
+    costUsd: r.costUsd,
+    durationMs: r.durationMs,
+    ocraVersion: r.ocraVersion,
+    byReviewer: r.byReviewer,
+    verification: r.verification,
+    fixed: r.fixed,
+    dismissed: r.dismissed,
+    createdAt: r.createdAt,
+  } satisfies Omit<Row<"reviews">, "accountId">;
+}
+
+/** In the web's lists, with the repository's short hash. */
+function listedReview(r: Row<"reviews">) {
+  return { ...reviewDto(r), repo: r.repoHash.slice(0, 8) };
+}
+
+/** A finding as the web's detail page shows it. */
+export function findingDto(f: FindingRow) {
+  return {
+    id: f.id,
+    fingerprint: f.fingerprint,
+    reviewer: f.reviewer,
+    severity: f.severity,
+    category: f.category,
+    verification: f.verification,
+    file: f.file,
+    lineStart: f.lineStart,
+    lineEnd: f.lineEnd,
+    title: f.title,
+    body: f.body,
+    suggestion: f.suggestion,
+    code: f.code,
+    redacted: f.redacted,
+    truncated: f.truncated,
+    createdAt: f.createdAt,
+  } satisfies Omit<FindingRow, "accountId" | "reviewId">;
+}
 
 export function exportFinding(f: FindingRow) {
   return {
@@ -151,14 +202,13 @@ export function exportFinding(f: FindingRow) {
 
 reviews.get("/:id/export", requireSession(), async (c) => {
   const review = await c.var.data.get("reviews", c.req.param("id"));
-  if (!review) return c.json({ error: "not_found" }, 404);
+  if (!review) return apiError(c, "not_found");
   const list = await c.var.data.findingsOf(review.id);
-  const { accountId: _a, ...r } = review;
   c.header("content-disposition", `attachment; filename="ocra-review-${review.runId}.json"`);
   return c.json({
     format: "ocra-cloud/review-export",
     version: EXPORT_VERSION,
-    review: r,
+    review: reviewDto(review),
     findings: list.map(exportFinding),
   });
 });
@@ -175,7 +225,7 @@ reviews.get("/", requireSession(), async (c) => {
     days,
     summary,
     reviewers: perReviewer(byReviewer),
-    reviews: rows.map(({ accountId: _a, ...r }) => ({ ...r, repo: r.repoHash.slice(0, 8) })),
+    reviews: rows.map(listedReview),
   });
 });
 

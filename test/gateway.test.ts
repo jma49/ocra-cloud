@@ -67,8 +67,15 @@ describe("keys", () => {
         headers: { ...auth, "content-type": "application/json" },
         body: JSON.stringify({ key }),
       });
-    expect((await put("evil", KEY)).status).toBe(400);
-    expect((await put("openrouter", "short")).status).toBe(400);
+    const unknown = await put("evil", KEY);
+    expect(unknown.status).toBe(404);
+    expect(await unknown.json()).toEqual({ error: "unknown_provider" });
+    const short = await put("openrouter", "short");
+    expect(short.status).toBe(400);
+    expect(await short.json()).toMatchObject({
+      error: "invalid_body",
+      issues: [{ path: ["key"] }],
+    });
     expect((await put("openrouter", "has space inside")).status).toBe(400);
     expect((await put("openrouter", 12345678)).status).toBe(400);
   });
@@ -200,7 +207,8 @@ describe("gateway", () => {
       (await call("/api/gateway/openrouter/v1/chat/completions", { headers: auth })).status,
     ).toBe(404);
     const noKey = await post("/api/gateway/anthropic/v1/messages");
-    expect(noKey.status).toBe(400);
+    expect(noKey.status).toBe(404);
+    expect(await noKey.json()).toEqual({ error: "no_key", provider: "anthropic" });
     expect(fake).not.toHaveBeenCalled();
     expect(
       (await call("/api/gateway/openrouter/v1/chat/completions", { method: "POST", body: chat() }))
@@ -217,7 +225,7 @@ describe("gateway", () => {
       headers: { ...other.auth, "content-type": "application/json" },
       body: chat(),
     });
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(404);
     expect(fake).not.toHaveBeenCalled();
   });
 
