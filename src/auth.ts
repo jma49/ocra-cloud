@@ -153,7 +153,7 @@ const unsafeChar = (ch: string) => ch.charCodeAt(0) < 0x20 || ch === "\x7f" || c
  * A path on this site to return to after sign-in, or "/". Browsers drop tabs
  * and newlines from a URL and read a backslash as a slash, so "/\t/evil.example"
  * would leave the site: those are refused, and what remains must resolve to
- * this origin.
+ * a path on this origin that does not start with "//".
  */
 export function safeNext(next: string | undefined): string {
   if (!next?.startsWith("/") || next.length > 512 || [...next].some(unsafeChar)) return "/";
@@ -164,7 +164,9 @@ export function safeNext(next: string | undefined): string {
   } catch {
     return "/";
   }
-  if (url.origin !== base || next.startsWith("//")) return "/";
+  // Checked on the output too: dot segments resolve, so "/.//evil.example"
+  // becomes the path "//evil.example", which a browser reads as a host.
+  if (url.origin !== base || url.pathname.startsWith("//")) return "/";
   return url.pathname + url.search + url.hash;
 }
 
