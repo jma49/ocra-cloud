@@ -1,10 +1,10 @@
 import { createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import { drizzle } from "drizzle-orm/d1";
-import { startCliSession, startWebSession } from "../src/auth.js";
 import { upsertAccount } from "../src/db/accounts.js";
 import * as schema from "../src/db/schema.js";
 import app from "../src/index.js";
+import { startCliSession, startWebSession } from "../src/session.js";
 
 export const db = drizzle(env.DB);
 export const ORIGIN = "https://ocra.test";

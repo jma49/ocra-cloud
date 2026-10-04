@@ -1,10 +1,9 @@
 import { Hono } from "hono";
-import { deleteCookie } from "hono/cookie";
-import { SESSION_COOKIE } from "./auth.js";
+import { audit } from "./audit.js";
 import { accountSalt, deleteAccount, setSharing } from "./db/accounts.js";
 import type { Scoped } from "./db/scoped.js";
-import { audit } from "./keys.js";
 import { clampDays } from "./retention.js";
+import { clearSessionCookie } from "./session.js";
 import type { AppEnv } from "./types.js";
 
 // The signed-in account: usage, sessions, and deleting it all.
@@ -78,8 +77,7 @@ account.get("/sessions", async (c) => {
 account.delete("/sessions/:id", async (c) => {
   const id = c.req.param("id");
   const removed = await c.var.data.remove("sessions", id);
-  if (removed && id === c.var.session.sessionId)
-    deleteCookie(c, SESSION_COOKIE, { path: "/", secure: true });
+  if (removed && id === c.var.session.sessionId) clearSessionCookie(c);
   return c.json({ removed });
 });
 
@@ -212,7 +210,7 @@ account.delete("/account", async (c) => {
     return c.json({ error: "confirm_with_login" }, 400);
   }
   await deleteAccount(c.var.db, c.var.session.account.id);
-  deleteCookie(c, SESSION_COOKIE, { path: "/", secure: true });
+  clearSessionCookie(c);
   return c.json({ deleted: true });
 });
 
