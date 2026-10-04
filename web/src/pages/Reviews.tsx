@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { api, compact, num, type Review, type Reviews as ReviewsData, time, why } from "../api.js";
+import { api, type Review, type Reviews as ReviewsData, why } from "../api.js";
+import { compact, num, time } from "../format.js";
 import { Link } from "../router.js";
-import { Loading, PageHead, Seg, useLoad } from "../ui.js";
+import { Loading, PageHead, Seg, useAction, useLoad } from "../ui.js";
 
 const RANGES = [
   { value: 7, label: "1W" },
@@ -27,17 +28,12 @@ function Verdict(props: { r: Review }) {
 
 export function Reviews() {
   const [days, setDays] = useState(30);
-  const [data, error, reload] = useLoad(() => api<ReviewsData>(`/reviews?days=${days}`), [days]);
-  const [failed, setFailed] = useState("");
+  const { data, error, reload } = useLoad(() => api<ReviewsData>(`/reviews?days=${days}`), [days]);
+  const del = useAction((id: string) => api(`/reviews/${id}`, { method: "DELETE" }));
   const remove = async (id: string) => {
-    setFailed("");
-    try {
-      await api(`/reviews/${id}`, { method: "DELETE" });
-      reload();
-    } catch (e) {
-      setFailed(`Could not delete the record: ${why(e)}.`);
-    }
+    if ((await del.run(id)) !== undefined) reload();
   };
+  const failed = del.error ? `Could not delete the record: ${why(del.error)}.` : "";
   const s = data?.summary;
   return (
     <>

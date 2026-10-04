@@ -6,43 +6,12 @@ import { completeAgents } from "./pages/Agents.js";
 import { Privacy } from "./pages/Privacy.js";
 import { PrefsProvider } from "./prefs.js";
 import { Link, usePath } from "./router.js";
-import { pageFor } from "./routes.js";
+import { matchRoute, NAV_GROUPS } from "./routes.js";
 import { SignIn } from "./signin.js";
 import { DOCS } from "./site.js";
-import { ErrorBoundary, Icon, type icons } from "./ui.js";
+import { ToastProvider } from "./toast.js";
+import { ErrorBoundary, Icon, NotFound } from "./ui.js";
 import "./styles.css";
-
-type NavItem = { to: string; label: string; icon: keyof typeof icons };
-const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
-  {
-    label: "Console",
-    items: [
-      { to: "/", label: "Overview", icon: "home" },
-      { to: "/activity", label: "Activity", icon: "activity" },
-      { to: "/reviews", label: "Reviews", icon: "check" },
-    ],
-  },
-  {
-    label: "Configure",
-    items: [
-      { to: "/keys", label: "Provider keys", icon: "key" },
-      { to: "/agents", label: "Agents", icon: "layers" },
-      { to: "/review-settings", label: "Review settings", icon: "sliders" },
-      { to: "/rules", label: "Rules", icon: "list" },
-      { to: "/plugins", label: "Plugins", icon: "puzzle" },
-      { to: "/memory", label: "Memory", icon: "check" },
-      { to: "/defaults", label: "Defaults & history", icon: "file" },
-    ],
-  },
-  {
-    label: "Account",
-    items: [
-      { to: "/sessions", label: "CLI & sessions", icon: "terminal" },
-      { to: "/settings", label: "Settings", icon: "settings" },
-    ],
-  },
-];
-const NAV = NAV_GROUPS.flatMap((g) => g.items);
 
 function App() {
   const [me, setMe] = useState<Me | null | undefined>(undefined);
@@ -50,10 +19,11 @@ function App() {
   useEffect(() => {
     api<Me>("/me").then(setMe, () => setMe(null));
   }, []);
+  const found = matchRoute(path);
   useEffect(() => {
-    const page = NAV.find((n) => n.to === path)?.label;
+    const page = found?.route.nav?.label;
     document.title = page && me ? `${page} · ocra Cloud` : "ocra Cloud";
-  }, [path, me]);
+  }, [found?.route, me]);
 
   if (path === "/privacy") {
     return (
@@ -83,10 +53,14 @@ function App() {
           {NAV_GROUPS.map((g) => (
             <div key={g.label}>
               <div className="side-label">{g.label}</div>
-              {g.items.map((n) => (
-                <Link key={n.to} to={n.to} className={`side-link${path === n.to ? " active" : ""}`}>
-                  <Icon name={n.icon} />
-                  {n.label}
+              {g.routes.map((r) => (
+                <Link
+                  key={r.path}
+                  to={r.path}
+                  className={`side-link${path === r.path ? " active" : ""}`}
+                >
+                  <Icon name={r.nav.icon} />
+                  {r.nav.label}
                 </Link>
               ))}
             </div>
@@ -102,8 +76,10 @@ function App() {
           </a>
         </nav>
         <main className="content">
-          <PrefsProvider clean={completeAgents}>
-            <ErrorBoundary key={path}>{pageFor(path, me)}</ErrorBoundary>
+          <PrefsProvider clean={completeAgents} idle={!found?.route.prefs}>
+            <ErrorBoundary key={path}>
+              {found ? found.route.page(me, found.params) : <NotFound />}
+            </ErrorBoundary>
           </PrefsProvider>
         </main>
       </div>
@@ -115,7 +91,9 @@ const root = document.getElementById("root");
 if (root) {
   createRoot(root).render(
     <StrictMode>
-      <App />
+      <ToastProvider>
+        <App />
+      </ToastProvider>
     </StrictMode>,
   );
 }

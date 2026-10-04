@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { api, date, type Me } from "../api.js";
+import { api, type Me } from "../api.js";
+import { date } from "../format.js";
 import { PageHead, useLoad } from "../ui.js";
 
 export function Settings(props: { me: Me }) {
@@ -91,7 +92,7 @@ export function Settings(props: { me: Me }) {
 }
 
 export function Sharing() {
-  const [data, , reload] = useLoad(() =>
+  const { data, reload } = useLoad(() =>
     api<{ shareFindings: boolean; findingsStored: number }>("/account/sharing"),
   );
   const [asking, setAsking] = useState(false);

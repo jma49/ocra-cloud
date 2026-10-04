@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
-import { ago, api, type Key } from "../api.js";
+import { api, type Key } from "../api.js";
+import { ago } from "../format.js";
 import { type Prefs, type Settings, usePrefs } from "../prefs.js";
+import { useToast } from "../toast.js";
 import { PageHead, useLoad } from "../ui.js";
 
 // Your defaults as files, an import from a repository's file, and every
@@ -112,9 +114,10 @@ function importConfig(text: string, current: Prefs, keyed: Set<string>): Importe
 }
 
 export function Defaults() {
-  const { draft, setDraft, toast } = usePrefs();
-  const [keys] = useLoad(() => api<{ keys: Key[] }>("/keys"));
-  const [versions, , reloadVersions] = useLoad(() =>
+  const { draft, setDraft } = usePrefs();
+  const toast = useToast();
+  const { data: keys } = useLoad(() => api<{ keys: Key[] }>("/keys"));
+  const { data: versions, reload: reloadVersions } = useLoad(() =>
     api<{ versions: { id: string; createdAt: string; changed: string[] }[] }>(
       "/preferences/versions",
     ),
