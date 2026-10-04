@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { requireSession } from "./auth.js";
 import type { ReviewerCounts } from "./db/schema.js";
 import { parseFindings } from "./findings.js";
+import { clampDays } from "./retention.js";
 import type { AppEnv } from "./types.js";
 
 // Review metadata: the CLI uploads counts after a review, the web lists them.
@@ -144,7 +145,7 @@ reviews.post("/", requireSession(["web", "cli"]), async (c) => {
 reviews.get("/:id", requireSession(), async (c) => {
   const review = await c.var.data.get("reviews", c.req.param("id"));
   if (!review) return c.json({ error: "not_found" }, 404);
-  const list = (await c.var.data.list("findings")).filter((f) => f.reviewId === review.id);
+  const list = await c.var.data.findingsOf(review.id);
   const { accountId: _a, ...r } = review;
   return c.json({
     review: { ...r, repo: r.repoHash.slice(0, 8) },
@@ -158,7 +159,7 @@ reviews.get("/:id", requireSession(), async (c) => {
 reviews.get("/:id/export", requireSession(), async (c) => {
   const review = await c.var.data.get("reviews", c.req.param("id"));
   if (!review) return c.json({ error: "not_found" }, 404);
-  const list = (await c.var.data.list("findings")).filter((f) => f.reviewId === review.id);
+  const list = await c.var.data.findingsOf(review.id);
   const { accountId: _a, ...r } = review;
   c.header("content-disposition", `attachment; filename="ocra-review-${review.runId}.json"`);
   return c.json({
@@ -184,27 +185,17 @@ reviews.get("/:id/export", requireSession(), async (c) => {
 });
 
 reviews.get("/", requireSession(), async (c) => {
-  const days = Math.min(Math.max(Number(c.req.query("days") ?? "30") || 30, 1), 365);
-  const rows = await c.var.data.listSince("reviews", new Date(Date.now() - days * DAY), 500);
-  const repos = new Set(rows.map((r) => r.repoHash));
-  const sum = (f: (r: (typeof rows)[number]) => number) => rows.reduce((n, r) => n + f(r), 0);
+  const days = clampDays(c.req.query("days"), 30);
+  const since = new Date(Date.now() - days * DAY);
+  // The totals are summed in SQL (audit D5); the list shows the newest 500.
+  const [{ summary, byReviewer }, rows] = await Promise.all([
+    c.var.data.reviewSummary(since),
+    c.var.data.listSince("reviews", since, 500),
+  ]);
   return c.json({
     days,
-    summary: {
-      reviews: rows.length,
-      repositories: repos.size,
-      findings: sum((r) => r.findings),
-      critical: sum((r) => r.critical),
-      // significant_concerns is the verdict that blocks a merge.
-      blocking: rows.filter((r) => r.verdict === "significant_concerns").length,
-      incomplete: rows.filter((r) => !r.complete).length,
-      fixed: sum((r) => r.fixed),
-      dismissed: sum((r) => r.dismissed),
-      tokensIn: sum((r) => r.tokensIn),
-      tokensOut: sum((r) => r.tokensOut),
-      costUsd: sum((r) => r.costUsd),
-    },
-    reviewers: perReviewer(rows),
+    summary,
+    reviewers: perReviewer(byReviewer),
     reviews: rows.map(({ accountId: _a, ...r }) => ({ ...r, repo: r.repoHash.slice(0, 8) })),
   });
 });
@@ -214,37 +205,30 @@ reviews.delete("/:id", requireSession(), async (c) => {
 });
 
 /** What `ocra metrics` shows per reviewer, summed over the uploaded runs. */
-function perReviewer(rows: { byReviewer: Record<string, ReviewerCounts> | null }[]) {
+function perReviewer(
+  rows: {
+    id: string;
+    tasks: number;
+    failedTasks: number;
+    critical: number;
+    warning: number;
+    suggestion: number;
+    costUsd: number;
+    fixed: number;
+    dismissed: number;
+  }[],
+) {
   const out: Record<
     string,
     ReviewerCounts & { findingsTotal: number; acceptanceRate: number | null }
   > = {};
-  for (const row of rows) {
-    for (const [id, r] of Object.entries(row.byReviewer ?? {})) {
-      const t = out[id] ?? {
-        tasks: 0,
-        failedTasks: 0,
-        findings: { critical: 0, warning: 0, suggestion: 0 },
-        costUsd: 0,
-        fixed: 0,
-        dismissed: 0,
-        findingsTotal: 0,
-        acceptanceRate: null,
-      };
-      t.tasks += r.tasks;
-      t.failedTasks += r.failedTasks;
-      t.findings.critical += r.findings.critical;
-      t.findings.warning += r.findings.warning;
-      t.findings.suggestion += r.findings.suggestion;
-      t.findingsTotal += r.findings.critical + r.findings.warning + r.findings.suggestion;
-      t.costUsd += r.costUsd;
-      t.fixed += r.fixed;
-      t.dismissed += r.dismissed;
-      out[id] = t;
-    }
-  }
-  for (const t of Object.values(out)) {
-    t.acceptanceRate = t.fixed + t.dismissed > 0 ? t.fixed / (t.fixed + t.dismissed) : null;
+  for (const { id, critical, warning, suggestion, ...r } of rows) {
+    out[id] = {
+      ...r,
+      findings: { critical, warning, suggestion },
+      findingsTotal: critical + warning + suggestion,
+      acceptanceRate: r.fixed + r.dismissed > 0 ? r.fixed / (r.fixed + r.dismissed) : null,
+    };
   }
   return out;
 }

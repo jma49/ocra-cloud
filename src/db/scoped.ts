@@ -1,8 +1,11 @@
 import {
   and,
+  asc,
   count,
   desc,
   eq,
+  getTableColumns,
+  gt,
   gte,
   type InferInsertModel,
   type InferSelectModel,
@@ -207,6 +210,147 @@ export function scoped(db: DrizzleD1Database, accountId: string) {
         limited: false,
         findingsSkipped: false,
       };
+    },
+    /** Every row of this account in a table, counted in SQL. */
+    async countAll(name: Name): Promise<number> {
+      const row = await db.select({ n: count() }).from(accountTables[name]).where(own(name)).get();
+      return row?.n ?? 0;
+    },
+    /**
+     * Up to limit rows of this account after the row numbered after, in
+     * insertion order, with the number to pass for the next page.
+     */
+    async page<N extends Name>(
+      name: N,
+      after: number,
+      limit: number,
+    ): Promise<{ rows: Row<N>[]; next: number | null }> {
+      const t = accountTables[name];
+      const seq = sql<number>`${t}.rowid`;
+      // The generic table loses drizzle's row type; the row is the table's.
+      const rows = (await db
+        .select({ ...getTableColumns(t as Tables["sessions"]), seq })
+        .from(t)
+        .where(and(own(name), gt(seq, after)))
+        .orderBy(asc(seq))
+        .limit(limit)
+        .all()) as unknown as (Row<N> & { seq: number })[];
+      const last = rows.at(-1);
+      return {
+        rows: rows.map(({ seq: _s, ...r }) => r as unknown as Row<N>),
+        next: rows.length === limit && last ? last.seq : null,
+      };
+    },
+    /** The findings of one of this account's reviews. */
+    findingsOf(reviewId: string): Promise<Row<"findings">[]> {
+      const f = accountTables.findings;
+      return db
+        .select()
+        .from(f)
+        .where(and(own("findings"), eq(f.reviewId, reviewId)))
+        .all();
+    },
+    /**
+     * Gateway calls since a time, summed in SQL: per UTC day, per provider
+     * and model, and per day and model. The groups by model are the busiest
+     * first, at most `models` and `dayModels` of them.
+     */
+    async usage(since: Date, models = 100, dayModels = 2_000) {
+      const t = accountTables.gatewayCalls;
+      const where = and(own("gatewayCalls"), gte(t.createdAt, since));
+      const day = sql<string>`strftime('%Y-%m-%d', ${t.createdAt} / 1000, 'unixepoch')`;
+      const model = sql<string>`coalesce(${t.model}, '(unknown)')`;
+      const calls = sql<number>`count(*)`;
+      const tokensIn = sql<number>`coalesce(sum(${t.tokensIn}), 0)`;
+      const tokensOut = sql<number>`coalesce(sum(${t.tokensOut}), 0)`;
+      const [days, byModel, byDayModel] = await db.batch([
+        db
+          .select({
+            day,
+            calls,
+            tokensIn,
+            tokensOut,
+            errors: sql<number>`coalesce(sum(${t.status} >= 400), 0)`,
+          })
+          .from(t)
+          .where(where)
+          .groupBy(day),
+        db
+          .select({ provider: t.provider, model, calls, tokensIn, tokensOut })
+          .from(t)
+          .where(where)
+          .groupBy(t.provider, model)
+          .orderBy(desc(calls))
+          .limit(models),
+        db
+          .select({ day, model, calls, tokens: sql<number>`${tokensIn} + ${tokensOut}` })
+          .from(t)
+          .where(where)
+          .groupBy(day, model)
+          .orderBy(desc(calls))
+          .limit(dayModels),
+      ]);
+      return { days, models: byModel, dayModels: byDayModel };
+    },
+    /** Per provider: the newest gateway call since a time, and the calls since recent. */
+    keyUse(since: Date, recent: Date) {
+      const t = accountTables.gatewayCalls;
+      return db
+        .select({
+          provider: t.provider,
+          lastUsedAt: sql<number>`max(${t.createdAt})`,
+          recent: sql<number>`coalesce(sum(${t.createdAt} >= ${recent.getTime()}), 0)`,
+        })
+        .from(t)
+        .where(and(own("gatewayCalls"), gte(t.createdAt, since)))
+        .groupBy(t.provider)
+        .all();
+    },
+    /** Reviews since a time, summed in SQL, with the per-reviewer counts summed too. */
+    async reviewSummary(since: Date, reviewers = 200) {
+      const r = accountTables.reviews;
+      const where = and(own("reviews"), gte(r.createdAt, since));
+      const total = (c: unknown) => sql<number>`coalesce(sum(${c}), 0)`;
+      // Each column has its own name: D1 keys a result row by column name.
+      const n = (path: string, as: string) =>
+        sql<number>`coalesce(sum(json_extract(je.value, ${path})), 0)`.as(as);
+      const [[summary], byReviewer] = await db.batch([
+        db
+          .select({
+            reviews: sql<number>`count(*)`,
+            repositories: sql<number>`count(distinct ${r.repoHash})`,
+            findings: total(r.findings),
+            critical: total(r.critical),
+            // significant_concerns is the verdict that blocks a merge.
+            blocking: total(sql`${r.verdict} = 'significant_concerns'`),
+            incomplete: total(sql`${r.complete} = 0`),
+            fixed: total(r.fixed),
+            dismissed: total(r.dismissed),
+            tokensIn: total(r.tokensIn),
+            tokensOut: total(r.tokensOut),
+            costUsd: total(r.costUsd),
+          })
+          .from(r)
+          .where(where),
+        db
+          .select({
+            id: sql<string>`je.key`,
+            tasks: n("$.tasks", "tasks"),
+            failedTasks: n("$.failedTasks", "failedTasks"),
+            critical: n("$.findings.critical", "critical"),
+            warning: n("$.findings.warning", "warning"),
+            suggestion: n("$.findings.suggestion", "suggestion"),
+            costUsd: n("$.costUsd", "costUsd"),
+            fixed: n("$.fixed", "fixed"),
+            dismissed: n("$.dismissed", "dismissed"),
+          })
+          .from(sql`${r}, json_each(${r.byReviewer}) AS je`)
+          .where(and(where, sql`${r.byReviewer} IS NOT NULL`))
+          .groupBy(sql`je.key`)
+          .orderBy(sql`je.key`)
+          .limit(reviewers),
+      ]);
+      return { summary, byReviewer };
     },
     /** Deletes every row of this account in a table; returns how many. */
     async removeAll(name: Name): Promise<number> {
