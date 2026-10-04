@@ -1,7 +1,8 @@
 import { Hono } from "hono";
+import { z } from "zod";
 import { audit } from "./audit.js";
-import { readJson } from "./body.js";
 import { accountSalt, deleteAccount, setSharing } from "./db/accounts.js";
+import { apiError, jsonBody } from "./http.js";
 import { clearSessionCookie, requireSession } from "./session.js";
 import type { AppEnv } from "./types.js";
 
@@ -11,10 +12,12 @@ import type { AppEnv } from "./types.js";
 
 export const account = new Hono<AppEnv>();
 
-account.delete("/", requireSession(), async (c) => {
-  const body = (await readJson(c)) as { confirm?: unknown } | null;
-  if (body?.confirm !== c.var.session.account.login) {
-    return c.json({ error: "confirm_with_login" }, 400);
+// The account's login, typed again; anything else is refused as unconfirmed.
+const deleteRequest = z.object({ confirm: z.unknown() });
+
+account.delete("/", requireSession(), jsonBody(deleteRequest), async (c) => {
+  if (c.req.valid("json").confirm !== c.var.session.account.login) {
+    return apiError(c, "confirm_with_login");
   }
   await deleteAccount(c.var.db, c.var.session.account.id);
   clearSessionCookie(c);
@@ -28,12 +31,13 @@ account.get("/sharing", requireSession(), async (c) => {
   return c.json({ shareFindings: c.var.session.account.shareFindings, findingsStored: stored });
 });
 
-account.put("/sharing", requireSession(), async (c) => {
-  const body = (await readJson(c)) as {
-    enabled?: unknown;
-    deleteExisting?: unknown;
-  } | null;
-  if (typeof body?.enabled !== "boolean") return c.json({ error: "bad_request" }, 400);
+const sharingRequest = z.object({
+  enabled: z.boolean(),
+  deleteExisting: z.boolean().optional(),
+});
+
+account.put("/sharing", requireSession(), jsonBody(sharingRequest), async (c) => {
+  const body = c.req.valid("json");
   await setSharing(c.var.db, c.var.session.account.id, body.enabled);
   const deleted =
     !body.enabled && body.deleteExisting === true ? await c.var.data.removeAll("findings") : 0;

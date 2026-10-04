@@ -1,7 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { effortLevels } from "../src/capabilities.js";
-import { parseAgents, parseModels } from "../src/preferences.js";
 import { call, resetDb, signIn, signInCli } from "./helpers.js";
+import { part } from "./parts.js";
+
+const parseAgents = (v: unknown) => part("agents", v);
+const parseModels = (v: unknown) => part("models", v);
 
 beforeEach(resetDb);
 afterEach(() => vi.restoreAllMocks());

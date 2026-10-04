@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { deleteCookie, getSignedCookie, setSignedCookie } from "hono/cookie";
 import { randomToken } from "./crypto.js";
 import { upsertAccount } from "./db/accounts.js";
+import { apiError } from "./http.js";
 import {
   clearSessionCookie,
   requireSession,
@@ -72,7 +73,7 @@ auth.get("/github/callback", async (c) => {
   const next = cookie && space > 0 ? cookie.slice(space + 1) : undefined;
   const { code, state } = c.req.query();
   if (!code || !state || !expected || state !== expected) {
-    return c.json({ error: "bad_state" }, 400);
+    return apiError(c, "bad_state");
   }
   const tokenRes = await fetch("https://github.com/login/oauth/access_token", {
     method: "POST",
@@ -85,7 +86,7 @@ auth.get("/github/callback", async (c) => {
     }),
   });
   const tokenBody = (await tokenRes.json().catch(() => ({}))) as { access_token?: string };
-  if (!tokenRes.ok || !tokenBody.access_token) return c.json({ error: "github_exchange" }, 502);
+  if (!tokenRes.ok || !tokenBody.access_token) return apiError(c, "github_exchange");
   // The GitHub token is used once, to learn who signed in, and not kept.
   const userRes = await fetch("https://api.github.com/user", {
     headers: {
@@ -96,7 +97,7 @@ auth.get("/github/callback", async (c) => {
   });
   const user = (await userRes.json().catch(() => ({}))) as { id?: number; login?: string };
   if (!userRes.ok || typeof user.id !== "number" || typeof user.login !== "string") {
-    return c.json({ error: "github_user" }, 502);
+    return apiError(c, "github_user");
   }
   const account = await upsertAccount(c.var.db, user.id, user.login);
   const token = await startWebSession(c.var.db, account.id);

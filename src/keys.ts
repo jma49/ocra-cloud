@@ -1,8 +1,9 @@
 import { Hono } from "hono";
+import { z } from "zod";
 import { audit } from "./audit.js";
-import { readJson } from "./body.js";
 import { encryptSecret, keyBinding } from "./crypto.js";
 import type { Scoped } from "./db/scoped.js";
+import { apiError, jsonBody } from "./http.js";
 import { decryptKey, storedKey } from "./keyring.js";
 import { checkKey, isProvider, listModels, verifyRoutes } from "./providers.js";
 import { requireSession } from "./session.js";
@@ -36,14 +37,18 @@ keys.get("/", async (c) => {
   });
 });
 
-keys.put("/:provider", async (c) => {
+// A provider's API key, as pasted: surrounding spaces go, inner ones never fit.
+const keyRequest = z.object({
+  key: z
+    .string()
+    .transform((k) => k.trim())
+    .pipe(z.string().min(8).max(512).regex(/^\S+$/, "a key has no spaces")),
+});
+
+keys.put("/:provider", jsonBody(keyRequest), async (c) => {
   const provider = c.req.param("provider");
-  if (!isProvider(provider)) return c.json({ error: "unknown_provider" }, 400);
-  const body = (await readJson(c)) as { key?: unknown } | null;
-  const key = typeof body?.key === "string" ? body.key.trim() : "";
-  if (key.length < 8 || key.length > 512 || /\s/.test(key)) {
-    return c.json({ error: "bad_key" }, 400);
-  }
+  if (!isProvider(provider)) return apiError(c, "unknown_provider");
+  const { key } = c.req.valid("json");
   const sealed = await encryptSecret(
     c.env.MASTER_KEY,
     key,
@@ -79,7 +84,7 @@ keys.put("/:provider", async (c) => {
 keys.post("/:provider/test", async (c) => {
   const provider = c.req.param("provider");
   const row = await storedKey(c.var.data, provider);
-  if (!row || !isProvider(provider)) return c.json({ error: "no_key" }, 404);
+  if (!row || !isProvider(provider)) return apiError(c, "no_key");
   const check = await checkKey(provider, await decryptKey(c.env, row));
   await c.var.data.update("providerKeys", row.id, {
     checkStatus: check.status,
@@ -93,7 +98,7 @@ keys.post("/:provider/test", async (c) => {
 keys.get("/:provider/models", async (c) => {
   const provider = c.req.param("provider");
   const row = await storedKey(c.var.data, provider);
-  if (!row || !isProvider(provider)) return c.json({ error: "no_key" }, 404);
+  if (!row || !isProvider(provider)) return apiError(c, "no_key");
   const ids = await listModels(provider, await decryptKey(c.env, row));
   return c.json({ provider, models: ids });
 });

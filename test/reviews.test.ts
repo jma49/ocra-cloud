@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { RISK_TIERS, VERDICTS } from "../src/contract/index.js";
-import { exportFinding, parseUpload } from "../src/reviews.js";
+import { RISK_TIERS, reviewUploadSchema, VERDICTS } from "../src/contract/index.js";
+import { exportFinding, reviewRow } from "../src/reviews.js";
 import { call, resetDb, signIn, signInCli } from "./helpers.js";
 
 beforeEach(resetDb);
@@ -23,6 +23,11 @@ const upload = (over: Record<string, unknown> = {}) => ({
   ocraVersion: "0.4.0",
   ...over,
 });
+
+const parseUpload = (body: unknown) => {
+  const parsed = reviewUploadSchema.safeParse(body);
+  return parsed.success ? reviewRow(parsed.data) : undefined;
+};
 
 describe("review uploads", () => {
   it("stores counts from a CLI session once per run, and the web lists them", async () => {

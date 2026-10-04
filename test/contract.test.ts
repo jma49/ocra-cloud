@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import memory from "../src/contract/fixtures/memory.json";
+import preferences from "../src/contract/fixtures/preferences.json";
 import upload from "../src/contract/fixtures/upload.json";
 import { memoryEntrySchema, PROVIDER_IDS } from "../src/contract/index.js";
 import { providers } from "../src/providers.js";
@@ -70,6 +71,25 @@ describe("the CLI's real upload", () => {
     expect(stored).toEqual(
       body.findingList.map((f) => ({ redacted: false, truncated: false, ...f })),
     );
+  });
+});
+
+describe("the account's preferences", () => {
+  it("save the fixture's parts and answer them back unchanged, as the CLI reads them", async () => {
+    const web = await signIn(1, "octo");
+    const cli = await signInCli(1, "octo");
+    const { updatedAt: _u, version: _v, ...parts } = preferences.answer;
+    const put = await call("/api/preferences", {
+      method: "PUT",
+      headers: { ...web.auth, ...json, ...origin },
+      body: JSON.stringify(parts),
+    });
+    expect(put.status).toBe(200);
+    const got = (await (await call("/api/preferences", { headers: cli.auth })).json()) as Record<
+      string,
+      unknown
+    >;
+    expect(got).toEqual({ ...parts, updatedAt: expect.any(String), version: expect.any(String) });
   });
 });
 

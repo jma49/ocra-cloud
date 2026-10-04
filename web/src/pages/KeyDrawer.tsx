@@ -69,7 +69,7 @@ export function AddKeyDrawer(props: {
       props.onSaved();
     } catch (err) {
       setError(
-        err instanceof ApiError && err.code === "bad_key"
+        err instanceof ApiError && err.code === "invalid_body"
           ? "That does not look like an API key."
           : "Could not save the key.",
       );

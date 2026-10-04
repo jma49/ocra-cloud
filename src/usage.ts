@@ -48,6 +48,16 @@ usage.get("/", async (c) => {
     dailyLimit: Number(c.env.GATEWAY_DAILY_CALLS),
     series: [...series.values()],
     models: sums.models,
-    calls: latest.map(({ accountId: _a, ...call }) => call),
+    calls: latest.map((call) => ({
+      id: call.id,
+      provider: call.provider,
+      path: call.path,
+      model: call.model,
+      status: call.status,
+      tokensIn: call.tokensIn,
+      tokensOut: call.tokensOut,
+      ms: call.ms,
+      createdAt: call.createdAt,
+    })),
   });
 });
