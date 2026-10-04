@@ -25,20 +25,21 @@ export function Privacy() {
           <b>Your provider keys,</b> encrypted: each key with its own AES-256-GCM data key, which a
           master key held apart from the database (a Cloudflare Worker secret) encrypts in turn. A
           key is decrypted only in memory, for the request that uses it: to forward your model call
-          to the provider you chose, or to check the key when you save it or press Test. It is never
+          to the provider you chose, to check the key when you save it or press Test, or to ask the
+          provider which models the key can use when you choose models on the web. It is never
           logged and never shown again; we display its last four characters. Deleting it removes it
           at once.
         </li>
         <li>
-          <b>A record of each model call</b> through the gateway: provider, model, HTTP status,
-          token counts, duration and time. You see these under Activity.
+          <b>A record of each model call</b> through the gateway: provider, the provider's API path
+          called, model, HTTP status, token counts, duration and time. You see these under Activity.
         </li>
         <li>
           <b>Review counts</b> the CLI sends after a review: verdict, numbers of findings by
           severity and by reviewer, files and tasks, how many earlier findings were fixed or
           dismissed, tokens, cost, duration, source and ocra version. The repository is a hash
-          salted with a value that never leaves your machine, so we cannot tell which repository it
-          is.
+          salted with a value kept on your machine, so we cannot tell which repository it is. While
+          you send findings, the salt is your account's instead (see the next item).
         </li>
         <li>
           <b>Findings, only if you turn on "Send findings and the code they quote"</b> in Settings
@@ -47,7 +48,9 @@ export function Privacy() {
           again on the server; this catches common patterns, not every secret. While this is on,
           your machines share one repository salt held by your account, so that the same repository
           has the same hash on each of them; with a server-held salt we could test a guessed
-          repository address against it.
+          repository address against it. The account's salt stays when you turn sending off, so a
+          repository keeps its hash and memory if you turn it on again; reviews sent while it is off
+          use your machine's salt. Deleting your account deletes it.
         </li>
         <li>
           <b>Memory</b> you add on the web: the repository's hash, the finding's fingerprint, file
@@ -117,8 +120,9 @@ export function Privacy() {
       <h2>Your controls</h2>
       <ul>
         <li>
-          Export everything stored for your account as JSON, under Settings; download any review's
-          findings from its page.
+          Export everything stored for your account as JSON, under Settings: keys appear by provider
+          and last four characters, sessions without their tokens. Download any review's findings
+          from its page.
         </li>
         <li>
           Delete a key, a review, a memory entry or a session at any time; turn off sending findings

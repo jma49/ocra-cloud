@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { deleteCookie } from "hono/cookie";
 import { SESSION_COOKIE } from "./auth.js";
 import { accountSalt, deleteAccount, setSharing } from "./db/accounts.js";
+import type { Scoped } from "./db/scoped.js";
 import { audit } from "./keys.js";
 import { clampDays } from "./retention.js";
 import type { AppEnv } from "./types.js";
@@ -90,46 +91,64 @@ account.delete("/sessions/:id", async (c) => {
 const EXPORT_PAGE = 500;
 export const EXPORT_MAX_ROWS = 250_000;
 
+type Table = Parameters<Scoped["page"]>[0];
+
+/**
+ * Every account table, under its key in the export. The type makes a table
+ * added to the schema fail to compile until it is listed here (audit
+ * S-privacy: the export holds everything stored).
+ */
+export const EXPORTED = {
+  providerKeys: "providerKeys",
+  sessions: "sessions",
+  preferences: "preferences",
+  preferenceVersions: "preferenceVersions",
+  reviews: "reviews",
+  gatewayCalls: "gatewayCalls",
+  auditEvents: "auditEvents",
+  findings: "findings",
+  accountMemory: "memory",
+} as const satisfies Record<Table, string>;
+
+// How a table's row is shown; any other table's row loses only its account id.
+const SHAPES: Partial<Record<Table, (row: never) => unknown>> = {
+  // Never the encrypted key: provider, last four and when it was checked.
+  providerKeys: (k: {
+    provider: string;
+    last4: string;
+    checkStatus: unknown;
+    checkedAt: Date | null;
+    createdAt: Date;
+  }) => ({
+    provider: k.provider,
+    last4: k.last4,
+    checkStatus: k.checkStatus,
+    checkedAt: k.checkedAt,
+    createdAt: k.createdAt,
+  }),
+  // Never the token hashes.
+  sessions: (s: {
+    kind: string;
+    label: string | null;
+    createdAt: Date;
+    lastUsedAt: Date | null;
+    expiresAt: Date;
+    refreshExpiresAt: Date | null;
+  }) => ({
+    kind: s.kind,
+    label: s.label,
+    createdAt: s.createdAt,
+    lastUsedAt: s.lastUsedAt,
+    expiresAt: s.refreshExpiresAt ?? s.expiresAt,
+  }),
+};
+
 account.get("/export", (c) => {
   const d = c.var.data;
   const { account: a } = c.var.session;
-  type Table = Parameters<typeof d.page>[0];
-  const tables: [string, Table, (row: never) => unknown][] = [
-    [
-      "providerKeys",
-      "providerKeys",
-      (k: { provider: string; last4: string; checkStatus: unknown; createdAt: Date }) => ({
-        provider: k.provider,
-        last4: k.last4,
-        checkStatus: k.checkStatus,
-        createdAt: k.createdAt,
-      }),
-    ],
-    [
-      "sessions",
-      "sessions",
-      (s: {
-        kind: string;
-        label: string | null;
-        createdAt: Date;
-        lastUsedAt: Date | null;
-        expiresAt: Date;
-        refreshExpiresAt: Date | null;
-      }) => ({
-        kind: s.kind,
-        label: s.label,
-        createdAt: s.createdAt,
-        lastUsedAt: s.lastUsedAt,
-        expiresAt: s.refreshExpiresAt ?? s.expiresAt,
-      }),
-    ],
-    ["preferences", "preferences", strip],
-    ["reviews", "reviews", strip],
-    ["gatewayCalls", "gatewayCalls", strip],
-    ["auditEvents", "auditEvents", strip],
-    ["findings", "findings", strip],
-    ["memory", "accountMemory", strip],
-  ];
+  const tables = Object.entries(EXPORTED).map(
+    ([table, key]) => [key, table as Table, SHAPES[table as Table] ?? strip] as const,
+  );
   const enc = new TextEncoder();
   const body = new ReadableStream<Uint8Array>({
     async start(out) {
@@ -137,7 +156,14 @@ account.get("/export", (c) => {
       try {
         put(`{"exportedAt":${JSON.stringify(new Date())}`);
         put(
-          `,"account":${JSON.stringify({ login: a.login, githubId: a.githubId, createdAt: a.createdAt })}`,
+          `,"account":${JSON.stringify({
+            login: a.login,
+            githubId: a.githubId,
+            createdAt: a.createdAt,
+            shareFindings: a.shareFindings,
+            // The repository-hash salt, held once findings were shared (null before).
+            salt: a.salt,
+          })}`,
         );
         const truncated: string[] = [];
         for (const [key, table, shape] of tables) {

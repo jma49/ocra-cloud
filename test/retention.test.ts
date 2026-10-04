@@ -5,11 +5,14 @@ import {
 } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, it } from "vitest";
+import { EXPORTED } from "../src/account.js";
+import { accountSalt, setSharing } from "../src/db/accounts.js";
 import * as schema from "../src/db/schema.js";
 import { scoped } from "../src/db/scoped.js";
 import worker from "../src/index.js";
 import { enforceRetention } from "../src/retention.js";
 import { call, db, resetDb, signIn, signInCli } from "./helpers.js";
+import { rows } from "./table-rows.js";
 
 beforeEach(async () => {
   await resetDb();
@@ -109,6 +112,31 @@ describe("export and deletion", () => {
     expect(body.reviews).toHaveLength(1);
     expect(text).not.toMatch(/WRAPPED|CIPHER|theirs|tokenHash|accountId/);
     expect((await call("/api/export", { headers: other.auth })).status).toBe(403);
+  });
+
+  it("holds a row of every account table, the account's switch and its salt", async () => {
+    const me = await signIn(1, "octo");
+    const d = scoped(db, me.account.id);
+    // The findings' review first (the foreign key needs it), then one row per table.
+    await d.insert("reviews", rows.reviews("review-of-a"));
+    for (const [table, row] of Object.entries(rows)) {
+      if (table === "reviews") continue;
+      await d.insert(table as keyof typeof rows, row(`x-${table}`) as never);
+    }
+    await setSharing(db, me.account.id, true);
+    const salt = await accountSalt(db, me.account.id);
+
+    const body = (await (await call("/api/export", { headers: me.auth })).json()) as Record<
+      string,
+      unknown
+    >;
+    expect(Object.keys(EXPORTED).sort()).toEqual(Object.keys(rows).sort());
+    for (const [table, key] of Object.entries(EXPORTED)) {
+      expect((body[key] as unknown[] | undefined)?.length, table).toBeGreaterThan(0);
+    }
+    expect(body.account).toEqual(
+      expect.objectContaining({ login: "octo", shareFindings: true, salt }),
+    );
   });
 
   it("deletes one review of the caller's own", async () => {
