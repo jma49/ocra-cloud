@@ -7,6 +7,7 @@ import { gateway } from "./gateway.js";
 import { keys } from "./keys.js";
 import { preferences } from "./preferences.js";
 import { type ProviderName, providerInfo, providers } from "./providers.js";
+import { enforceRetention } from "./retention.js";
 import { reviews } from "./reviews.js";
 import type { AppEnv } from "./types.js";
 
@@ -46,6 +47,7 @@ app.use("/usage", requireSession());
 app.use("/sessions/*", requireSession());
 app.use("/sessions", requireSession());
 app.use("/account", requireSession());
+app.use("/export", requireSession());
 app.route("/", account);
 
 app.route("/reviews", reviews);
@@ -63,4 +65,9 @@ app.onError((err, c) => {
   return c.json({ error: "internal" }, 500);
 });
 
-export default app;
+export default {
+  fetch: app.fetch,
+  async scheduled(_controller, env, ctx) {
+    ctx.waitUntil(enforceRetention(drizzle(env.DB)));
+  },
+} satisfies ExportedHandler<Env>;

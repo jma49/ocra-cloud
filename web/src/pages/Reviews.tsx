@@ -25,7 +25,7 @@ function Verdict(props: { r: Review }) {
 
 export function Reviews() {
   const [days, setDays] = useState(30);
-  const [data, error] = useLoad(() => api<ReviewsData>(`/reviews?days=${days}`), [days]);
+  const [data, error, reload] = useLoad(() => api<ReviewsData>(`/reviews?days=${days}`), [days]);
   const s = data?.summary;
   return (
     <>
@@ -79,6 +79,7 @@ export function Reviews() {
                   <th className="num">Files</th>
                   <th className="num">Tokens</th>
                   <th className="num">Duration</th>
+                  <th />
                 </tr>
               </thead>
               <tbody>
@@ -107,6 +108,20 @@ export function Reviews() {
                     </td>
                     <td className="num">{compact(r.tokensIn + r.tokensOut)}</td>
                     <td className="num">{(r.durationMs / 1000).toFixed(0)}s</td>
+                    <td className="num">
+                      <button
+                        type="button"
+                        className="icon-btn"
+                        aria-label="Delete this record"
+                        title="Delete this record"
+                        onClick={async () => {
+                          await api(`/reviews/${r.id}`, { method: "DELETE" }).catch(() => {});
+                          reload();
+                        }}
+                      >
+                        ×
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

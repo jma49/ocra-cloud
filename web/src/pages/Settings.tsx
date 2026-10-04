@@ -37,6 +37,24 @@ export function Settings(props: { me: Me }) {
         </dl>
       </div>
 
+      <div className="section card">
+        <div className="card-head">
+          <h3>Your data</h3>
+        </div>
+        <div
+          className="card-pad"
+          style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}
+        >
+          <span className="muted small" style={{ flex: 1, minWidth: 240 }}>
+            Download everything stored for your account as JSON. Records are kept 90 days;{" "}
+            <a href="/privacy">data policy</a>.
+          </span>
+          <a className="btn" href="/api/export" download>
+            Export my data
+          </a>
+        </div>
+      </div>
+
       <div className="section card danger-zone">
         <div className="card-head">
           <h3>Delete account</h3>

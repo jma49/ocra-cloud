@@ -95,3 +95,7 @@ reviews.get("/", requireSession(), async (c) => {
     reviews: rows.map(({ accountId: _a, ...r }) => ({ ...r, repo: r.repoHash.slice(0, 8) })),
   });
 });
+
+reviews.delete("/:id", requireSession(), async (c) => {
+  return c.json({ removed: await c.var.data.remove("reviews", c.req.param("id")) });
+});

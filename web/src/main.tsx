@@ -6,6 +6,7 @@ import { Device } from "./pages/Device.js";
 import { Keys } from "./pages/Keys.js";
 import { Models } from "./pages/Models.js";
 import { Overview } from "./pages/Overview.js";
+import { Privacy } from "./pages/Privacy.js";
 import { Reviews } from "./pages/Reviews.js";
 import { Sessions } from "./pages/Sessions.js";
 import { Settings } from "./pages/Settings.js";
@@ -96,6 +97,20 @@ function TopBar(props: { me: Me | null }) {
   );
 }
 
+function Footer() {
+  return (
+    <footer className="footer">
+      <a href="/privacy">Data policy</a>
+      <a href={DOCS} target="_blank" rel="noreferrer">
+        Docs
+      </a>
+      <a href="https://github.com/jma49/Open-CR-Agent" target="_blank" rel="noreferrer">
+        GitHub
+      </a>
+    </footer>
+  );
+}
+
 function SignIn(props: { next?: string }) {
   const points = [
     [
@@ -156,12 +171,24 @@ function App() {
     document.title = page && me ? `${page} · ocra Cloud` : "ocra Cloud";
   }, [path, me]);
 
+  if (path === "/privacy") {
+    return (
+      <>
+        <TopBar me={me ?? null} />
+        <main className="content" style={{ maxWidth: 820, margin: "0 auto" }}>
+          <Privacy />
+        </main>
+        <Footer />
+      </>
+    );
+  }
   if (me === undefined) return <TopBar me={null} />;
   if (me === null)
     return (
       <>
         <TopBar me={null} />
         <SignIn next={path === "/" ? undefined : location.pathname + location.search} />
+        <Footer />
       </>
     );
   const page =
@@ -198,6 +225,10 @@ function App() {
           <a className="side-link" href={DOCS} target="_blank" rel="noreferrer">
             <Icon name="book" />
             Documentation
+          </a>
+          <a className="side-link" href="/privacy">
+            <Icon name="check" />
+            Data policy
           </a>
         </nav>
         <main className="content">{page}</main>

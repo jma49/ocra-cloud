@@ -98,6 +98,39 @@ account.delete("/sessions/:id", async (c) => {
   return c.json({ removed });
 });
 
+// Everything stored for the account, as JSON. Keys are listed by provider
+// and last four characters; their encrypted values stay on the server.
+account.get("/export", async (c) => {
+  const d = c.var.data;
+  const strip = <T extends { accountId: string }>(rows: T[]) =>
+    rows.map(({ accountId: _a, ...r }) => r);
+  const keys = (await d.list("providerKeys")).map((k) => ({
+    provider: k.provider,
+    last4: k.last4,
+    checkStatus: k.checkStatus,
+    createdAt: k.createdAt,
+  }));
+  const sessionsList = (await d.list("sessions")).map((s) => ({
+    kind: s.kind,
+    label: s.label,
+    createdAt: s.createdAt,
+    lastUsedAt: s.lastUsedAt,
+    expiresAt: s.refreshExpiresAt ?? s.expiresAt,
+  }));
+  const { account: a } = c.var.session;
+  c.header("content-disposition", 'attachment; filename="ocra-cloud-export.json"');
+  return c.json({
+    exportedAt: new Date(),
+    account: { login: a.login, githubId: a.githubId, createdAt: a.createdAt },
+    providerKeys: keys,
+    sessions: sessionsList,
+    preferences: strip(await d.list("preferences")),
+    reviews: strip(await d.list("reviews")),
+    gatewayCalls: strip(await d.list("gatewayCalls")),
+    auditEvents: strip(await d.list("auditEvents")),
+  });
+});
+
 account.delete("/account", async (c) => {
   const body = (await c.req.json().catch(() => null)) as { confirm?: unknown } | null;
   if (body?.confirm !== c.var.session.account.login) {
