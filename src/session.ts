@@ -10,6 +10,7 @@ import {
 } from "./db/accounts.js";
 import { scoped } from "./db/scoped.js";
 import { apiError } from "./http.js";
+import { DAY, HOUR, MINUTE } from "./time.js";
 import type { AppEnv } from "./types.js";
 
 // Sessions: the guard every signed-in route sits behind, the session cookie,
@@ -21,12 +22,13 @@ import type { AppEnv } from "./types.js";
  * `ocra_session`, which signed browsers out once (#15).
  */
 const SESSION_COOKIE = "__Host-ocra_session";
-const DAY = 86_400_000;
 const SESSION_DAYS = { web: 30, cli: 90 } as const;
 /** A CLI access token lives an hour; its refresh token, SESSION_DAYS.cli. */
-const CLI_ACCESS_MS = 3_600_000;
+const CLI_ACCESS_MS = HOUR;
 /** How long a refresh token used once still answers, for a response that was lost. */
-export const REFRESH_GRACE_MS = 60_000;
+export const REFRESH_GRACE_MS = MINUTE;
+/** A session's last use is written at most this often. */
+const LAST_USED_EVERY_MS = 5 * MINUTE;
 
 type Kind = "web" | "cli";
 
@@ -55,7 +57,7 @@ export function requireSession(kinds: readonly Kind[] = ["web"]): MiddlewareHand
     c.set("data", data);
     // When a session was last used, to the nearest few minutes.
     const now = new Date();
-    if (!session.lastUsedAt || now.getTime() - session.lastUsedAt.getTime() > 5 * 60_000) {
+    if (!session.lastUsedAt || now.getTime() - session.lastUsedAt.getTime() > LAST_USED_EVERY_MS) {
       c.executionCtx.waitUntil(data.update("sessions", session.sessionId, { lastUsedAt: now }));
     }
     await next();

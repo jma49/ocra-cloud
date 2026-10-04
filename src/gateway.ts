@@ -1,9 +1,11 @@
 import { Hono } from "hono";
 import { readText } from "./body.js";
+import { config } from "./config.js";
 import { apiError } from "./http.js";
 import { keyFor, masterKeys } from "./keyring.js";
 import { applyAuth, isProvider, matchRoute, PASS_HEADERS, providers } from "./providers.js";
 import { requireSession } from "./session.js";
+import { utcDayStart } from "./time.js";
 import type { AppEnv } from "./types.js";
 
 // Forwards one model call with the user's stored key. The request body goes
@@ -34,8 +36,8 @@ gateway.post("/:provider/*", async (c) => {
   // The call's row is written before forwarding and is the reservation
   // against the daily cap, so parallel calls cannot all pass, and a call
   // that never finishes still shows in the log. It is updated at the end.
-  const today = new Date(new Date().toISOString().slice(0, 10));
-  const cap = Number(c.env.GATEWAY_DAILY_CALLS);
+  const today = utcDayStart();
+  const cap = config(c.env).gatewayDailyCalls;
   const row = { provider: name, path, model, status: PENDING };
   const id = await data.reserve("gatewayCalls", row, today, cap);
   if (!id) return apiError(c, "daily_limit", { limit: cap });

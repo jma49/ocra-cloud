@@ -1,0 +1,32 @@
+import { describe, expect, it } from "vitest";
+import { config } from "../src/config.js";
+import { DAY, utcDay, utcDayStart } from "../src/time.js";
+
+describe("time", () => {
+  it("counts days in UTC", () => {
+    const late = new Date("2026-10-04T23:59:59.999Z");
+    expect(utcDay(late)).toBe("2026-10-04");
+    expect(utcDayStart(late)).toEqual(new Date("2026-10-04T00:00:00Z"));
+    expect(utcDayStart(new Date(late.getTime() + 1)).getTime() - utcDayStart(late).getTime()).toBe(
+      DAY,
+    );
+  });
+});
+
+describe("config", () => {
+  it("parses the numeric vars once per environment", () => {
+    const env = {
+      GATEWAY_DAILY_CALLS: "3",
+      REVIEW_DAILY_UPLOADS: "500",
+      REVIEW_MAX_FINDINGS: "20000",
+    };
+    const first = config(env);
+    expect(first).toEqual({
+      gatewayDailyCalls: 3,
+      reviewDailyUploads: 500,
+      reviewMaxFindings: 20000,
+    });
+    expect(config(env)).toBe(first);
+    expect(config({ ...env, GATEWAY_DAILY_CALLS: "7" }).gatewayDailyCalls).toBe(7);
+  });
+});

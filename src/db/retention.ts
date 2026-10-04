@@ -1,17 +1,13 @@
 import { lt, sql } from "drizzle-orm";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
+import { DAY } from "../time.js";
 import { auditEvents, deviceCodes, gatewayCalls, reviews, sessions } from "./schema.js";
 
 // What the data policy (web /privacy) promises: review records, gateway call
 // records and the audit log are deleted after RETENTION_DAYS; expired login
 // codes and sessions go at once. Runs daily from the cron trigger.
 
-const RETENTION_DAYS = 90;
-const DAY = 86_400_000;
-
-/** A `days` query clamped to 1..RETENTION_DAYS: older records are gone. */
-export const clampDays = (v: string | undefined, fallback: number) =>
-  Math.min(Math.max(Math.trunc(Number(v ?? fallback)) || fallback, 1), RETENTION_DAYS);
+export const RETENTION_DAYS = 90;
 
 /**
  * Runs every delete, each on its own: one that fails is logged and the rest

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as schema from "../src/db/schema.js";
 import { scoped } from "../src/db/scoped.js";
+import { DAY } from "../src/time.js";
 import { call, db, ORIGIN, resetDb, signIn } from "./helpers.js";
 import { rows } from "./table-rows.js";
 
@@ -25,8 +26,8 @@ describe("usage", () => {
     });
     await mine.insert("gatewayCalls", row("a", "m1", 200, 0));
     await mine.insert("gatewayCalls", row("b", "m1", 429, 0));
-    await mine.insert("gatewayCalls", row("c", "m2", 200, 3 * 86_400_000));
-    await mine.insert("gatewayCalls", row("old", "m2", 200, 40 * 86_400_000));
+    await mine.insert("gatewayCalls", row("c", "m2", 200, 3 * DAY));
+    await mine.insert("gatewayCalls", row("old", "m2", 200, 40 * DAY));
     await scoped(db, other.account.id).insert("gatewayCalls", row("x", "theirs", 200, 0));
 
     const body = (await (await call("/api/usage?days=14", { auth: me.auth })).json()) as {

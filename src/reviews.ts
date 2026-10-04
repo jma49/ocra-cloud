@@ -1,19 +1,19 @@
 import { Hono } from "hono";
 import type { z } from "zod";
+import { config } from "./config.js";
 import { MAX_REVIEWERS, REVIEWER_ID, reviewUploadSchema } from "./contract/index.js";
-import { clampDays } from "./db/retention.js";
 import type { ReviewerCounts } from "./db/schema.js";
 import type { Row, Scoped } from "./db/scoped.js";
 import { parseFindings } from "./findings.js";
-import { apiError, jsonBody } from "./http.js";
+import { apiError, jsonBody, queryDays } from "./http.js";
 import { requireSession } from "./session.js";
+import { DAY, utcDayStart } from "./time.js";
 import type { AppEnv } from "./types.js";
 
 // Review metadata: the CLI uploads counts after a review, the web lists them.
 
 export const reviews = new Hono<AppEnv>();
 
-const DAY = 86_400_000;
 /** An upload's largest body, in bytes. */
 const MAX_UPLOAD = 600_000;
 type Upload = z.output<typeof reviewUploadSchema>;
@@ -76,14 +76,14 @@ reviews.post("/", requireSession(["web", "cli"]), uploadBody, async (c) => {
   // A run uploads once; a retry of the same run, even a concurrent one, is
   // not a second review. Uploads per UTC day and stored findings are capped
   // per account (audit S3): a loop of uploads cannot fill the database.
-  const limit = Number(c.env.REVIEW_DAILY_UPLOADS);
+  const { reviewDailyUploads: limit, reviewMaxFindings } = config(c.env);
   const { id, duplicate, limited, findingsSkipped } = await c.var.data.insertReview(
     row,
     parsed.rows,
     {
-      since: new Date(new Date().toISOString().slice(0, 10)),
+      since: utcDayStart(),
       dailyUploads: limit,
-      maxFindings: Number(c.env.REVIEW_MAX_FINDINGS),
+      maxFindings: reviewMaxFindings,
     },
   );
   if (duplicate) return c.json({ id, duplicate: true });
@@ -214,7 +214,7 @@ reviews.get("/:id/export", requireSession(), async (c) => {
 });
 
 reviews.get("/", requireSession(), async (c) => {
-  const days = clampDays(c.req.query("days"), 30);
+  const days = queryDays(c, 30);
   const since = new Date(Date.now() - days * DAY);
   // The totals are summed in SQL (audit D5); the list shows the newest 500.
   const [{ summary, byReviewer }, rows] = await Promise.all([
