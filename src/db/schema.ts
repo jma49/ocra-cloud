@@ -55,6 +55,7 @@ export const sessions = sqliteTable(
   (t) => [
     index("sessions_prev_token").on(t.prevTokenHash),
     index("sessions_prev_refresh").on(t.prevRefreshHash),
+    index("sessions_account").on(t.accountId),
   ],
 );
 
@@ -79,19 +80,23 @@ export const deviceCodes = sqliteTable("device_codes", {
 });
 
 // A model provider key, encrypted with a data key that the master key wraps.
-export const providerKeys = sqliteTable("provider_keys", {
-  id: text("id").primaryKey(),
-  accountId: accountId(),
-  provider: text("provider").notNull(),
-  wrappedKey: text("wrapped_key").notNull(),
-  ciphertext: text("ciphertext").notNull(),
-  last4: text("last4").notNull(),
-  // The last check of the key against the provider: ok, invalid, error, or
-  // unchecked when the provider has no way to check a key in advance.
-  checkStatus: text("check_status", { enum: ["ok", "invalid", "error", "unchecked"] }),
-  checkedAt: integer("checked_at", { mode: "timestamp_ms" }),
-  createdAt: createdAt(),
-});
+export const providerKeys = sqliteTable(
+  "provider_keys",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    provider: text("provider").notNull(),
+    wrappedKey: text("wrapped_key").notNull(),
+    ciphertext: text("ciphertext").notNull(),
+    last4: text("last4").notNull(),
+    // The last check of the key against the provider: ok, invalid, error, or
+    // unchecked when the provider has no way to check a key in advance.
+    checkStatus: text("check_status", { enum: ["ok", "invalid", "error", "unchecked"] }),
+    checkedAt: integer("checked_at", { mode: "timestamp_ms" }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("provider_keys_account").on(t.accountId)],
+);
 
 // Review metadata the CLI uploads after a review: counts only. The
 // repository is a hash salted on the user's machine, so the server cannot
@@ -127,7 +132,10 @@ export const reviews = sqliteTable(
     dismissed: integer("dismissed").notNull().default(0),
     createdAt: createdAt(),
   },
-  (t) => [uniqueIndex("reviews_account_run").on(t.accountId, t.runId)],
+  (t) => [
+    uniqueIndex("reviews_account_run").on(t.accountId, t.runId),
+    index("reviews_account_created").on(t.accountId, t.createdAt),
+  ],
 );
 
 export type ReviewerCounts = {
@@ -184,76 +192,97 @@ export type AgentPrefs = {
 };
 
 // Uses of a key and changes to an account, readable by its owner.
-export const auditEvents = sqliteTable("audit_events", {
-  id: text("id").primaryKey(),
-  accountId: accountId(),
-  kind: text("kind").notNull(),
-  detail: text("detail", { mode: "json" }).$type<Record<string, unknown>>(),
-  createdAt: createdAt(),
-});
+export const auditEvents = sqliteTable(
+  "audit_events",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    kind: text("kind").notNull(),
+    detail: text("detail", { mode: "json" }).$type<Record<string, unknown>>(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("audit_events_account_created").on(t.accountId, t.createdAt)],
+);
 
 // One model call through the gateway: the audit log of key use, and the
 // usage behind the daily cap and statistics. Never a request or answer body.
-export const gatewayCalls = sqliteTable("gateway_calls", {
-  id: text("id").primaryKey(),
-  accountId: accountId(),
-  provider: text("provider").notNull(),
-  path: text("path").notNull(),
-  model: text("model"),
-  status: integer("status").notNull(),
-  tokensIn: integer("tokens_in").notNull().default(0),
-  tokensOut: integer("tokens_out").notNull().default(0),
-  ms: integer("ms").notNull().default(0),
-  createdAt: createdAt(),
-});
+export const gatewayCalls = sqliteTable(
+  "gateway_calls",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    provider: text("provider").notNull(),
+    path: text("path").notNull(),
+    model: text("model"),
+    status: integer("status").notNull(),
+    tokensIn: integer("tokens_in").notNull().default(0),
+    tokensOut: integer("tokens_out").notNull().default(0),
+    ms: integer("ms").notNull().default(0),
+    createdAt: createdAt(),
+  },
+  (t) => [index("gateway_calls_account_created").on(t.accountId, t.createdAt)],
+);
 
 // Each save of the preferences (ADR-0027): what was saved and which keys
 // changed, so any version can be restored. The newest 50 are kept.
-export const preferenceVersions = sqliteTable("preference_versions", {
-  id: text("id").primaryKey(),
-  accountId: accountId(),
-  snapshot: text("snapshot", { mode: "json" }).notNull().$type<Record<string, unknown>>(),
-  changed: text("changed", { mode: "json" }).notNull().$type<string[]>(),
-  createdAt: createdAt(),
-});
+export const preferenceVersions = sqliteTable(
+  "preference_versions",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    snapshot: text("snapshot", { mode: "json" }).notNull().$type<Record<string, unknown>>(),
+    changed: text("changed", { mode: "json" }).notNull().$type<string[]>(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("preference_versions_account_created").on(t.accountId, t.createdAt)],
+);
 
 // A finding of an uploaded review, only while the account shares findings
 // (ADR-0028). Redacted and bounded; deleted with its review.
-export const findings = sqliteTable("findings", {
-  id: text("id").primaryKey(),
-  accountId: accountId(),
-  reviewId: text("review_id")
-    .notNull()
-    .references(() => reviews.id, { onDelete: "cascade" }),
-  fingerprint: text("fingerprint").notNull(),
-  reviewer: text("reviewer").notNull(),
-  severity: text("severity").notNull(),
-  category: text("category"),
-  verification: text("verification"),
-  file: text("file").notNull(),
-  lineStart: integer("line_start"),
-  lineEnd: integer("line_end"),
-  title: text("title").notNull(),
-  body: text("body").notNull(),
-  suggestion: text("suggestion"),
-  code: text("code"),
-  redacted: integer("redacted", { mode: "boolean" }).notNull().default(false),
-  truncated: integer("truncated", { mode: "boolean" }).notNull().default(false),
-  createdAt: createdAt(),
-});
+export const findings = sqliteTable(
+  "findings",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    reviewId: text("review_id")
+      .notNull()
+      .references(() => reviews.id, { onDelete: "cascade" }),
+    fingerprint: text("fingerprint").notNull(),
+    reviewer: text("reviewer").notNull(),
+    severity: text("severity").notNull(),
+    category: text("category"),
+    verification: text("verification"),
+    file: text("file").notNull(),
+    lineStart: integer("line_start"),
+    lineEnd: integer("line_end"),
+    title: text("title").notNull(),
+    body: text("body").notNull(),
+    suggestion: text("suggestion"),
+    code: text("code"),
+    redacted: integer("redacted", { mode: "boolean" }).notNull().default(false),
+    truncated: integer("truncated", { mode: "boolean" }).notNull().default(false),
+    createdAt: createdAt(),
+  },
+  // review_id: a review's delete cascades here (by the user or retention).
+  (t) => [index("findings_account").on(t.accountId), index("findings_review").on(t.reviewId)],
+);
 
 // Findings the account remembers (ADR-0028, 4), applied with a repository's
 // .ocra/memory.json. Kept until deleted; at most 500 per repository.
-export const accountMemory = sqliteTable("account_memory", {
-  id: text("id").primaryKey(),
-  accountId: accountId(),
-  repoHash: text("repo_hash").notNull(),
-  fingerprint: text("fingerprint").notNull(),
-  file: text("file"),
-  title: text("title"),
-  reason: text("reason").notNull(),
-  createdAt: createdAt(),
-});
+export const accountMemory = sqliteTable(
+  "account_memory",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    repoHash: text("repo_hash").notNull(),
+    fingerprint: text("fingerprint").notNull(),
+    file: text("file"),
+    title: text("title"),
+    reason: text("reason").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("account_memory_account").on(t.accountId)],
+);
 
 /** The tables scoped by account, by the name scoped() uses. */
 export const accountTables = {

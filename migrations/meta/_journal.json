@@ -78,6 +78,13 @@
       "when": 1791112413313,
       "tag": "0010_refresh_rotation",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1791114333456,
+      "tag": "0011_account_indexes",
+      "breakpoints": true
     }
   ]
 }
