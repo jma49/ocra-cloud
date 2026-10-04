@@ -74,6 +74,19 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   return body as T;
 }
 
+/** Why a request failed, in words for the person (no codes). */
+export function why(e: unknown): string {
+  if (e instanceof ApiError) {
+    if (e.status === 401) return "you are signed out; sign in again in a new tab";
+    if (e.status === 403) return "this session may not do that";
+    if (e.status === 404) return "it no longer exists";
+    if (e.status === 429) return "too many requests; wait a moment and try again";
+    if (e.status >= 500) return "ocra Cloud had an error; try again";
+    return "the request was refused";
+  }
+  return "ocra Cloud could not be reached; check your connection";
+}
+
 const nf = new Intl.NumberFormat("en-US");
 export const num = (n: number) => nf.format(n);
 export function compact(n: number): string {

@@ -7,7 +7,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import { ApiError, api } from "./api.js";
+import { ApiError, api, why } from "./api.js";
 
 // The account's preferences, shared by the configuration pages: one saved
 // copy, one draft, a save bar when they differ, and a toast after saving.
@@ -74,6 +74,21 @@ const strip = (p: Prefs) => ({
   settings: p.settings,
 });
 
+/** Why a save failed: the server's own refusal, else what went wrong getting there. */
+export function saveError(e: unknown): string {
+  if (e instanceof ApiError && e.code === "bad_preferences")
+    return "Not saved: a value is out of range or a model name is incomplete.";
+  return `Not saved: ${why(e)}.`;
+}
+
+/** Rules with no text are drafts: the page says they are not saved, so they are not sent. */
+function dropEmptyRules(p: Prefs): Prefs {
+  const rules = p.settings.rules?.filter((r) => r.rule.trim() !== "");
+  if (rules === undefined || rules.length === p.settings.rules?.length) return p;
+  const { rules: _, ...rest } = p.settings;
+  return { ...p, settings: rules.length > 0 ? { ...rest, rules } : rest };
+}
+
 export function PrefsProvider(props: { children: ReactNode; clean?: (p: Prefs) => Prefs }) {
   const [saved, setSaved] = useState<Prefs | undefined>(undefined);
   const [draft, setDraft] = useState<Prefs | undefined>(undefined);
@@ -112,7 +127,7 @@ export function PrefsProvider(props: { children: ReactNode; clean?: (p: Prefs) =
       const next = await api<Prefs>("/preferences", {
         method: "PUT",
         body: JSON.stringify({
-          ...strip(props.clean ? props.clean(draft) : draft),
+          ...strip(dropEmptyRules(props.clean ? props.clean(draft) : draft)),
           baseVersion: saved?.version ?? null,
         }),
       });
@@ -121,7 +136,7 @@ export function PrefsProvider(props: { children: ReactNode; clean?: (p: Prefs) =
       toast("Settings saved");
     } catch (e) {
       if (e instanceof ApiError && e.code === "stale") setStale(true);
-      else setError("Not saved: a value is out of range or a model name is incomplete.");
+      else setError(saveError(e));
     } finally {
       setSaving(false);
     }
@@ -197,7 +212,7 @@ export function PrefsProvider(props: { children: ReactNode; clean?: (p: Prefs) =
       )}
       {dirty && !stale && (
         <section className="savebar" aria-label="Unsaved changes">
-          <span>{error || "You have unsaved changes"}</span>
+          <span role={error ? "alert" : undefined}>{error || "You have unsaved changes"}</span>
           <span style={{ display: "flex", gap: 8 }}>
             <button type="button" className="btn btn-sm" onClick={discard} disabled={saving}>
               Discard

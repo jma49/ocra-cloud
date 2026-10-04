@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { api, compact, num, type Review, type Reviews as ReviewsData, time } from "../api.js";
+import { api, compact, num, type Review, type Reviews as ReviewsData, time, why } from "../api.js";
 import { Link } from "../router.js";
-import { PageHead, Seg, useLoad } from "../ui.js";
+import { Loading, PageHead, Seg, useLoad } from "../ui.js";
 
 const RANGES = [
   { value: 7, label: "1W" },
@@ -28,6 +28,16 @@ function Verdict(props: { r: Review }) {
 export function Reviews() {
   const [days, setDays] = useState(30);
   const [data, error, reload] = useLoad(() => api<ReviewsData>(`/reviews?days=${days}`), [days]);
+  const [failed, setFailed] = useState("");
+  const remove = async (id: string) => {
+    setFailed("");
+    try {
+      await api(`/reviews/${id}`, { method: "DELETE" });
+      reload();
+    } catch (e) {
+      setFailed(`Could not delete the record: ${why(e)}.`);
+    }
+  };
   const s = data?.summary;
   return (
     <>
@@ -36,7 +46,12 @@ export function Reviews() {
         sub="Counts from each review the CLI ran while signed in. No code, paths or finding text are uploaded."
         actions={<Seg value={days} options={RANGES} onChange={setDays} />}
       />
-      {error ? <p className="error">Could not load reviews.</p> : null}
+      {error ? <p className="error">Could not load reviews: {why(error)}.</p> : null}
+      {failed && (
+        <p className="error" role="alert">
+          {failed}
+        </p>
+      )}
       <div className="stats">
         <div className="card stat">
           <div className="stat-label">Reviews</div>
@@ -118,7 +133,9 @@ export function Reviews() {
           <h3>History</h3>
           <span className="subtle small">repositories are shown by an anonymous hash</span>
         </div>
-        {data && data.reviews.length > 0 ? (
+        {!data ? (
+          <Loading what="reviews" />
+        ) : data.reviews.length > 0 ? (
           <div className="table-wrap">
             <table>
               <thead>
@@ -170,10 +187,7 @@ export function Reviews() {
                         className="icon-btn"
                         aria-label="Delete this record"
                         title="Delete this record"
-                        onClick={async () => {
-                          await api(`/reviews/${r.id}`, { method: "DELETE" }).catch(() => {});
-                          reload();
-                        }}
+                        onClick={() => remove(r.id)}
                       >
                         ×
                       </button>

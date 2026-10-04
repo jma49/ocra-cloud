@@ -9,6 +9,7 @@ import {
   type KeyCheck,
   num,
   type ProviderInfo,
+  why,
 } from "../api.js";
 import { anyProvider } from "../site.js";
 import { PageHead, ProviderLogo, useLoad } from "../ui.js";
@@ -67,7 +68,7 @@ export function Keys() {
           </button>
         }
       />
-      {keysError ? <p className="error">Could not load keys.</p> : null}
+      {keysError ? <p className="error">Could not load keys: {why(keysError)}.</p> : null}
       {keys && list.length === 0 ? (
         <div className="card empty-hero">
           <h3>No provider keys yet</h3>
@@ -196,18 +197,21 @@ function KeyRow(props: {
   const [busy, setBusy] = useState<"" | "test" | "delete">("");
   const [confirm, setConfirm] = useState(false);
   const label = p?.label ?? k.provider;
-  const test = async () => {
-    setBusy("test");
-    await api(`/keys/${k.provider}/test`, { method: "POST" }).catch(() => {});
-    setBusy("");
-    props.onChanged();
+  const [failed, setFailed] = useState("");
+  const act = async (kind: "test" | "delete", run: () => Promise<unknown>) => {
+    setBusy(kind);
+    setFailed("");
+    try {
+      await run();
+      props.onChanged();
+    } catch (e) {
+      setFailed(`Could not ${kind === "test" ? "test" : "delete"} the key: ${why(e)}.`);
+    } finally {
+      setBusy("");
+    }
   };
-  const remove = async () => {
-    setBusy("delete");
-    await api(`/keys/${k.provider}`, { method: "DELETE" }).catch(() => {});
-    setBusy("");
-    props.onChanged();
-  };
+  const test = () => act("test", () => api(`/keys/${k.provider}/test`, { method: "POST" }));
+  const remove = () => act("delete", () => api(`/keys/${k.provider}`, { method: "DELETE" }));
   return (
     <tr>
       <td>
@@ -262,6 +266,11 @@ function KeyRow(props: {
             </>
           )}
         </div>
+        {failed && (
+          <div className="error small" role="alert">
+            {failed}
+          </div>
+        )}
       </td>
     </tr>
   );

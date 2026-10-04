@@ -1,10 +1,10 @@
 import { api, compact, type Key, num, type Usage } from "../api.js";
 import { Link } from "../router.js";
 import { anyProvider } from "../site.js";
-import { PageHead, StackedBars, useLoad, useProviders } from "../ui.js";
+import { LoadError, Loading, PageHead, StackedBars, useLoad, useProviders } from "../ui.js";
 
 export function Overview(props: { login: string }) {
-  const [usage] = useLoad(() => api<Usage>("/usage?days=14"));
+  const [usage, usageError, reloadUsage] = useLoad(() => api<Usage>("/usage?days=14"));
   const [keys] = useLoad(() => api<{ keys: Key[] }>("/keys"));
   const providers = useProviders();
   const week = usage?.series.slice(-7) ?? [];
@@ -60,6 +60,10 @@ export function Overview(props: { login: string }) {
           </div>
           {usage && anyCalls ? (
             <StackedBars series={usage.series} metric="calls" />
+          ) : usageError && !usage ? (
+            <LoadError what="your requests" error={usageError} retry={reloadUsage} />
+          ) : !usage ? (
+            <Loading what="requests" />
           ) : (
             <div className="empty">
               No requests yet. They appear here once the CLI uses your keys.

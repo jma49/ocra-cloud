@@ -2,26 +2,14 @@ import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { api, type Me } from "./api.js";
 import { Footer, TopBar } from "./chrome.js";
-import { Activity } from "./pages/Activity.js";
-import { Agents, completeAgents } from "./pages/Agents.js";
-import { Defaults } from "./pages/Defaults.js";
-import { Device } from "./pages/Device.js";
-import { Keys } from "./pages/Keys.js";
-import { Memory } from "./pages/Memory.js";
-import { Overview } from "./pages/Overview.js";
-import { Plugins } from "./pages/Plugins.js";
+import { completeAgents } from "./pages/Agents.js";
 import { Privacy } from "./pages/Privacy.js";
-import { ReviewDetail } from "./pages/ReviewDetail.js";
-import { ReviewSettings } from "./pages/ReviewSettings.js";
-import { Reviews } from "./pages/Reviews.js";
-import { Rules } from "./pages/Rules.js";
-import { Sessions } from "./pages/Sessions.js";
-import { Settings } from "./pages/Settings.js";
 import { PrefsProvider } from "./prefs.js";
 import { Link, usePath } from "./router.js";
+import { pageFor } from "./routes.js";
 import { SignIn } from "./signin.js";
 import { DOCS } from "./site.js";
-import { Icon, type icons } from "./ui.js";
+import { ErrorBoundary, Icon, type icons } from "./ui.js";
 import "./styles.css";
 
 type NavItem = { to: string; label: string; icon: keyof typeof icons };
@@ -87,36 +75,6 @@ function App() {
         <Footer />
       </>
     );
-  const page =
-    path === "/device" ? (
-      <Device />
-    ) : path === "/activity" ? (
-      <Activity />
-    ) : path.startsWith("/reviews/") ? (
-      <ReviewDetail id={decodeURIComponent(path.slice("/reviews/".length))} />
-    ) : path === "/memory" ? (
-      <Memory />
-    ) : path === "/reviews" ? (
-      <Reviews />
-    ) : path === "/agents" || path === "/models" ? (
-      <Agents />
-    ) : path === "/review-settings" ? (
-      <ReviewSettings />
-    ) : path === "/rules" ? (
-      <Rules />
-    ) : path === "/plugins" ? (
-      <Plugins />
-    ) : path === "/defaults" ? (
-      <Defaults />
-    ) : path === "/keys" ? (
-      <Keys />
-    ) : path === "/sessions" ? (
-      <Sessions />
-    ) : path === "/settings" ? (
-      <Settings me={me} />
-    ) : (
-      <Overview login={me.login} />
-    );
   return (
     <>
       <TopBar me={me} />
@@ -144,7 +102,9 @@ function App() {
           </a>
         </nav>
         <main className="content">
-          <PrefsProvider clean={completeAgents}>{page}</PrefsProvider>
+          <PrefsProvider clean={completeAgents}>
+            <ErrorBoundary key={path}>{pageFor(path, me)}</ErrorBoundary>
+          </PrefsProvider>
         </main>
       </div>
     </>
