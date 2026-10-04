@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 // Every table but accounts carries accountId, and is read and written only
 // through scoped() in ./scoped.ts, which filters by it. The isolation test
@@ -27,20 +27,36 @@ export const accounts = sqliteTable("accounts", {
 });
 
 // A signed-in browser or CLI. Only a hash of the token is stored.
-export const sessions = sqliteTable("sessions", {
-  id: text("id").primaryKey(),
-  accountId: accountId(),
-  tokenHash: text("token_hash").notNull().unique(),
-  kind: text("kind", { enum: ["web", "cli"] }).notNull(),
-  label: text("label"),
-  createdAt: createdAt(),
-  // The access token's expiry. A CLI session also has a refresh token,
-  // rotated on each use, that outlives it.
-  expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
-  refreshHash: text("refresh_hash").unique(),
-  refreshExpiresAt: integer("refresh_expires_at", { mode: "timestamp_ms" }),
-  lastUsedAt: integer("last_used_at", { mode: "timestamp_ms" }),
-});
+export const sessions = sqliteTable(
+  "sessions",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    tokenHash: text("token_hash").notNull().unique(),
+    kind: text("kind", { enum: ["web", "cli"] }).notNull(),
+    label: text("label"),
+    createdAt: createdAt(),
+    // The access token's expiry. A CLI session also has a refresh token,
+    // rotated on each use, that outlives it.
+    expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+    refreshHash: text("refresh_hash").unique(),
+    // Fixed when the CLI session starts: rotation does not extend it.
+    refreshExpiresAt: integer("refresh_expires_at", { mode: "timestamp_ms" }),
+    lastUsedAt: integer("last_used_at", { mode: "timestamp_ms" }),
+    // The pair before the last rotation. The access token stays valid until its
+    // own expiry, for another process still using it; the refresh token, once
+    // used again, either answers a lost response (within REFRESH_GRACE_MS of
+    // rotatedAt) or revokes the session as stolen.
+    prevTokenHash: text("prev_token_hash"),
+    prevExpiresAt: integer("prev_expires_at", { mode: "timestamp_ms" }),
+    prevRefreshHash: text("prev_refresh_hash"),
+    rotatedAt: integer("rotated_at", { mode: "timestamp_ms" }),
+  },
+  (t) => [
+    index("sessions_prev_token").on(t.prevTokenHash),
+    index("sessions_prev_refresh").on(t.prevRefreshHash),
+  ],
+);
 
 // An `ocra login` in progress (RFC 8628). It is found by its codes before
 // any account is known, so it is not an account table: approvedAccountId is

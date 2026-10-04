@@ -1,7 +1,9 @@
 import { env } from "cloudflare:workers";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
-import { safeNext } from "../src/auth.js";
+import { REFRESH_GRACE_MS, safeNext } from "../src/auth.js";
+import { sha256Hex } from "../src/crypto.js";
+import { rotateSession, sessionByRefreshHash } from "../src/db/accounts.js";
 import * as schema from "../src/db/schema.js";
 import { normalizeUserCode } from "../src/device.js";
 import { call, db, resetDb, signIn, signInCli } from "./helpers.js";
@@ -99,20 +101,75 @@ describe("ocra login (device flow)", () => {
     expect((await poll(code.device_code)).body).toEqual({ error: "invalid_grant" });
   });
 
-  it("refresh rotates both tokens; the old ones stop working", async () => {
+  const me = (token: string) =>
+    call("/api/me", { headers: { authorization: `Bearer ${token}` } }).then((r) => r.status);
+  const refresh = async (token: string) => {
+    const res = await post("/api/device/refresh", { refresh_token: token });
+    return { status: res.status, body: (await res.json()) as Record<string, string> };
+  };
+  const cliSession = () =>
+    db.select().from(schema.sessions).where(eq(schema.sessions.kind, "cli")).get();
+
+  it("refresh rotates the pair; the old access token works until its own expiry", async () => {
     const { tokens } = await signInCli(1, "octo");
-    const res = await post("/api/device/refresh", { refresh_token: tokens.refresh_token });
-    const next = (await res.json()) as { access_token: string; refresh_token: string };
-    expect(next.access_token).not.toBe(tokens.access_token);
+    const next = await refresh(tokens.refresh_token);
+    expect(next.status).toBe(200);
+    expect(next.body.access_token).not.toBe(tokens.access_token);
+    // Another ocra process still using the old token keeps working.
+    expect(await me(tokens.access_token)).toBe(200);
+    expect(await me(next.body.access_token ?? "")).toBe(200);
+    // Once its own hour is over, it stops.
+    await db.update(schema.sessions).set({ prevExpiresAt: new Date(Date.now() - 1000) });
+    expect(await me(tokens.access_token)).toBe(401);
+    expect(await me(next.body.access_token ?? "")).toBe(200);
+  });
+
+  it("of two refreshes with the same token, exactly one rotation wins", async () => {
+    const { tokens } = await signInCli(1, "octo");
+    const before = await sessionByRefreshHash(db, await sha256Hex(tokens.refresh_token));
+    expect((await refresh(tokens.refresh_token)).status).toBe(200);
+    // The loser read the row before the winner's update landed: its
+    // compare-and-set on the old refresh hash changes nothing.
     expect(
-      (await call("/api/me", { headers: { authorization: `Bearer ${tokens.access_token}` } }))
-        .status,
-    ).toBe(401);
-    expect(
-      (await call("/api/me", { headers: { authorization: `Bearer ${next.access_token}` } })).status,
-    ).toBe(200);
-    const reuse = await post("/api/device/refresh", { refresh_token: tokens.refresh_token });
-    expect(await reuse.json()).toEqual({ error: "invalid_grant" });
+      await rotateSession(db, before?.sessionId ?? "", before?.refreshHash ?? "", {
+        tokenHash: "loser",
+      }),
+    ).toBe(false);
+    expect((await cliSession())?.tokenHash).not.toBe("loser");
+  });
+
+  it("a used refresh token answers once more within the grace window, for a lost response", async () => {
+    const { tokens } = await signInCli(1, "octo");
+    const lost = await refresh(tokens.refresh_token);
+    expect(lost.status).toBe(200);
+    const retry = await refresh(tokens.refresh_token);
+    expect(retry.status).toBe(200);
+    expect(await me(retry.body.access_token ?? "")).toBe(200);
+    expect((await refresh(retry.body.refresh_token ?? "")).status).toBe(200);
+  });
+
+  it("a used refresh token presented after the grace window ends the session", async () => {
+    const { tokens } = await signInCli(1, "octo");
+    const next = await refresh(tokens.refresh_token);
+    await db
+      .update(schema.sessions)
+      .set({ rotatedAt: new Date(Date.now() - REFRESH_GRACE_MS - 1000) });
+    expect((await refresh(tokens.refresh_token)).body).toEqual({ error: "invalid_grant" });
+    // Whoever holds the newer pair is signed out too.
+    expect(await me(next.body.access_token ?? "")).toBe(401);
+    expect((await refresh(next.body.refresh_token ?? "")).body).toEqual({ error: "invalid_grant" });
+    expect(await cliSession()).toBeUndefined();
+  });
+
+  it("refreshing does not extend the session past 90 days from sign-in", async () => {
+    const { tokens } = await signInCli(1, "octo");
+    const end = new Date(Date.now() + 10 * 60_000);
+    await db.update(schema.sessions).set({ refreshExpiresAt: end });
+    const next = await refresh(tokens.refresh_token);
+    expect(Number(next.body.expires_in)).toBeLessThanOrEqual(600);
+    const row = await cliSession();
+    expect(row?.refreshExpiresAt?.getTime()).toBe(end.getTime());
+    expect(row?.expiresAt.getTime()).toBeLessThanOrEqual(end.getTime());
   });
 
   it("a CLI session is listed on the web until its refresh token expires, and can be revoked", async () => {

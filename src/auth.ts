@@ -2,7 +2,13 @@ import type { DrizzleD1Database } from "drizzle-orm/d1";
 import { Hono, type MiddlewareHandler } from "hono";
 import { deleteCookie, getCookie, getSignedCookie, setCookie, setSignedCookie } from "hono/cookie";
 import { randomToken, sha256Hex } from "./crypto.js";
-import { sessionByRefreshHash, sessionByTokenHash, upsertAccount } from "./db/accounts.js";
+import {
+  revokeSession,
+  rotateSession,
+  sessionByRefreshHash,
+  sessionByTokenHash,
+  upsertAccount,
+} from "./db/accounts.js";
 import { scoped } from "./db/scoped.js";
 import type { AppEnv } from "./types.js";
 
@@ -12,6 +18,8 @@ const DAY = 86_400_000;
 export const SESSION_DAYS = { web: 30, cli: 90 } as const;
 /** A CLI access token lives an hour; its refresh token, SESSION_DAYS.cli. */
 export const CLI_ACCESS_MS = 3_600_000;
+/** How long a refresh token used once still answers, for a response that was lost. */
+export const REFRESH_GRACE_MS = 60_000;
 
 type Kind = "web" | "cli";
 
@@ -67,22 +75,22 @@ export type CliTokens = {
   expires_in: number;
 };
 
-async function cliTokens() {
+async function cliTokens(now: number, refreshExpiresAt: number) {
   const access = randomToken("ocra_cli_");
   const refresh = randomToken("ocra_ref_");
-  const now = Date.now();
+  // No access token outlives its session.
+  const expiresAt = Math.min(now + CLI_ACCESS_MS, refreshExpiresAt);
   return {
     tokens: {
       access_token: access,
       refresh_token: refresh,
       token_type: "Bearer",
-      expires_in: CLI_ACCESS_MS / 1000,
+      expires_in: Math.floor((expiresAt - now) / 1000),
     } satisfies CliTokens,
     row: {
       tokenHash: await sha256Hex(access),
-      expiresAt: new Date(now + CLI_ACCESS_MS),
+      expiresAt: new Date(expiresAt),
       refreshHash: await sha256Hex(refresh),
-      refreshExpiresAt: new Date(now + SESSION_DAYS.cli * DAY),
     },
   };
 }
@@ -93,26 +101,50 @@ export async function startCliSession(
   accountId: string,
   label: string | null,
 ): Promise<CliTokens> {
-  const { tokens, row } = await cliTokens();
+  const now = Date.now();
+  const refreshExpiresAt = now + SESSION_DAYS.cli * DAY;
+  const { tokens, row } = await cliTokens(now, refreshExpiresAt);
   await scoped(db, accountId).insert("sessions", {
     id: crypto.randomUUID(),
     kind: "cli",
     label,
     ...row,
+    refreshExpiresAt: new Date(refreshExpiresAt),
   });
   return tokens;
 }
 
-/** Trades a refresh token for new tokens; the old pair stops working. */
+/**
+ * Trades a refresh token for new tokens. The access token it replaces stays
+ * valid until its own expiry, for another `ocra` process still using it; the
+ * session's 90 days run from sign-in, not from the last refresh. The refresh
+ * token it replaces answers once more within REFRESH_GRACE_MS (the response
+ * was lost); used later, it ends the session, since someone else holds a copy.
+ */
 export async function refreshCliSession(
   db: DrizzleD1Database,
   refreshToken: string,
+  now = new Date(),
 ): Promise<CliTokens | undefined> {
-  const found = await sessionByRefreshHash(db, await sha256Hex(refreshToken));
-  if (!found) return undefined;
-  const { tokens, row } = await cliTokens();
-  const changed = await scoped(db, found.accountId).update("sessions", found.sessionId, row);
-  return changed ? tokens : undefined;
+  const hash = await sha256Hex(refreshToken);
+  const found = await sessionByRefreshHash(db, hash, now);
+  if (!found?.refreshHash || !found.refreshExpiresAt) return undefined;
+  if (found.refreshHash !== hash) {
+    const rotatedAt = found.rotatedAt?.getTime() ?? 0;
+    if (now.getTime() - rotatedAt > REFRESH_GRACE_MS) {
+      await revokeSession(db, found.sessionId);
+      return undefined;
+    }
+  }
+  const { tokens, row } = await cliTokens(now.getTime(), found.refreshExpiresAt.getTime());
+  const rotated = await rotateSession(db, found.sessionId, found.refreshHash, {
+    ...row,
+    prevTokenHash: found.tokenHash,
+    prevExpiresAt: found.expiresAt,
+    prevRefreshHash: found.refreshHash,
+    rotatedAt: now,
+  });
+  return rotated ? tokens : undefined;
 }
 
 /** A relative path on this site to return to after sign-in, or "/". */
