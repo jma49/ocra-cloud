@@ -37,48 +37,87 @@ async function aesKey(raw: Uint8Array<ArrayBuffer>): Promise<CryptoKey> {
   return crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["encrypt", "decrypt"]);
 }
 
-async function seal(key: CryptoKey, plain: Uint8Array<ArrayBuffer>): Promise<string> {
+// Additional data binds a sealed key to its row: it opens only for the
+// account and provider it was sealed for (#16).
+const gcm = (iv: Uint8Array<ArrayBuffer>, aad?: string) =>
+  aad === undefined
+    ? { name: "AES-GCM", iv }
+    : { name: "AES-GCM", iv, additionalData: enc.encode(aad) };
+
+async function seal(key: CryptoKey, plain: Uint8Array<ArrayBuffer>, aad?: string): Promise<string> {
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, plain));
+  const ct = new Uint8Array(await crypto.subtle.encrypt(gcm(iv, aad), key, plain));
   const out = new Uint8Array(iv.length + ct.length);
   out.set(iv);
   out.set(ct, iv.length);
   return toBase64(out);
 }
 
-async function open(key: CryptoKey, sealed: string): Promise<Uint8Array<ArrayBuffer>> {
+async function open(
+  key: CryptoKey,
+  sealed: string,
+  aad?: string,
+): Promise<Uint8Array<ArrayBuffer>> {
   const bytes = fromBase64(sealed);
   const iv = bytes.slice(0, 12);
-  return new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, bytes.slice(12)));
+  return new Uint8Array(await crypto.subtle.decrypt(gcm(iv, aad), key, bytes.slice(12)));
+}
+
+/** What a provider key is bound to: the account and provider of its row. */
+export function keyBinding(accountId: string, provider: string): string {
+  return `ocra-provider-key:v1|${accountId}|${provider}`;
 }
 
 export type Sealed = { wrappedKey: string; ciphertext: string };
 
-export async function encryptSecret(masterKey: string, secret: string): Promise<Sealed> {
+export async function encryptSecret(
+  masterKey: string,
+  secret: string,
+  binding?: string,
+): Promise<Sealed> {
   const master = await aesKey(fromBase64(masterKey));
   const dataKey = crypto.getRandomValues(new Uint8Array(32));
-  const ciphertext = await seal(await aesKey(dataKey), new Uint8Array(enc.encode(secret)));
-  const wrappedKey = await seal(master, dataKey);
+  const ciphertext = await seal(await aesKey(dataKey), new Uint8Array(enc.encode(secret)), binding);
+  const wrappedKey = await seal(master, dataKey, binding);
   return { wrappedKey, ciphertext };
 }
 
-export async function decryptSecret(masterKey: string, sealed: Sealed): Promise<string> {
+export async function decryptSecret(
+  masterKey: string,
+  sealed: Sealed,
+  binding?: string,
+): Promise<string> {
   const master = await aesKey(fromBase64(masterKey));
-  const dataKey = await open(master, sealed.wrappedKey);
-  return dec.decode(await open(await aesKey(dataKey), sealed.ciphertext));
+  const dataKey = await open(master, sealed.wrappedKey, binding);
+  return dec.decode(await open(await aesKey(dataKey), sealed.ciphertext, binding));
 }
 
 /** The master key, and during a rotation the one it replaces. */
 export type MasterKeys = { current: string; previous?: string | undefined };
 
-/** Decrypts with the current master key, else with the previous one (rotation). */
-export async function decryptWithAny(keys: MasterKeys, sealed: Sealed): Promise<string> {
-  try {
-    return await decryptSecret(keys.current, sealed);
-  } catch (error) {
-    if (!keys.previous) throw error;
-    return decryptSecret(keys.previous, sealed);
+/**
+ * Decrypts a key bound to its row, with the current master key, else the
+ * previous one (rotation). A key sealed before binding existed still opens
+ * unbound until scripts/bind-provider-keys.ts has bound every row; remove
+ * that fallback then (docs/rotation.md).
+ */
+export async function decryptWithAny(
+  keys: MasterKeys,
+  sealed: Sealed,
+  binding: string,
+): Promise<string> {
+  const masters = [keys.current, ...(keys.previous ? [keys.previous] : [])];
+  let failure: unknown;
+  for (const aad of [binding, undefined]) {
+    for (const master of masters) {
+      try {
+        return await decryptSecret(master, sealed, aad);
+      } catch (error) {
+        failure ??= error;
+      }
+    }
   }
+  throw failure;
 }
 
 /** The data key re-wrapped under a new master key; the ciphertext is unchanged. */
@@ -86,7 +125,8 @@ export async function rewrap(
   oldMaster: string,
   newMaster: string,
   wrappedKey: string,
+  binding?: string,
 ): Promise<string> {
-  const dataKey = await open(await aesKey(fromBase64(oldMaster)), wrappedKey);
-  return seal(await aesKey(fromBase64(newMaster)), dataKey);
+  const dataKey = await open(await aesKey(fromBase64(oldMaster)), wrappedKey, binding);
+  return seal(await aesKey(fromBase64(newMaster)), dataKey, binding);
 }

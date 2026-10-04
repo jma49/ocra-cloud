@@ -1,4 +1,4 @@
-import { decryptWithAny, type MasterKeys, type Sealed } from "./crypto.js";
+import { decryptWithAny, keyBinding, type MasterKeys, type Sealed } from "./crypto.js";
 import type { Scoped } from "./db/scoped.js";
 
 // The account's stored model keys: finding one and decrypting it, for the
@@ -16,9 +16,9 @@ export async function storedKey(data: Scoped, provider: string) {
 /** A stored key row's plaintext, under the current or the previous master key. */
 export function decryptKey(
   env: Pick<Env, "MASTER_KEY" | "MASTER_KEY_PREVIOUS">,
-  row: Sealed,
+  row: Sealed & { accountId: string; provider: string },
 ): Promise<string> {
-  return decryptWithAny(masterKeys(env), row);
+  return decryptWithAny(masterKeys(env), row, keyBinding(row.accountId, row.provider));
 }
 
 /** The account's key for a provider, decrypted, or undefined. */
@@ -28,5 +28,5 @@ export async function keyFor(
   provider: string,
 ): Promise<string | undefined> {
   const row = await storedKey(data, provider);
-  return row ? decryptWithAny(keys, row) : undefined;
+  return row ? decryptWithAny(keys, row, keyBinding(row.accountId, row.provider)) : undefined;
 }

@@ -9,3 +9,14 @@ The master key (`MASTER_KEY`, a Worker secret) wraps each provider key's data ke
 5. Remove the fallback: `npx wrangler secret delete MASTER_KEY_PREVIOUS`. Keep the old key file until a review through the gateway has worked, then destroy it, and replace `.local/master-key` with the new one (and the password manager's copy).
 
 Each `UPDATE` matches the row's old wrapped key too, so a row written by the service in between (a key saved during the rotation, already wrapped with the new key) is left alone.
+
+## Binding keys to their rows (#16)
+
+Since #16 every provider key is sealed with additional data naming its account and provider (`keyBinding` in `src/crypto.ts`): a sealed key copied onto another account's or provider's row does not open. Keys stored before that are bound once:
+
+1. Deploy the Worker (it opens bound keys, and unbound ones as a fallback).
+2. `node scripts/bind-provider-keys.ts --master .local/master-key` checks every row and says how many are already bound, how many it would bind and how many fail. Nothing is written.
+3. With 0 failed, run it again with `--apply`, then once more without: it must report 0 to bind.
+4. Remove the unbound fallback from `decryptWithAny` and deploy.
+
+During a master-key rotation, rotate after binding (or bind with the current key first): `rewrap-master-key.ts` re-wraps bound rows with their binding.
