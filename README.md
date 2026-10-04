@@ -24,4 +24,4 @@ npm run types           # after a wrangler.jsonc change: regenerates Env
 npm run deploy          # migrations on the remote D1, then the Worker (from a logged-in machine)
 ```
 
-Development runs at https://ocra-cloud.majincheng990128.workers.dev on the Workers free plan.
+Production address: https://app.ocracloud.com (custom domain on the Worker); https://ocra-cloud.majincheng990128.workers.dev stays on for development. Workers free plan.

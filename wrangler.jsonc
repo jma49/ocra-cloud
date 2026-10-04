@@ -5,6 +5,8 @@
   "compatibility_date": "2026-08-22",
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
+  // The product address; workers.dev stays on for development.
+  "routes": [{ "pattern": "app.ocracloud.com", "custom_domain": true }],
   // Our own console messages only (never bodies, keys or tokens), kept 3 days
   // on the free plan. Invocation logs are off: they record requests, and a
   // request's headers carry session tokens.
