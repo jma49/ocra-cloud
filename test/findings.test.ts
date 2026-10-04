@@ -65,9 +65,16 @@ describe("finding bounds", () => {
     expect(long?.body).toHaveLength(4096);
     expect(long?.truncated).toBe(true);
     expect(
-      parseFindings([finding({ severity: "fatal" }), finding({ reviewer: "Bad" }), { nope: 1 }])
-        .rows,
-    ).toEqual([]);
+      parseFindings([finding({ severity: "fatal" }), finding({ reviewer: "bad id" }), { nope: 1 }]),
+    ).toMatchObject({ rows: [], dropped: 3 });
+  });
+
+  it("keeps findings of every reviewer id the engine makes (audit K-models)", () => {
+    // SARIF tool slugs may start with a digit or run long; plugins name their own.
+    const ids = ["security", "2ms", `semgrep-${"x".repeat(60)}`, "Acme.Reviewer_2"];
+    const parsed = parseFindings(ids.map((reviewer) => finding({ reviewer })));
+    expect(parsed.rows.map((r) => r.reviewer)).toEqual(ids);
+    expect(parsed.dropped).toBe(0);
   });
 });
 

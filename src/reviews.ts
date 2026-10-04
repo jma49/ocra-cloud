@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { requireSession } from "./auth.js";
 import type { ReviewerCounts } from "./db/schema.js";
-import { parseFindings } from "./findings.js";
+import { parseFindings, REVIEWER_ID } from "./findings.js";
 import { clampDays } from "./retention.js";
 import type { AppEnv } from "./types.js";
 
@@ -49,7 +49,7 @@ export function parseUpload(body: unknown) {
   const reviewers = (b.reviewers ?? {}) as Record<string, Record<string, unknown>>;
   if (typeof reviewers === "object" && !Array.isArray(reviewers)) {
     for (const [id, r] of Object.entries(reviewers).slice(0, 40)) {
-      if (!/^[a-z][a-z0-9-]{0,39}$/.test(id) || typeof r !== "object" || r === null) continue;
+      if (!REVIEWER_ID.test(id) || typeof r !== "object" || r === null) continue;
       const rf = (r.findings ?? {}) as Record<string, unknown>;
       byReviewer[id] = {
         tasks: count(r.tasks) ?? 0,
@@ -117,7 +117,17 @@ reviews.post("/", requireSession(["web", "cli"]), async (c) => {
   const parsed =
     c.var.session.account.shareFindings && list !== undefined
       ? parseFindings(list)
-      : { rows: [], truncated: false };
+      : { rows: [], truncated: false, dropped: 0 };
+  // What was left out is reported, never silently lost (audit K-models).
+  const sent = body?.reviewers;
+  const reviewersDropped =
+    typeof sent === "object" && sent !== null && !Array.isArray(sent)
+      ? Object.keys(sent).length - Object.keys(row.byReviewer ?? {}).length
+      : 0;
+  const dropped = {
+    ...(parsed.dropped > 0 ? { findings: parsed.dropped } : {}),
+    ...(reviewersDropped > 0 ? { reviewers: reviewersDropped } : {}),
+  };
   // A run uploads once; a retry of the same run, even a concurrent one, is
   // not a second review. Uploads per UTC day and stored findings are capped
   // per account (audit S3): a loop of uploads cannot fill the database.
@@ -137,6 +147,7 @@ reviews.post("/", requireSession(["web", "cli"]), async (c) => {
     id,
     findings: findingsSkipped ? 0 : parsed.rows.length,
     ...(parsed.truncated ? { truncated: true } : {}),
+    ...(Object.keys(dropped).length > 0 ? { dropped } : {}),
     ...(findingsSkipped ? { findingsSkipped: "account_limit" } : {}),
   });
 });

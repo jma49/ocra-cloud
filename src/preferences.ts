@@ -3,6 +3,8 @@ import type { AgentPrefs, Effort, ModelChains, ReviewSettings } from "./api-type
 import { requireSession } from "./auth.js";
 import { EFFORTS } from "./capabilities.js";
 import type { Scoped } from "./db/scoped.js";
+import { REVIEWER_ID } from "./findings.js";
+import { hasChatRoute } from "./providers.js";
 import { changedKeys, parseSettings } from "./settings.js";
 import type { AppEnv } from "./types.js";
 
@@ -17,7 +19,7 @@ async function current(data: Scoped) {
   return (await data.list("preferences"))[0];
 }
 
-/** Each tier: up to 4 models, each ocra-<provider>/<model>. */
+/** Each tier: up to 4 models, each one usableModel() accepts. */
 export function parseModels(body: unknown): ModelChains | undefined {
   const b = (body ?? {}) as Record<string, unknown>;
   const out: ModelChains = {};
@@ -27,8 +29,7 @@ export function parseModels(body: unknown): ModelChains | undefined {
     const list = (Array.isArray(v) ? v : [v]).filter((m) => m !== "");
     if (list.length > 4) return undefined;
     for (const m of list) {
-      if (typeof m !== "string" || !/^ocra-[a-z0-9-]{1,40}\/[\w./:@-]{1,200}$/.test(m))
-        return undefined;
+      if (!usableModel(m)) return undefined;
     }
     if (list.length > 0) out[tier] = list as string[];
   }
@@ -42,8 +43,16 @@ preferences.get("/models", requireSession(["web", "cli"]), async (c) => {
 
 const ROLES = ["verifier", "judge", "helper"] as const;
 const RUNTIMES = ["direct", "opencode"] as const;
-const MODEL = /^ocra-[a-z0-9-]{1,40}\/[\w./:@-]{1,200}$/;
-const REVIEWER = /^[a-z][a-z0-9-]{0,39}$/;
+const MODEL = /^ocra-([a-z0-9-]{1,40})\/[\w./:@-]{1,200}$/;
+
+/**
+ * ocra-<provider>/<model>, where the gateway has an OpenAI-compatible chat
+ * route for the provider: the CLI can use no other (audit K-models).
+ */
+export function usableModel(m: unknown): m is string {
+  const provider = typeof m === "string" ? MODEL.exec(m)?.[1] : undefined;
+  return provider !== undefined && hasChatRoute(provider);
+}
 
 function effort(v: unknown): Effort | undefined | false {
   if (v === undefined || v === null || v === "") return undefined;
@@ -53,7 +62,7 @@ function effort(v: unknown): Effort | undefined | false {
 function chain(v: unknown): string[] | undefined | false {
   if (v === undefined || v === null) return undefined;
   const list = (Array.isArray(v) ? v : [v]).filter((m) => m !== "");
-  if (list.length > 4 || list.some((m) => typeof m !== "string" || !MODEL.test(m))) return false;
+  if (list.length > 4 || list.some((m) => !usableModel(m))) return false;
   return list.length > 0 ? (list as string[]) : undefined;
 }
 
@@ -71,7 +80,7 @@ export function parseAgents(body: unknown): AgentPrefs | undefined {
   const ids = Object.keys(reviewers);
   if (ids.length > 30) return undefined;
   for (const id of ids) {
-    if (!REVIEWER.test(id) || (ROLES as readonly string[]).includes(id)) return undefined;
+    if (!REVIEWER_ID.test(id) || (ROLES as readonly string[]).includes(id)) return undefined;
     const r = reviewers[id] ?? {};
     const e = effort(r.effort);
     const m = chain(r.models);
