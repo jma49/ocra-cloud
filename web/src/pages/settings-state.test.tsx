@@ -83,3 +83,49 @@ describe("Review settings", () => {
     );
   });
 });
+
+describe("Saving from a stale tab", () => {
+  it("sends the base version, and on a 409 offers Reload, which drops the draft without a leave prompt", async () => {
+    const puts: unknown[] = [];
+    let gets = 0;
+    const newer = { ...saved, settings: { ...saved.settings, maxTasks: 40 }, version: "v2" };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string, init?: RequestInit) => {
+        if (init?.method === "PUT") {
+          puts.push(JSON.parse(String(init.body)));
+          return Response.json({ error: "stale", version: "v2" }, { status: 409 });
+        }
+        if (String(input).endsWith("/api/preferences")) {
+          gets++;
+          return Response.json(gets === 1 ? saved : newer);
+        }
+        return Response.json({});
+      }),
+    );
+    render(
+      <PrefsProvider>
+        <ReviewSettings />
+      </PrefsProvider>,
+    );
+    const field = (await screen.findByLabelText("Most review tasks")) as HTMLInputElement;
+    await waitFor(() => expect(field.value).toBe("20"));
+    fireEvent.change(field, { target: { value: "5" } });
+    fireEvent.click(await screen.findByRole("button", { name: "Save changes" }));
+    await waitFor(() => expect(puts).toHaveLength(1));
+    expect(puts[0]).toMatchObject({ baseVersion: "v1", settings: { maxTasks: 5 } });
+
+    await screen.findByText(/changed in another tab/);
+    expect(screen.queryByRole("button", { name: "Save changes" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Reload" }));
+    await waitFor(() =>
+      expect((screen.getByLabelText("Most review tasks") as HTMLInputElement).value).toBe("40"),
+    );
+    expect(screen.queryByText(/changed in another tab/)).toBeNull();
+    expect(screen.queryByRole("region", { name: "Unsaved changes" })).toBeNull();
+    // Nothing is left to warn about when leaving.
+    const leave = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(leave);
+    expect(leave.defaultPrevented).toBe(false);
+  });
+});

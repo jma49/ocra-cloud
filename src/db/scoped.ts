@@ -7,8 +7,10 @@ import {
   type InferInsertModel,
   type InferSelectModel,
   lte,
+  notInArray,
   sql,
 } from "drizzle-orm";
+import type { BatchItem } from "drizzle-orm/batch";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import { accountTables } from "./schema.js";
 
@@ -26,6 +28,30 @@ type Changes<N extends Name> = Partial<Omit<NewRow<N>, "id">>;
 export function scoped(db: DrizzleD1Database, accountId: string) {
   const own = (name: Name) => eq(accountTables[name].accountId, accountId);
   const byId = (name: Name, id: string) => and(own(name), eq(accountTables[name].id, id));
+  // Unrun statements for batch(), scoped like the methods below.
+  const writes = {
+    insert<N extends Name>(name: N, row: NewRow<N>): BatchItem<"sqlite"> {
+      return db.insert(accountTables[name]).values({ ...row, accountId } as never);
+    },
+    update<N extends Name>(name: N, id: string, changes: Changes<N>): BatchItem<"sqlite"> {
+      const { accountId: _ignored, ...rest } = changes as Record<string, unknown>;
+      return db
+        .update(accountTables[name])
+        .set(rest as never)
+        .where(byId(name, id));
+    },
+    /** Deletes this account's rows beyond the newest keep. */
+    keepNewest(name: Name, keep: number): BatchItem<"sqlite"> {
+      const t = accountTables[name];
+      const newest = db
+        .select({ id: t.id })
+        .from(t)
+        .where(own(name))
+        .orderBy(desc(t.createdAt))
+        .limit(keep);
+      return db.delete(t).where(and(own(name), notInArray(t.id, newest)));
+    },
+  };
   return {
     accountId,
     list<N extends Name>(name: N): Promise<Row<N>[]> {
@@ -89,6 +115,11 @@ export function scoped(db: DrizzleD1Database, accountId: string) {
       if ((ahead?.n ?? 0) <= cap) return true;
       await db.delete(t).where(byId(name, row.id)).run();
       return false;
+    },
+    /** Runs the statements built from writes in one D1 batch: all of them or none. */
+    async batch(build: (w: typeof writes) => BatchItem<"sqlite">[]): Promise<void> {
+      const [first, ...rest] = build(writes);
+      if (first) await db.batch([first, ...rest]);
     },
     /** Returns whether a row of this account changed. */
     async update<N extends Name>(name: N, id: string, changes: Changes<N>): Promise<boolean> {

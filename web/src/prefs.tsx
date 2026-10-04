@@ -7,7 +7,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import { api } from "./api.js";
+import { ApiError, api } from "./api.js";
 
 // The account's preferences, shared by the configuration pages: one saved
 // copy, one draft, a save bar when they differ, and a toast after saving.
@@ -43,6 +43,8 @@ export type Prefs = {
   agents: AgentPrefs;
   settings: Settings;
   updatedAt?: string | null;
+  // The saved version this copy is; a save says which one it started from.
+  version?: string | null;
 };
 
 type Ctx = {
@@ -56,6 +58,9 @@ type Ctx = {
   error: string;
   save: () => Promise<void>;
   discard: () => void;
+  // Set when a save was refused because the settings changed elsewhere.
+  stale: boolean;
+  reload: () => Promise<void>;
   toast: (message: string) => void;
 };
 
@@ -74,6 +79,7 @@ export function PrefsProvider(props: { children: ReactNode; clean?: (p: Prefs) =
   const [draft, setDraft] = useState<Prefs | undefined>(undefined);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [stale, setStale] = useState(false);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -105,17 +111,39 @@ export function PrefsProvider(props: { children: ReactNode; clean?: (p: Prefs) =
     try {
       const next = await api<Prefs>("/preferences", {
         method: "PUT",
-        body: JSON.stringify(strip(props.clean ? props.clean(draft) : draft)),
+        body: JSON.stringify({
+          ...strip(props.clean ? props.clean(draft) : draft),
+          baseVersion: saved?.version ?? null,
+        }),
       });
       setSaved(next);
       setDraft(next);
       toast("Settings saved");
-    } catch {
-      setError("Not saved: a value is out of range or a model name is incomplete.");
+    } catch (e) {
+      if (e instanceof ApiError && e.code === "stale") setStale(true);
+      else setError("Not saved: a value is out of range or a model name is incomplete.");
     } finally {
       setSaving(false);
     }
-  }, [draft, props.clean, toast]);
+  }, [draft, saved, props.clean, toast]);
+
+  // Loads the newest settings in place of the draft. The page stays, so no
+  // "leave site?" prompt: the draft is dropped by making it the saved copy.
+  const reload = useCallback(async () => {
+    setSaving(true);
+    try {
+      const p = await api<Prefs>("/preferences");
+      setSaved(p);
+      setDraft(p);
+      setStale(false);
+      setError("");
+      toast("Loaded the latest settings");
+    } catch {
+      setError("Could not load your settings.");
+    } finally {
+      setSaving(false);
+    }
+  }, [toast]);
 
   const discard = useCallback(() => {
     setDraft(saved);
@@ -131,13 +159,43 @@ export function PrefsProvider(props: { children: ReactNode; clean?: (p: Prefs) =
   }, [dirty]);
 
   const value = useMemo(
-    () => ({ saved, draft, setDraft: update, dirty, saving, error, save, discard, toast }),
-    [saved, draft, update, dirty, saving, error, save, discard, toast],
+    () => ({
+      saved,
+      draft,
+      setDraft: update,
+      dirty,
+      saving,
+      error,
+      save,
+      discard,
+      stale,
+      reload,
+      toast,
+    }),
+    [saved, draft, update, dirty, saving, error, save, discard, stale, reload, toast],
   );
   return (
     <PrefsContext.Provider value={value}>
       {props.children}
-      {dirty && (
+      {dirty && stale && (
+        <section className="savebar" aria-label="Unsaved changes" role="alert">
+          <span>
+            Not saved: these settings were changed in another tab or window. Reload to see the
+            latest; your changes here will be dropped.
+          </span>
+          <span style={{ display: "flex", gap: 8 }}>
+            <button
+              type="button"
+              className="btn btn-sm btn-primary"
+              onClick={reload}
+              disabled={saving}
+            >
+              {saving ? "Loading…" : "Reload"}
+            </button>
+          </span>
+        </section>
+      )}
+      {dirty && !stale && (
         <section className="savebar" aria-label="Unsaved changes">
           <span>{error || "You have unsaved changes"}</span>
           <span style={{ display: "flex", gap: 8 }}>
