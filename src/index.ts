@@ -12,7 +12,7 @@ import { keys } from "./keys.js";
 import { me } from "./me.js";
 import { memory } from "./memory.js";
 import { preferences } from "./preferences.js";
-import { type ProviderName, providerInfo, providers } from "./providers.js";
+import { providersRoute } from "./providers.js";
 import { reviews } from "./reviews.js";
 import { sessions } from "./sessions.js";
 import type { AppEnv } from "./types.js";
@@ -48,20 +48,7 @@ app.get("/health", async (c) => {
 app.route("/auth", auth);
 app.route("/device", device);
 
-// The providers and paths the gateway forwards, for the web app and the CLI.
-app.get("/providers", (c) =>
-  c.json({
-    providers: Object.entries(providers).map(([name, p]) => ({
-      name,
-      ...providerInfo[name as ProviderName],
-      base: p.base,
-      paths: p.routes.map((r) => (typeof r.path === "string" ? r.path : r.path.source)),
-      // How the CLI's direct runtime sends a reasoning effort: OpenRouter
-      // takes `reasoning.effort`; the rest the OpenAI-style default.
-      ...(name === "openrouter" ? { effort: "openrouter" } : {}),
-    })),
-  }),
-);
+app.route("/providers", providersRoute);
 
 // Every router applies its own session guard (test/routes.test.ts checks
 // each route): this file only composes them.

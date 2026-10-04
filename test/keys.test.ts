@@ -2,7 +2,8 @@ import { env } from "cloudflare:workers";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { decryptSecret, keyBinding } from "../src/crypto.js";
 import { scoped } from "../src/db/scoped.js";
-import { checkKey, listModels, verifyRoutes } from "../src/providers.js";
+import { checkKey, listModels } from "../src/provider-keys.js";
+import { providers } from "../src/providers.js";
 import { call, db, resetDb, signIn } from "./helpers.js";
 
 beforeEach(resetDb);
@@ -51,7 +52,7 @@ describe("checking a key", () => {
 
   it("does not check providers that list models without a key", async () => {
     const fake = answer(200);
-    expect("huggingface" in verifyRoutes).toBe(false);
+    expect(providers.huggingface.verify).toBeUndefined();
     expect(await checkKey("huggingface", "k")).toEqual({ status: "unchecked" });
     expect(fake).not.toHaveBeenCalled();
   });
