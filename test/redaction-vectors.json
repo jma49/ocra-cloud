@@ -60,6 +60,9 @@
     "const password = readPasswordFromEnv();",
     "if (token === undefined) return;",
     "see https://github.com/jma49/Open-CR-Agent/blob/main/docs/manual/en/cli.mdx",
-    "const ALPHABET = \"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdef\";"
+    "const ALPHABET = \"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdef\";",
+    "// https://github.com/jma49/open-cr-agent/blob/main/docs/adr/0028-findings.md",
+    "import { x } from '../../packages/core/src/pipeline/output-schema.ts';",
+    "export async function fetchAccountMemoryForRepository(repoHash: string) {}"
   ]
 }

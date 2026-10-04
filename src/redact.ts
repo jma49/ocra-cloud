@@ -32,7 +32,8 @@ const HEX = /\b[0-9a-f]{32,}\b/gi;
 const isHexKey = (s: string) => /[0-9]/.test(s) && /[a-f]/i.test(s);
 
 // A long base64-like run that looks random: high entropy and a digit.
-// Identifiers and paths stay under the entropy bar.
+// Identifiers stay under the entropy bar; a path or URL path (every segment
+// lowercase, or letters only) is left alone.
 const LONG_RUN = /[A-Za-z0-9+/_-]{32,}={0,2}/g;
 function entropy(s: string): number {
   const counts = new Map<string, number>();
@@ -41,7 +42,10 @@ function entropy(s: string): number {
   for (const n of counts.values()) bits -= (n / s.length) * Math.log2(n / s.length);
   return bits;
 }
-const looksRandom = (s: string) => /\d/.test(s) && entropy(s) >= 4.3;
+const isPath = (s: string) =>
+  s.includes("/") &&
+  s.split("/").every((seg) => /^[a-z0-9_-]*$/.test(seg) || /^[A-Za-z]+$/.test(seg));
+const looksRandom = (s: string) => /\d/.test(s) && entropy(s) >= 4.3 && !isPath(s);
 
 export function redact(text: string): { text: string; redacted: boolean } {
   let out = text;
