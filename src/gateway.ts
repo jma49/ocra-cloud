@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { readText } from "./body.js";
 import { keyFor, masterKeys } from "./keyring.js";
 import { applyAuth, isProvider, matchRoute, PASS_HEADERS, providers } from "./providers.js";
 import { requireSession } from "./session.js";
@@ -20,15 +21,13 @@ gateway.post("/:provider/*", async (c) => {
   const path = c.req.path.slice(`/api/gateway/${name}`.length);
   const match = matchRoute(providers[name], path);
   if (!match) return c.json({ error: "path_not_allowed" }, 404);
-  const length = Number(c.req.header("content-length") ?? "0");
-  if (length > MAX_BODY) return c.json({ error: "body_too_large" }, 413);
+
+  // Counted as it arrives, so a chunked body without a length is bounded too.
+  const body = await readText(c, MAX_BODY);
 
   const data = c.var.data;
   const key = await keyFor(data, masterKeys(c.env), name);
   if (!key) return c.json({ error: "no_key", provider: name }, 400);
-
-  const body = await c.req.text();
-  if (body.length > MAX_BODY) return c.json({ error: "body_too_large" }, 413);
   const model = match.model ?? topLevelModel(body);
 
   // The call's row is written before forwarding and is the reservation
@@ -65,10 +64,16 @@ gateway.post("/:provider/*", async (c) => {
 
   let upstream: Response;
   try {
-    upstream = await fetch(target, { method: "POST", headers, body });
+    // Not followed: a redirect would resend the user's key to another address.
+    upstream = await fetch(target, { method: "POST", headers, body, redirect: "manual" });
   } catch {
     finish(502, { tokensIn: 0, tokensOut: 0 });
     return c.json({ error: "upstream_unreachable" }, 502);
+  }
+  if (upstream.status >= 300 && upstream.status < 400) {
+    await upstream.body?.cancel().catch(() => {});
+    finish(502, { tokensIn: 0, tokensOut: 0 });
+    return c.json({ error: "upstream_redirect", status: upstream.status }, 502);
   }
 
   const out = new Headers();

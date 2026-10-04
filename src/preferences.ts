@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import type { AgentPrefs, Effort, ModelChains, ReviewSettings } from "./api-types.js";
+import { readJson } from "./body.js";
 import { EFFORTS } from "./capabilities.js";
 import type { Scoped } from "./db/scoped.js";
 import { REVIEWER_ID } from "./findings.js";
@@ -186,7 +187,7 @@ preferences.get("/", requireSession(["web", "cli"]), async (c) => {
 });
 
 preferences.put("/", requireSession(), async (c) => {
-  const body = (await c.req.json().catch(() => null)) as Record<string, unknown> | null;
+  const body = (await readJson(c)) as Record<string, unknown> | null;
   const next = parseBody(body, savedOf(await current(c.var.data)));
   if (!next) return c.json({ error: "bad_preferences" }, 400);
   // The web sends the version its draft started from; a save from a stale

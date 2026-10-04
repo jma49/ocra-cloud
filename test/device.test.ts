@@ -5,7 +5,7 @@ import { safeNext } from "../src/auth.js";
 import { sha256Hex } from "../src/crypto.js";
 import { rotateSession, sessionByRefreshHash } from "../src/db/accounts.js";
 import * as schema from "../src/db/schema.js";
-import { normalizeUserCode } from "../src/device.js";
+import { newUserCode, normalizeUserCode } from "../src/device.js";
 import { REFRESH_GRACE_MS } from "../src/session.js";
 import { call, db, resetDb, signIn, signInCli } from "./helpers.js";
 
@@ -274,9 +274,66 @@ describe("ocra login (device flow)", () => {
     expect(statuses.at(-1)).toBe(429);
     expect(env.DEVICE_CODES).toBeDefined();
   });
+
+  it("limits code lookups and decisions per account and per address (#15)", async () => {
+    const code = await startLogin("198.51.100.77");
+    const { auth } = await signIn(31, "guesser");
+    const info = (ip: string) =>
+      call("/api/device/info?user_code=BCDF-GHJK", {
+        headers: { ...auth, "cf-connecting-ip": ip },
+      });
+    const decide = (ip: string) =>
+      post(
+        "/api/device/decide",
+        { user_code: code.user_code, approve: false },
+        {
+          ...auth,
+          "cf-connecting-ip": ip,
+        },
+      );
+    const statuses: number[] = [];
+    for (let i = 0; i < 20; i++) statuses.push((await info("192.0.2.1")).status);
+    expect(statuses.every((s) => s === 404)).toBe(true);
+    // The account is at its limit, from any address, for both routes.
+    expect((await info("192.0.2.2")).status).toBe(429);
+    expect((await decide("192.0.2.3")).status).toBe(429);
+    // Another account at a fresh address is not held back by it...
+    const other = await signIn(32, "other");
+    const fresh = await call("/api/device/info?user_code=BCDF-GHJK", {
+      headers: { ...other.auth, "cf-connecting-ip": "192.0.2.4" },
+    });
+    expect(fresh.status).toBe(404);
+    // ...but the busy address is.
+    const sameIp = await call("/api/device/info?user_code=BCDF-GHJK", {
+      headers: { ...other.auth, "cf-connecting-ip": "192.0.2.1" },
+    });
+    expect(sameIp.status).toBe(429);
+    expect(env.DEVICE_LOOKUPS).toBeDefined();
+  });
 });
 
 describe("helpers", () => {
+  it("draws user codes without modulo bias (#15)", () => {
+    // 256 is not a multiple of 20: bytes 240-255 are drawn again, not
+    // folded onto the first 16 letters.
+    const draws = [
+      Uint8Array.from([240, 241, 242, 243, 244, 245, 246, 247]),
+      Uint8Array.from([248, 249, 250, 251, 252, 253, 254, 255]),
+      Uint8Array.from([0, 1, 2, 3, 239, 220, 40, 99]),
+    ];
+    let next = 0;
+    const random = () => draws[next++] ?? new Uint8Array(8);
+    expect(newUserCode(random)).toBe("BCDF-ZBBZ");
+    // Every letter can appear, and every code normalizes.
+    const seen = new Set<string>();
+    for (let i = 0; i < 400; i++) {
+      const code = newUserCode();
+      expect(normalizeUserCode(code)).toBe(code);
+      for (const ch of code.replace("-", "")) seen.add(ch);
+    }
+    expect(seen.size).toBe(20);
+  });
+
   it("normalizes typed user codes and refuses others", () => {
     expect(normalizeUserCode("bcdf ghjk")).toBe("BCDF-GHJK");
     expect(normalizeUserCode("BCDF-GHJ")).toBeUndefined();

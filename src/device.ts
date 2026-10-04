@@ -1,4 +1,5 @@
-import { Hono } from "hono";
+import { Hono, type MiddlewareHandler } from "hono";
+import { readJson } from "./body.js";
 import { randomToken, sha256Hex } from "./crypto.js";
 import {
   byDeviceCodeHash,
@@ -27,11 +28,37 @@ const ALPHABET = "BCDFGHJKLMNPQRSTVWXZ";
 
 export const device = new Hono<AppEnv>();
 
-function newUserCode(): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(8));
-  const chars = Array.from(bytes, (b) => ALPHABET[b % ALPHABET.length]).join("");
+type RandomBytes = (n: number) => Uint8Array;
+const randomBytes: RandomBytes = (n) => crypto.getRandomValues(new Uint8Array(n));
+
+/**
+ * Eight letters, each equally likely: a byte at or above the largest
+ * multiple of the alphabet's size is drawn again (rejection sampling), as
+ * `byte % 20` alone favours the first 16 letters.
+ */
+export function newUserCode(random: RandomBytes = randomBytes): string {
+  const bound = 256 - (256 % ALPHABET.length);
+  let chars = "";
+  while (chars.length < 8) {
+    for (const b of random(8)) {
+      if (b < bound && chars.length < 8) chars += ALPHABET[b % ALPHABET.length];
+    }
+  }
   return `${chars.slice(0, 4)}-${chars.slice(4)}`;
 }
+
+/**
+ * Code lookups and decisions per minute, for the account and for the
+ * address, so a signed-in user cannot walk the code space.
+ */
+const limitLookups: MiddlewareHandler<AppEnv> = async (c, next) => {
+  const ip = c.req.header("cf-connecting-ip") ?? "unknown";
+  for (const key of [`account:${c.var.session.account.id}`, `ip:${ip}`]) {
+    const { success } = await c.env.DEVICE_LOOKUPS.limit({ key });
+    if (!success) return c.json({ error: "slow_down" }, 429);
+  }
+  await next();
+};
 
 export function normalizeUserCode(input: string): string | undefined {
   const s = input.toUpperCase().replace(/[^A-Z]/g, "");
@@ -43,7 +70,7 @@ device.post("/code", async (c) => {
   const ip = c.req.header("cf-connecting-ip") ?? "unknown";
   const { success } = await c.env.DEVICE_CODES.limit({ key: ip });
   if (!success) return c.json({ error: "slow_down" }, 429);
-  const body = (await c.req.json().catch(() => ({}))) as { client_name?: unknown };
+  const body = ((await readJson(c)) ?? {}) as { client_name?: unknown };
   const label =
     typeof body.client_name === "string"
       ? body.client_name.slice(0, 80).replace(/[^\w .@()-]/g, "")
@@ -68,7 +95,7 @@ device.post("/code", async (c) => {
 });
 
 // The web page shows what is being approved: the terminal's name and when it asked.
-device.get("/info", requireSession(), async (c) => {
+device.get("/info", requireSession(), limitLookups, async (c) => {
   const code = normalizeUserCode(c.req.query("user_code") ?? "");
   const row = code ? await byUserCode(c.var.db, code) : undefined;
   if (!row || row.expiresAt < new Date() || row.status !== "pending") {
@@ -77,8 +104,8 @@ device.get("/info", requireSession(), async (c) => {
   return c.json({ user_code: row.userCode, label: row.label, createdAt: row.createdAt });
 });
 
-device.post("/decide", requireSession(), async (c) => {
-  const body = (await c.req.json().catch(() => ({}))) as { user_code?: unknown; approve?: unknown };
+device.post("/decide", requireSession(), limitLookups, async (c) => {
+  const body = ((await readJson(c)) ?? {}) as { user_code?: unknown; approve?: unknown };
   const code = typeof body.user_code === "string" ? normalizeUserCode(body.user_code) : undefined;
   const row = code ? await byUserCode(c.var.db, code) : undefined;
   if (!row || row.expiresAt < new Date()) return c.json({ error: "unknown_or_expired" }, 404);
@@ -90,7 +117,7 @@ device.post("/decide", requireSession(), async (c) => {
 
 // Polled by the CLI. Errors follow RFC 8628 section 3.5.
 device.post("/token", async (c) => {
-  const body = (await c.req.json().catch(() => ({}))) as { device_code?: unknown };
+  const body = ((await readJson(c)) ?? {}) as { device_code?: unknown };
   if (typeof body.device_code !== "string") return c.json({ error: "invalid_request" }, 400);
   const row = await byDeviceCodeHash(c.var.db, await sha256Hex(body.device_code));
   if (!row) return c.json({ error: "invalid_grant" }, 400);
@@ -117,7 +144,7 @@ device.post("/token", async (c) => {
 });
 
 device.post("/refresh", async (c) => {
-  const body = (await c.req.json().catch(() => ({}))) as { refresh_token?: unknown };
+  const body = ((await readJson(c)) ?? {}) as { refresh_token?: unknown };
   if (typeof body.refresh_token !== "string") return c.json({ error: "invalid_request" }, 400);
   const tokens = await refreshCliSession(c.var.db, body.refresh_token);
   if (!tokens) return c.json({ error: "invalid_grant" }, 400);

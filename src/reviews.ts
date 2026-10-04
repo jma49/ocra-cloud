@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { readJson } from "./body.js";
 import { clampDays } from "./db/retention.js";
 import type { ReviewerCounts } from "./db/schema.js";
 import type { Scoped } from "./db/scoped.js";
@@ -11,6 +12,8 @@ import type { AppEnv } from "./types.js";
 export const reviews = new Hono<AppEnv>();
 
 const DAY = 86_400_000;
+/** An upload's largest body, in bytes. */
+const MAX_UPLOAD = 600_000;
 const SOURCES = ["local", "github", "gitlab"] as const;
 // The engine's own values (packages/core/src/domain.ts: verdictSchema,
 // riskTierSchema); test/reviews.test.ts pins them.
@@ -103,25 +106,10 @@ export function parseUpload(body: unknown) {
   };
 }
 
-const MAX_UPLOAD = 600_000;
-
-function parseJson(raw: ArrayBuffer): Record<string, unknown> | null {
-  try {
-    return JSON.parse(new TextDecoder().decode(raw)) as Record<string, unknown> | null;
-  } catch {
-    return null;
-  }
-}
-
 reviews.post("/", requireSession(["web", "cli"]), async (c) => {
   // Counts are small; findings, sent only when the account shares them, are
-  // bounded to 256 KB of text (ADR-0028).
-  if (Number(c.req.header("content-length") ?? "0") > MAX_UPLOAD)
-    return c.json({ error: "body_too_large" }, 413);
-  // Checked again once read: a chunked upload declares no length.
-  const raw = await c.req.arrayBuffer();
-  if (raw.byteLength > MAX_UPLOAD) return c.json({ error: "body_too_large" }, 413);
-  const body = parseJson(raw);
+  // bounded to 256 KB of text (ADR-0028). Past MAX_UPLOAD bytes: 413.
+  const body = (await readJson(c, MAX_UPLOAD)) as Record<string, unknown> | null;
   const row = parseUpload(body);
   if (!row) return c.json({ error: "bad_review" }, 400);
   // Findings are kept only while the account shares them, whatever the CLI sent.

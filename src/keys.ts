@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { audit } from "./audit.js";
+import { readJson } from "./body.js";
 import { encryptSecret, keyBinding } from "./crypto.js";
 import type { Scoped } from "./db/scoped.js";
 import { decryptKey, storedKey } from "./keyring.js";
@@ -38,7 +39,7 @@ keys.get("/", async (c) => {
 keys.put("/:provider", async (c) => {
   const provider = c.req.param("provider");
   if (!isProvider(provider)) return c.json({ error: "unknown_provider" }, 400);
-  const body = (await c.req.json().catch(() => null)) as { key?: unknown } | null;
+  const body = (await readJson(c)) as { key?: unknown } | null;
   const key = typeof body?.key === "string" ? body.key.trim() : "";
   if (key.length < 8 || key.length > 512 || /\s/.test(key)) {
     return c.json({ error: "bad_key" }, 400);

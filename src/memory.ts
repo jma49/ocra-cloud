@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { readJson } from "./body.js";
 import { requireSession } from "./session.js";
 import type { AppEnv } from "./types.js";
 
@@ -20,7 +21,7 @@ memory.get("/", requireSession(["web", "cli"]), async (c) => {
 });
 
 memory.post("/", requireSession(), async (c) => {
-  const body = (await c.req.json().catch(() => null)) as {
+  const body = (await readJson(c)) as {
     findingId?: unknown;
     reason?: unknown;
   } | null;

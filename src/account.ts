@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { audit } from "./audit.js";
+import { readJson } from "./body.js";
 import { accountSalt, deleteAccount, setSharing } from "./db/accounts.js";
 import { clearSessionCookie, requireSession } from "./session.js";
 import type { AppEnv } from "./types.js";
@@ -11,7 +12,7 @@ import type { AppEnv } from "./types.js";
 export const account = new Hono<AppEnv>();
 
 account.delete("/", requireSession(), async (c) => {
-  const body = (await c.req.json().catch(() => null)) as { confirm?: unknown } | null;
+  const body = (await readJson(c)) as { confirm?: unknown } | null;
   if (body?.confirm !== c.var.session.account.login) {
     return c.json({ error: "confirm_with_login" }, 400);
   }
@@ -28,7 +29,7 @@ account.get("/sharing", requireSession(), async (c) => {
 });
 
 account.put("/sharing", requireSession(), async (c) => {
-  const body = (await c.req.json().catch(() => null)) as {
+  const body = (await readJson(c)) as {
     enabled?: unknown;
     deleteExisting?: unknown;
   } | null;

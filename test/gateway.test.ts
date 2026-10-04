@@ -331,6 +331,27 @@ describe("gateway", () => {
     ]);
   });
 
+  it("does not follow an upstream redirect, which would resend the key (#15)", async () => {
+    const { auth, account } = await withKey();
+    const fake = upstreamFake(
+      () =>
+        new Response("moved", {
+          status: 307,
+          headers: { location: "https://elsewhere.example/v1/chat/completions" },
+        }),
+    );
+    const res = await call("/api/gateway/openrouter/v1/chat/completions", {
+      method: "POST",
+      headers: { ...auth, "content-type": "application/json" },
+      body: chat(false),
+    });
+    expect(fake.mock.calls[0]?.[1]?.redirect).toBe("manual");
+    expect(res.status).toBe(502);
+    expect(await res.json()).toEqual({ error: "upstream_redirect", status: 307 });
+    expect(res.headers.get("location")).toBeNull();
+    expect(await scoped(db, account.id).list("gatewayCalls")).toMatchObject([{ status: 502 }]);
+  });
+
   it("passes upstream errors through and records their status", async () => {
     const { auth, account } = await withKey();
     upstreamFake(() =>
