@@ -10,6 +10,7 @@ import {
   num,
   type ProviderInfo,
 } from "../api.js";
+import { anyProvider } from "../site.js";
 import { PageHead, ProviderLogo, useLoad } from "../ui.js";
 
 // Like the channel pages of API relays: the page lists the keys you have;
@@ -71,8 +72,8 @@ export function Keys() {
         <div className="card empty-hero">
           <h3>No provider keys yet</h3>
           <p>
-            Add a key from any of {providers?.providers.length ?? 45} providers. It is encrypted at
-            rest and never shown again.
+            Add a key from {anyProvider(providers?.providers.length)}. It is encrypted at rest and
+            never shown again.
           </p>
           <button
             type="button"
@@ -336,7 +337,7 @@ function AddKeyDrawer(props: {
             <input
               className="input"
               style={{ width: "100%", height: 38 }}
-              placeholder="Search 45 providers by name or domain"
+              placeholder={`Search ${props.providers.length} providers by name or domain`}
               aria-label="Search providers"
               value={q}
               onChange={(e) => setQ(e.target.value)}

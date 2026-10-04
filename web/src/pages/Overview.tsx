@@ -1,10 +1,12 @@
 import { api, compact, type Key, num, type Usage } from "../api.js";
 import { Link } from "../router.js";
-import { PageHead, StackedBars, useLoad } from "../ui.js";
+import { anyProvider } from "../site.js";
+import { PageHead, StackedBars, useLoad, useProviders } from "../ui.js";
 
 export function Overview(props: { login: string }) {
   const [usage] = useLoad(() => api<Usage>("/usage?days=14"));
   const [keys] = useLoad(() => api<{ keys: Key[] }>("/keys"));
+  const providers = useProviders();
   const week = usage?.series.slice(-7) ?? [];
   const sum = (f: (d: Usage["series"][number]) => number) => week.reduce((n, d) => n + f(d), 0);
   const calls7 = sum((d) => d.calls);
@@ -70,13 +72,14 @@ export function Overview(props: { login: string }) {
         <div className="section-title">Get started</div>
         <div className="card steps">
           <Step n={1} done={keyCount > 0} title="Add a provider key">
-            Bring your own key from any of 45 providers. <Link to="/keys">Add a key</Link>
+            Bring your own key from {anyProvider(providers?.length)}.{" "}
+            <Link to="/keys">Add a key</Link>
           </Step>
           <Step n={2} title="Install the CLI">
             <span className="cmd">npm install -g @open-cr-agent/cli</span>
           </Step>
           <Step n={3} title="Sign in from the terminal">
-            <span className="cmd">ocra login</span> <span className="badge">coming soon</span>
+            <span className="cmd">ocra login</span>
           </Step>
           <Step n={4} done={anyCalls} title="Review a change">
             <span className="cmd">ocra review</span>

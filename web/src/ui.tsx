@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useState } from "react";
-import { compact, type Day } from "./api.js";
+import { api, compact, type Day, type ProviderInfo } from "./api.js";
 
 export function PageHead(props: { title: string; sub?: ReactNode; actions?: ReactNode }) {
   return (
@@ -59,6 +59,12 @@ export function useLoad<T>(load: () => Promise<T>, deps: unknown[] = []) {
     };
   }, [n, ...deps]);
   return [data, error, () => setN((x) => x + 1)] as const;
+}
+
+/** The providers the gateway forwards (public; the same list the CLI reads). */
+export function useProviders(): ProviderInfo[] | undefined {
+  const [data] = useLoad(() => api<{ providers: ProviderInfo[] }>("/providers"));
+  return data?.providers;
 }
 
 const COLORS = ["var(--c1)", "var(--c2)", "var(--c3)", "var(--c4)", "var(--c5)"];
