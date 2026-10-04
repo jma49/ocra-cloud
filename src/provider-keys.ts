@@ -13,6 +13,10 @@ export type KeyCheck = {
 
 // Anthropic's API wants its version on every request; its key goes as x-api-key.
 const ANTHROPIC_VERSION = "2023-06-01";
+/** How long a key check or a model list may take. */
+const CHECK_TIMEOUT_MS = 10_000;
+/** The most models a list returns. */
+const MAX_MODELS = 2000;
 
 /** One GET with the key. A redirect would carry the key to another address: never followed. */
 function keyGet(provider: ProviderName, call: KeyCall, key: string): Promise<Response> {
@@ -22,7 +26,7 @@ function keyGet(provider: ProviderName, call: KeyCall, key: string): Promise<Res
   return fetch(providers[provider].base + call.path, {
     headers,
     redirect: "manual",
-    signal: AbortSignal.timeout(10_000),
+    signal: AbortSignal.timeout(CHECK_TIMEOUT_MS),
   });
 }
 
@@ -77,7 +81,7 @@ export async function listModels(provider: ProviderName, key: string): Promise<M
     for (const m of body.models ?? []) {
       add(typeof m.name === "string" ? m.name.replace(/^models\//, "") : undefined);
     }
-    return [...found.values()].sort((a, b) => a.id.localeCompare(b.id)).slice(0, 2000);
+    return [...found.values()].sort((a, b) => a.id.localeCompare(b.id)).slice(0, MAX_MODELS);
   } catch {
     return [];
   }

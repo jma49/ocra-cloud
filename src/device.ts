@@ -21,13 +21,14 @@ import {
   requireSession,
   startCliSession,
 } from "./session.js";
+import { MINUTE } from "./time.js";
 import type { AppEnv } from "./types.js";
 
 // `ocra login`: the OAuth 2.0 device authorization grant (RFC 8628). The CLI
 // asks for a code, the user approves it on the web while signed in, and the
 // CLI's polling then receives a CLI session's tokens.
 
-const CODE_TTL_MS = 10 * 60_000;
+const CODE_TTL_MS = 10 * MINUTE;
 const INTERVAL = 5;
 // No vowels or look-alikes, so a code is never a word and is easy to read out.
 const ALPHABET = "BCDFGHJKLMNPQRSTVWXZ";

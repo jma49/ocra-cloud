@@ -1,4 +1,5 @@
 import type * as schema from "../src/db/schema.js";
+import { DAY } from "../src/time.js";
 
 // One row per account-scoped table. A table added to the schema without a
 // case here fails to compile (and the isolation test).
@@ -7,7 +8,7 @@ export const rows = {
     id,
     tokenHash: `hash-${id}`,
     kind: "cli" as const,
-    expiresAt: new Date(Date.now() + 86_400_000),
+    expiresAt: new Date(Date.now() + DAY),
   }),
   providerKeys: (id: string) => ({
     id,

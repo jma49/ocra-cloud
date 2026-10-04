@@ -2,24 +2,31 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { audit } from "./audit.js";
 import { encryptSecret, keyBinding } from "./crypto.js";
+import { RETENTION_DAYS } from "./db/retention.js";
 import { apiError, jsonBody } from "./http.js";
 import { decryptKey, storedKey } from "./keyring.js";
 import { checkKey, listModels } from "./provider-keys.js";
 import { isProvider, providers } from "./providers.js";
 import { requireSession } from "./session.js";
+import { DAY } from "./time.js";
 import type { AppEnv } from "./types.js";
 
 // The user's model keys: stored encrypted, one per provider, never returned.
 
 export const keys = new Hono<AppEnv>().use(requireSession());
 
-const DAY = 86_400_000;
+/** "Calls in the last week" on the keys page. */
+const RECENT_DAYS = 7;
 
 keys.get("/", async (c) => {
   const rows = await c.var.data.list("providerKeys");
   // One row per provider, summed in SQL (audit D5).
   const now = Date.now();
-  const sums = await c.var.data.keyUse(new Date(now - 90 * DAY), new Date(now - 7 * DAY));
+  // Last use is looked for as far back as call records are kept.
+  const sums = await c.var.data.keyUse(
+    new Date(now - RETENTION_DAYS * DAY),
+    new Date(now - RECENT_DAYS * DAY),
+  );
   const use = new Map(
     sums.map((u) => [u.provider, { lastUsedAt: new Date(u.lastUsedAt), calls7d: u.recent }]),
   );

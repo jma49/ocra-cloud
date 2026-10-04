@@ -3,6 +3,7 @@ import {
   createScheduledController,
   waitOnExecutionContext,
 } from "cloudflare:test";
+
 import { env } from "cloudflare:workers";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { accountSalt, setSharing } from "../src/db/accounts.js";
@@ -11,6 +12,7 @@ import * as schema from "../src/db/schema.js";
 import { scoped } from "../src/db/scoped.js";
 import { EXPORTED } from "../src/export.js";
 import worker from "../src/index.js";
+import { DAY } from "../src/time.js";
 import { call, db, resetDb, signIn, signInCli } from "./helpers.js";
 import { rows } from "./table-rows.js";
 
@@ -20,7 +22,6 @@ beforeEach(async () => {
 });
 afterEach(() => vi.restoreAllMocks());
 
-const DAY = 86_400_000;
 const now = new Date("2026-10-04T12:00:00Z");
 const ago = (days: number) => new Date(now.getTime() - days * DAY);
 

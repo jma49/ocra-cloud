@@ -1,18 +1,17 @@
 import { Hono } from "hono";
-import { clampDays } from "./db/retention.js";
+import { config } from "./config.js";
+import { queryDays } from "./http.js";
 import { requireSession } from "./session.js";
+import { DAY, utcDay, utcDayStart } from "./time.js";
 import type { AppEnv } from "./types.js";
 
 // The account's gateway use: daily counts by model, and the latest calls.
 
 export const usage = new Hono<AppEnv>().use(requireSession());
 
-const DAY = 86_400_000;
-const utcDay = (d: Date) => d.toISOString().slice(0, 10);
-
 usage.get("/", async (c) => {
-  const days = clampDays(c.req.query("days"), 14);
-  const todayStart = new Date(utcDay(new Date()));
+  const days = queryDays(c, 14);
+  const todayStart = utcDayStart();
   const since = new Date(todayStart.getTime() - (days - 1) * DAY);
   // Summed in SQL (audit D5): exact however many calls there are.
   const [sums, latest] = await Promise.all([
@@ -45,7 +44,7 @@ usage.get("/", async (c) => {
   return c.json({
     days,
     today: today?.calls ?? 0,
-    dailyLimit: Number(c.env.GATEWAY_DAILY_CALLS),
+    dailyLimit: config(c.env).gatewayDailyCalls,
     series: [...series.values()],
     models: sums.models,
     calls: latest.map((call) => ({

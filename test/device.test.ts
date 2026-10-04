@@ -7,6 +7,7 @@ import { rotateSession, sessionByRefreshHash } from "../src/db/accounts.js";
 import * as schema from "../src/db/schema.js";
 import { newUserCode, normalizeUserCode } from "../src/device.js";
 import { REFRESH_GRACE_MS } from "../src/session.js";
+import { DAY } from "../src/time.js";
 import { call, db, resetDb, signIn, signInCli } from "./helpers.js";
 
 beforeEach(async () => {
@@ -219,7 +220,7 @@ describe("ocra login (device flow)", () => {
     };
     const cli = list.sessions.find((s) => s.kind === "cli");
     expect(cli?.label).toBe("test terminal");
-    expect(new Date(cli?.expiresAt ?? 0).getTime()).toBeGreaterThan(Date.now() + 80 * 86_400_000);
+    expect(new Date(cli?.expiresAt ?? 0).getTime()).toBeGreaterThan(Date.now() + 80 * DAY);
     await call(`/api/sessions/${cli?.id}`, { method: "DELETE", auth: web.auth });
     const refresh = await post("/api/device/refresh", { refresh_token: tokens.refresh_token });
     expect(refresh.status).toBe(400);
