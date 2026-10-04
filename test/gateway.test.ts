@@ -1,7 +1,10 @@
+import { createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
+import { env } from "cloudflare:workers";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { scoped } from "../src/db/scoped.js";
 import { parseUsage } from "../src/gateway.js";
-import { call, db, resetDb, signIn } from "./helpers.js";
+import app from "../src/index.js";
+import { call, db, ORIGIN, resetDb, signIn } from "./helpers.js";
 
 const KEY = "sk-or-v1-0123456789abcdef";
 const PROMPT = "PROMPT-BODY-should-never-be-logged";
@@ -207,6 +210,100 @@ describe("gateway", () => {
     const capped = await post();
     expect(capped.status).toBe(429);
     expect(await capped.json()).toMatchObject({ error: "daily_limit", limit: 3 });
+  });
+
+  it("forwards at most the cap of parallel calls", async () => {
+    const { auth, account } = await withKey();
+    const fake = upstreamFake(() =>
+      Response.json({ usage: { prompt_tokens: 1, completion_tokens: 1 } }),
+    );
+    // GATEWAY_DAILY_CALLS is 3 in the test configuration.
+    const statuses = await Promise.all(
+      Array.from({ length: 10 }, () =>
+        call("/api/gateway/openrouter/v1/chat/completions", {
+          method: "POST",
+          headers: { ...auth, "content-type": "application/json" },
+          body: chat(false),
+        }).then((r) => r.status),
+      ),
+    );
+    expect(statuses.filter((s) => s === 200)).toHaveLength(3);
+    expect(statuses.filter((s) => s === 429)).toHaveLength(7);
+    expect(fake).toHaveBeenCalledTimes(3);
+    expect(await scoped(db, account.id).list("gatewayCalls")).toHaveLength(3);
+  });
+
+  it("records a call whose reader cancels mid-stream", async () => {
+    const { auth, account } = await withKey();
+    const enc = new TextEncoder();
+    let upstreamCancelled = false;
+    upstreamFake(
+      () =>
+        new Response(
+          new ReadableStream({
+            start(controller) {
+              const first = { type: "message_start", message: { usage: { input_tokens: 42 } } };
+              controller.enqueue(enc.encode(`data: ${JSON.stringify(first)}\n\n`));
+              // Never closes: the answer is still streaming when the client leaves.
+            },
+            cancel() {
+              upstreamCancelled = true;
+            },
+          }),
+          { headers: { "content-type": "text/event-stream" } },
+        ),
+    );
+    const ctx = createExecutionContext();
+    const res = await app.fetch(
+      new Request(`${ORIGIN}/api/gateway/openrouter/v1/chat/completions`, {
+        method: "POST",
+        headers: { ...auth, "content-type": "application/json" },
+        body: chat(),
+      }),
+      env,
+      ctx,
+    );
+    expect(res.status).toBe(200);
+    const reader = res.body?.getReader();
+    expect((await reader?.read())?.done).toBe(false);
+    await reader?.cancel();
+    await waitOnExecutionContext(ctx);
+    expect(upstreamCancelled).toBe(true);
+    expect(await scoped(db, account.id).list("gatewayCalls")).toMatchObject([
+      { status: 499, tokensIn: 42, model: "vendor/model-a" },
+    ]);
+  });
+
+  it("records a call whose upstream resets mid-stream", async () => {
+    const { auth, account } = await withKey();
+    const enc = new TextEncoder();
+    upstreamFake(() => {
+      let sent = false;
+      return new Response(
+        new ReadableStream({
+          pull(controller) {
+            if (sent) return controller.error(new Error("connection reset"));
+            sent = true;
+            controller.enqueue(enc.encode('data: {"usage":{"input_tokens":7}}\n\n'));
+          },
+        }),
+      );
+    });
+    const ctx = createExecutionContext();
+    const res = await app.fetch(
+      new Request(`${ORIGIN}/api/gateway/openrouter/v1/chat/completions`, {
+        method: "POST",
+        headers: { ...auth, "content-type": "application/json" },
+        body: chat(),
+      }),
+      env,
+      ctx,
+    );
+    await expect(res.text()).rejects.toThrow();
+    await waitOnExecutionContext(ctx);
+    expect(await scoped(db, account.id).list("gatewayCalls")).toMatchObject([
+      { status: 502, tokensIn: 7 },
+    ]);
   });
 
   it("passes upstream errors through and records their status", async () => {

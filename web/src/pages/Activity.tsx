@@ -120,9 +120,13 @@ export function Activity() {
                     <td className="mono">{c.model ?? "–"}</td>
                     <td className="muted">{c.provider}</td>
                     <td>
-                      <span className={`badge ${c.status < 400 ? "badge-ok" : "badge-err"}`}>
-                        {c.status}
-                      </span>
+                      {c.status === 0 ? (
+                        <span className="badge">pending</span>
+                      ) : (
+                        <span className={`badge ${c.status < 400 ? "badge-ok" : "badge-err"}`}>
+                          {c.status}
+                        </span>
+                      )}
                     </td>
                     <td className="num">{num(c.tokensIn)}</td>
                     <td className="num">{num(c.tokensOut)}</td>
