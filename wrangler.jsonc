@@ -5,7 +5,10 @@
   "compatibility_date": "2026-08-22",
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
-  "observability": { "enabled": true },
+  // Our own console messages only (never bodies, keys or tokens), kept 3 days
+  // on the free plan. Invocation logs are off: they record requests, and a
+  // request's headers carry session tokens.
+  "observability": { "enabled": true, "logs": { "invocation_logs": false } },
   // Daily retention (src/retention.ts).
   "triggers": { "crons": ["17 4 * * *"] },
   // The GitHub App "ocra Cloud dev" signs users in. Secrets (set with

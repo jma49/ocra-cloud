@@ -1,0 +1,4 @@
+Contact: mailto:meetjincheng@yahoo.com
+Expires: 2027-10-04T00:00:00.000Z
+Policy: https://github.com/jma49/Open-CR-Agent/blob/main/SECURITY.md
+Preferred-Languages: en, zh
