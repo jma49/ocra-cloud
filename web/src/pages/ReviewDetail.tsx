@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import type { Severity, Verdict, Verification } from "../../../src/shared/index.js";
 import { ApiError, api } from "../api.js";
 import { time } from "../format.js";
 import { Link } from "../router.js";
@@ -11,9 +12,9 @@ type Finding = {
   id: string;
   fingerprint: string;
   reviewer: string;
-  severity: "critical" | "warning" | "suggestion";
+  severity: Severity;
   category: string | null;
-  verification: string | null;
+  verification: Verification | null;
   file: string;
   lineStart: number | null;
   lineEnd: number | null;
@@ -30,7 +31,7 @@ type Detail = {
     runId: string;
     repo: string;
     source: string;
-    verdict: string | null;
+    verdict: Verdict | null;
     complete: boolean;
     critical: number;
     warning: number;

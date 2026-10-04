@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { effortLevels } from "../src/capabilities.js";
+import { effortLevels } from "../src/shared/index.js";
 
 describe("effort levels by model", () => {
   it("knows the common reasoning models and nothing else", () => {

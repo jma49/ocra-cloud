@@ -1,6 +1,6 @@
-import { effortLevels } from "./capabilities.js";
-import type { Effort } from "./db/schema.js";
+import { MODEL_ID } from "./contract/index.js";
 import { applyAuth, type KeyCall, modelsCall, type ProviderName, providers } from "./providers.js";
+import { type Effort, effortLevels } from "./shared/index.js";
 
 // The provider calls the keys routes make with a stored key: checking it,
 // and listing the models it reaches. Neither costs tokens.
@@ -72,7 +72,7 @@ export async function listModels(provider: ProviderName, key: string): Promise<M
     };
     const found = new Map<string, ModelInfo>();
     const add = (id: unknown, live?: { reasoning: boolean }) => {
-      if (typeof id !== "string" || !/^[\w./:@-]{1,200}$/.test(id)) return;
+      if (typeof id !== "string" || !MODEL_ID.test(id)) return;
       found.set(id, { id, efforts: effortLevels(id, live) });
     };
     for (const m of body.data ?? []) {

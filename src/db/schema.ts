@@ -1,8 +1,14 @@
 import { sql } from "drizzle-orm";
 import { index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import type { AgentPrefs, ModelChains, ReviewSettings } from "../api-types.js";
-
-export type { AgentPrefs, Effort, ReviewSettings } from "../api-types.js";
+import {
+  REVIEW_SOURCES,
+  RISK_TIERS,
+  RUNTIMES,
+  SEVERITIES,
+  VERDICTS,
+  VERIFICATIONS,
+} from "../contract/index.js";
+import type { AgentPrefs, ModelChains, ReviewerCounts, ReviewSettings } from "../shared/index.js";
 
 // Every table but accounts carries accountId, and is read and written only
 // through scoped() in ./scoped.ts, which filters by it. The isolation test
@@ -112,9 +118,9 @@ export const reviews = sqliteTable(
     accountId: accountId(),
     runId: text("run_id").notNull(),
     repoHash: text("repo_hash").notNull(),
-    source: text("source").notNull(),
-    tier: text("tier"),
-    verdict: text("verdict"),
+    source: text("source", { enum: REVIEW_SOURCES }).notNull(),
+    tier: text("tier", { enum: RISK_TIERS }),
+    verdict: text("verdict", { enum: VERDICTS }),
     complete: integer("complete", { mode: "boolean" }).notNull().default(true),
     findings: integer("findings").notNull().default(0),
     critical: integer("critical").notNull().default(0),
@@ -142,15 +148,6 @@ export const reviews = sqliteTable(
   ],
 );
 
-export type ReviewerCounts = {
-  tasks: number;
-  failedTasks: number;
-  findings: { critical: number; warning: number; suggestion: number };
-  costUsd: number;
-  fixed: number;
-  dismissed: number;
-};
-
 // Settings of an account, one row: the default models for a review with no
 // models configured (ADR-0024 zero configuration).
 // One row per account, keyed by it: a save is an upsert on the account.
@@ -159,7 +156,7 @@ export const preferences = sqliteTable("preferences", {
   models: text("models", { mode: "json" }).$type<ModelChains>(),
   // The runtime and per-agent settings (ADR-0025), layered under a
   // repository's configuration by the CLI.
-  runtime: text("runtime", { enum: ["direct", "opencode"] }),
+  runtime: text("runtime", { enum: RUNTIMES }),
   agents: text("agents", { mode: "json" }).$type<AgentPrefs>(),
   // The review's data settings (ADR-0027): never providers, extends or botLogin.
   settings: text("settings", { mode: "json" }).$type<ReviewSettings>(),
@@ -225,9 +222,9 @@ export const findings = sqliteTable(
       .references(() => reviews.id, { onDelete: "cascade" }),
     fingerprint: text("fingerprint").notNull(),
     reviewer: text("reviewer").notNull(),
-    severity: text("severity").notNull(),
+    severity: text("severity", { enum: SEVERITIES }).notNull(),
     category: text("category"),
-    verification: text("verification"),
+    verification: text("verification", { enum: VERIFICATIONS }),
     file: text("file").notNull(),
     lineStart: integer("line_start"),
     lineEnd: integer("line_end"),

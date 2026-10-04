@@ -1,5 +1,11 @@
-import type { ProviderGroup } from "../../src/api-types.js";
 import type { ErrorCode } from "../../src/contract/index.js";
+import type {
+  ProviderGroup,
+  ReviewerCounts,
+  ReviewSource,
+  RiskTier,
+  Verdict,
+} from "../../src/shared/index.js";
 
 export type Me = { login: string; githubId: number; session: "web" | "cli"; since: string };
 export type ProviderInfo = {
@@ -142,9 +148,9 @@ export type Review = {
   id: string;
   runId: string;
   repo: string;
-  source: "local" | "github" | "gitlab";
-  tier: string | null;
-  verdict: "approved" | "approved_with_comments" | "minor_issues" | "significant_concerns" | null;
+  source: ReviewSource;
+  tier: RiskTier | null;
+  verdict: Verdict | null;
   complete: boolean;
   findings: number;
   critical: number;
@@ -178,16 +184,7 @@ export type Reviews = {
   };
   reviewers: Record<
     string,
-    {
-      tasks: number;
-      failedTasks: number;
-      findingsTotal: number;
-      findings: { critical: number; warning: number; suggestion: number };
-      costUsd: number;
-      fixed: number;
-      dismissed: number;
-      acceptanceRate: number | null;
-    }
+    ReviewerCounts & { findingsTotal: number; acceptanceRate: number | null }
   >;
   reviews: Review[];
 };

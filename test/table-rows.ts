@@ -17,7 +17,7 @@ export const rows = {
     ciphertext: "c",
     last4: "abcd",
   }),
-  reviews: (id: string) => ({ id, runId: `run-${id}`, repoHash: "r", source: "local" }),
+  reviews: (id: string) => ({ id, runId: `run-${id}`, repoHash: "r", source: "local" as const }),
   auditEvents: (id: string) => ({ id, kind: "key.used", detail: { model: "m" } }),
   gatewayCalls: (id: string) => ({
     id,
@@ -33,7 +33,7 @@ export const rows = {
     reviewId: "review-of-a",
     fingerprint: `fp-${id}`,
     reviewer: "security",
-    severity: "warning",
+    severity: "warning" as const,
     file: "a.ts",
     title: "t",
     body: "b",

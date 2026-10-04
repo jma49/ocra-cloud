@@ -261,7 +261,7 @@ describe("review export", () => {
       reviewId: "r",
       fingerprint: "fp-1",
       reviewer: "docs",
-      severity: "suggestion",
+      severity: "suggestion" as const,
       category: null,
       verification: null,
       file: "README.md",
