@@ -10,10 +10,9 @@ export function Privacy() {
         title="Data policy"
         sub="What ocra Cloud stores, what it never stores, and how long."
       />
-      <div className="note" style={{ marginTop: 0, marginBottom: 24 }}>
-        Draft, last updated 4 October 2026. ocra Cloud is in development; this page will be final
-        before it opens.
-      </div>
+      <p className="subtle small" style={{ marginTop: 0, marginBottom: 24 }}>
+        Effective 4 October 2026. We will email you before any change that reduces your rights under this policy.
+      </p>
 
       <h2>What ocra Cloud stores</h2>
       <ul>
