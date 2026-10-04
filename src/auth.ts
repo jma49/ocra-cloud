@@ -147,12 +147,25 @@ export async function refreshCliSession(
   return rotated ? tokens : undefined;
 }
 
-/** A relative path on this site to return to after sign-in, or "/". */
+const unsafeChar = (ch: string) => ch.charCodeAt(0) < 0x20 || ch === "\x7f" || ch === "\\";
+
+/**
+ * A path on this site to return to after sign-in, or "/". Browsers drop tabs
+ * and newlines from a URL and read a backslash as a slash, so "/\t/evil.example"
+ * would leave the site: those are refused, and what remains must resolve to
+ * this origin.
+ */
 export function safeNext(next: string | undefined): string {
-  if (!next?.startsWith("/") || next.startsWith("//") || next.includes("\\") || next.length > 512) {
+  if (!next?.startsWith("/") || next.length > 512 || [...next].some(unsafeChar)) return "/";
+  const base = "https://ocra.invalid";
+  let url: URL;
+  try {
+    url = new URL(next, base);
+  } catch {
     return "/";
   }
-  return next;
+  if (url.origin !== base || next.startsWith("//")) return "/";
+  return url.pathname + url.search + url.hash;
 }
 
 export const auth = new Hono<AppEnv>();

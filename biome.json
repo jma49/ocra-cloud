@@ -6,7 +6,8 @@
       "!**/dist",
       "!**/node_modules",
       "!src/worker-configuration.d.ts",
-      "!migrations/meta"
+      "!migrations/meta",
+      "!.claude"
     ]
   },
   "formatter": { "indentStyle": "space", "indentWidth": 2, "lineWidth": 100 },
