@@ -67,3 +67,26 @@ export async function decryptSecret(masterKey: string, sealed: Sealed): Promise<
   const dataKey = await open(master, sealed.wrappedKey);
   return dec.decode(await open(await aesKey(dataKey), sealed.ciphertext));
 }
+
+/** The master key, and during a rotation the one it replaces. */
+export type MasterKeys = { current: string; previous?: string | undefined };
+
+/** Decrypts with the current master key, else with the previous one (rotation). */
+export async function decryptWithAny(keys: MasterKeys, sealed: Sealed): Promise<string> {
+  try {
+    return await decryptSecret(keys.current, sealed);
+  } catch (error) {
+    if (!keys.previous) throw error;
+    return decryptSecret(keys.previous, sealed);
+  }
+}
+
+/** The data key re-wrapped under a new master key; the ciphertext is unchanged. */
+export async function rewrap(
+  oldMaster: string,
+  newMaster: string,
+  wrappedKey: string,
+): Promise<string> {
+  const dataKey = await open(await aesKey(fromBase64(oldMaster)), wrappedKey);
+  return seal(await aesKey(fromBase64(newMaster)), dataKey);
+}

@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { keyFor } from "./keys.js";
+import { keyFor, masterKeys } from "./keys.js";
 import { applyAuth, isProvider, matchRoute, PASS_HEADERS, providers } from "./providers.js";
 import type { AppEnv } from "./types.js";
 
@@ -28,7 +28,7 @@ gateway.post("/:provider/*", async (c) => {
   if ((await data.countSince("gatewayCalls", today)) >= cap) {
     return c.json({ error: "daily_limit", limit: cap }, 429);
   }
-  const key = await keyFor(data, c.env.MASTER_KEY, name);
+  const key = await keyFor(data, masterKeys(c.env), name);
   if (!key) return c.json({ error: "no_key", provider: name }, 400);
 
   const body = await c.req.text();

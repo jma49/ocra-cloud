@@ -4,6 +4,8 @@ interface __BaseEnv_Env {
   GITHUB_CLIENT_SECRET: string;
   /** base64 of 32 random bytes: wraps every data key. */
   MASTER_KEY: string;
+  /** Set only during a master-key rotation: the key being replaced (docs/rotation.md). */
+  MASTER_KEY_PREVIOUS?: string;
   /** Signs the OAuth state cookie. */
   SESSION_SECRET: string;
 }

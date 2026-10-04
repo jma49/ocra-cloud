@@ -33,3 +33,22 @@ describe("envelope encryption", () => {
     await expect(encryptSecret(btoa("short"), "x")).rejects.toThrow(/32 bytes/);
   });
 });
+
+describe("master key rotation", () => {
+  it("re-wraps a data key so the new master key opens the same ciphertext", async () => {
+    const { rewrap } = await import("../src/crypto.js");
+    const sealed = await encryptSecret(master, "sk-rotate-me");
+    const wrappedKey = await rewrap(master, other, sealed.wrappedKey);
+    expect(wrappedKey).not.toBe(sealed.wrappedKey);
+    expect(await decryptSecret(other, { ...sealed, wrappedKey })).toBe("sk-rotate-me");
+    await expect(decryptSecret(master, { ...sealed, wrappedKey })).rejects.toThrow();
+    await expect(rewrap(other, master, sealed.wrappedKey)).rejects.toThrow();
+  });
+
+  it("decrypts with the previous key while a rotation is under way", async () => {
+    const { decryptWithAny } = await import("../src/crypto.js");
+    const old = await encryptSecret(master, "sk-old-row");
+    expect(await decryptWithAny({ current: other, previous: master }, old)).toBe("sk-old-row");
+    await expect(decryptWithAny({ current: other }, old)).rejects.toThrow();
+  });
+});

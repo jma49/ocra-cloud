@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { decryptSecret, encryptSecret } from "./crypto.js";
+import { decryptWithAny, encryptSecret, type MasterKeys } from "./crypto.js";
 import type { Scoped } from "./db/scoped.js";
 import { applyAuth, isProvider, providers, verifyRoutes } from "./providers.js";
 import type { AppEnv } from "./types.js";
@@ -62,7 +62,7 @@ keys.post("/:provider/test", async (c) => {
   const provider = c.req.param("provider");
   const row = (await c.var.data.list("providerKeys")).find((r) => r.provider === provider);
   if (!row || !isProvider(provider)) return c.json({ error: "no_key" }, 404);
-  const check = await checkKey(provider, await decryptSecret(c.env.MASTER_KEY, row));
+  const check = await checkKey(provider, await decryptWithAny(masterKeys(c.env), row));
   await c.var.data.update("providerKeys", row.id, {
     checkStatus: check.status,
     checkedAt: new Date(),
@@ -76,7 +76,7 @@ keys.get("/:provider/models", async (c) => {
   const provider = c.req.param("provider");
   const row = (await c.var.data.list("providerKeys")).find((r) => r.provider === provider);
   if (!row || !isProvider(provider)) return c.json({ error: "no_key" }, 404);
-  const ids = await listModels(provider, await decryptSecret(c.env.MASTER_KEY, row));
+  const ids = await listModels(provider, await decryptWithAny(masterKeys(c.env), row));
   return c.json({ provider, models: ids });
 });
 
@@ -166,14 +166,18 @@ async function removeKey(data: Scoped, provider: string): Promise<boolean> {
   return removed;
 }
 
+export function masterKeys(env: Pick<Env, "MASTER_KEY" | "MASTER_KEY_PREVIOUS">): MasterKeys {
+  return { current: env.MASTER_KEY, previous: env.MASTER_KEY_PREVIOUS };
+}
+
 /** The account's key for a provider, decrypted, or undefined. */
 export async function keyFor(
   data: Scoped,
-  masterKey: string,
+  keys: MasterKeys,
   provider: string,
 ): Promise<string | undefined> {
   const row = (await data.list("providerKeys")).find((r) => r.provider === provider);
-  return row ? decryptSecret(masterKey, row) : undefined;
+  return row ? decryptWithAny(keys, row) : undefined;
 }
 
 export async function audit(
