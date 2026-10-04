@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 // Every table but accounts carries accountId, and is read and written only
 // through scoped() in ./scoped.ts, which filters by it. The isolation test
@@ -73,16 +73,48 @@ export const providerKeys = sqliteTable("provider_keys", {
   createdAt: createdAt(),
 });
 
-// Review metadata the CLI uploads. The repository is a salted hash unless
-// the user opts in to sending its name.
-export const reviews = sqliteTable("reviews", {
+// Review metadata the CLI uploads after a review: counts only. The
+// repository is a hash salted on the user's machine, so the server cannot
+// tell which repository it is; no paths, titles, findings text or code.
+export const reviews = sqliteTable(
+  "reviews",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    runId: text("run_id").notNull(),
+    repoHash: text("repo_hash").notNull(),
+    source: text("source").notNull(),
+    tier: text("tier"),
+    verdict: text("verdict"),
+    complete: integer("complete", { mode: "boolean" }).notNull().default(true),
+    findings: integer("findings").notNull().default(0),
+    critical: integer("critical").notNull().default(0),
+    warning: integer("warning").notNull().default(0),
+    suggestion: integer("suggestion").notNull().default(0),
+    filesReviewed: integer("files_reviewed").notNull().default(0),
+    filesNotReviewed: integer("files_not_reviewed").notNull().default(0),
+    tasksCompleted: integer("tasks_completed").notNull().default(0),
+    tasksFailed: integer("tasks_failed").notNull().default(0),
+    tokensIn: integer("tokens_in").notNull().default(0),
+    tokensOut: integer("tokens_out").notNull().default(0),
+    costUsd: real("cost_usd").notNull().default(0),
+    durationMs: integer("duration_ms").notNull().default(0),
+    ocraVersion: text("ocra_version"),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("reviews_account_run").on(t.accountId, t.runId)],
+);
+
+// Settings of an account, one row: the default models for a review with no
+// models configured (ADR-0024 zero configuration).
+export const preferences = sqliteTable("preferences", {
   id: text("id").primaryKey(),
-  accountId: accountId(),
-  repoHash: text("repo_hash").notNull(),
-  verdict: text("verdict"),
-  findings: integer("findings").notNull().default(0),
-  tokensIn: integer("tokens_in").notNull().default(0),
-  tokensOut: integer("tokens_out").notNull().default(0),
+  accountId: accountId().unique(),
+  models: text("models", { mode: "json" }).$type<{
+    top?: string[];
+    standard?: string[];
+    light?: string[];
+  }>(),
   createdAt: createdAt(),
 });
 
@@ -117,4 +149,5 @@ export const accountTables = {
   reviews,
   auditEvents,
   gatewayCalls,
+  preferences,
 } as const;

@@ -5,7 +5,9 @@ import { auth, requireSession } from "./auth.js";
 import { device } from "./device.js";
 import { gateway } from "./gateway.js";
 import { keys } from "./keys.js";
+import { preferences } from "./preferences.js";
 import { type ProviderName, providerInfo, providers } from "./providers.js";
+import { reviews } from "./reviews.js";
 import type { AppEnv } from "./types.js";
 
 const app = new Hono<AppEnv>().basePath("/api");
@@ -45,6 +47,9 @@ app.use("/sessions/*", requireSession());
 app.use("/sessions", requireSession());
 app.use("/account", requireSession());
 app.route("/", account);
+
+app.route("/reviews", reviews);
+app.route("/preferences", preferences);
 
 app.use("/keys/*", requireSession());
 app.route("/keys", keys);

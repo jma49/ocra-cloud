@@ -71,6 +71,15 @@ keys.post("/:provider/test", async (c) => {
   return c.json({ provider, check });
 });
 
+// The models the provider offers this key, for choosing defaults on the web.
+keys.get("/:provider/models", async (c) => {
+  const provider = c.req.param("provider");
+  const row = (await c.var.data.list("providerKeys")).find((r) => r.provider === provider);
+  if (!row || !isProvider(provider)) return c.json({ error: "no_key" }, 404);
+  const ids = await listModels(provider, await decryptSecret(c.env.MASTER_KEY, row));
+  return c.json({ provider, models: ids });
+});
+
 keys.delete("/:provider", async (c) => {
   const provider = c.req.param("provider");
   const removed = await removeKey(c.var.data, provider);
@@ -112,6 +121,41 @@ export async function checkKey(provider: keyof typeof providers, key: string): P
     return { status: "invalid", httpStatus: res.status };
   }
   return { status: "error", httpStatus: res.status };
+}
+
+/**
+ * Model ids from the provider's model list: OpenAI-style data[].id, or the
+ * Gemini API's models[].name. OpenRouter's list is public and is not its
+ * key-checking route. Empty when the provider has no list.
+ */
+export async function listModels(provider: keyof typeof providers, key: string): Promise<string[]> {
+  const route =
+    provider === "openrouter"
+      ? { path: "/v1/models", auth: "bearer" as const }
+      : verifyRoutes[provider]?.path.endsWith("/models")
+        ? verifyRoutes[provider]
+        : undefined;
+  if (!route) return [];
+  const headers = new Headers({ accept: "application/json" });
+  if (route.auth === "x-api-key") headers.set("anthropic-version", "2023-06-01");
+  applyAuth(headers, route.auth, key);
+  try {
+    const res = await fetch(providers[provider].base + route.path, {
+      headers,
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) return [];
+    const body = (await res.json()) as { data?: { id?: unknown }[]; models?: { name?: unknown }[] };
+    const ids = [
+      ...(body.data ?? []).map((m) => m.id),
+      ...(body.models ?? []).map((m) =>
+        typeof m.name === "string" ? m.name.replace(/^models\//, "") : undefined,
+      ),
+    ].filter((id): id is string => typeof id === "string" && /^[\w./:@-]{1,200}$/.test(id));
+    return [...new Set(ids)].sort().slice(0, 2000);
+  } catch {
+    return [];
+  }
 }
 
 async function removeKey(data: Scoped, provider: string): Promise<boolean> {

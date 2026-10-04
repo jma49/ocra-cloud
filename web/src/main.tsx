@@ -4,7 +4,9 @@ import { api, type Me } from "./api.js";
 import { Activity } from "./pages/Activity.js";
 import { Device } from "./pages/Device.js";
 import { Keys } from "./pages/Keys.js";
+import { Models } from "./pages/Models.js";
 import { Overview } from "./pages/Overview.js";
+import { Reviews } from "./pages/Reviews.js";
 import { Sessions } from "./pages/Sessions.js";
 import { Settings } from "./pages/Settings.js";
 import { Link, usePath } from "./router.js";
@@ -16,7 +18,9 @@ const DOCS = "https://ocra.majincheng.com";
 const NAV: { to: string; label: string; icon: keyof typeof icons }[] = [
   { to: "/", label: "Overview", icon: "home" },
   { to: "/activity", label: "Activity", icon: "activity" },
+  { to: "/reviews", label: "Reviews", icon: "check" },
   { to: "/keys", label: "Provider keys", icon: "key" },
+  { to: "/models", label: "Default models", icon: "layers" },
   { to: "/sessions", label: "CLI & sessions", icon: "terminal" },
   { to: "/settings", label: "Settings", icon: "settings" },
 ];
@@ -165,6 +169,10 @@ function App() {
       <Device />
     ) : path === "/activity" ? (
       <Activity />
+    ) : path === "/reviews" ? (
+      <Reviews />
+    ) : path === "/models" ? (
+      <Models />
     ) : path === "/keys" ? (
       <Keys />
     ) : path === "/sessions" ? (

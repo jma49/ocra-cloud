@@ -29,6 +29,13 @@
       "when": 1791091029252,
       "tag": "0003_device_login",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1791093803318,
+      "tag": "0004_reviews_preferences",
+      "breakpoints": true
     }
   ]
 }

@@ -25,7 +25,7 @@ const rows = {
     ciphertext: "c",
     last4: "abcd",
   }),
-  reviews: (id: string) => ({ id, repoHash: "r" }),
+  reviews: (id: string) => ({ id, runId: `run-${id}`, repoHash: "r", source: "local" }),
   auditEvents: (id: string) => ({ id, kind: "key.used", detail: { model: "m" } }),
   gatewayCalls: (id: string) => ({
     id,
@@ -33,6 +33,7 @@ const rows = {
     path: "/v1/chat/completions",
     status: 200,
   }),
+  preferences: (id: string) => ({ id, models: { standard: ["ocra-openrouter/m"] } }),
 } satisfies { [N in keyof typeof schema.accountTables]: (id: string) => unknown };
 
 // A change to one column of each table's row.
@@ -42,6 +43,7 @@ const changes = {
   reviews: { findings: 9 },
   auditEvents: { kind: "changed" },
   gatewayCalls: { status: 500 },
+  preferences: { models: { light: ["ocra-openrouter/x"] } },
 } satisfies { [N in keyof typeof rows]: Record<string, unknown> };
 
 // Storage persists across tests in a file; deleting the accounts cascades.

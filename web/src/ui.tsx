@@ -219,6 +219,13 @@ export const icons = {
     </>
   ),
   book: <path d="M4 4h7a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H4zM20 4h-5a3 3 0 0 0-3 3" />,
+  check: (
+    <>
+      <path d="M9 11l3 3 8-8" />
+      <path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9" />
+    </>
+  ),
+  layers: <path d="m12 3 9 5-9 5-9-5zM3 13l9 5 9-5M3 17.5l9 5 9-5" />,
 };
 
 export function Icon(props: { name: keyof typeof icons }) {

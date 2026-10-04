@@ -100,3 +100,43 @@ export const time = (iso: string) =>
     hour: "2-digit",
     minute: "2-digit",
   });
+
+export type Review = {
+  id: string;
+  runId: string;
+  repo: string;
+  source: "local" | "github" | "gitlab";
+  tier: string | null;
+  verdict: "approved" | "approved_with_comments" | "changes_requested" | null;
+  complete: boolean;
+  findings: number;
+  critical: number;
+  warning: number;
+  suggestion: number;
+  filesReviewed: number;
+  filesNotReviewed: number;
+  tasksCompleted: number;
+  tasksFailed: number;
+  tokensIn: number;
+  tokensOut: number;
+  costUsd: number;
+  durationMs: number;
+  ocraVersion: string | null;
+  createdAt: string;
+};
+export type Reviews = {
+  days: number;
+  summary: {
+    reviews: number;
+    repositories: number;
+    findings: number;
+    critical: number;
+    changesRequested: number;
+    incomplete: number;
+    tokensIn: number;
+    tokensOut: number;
+    costUsd: number;
+  };
+  reviews: Review[];
+};
+export type ModelChains = { top?: string[]; standard?: string[]; light?: string[] };
