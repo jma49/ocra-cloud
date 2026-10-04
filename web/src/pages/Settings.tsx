@@ -90,20 +90,26 @@ export function Settings(props: { me: Me }) {
   );
 }
 
-function Sharing() {
+export function Sharing() {
   const [data, , reload] = useLoad(() =>
     api<{ shareFindings: boolean; findingsStored: number }>("/account/sharing"),
   );
   const [asking, setAsking] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
   const put = async (enabled: boolean, deleteExisting = false) => {
     setBusy(true);
-    await api("/account/sharing", {
+    setFailed(false);
+    const ok = await api("/account/sharing", {
       method: "PUT",
       body: JSON.stringify({ enabled, deleteExisting }),
-    }).catch(() => {});
+    }).then(
+      () => true,
+      () => false,
+    );
     setBusy(false);
-    setAsking(false);
+    setFailed(!ok);
+    if (ok) setAsking(false);
     reload();
   };
   if (!data) return null;
@@ -130,6 +136,11 @@ function Sharing() {
           so later reviews stop reporting them. Kept 90 days with their review.
         </span>
         <span className="subtle">{data.findingsStored} finding(s) stored now.</span>
+        {failed && (
+          <span className="error" role="alert">
+            Could not change this setting; nothing was deleted. Try again.
+          </span>
+        )}
         {asking && (
           <div
             className="note"

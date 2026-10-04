@@ -132,6 +132,51 @@ export function scoped(db: DrizzleD1Database, accountId: string) {
         .run();
       return result.meta.changes > 0;
     },
+    /**
+     * Stores a review and its findings atomically, unless this account already
+     * has the review's run: then nothing is written and the stored review's id
+     * comes back. The findings go in as one statement over a JSON array, so
+     * the number of D1 queries does not grow with them.
+     */
+    async insertReview(
+      review: NewRow<"reviews"> & { id: string },
+      list: Omit<NewRow<"findings">, "id" | "reviewId">[],
+    ): Promise<{ id: string; duplicate: boolean }> {
+      const r = accountTables.reviews;
+      const insert = db
+        .insert(r)
+        .values({ ...review, accountId })
+        .onConflictDoNothing({ target: [r.accountId, r.runId] });
+      const rows = JSON.stringify(list.map((f) => ({ ...f, id: crypto.randomUUID() })));
+      // Only when the review row above was this upload's own.
+      // In the table's column order: insert … select names every column.
+      const findings = db.insert(accountTables.findings).select(sql`
+        SELECT json_extract(value, '$.id'), ${accountId}, ${review.id},
+          json_extract(value, '$.fingerprint'), json_extract(value, '$.reviewer'),
+          json_extract(value, '$.severity'), json_extract(value, '$.category'),
+          json_extract(value, '$.verification'), json_extract(value, '$.file'),
+          json_extract(value, '$.lineStart'), json_extract(value, '$.lineEnd'),
+          json_extract(value, '$.title'), json_extract(value, '$.body'),
+          json_extract(value, '$.suggestion'), json_extract(value, '$.code'),
+          coalesce(json_extract(value, '$.redacted'), 0),
+          coalesce(json_extract(value, '$.truncated'), 0),
+          unixepoch('subsec') * 1000
+        FROM json_each(${rows})
+        WHERE EXISTS (SELECT 1 FROM reviews WHERE id = ${review.id} AND account_id = ${accountId})`);
+      const [stored] = list.length > 0 ? await db.batch([insert, findings]) : [await insert.run()];
+      if (stored.meta.changes > 0) return { id: review.id, duplicate: false };
+      const existing = await db
+        .select({ id: r.id })
+        .from(r)
+        .where(and(eq(r.accountId, accountId), eq(r.runId, review.runId)))
+        .get();
+      return { id: existing?.id ?? review.id, duplicate: true };
+    },
+    /** Deletes every row of this account in a table; returns how many. */
+    async removeAll(name: Name): Promise<number> {
+      const result = await db.delete(accountTables[name]).where(own(name)).run();
+      return result.meta.changes;
+    },
     /** Returns whether a row of this account was deleted. */
     async remove(name: Name, id: string): Promise<boolean> {
       const result = await db.delete(accountTables[name]).where(byId(name, id)).run();
