@@ -1,0 +1,30 @@
+version: 2
+# A release is adopted a week after it is published, when a compromised
+# version has usually been found and pulled (as in the engine).
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+    ignore:
+      # Vitest's major is the one @cloudflare/vitest-pool-workers supports
+      # (0.22 takes Vitest 4): it moves with a pool release, never alone.
+      - dependency-name: vitest
+        update-types: ["version-update:semver-major"]
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]

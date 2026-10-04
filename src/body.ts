@@ -15,7 +15,7 @@ export class BodyTooLarge extends Error {
  * The body's bytes, read until `max`. A declared length over it is refused
  * before reading; otherwise the stream is cancelled as soon as it passes.
  */
-export async function readBytes(req: Request, max: number): Promise<Uint8Array> {
+async function readBytes(req: Request, max: number): Promise<Uint8Array> {
   if (Number(req.headers.get("content-length") ?? "0") > max) throw new BodyTooLarge();
   if (!req.body) return new Uint8Array(0);
   const reader = req.body.getReader();

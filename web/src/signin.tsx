@@ -129,7 +129,7 @@ function Web() {
   );
 }
 
-export function SignIn(props: { next?: string }) {
+export function SignIn(props: { next?: string | undefined }) {
   const device = props.next?.startsWith("/device");
   const providers = useProviders();
   return (

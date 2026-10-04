@@ -27,7 +27,7 @@ export function apiError(
 }
 
 /** Where a body did not fit its schema, for the `issues` of invalid_body. */
-export function issuesOf(error: z.ZodError): BodyIssue[] {
+function issuesOf(error: z.ZodError): BodyIssue[] {
   return error.issues.map((i) => ({
     path: i.path.filter((p): p is string | number => typeof p !== "symbol"),
     message: i.message,

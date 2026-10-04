@@ -31,6 +31,7 @@ if (!engine) {
   process.exit(2);
 }
 
+/** @param {string[]} a */
 const git = (...a) => execFileSync("git", ["-C", engine, ...a], { encoding: "utf8" });
 const wanted = commitAt >= 0 ? args[commitAt + 1] : readFileSync(lockPath, "utf8").trim();
 const commit = git("rev-parse", "--verify", `${wanted}^{commit}`).trim();
@@ -55,8 +56,14 @@ const copy = new Map(
   }),
 );
 
+/**
+ * The files under `dir`, by path relative to it.
+ * @param {string} dir
+ * @returns {Map<string, string>}
+ */
 function present(dir) {
   const out = new Map();
+  /** @type {import("node:fs").Dirent[]} */
   let names = [];
   try {
     names = readdirSync(dir, { recursive: true, withFileTypes: true });

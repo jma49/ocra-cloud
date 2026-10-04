@@ -1,6 +1,7 @@
 {
   "name": "ocra-cloud",
   "private": true,
+  "license": "UNLICENSED",
   "type": "module",
   "engines": {
     "node": ">=22.19"
@@ -9,12 +10,13 @@
     "dev": "npm run build:web && wrangler dev",
     "build:web": "vite build --config web/vite.config.ts",
     "check": "biome check --error-on-warnings .",
+    "knip": "knip",
     "format": "biome check --write .",
-    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p web/tsconfig.json --noEmit",
-    "test": "vitest run && vitest run --config vitest.web.config.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p web/tsconfig.json --noEmit && tsc -p scripts/tsconfig.json --noEmit",
+    "test": "vitest run",
     "db:generate": "drizzle-kit generate",
     "types": "wrangler types src/worker-configuration.d.ts",
-    "verify": "npm run check && npm run typecheck && npm test && npm run build:web",
+    "verify": "npm run check && npm run knip && npm run typecheck && npm test && npm run build:web",
     "deploy": "npm run build:web && wrangler d1 migrations apply ocra-cloud --remote && wrangler deploy"
   },
   "dependencies": {
@@ -31,16 +33,19 @@
     "@fontsource/maple-mono": "^5.3.0",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/react": "^16.3.3",
+    "@types/node": "^26.6.4",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.1",
     "drizzle-kit": "^0.31.11",
     "happy-dom": "^20.14.5",
+    "knip": "^6.39.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "typescript": "^7.0.2",
     "vite": "^8.3.2",
     "vitest": "^4.1.11",
     "wrangler": "^4.147.0"
-  }
+  },
+  "packageManager": "npm@10.9.9"
 }

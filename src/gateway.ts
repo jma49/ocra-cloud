@@ -91,7 +91,7 @@ gateway.post("/:provider/*", async (c) => {
 });
 
 /** The status of a call still being forwarded. */
-export const PENDING = 0;
+const PENDING = 0;
 /** Recorded when the client went away (499) or upstream broke off (502) mid-answer. */
 const END_STATUS = { cancelled: 499, failed: 502 } as const;
 
@@ -104,7 +104,7 @@ export type Usage = { tokensIn: number; tokensOut: number };
  * OpenAI-style answers and streams; Anthropic streams put the input count
  * in the first event.
  */
-export function usageMeter(
+function usageMeter(
   body: ReadableStream<Uint8Array>,
   done: (end: "done" | "failed" | "cancelled", usage: Usage) => void,
 ): ReadableStream<Uint8Array> {

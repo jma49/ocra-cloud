@@ -47,7 +47,7 @@ memory.delete("/:id", requireSession(), async (c) => {
 });
 
 /** An entry as the contract lists it; the account id stays on the server. */
-export function memoryEntryDto(m: Row<"accountMemory">) {
+function memoryEntryDto(m: Row<"accountMemory">) {
   return {
     id: m.id,
     repoHash: m.repoHash,

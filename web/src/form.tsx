@@ -4,6 +4,16 @@ import { useResets } from "./prefs.js";
 // Settings rows: a label, what it does, its built-in default, and a control.
 // Unset means "the repository's value, else the default", shown as such.
 
+/** `obj` with `key` set to `value`, or without `key` when `value` is unset. */
+export function withOptional<T extends object, K extends keyof T>(
+  obj: T,
+  key: K,
+  value: T[K] | undefined,
+): T {
+  const { [key]: _, ...rest } = obj;
+  return (value === undefined ? rest : { ...rest, [key]: value }) as T;
+}
+
 export function Row(props: { label: string; desc: ReactNode; children: ReactNode }) {
   return (
     <div className="form-row">
