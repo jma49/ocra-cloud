@@ -5,3 +5,12 @@ web/dist/
 !.dev.vars.example
 .local/
 .engine/
+
+# Tooling and OS files (as in the engine)
+.DS_Store
+*.log
+coverage/
+*.tsbuildinfo
+.claude/settings.local.json
+.claude/worktrees/
+CLAUDE.local.md
