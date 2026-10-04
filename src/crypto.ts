@@ -97,27 +97,20 @@ export type MasterKeys = { current: string; previous?: string | undefined };
 
 /**
  * Decrypts a key bound to its row, with the current master key, else the
- * previous one (rotation). A key sealed before binding existed still opens
- * unbound until scripts/bind-provider-keys.ts has bound every row; remove
- * that fallback then (docs/rotation.md).
+ * previous one (rotation). Every stored key is bound (#16): an unbound one
+ * no longer opens.
  */
 export async function decryptWithAny(
   keys: MasterKeys,
   sealed: Sealed,
   binding: string,
 ): Promise<string> {
-  const masters = [keys.current, ...(keys.previous ? [keys.previous] : [])];
-  let failure: unknown;
-  for (const aad of [binding, undefined]) {
-    for (const master of masters) {
-      try {
-        return await decryptSecret(master, sealed, aad);
-      } catch (error) {
-        failure ??= error;
-      }
-    }
+  try {
+    return await decryptSecret(keys.current, sealed, binding);
+  } catch (error) {
+    if (!keys.previous) throw error;
+    return decryptSecret(keys.previous, sealed, binding);
   }
-  throw failure;
 }
 
 /** The data key re-wrapped under a new master key; the ciphertext is unchanged. */

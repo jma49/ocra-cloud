@@ -17,6 +17,6 @@ Since #16 every provider key is sealed with additional data naming its account a
 1. Deploy the Worker (it opens bound keys, and unbound ones as a fallback).
 2. `node scripts/bind-provider-keys.ts --master .local/master-key` checks every row and says how many are already bound, how many it would bind and how many fail. Nothing is written.
 3. With 0 failed, run it again with `--apply`, then once more without: it must report 0 to bind.
-4. Remove the unbound fallback from `decryptWithAny` and deploy.
+4. Remove the unbound fallback from `decryptWithAny` and deploy. Done on 2026-10-04: every key on ocra Cloud is bound, and an unbound key no longer opens.
 
 During a master-key rotation, rotate after binding (or bind with the current key first): `rewrap-master-key.ts` re-wraps bound rows with their binding.
