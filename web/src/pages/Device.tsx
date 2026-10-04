@@ -62,20 +62,14 @@ export function Device() {
   return (
     <>
       <PageHead title="Sign in a terminal" sub="Connect the ocra CLI to your account." />
-      <div className="card card-pad" style={{ maxWidth: 560 }}>
+      <div className="card card-pad device-card">
         {state === "enter" && (
           <form onSubmit={submit}>
-            <div className="field" style={{ marginTop: 0 }}>
+            <div className="field mt-0">
               <label htmlFor="user-code">Code shown in your terminal</label>
               <input
                 id="user-code"
-                className="input mono"
-                style={{
-                  height: 44,
-                  fontSize: 18,
-                  letterSpacing: "0.12em",
-                  textTransform: "uppercase",
-                }}
+                className="input mono code-input"
                 placeholder="XXXX-XXXX"
                 autoComplete="off"
                 spellCheck={false}
@@ -85,7 +79,7 @@ export function Device() {
                 autoFocus
               />
             </div>
-            <div style={{ marginTop: 16 }}>
+            <div className="device-submit">
               <button
                 type="submit"
                 className="btn btn-primary"
@@ -99,18 +93,8 @@ export function Device() {
         {state === "confirm" && info && (
           <>
             <div className="muted small">Confirm this code matches your terminal:</div>
-            <div
-              className="mono"
-              style={{
-                fontSize: 30,
-                fontWeight: 600,
-                letterSpacing: "0.14em",
-                margin: "10px 0 16px",
-              }}
-            >
-              {info.user_code}
-            </div>
-            <dl className="kv" style={{ margin: 0 }}>
+            <div className="mono device-code">{info.user_code}</div>
+            <dl className="kv m-0">
               <dt>Terminal</dt>
               <dd>
                 {info.label ?? "Unnamed"}{" "}
@@ -129,11 +113,11 @@ export function Device() {
                 keys or change your account.
               </dd>
             </dl>
-            <div className="note err" style={{ marginTop: 18 }}>
+            <div className="note err">
               Approve only if you just ran <span className="mono">ocra login</span> yourself.
               Someone who sent you this code could use your keys.
             </div>
-            <div style={{ display: "flex", gap: 8, marginTop: 18 }}>
+            <div className="device-actions">
               <button
                 type="button"
                 className="btn btn-primary"
@@ -149,17 +133,13 @@ export function Device() {
           </>
         )}
         {state === "approved" && (
-          <div className="note ok" style={{ marginTop: 0 }}>
+          <div className="note ok mt-0">
             <span className="check">✓</span> Terminal signed in. You can return to it; it will
             continue on its own.
           </div>
         )}
         {state === "denied" && <div className="note">Denied. The terminal was not signed in.</div>}
-        {error && (
-          <p className="error" style={{ marginBottom: 0 }}>
-            {error}
-          </p>
-        )}
+        {error && <p className="error mb-0">{error}</p>}
       </div>
     </>
   );

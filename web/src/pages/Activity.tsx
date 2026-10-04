@@ -26,7 +26,7 @@ export function Activity() {
         actions={<Seg label="Time range" value={days} options={RANGES} onChange={setDays} />}
       />
       {error ? <p className="error">Could not load activity.</p> : null}
-      <div className="stats" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
+      <div className="stats stats-3">
         <div className="card stat">
           <div className="stat-label">Requests</div>
           <div className="stat-value">{usage ? num(total) : "–"}</div>

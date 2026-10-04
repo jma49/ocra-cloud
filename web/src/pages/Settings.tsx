@@ -21,7 +21,7 @@ export function Settings(props: { me: Me }) {
         <div className="card-head">
           <h3>Account</h3>
         </div>
-        <dl className="kv card-pad" style={{ margin: 0 }}>
+        <dl className="kv card-pad m-0">
           <dt>GitHub</dt>
           <dd>
             <a href={`https://github.com/${props.me.login}`} target="_blank" rel="noreferrer">
@@ -44,11 +44,8 @@ export function Settings(props: { me: Me }) {
         <div className="card-head">
           <h3>Your data</h3>
         </div>
-        <div
-          className="card-pad"
-          style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}
-        >
-          <span className="muted small" style={{ flex: 1, minWidth: 240 }}>
+        <div className="card-pad export-row">
+          <span className="muted small">
             Download everything stored for your account as JSON. Records are kept 90 days;{" "}
             <a href="/privacy">data policy</a>.
           </span>
@@ -63,11 +60,11 @@ export function Settings(props: { me: Me }) {
           <h3>Delete account</h3>
         </div>
         <div className="card-pad">
-          <p className="muted small" style={{ marginTop: 0 }}>
+          <p className="muted small mt-0">
             Deletes your account, every stored key and all records now. This cannot be undone. Type{" "}
             <b className="mono">{props.me.login}</b> to confirm.
           </p>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <div className="row-gap wrap">
             <input
               className="input"
               value={typed}
@@ -128,7 +125,7 @@ export function Sharing() {
           onClick={() => (data.shareFindings ? setAsking(true) : put(true))}
         />
       </div>
-      <div className="card-pad small muted" style={{ display: "grid", gap: 8 }}>
+      <div className="card-pad small muted stack">
         <span>
           Off by default. When on, each signed-in review also sends its findings: file paths, line
           ranges, titles, descriptions, suggestions and <b>the code each finding quotes</b>, after
@@ -143,19 +140,8 @@ export function Sharing() {
           </span>
         )}
         {asking && (
-          <div
-            className="note"
-            style={{
-              marginTop: 4,
-              display: "flex",
-              gap: 8,
-              flexWrap: "wrap",
-              alignItems: "center",
-            }}
-          >
-            <span style={{ flex: 1, minWidth: 220 }}>
-              Stop sending findings. Delete the {data.findingsStored} already sent too?
-            </span>
+          <div className="note confirm-note">
+            <span>Stop sending findings. Delete the {data.findingsStored} already sent too?</span>
             <button
               type="button"
               className="btn btn-sm btn-danger-solid"

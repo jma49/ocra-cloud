@@ -10,7 +10,7 @@ export function Privacy() {
         title="Data policy"
         sub="What ocra Cloud stores, what it never stores, and how long."
       />
-      <p className="subtle small" style={{ marginTop: 0, marginBottom: 24 }}>
+      <p className="subtle small policy-date">
         Effective 4 October 2026. We will email you before any change that reduces your rights under
         this policy.
       </p>

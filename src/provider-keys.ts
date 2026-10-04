@@ -53,12 +53,13 @@ export async function checkKey(provider: ProviderName, key: string): Promise<Key
   return { status: "error", httpStatus: res.status };
 }
 
+/** A model the key can call, with the reasoning effort levels it takes. */
+export type ModelInfo = { id: string; efforts: Effort[] };
+
 /**
  * Model ids from the provider's model list: OpenAI-style data[].id, or the
  * Gemini API's models[].name. Empty when the provider has no list.
  */
-export type ModelInfo = { id: string; efforts: Effort[] };
-
 export async function listModels(provider: ProviderName, key: string): Promise<ModelInfo[]> {
   const call = modelsCall(providers[provider]);
   if (!call) return [];

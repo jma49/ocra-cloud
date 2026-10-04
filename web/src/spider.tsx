@@ -126,8 +126,7 @@ export function SpiderMark({
       viewBox="-4 -4 72 72"
       width={size}
       height={size}
-      className={className}
-      style={{ overflow: "visible", display: "block", flex: "none" }}
+      className={className ? `spider-mark ${className}` : "spider-mark"}
       role={label ? "img" : undefined}
       aria-label={label}
       aria-hidden={label ? undefined : true}

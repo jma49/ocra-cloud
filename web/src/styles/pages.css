@@ -1,0 +1,245 @@
+/* One page's own layout, where no shared class fits. */
+
+/* Privacy, signed in: the policy in a narrow column. */
+.content-narrow {
+  max-width: 820px;
+  margin: 0 auto;
+}
+
+/* The mark (spider.tsx): its plates may draw past the box. */
+.spider-mark {
+  overflow: visible;
+  display: block;
+  flex: none;
+}
+
+/* Charts (ui.tsx): the line above a chart keeps its height while hovering. */
+.chart-caption {
+  height: 18px;
+}
+
+/* Stat rows that keep their column count on a narrow screen. */
+.stats.stats-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.stats.stats-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.stat-value.stat-word {
+  font-size: 18px;
+}
+
+/* A list row whose content wraps and aligns to the top (Agents, Rules). */
+.list-row.row-top {
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+/* Settings rows (form.tsx): a list of globs and the input that adds one. */
+.glob-list {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+}
+.glob-add {
+  display: flex;
+  gap: 6px;
+}
+
+/* Agents */
+.card-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.tier-label {
+  width: 150px;
+}
+.agent-off {
+  opacity: 0.5;
+}
+.chain-cell {
+  min-width: 320px;
+}
+.chain {
+  display: grid;
+  gap: 6px;
+}
+.chain-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.chain-model {
+  flex: 1;
+  min-width: 180px;
+}
+
+/* Device sign-in */
+.device-card {
+  max-width: 560px;
+}
+.code-input {
+  height: 44px;
+  font-size: 18px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.device-code {
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  margin: 10px 0 16px;
+}
+.device-submit {
+  margin-top: 16px;
+}
+.device-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+/* Keys */
+.key-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.keys-foot {
+  margin-top: 14px;
+}
+.provider-search {
+  width: 100%;
+  height: 38px;
+}
+.key-input {
+  height: 38px;
+}
+.drawer-form {
+  display: flex;
+  flex-direction: column;
+}
+.drawer-form .drawer-foot {
+  margin: 20px -20px -20px;
+}
+.pick.static {
+  cursor: default;
+}
+
+/* Defaults */
+.import-form {
+  display: grid;
+  gap: 10px;
+}
+.import-note {
+  margin-top: 0;
+  display: block;
+}
+.import-note ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+
+/* Memory */
+td.text {
+  white-space: normal;
+}
+td.finding-cell {
+  white-space: normal;
+  min-width: 220px;
+}
+
+/* Plugins */
+.plugin-settings {
+  display: grid;
+  padding-left: 20px;
+}
+
+/* Review detail */
+.file-card {
+  margin-bottom: 12px;
+}
+.finding {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.finding-head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.finding-title {
+  font-weight: 500;
+  flex: 1;
+  min-width: 200px;
+}
+.finding-body {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+.finding-body .codeblock {
+  border-radius: 8px;
+}
+.finding-body .inline-form {
+  padding-left: 0;
+  border-radius: 8px;
+}
+.finding-label {
+  margin-bottom: 4px;
+}
+
+/* Rules */
+.rule-n {
+  margin-top: 6px;
+}
+.chip-x.static {
+  padding-right: 10px;
+}
+
+/* Settings */
+.export-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.export-row > span {
+  flex: 1;
+  min-width: 240px;
+}
+.confirm-note {
+  margin-top: 4px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.confirm-note > span {
+  flex: 1;
+  min-width: 220px;
+}
+
+/* Sessions */
+.login-card {
+  margin-bottom: 16px;
+}
+.login-sub {
+  margin-top: 4px;
+}
+
+/* Privacy */
+.policy-date {
+  margin-top: 0;
+  margin-bottom: 24px;
+}
+
+/* Plugins: the warning above the list. */
+.lead-note {
+  margin-top: 0;
+  margin-bottom: 16px;
+}

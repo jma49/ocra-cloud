@@ -1,0 +1,163 @@
+/* Drawer: the side panel, provider tiles and pick lists. */
+/* Drawer */
+.scrim {
+  position: fixed;
+  inset: 0;
+  background: rgb(0 0 0 / 0.32);
+  z-index: 40;
+  animation: fade 120ms ease-out;
+}
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(520px, 100vw);
+  background: var(--bg);
+  border-left: 1px solid var(--border);
+  z-index: 41;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -12px 0 32px rgb(0 0 0 / 0.08);
+  animation: slide 160ms ease-out;
+}
+.drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.drawer-head h2 {
+  font-size: 16px;
+  font-weight: 600;
+}
+.drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+.drawer-foot {
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.icon-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  border: 0;
+  background: none;
+  color: var(--fg-muted);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+}
+.icon-btn:hover {
+  background: var(--muted);
+  color: var(--fg);
+}
+@keyframes slide {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+}
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .drawer,
+  .scrim {
+    animation: none;
+  }
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.tile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  cursor: pointer;
+  text-align: left;
+  color: var(--fg);
+}
+.tile:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-subtle);
+}
+.tile .t-name {
+  font-weight: 500;
+  font-size: 13px;
+}
+.tile .t-sub {
+  font-size: 11.5px;
+  color: var(--fg-subtle);
+}
+.tile[aria-disabled="true"] {
+  opacity: 0.55;
+}
+.group-label {
+  font: 500 11px var(--mono);
+  color: var(--fg-subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 20px 0 8px;
+}
+.pick-list {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.pick {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  cursor: pointer;
+  text-align: left;
+  color: var(--fg);
+  font-size: 13px;
+}
+.pick:last-child {
+  border-bottom: 0;
+}
+.pick:hover {
+  background: var(--bg-subtle);
+}
+.pick .grow {
+  flex: 1;
+}
+
+.chosen {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-subtle);
+}
+
+@media (max-width: 600px) {
+  .tiles {
+    grid-template-columns: 1fr;
+  }
+}

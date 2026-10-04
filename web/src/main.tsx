@@ -29,7 +29,7 @@ function App() {
     return (
       <>
         <TopBar me={me ?? null} />
-        <main className="content" style={{ maxWidth: 820, margin: "0 auto" }}>
+        <main className="content content-narrow">
           <Privacy />
         </main>
         <Footer />

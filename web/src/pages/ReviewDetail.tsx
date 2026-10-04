@@ -93,7 +93,7 @@ export function ReviewDetail(props: { id: string }) {
         title={`Review of ${r.repo}`}
         sub={`${time(r.createdAt)} · ${r.source} · run ${r.runId}`}
         actions={
-          <span style={{ display: "flex", gap: 8 }}>
+          <span className="row-gap">
             <Link to="/reviews" className="btn">
               All reviews
             </Link>
@@ -103,18 +103,16 @@ export function ReviewDetail(props: { id: string }) {
           </span>
         }
       />
-      <div className="stats" style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}>
+      <div className="stats stats-4">
         <div className="card stat">
           <div className="stat-label">Result</div>
-          <div className="stat-value" style={{ fontSize: 18 }}>
+          <div className="stat-value stat-word">
             {!r.complete ? "Incomplete" : (r.verdict ?? "–").replaceAll("_", " ")}
           </div>
         </div>
         {(["critical", "warning", "suggestion"] as const).map((k) => (
           <div className="card stat" key={k}>
-            <div className="stat-label" style={{ textTransform: "capitalize" }}>
-              {k}
-            </div>
+            <div className="stat-label capitalize">{k}</div>
             <div className="stat-value">{r[k]}</div>
           </div>
         ))}
@@ -152,7 +150,7 @@ export function ReviewDetail(props: { id: string }) {
             />
           </div>
           {byFile.map(([file, list]) => (
-            <div className="card" key={file} style={{ marginBottom: 12 }}>
+            <div className="card file-card" key={file}>
               <div className="card-head">
                 <h3 className="mono">{file}</h3>
                 <span className="subtle small">{list.length}</span>
@@ -189,11 +187,11 @@ function FindingRow(props: { f: Finding }) {
         ? `L${f.lineStart}–${f.lineEnd}`
         : `L${f.lineStart}`;
   return (
-    <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--border)" }}>
-      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+    <div className="finding">
+      <div className="finding-head">
         <span className={`badge ${SEV_CLASS[f.severity]}`}>{f.severity}</span>
         <span className="mono subtle small">{lines}</span>
-        <span style={{ fontWeight: 500, flex: 1, minWidth: 200 }}>{f.title}</span>
+        <span className="finding-title">{f.title}</span>
         <span className="subtle small">
           {f.reviewer}
           {f.verification ? ` · ${f.verification}` : ""}
@@ -205,22 +203,16 @@ function FindingRow(props: { f: Finding }) {
         </button>
       </div>
       {open && (
-        <div style={{ display: "grid", gap: 10, marginTop: 10 }}>
-          <p style={{ margin: 0, whiteSpace: "pre-wrap" }}>{f.body}</p>
-          {f.code && (
-            <pre className="codeblock" style={{ borderRadius: 8 }}>
-              {f.code}
-            </pre>
-          )}
+        <div className="finding-body">
+          <p className="m-0 pre-wrap">{f.body}</p>
+          {f.code && <pre className="codeblock">{f.code}</pre>}
           {f.suggestion && (
             <div>
-              <div className="subtle small" style={{ marginBottom: 4 }}>
-                Suggestion
-              </div>
-              <p style={{ margin: 0, whiteSpace: "pre-wrap" }}>{f.suggestion}</p>
+              <div className="subtle small finding-label">Suggestion</div>
+              <p className="m-0 pre-wrap">{f.suggestion}</p>
             </div>
           )}
-          <div className="inline-form" style={{ paddingLeft: 0, borderRadius: 8 }}>
+          <div className="inline-form">
             {state === "saved" ? (
               <span className="small">
                 Remembered: later reviews of this repository stop reporting it.{" "}

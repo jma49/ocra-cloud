@@ -215,7 +215,7 @@ export function PrefsProvider(props: {
             Not saved: these settings were changed in another tab or window. Reload to see the
             latest; your changes here will be dropped.
           </span>
-          <span style={{ display: "flex", gap: 8 }}>
+          <span className="row-gap">
             <button
               type="button"
               className="btn btn-sm btn-primary"
@@ -230,7 +230,7 @@ export function PrefsProvider(props: {
       {dirty && !stale && (
         <section className="savebar" aria-label="Unsaved changes">
           <span role={error ? "alert" : undefined}>{error || "You have unsaved changes"}</span>
-          <span style={{ display: "flex", gap: 8 }}>
+          <span className="row-gap">
             <button type="button" className="btn btn-sm" onClick={discard} disabled={saving}>
               Discard
             </button>
@@ -260,6 +260,7 @@ export function usePrefs(): Ctx {
   return ctx;
 }
 
+/** Unset: undefined, an empty list or an empty object. */
 const isEmpty = (value: unknown) =>
   value === undefined ||
   (Array.isArray(value) && value.length === 0) ||

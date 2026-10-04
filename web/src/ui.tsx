@@ -217,7 +217,7 @@ export function StackedBars(props: { series: Day[]; metric: "calls" | "tokens" }
   return (
     <>
       <div className="chart">
-        <div className="small subtle" style={{ height: 18 }}>
+        <div className="small subtle chart-caption">
           {h
             ? `${h.day} · ${compact(h.total)} ${metric}`
             : `Peak ${compact(max === 1 && stacks.every((s) => s.total === 0) ? 0 : max)} ${metric} a day`}

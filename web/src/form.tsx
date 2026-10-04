@@ -121,7 +121,7 @@ export function GlobList(props: {
     setText("");
   };
   return (
-    <div style={{ display: "grid", gap: 8, width: "100%" }}>
+    <div className="glob-list">
       {props.value.length > 0 && (
         <div className="chips">
           {props.value.map((g) => (
@@ -138,10 +138,9 @@ export function GlobList(props: {
           ))}
         </div>
       )}
-      <div style={{ display: "flex", gap: 6 }}>
+      <div className="glob-add">
         <input
-          className="input mono"
-          style={{ flex: 1 }}
+          className="input mono grow"
           aria-label={props.label}
           placeholder={props.placeholder}
           value={text}

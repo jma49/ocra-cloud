@@ -170,7 +170,7 @@ export function Defaults() {
           <pre className="codeblock">{rules}</pre>
         </div>
       )}
-      <p className="subtle small" style={{ marginTop: 12 }}>
+      <p className="subtle small footnote">
         This is what a repository with no configuration runs with. A repository's own file wins
         where it sets the same thing; run <span className="mono">ocra review --plan</span> there to
         see the result.
@@ -180,7 +180,7 @@ export function Defaults() {
         <div className="card-head">
           <h3>Import from a file</h3>
         </div>
-        <div className="card-pad" style={{ display: "grid", gap: 10 }}>
+        <div className="card-pad import-form">
           <textarea
             className="input mono"
             rows={6}
@@ -189,7 +189,7 @@ export function Defaults() {
             value={paste}
             onChange={(e) => setPaste(e.target.value)}
           />
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className="row-gap">
             <button
               type="button"
               className="btn btn-primary btn-sm"
@@ -206,16 +206,14 @@ export function Defaults() {
             >
               Import into draft
             </button>
-            <span className="subtle small" style={{ alignSelf: "center" }}>
-              Review the other pages, then save.
-            </span>
+            <span className="subtle small self-center">Review the other pages, then save.</span>
           </div>
           {result?.error && <p className="error">{result.error}</p>}
           {result && !result.error && (
-            <div className="note ok" style={{ marginTop: 0, display: "block" }}>
+            <div className="note ok import-note">
               Imported into the draft.
               {result.notes.length > 0 && (
-                <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
+                <ul>
                   {result.notes.map((n) => (
                     <li key={n}>{n}</li>
                   ))}
@@ -239,7 +237,7 @@ export function Defaults() {
         {(versions?.versions ?? []).map((v, i) => (
           <div className="list-row" key={v.id}>
             <div className="grow">
-              <div style={{ fontWeight: 500 }}>
+              <div className="strong">
                 {ago(v.createdAt)} {i === 0 && <span className="badge badge-ok">current</span>}
               </div>
               <div className="subtle small">Changed: {v.changed.join(", ")}</div>

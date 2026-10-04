@@ -104,7 +104,7 @@ function Step(props: { n: number; done?: boolean; title: string; children: React
     <div className={`step${props.done ? " done" : ""}`}>
       <span className="step-n">{props.done ? "✓" : props.n}</span>
       <div>
-        <div style={{ fontWeight: 500 }}>{props.title}</div>
+        <div className="strong">{props.title}</div>
         <div className="muted small">{props.children}</div>
       </div>
     </div>
