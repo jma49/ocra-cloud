@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { refreshCliSession, requireSession, startCliSession } from "./auth.js";
+import { refreshCliSession, reissueCliSession, requireSession, startCliSession } from "./auth.js";
 import { randomToken, sha256Hex } from "./crypto.js";
 import {
   byDeviceCodeHash,
@@ -98,10 +98,17 @@ device.post("/token", async (c) => {
   await recordPoll(c.var.db, row.id, now, row.intervalSeconds);
   if (row.status === "pending") return c.json({ error: "authorization_pending" }, 400);
   if (row.status === "denied") return c.json({ error: "access_denied" }, 400);
-  if (row.status === "consumed" || !row.approvedAccountId)
-    return c.json({ error: "invalid_grant" }, 400);
-  if (!(await consume(c.var.db, row.id))) return c.json({ error: "invalid_grant" }, 400);
-  return c.json(await startCliSession(c.var.db, row.approvedAccountId, row.label ?? "Terminal"));
+  if (!row.approvedAccountId) return c.json({ error: "invalid_grant" }, 400);
+  // The session takes the code's id, so a poll whose answer was lost can
+  // find it again: within a minute, and while its tokens are unused, the
+  // next poll gets a new pair for the same session (audit K-device).
+  if (row.status === "consumed" || !(await consume(c.var.db, row.id))) {
+    const again = await reissueCliSession(c.var.db, row.approvedAccountId, row.id, now);
+    return again ? c.json(again) : c.json({ error: "invalid_grant" }, 400);
+  }
+  return c.json(
+    await startCliSession(c.var.db, row.approvedAccountId, row.label ?? "Terminal", row.id),
+  );
 });
 
 device.post("/refresh", async (c) => {

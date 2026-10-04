@@ -100,12 +100,13 @@ export async function startCliSession(
   db: DrizzleD1Database,
   accountId: string,
   label: string | null,
+  id: string = crypto.randomUUID(),
 ): Promise<CliTokens> {
   const now = Date.now();
   const refreshExpiresAt = now + SESSION_DAYS.cli * DAY;
   const { tokens, row } = await cliTokens(now, refreshExpiresAt);
   await scoped(db, accountId).insert("sessions", {
-    id: crypto.randomUUID(),
+    id,
     kind: "cli",
     label,
     ...row,
@@ -145,6 +146,26 @@ export async function refreshCliSession(
     rotatedAt: now,
   });
   return rotated ? tokens : undefined;
+}
+
+/**
+ * New tokens for a CLI session started moments ago whose tokens were never
+ * used, as when the answer that carried them was lost (audit K-device). The
+ * lost pair stops working. Undefined once the session was used or refreshed,
+ * or REFRESH_GRACE_MS after it started.
+ */
+export async function reissueCliSession(
+  db: DrizzleD1Database,
+  accountId: string,
+  sessionId: string,
+  now = new Date(),
+): Promise<CliTokens | undefined> {
+  const s = await scoped(db, accountId).get("sessions", sessionId);
+  if (s?.kind !== "cli" || !s.refreshHash || !s.refreshExpiresAt) return undefined;
+  if (s.lastUsedAt || s.rotatedAt) return undefined;
+  if (now.getTime() - s.createdAt.getTime() > REFRESH_GRACE_MS) return undefined;
+  const { tokens, row } = await cliTokens(now.getTime(), s.refreshExpiresAt.getTime());
+  return (await rotateSession(db, s.id, s.refreshHash, row)) ? tokens : undefined;
 }
 
 const unsafeChar = (ch: string) => ch.charCodeAt(0) < 0x20 || ch === "\x7f" || ch === "\\";

@@ -101,6 +101,44 @@ describe("ocra login (device flow)", () => {
     expect((await poll(code.device_code)).body).toEqual({ error: "invalid_grant" });
   });
 
+  it("answers a poll again when the tokens' answer was lost (audit K-device)", async () => {
+    const code = await startLogin();
+    const web = await signIn(1, "octo");
+    await post("/api/device/decide", { user_code: code.user_code, approve: true }, web.auth);
+    const lost = (await poll(code.device_code)).body as Record<string, string>;
+    expect(lost.access_token).toMatch(/^ocra_cli_/);
+
+    // The CLI never saw that answer and polls again: a new pair, same session.
+    const again = await poll(code.device_code);
+    expect(again.status).toBe(200);
+    const tokens = again.body as Record<string, string>;
+    expect(tokens.access_token).not.toBe(lost.access_token);
+    const status = (t: string | undefined) =>
+      call("/api/me", { headers: { authorization: `Bearer ${t}` } }).then((r) => r.status);
+    expect(await status(lost.access_token)).toBe(401);
+    expect((await post("/api/device/refresh", { refresh_token: lost.refresh_token })).status).toBe(
+      400,
+    );
+    expect(await status(tokens.access_token)).toBe(200);
+    const cli = await db.select().from(schema.sessions).where(eq(schema.sessions.kind, "cli"));
+    expect(cli).toHaveLength(1);
+
+    // Once its tokens are in use, the code gives nothing more.
+    expect((await poll(code.device_code)).body).toEqual({ error: "invalid_grant" });
+  });
+
+  it("gives no second answer after the grace window", async () => {
+    const code = await startLogin();
+    const web = await signIn(1, "octo");
+    await post("/api/device/decide", { user_code: code.user_code, approve: true }, web.auth);
+    expect((await poll(code.device_code)).status).toBe(200);
+    await db
+      .update(schema.sessions)
+      .set({ createdAt: new Date(Date.now() - REFRESH_GRACE_MS - 1000) })
+      .where(eq(schema.sessions.kind, "cli"));
+    expect((await poll(code.device_code)).body).toEqual({ error: "invalid_grant" });
+  });
+
   const me = (token: string) =>
     call("/api/me", { headers: { authorization: `Bearer ${token}` } }).then((r) => r.status);
   const refresh = async (token: string) => {
