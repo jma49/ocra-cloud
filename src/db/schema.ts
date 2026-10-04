@@ -67,5 +67,26 @@ export const auditEvents = sqliteTable("audit_events", {
   createdAt: createdAt(),
 });
 
+// One model call through the gateway: the audit log of key use, and the
+// usage behind the daily cap and statistics. Never a request or answer body.
+export const gatewayCalls = sqliteTable("gateway_calls", {
+  id: text("id").primaryKey(),
+  accountId: accountId(),
+  provider: text("provider").notNull(),
+  path: text("path").notNull(),
+  model: text("model"),
+  status: integer("status").notNull(),
+  tokensIn: integer("tokens_in").notNull().default(0),
+  tokensOut: integer("tokens_out").notNull().default(0),
+  ms: integer("ms").notNull().default(0),
+  createdAt: createdAt(),
+});
+
 /** The tables scoped by account, by the name scoped() uses. */
-export const accountTables = { sessions, providerKeys, reviews, auditEvents } as const;
+export const accountTables = {
+  sessions,
+  providerKeys,
+  reviews,
+  auditEvents,
+  gatewayCalls,
+} as const;

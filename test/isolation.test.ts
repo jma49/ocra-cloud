@@ -27,6 +27,12 @@ const rows = {
   }),
   reviews: (id: string) => ({ id, repoHash: "r" }),
   auditEvents: (id: string) => ({ id, kind: "key.used", detail: { model: "m" } }),
+  gatewayCalls: (id: string) => ({
+    id,
+    provider: "openrouter",
+    path: "/v1/chat/completions",
+    status: 200,
+  }),
 } satisfies { [N in keyof typeof schema.accountTables]: (id: string) => unknown };
 
 // A change to one column of each table's row.
@@ -35,6 +41,7 @@ const changes = {
   providerKeys: { last4: "zzzz" },
   reviews: { findings: 9 },
   auditEvents: { kind: "changed" },
+  gatewayCalls: { status: 500 },
 } satisfies { [N in keyof typeof rows]: Record<string, unknown> };
 
 // Storage persists across tests in a file; deleting the accounts cascades.
@@ -69,6 +76,8 @@ describe.each(Object.keys(rows) as (keyof typeof rows)[])("%s", (name) => {
     expect(await a.get(name, "row-1")).not.toMatchObject(changes[name]);
     expect(await a.update(name, "row-1", changes[name] as never)).toBe(true);
     expect(await a.get(name, "row-1")).toMatchObject(changes[name]);
+    expect(await b.countSince(name, new Date(0))).toBe(0);
+    expect(await a.countSince(name, new Date(0))).toBe(1);
   });
 
   it("an insert cannot name another account", async () => {

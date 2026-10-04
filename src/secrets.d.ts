@@ -1,0 +1,9 @@
+// Worker secrets (wrangler secret put), which `wrangler types` cannot see.
+// Both Env and Cloudflare.Env extend this generated interface.
+interface __BaseEnv_Env {
+  GITHUB_CLIENT_SECRET: string;
+  /** base64 of 32 random bytes: wraps every data key. */
+  MASTER_KEY: string;
+  /** Signs the OAuth state cookie. */
+  SESSION_SECRET: string;
+}
