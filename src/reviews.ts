@@ -1,9 +1,10 @@
 import { Hono } from "hono";
 import { readJson } from "./body.js";
+import { MAX_REVIEWERS, REVIEWER_ID, reviewUploadSchema } from "./contract/index.js";
 import { clampDays } from "./db/retention.js";
 import type { ReviewerCounts } from "./db/schema.js";
 import type { Scoped } from "./db/scoped.js";
-import { parseFindings, REVIEWER_ID } from "./findings.js";
+import { parseFindings } from "./findings.js";
 import { requireSession } from "./session.js";
 import type { AppEnv } from "./types.js";
 
@@ -14,95 +15,46 @@ export const reviews = new Hono<AppEnv>();
 const DAY = 86_400_000;
 /** An upload's largest body, in bytes. */
 const MAX_UPLOAD = 600_000;
-const SOURCES = ["local", "github", "gitlab"] as const;
-// The engine's own values (packages/core/src/domain.ts: verdictSchema,
-// riskTierSchema); test/reviews.test.ts pins them.
-export const VERDICTS = [
-  "approved",
-  "approved_with_comments",
-  "minor_issues",
-  "significant_concerns",
-] as const;
-export const TIERS = ["trivial", "lite", "full"] as const;
+// The CLI's findings go in findingList, read on their own by parseFindings.
+const countsSchema = reviewUploadSchema.omit({ findingList: true });
 
-const count = (v: unknown) =>
-  typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= 1e12 ? v : undefined;
-const pick = <T extends string>(v: unknown, allowed: readonly T[]) =>
-  allowed.includes(v as T) ? (v as T) : undefined;
-
-/** The upload, checked field by field; anything else in the body is ignored. */
+/** The upload's counts, checked with the contract's schema; undefined when it is not one. */
 export function parseUpload(body: unknown) {
-  const b = (body ?? {}) as Record<string, unknown>;
-  const runId = typeof b.runId === "string" && /^[\w.-]{1,64}$/.test(b.runId) ? b.runId : undefined;
-  const repoHash =
-    typeof b.repoHash === "string" && /^[0-9a-f]{64}$/.test(b.repoHash) ? b.repoHash : undefined;
-  const source = pick(b.source, SOURCES);
-  if (!runId || !repoHash || !source) return undefined;
-  const f = (b.findings ?? {}) as Record<string, unknown>;
-  const files = (b.files ?? {}) as Record<string, unknown>;
-  const tasks = (b.tasks ?? {}) as Record<string, unknown>;
-  const usage = (b.usage ?? {}) as Record<string, unknown>;
-  const critical = count(f.critical) ?? 0;
-  const warning = count(f.warning) ?? 0;
-  const suggestion = count(f.suggestion) ?? 0;
-  const cost =
-    typeof usage.costUsd === "number" && usage.costUsd >= 0 && usage.costUsd < 1e6
-      ? usage.costUsd
-      : 0;
-  const byReviewer: Record<string, ReviewerCounts> = {};
-  const reviewers = (b.reviewers ?? {}) as Record<string, Record<string, unknown>>;
-  if (typeof reviewers === "object" && !Array.isArray(reviewers)) {
-    for (const [id, r] of Object.entries(reviewers).slice(0, 40)) {
-      if (!REVIEWER_ID.test(id) || typeof r !== "object" || r === null) continue;
-      const rf = (r.findings ?? {}) as Record<string, unknown>;
-      byReviewer[id] = {
-        tasks: count(r.tasks) ?? 0,
-        failedTasks: count(r.failedTasks) ?? 0,
-        findings: {
-          critical: count(rf.critical) ?? 0,
-          warning: count(rf.warning) ?? 0,
-          suggestion: count(rf.suggestion) ?? 0,
-        },
-        costUsd: typeof r.costUsd === "number" && r.costUsd >= 0 && r.costUsd < 1e6 ? r.costUsd : 0,
-        fixed: count(r.fixed) ?? 0,
-        dismissed: count(r.dismissed) ?? 0,
-      };
-    }
-  }
-  const verification: Record<string, number> = {};
-  const v = (b.verification ?? {}) as Record<string, unknown>;
-  for (const key of ["confirmed", "uncertain", "unchecked"]) {
-    const n = count(v[key]);
-    if (n !== undefined) verification[key] = n;
-  }
-  const outcomes = (b.outcomes ?? {}) as Record<string, unknown>;
+  const parsed = countsSchema.safeParse(body);
+  if (!parsed.success) return undefined;
+  const u = parsed.data;
+  const byReviewer = Object.fromEntries(
+    Object.entries(u.reviewers ?? {})
+      .slice(0, MAX_REVIEWERS)
+      .filter((e): e is [string, ReviewerCounts] => REVIEWER_ID.test(e[0]) && e[1] !== null),
+  );
+  const { critical, warning, suggestion } = u.findings;
   return {
     byReviewer: Object.keys(byReviewer).length > 0 ? byReviewer : null,
-    verification: Object.keys(verification).length > 0 ? verification : null,
-    fixed: count(outcomes.fixed) ?? 0,
-    dismissed: count(outcomes.dismissed) ?? 0,
-    runId,
-    repoHash,
-    source,
-    tier: pick(b.tier, TIERS) ?? null,
-    verdict: pick(b.verdict, VERDICTS) ?? null,
-    complete: b.complete !== false,
+    verification: u.verification && Object.keys(u.verification).length > 0 ? u.verification : null,
+    fixed: u.outcomes?.fixed ?? 0,
+    dismissed: u.outcomes?.dismissed ?? 0,
+    runId: u.runId,
+    repoHash: u.repoHash,
+    source: u.source,
+    tier: u.tier,
+    verdict: u.verdict,
+    complete: u.complete,
     findings: critical + warning + suggestion,
     critical,
     warning,
     suggestion,
-    filesReviewed: count(files.reviewed) ?? 0,
-    filesNotReviewed: count(files.notReviewed) ?? 0,
-    tasksCompleted: count(tasks.completed) ?? 0,
-    tasksFailed: count(tasks.failed) ?? 0,
-    tokensIn: count(usage.inputTokens) ?? 0,
-    tokensOut: count(usage.outputTokens) ?? 0,
-    costUsd: cost,
-    durationMs: count(b.durationMs) ?? 0,
-    ocraVersion:
-      typeof b.ocraVersion === "string" && /^[\w.+-]{1,32}$/.test(b.ocraVersion)
-        ? b.ocraVersion
-        : null,
+    filesReviewed: u.files.reviewed,
+    filesNotReviewed: u.files.notReviewed,
+    tasksCompleted: u.tasks.completed,
+    tasksFailed: u.tasks.failed,
+    tokensIn: u.usage.inputTokens,
+    tokensOut: u.usage.outputTokens,
+    costUsd: u.usage.costUsd,
+    durationMs: u.durationMs,
+    ocraVersion: u.ocraVersion,
+    // How many reviewers' counts were left out, for the answer's `dropped`.
+    reviewersDropped: Object.keys(u.reviewers ?? {}).length - Object.keys(byReviewer).length,
   };
 }
 
@@ -110,22 +62,16 @@ reviews.post("/", requireSession(["web", "cli"]), async (c) => {
   // Counts are small; findings, sent only when the account shares them, are
   // bounded to 256 KB of text (ADR-0028). Past MAX_UPLOAD bytes: 413.
   const body = (await readJson(c, MAX_UPLOAD)) as Record<string, unknown> | null;
-  const row = parseUpload(body);
-  if (!row) return c.json({ error: "bad_review" }, 400);
+  const upload = parseUpload(body);
+  if (!upload) return c.json({ error: "bad_review" }, 400);
+  const { reviewersDropped, ...row } = upload;
   // Findings are kept only while the account shares them, whatever the CLI sent.
-  // The list goes in findingList; `findings` holds the severity counts. A list
-  // under `findings` is accepted too, from a CLI built before the two split.
-  const list = body?.findingList ?? (Array.isArray(body?.findings) ? body?.findings : undefined);
+  const list = body?.findingList;
   const parsed =
     c.var.session.account.shareFindings && list !== undefined
       ? parseFindings(list)
       : { rows: [], truncated: false, dropped: 0 };
   // What was left out is reported, never silently lost (audit K-models).
-  const sent = body?.reviewers;
-  const reviewersDropped =
-    typeof sent === "object" && sent !== null && !Array.isArray(sent)
-      ? Object.keys(sent).length - Object.keys(row.byReviewer ?? {}).length
-      : 0;
   const dropped = {
     ...(parsed.dropped > 0 ? { findings: parsed.dropped } : {}),
     ...(reviewersDropped > 0 ? { reviewers: reviewersDropped } : {}),

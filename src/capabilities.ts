@@ -5,7 +5,6 @@ import type { Effort } from "./db/schema.js";
 // this table's account; it is a hint that goes stale as models ship, so
 // OpenRouter's live `supported_parameters` wins where it is known.
 
-export const EFFORTS: readonly Effort[] = ["none", "minimal", "low", "medium", "high"];
 const LMH: Effort[] = ["low", "medium", "high"];
 
 const PATTERNS: [RegExp, Effort[]][] = [

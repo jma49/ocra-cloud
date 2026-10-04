@@ -1,9 +1,9 @@
 // Shapes the Worker and the web app share. Types only: the web imports this
 // file too, so it must not import anything that runs on the Worker.
 
-export type Effort = "none" | "minimal" | "low" | "medium" | "high";
-export type Tier = "top" | "standard" | "light";
-export type Runtime = "direct" | "opencode";
+import type { Effort, ModelTier as Tier } from "./contract/index.js";
+
+export type { Effort, ModelTier as Tier, Runtime } from "./contract/index.js";
 
 export type ModelChains = Partial<Record<Tier, string[]>>;
 

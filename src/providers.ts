@@ -1,9 +1,10 @@
 import type { ProviderGroup } from "./api-types.js";
 import { effortLevels } from "./capabilities.js";
+import type { ProviderId } from "./contract/index.js";
 import type { Effort } from "./db/schema.js";
 
 // The model providers the gateway forwards to, and the only paths it
-// forwards for each. A request to any other provider or path is refused.
+// forwards for each: exactly the contract's PROVIDER_IDS. A request to any other provider or path is refused.
 // Every endpoint here answered 401 or 403 to a request with a wrong key
 // (checked 2026-10-04), so it exists and wants a key.
 
@@ -130,7 +131,7 @@ export const providers = {
   scaleway: openaiOnly("https://api.scaleway.ai"),
   featherless: openaiOnly("https://api.featherless.ai"),
   "opencode-zen": openaiOnly("https://opencode.ai/zen"),
-} as const satisfies Record<string, Provider>;
+} as const satisfies Record<ProviderId, Provider>;
 
 export type ProviderName = keyof typeof providers;
 
