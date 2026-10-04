@@ -1,6 +1,7 @@
 import { env } from "cloudflare:workers";
-import { getTableColumns } from "drizzle-orm";
+import { getTableName, is } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
+import { getTableConfig, SQLiteTable } from "drizzle-orm/sqlite-core";
 import { beforeEach, describe, expect, it } from "vitest";
 import * as schema from "../src/db/schema.js";
 import { scoped } from "../src/db/scoped.js";
@@ -32,11 +33,50 @@ beforeEach(async () => {
   ]);
 });
 
-it("covers every table that has an account column", () => {
-  const scopedTables = Object.values(schema)
-    .filter((t) => typeof t === "object" && t !== null && "accountId" in getTableColumnsSafe(t))
-    .map((t) => t as object);
-  expect(new Set(scopedTables)).toEqual(new Set(Object.values(schema.accountTables)));
+// Tables that reference an account but are deliberately not scoped by it,
+// with the reason. Any other table with a foreign key to accounts must be in
+// accountTables (and so get the cases below).
+const unscoped: Record<string, string> = {
+  // An `ocra login` in progress is found by its codes before any account is
+  // known; approved_account_id is only set when a signed-in user approves it.
+  // Only src/db/device.ts reads it, by code (test/device.test.ts).
+  device_codes: "found by its codes before the account is known",
+};
+
+const schemaTables = (Object.values(schema) as unknown[]).filter((t): t is SQLiteTable =>
+  is(t, SQLiteTable),
+);
+
+/** The columns of a table that reference accounts, by any name. */
+const accountReferences = (t: SQLiteTable) =>
+  getTableConfig(t).foreignKeys.flatMap((fk) => {
+    const ref = fk.reference();
+    return ref.foreignTable === schema.accounts ? ref.columns.map((c) => c.name) : [];
+  });
+
+it("covers every table with a foreign key to accounts, whatever the column's name", () => {
+  const referencing = schemaTables.filter((t) => accountReferences(t).length > 0);
+  const scopedSet = new Set<SQLiteTable>(Object.values(schema.accountTables));
+  // The check sees a reference under another name (device_codes.approved_account_id).
+  expect(referencing.map((t) => getTableName(t))).toContain("device_codes");
+  for (const t of referencing) {
+    const name = getTableName(t);
+    if (name in unscoped) {
+      expect(scopedSet.has(t), name).toBe(false);
+      continue;
+    }
+    expect(scopedSet.has(t), `${name} references accounts but is not in accountTables`).toBe(true);
+  }
+  // Each scoped table references accounts through account_id, the column scoped() filters by.
+  for (const t of scopedSet) {
+    expect(accountReferences(t), getTableName(t)).toEqual(["account_id"]);
+  }
+  for (const name of Object.keys(unscoped)) {
+    expect(
+      referencing.map((t) => getTableName(t)),
+      name,
+    ).toContain(name);
+  }
   expect(Object.keys(rows).sort()).toEqual(Object.keys(schema.accountTables).sort());
 });
 
@@ -83,11 +123,3 @@ describe.each(Object.keys(rows) as (keyof typeof rows)[])("%s", (name) => {
     expect(await scoped(db, B).list(name)).toEqual([]);
   });
 });
-
-function getTableColumnsSafe(t: object): Record<string, unknown> {
-  try {
-    return getTableColumns(t as never) ?? {};
-  } catch {
-    return {};
-  }
-}

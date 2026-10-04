@@ -11,7 +11,7 @@
   // on the free plan. Invocation logs are off: they record requests, and a
   // request's headers carry session tokens.
   "observability": { "enabled": true, "logs": { "invocation_logs": false } },
-  // Daily retention (src/retention.ts).
+  // Daily retention (src/db/retention.ts).
   "triggers": { "crons": ["17 4 * * *"] },
   // The GitHub App "ocra Cloud dev" signs users in. Secrets (set with
   // wrangler secret put): GITHUB_CLIENT_SECRET, MASTER_KEY, SESSION_SECRET.
