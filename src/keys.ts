@@ -4,11 +4,12 @@ import { encryptSecret } from "./crypto.js";
 import type { Scoped } from "./db/scoped.js";
 import { decryptKey, storedKey } from "./keyring.js";
 import { checkKey, isProvider, listModels, verifyRoutes } from "./providers.js";
+import { requireSession } from "./session.js";
 import type { AppEnv } from "./types.js";
 
 // The user's model keys: stored encrypted, one per provider, never returned.
 
-export const keys = new Hono<AppEnv>();
+export const keys = new Hono<AppEnv>().use(requireSession());
 
 const DAY = 86_400_000;
 

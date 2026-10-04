@@ -5,10 +5,10 @@ import {
 } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, it } from "vitest";
-import { EXPORTED } from "../src/account.js";
 import { accountSalt, setSharing } from "../src/db/accounts.js";
 import * as schema from "../src/db/schema.js";
 import { scoped } from "../src/db/scoped.js";
+import { EXPORTED } from "../src/export.js";
 import worker from "../src/index.js";
 import { enforceRetention } from "../src/retention.js";
 import { call, db, resetDb, signIn, signInCli } from "./helpers.js";
