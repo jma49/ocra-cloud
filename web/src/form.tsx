@@ -28,10 +28,10 @@ export function NumberField(props: {
   const [text, setText] = useState(props.value === undefined ? "" : String(props.value));
   // Follow a value that changes from outside (the settings loading, Discard,
   // a restored version), but not one this field is in the middle of typing.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: only an outside change of the value resyncs
   useEffect(() => {
     const shown = text.trim() === "" ? undefined : Number(text);
     if (shown !== props.value) setText(props.value === undefined ? "" : String(props.value));
-    // biome-ignore lint/correctness/useExhaustiveDependencies: only an outside change of the value resyncs
   }, [props.value]);
   const invalid =
     text !== "" &&
