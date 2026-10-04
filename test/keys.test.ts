@@ -2,7 +2,7 @@ import { env } from "cloudflare:workers";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { decryptSecret, keyBinding } from "../src/crypto.js";
 import { scoped } from "../src/db/scoped.js";
-import { checkKey, verifyRoutes } from "../src/providers.js";
+import { checkKey, listModels, verifyRoutes } from "../src/providers.js";
 import { call, db, resetDb, signIn } from "./helpers.js";
 
 beforeEach(resetDb);
@@ -40,6 +40,13 @@ describe("checking a key", () => {
     expect(await checkKey("openai", "k")).toEqual({ status: "error", httpStatus: 503 });
     vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("down"));
     expect(await checkKey("openai", "k")).toEqual({ status: "error" });
+  });
+
+  it("does not follow a redirect with the key (#15)", async () => {
+    const fake = answer(302);
+    expect(await checkKey("openai", "k")).toEqual({ status: "error", httpStatus: 302 });
+    expect(await listModels("openai", "k")).toEqual([]);
+    expect(fake.mock.calls.map(([, init]) => init?.redirect)).toEqual(["manual", "manual"]);
   });
 
   it("does not check providers that list models without a key", async () => {

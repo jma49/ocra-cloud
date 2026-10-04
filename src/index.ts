@@ -2,6 +2,7 @@ import { drizzle } from "drizzle-orm/d1";
 import { Hono } from "hono";
 import { account } from "./account.js";
 import { auth } from "./auth.js";
+import { BodyTooLarge } from "./body.js";
 import { enforceRetention } from "./db/retention.js";
 import { device } from "./device.js";
 import { exportRoute } from "./export.js";
@@ -76,6 +77,7 @@ app.route("/gateway", gateway);
 
 app.notFound((c) => c.json({ error: "not_found" }, 404));
 app.onError((err, c) => {
+  if (err instanceof BodyTooLarge) return c.json({ error: "body_too_large" }, 413);
   // The message only: an error may quote a request, and bodies are never logged.
   console.error(`api error on ${c.req.method} ${c.req.routePath}: ${err.name}`);
   return c.json({ error: "internal" }, 500);

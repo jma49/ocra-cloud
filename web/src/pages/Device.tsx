@@ -111,7 +111,15 @@ export function Device() {
             </div>
             <dl className="kv" style={{ margin: 0 }}>
               <dt>Terminal</dt>
-              <dd>{info.label ?? "Unnamed"}</dd>
+              <dd>
+                {info.label ?? "Unnamed"}{" "}
+                <span className="badge badge-warn" title="The terminal chose this name">
+                  unverified
+                </span>
+                <div className="muted small">
+                  The name was sent by whoever asked for the code. ocra cannot check it.
+                </div>
+              </dd>
               <dt>Requested</dt>
               <dd>{ago(info.createdAt)}</dd>
               <dt>It will be able to</dt>

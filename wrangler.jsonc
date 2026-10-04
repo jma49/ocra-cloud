@@ -31,9 +31,12 @@
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*"]
   },
-  // Device codes an address may request (ocra login), per minute.
+  // Device codes an address may request (ocra login), per minute; and code
+  // lookups and decisions an account, and an address, may make per minute
+  // (/api/device/info and /decide), so a signed-in user cannot guess codes.
   "ratelimits": [
-    { "name": "DEVICE_CODES", "namespace_id": "1001", "simple": { "limit": 10, "period": 60 } }
+    { "name": "DEVICE_CODES", "namespace_id": "1001", "simple": { "limit": 10, "period": 60 } },
+    { "name": "DEVICE_LOOKUPS", "namespace_id": "1002", "simple": { "limit": 20, "period": 60 } }
   ],
   "d1_databases": [
     {

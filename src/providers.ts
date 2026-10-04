@@ -292,6 +292,8 @@ export async function checkKey(provider: keyof typeof providers, key: string): P
   try {
     res = await fetch(providers[provider].base + route.path, {
       headers,
+      // A redirect would carry the key to another address: an error instead.
+      redirect: "manual",
       signal: AbortSignal.timeout(10_000),
     });
   } catch {
@@ -331,6 +333,8 @@ export async function listModels(
   try {
     const res = await fetch(providers[provider].base + route.path, {
       headers,
+      // A redirect would carry the key to another address: an error instead.
+      redirect: "manual",
       signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok) return [];
