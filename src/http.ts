@@ -1,8 +1,8 @@
+import { type BodyIssue, ERROR_STATUS, type ErrorCode } from "@open-cr-agent/cloud-contract";
 import type { Context, MiddlewareHandler } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import type { z } from "zod";
 import { readJson, SMALL_BODY } from "./body.js";
-import { type BodyIssue, ERROR_STATUS, type ErrorCode } from "./contract/index.js";
 import { RETENTION_DAYS } from "./db/retention.js";
 import type { AppEnv } from "./types.js";
 

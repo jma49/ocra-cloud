@@ -1,4 +1,4 @@
-import type { AGENT_ROLES, AgentRole, ModelTier } from "../contract/index.js";
+import type { AGENT_ROLES, AgentRole, ModelTier } from "@open-cr-agent/cloud-contract";
 
 // The engine's agents (ADR-0025) as the web's Agents page lists them: the
 // built-in reviewers and the roles, each with the tier it runs on unless an

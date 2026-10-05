@@ -1,6 +1,6 @@
+import { redact } from "@open-cr-agent/cloud-contract";
+import vectors from "@open-cr-agent/cloud-contract/fixtures/redaction-vectors.json";
 import { beforeEach, describe, expect, it } from "vitest";
-import vectors from "../src/contract/fixtures/redaction-vectors.json";
-import { redact } from "../src/contract/index.js";
 import { parseFindings } from "../src/findings.js";
 import { finding, upload } from "./finding-uploads.js";
 import { call, resetDb, signIn, signInCli } from "./helpers.js";

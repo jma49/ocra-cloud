@@ -1,6 +1,7 @@
 /// <reference types="vite/client" />
+
+import { AGENT_ROLES, REVIEWER_ID } from "@open-cr-agent/cloud-contract";
 import { describe, expect, it } from "vitest";
-import { AGENT_ROLES, REVIEWER_ID } from "../src/contract/index.js";
 import { BUILT_IN_REVIEWERS, formatModelId, parseModelId, ROLES } from "../src/shared/index.js";
 import webTsconfig from "../web/tsconfig.json?raw";
 
@@ -9,6 +10,8 @@ import webTsconfig from "../web/tsconfig.json?raw";
 // the Worker's own code; and src/shared/ imports nothing but itself and the
 // contract, so the web bundle never pulls in Drizzle. Both take only types
 // from the contract: its values come with its schemas and zod.
+
+const CONTRACT = "@open-cr-agent/cloud-contract";
 
 const web = import.meta.glob(["../web/src/**/*.{ts,tsx}", "!../web/src/**/*.test.{ts,tsx}"], {
   query: "?raw",
@@ -20,7 +23,7 @@ const shared = import.meta.glob("../src/shared/**/*.ts", {
   import: "default",
   eager: true,
 }) as Record<string, string>;
-const worker = import.meta.glob(["../src/**/*.ts", "!../src/contract/**"], {
+const worker = import.meta.glob("../src/**/*.ts", {
   query: "?raw",
   import: "default",
   eager: true,
@@ -40,8 +43,7 @@ describe("the shared domain module", () => {
   it("is all the web app imports from src/", () => {
     expect(Object.keys(web).length).toBeGreaterThan(20);
     const outside = imports(web).filter(
-      ([, to]) =>
-        !to.startsWith("web/") && !to.startsWith("src/shared/") && !to.startsWith("src/contract/"),
+      ([, to]) => !to.startsWith("web/") && !to.startsWith("src/shared/"),
     );
     expect(outside).toEqual([]);
   });
@@ -53,12 +55,12 @@ describe("the shared domain module", () => {
 
   it("imports only itself and the contract", () => {
     expect(Object.keys(shared).length).toBeGreaterThan(3);
-    const outside = imports(shared).filter(
-      ([, to]) => !to.startsWith("src/shared/") && !to.startsWith("src/contract/"),
-    );
+    const outside = imports(shared).filter(([, to]) => !to.startsWith("src/shared/"));
     expect(outside).toEqual([]);
     const packages = Object.entries(shared).flatMap(([file, text]) =>
-      [...text.matchAll(/from\s*"([^.][^"]*)"/g)].map((m) => `${file}: ${m[1]}`),
+      [...text.matchAll(/from\s*"([^.][^"]*)"/g)]
+        .filter((m) => m[1] !== CONTRACT)
+        .map((m) => `${file}: ${m[1]}`),
     );
     expect(packages).toEqual([]);
   });
@@ -66,7 +68,9 @@ describe("the shared domain module", () => {
   it("brings no contract value into the web bundle", () => {
     const values = Object.entries({ ...shared, ...web }).flatMap(([file, text]) =>
       [
-        ...text.matchAll(/(?:^|\n)(?:import|export)\s+(?!type\b)[^;]*?from\s*"[./]*\/contract\//g),
+        ...text.matchAll(
+          /(?:^|\n)(?:import|export)\s+(?!type\b)[^;]*?from\s*"@open-cr-agent\/cloud-contract[/"]/g,
+        ),
       ].map(() => file),
     );
     expect(values).toEqual([]);

@@ -1,5 +1,5 @@
+import { ERROR_STATUS } from "@open-cr-agent/cloud-contract";
 import { describe, expect, it } from "vitest";
-import { ERROR_STATUS } from "../../src/contract/index.js";
 import { ApiError, type MESSAGES, why } from "./api.js";
 
 describe("ocra Cloud's error codes", () => {

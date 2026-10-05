@@ -1,15 +1,15 @@
+import { memoryEntrySchema, PROVIDER_IDS } from "@open-cr-agent/cloud-contract";
+import memory from "@open-cr-agent/cloud-contract/fixtures/memory.json";
+import preferences from "@open-cr-agent/cloud-contract/fixtures/preferences.json";
+import upload from "@open-cr-agent/cloud-contract/fixtures/upload.json";
 import { beforeEach, describe, expect, it } from "vitest";
-import memory from "../src/contract/fixtures/memory.json";
-import preferences from "../src/contract/fixtures/preferences.json";
-import upload from "../src/contract/fixtures/upload.json";
-import { memoryEntrySchema, PROVIDER_IDS } from "../src/contract/index.js";
 import { providers } from "../src/providers.js";
 import { call, resetDb, signIn, signInCli } from "./helpers.js";
 
-// The engine's contract fixtures (#25), copied with the contract
-// (scripts/sync-contract.mjs) at the commit contract.lock pins. The engine
-// makes upload.json from the CLI's real upload; a change of shape there
-// reaches this test with the next sync.
+// The engine's contract fixtures (#25), shipped in @open-cr-agent/cloud-contract
+// at the version package.json pins. The engine makes upload.json from the
+// CLI's real upload; a change of shape there reaches this test with the next
+// version bump.
 
 beforeEach(resetDb);
 const origin = { origin: "https://ocra.test" };

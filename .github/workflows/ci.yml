@@ -30,31 +30,6 @@ jobs:
       # needed). After verify, which builds web/dist (the assets directory).
       - run: npx wrangler deploy --dry-run --outdir /tmp/bundle
 
-  # src/contract/ is a generated copy of the engine's @open-cr-agent/cloud-contract
-  # at the commit contract.lock pins (scripts/sync-contract.mjs): it fails when
-  # the copy was edited by hand or not synced with the lock.
-  contract:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - id: lock
-        run: |
-          sha="$(tr -d '[:space:]' < contract.lock)"
-          [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "contract.lock is not a commit: $sha"; exit 1; }
-          echo "sha=$sha" >> "$GITHUB_OUTPUT"
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: jma49/Open-CR-Agent
-          ref: ${{ steps.lock.outputs.sha }}
-          path: .engine
-          persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version-file: .nvmrc
-      - run: node scripts/sync-contract.mjs .engine --check
-
   # Conventional Commits and no AI attribution, with the engine's own checks
   # (AGENTS.md, Working with agents).
   commits:

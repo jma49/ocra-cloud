@@ -1,5 +1,5 @@
+import { RISK_TIERS, reviewUploadSchema, VERDICTS } from "@open-cr-agent/cloud-contract";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { RISK_TIERS, reviewUploadSchema, VERDICTS } from "../src/contract/index.js";
 import { exportFinding, reviewRow } from "../src/reviews.js";
 import { call, resetDb, signIn, signInCli } from "./helpers.js";
 
@@ -222,8 +222,8 @@ describe("per-reviewer counts (ADR-0028, 1)", () => {
 });
 
 describe("the engine's vocabulary", () => {
-  // The contract's (src/contract/vocabulary.ts), which the engine's core
-  // matches: a change there reaches this test with the next sync.
+  // The contract's (@open-cr-agent/cloud-contract), which the engine's core
+  // matches: a change there reaches this test with the next version bump.
   const ENGINE_VERDICTS = VERDICTS;
   const ENGINE_TIERS = RISK_TIERS;
 

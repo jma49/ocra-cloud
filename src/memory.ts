@@ -1,10 +1,10 @@
-import { Hono } from "hono";
 import {
   MAX_MEMORY_PER_REPO,
   type MemoryEntry,
   REPO_HASH,
   rememberRequestSchema,
-} from "./contract/index.js";
+} from "@open-cr-agent/cloud-contract";
+import { Hono } from "hono";
 import type { Row } from "./db/scoped.js";
 import { apiError, jsonBody } from "./http.js";
 import { requireSession } from "./session.js";

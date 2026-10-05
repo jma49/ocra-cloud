@@ -20,8 +20,10 @@ export type {
   Severity,
   Verdict,
   Verification,
-} from "../contract/index.js";
+} from "@open-cr-agent/cloud-contract";
 
-export type Rule = NonNullable<import("../contract/index.js").ReviewSettings["rules"]>[number];
+export type Rule = NonNullable<
+  import("@open-cr-agent/cloud-contract").ReviewSettings["rules"]
+>[number];
 
 export type ProviderGroup = "Major" | "China" | "Platforms";

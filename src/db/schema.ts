@@ -1,5 +1,3 @@
-import { sql } from "drizzle-orm";
-import { index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import {
   REVIEW_SOURCES,
   RISK_TIERS,
@@ -7,7 +5,9 @@ import {
   SEVERITIES,
   VERDICTS,
   VERIFICATIONS,
-} from "../contract/index.js";
+} from "@open-cr-agent/cloud-contract";
+import { sql } from "drizzle-orm";
+import { index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import type { AgentPrefs, ModelChains, ReviewerCounts, ReviewSettings } from "../shared/index.js";
 
 // Every table but accounts carries accountId, and is read and written only

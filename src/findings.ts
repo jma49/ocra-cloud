@@ -4,7 +4,7 @@ import {
   MAX_TOTAL_BYTES,
   redact,
   sharedFindingSchema,
-} from "./contract/index.js";
+} from "@open-cr-agent/cloud-contract";
 import type { Severity, Verification } from "./shared/index.js";
 
 // A finding as the CLI uploads it when the account shares findings

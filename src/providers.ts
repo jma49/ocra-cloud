@@ -1,5 +1,5 @@
+import type { EffortStyle, ProviderId } from "@open-cr-agent/cloud-contract";
 import { Hono } from "hono";
-import type { EffortStyle, ProviderId } from "./contract/index.js";
 import type { ProviderGroup } from "./shared/index.js";
 import type { AppEnv } from "./types.js";
 
