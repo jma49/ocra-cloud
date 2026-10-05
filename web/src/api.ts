@@ -1,4 +1,4 @@
-import type { ErrorCode } from "../../src/contract/index.js";
+import type { ErrorCode } from "@open-cr-agent/cloud-contract";
 import type {
   ProviderGroup,
   ReviewerCounts,

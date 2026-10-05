@@ -1,4 +1,4 @@
-import type { CLOUD_PREFIX } from "../contract/index.js";
+import type { CLOUD_PREFIX } from "@open-cr-agent/cloud-contract";
 
 // A model ocra Cloud's gateway serves is named ocra-<provider>/<model>: the
 // only place that spells the form out. The contract's isCloudModel says

@@ -1,4 +1,4 @@
-import { MODEL_ID } from "./contract/index.js";
+import { MODEL_ID } from "@open-cr-agent/cloud-contract";
 import { applyAuth, type KeyCall, modelsCall, type ProviderName, providers } from "./providers.js";
 import { type Effort, effortLevels } from "./shared/index.js";
 

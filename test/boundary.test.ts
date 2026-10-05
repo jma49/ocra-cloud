@@ -16,7 +16,7 @@ beforeEach(resetDb);
 describe("the API boundary", () => {
   it("reads no body outside it", () => {
     const readers = Object.entries(sources)
-      .filter(([file]) => !file.includes("/contract/") && !file.endsWith("/body.ts"))
+      .filter(([file]) => !file.endsWith("/body.ts"))
       .flatMap(([file, text]) =>
         [
           ...text.matchAll(/c\.req\.(json|text|parseBody|arrayBuffer)\(|readJson\(|readText\(/g),
@@ -28,7 +28,7 @@ describe("the API boundary", () => {
 
   it("reads rows with queries, never by filtering a whole table (#34)", () => {
     const wholeTables = Object.entries(sources)
-      .filter(([file]) => !file.includes("/db/") && !file.includes("/contract/"))
+      .filter(([file]) => !file.includes("/db/"))
       .flatMap(([file, text]) =>
         [...text.matchAll(/\.list\("(\w+)"\)/g)].map(
           (m) => `${file.replace("../src/", "")}: ${m[1]}`,

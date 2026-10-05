@@ -1,12 +1,12 @@
-import { Hono } from "hono";
-import type { z } from "zod";
 import {
   type AgentPrefs,
   type ModelChains,
   preferencesUpdateSchema,
   type ReviewSettings,
   type Runtime,
-} from "./contract/index.js";
+} from "@open-cr-agent/cloud-contract";
+import { Hono } from "hono";
+import type { z } from "zod";
 import { newId, type Scoped } from "./db/scoped.js";
 import { apiError, jsonBody } from "./http.js";
 import { hasChatRoute } from "./providers.js";

@@ -1,10 +1,10 @@
-import { Hono, type MiddlewareHandler } from "hono";
-import { z } from "zod";
 import {
   deviceCodeRequestSchema,
   deviceTokenRequestSchema,
   refreshRequestSchema,
-} from "./contract/index.js";
+} from "@open-cr-agent/cloud-contract";
+import { Hono, type MiddlewareHandler } from "hono";
+import { z } from "zod";
 import { randomToken, sha256Hex } from "./crypto.js";
 import {
   byDeviceCodeHash,
