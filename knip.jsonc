@@ -8,8 +8,8 @@
     "cloudflare",
     // Imported from CSS, which knip does not read.
     "@fontsource-variable/archivo",
-    "@fontsource-variable/geist",
     "@fontsource-variable/geist-mono",
+    "@fontsource-variable/plus-jakarta-sans",
     "@fontsource/maple-mono"
   ],
   "vite": { "config": ["web/vite.config.ts"] }
