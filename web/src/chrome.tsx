@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { api, type Me } from "./api.js";
+import { EyesMark } from "./eyes.js";
 import { Link } from "./router.js";
 import { brandTag, DOCS, GITHUB } from "./site.js";
-import { SmallSpider } from "./spider.js";
 
 // The bar across the top and the footer, on every page.
 
@@ -37,7 +37,7 @@ export function TopBar(props: { me: Me | null }) {
   return (
     <header className="topbar">
       <Link to="/" className="brand">
-        <SmallSpider size={24} />
+        <EyesMark size={26} className="brand-eyes" />
         ocra
         <span className="brand-tag">{brandTag(location.hostname)}</span>
       </Link>
