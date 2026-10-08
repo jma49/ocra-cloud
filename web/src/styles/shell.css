@@ -34,7 +34,7 @@
 .toplink {
   color: var(--fg);
   text-decoration: none;
-  font-size: 13.5px;
+  font-size: 14px;
 }
 .toplink:hover {
   color: var(--primary);
@@ -83,7 +83,7 @@
   color: var(--fg);
   text-decoration: none;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 14px;
 }
 .menu-item:hover {
   background: var(--muted);
@@ -105,7 +105,7 @@
   background: var(--page);
 }
 .side-label {
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 500;
   color: var(--fg-subtle);
   padding: 0 10px;
@@ -118,11 +118,15 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 6px 10px;
-  border-radius: 7px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-weight: 500;
   color: var(--fg);
   text-decoration: none;
-  font-size: 13.5px;
+  font-size: 14px;
+}
+.side-link + .side-link {
+  margin-top: 2px;
 }
 .side-link:hover {
   background: var(--muted);
@@ -156,7 +160,7 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 24px;
+  margin-bottom: 28px;
   flex-wrap: wrap;
 }
 .page-head h1 {
@@ -164,11 +168,11 @@
   font-weight: 600;
 }
 .page-head p {
-  margin: 4px 0 0;
+  margin: 6px 0 0;
   color: var(--fg-muted);
 }
 .section {
-  margin-top: 32px;
+  margin-top: 40px;
 }
 .section-title {
   font-size: 15px;
@@ -243,7 +247,7 @@
 .footer {
   padding: 24px 16px 32px;
   text-align: center;
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--fg-subtle);
 }
 .footer a {
@@ -268,7 +272,7 @@
   border-radius: 12px;
   background: var(--bg);
   box-shadow: 0 10px 30px rgb(0 0 0 / 0.12);
-  font-size: 13px;
+  font-size: 14px;
   animation: rise 160ms ease-out;
 }
 .toast {
@@ -280,7 +284,7 @@
   border-radius: 10px;
   background: var(--button);
   color: var(--on-button);
-  font-size: 13px;
+  font-size: 14px;
   box-shadow: 0 10px 30px rgb(0 0 0 / 0.15);
   animation: rise 160ms ease-out;
 }
