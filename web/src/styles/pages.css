@@ -6,9 +6,8 @@
   margin: 0 auto;
 }
 
-/* The mark (spider.tsx): its plates may draw past the box. */
-.spider-mark {
-  overflow: visible;
+/* The mark (eyes.tsx). */
+.brand-eyes {
   display: block;
   flex: none;
 }
