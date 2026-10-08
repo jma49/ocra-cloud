@@ -1,9 +1,8 @@
 /* Cards: cards, stats and meters, charts and legends, steps, key-value lists. */
 .card {
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--bg);
-  box-shadow: var(--shadow);
 }
 .card-pad {
   padding: 20px;
@@ -12,12 +11,11 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 14px 20px;
-  border-bottom: 1px solid var(--border);
+  padding: 16px 20px 6px;
   gap: 12px;
 }
 .card-head h3 {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
 }
 
@@ -30,7 +28,7 @@
   padding: 16px 18px;
 }
 .stat-label {
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--fg-muted);
 }
 .stat-value {
