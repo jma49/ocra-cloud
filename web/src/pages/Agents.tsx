@@ -202,7 +202,7 @@ export function Agents() {
                   : (own as { enabled?: boolean } | undefined)?.enabled !== false;
                 return (
                   <tr key={a.id} className={enabled ? undefined : "agent-off"}>
-                    <td>
+                    <td className="text">
                       <div className="mono strong">{a.id}</div>
                       <div className="subtle small">
                         {a.hint} · {a.tier}
