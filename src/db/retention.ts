@@ -8,6 +8,7 @@ import {
   deviceCodes,
   gatewayCalls,
   reviews,
+  serviceCounters,
   sessions,
   usageCounters,
 } from "./schema.js";
@@ -54,9 +55,20 @@ export async function enforceRetention(db: DrizzleD1Database, now = new Date()):
           .delete(auditEvents)
           .where(and(ofEachAccount(auditEvents.accountId), lt(auditEvents.createdAt, cutoff))),
     ],
-    // Codes expire ten minutes after they are made: few are kept, so they
-    // are read whole.
+    // DEVICE_DAILY_CODES a day at most, so they are read whole.
     ["device_codes", () => db.delete(deviceCodes).where(lt(deviceCodes.expiresAt, now))],
+    [
+      "service_counters",
+      () =>
+        db
+          .delete(serviceCounters)
+          .where(
+            and(
+              inArray(serviceCounters.name, serviceCounters.name.enumValues),
+              lt(serviceCounters.day, utcDay(cutoff)),
+            ),
+          ),
+    ],
     // A session ends with its last token: for the CLI, the refresh token
     // (the sessions_ends index).
     [

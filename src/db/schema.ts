@@ -99,6 +99,19 @@ export const deviceCodes = sqliteTable("device_codes", {
   createdAt: createdAt(),
 });
 
+// What the whole service did on a UTC day, for the caps no account can be
+// held to: login codes are asked for before anyone signs in (audit C1).
+export const serviceCounters = sqliteTable(
+  "service_counters",
+  {
+    name: text("name", { enum: ["device_codes"] }).notNull(),
+    /** The UTC date, YYYY-MM-DD. */
+    day: text("day").notNull(),
+    n: integer("n").notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.name, t.day] })],
+);
+
 // A model provider key, encrypted with a data key that the master key wraps.
 export const providerKeys = sqliteTable(
   "provider_keys",

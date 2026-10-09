@@ -27,7 +27,10 @@
     // Shared findings one account may upload in the 90 days retention keeps
     // them, deleted ones included; past it a review is stored without its
     // findings.
-    "REVIEW_MAX_FINDINGS": "1000"
+    "REVIEW_MAX_FINDINGS": "1000",
+    // Login codes (ocra login) the whole service may make in a UTC day: they
+    // are asked for before anyone signs in.
+    "DEVICE_DAILY_CODES": "500"
   },
   // The web app is a single-page app; the Worker answers /api first.
   "assets": {

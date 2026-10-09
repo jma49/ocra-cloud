@@ -1,18 +1,40 @@
-import { and, eq, lt } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
-import { deviceCodes } from "./schema.js";
+import { utcDay } from "../time.js";
+import { deviceCodes, serviceCounters } from "./schema.js";
 
 // Device codes are found by their codes before any account is known; only
 // the routes in ../device.ts use these.
 
 export type DeviceCode = typeof deviceCodes.$inferSelect;
 
+/**
+ * Stores a new code unless the whole service already made dailyCap today;
+ * returns whether it did. Anyone may ask for a code, so this cap, not one
+ * per account, keeps a flood of requests from many addresses within the
+ * Free plan's daily D1 writes (audit C1); a refusal writes nothing.
+ * Expired codes are left to the daily retention run.
+ */
 export async function createDeviceCode(
   db: DrizzleD1Database,
   row: Pick<DeviceCode, "deviceCodeHash" | "userCode" | "label" | "expiresAt">,
-): Promise<void> {
-  await db.delete(deviceCodes).where(lt(deviceCodes.expiresAt, new Date()));
+  dailyCap: number,
+  now = new Date(),
+): Promise<boolean> {
+  const c = serviceCounters;
+  if (!(dailyCap >= 1)) return false;
+  const counted = await db
+    .insert(c)
+    .values({ name: "device_codes", day: utcDay(now), n: 1 })
+    .onConflictDoUpdate({
+      target: [c.name, c.day],
+      set: { n: sql`${c.n} + 1` },
+      setWhere: sql`${c.n} < ${dailyCap}`,
+    })
+    .returning({ n: c.n });
+  if (counted.length === 0) return false;
   await db.insert(deviceCodes).values({ id: crypto.randomUUID(), ...row });
+  return true;
 }
 
 export function byUserCode(db: DrizzleD1Database, userCode: string) {

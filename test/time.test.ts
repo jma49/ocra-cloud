@@ -19,12 +19,14 @@ describe("config", () => {
       GATEWAY_DAILY_CALLS: "3",
       REVIEW_DAILY_UPLOADS: "500",
       REVIEW_MAX_FINDINGS: "20000",
+      DEVICE_DAILY_CODES: "50",
     };
     const first = config(env);
     expect(first).toEqual({
       gatewayDailyCalls: 3,
       reviewDailyUploads: 500,
       reviewMaxFindings: 20000,
+      deviceDailyCodes: 50,
     });
     expect(config(env)).toBe(first);
     expect(config({ ...env, GATEWAY_DAILY_CALLS: "7" }).gatewayDailyCalls).toBe(7);
