@@ -4,6 +4,7 @@ import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { randomToken, sha256Hex } from "./crypto.js";
 import {
   revokeSession,
+  revokeWebSession,
   rotateSession,
   sessionByRefreshHash,
   sessionByTokenHash,
@@ -93,6 +94,17 @@ export function needsRecentSignIn(c: Context<AppEnv>): Response | undefined {
   const age = Date.now() - c.var.session.createdAt.getTime();
   if (age <= RECENT_SIGN_IN_MINUTES * MINUTE) return undefined;
   return apiError(c, "forbidden_for_session", { reason: RECENT_SIGN_IN });
+}
+
+/**
+ * Signs this browser in: a new session in its cookie. The session the cookie
+ * held before ends now, not at its idle or 30-day end, since nothing in this
+ * browser can reach it again (#92).
+ */
+export async function signInBrowser(c: Context<AppEnv>, accountId: string): Promise<void> {
+  const replaced = getCookie(c, SESSION_COOKIE);
+  if (replaced) await revokeWebSession(c.var.db, await sha256Hex(replaced));
+  setSessionCookie(c, await startWebSession(c.var.db, accountId));
 }
 
 /** Starts a browser session and returns its token, set once as a cookie. */
@@ -208,7 +220,7 @@ export async function reissueCliSession(
 }
 
 /** Sets the web session cookie, as sign-in leaves it. */
-export function setSessionCookie(c: Context, token: string): void {
+function setSessionCookie(c: Context, token: string): void {
   setCookie(c, SESSION_COOKIE, token, {
     httpOnly: true,
     secure: true,

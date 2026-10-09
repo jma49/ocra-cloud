@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { call, ORIGIN, resetDb, signIn } from "./helpers.js";
+import { call, ORIGIN, resetDb, signIn, signInCli } from "./helpers.js";
 
 beforeEach(resetDb);
 afterEach(() => vi.restoreAllMocks());
@@ -72,6 +72,29 @@ describe("GitHub sign-in", () => {
 
     const me = await call("/api/me", { headers: { cookie: `${SESSION}=${session}` } });
     expect(await me.json()).toMatchObject({ login: "octo", githubId: 42, session: "web" });
+  });
+
+  it("ends the browser session that signing in again replaces, and no other", async () => {
+    githubFake({ id: 42, login: "octo" });
+    const before = await signIn(42, "octo");
+    const cli = await signInCli(42, "octo");
+    const signInWith = async (cookie: string) => {
+      const start = await call("/api/auth/github/login");
+      const state = new URL(start.headers.get("location") ?? "").searchParams.get("state");
+      const res = await call(`/api/auth/github/callback?code=c&state=${state}`, {
+        headers: { cookie: `${STATE}=${cookieValue(start, STATE)}; ${cookie}` },
+      });
+      expect(res.status).toBe(302);
+      return cookieValue(res, SESSION);
+    };
+    const after = await signInWith(`${SESSION}=${before.token}`);
+    expect((await call("/api/me", { auth: before.auth })).status).toBe(401);
+    expect((await call("/api/me", { headers: { cookie: `${SESSION}=${after}` } })).status).toBe(
+      200,
+    );
+    // Only a browser session ends this way, not the CLI's, whatever the cookie holds.
+    await signInWith(`${SESSION}=${cli.tokens.access_token}`);
+    expect((await call("/api/me", { auth: cli.auth })).status).toBe(200);
   });
 
   it("refuses a callback whose state does not match the signed cookie", async () => {
