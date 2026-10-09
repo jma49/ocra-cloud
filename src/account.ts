@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { audit } from "./audit.js";
+import { config } from "./config.js";
 import { accountSalt, deleteAccount, setSharing } from "./db/accounts.js";
 import { apiError, jsonBody } from "./http.js";
 import { clearSessionCookie, requireSession } from "./session.js";
@@ -25,10 +26,15 @@ account.delete("/", requireSession(), jsonBody(deleteRequest), async (c) => {
 });
 
 // Sharing findings (ADR-0028, 2): off by default. Turning it off can delete
-// every finding sent; the counts stay.
+// every finding sent; the counts stay. The allowance is the findings that
+// may be sent in the retention window, deleted ones included (audit C1).
 account.get("/sharing", requireSession(), async (c) => {
   const stored = await c.var.data.count("findings");
-  return c.json({ shareFindings: c.var.session.account.shareFindings, findingsStored: stored });
+  return c.json({
+    shareFindings: c.var.session.account.shareFindings,
+    findingsStored: stored,
+    findingsAllowance: config(c.env).reviewMaxFindings,
+  });
 });
 
 const sharingRequest = z.object({
