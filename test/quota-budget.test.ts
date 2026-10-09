@@ -5,6 +5,7 @@ import { MAX_FINDINGS } from "@open-cr-agent/cloud-contract";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RETENTION_DAYS } from "../src/db/retention.js";
 import app from "../src/index.js";
+import { DAY, utcDayStart } from "../src/time.js";
 import wrangler from "../wrangler.jsonc?raw";
 import { type CallInit, call, ORIGIN, request, resetDb, signIn, signInCli } from "./helpers.js";
 import { type Meter, metered } from "./metered.js";
@@ -44,8 +45,15 @@ async function measure(path: string, init: CallInit, vars: Record<string, string
   const res = await app.fetch(request(path, init), { ...env, ...vars, DB }, ctx);
   const body = (await res.json()) as Record<string, unknown>;
   await waitOnExecutionContext(ctx);
-  return { status: res.status, body, ...(meter as Meter) };
+  const retryAfter = res.headers.get("retry-after");
+  return { status: res.status, body, retryAfter, ...(meter as Meter) };
 }
+
+/** A retry-after that points at the next midnight UTC, give or take the test's own seconds. */
+const untilMidnight = (retryAfter: string | null) => {
+  const midnight = (utcDayStart().getTime() + DAY - Date.now()) / 1000;
+  return Math.abs(Number(retryAfter) - midnight) <= 5;
+};
 
 const finding = (i: number) => ({
   fingerprint: `fp-${i}`,
@@ -125,18 +133,20 @@ describe("checking a cap", () => {
     expect(later.read).toBeLessThanOrEqual(first.read + SEEK_SLACK);
   });
 
-  it("writes nothing when it refuses", async () => {
+  it("writes nothing when it refuses, and says the cap resets at midnight UTC", async () => {
     const auth = await sharing();
     const one = { REVIEW_DAILY_UPLOADS: "1" };
     expect((await measure("/api/reviews", { ...upload("a", 3), auth }, one)).status).toBe(200);
     const refused = await measure("/api/reviews", { ...upload("b", 3), auth }, one);
     expect(refused).toMatchObject({ status: 429, written: 0 });
+    expect(untilMidnight(refused.retryAfter)).toBe(true);
 
     const web = await gatewayUser();
     const calls = { GATEWAY_DAILY_CALLS: "1" };
     expect((await measure(GATEWAY, { ...modelCall, auth: web }, calls)).status).toBe(200);
     const capped = await measure(GATEWAY, { ...modelCall, auth: web }, calls);
     expect(capped).toMatchObject({ status: 429, written: 0 });
+    expect(untilMidnight(capped.retryAfter)).toBe(true);
   });
 });
 
@@ -156,7 +166,15 @@ describe("the deployed caps", () => {
       method: "POST",
       json: { refresh_token: tokens.refresh_token },
     });
-    const code = await measure("/api/device/code", { method: "POST", json: {} });
+    // A login code from a network new today, once the day's service count exists.
+    const fromNetwork = (ip: string) =>
+      measure("/api/device/code", {
+        method: "POST",
+        headers: { "cf-connecting-ip": ip },
+        json: {},
+      });
+    await fromNetwork("192.0.2.1");
+    const code = await fromNetwork("192.0.2.2");
     expect([bare.status, full.status, gateway.status, refresh.status, code.status]).toEqual([
       200, 200, 200, 200, 200,
     ]);

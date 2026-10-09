@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "1949da95-c553-497e-9cc4-0672f4142838",
+  "id": "dae0f0ae-9b9b-4c9c-943e-d59fd1609cd7",
   "prevId": "9967f8fb-7fe4-4b10-a977-3d2c31bb78a5",
   "tables": {
     "account_memory": {
@@ -1132,12 +1132,12 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {
-        "service_counters_name_day_pk": {
+        "service_counters_day_name_pk": {
           "columns": [
-            "name",
-            "day"
+            "day",
+            "name"
           ],
-          "name": "service_counters_name_day_pk"
+          "name": "service_counters_day_name_pk"
         }
       },
       "uniqueConstraints": {},

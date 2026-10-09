@@ -19,6 +19,7 @@ import { rows } from "./table-rows.js";
 beforeEach(async () => {
   await resetDb();
   await db.delete(schema.deviceCodes);
+  await db.delete(schema.serviceCounters);
 });
 afterEach(() => vi.restoreAllMocks());
 
@@ -69,6 +70,19 @@ describe("retention", () => {
     const ids = (await d.list("sessions")).map((s) => s.id);
     expect(ids).toContain("cli-live");
     expect(ids).not.toContain("web-dead");
+  });
+
+  it("keeps only today's service counts, the per-network ones included", async () => {
+    await db.insert(schema.serviceCounters).values([
+      { name: "device_codes", day: utcDay(ago(1)), n: 5 },
+      { name: "device_codes:k1", day: utcDay(ago(1)), n: 2 },
+      { name: "device_codes", day: utcDay(now), n: 1 },
+      { name: "device_codes:k2", day: utcDay(now), n: 1 },
+    ]);
+    await enforceRetention(db, now);
+    const left = await db.select().from(schema.serviceCounters).all();
+    expect(left.map((r) => r.name).sort()).toEqual(["device_codes", "device_codes:k2"]);
+    expect(left.every((r) => r.day === utcDay(now))).toBe(true);
   });
 
   it("deletes an old review's findings with it", async () => {

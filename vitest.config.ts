@@ -21,6 +21,8 @@ export default defineConfig({
                 REVIEW_DAILY_UPLOADS: "500",
                 REVIEW_MAX_FINDINGS: "20000",
                 DEVICE_DAILY_CODES: "500",
+                // Above what a test file asks for from one address.
+                DEVICE_DAILY_CODES_PER_NETWORK: "100",
               },
             },
           })),

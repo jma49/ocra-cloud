@@ -4,7 +4,7 @@ import { config } from "./config.js";
 import { apiError } from "./http.js";
 import { keyFor, masterKeys } from "./keyring.js";
 import { applyAuth, isProvider, matchRoute, PASS_HEADERS, providers } from "./providers.js";
-import { perMinute } from "./rate.js";
+import { perMinute, retryTomorrow } from "./rate.js";
 import { requireSession } from "./session.js";
 import type { AppEnv } from "./types.js";
 
@@ -38,7 +38,10 @@ gateway.post("/:provider/*", async (c) => {
   // forwarding too, so a call that never finishes still shows in the log;
   // it is updated at the end.
   const cap = config(c.env).gatewayDailyCalls;
-  if (!(await data.take("gateway_calls", cap))) return apiError(c, "daily_limit", { limit: cap });
+  if (!(await data.take("gateway_calls", cap))) {
+    retryTomorrow(c);
+    return apiError(c, "daily_limit", { limit: cap });
+  }
   const id = await data.insert("gatewayCalls", { provider: name, path, model, status: PENDING });
 
   const headers = new Headers({

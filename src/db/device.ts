@@ -8,31 +8,53 @@ import { deviceCodes, serviceCounters } from "./schema.js";
 
 export type DeviceCode = typeof deviceCodes.$inferSelect;
 
+/** The service's count of codes; a network's is this name and its key. */
+const SERVICE = "device_codes";
+
 /**
- * Stores a new code unless the whole service already made dailyCap today;
- * returns whether it did. Anyone may ask for a code, so this cap, not one
- * per account, keeps a flood of requests from many addresses within the
- * Free plan's daily D1 writes (audit C1); a refusal writes nothing.
- * Expired codes are left to the daily retention run.
+ * Stores a new code unless the network asking already had `perNetwork`
+ * codes today, or the whole service `daily`; returns whether it did. Anyone
+ * may ask for a code, so these caps, not one per account, keep a flood of
+ * requests within the Free plan's daily D1 writes (audit C1), and the
+ * network's own cap keeps one network from using up everyone's logins. A
+ * refusal writes nothing, and a network's row is written only while the
+ * service has room, so a day holds at most about `daily` of them. Expired
+ * codes and past days' counts are left to the daily retention run.
  */
 export async function createDeviceCode(
   db: DrizzleD1Database,
   row: Pick<DeviceCode, "deviceCodeHash" | "userCode" | "label" | "expiresAt">,
-  dailyCap: number,
+  limits: { network: string; perNetwork: number; daily: number },
   now = new Date(),
 ): Promise<boolean> {
   const c = serviceCounters;
-  if (!(dailyCap >= 1)) return false;
-  const counted = await db
+  const day = utcDay(now);
+  if (!(limits.perNetwork >= 1 && limits.daily >= 1)) return false;
+  const serviceHasRoom = sql`coalesce((SELECT ${c.n} FROM ${c}
+    WHERE ${c.day} = ${day} AND ${c.name} = ${SERVICE}), 0) < ${limits.daily}`;
+  // In the table's column order: insert … select names every column.
+  const network = await db
     .insert(c)
-    .values({ name: "device_codes", day: utcDay(now), n: 1 })
+    .select(sql`SELECT ${`${SERVICE}:${limits.network}`}, ${day}, 1 WHERE ${serviceHasRoom}`)
     .onConflictDoUpdate({
-      target: [c.name, c.day],
+      target: [c.day, c.name],
       set: { n: sql`${c.n} + 1` },
-      setWhere: sql`${c.n} < ${dailyCap}`,
+      setWhere: sql`${c.n} < ${limits.perNetwork} AND ${serviceHasRoom}`,
     })
     .returning({ n: c.n });
-  if (counted.length === 0) return false;
+  if (network.length === 0) return false;
+  // A race for the service's last code can leave the network's count one
+  // high: it refuses sooner, never later.
+  const service = await db
+    .insert(c)
+    .values({ name: SERVICE, day, n: 1 })
+    .onConflictDoUpdate({
+      target: [c.day, c.name],
+      set: { n: sql`${c.n} + 1` },
+      setWhere: sql`${c.n} < ${limits.daily}`,
+    })
+    .returning({ n: c.n });
+  if (service.length === 0) return false;
   await db.insert(deviceCodes).values({ id: crypto.randomUUID(), ...row });
   return true;
 }

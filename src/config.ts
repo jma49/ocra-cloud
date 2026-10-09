@@ -10,10 +10,16 @@ export type Config = {
   reviewMaxFindings: number;
   /** Login codes (ocra login) the whole service may make per UTC day. */
   deviceDailyCodes: number;
+  /** Login codes one network (an IPv4 address, an IPv6 /64) may ask for per UTC day. */
+  deviceDailyCodesPerNetwork: number;
 };
 
 type Vars = Record<
-  "GATEWAY_DAILY_CALLS" | "REVIEW_DAILY_UPLOADS" | "REVIEW_MAX_FINDINGS" | "DEVICE_DAILY_CODES",
+  | "GATEWAY_DAILY_CALLS"
+  | "REVIEW_DAILY_UPLOADS"
+  | "REVIEW_MAX_FINDINGS"
+  | "DEVICE_DAILY_CODES"
+  | "DEVICE_DAILY_CODES_PER_NETWORK",
   string
 >;
 
@@ -27,6 +33,7 @@ export function config(env: Vars): Config {
       reviewDailyUploads: Number(env.REVIEW_DAILY_UPLOADS),
       reviewMaxFindings: Number(env.REVIEW_MAX_FINDINGS),
       deviceDailyCodes: Number(env.DEVICE_DAILY_CODES),
+      deviceDailyCodesPerNetwork: Number(env.DEVICE_DAILY_CODES_PER_NETWORK),
     };
     parsed.set(env, c);
   }

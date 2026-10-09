@@ -28,6 +28,19 @@ export async function sha256Hex(text: string): Promise<string> {
   return Array.from(digest, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+/** HMAC-SHA-256 of text under secret, as hex: a name for a value that must not be stored. */
+export async function hmacHex(secret: string, text: string): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const mac = new Uint8Array(await crypto.subtle.sign("HMAC", key, enc.encode(text)));
+  return Array.from(mac, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 export function randomToken(prefix: string): string {
   return prefix + base64url(crypto.getRandomValues(new Uint8Array(32)));
 }
