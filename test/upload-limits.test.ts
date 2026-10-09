@@ -120,8 +120,10 @@ describe("the findings allowance", () => {
   }
   const cap = { REVIEW_MAX_FINDINGS: "250" };
 
-  it("is not given back by deleting findings", async () => {
+  it("is not given back by deleting findings, and the web is told what it is", async () => {
     const { web, cli } = await sharingAccount();
+    const shown = await call("/api/account/sharing", { auth: web });
+    expect(await shown.json()).toMatchObject({ findingsAllowance: 20_000 });
     const first = await post(cli, upload("first", 200), cap);
     expect(first.body).toMatchObject({ findings: 200 });
     const removed = await call(`/api/reviews/${first.body.id}`, { method: "DELETE", auth: web });

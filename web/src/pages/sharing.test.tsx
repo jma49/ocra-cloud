@@ -26,7 +26,9 @@ const dataKept = () => screen.getByText("Data kept").nextElementSibling?.textCon
 
 describe("sharing findings", () => {
   it("says so when turning sharing off fails, and keeps the choice open", async () => {
-    fakeSharing(() => Response.json({ shareFindings: true, findingsStored: 3 }));
+    fakeSharing(() =>
+      Response.json({ shareFindings: true, findingsStored: 3, findingsAllowance: 1000 }),
+    );
     render(<Settings me={me} />);
     fireEvent.click(await screen.findByRole("switch"));
     fireEvent.click(screen.getByText("Turn off and delete"));
@@ -35,7 +37,9 @@ describe("sharing findings", () => {
   });
 
   it("does not say no code is kept while findings and their code are sent (audit C2)", async () => {
-    fakeSharing(() => Response.json({ shareFindings: true, findingsStored: 3 }));
+    fakeSharing(() =>
+      Response.json({ shareFindings: true, findingsStored: 3, findingsAllowance: 1000 }),
+    );
     render(<Settings me={me} />);
     expect((await screen.findByRole("switch")).getAttribute("aria-checked")).toBe("true");
     expect(dataKept()).toMatch(/the code they quote/);
@@ -43,7 +47,9 @@ describe("sharing findings", () => {
   });
 
   it("says no code is kept while nothing is sent", async () => {
-    fakeSharing(() => Response.json({ shareFindings: false, findingsStored: 0 }));
+    fakeSharing(() =>
+      Response.json({ shareFindings: false, findingsStored: 0, findingsAllowance: 1000 }),
+    );
     render(<Settings me={me} />);
     expect((await screen.findByRole("switch")).getAttribute("aria-checked")).toBe("false");
     expect(dataKept()).toMatch(/No code, prompts or answers/);
@@ -62,7 +68,7 @@ describe("sharing findings", () => {
     let up = false;
     fakeSharing(() =>
       up
-        ? Response.json({ shareFindings: false, findingsStored: 0 })
+        ? Response.json({ shareFindings: false, findingsStored: 0, findingsAllowance: 1000 })
         : Response.json({ error: "internal" }, { status: 500 }),
     );
     render(<Settings me={me} />);
@@ -71,5 +77,14 @@ describe("sharing findings", () => {
     up = true;
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect((await screen.findByRole("switch")).getAttribute("aria-checked")).toBe("false");
+  });
+
+  it("says how many findings may be sent and that deleting them gives no room back", async () => {
+    fakeSharing(() =>
+      Response.json({ shareFindings: true, findingsStored: 3, findingsAllowance: 1000 }),
+    );
+    render(<Settings me={me} />);
+    await screen.findByRole("switch");
+    screen.getByText(/Up to 1,000 findings can be sent in any 90 days; deleting findings/);
   });
 });

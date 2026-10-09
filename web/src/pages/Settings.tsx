@@ -1,12 +1,16 @@
 import { useState } from "react";
 import { api, type Me } from "../api.js";
-import { date } from "../format.js";
+import { date, num } from "../format.js";
 import { LoadError, Loading, PageHead, useLoad } from "../ui.js";
 
 type SharingLoad = ReturnType<typeof useSharing>;
 
 function useSharing() {
-  return useLoad(() => api<{ shareFindings: boolean; findingsStored: number }>("/account/sharing"));
+  return useLoad(() =>
+    api<{ shareFindings: boolean; findingsStored: number; findingsAllowance: number }>(
+      "/account/sharing",
+    ),
+  );
 }
 
 /**
@@ -160,6 +164,10 @@ function Sharing({ load }: { load: SharingLoad }) {
           replacing secret-looking tokens with [redacted] (this catches common patterns, not every
           secret). You can then open a review's findings here, download them, and remember findings
           so later reviews stop reporting them. Kept 90 days with their review.
+        </span>
+        <span>
+          Up to {num(data.findingsAllowance)} findings can be sent in any 90 days; deleting findings
+          does not give that room back.
         </span>
         <span className="subtle">{data.findingsStored} finding(s) stored now.</span>
         {failed && (
