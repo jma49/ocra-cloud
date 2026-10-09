@@ -10,13 +10,19 @@ import {
   type InferInsertModel,
   type InferSelectModel,
   isNull,
-  lte,
   notInArray,
   sql,
 } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
+import {
+  countFindingsOf,
+  countOne,
+  type DailyKind,
+  findingsCounted,
+  uncountOne,
+} from "./counters.js";
 import { accountTables } from "./schema.js";
 
 type Tables = typeof accountTables;
@@ -35,6 +41,12 @@ export type Where<N extends Name> = { [K in keyof Row<N>]?: Row<N>[K] };
 
 /** A new row's id. */
 export const newId = (): string => crypto.randomUUID();
+
+/** What insertReview did with an upload. */
+type StoredUpload =
+  | { outcome: "stored"; id: string; findingsSkipped: boolean }
+  | { outcome: "duplicate"; id: string }
+  | { outcome: "limited" };
 
 /**
  * The one way to read and write an account's rows: every query filters by
@@ -175,35 +187,9 @@ export function scoped(db: DrizzleD1Database, accountId: string) {
         .get();
       return row?.n ?? 0;
     },
-    /**
-     * Inserts a row, then keeps it only if at most cap rows of this account
-     * created since then were inserted up to and including it (in rowid
-     * order, which D1 assigns one insert at a time). The insert is the
-     * reservation, so parallel callers cannot all pass a count taken before
-     * any of them wrote. Returns whether the row was kept.
-     */
-    async reserve<N extends IdName>(
-      name: N,
-      row: Insert<N>,
-      since: Date,
-      cap: number,
-    ): Promise<string | undefined> {
-      const t = accountTables[name];
-      const seq = sql<number>`rowid`;
-      const id = newId();
-      const [mine] = await db
-        .insert(t)
-        .values({ ...row, id, accountId } as never)
-        .returning({ seq });
-      if (!mine) return undefined;
-      const ahead = await db
-        .select({ n: count() })
-        .from(t)
-        .where(and(own(name), gte(t.createdAt, since), lte(seq, mine.seq)))
-        .get();
-      if ((ahead?.n ?? 0) <= cap) return id;
-      await db.delete(t).where(byId(name, id)).run();
-      return undefined;
+    /** Counts one more of kind today, unless today's count is at cap; returns whether it did. */
+    take(kind: DailyKind, cap: number, now = new Date()): Promise<boolean> {
+      return countOne(db, accountId, kind, cap, now);
     },
     /**
      * Remembers a finding for a repository in one statement, so parallel
@@ -251,36 +237,42 @@ export function scoped(db: DrizzleD1Database, accountId: string) {
      * comes back. The findings go in as one statement over a JSON array, so
      * the number of D1 queries does not grow with them.
      *
-     * Limits are checked inside the same batch, which D1 runs as one
-     * transaction, so concurrent uploads cannot all pass a count taken before
-     * any of them wrote. A review past dailyUploads (counting rows created
-     * since `since`) is removed again and `limited` comes back. Findings that
-     * would take the account past maxFindings are not stored, and
-     * `findingsSkipped` comes back; the review itself is kept.
+     * An upload past dailyUploads today writes nothing and comes back
+     * `limited`. Findings that would take the account past maxFindings
+     * uploaded within the retention window are not stored, and
+     * `findingsSkipped` comes back; the review itself is kept. Deleting
+     * findings does not give the allowance back: it bounds the rows written,
+     * not only the rows kept. Both caps read counter rows (./counters.ts),
+     * and the findings' check and count run in the batch that stores them,
+     * which D1 runs as one transaction, so concurrent uploads cannot all pass.
      */
     async insertReview(
       counts: Omit<NewRow<"reviews">, "id">,
       list: Omit<NewRow<"findings">, "id" | "reviewId">[],
-      limits: { since: Date; dailyUploads: number; maxFindings: number },
-    ): Promise<{ id: string; duplicate: boolean; limited: boolean; findingsSkipped: boolean }> {
-      const review = { ...counts, id: newId() };
+      limits: { dailyUploads: number; maxFindings: number },
+      now = new Date(),
+    ): Promise<StoredUpload> {
       const r = accountTables.reviews;
+      const storedRun = () =>
+        db
+          .select({ id: r.id })
+          .from(r)
+          .where(and(own("reviews"), eq(r.runId, counts.runId)))
+          .get();
+      // A retry of a stored run is answered as such and counts nothing.
+      const before = await storedRun();
+      if (before) return { outcome: "duplicate", id: before.id };
+      if (!(await countOne(db, accountId, "uploads", limits.dailyUploads, now))) {
+        return { outcome: "limited" };
+      }
+      const review = { ...counts, id: newId() };
       const insert = db
         .insert(r)
         .values({ ...review, accountId })
         .onConflictDoNothing({ target: [r.accountId, r.runId] });
-      // Removes this upload's row again when it is past the day's cap.
-      const overCap = db.delete(r).where(
-        and(
-          eq(r.id, review.id),
-          eq(r.accountId, accountId),
-          sql`(SELECT count(*) FROM reviews WHERE account_id = ${accountId}
-            AND created_at >= ${limits.since.getTime()}) > ${limits.dailyUploads}`,
-        ),
-      );
       const rows = JSON.stringify(list.map((f) => ({ ...f, id: newId() })));
-      // Only when the review row above was this upload's own and kept, and
-      // all of its findings fit under the account's cap.
+      // Only when the review row above was this upload's own, and all of its
+      // findings fit in the account's allowance.
       // In the table's column order: insert … select names every column.
       const findings = db.insert(accountTables.findings).select(sql`
         SELECT json_extract(value, '$.id'), ${accountId}, ${review.id},
@@ -295,32 +287,19 @@ export function scoped(db: DrizzleD1Database, accountId: string) {
           unixepoch('subsec') * 1000
         FROM json_each(${rows})
         WHERE EXISTS (SELECT 1 FROM reviews WHERE id = ${review.id} AND account_id = ${accountId})
-          AND (SELECT count(*) FROM findings WHERE account_id = ${accountId})
-            + ${list.length} <= ${limits.maxFindings}`);
-      const [stored, removed, kept] =
+          AND ${findingsCounted(accountId, now)} + ${list.length} <= ${limits.maxFindings}`);
+      const [stored, kept] =
         list.length > 0
-          ? await db.batch([insert, overCap, findings])
-          : await db.batch([insert, overCap]);
+          ? await db.batch([insert, findings, countFindingsOf(db, accountId, review.id, now)])
+          : await db.batch([insert]);
       if (stored.meta.changes > 0) {
-        const limited = removed.meta.changes > 0;
-        return {
-          id: review.id,
-          duplicate: false,
-          limited,
-          findingsSkipped: !limited && list.length > 0 && (kept?.meta.changes ?? 0) === 0,
-        };
+        const findingsSkipped = list.length > 0 && (kept?.meta.changes ?? 0) === 0;
+        return { outcome: "stored", id: review.id, findingsSkipped };
       }
-      const existing = await db
-        .select({ id: r.id })
-        .from(r)
-        .where(and(eq(r.accountId, accountId), eq(r.runId, review.runId)))
-        .get();
-      return {
-        id: existing?.id ?? review.id,
-        duplicate: true,
-        limited: false,
-        findingsSkipped: false,
-      };
+      // A concurrent upload of the same run stored it first: not a second upload.
+      await uncountOne(db, accountId, "uploads", now);
+      const existing = await storedRun();
+      return { outcome: "duplicate", id: existing?.id ?? review.id };
     },
     /**
      * Up to limit rows of this account after the row numbered after, in

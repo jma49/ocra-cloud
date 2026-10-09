@@ -1,8 +1,11 @@
+import { createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import { drizzle } from "drizzle-orm/d1";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { accountTables } from "../src/db/schema.js";
 import { scoped } from "../src/db/scoped.js";
+import app from "../src/index.js";
+import { type CallInit, call, ORIGIN, request, resetDb, signIn, signInCli } from "./helpers.js";
 
 // Audit D3: every scoped read finds the account's rows through an index,
 // never by scanning the table across all accounts.
@@ -54,6 +57,7 @@ const TABLE: Record<string, string> = {
   preferenceVersions: "preference_versions",
   findings: "findings",
   accountMemory: "account_memory",
+  usageCounters: "usage_counters",
 };
 
 describe("query plans", () => {
@@ -102,5 +106,78 @@ describe("query plans", () => {
   it("a review's findings are found by review_id, for the delete's cascade", async () => {
     const p = await plan({ sql: "SELECT id FROM findings WHERE review_id = ?", params: ["r"] });
     expect(p).toMatch(/SEARCH findings USING (COVERING )?INDEX findings_review/);
+  });
+});
+
+/** The plans of every statement a request to the app runs. */
+async function plansOf(path: string, init: CallInit): Promise<string[]> {
+  const seen: Captured[] = [];
+  const ctx = createExecutionContext();
+  const res = await app.fetch(request(path, init), { ...env, DB: recording(seen) }, ctx);
+  await res.arrayBuffer();
+  await waitOnExecutionContext(ctx);
+  expect(res.status).toBe(200);
+  return Promise.all(seen.map(async (q) => `${await plan(q)}\n  for ${q.sql}`));
+}
+
+// Audit C1: a cap is checked by reading the account's counter rows, not by
+// counting its reviews, findings or calls, which grow with use.
+const COUNTED = /\b(findings_account|reviews_account_created|gateway_calls_account_created)\b/;
+
+describe("checking a cap", () => {
+  it("an upload with findings counts none of the account's records", async () => {
+    await resetDb();
+    const web = await signIn(1, "octo");
+    await call("/api/account/sharing", {
+      method: "PUT",
+      auth: web.auth,
+      headers: { origin: ORIGIN },
+      json: { enabled: true },
+    });
+    const { auth } = await signInCli(1, "octo");
+    const plans = await plansOf("/api/reviews", {
+      method: "POST",
+      auth,
+      json: {
+        runId: "run",
+        repoHash: "e".repeat(64),
+        source: "local",
+        findings: { critical: 0, warning: 1, suggestion: 0 },
+        findingList: [
+          {
+            fingerprint: "fp-1",
+            reviewer: "security",
+            severity: "warning",
+            file: "src/a.ts",
+            title: "t",
+            body: "b",
+          },
+        ],
+      },
+    });
+    for (const p of plans) {
+      expect(p).not.toMatch(COUNTED);
+      // json_each is the upload's own findings; a subquery, its one count.
+      expect(p).not.toMatch(/\bSCAN (?!json_each|\(subquery-\d+\))/);
+    }
+    expect(plans.join("\n")).toMatch(/insert into "usage_counters"/);
+  });
+
+  it("a gateway call counts none of the account's calls", async () => {
+    await resetDb();
+    const { auth } = await signIn(1, "octo");
+    await call("/api/keys/openrouter", { method: "PUT", auth, json: { key: "sk-or-0123456789" } });
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => Response.json({}));
+    const plans = await plansOf("/api/gateway/openrouter/v1/chat/completions", {
+      method: "POST",
+      auth,
+      json: { model: "m", messages: [] },
+    });
+    for (const p of plans) {
+      expect(p).not.toMatch(COUNTED);
+      expect(p).not.toMatch(/\bSCAN\b/);
+    }
+    expect(plans.join("\n")).toMatch(/insert into "usage_counters"/);
+    vi.restoreAllMocks();
   });
 });

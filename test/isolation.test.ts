@@ -22,6 +22,7 @@ const changes = {
   preferenceVersions: { changed: ["runtime"] },
   findings: { severity: "critical" },
   accountMemory: { reason: "changed" },
+  usageCounters: { n: 9 },
 } satisfies { [N in keyof typeof rows]: Record<string, unknown> };
 
 // Storage persists across tests in a file; deleting the accounts cascades.
@@ -80,9 +81,11 @@ it("covers every table with a foreign key to accounts, whatever the column's nam
   expect(Object.keys(rows).sort()).toEqual(Object.keys(schema.accountTables).sort());
 });
 
-// Tables whose rows have their own id; preferences is one row per account.
+// Tables whose rows have their own id; preferences is one row per account,
+// and usage counters one per account, kind and day.
+type Keyed = "preferences" | "usageCounters";
 const withIds = (Object.keys(rows) as (keyof typeof rows)[]).filter(
-  (n): n is Exclude<keyof typeof rows, "preferences"> => n !== "preferences",
+  (n): n is Exclude<keyof typeof rows, Keyed> => n !== "preferences" && n !== "usageCounters",
 );
 
 describe.each(withIds)("%s", (name) => {
@@ -154,5 +157,31 @@ describe("preferences, one row per account", () => {
     await b.insert("preferences", { ...rows.preferences("x"), accountId: A } as never);
     expect(await scoped(db, A).findOne("preferences", {})).toBeUndefined();
     expect(await b.findOne("preferences", {})).toMatchObject({ accountId: B });
+  });
+});
+
+describe("usage counters, one row per account, kind and day", () => {
+  it("one account cannot read, count or delete another's, and counts only its own", async () => {
+    const a = scoped(db, A);
+    const b = scoped(db, B);
+    await a.insert("usageCounters", rows.usageCounters("2026-10-09"));
+    expect(await a.list("usageCounters")).toHaveLength(1);
+    expect(await b.list("usageCounters")).toEqual([]);
+    expect(await b.count("usageCounters")).toBe(0);
+    expect(await b.removeWhere("usageCounters", {})).toBe(0);
+    const now = new Date("2026-10-09T12:00:00Z");
+    expect(await b.take("uploads", 1, now)).toBe(true);
+    expect(await b.take("uploads", 1, now)).toBe(false);
+    expect(await a.findOne("usageCounters", { day: "2026-10-09" })).toMatchObject({ n: 1 });
+    expect(await a.take("uploads", 2, now)).toBe(true);
+    expect(await a.findOne("usageCounters", { day: "2026-10-09" })).toMatchObject({ n: 2 });
+    expect(await b.findOne("usageCounters", { day: "2026-10-09" })).toMatchObject({ n: 1 });
+  });
+
+  it("an insert cannot name another account", async () => {
+    const b = scoped(db, B);
+    await b.insert("usageCounters", { ...rows.usageCounters("2026-10-09"), accountId: A } as never);
+    expect(await scoped(db, A).list("usageCounters")).toEqual([]);
+    expect(await b.findOne("usageCounters", {})).toMatchObject({ accountId: B });
   });
 });

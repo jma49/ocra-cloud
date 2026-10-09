@@ -1,11 +1,15 @@
 import { createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, it } from "vitest";
+import { scoped } from "../src/db/scoped.js";
 import app from "../src/index.js";
-import { call, ORIGIN, request, resetDb, signIn, signInCli } from "./helpers.js";
+import { DAY, utcDay } from "../src/time.js";
+import { call, db, ORIGIN, request, resetDb, signIn, signInCli } from "./helpers.js";
 
-// Audit S3: uploads per account per day and stored findings per account are
-// capped, so one account cannot fill the database.
+// Audit S3: uploads per account per day and shared findings per account are
+// capped, so one account cannot fill the database. Audit C1: the findings
+// counted are those sent within the retention window, so the cap bounds the
+// rows written as well as the rows kept.
 
 beforeEach(resetDb);
 
@@ -99,5 +103,40 @@ describe("review upload limits", () => {
     expect(detail.findings).toHaveLength(0);
     // Findings that fit still go in.
     expect((await post(auth, upload("third", 50), cap)).body).toMatchObject({ findings: 50 });
+  });
+});
+
+describe("the findings allowance", () => {
+  async function sharingAccount() {
+    const web = await signIn(1, "octo");
+    await call("/api/account/sharing", {
+      method: "PUT",
+      auth: web.auth,
+      headers: { origin: ORIGIN },
+      json: { enabled: true },
+    });
+    const cli = await signInCli(1, "octo");
+    return { web: web.auth, cli: cli.auth, data: scoped(db, web.account.id) };
+  }
+  const cap = { REVIEW_MAX_FINDINGS: "250" };
+
+  it("is not given back by deleting findings", async () => {
+    const { web, cli } = await sharingAccount();
+    const first = await post(cli, upload("first", 200), cap);
+    expect(first.body).toMatchObject({ findings: 200 });
+    const removed = await call(`/api/reviews/${first.body.id}`, { method: "DELETE", auth: web });
+    expect(await removed.json()).toEqual({ removed: true });
+    const second = await post(cli, upload("second", 100), cap);
+    expect(second.body).toMatchObject({ findings: 0, findingsSkipped: "account_limit" });
+  });
+
+  it("counts the findings sent within the retention window only", async () => {
+    const { cli, data } = await sharingAccount();
+    const day = (daysAgo: number) => utcDay(new Date(Date.now() - daysAgo * DAY));
+    await data.insert("usageCounters", { kind: "findings", day: day(91), n: 250 });
+    expect((await post(cli, upload("a", 100), cap)).body).toMatchObject({ findings: 100 });
+    await data.insert("usageCounters", { kind: "findings", day: day(90), n: 100 });
+    const b = await post(cli, upload("b", 100), cap);
+    expect(b.body).toMatchObject({ findings: 0, findingsSkipped: "account_limit" });
   });
 });

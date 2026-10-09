@@ -44,4 +44,6 @@ export const rows = {
     fingerprint: `fp-${id}`,
     reason: "accepted",
   }),
+  // One row per account, kind and day; the id names the day.
+  usageCounters: (id: string) => ({ kind: "uploads" as const, day: id, n: 1 }),
 } satisfies { [N in keyof typeof schema.accountTables]: (id: string) => unknown };

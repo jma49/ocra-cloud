@@ -12,7 +12,7 @@ import * as schema from "../src/db/schema.js";
 import { scoped } from "../src/db/scoped.js";
 import { EXPORTED } from "../src/export.js";
 import worker from "../src/index.js";
-import { DAY } from "../src/time.js";
+import { DAY, utcDay } from "../src/time.js";
 import { call, db, resetDb, signIn, signInCli } from "./helpers.js";
 import { rows } from "./table-rows.js";
 
@@ -48,6 +48,7 @@ describe("retention", () => {
         createdAt: ago(days),
       });
       await d.insert("auditEvents", { id, kind: "k", createdAt: ago(days) });
+      await d.insert("usageCounters", { kind: "findings", day: utcDay(ago(days)), n: 1 });
     }
     // A CLI session whose access token expired but whose refresh token lives.
     await d.insert("sessions", {
@@ -64,6 +65,7 @@ describe("retention", () => {
     for (const t of ["reviews", "gatewayCalls", "auditEvents"] as const) {
       expect((await d.list(t)).map((r) => r.id)).toEqual(["new"]);
     }
+    expect((await d.list("usageCounters")).map((c) => c.day)).toEqual([utcDay(ago(89))]);
     const ids = (await d.list("sessions")).map((s) => s.id);
     expect(ids).toContain("cli-live");
     expect(ids).not.toContain("web-dead");

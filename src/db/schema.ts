@@ -7,7 +7,15 @@ import {
   VERIFICATIONS,
 } from "@open-cr-agent/cloud-contract";
 import { sql } from "drizzle-orm";
-import { index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import {
+  index,
+  integer,
+  primaryKey,
+  real,
+  sqliteTable,
+  text,
+  uniqueIndex,
+} from "drizzle-orm/sqlite-core";
 import type { AgentPrefs, ModelChains, ReviewerCounts, ReviewSettings } from "../shared/index.js";
 
 // Every table but accounts carries accountId, and is read and written only
@@ -257,6 +265,22 @@ export const accountMemory = sqliteTable(
   (t) => [index("account_memory_account").on(t.accountId)],
 );
 
+// What an account used on a UTC day, counted as it happens, so a cap is
+// checked by reading a row or a few instead of counting the account's
+// records (audit C1). Kept RETENTION_DAYS, like the records.
+export const usageCounters = sqliteTable(
+  "usage_counters",
+  {
+    accountId: accountId(),
+    kind: text("kind", { enum: ["uploads", "gateway_calls", "findings"] }).notNull(),
+    /** The UTC date, YYYY-MM-DD. */
+    day: text("day").notNull(),
+    n: integer("n").notNull().default(0),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.accountId, t.kind, t.day] })],
+);
+
 /** The tables scoped by account, by the name scoped() uses. */
 export const accountTables = {
   sessions,
@@ -268,4 +292,5 @@ export const accountTables = {
   preferenceVersions,
   findings,
   accountMemory,
+  usageCounters,
 } as const;

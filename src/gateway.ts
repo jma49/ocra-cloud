@@ -5,7 +5,6 @@ import { apiError } from "./http.js";
 import { keyFor, masterKeys } from "./keyring.js";
 import { applyAuth, isProvider, matchRoute, PASS_HEADERS, providers } from "./providers.js";
 import { requireSession } from "./session.js";
-import { utcDayStart } from "./time.js";
 import type { AppEnv } from "./types.js";
 
 // Forwards one model call with the user's stored key. The request body goes
@@ -33,14 +32,13 @@ gateway.post("/:provider/*", async (c) => {
   if (!key) return apiError(c, "no_key", { provider: name });
   const model = match.model ?? topLevelModel(body);
 
-  // The call's row is written before forwarding and is the reservation
-  // against the daily cap, so parallel calls cannot all pass, and a call
-  // that never finishes still shows in the log. It is updated at the end.
-  const today = utcDayStart();
+  // Counted against the daily cap before forwarding, in one statement, so
+  // parallel calls cannot all pass. The call's row is written before
+  // forwarding too, so a call that never finishes still shows in the log;
+  // it is updated at the end.
   const cap = config(c.env).gatewayDailyCalls;
-  const row = { provider: name, path, model, status: PENDING };
-  const id = await data.reserve("gatewayCalls", row, today, cap);
-  if (!id) return apiError(c, "daily_limit", { limit: cap });
+  if (!(await data.take("gateway_calls", cap))) return apiError(c, "daily_limit", { limit: cap });
+  const id = await data.insert("gatewayCalls", { provider: name, path, model, status: PENDING });
 
   const headers = new Headers({
     "content-type": c.req.header("content-type") ?? "application/json",
