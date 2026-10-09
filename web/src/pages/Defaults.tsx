@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { formatModelId, parseModelId } from "../../../src/shared/index.js";
 import { loadKeys } from "../account-keys.js";
-import { api } from "../api.js";
+import { ApiError, api, why } from "../api.js";
 import { ago } from "../format.js";
 import { type Prefs, type Settings, usePrefs } from "../prefs.js";
 import { useToast } from "../toast.js";
@@ -115,6 +115,20 @@ function importConfig(text: string, current: Prefs, keyed: Set<string>): Importe
   };
 }
 
+/**
+ * Why a restore did not happen. `stale`: saves from another tab or the CLI
+ * kept landing first, so the same restore can simply be tried again (#92).
+ */
+function restoreError(e: unknown): string {
+  if (e instanceof ApiError && e.code === "version_no_longer_valid") {
+    return "That version no longer fits today's rules";
+  }
+  if (e instanceof ApiError && e.code === "stale") {
+    return "Not restored: your settings were being saved elsewhere at the same moment; try again";
+  }
+  return `Not restored: ${why(e)}`;
+}
+
 export function Defaults() {
   const { draft, setDraft } = usePrefs();
   const toast = useToast();
@@ -141,8 +155,8 @@ export function Defaults() {
     try {
       await api(`/preferences/versions/${id}/restore`, { method: "POST" });
       location.reload();
-    } catch {
-      toast("That version no longer fits today's rules");
+    } catch (e) {
+      toast(restoreError(e));
     }
   };
 
