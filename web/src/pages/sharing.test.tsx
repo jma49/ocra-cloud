@@ -1,26 +1,75 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Sharing } from "./Settings.js";
+import { Settings } from "./Settings.js";
 
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
 });
 
+const me = { login: "ada", githubId: 1, session: "web" as const, since: "2026-10-01T00:00:00Z" };
+const never = () => new Promise<Response>(() => {});
+
+/** GET /api/account/sharing answers with `sharing`; anything else fails. */
+function fakeSharing(sharing: () => Response | Promise<Response>) {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string, init?: RequestInit) =>
+      String(input).endsWith("/account/sharing") && init?.method !== "PUT"
+        ? sharing()
+        : Response.json({ error: "internal" }, { status: 500 }),
+    ),
+  );
+}
+
+const dataKept = () => screen.getByText("Data kept").nextElementSibling?.textContent ?? "";
+
 describe("sharing findings", () => {
   it("says so when turning sharing off fails, and keeps the choice open", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (_input: string, init?: RequestInit) =>
-        init?.method === "PUT"
-          ? Response.json({ error: "internal" }, { status: 500 })
-          : Response.json({ shareFindings: true, findingsStored: 3 }),
-      ),
-    );
-    render(<Sharing />);
+    fakeSharing(() => Response.json({ shareFindings: true, findingsStored: 3 }));
+    render(<Settings me={me} />);
     fireEvent.click(await screen.findByRole("switch"));
     fireEvent.click(screen.getByText("Turn off and delete"));
     await waitFor(() => expect(screen.getByRole("alert").textContent).toMatch(/Could not change/));
     expect(screen.getByText("Turn off and delete")).toBeTruthy();
+  });
+
+  it("does not say no code is kept while findings and their code are sent (audit C2)", async () => {
+    fakeSharing(() => Response.json({ shareFindings: true, findingsStored: 3 }));
+    render(<Settings me={me} />);
+    expect((await screen.findByRole("switch")).getAttribute("aria-checked")).toBe("true");
+    expect(dataKept()).toMatch(/the code they quote/);
+    expect(dataKept()).not.toMatch(/No code/);
+  });
+
+  it("says no code is kept while nothing is sent", async () => {
+    fakeSharing(() => Response.json({ shareFindings: false, findingsStored: 0 }));
+    render(<Settings me={me} />);
+    expect((await screen.findByRole("switch")).getAttribute("aria-checked")).toBe("false");
+    expect(dataKept()).toMatch(/No code, prompts or answers/);
+  });
+
+  it("shows the setting loading, and says no code is kept only once it is known", async () => {
+    fakeSharing(never);
+    render(<Settings me={me} />);
+    await screen.findByText(/Loading the sharing setting/);
+    expect(screen.queryByRole("switch")).toBeNull();
+    expect(dataKept()).toMatch(/prompts or answers/);
+    expect(dataKept()).not.toMatch(/No code/);
+  });
+
+  it("says when the setting could not load, and tries again", async () => {
+    let up = false;
+    fakeSharing(() =>
+      up
+        ? Response.json({ shareFindings: false, findingsStored: 0 })
+        : Response.json({ error: "internal" }, { status: 500 }),
+    );
+    render(<Settings me={me} />);
+    await screen.findByText("Could not load the sharing setting");
+    expect(dataKept()).not.toMatch(/No code/);
+    up = true;
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect((await screen.findByRole("switch")).getAttribute("aria-checked")).toBe("false");
   });
 });
