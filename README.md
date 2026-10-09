@@ -34,4 +34,4 @@ The engine's `@open-cr-agent/cloud-contract` (schemas, limits, vocabularies, red
 
 Vitest stays on the major `@cloudflare/vitest-pool-workers` supports (Vitest 4 for 0.22); Dependabot does not offer its next major on its own. Node is the version in `.nvmrc`, which CI reads too.
 
-Production address: https://app.ocracloud.com (custom domain on the Worker); https://ocra-cloud.majincheng990128.workers.dev stays on for development. Workers free plan.
+Production address: https://app.ocracloud.com (custom domain on the Worker); https://ocra-cloud.majincheng990128.workers.dev stays on for development. Workers free plan: its daily D1 rows and Worker requests are shared by every account, so the caps in `wrangler.jsonc` are sized for it, and `test/quota-budget.test.ts` measures what each request costs and checks that five accounts at every cap use at most half of each quota.
