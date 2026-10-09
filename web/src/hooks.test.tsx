@@ -1,5 +1,6 @@
 import { act, cleanup, render, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { loadKeys } from "./account-keys.js";
 import { PrefsProvider } from "./prefs.js";
 import { matchRoute, NAV_GROUPS } from "./routes.js";
 import { useLoad } from "./ui.js";
@@ -72,5 +73,13 @@ describe("the routes", () => {
     expect(matchRoute("/reviews/%E0")).toBeUndefined();
     expect(matchRoute("/keys")?.route.prefs).toBeUndefined();
     expect(matchRoute("/nope")).toBeUndefined();
+  });
+
+  it("start the keys a page shows with /me, not after it (audit C11)", () => {
+    for (const path of ["/", "/keys", "/agents", "/models", "/defaults"]) {
+      expect(matchRoute(path)?.route.loads, path).toContain(loadKeys);
+    }
+    // Nothing for a page that does not show them: the read costs the server.
+    expect(matchRoute("/sessions")?.route.loads).toBeUndefined();
   });
 });

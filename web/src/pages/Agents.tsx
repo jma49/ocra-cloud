@@ -7,7 +7,8 @@ import {
   parseModelId,
   ROLES,
 } from "../../../src/shared/index.js";
-import { api, type Key, type ProviderInfo } from "../api.js";
+import { loadKeys } from "../account-keys.js";
+import { api, type ProviderInfo } from "../api.js";
 import { type AgentPrefs, type Effort, type Prefs, type Tier, usePrefs } from "../prefs.js";
 import { Link } from "../router.js";
 import { PageHead, Seg, useLoad, useProviders } from "../ui.js";
@@ -49,7 +50,7 @@ function useModelInfo(providers: string[]) {
 
 export function Agents() {
   const providers = useProviders();
-  const { data: keys } = useLoad(() => api<{ keys: Key[] }>("/keys"));
+  const { data: keys } = useLoad(loadKeys);
   const { draft, setDraft } = usePrefs();
 
   const usable = useMemo(() => {
