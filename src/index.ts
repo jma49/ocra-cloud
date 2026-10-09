@@ -40,10 +40,9 @@ app.use(async (c, next) => {
   await next();
 });
 
-app.get("/health", async (c) => {
-  const row = await c.env.DB.prepare("select 1 as ok").first<{ ok: number }>();
-  return c.json({ ok: row?.ok === 1 });
-});
+// Needs no session, so it reads nothing: on the Free plan D1's rows are a
+// daily quota shared by every account (audit C1).
+app.get("/health", (c) => c.json({ ok: true }));
 
 app.route("/auth", auth);
 app.route("/device", device);
