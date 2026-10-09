@@ -100,6 +100,47 @@ describe("the gateway", () => {
     await waitOnExecutionContext(ctx);
     expect(await scoped(db, account.id).list("gatewayCalls")).toMatchObject([{ status: 499 }]);
   });
+
+  it("records a client that leaves mid-answer as gone, not as an upstream failure", async () => {
+    const { auth, account } = await withKey();
+    // An answer that has started, and breaks off if its fetch's signal aborts.
+    vi.spyOn(globalThis, "fetch")
+      .mockClear()
+      .mockImplementation(async (_input, init) => {
+        const signal = init?.signal;
+        return new Response(
+          new ReadableStream<Uint8Array>({
+            start(controller) {
+              controller.enqueue(
+                new TextEncoder().encode('data: {"usage":{"input_tokens":3}}\n\n'),
+              );
+              signal?.addEventListener("abort", () => controller.error(signal.reason));
+            },
+          }),
+          { headers: { "content-type": "text/event-stream" } },
+        );
+      });
+    const client = new AbortController();
+    const ctx = createExecutionContext();
+    const res = await app.fetch(
+      request(GATEWAY, { method: "POST", auth, json: chat, signal: client.signal }),
+      env,
+      ctx,
+    );
+    const reader = (res.body as ReadableStream<Uint8Array>).getReader();
+    expect((await reader.read()).done).toBe(false);
+    // The runtime keeps reading the answer to send it on; then the client
+    // disconnects, which aborts the request's signal and cancels the answer.
+    const waiting = reader.read().catch(() => null);
+    client.abort();
+    await scheduler.wait(10);
+    await reader.cancel().catch(() => {});
+    await waiting;
+    await waitOnExecutionContext(ctx);
+    expect(await scoped(db, account.id).list("gatewayCalls")).toMatchObject([
+      { status: 499, tokensIn: 3 },
+    ]);
+  });
 });
 
 describe("GitHub sign-in", () => {
