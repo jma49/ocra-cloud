@@ -8,6 +8,10 @@ const expected = {
   "x-content-type-options": "nosniff",
   "referrer-policy": "no-referrer",
   "content-security-policy": "default-src 'none'; frame-ancestors 'none'",
+  // Audit C8: HTTPS only, no powerful features, no opener across origins.
+  "strict-transport-security": "max-age=31536000; includeSubDomains",
+  "permissions-policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+  "cross-origin-opener-policy": "same-origin",
 };
 
 describe("API response headers", () => {
