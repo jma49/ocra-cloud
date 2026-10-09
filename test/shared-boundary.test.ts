@@ -86,6 +86,16 @@ describe("the shared domain module", () => {
   });
 });
 
+describe("the account tables", () => {
+  it("are imported only inside src/db/", () => {
+    expect(Object.keys(worker).length).toBeGreaterThan(20);
+    const outside = imports(worker).filter(
+      ([from, to]) => to.startsWith("src/db/schema") && !from.startsWith("src/db/"),
+    );
+    expect(outside).toEqual([]);
+  });
+});
+
 describe("model ids", () => {
   it("takes an ocra-<provider>/<model> name apart and puts it back", () => {
     expect(parseModelId("ocra-openrouter/qwen/qwen3.8-27b:free")).toEqual({
