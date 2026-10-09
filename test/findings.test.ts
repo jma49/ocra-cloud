@@ -1,4 +1,4 @@
-import { redact } from "@open-cr-agent/cloud-contract";
+import { MAX_FIELD, redact, redactField } from "@open-cr-agent/cloud-contract";
 import vectors from "@open-cr-agent/cloud-contract/fixtures/redaction-vectors.json";
 import { beforeEach, describe, expect, it } from "vitest";
 import { parseFindings } from "../src/findings.js";
@@ -33,16 +33,64 @@ describe("redaction", () => {
 });
 
 describe("finding bounds", () => {
-  it("keeps 200 findings, cuts long fields, and drops malformed ones", () => {
+  it("keeps 200 findings, drops malformed and over-long ones, and drops long optional fields", () => {
     const many = Array.from({ length: 250 }, (_, i) => finding({ fingerprint: `fp-${i}` }));
     expect(parseFindings(many)).toMatchObject({ truncated: true });
     expect(parseFindings(many).rows).toHaveLength(200);
-    const long = parseFindings([finding({ body: "x".repeat(10_000) })]).rows[0];
-    expect(long?.body).toHaveLength(4096);
-    expect(long?.truncated).toBe(true);
+    const over = "x".repeat(MAX_FIELD + 1);
     expect(
-      parseFindings([finding({ severity: "fatal" }), finding({ reviewer: "bad id" }), { nope: 1 }]),
-    ).toMatchObject({ rows: [], dropped: 3 });
+      parseFindings([
+        finding({ severity: "fatal" }),
+        finding({ reviewer: "bad id" }),
+        { nope: 1 },
+        finding({ title: over }),
+        finding({ body: over }),
+      ]),
+    ).toMatchObject({ rows: [], dropped: 5 });
+    const [row] = parseFindings([finding({ category: over, suggestion: over, code: over })]).rows;
+    expect(row).toMatchObject({ category: null, suggestion: null, code: null });
+  });
+
+  it("cuts a field that redaction makes longer back to the cap", () => {
+    // Each credential grows by two characters as [redacted].
+    const body = "Bearer abcd1234 ".repeat(MAX_FIELD / 16);
+    const [row] = parseFindings([finding({ body })]).rows;
+    expect(row?.body).toHaveLength(MAX_FIELD);
+    expect(row?.body).not.toContain("abcd1234");
+    expect(row).toMatchObject({ redacted: true, truncated: true });
+  });
+
+  it("cuts a category at 64 characters", () => {
+    const [row] = parseFindings([finding({ category: "c".repeat(100) })]).rows;
+    expect(row?.category).toBe("c".repeat(64));
+    expect(row?.truncated).toBe(true);
+  });
+
+  it("stores what a 0.6.0 CLI sends (redacted, then cut) and what a 0.7.0 CLI sends (cut, then redacted)", () => {
+    const secret = `ghp_${"Ab3dE5gH7jK9mN1pQ2rS4tU6vW8xY0z".repeat(2)}`;
+    const long = `${"word ".repeat(900)}${secret} ${"tail ".repeat(400)}`;
+    const v060 = (value: string) => redact(value).text.slice(0, MAX_FIELD);
+    const v070 = (value: string) => redactField(value).text;
+    for (const cut of [v060, v070]) {
+      const sent = finding({
+        title: cut(`Token ${secret} in a test`),
+        body: cut(long),
+        code: cut(`const t = "${secret}";`),
+        redacted: true,
+        truncated: true,
+      });
+      const parsed = parseFindings([sent]);
+      expect(parsed.dropped).toBe(0);
+      expect(parsed.rows[0]).toMatchObject({
+        title: sent.title,
+        body: sent.body,
+        code: sent.code,
+        redacted: true,
+        truncated: true,
+      });
+      expect(sent.body).toHaveLength(MAX_FIELD);
+      expect(JSON.stringify(parsed.rows)).not.toContain(secret);
+    }
   });
 
   it("keeps findings of every reviewer id the engine makes (audit K-models)", () => {
@@ -171,5 +219,33 @@ describe("sharing findings", () => {
     ).json()) as { id: string };
     expect((await call(`/api/reviews/${posted.id}`, { auth: b.auth })).status).toBe(404);
     expect((await call(`/api/reviews/${posted.id}/export`, { auth: b.auth })).status).toBe(404);
+  });
+});
+
+describe("an upload with crafted long fields", () => {
+  // Audit E11: with redaction before the cut, 80k characters of a run such
+  // as `a.a.a…` held the handler for 15 s or more per field.
+  it("is answered within a second", { timeout: 300_000 }, async () => {
+    const web = await signIn(1, "octo");
+    await call("/api/account/sharing", {
+      method: "PUT",
+      auth: web.auth,
+      headers: { origin: "https://ocra.test" },
+      json: { enabled: true },
+    });
+    const run = (unit: string, size = 80_000) => unit.repeat(size / unit.length);
+    const list = [
+      finding({ fingerprint: "fp-title", title: run("a.") }),
+      finding({ fingerprint: "fp-code", body: run("a-", MAX_FIELD), code: run("a-") }),
+    ];
+    const start = Date.now();
+    const res = await call("/api/reviews", {
+      method: "POST",
+      auth: web.auth,
+      json: upload("run-crafted", list),
+    });
+    expect(Date.now() - start).toBeLessThan(1_000);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ findings: 1, dropped: { findings: 1 } });
   });
 });
