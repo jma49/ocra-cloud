@@ -31,7 +31,8 @@ jobs:
       - run: npx wrangler deploy --dry-run --outdir /tmp/bundle
 
   # Conventional Commits and no AI attribution, with the engine's own checks
-  # (AGENTS.md, Working with agents).
+  # (AGENTS.md, Working with agents). Pinned by commit, so a push to the
+  # engine's main cannot change what runs here; Dependabot bumps the pin.
   commits:
     if: github.event_name == 'pull_request'
-    uses: jma49/Open-CR-Agent/.github/workflows/commits.yml@main
+    uses: jma49/Open-CR-Agent/.github/workflows/commits.yml@82a3f1183a3177e9efa401d87eb95dea495ef619 # v0.6.0
