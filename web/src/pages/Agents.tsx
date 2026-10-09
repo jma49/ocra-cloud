@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import {
   type AgentRole,
   BUILT_IN_REVIEWERS,
@@ -87,8 +87,11 @@ export function Agents() {
   }
   if (!draft) return <PageHead title="Agents" />;
 
-  const set = (next: Prefs) => setDraft(next);
-  const setAgents = (agents: AgentPrefs) => set({ ...draft, agents });
+  // Every write starts from the latest draft, never this render's copy, so
+  // two writes before a render cannot drop one (the W1 bug class).
+  const set = (change: (prev: Prefs) => Prefs) => setDraft(change);
+  const setAgents = (change: (prev: AgentPrefs) => AgentPrefs) =>
+    set((prev) => ({ ...prev, agents: change(prev.agents) }));
   const tierEffort = (t: Tier) => draft.agents.effort?.[t];
   return (
     <>
@@ -115,7 +118,10 @@ export function Agents() {
               { value: "opencode", label: "OpenCode" },
             ]}
             onChange={(v) =>
-              set({ ...draft, runtime: v === "default" ? null : (v as "direct" | "opencode") })
+              set((prev) => ({
+                ...prev,
+                runtime: v === "default" ? null : (v as "direct" | "opencode"),
+              }))
             }
           />
         </div>
@@ -138,15 +144,16 @@ export function Agents() {
               <ChainEditor
                 chain={draft.models[t.id] ?? []}
                 usable={usable}
-                info={info}
-                onChange={(chain) => set({ ...draft, models: { ...draft.models, [t.id]: chain } })}
+                onChange={(chain) =>
+                  set((prev) => ({ ...prev, models: { ...prev.models, [t.id]: chain } }))
+                }
               />
             </div>
             <EffortSelect
               value={tierEffort(t.id)}
               levels={effortsOf(draft.models[t.id]?.[0])}
               onChange={(e) =>
-                setAgents({ ...draft.agents, effort: { ...draft.agents.effort, [t.id]: e } })
+                setAgents((prev) => ({ ...prev, effort: { ...prev.effort, [t.id]: e } }))
               }
             />
           </div>
@@ -183,19 +190,17 @@ export function Agents() {
                   enabled?: boolean | undefined;
                   models?: Chain | undefined;
                   effort?: Effort | undefined;
-                }) => {
-                  const merged = { ...own, ...patch };
-                  for (const k of Object.keys(merged) as (keyof typeof merged)[])
-                    if (merged[k] === undefined) delete merged[k];
-                  const next = merged as NonNullable<typeof own>;
-                  if (a.role)
-                    setAgents({ ...draft.agents, roles: { ...draft.agents.roles, [a.id]: next } });
-                  else
-                    setAgents({
-                      ...draft.agents,
-                      reviewers: { ...draft.agents.reviewers, [a.id]: next },
-                    });
-                };
+                }) =>
+                  setAgents((prev) => {
+                    const mine = a.role ? prev.roles?.[a.id as AgentRole] : prev.reviewers?.[a.id];
+                    const merged = { ...mine, ...patch };
+                    for (const k of Object.keys(merged) as (keyof typeof merged)[])
+                      if (merged[k] === undefined) delete merged[k];
+                    const next = merged as NonNullable<typeof mine>;
+                    return a.role
+                      ? { ...prev, roles: { ...prev.roles, [a.id]: next } }
+                      : { ...prev, reviewers: { ...prev.reviewers, [a.id]: next } };
+                  });
                 const model = own?.models?.[0] ?? draft.models[a.tier]?.[0];
                 const enabled = a.role
                   ? true
@@ -227,7 +232,6 @@ export function Agents() {
                         <ChainEditor
                           chain={own.models}
                           usable={usable}
-                          info={info}
                           onChange={(c) => update({ models: c.length ? c : undefined })}
                         />
                       ) : (
@@ -266,6 +270,7 @@ export function Agents() {
           </table>
         </div>
       </div>
+      <ModelLists usable={usable} info={info} />
       <p className="subtle small footnote">
         Plugin reviewers can be set in the repository's configuration. Effort levels shown are the
         ones the model is known to take; a level a provider refuses is dropped for that run with a
@@ -332,10 +337,34 @@ function EffortSelect(props: {
   );
 }
 
+/** The datalist a model field of this provider suggests from (ModelLists). */
+const modelListId = (provider: string) => `models-${provider}`;
+
+/**
+ * One list of model ids per usable provider, for every row to share: a list
+ * per row repeated ids and up to 2,000 options a row. Memoized, so typing in
+ * a row does not render them again.
+ */
+const ModelLists = memo(function ModelLists(props: {
+  usable: ProviderInfo[];
+  info: Record<string, ModelInfo[]>;
+}) {
+  return (
+    <>
+      {props.usable.map((p) => (
+        <datalist key={p.name} id={modelListId(p.name)}>
+          {(props.info[p.name] ?? []).map((x) => (
+            <option key={x.id} value={x.id} />
+          ))}
+        </datalist>
+      ))}
+    </>
+  );
+});
+
 function ChainEditor(props: {
   chain: Chain;
   usable: ProviderInfo[];
-  info: Record<string, ModelInfo[]>;
   onChange: (chain: Chain) => void;
 }) {
   const rows = props.chain.length ? props.chain : [];
@@ -345,7 +374,6 @@ function ChainEditor(props: {
     <div className="chain">
       {rows.map((m, i) => {
         const { provider, model } = split(m);
-        const listId = `chain-${provider}`;
         return (
           // biome-ignore lint/suspicious/noArrayIndexKey: a row is a position in the fallback chain; keying by the model id would remount it on every keystroke
           <div key={`${i}-${provider}`} className="chain-row">
@@ -364,16 +392,11 @@ function ChainEditor(props: {
             <input
               className="input mono chain-model"
               aria-label="Model"
-              list={listId}
+              list={modelListId(provider)}
               placeholder="Model id"
               value={model}
               onChange={(e) => setAt(i, formatModelId(provider, e.target.value))}
             />
-            <datalist id={listId}>
-              {(props.info[provider] ?? []).map((x) => (
-                <option key={x.id} value={x.id} />
-              ))}
-            </datalist>
             <button
               type="button"
               className="btn btn-sm btn-danger"
