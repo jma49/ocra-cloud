@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import type { SessionAccount } from "./db/accounts.js";
 import type { Scoped } from "./db/scoped.js";
 import { requireSession } from "./session.js";
 import type { AppEnv } from "./types.js";
@@ -67,54 +68,18 @@ const SHAPES: Partial<Record<Table, (row: never) => unknown>> = {
 };
 
 exportRoute.get("/", (c) => {
-  const d = c.var.data;
-  const { account: a } = c.var.session;
-  const tables = Object.entries(EXPORTED).map(
-    ([table, key]) => [key, table as Table, SHAPES[table as Table] ?? strip] as const,
-  );
+  const chunks = exportChunks(c.var.data, c.var.session.account);
   const enc = new TextEncoder();
+  // One chunk per pull, so a page is read only once the client has taken
+  // the last (audit C9); a slow client never makes the Worker queue tables.
   const body = new ReadableStream<Uint8Array>({
-    async start(out) {
-      const put = (text: string) => out.enqueue(enc.encode(text));
-      try {
-        put(`{"exportedAt":${JSON.stringify(new Date())}`);
-        put(
-          `,"account":${JSON.stringify({
-            login: a.login,
-            githubId: a.githubId,
-            createdAt: a.createdAt,
-            shareFindings: a.shareFindings,
-            // The repository-hash salt, held once findings were shared (null before).
-            salt: a.salt,
-          })}`,
-        );
-        const truncated: string[] = [];
-        for (const [key, table, shape] of tables) {
-          put(`,${JSON.stringify(key)}:[`);
-          let after = 0;
-          let written = 0;
-          for (;;) {
-            const page = await d.page(table, after, EXPORT_PAGE);
-            for (const row of page.rows) {
-              if (written >= EXPORT_MAX_ROWS) break;
-              put(`${written > 0 ? "," : ""}${JSON.stringify(shape(row as never))}`);
-              written++;
-            }
-            if (page.next === null) break;
-            if (written >= EXPORT_MAX_ROWS) {
-              truncated.push(key);
-              break;
-            }
-            after = page.next;
-          }
-          put("]");
-        }
-        if (truncated.length > 0) put(`,"truncated":${JSON.stringify(truncated)}`);
-        put("}");
-        out.close();
-      } catch (e) {
-        out.error(e);
-      }
+    async pull(out) {
+      const next = await chunks.next();
+      if (next.done) out.close();
+      else out.enqueue(enc.encode(next.value));
+    },
+    async cancel() {
+      await chunks.return(undefined);
     },
   });
   return new Response(body, {
@@ -124,6 +89,42 @@ exportRoute.get("/", (c) => {
     },
   });
 });
+
+type Account = SessionAccount["account"];
+
+/** The export's JSON text: the account, then each table a page at a time. */
+async function* exportChunks(d: Scoped, a: Account): AsyncGenerator<string, void> {
+  yield `{"exportedAt":${JSON.stringify(new Date())},"account":${JSON.stringify({
+    login: a.login,
+    githubId: a.githubId,
+    createdAt: a.createdAt,
+    shareFindings: a.shareFindings,
+    // The repository-hash salt, held once findings were shared (null before).
+    salt: a.salt,
+  })}`;
+  const truncated: string[] = [];
+  for (const [table, key] of Object.entries(EXPORTED) as [Table, string][]) {
+    const shape = SHAPES[table] ?? strip;
+    let text = `,${JSON.stringify(key)}:[`;
+    let after = 0;
+    let written = 0;
+    for (;;) {
+      const page = await d.page(table, after, EXPORT_PAGE);
+      for (const row of page.rows) {
+        if (written >= EXPORT_MAX_ROWS) break;
+        text += `${written > 0 ? "," : ""}${JSON.stringify(shape(row as never))}`;
+        written++;
+      }
+      if (page.next !== null && written >= EXPORT_MAX_ROWS) truncated.push(key);
+      if (page.next === null || written >= EXPORT_MAX_ROWS) break;
+      after = page.next;
+      yield text;
+      text = "";
+    }
+    yield `${text}]`;
+  }
+  yield `${truncated.length > 0 ? `,"truncated":${JSON.stringify(truncated)}` : ""}}`;
+}
 
 function strip<T extends { accountId: string }>({ accountId: _a, ...r }: T) {
   return r;
