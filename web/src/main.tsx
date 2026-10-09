@@ -1,11 +1,12 @@
 import { lazy, StrictMode, Suspense, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { api, type Me } from "./api.js";
+import { ApiError, api, type Me } from "./api.js";
 import { Footer, TopBar } from "./chrome.js";
 import { completeAgents } from "./pages/Agents.js";
 import { PrefsProvider } from "./prefs.js";
 import { Link, usePath } from "./router.js";
 import { matchRoute, NAV_GROUPS } from "./routes.js";
+import { rememberSignedIn, wasSignedIn } from "./signed-in.js";
 import { SignIn } from "./signin.js";
 import { DOCS } from "./site.js";
 import { ToastProvider } from "./toast.js";
@@ -18,9 +19,21 @@ function App() {
   const [me, setMe] = useState<Me | null | undefined>(undefined);
   const path = usePath();
   useEffect(() => {
-    // With /me, not after it: the first page's reads are already on their way.
-    for (const load of matchRoute(location.pathname)?.route.loads ?? []) load().catch(() => {});
-    api<Me>("/me").then(setMe, () => setMe(null));
+    // With /me, not after it, in a browser that was signed in: the first
+    // page's reads are already on their way.
+    if (wasSignedIn()) {
+      for (const load of matchRoute(location.pathname)?.route.loads ?? []) load().catch(() => {});
+    }
+    api<Me>("/me").then(
+      (m) => {
+        rememberSignedIn(true);
+        setMe(m);
+      },
+      (e: unknown) => {
+        if (e instanceof ApiError && e.status === 401) rememberSignedIn(false);
+        setMe(null);
+      },
+    );
   }, []);
   const found = matchRoute(path);
   useEffect(() => {
