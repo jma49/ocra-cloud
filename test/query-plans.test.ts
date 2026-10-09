@@ -2,6 +2,7 @@ import { createExecutionContext, waitOnExecutionContext } from "cloudflare:test"
 import { env } from "cloudflare:workers";
 import { drizzle } from "drizzle-orm/d1";
 import { describe, expect, it, vi } from "vitest";
+import { enforceRetention } from "../src/db/retention.js";
 import { accountTables } from "../src/db/schema.js";
 import { scoped } from "../src/db/scoped.js";
 import app from "../src/index.js";
@@ -179,5 +180,31 @@ describe("checking a cap", () => {
     }
     expect(plans.join("\n")).toMatch(/insert into "usage_counters"/);
     vi.restoreAllMocks();
+  });
+});
+
+describe("retention", () => {
+  it("finds each table's old rows through an index, never reading the whole table (audit C3)", async () => {
+    const seen: Captured[] = [];
+    await enforceRetention(drizzle(recording(seen)), new Date());
+    const plans = new Map<string, string>();
+    for (const q of seen) {
+      const table = q.sql.match(/^delete from "(\w+)"/)?.[1] ?? q.sql;
+      plans.set(table, await plan(q));
+    }
+    expect([...plans.keys()].sort()).toEqual([
+      "audit_events",
+      "device_codes",
+      "gateway_calls",
+      "reviews",
+      "sessions",
+      "usage_counters",
+    ]);
+    for (const [table, p] of plans) {
+      // Login codes expire ten minutes after they are made: few are kept.
+      if (table === "device_codes") continue;
+      expect(p, table).toMatch(new RegExp(`SEARCH ${table} USING (COVERING )?INDEX`));
+      expect(p, table).not.toMatch(/\bSCAN\b/);
+    }
   });
 });

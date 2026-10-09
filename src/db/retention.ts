@@ -32,12 +32,33 @@ export async function enforceRetention(db: DrizzleD1Database, now = new Date()):
   const ofEachAccount = (column: SQLiteColumn) =>
     inArray(column, db.select({ id: accounts.id }).from(accounts));
   const deletes: [string, () => Promise<unknown>][] = [
-    // A review's findings go with it (foreign key cascade).
-    ["reviews", () => db.delete(reviews).where(lt(reviews.createdAt, cutoff))],
-    ["gateway_calls", () => db.delete(gatewayCalls).where(lt(gatewayCalls.createdAt, cutoff))],
-    ["audit_events", () => db.delete(auditEvents).where(lt(auditEvents.createdAt, cutoff))],
+    // A review's findings go with it (foreign key cascade, by findings_review).
+    [
+      "reviews",
+      () =>
+        db
+          .delete(reviews)
+          .where(and(ofEachAccount(reviews.accountId), lt(reviews.createdAt, cutoff))),
+    ],
+    [
+      "gateway_calls",
+      () =>
+        db
+          .delete(gatewayCalls)
+          .where(and(ofEachAccount(gatewayCalls.accountId), lt(gatewayCalls.createdAt, cutoff))),
+    ],
+    [
+      "audit_events",
+      () =>
+        db
+          .delete(auditEvents)
+          .where(and(ofEachAccount(auditEvents.accountId), lt(auditEvents.createdAt, cutoff))),
+    ],
+    // Codes expire ten minutes after they are made: few are kept, so they
+    // are read whole.
     ["device_codes", () => db.delete(deviceCodes).where(lt(deviceCodes.expiresAt, now))],
-    // A session ends with its last token: for the CLI, the refresh token.
+    // A session ends with its last token: for the CLI, the refresh token
+    // (the sessions_ends index).
     [
       "sessions",
       () =>

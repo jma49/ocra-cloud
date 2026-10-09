@@ -73,6 +73,9 @@ export const sessions = sqliteTable(
     index("sessions_prev_token").on(t.prevTokenHash),
     index("sessions_prev_refresh").on(t.prevRefreshHash),
     index("sessions_account").on(t.accountId),
+    // When the session ends (its last token expires), so retention finds
+    // the ended ones without reading every session (audit C3).
+    index("sessions_ends").on(sql`coalesce(${t.refreshExpiresAt}, ${t.expiresAt})`),
   ],
 );
 
