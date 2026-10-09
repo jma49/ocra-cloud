@@ -186,6 +186,9 @@ export const preferences = sqliteTable("preferences", {
   agents: text("agents", { mode: "json" }).$type<AgentPrefs>(),
   // The review's data settings (ADR-0027): never providers, extends or botLogin.
   settings: text("settings", { mode: "json" }).$type<ReviewSettings>(),
+  // The id of the preference_versions row these values are: a save sets it
+  // only while it is still the version the save started from (audit C6).
+  version: text("version"),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }),
   createdAt: createdAt(),
 });

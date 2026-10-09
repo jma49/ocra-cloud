@@ -10,7 +10,6 @@ import {
   type InferInsertModel,
   type InferSelectModel,
   isNull,
-  notInArray,
   sql,
 } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
@@ -23,6 +22,7 @@ import {
   findingsCounted,
   uncountOne,
 } from "./counters.js";
+import { type PreferencesSave, savePreferences } from "./preferences.js";
 import { accountTables } from "./schema.js";
 
 type Tables = typeof accountTables;
@@ -101,17 +101,6 @@ export function scoped(db: DrizzleD1Database, accountId: string) {
           target: on.map((k) => t[k as string] as SQLiteColumn),
           set: set as never,
         });
-    },
-    /** Deletes this account's rows beyond the newest keep. */
-    keepNewest(name: IdName, keep: number): BatchItem<"sqlite"> {
-      const t = accountTables[name];
-      const newest = db
-        .select({ id: t.id })
-        .from(t)
-        .where(own(name))
-        .orderBy(desc(t.createdAt))
-        .limit(keep);
-      return db.delete(t).where(and(own(name), notInArray(t.id, newest)));
     },
   };
   return {
@@ -214,6 +203,10 @@ export function scoped(db: DrizzleD1Database, accountId: string) {
       if (inserted.meta.changes > 0) return { id: row.id, duplicate: false };
       const existing = await db.select({ id: m.id }).from(m).where(same).get();
       return existing ? { id: existing.id, duplicate: true } : "full";
+    },
+    /** Saves the preferences unless their version moved; returns whether it did (./preferences.ts). */
+    savePreferences(save: PreferencesSave): Promise<boolean> {
+      return savePreferences(db, accountId, save);
     },
     /** Runs the statements built from writes in one D1 batch: all of them or none. */
     async batch(build: (w: typeof writes) => BatchItem<"sqlite">[]): Promise<void> {
