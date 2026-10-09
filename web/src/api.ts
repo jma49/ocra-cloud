@@ -109,7 +109,8 @@ export const MESSAGES: Record<ErrorCode, string> = {
   invalid_grant: REFUSED,
   expired_token: REFUSED,
   authorization_pending: REFUSED,
-  // From the web, only the device page's lookup limit (429).
+  // From the web: the device page's lookup limit, and an account's
+  // per-minute limit on key checks and settings saves (429).
   slow_down: TOO_MANY,
   access_denied: REFUSED,
 };
