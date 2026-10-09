@@ -4,6 +4,7 @@ import { audit } from "./audit.js";
 import { config } from "./config.js";
 import { accountSalt, deleteAccount, setSharing } from "./db/accounts.js";
 import { apiError, jsonBody } from "./http.js";
+import { perMinute } from "./rate.js";
 import { clearSessionCookie, requireSession } from "./session.js";
 import type { AppEnv } from "./types.js";
 
@@ -42,16 +43,22 @@ const sharingRequest = z.object({
   deleteExisting: z.boolean().optional(),
 });
 
-account.put("/sharing", requireSession(), jsonBody(sharingRequest), async (c) => {
-  const body = c.req.valid("json");
-  await setSharing(c.var.db, c.var.session.account.id, body.enabled);
-  const deleted =
-    !body.enabled && body.deleteExisting === true
-      ? await c.var.data.removeWhere("findings", {})
-      : 0;
-  await audit(c.var.data, "sharing.changed", { shareFindings: body.enabled, deleted });
-  return c.json({ shareFindings: body.enabled, deleted });
-});
+account.put(
+  "/sharing",
+  requireSession(),
+  perMinute("settings"),
+  jsonBody(sharingRequest),
+  async (c) => {
+    const body = c.req.valid("json");
+    await setSharing(c.var.db, c.var.session.account.id, body.enabled);
+    const deleted =
+      !body.enabled && body.deleteExisting === true
+        ? await c.var.data.removeWhere("findings", {})
+        : 0;
+    await audit(c.var.data, "sharing.changed", { shareFindings: body.enabled, deleted });
+    return c.json({ shareFindings: body.enabled, deleted });
+  },
+);
 
 // The account's repository-hash salt, so one repository hashes alike on all
 // its machines; only while findings are shared (ADR-0028, 4).
