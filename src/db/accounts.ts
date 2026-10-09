@@ -124,6 +124,11 @@ export async function revokeSession(db: DrizzleD1Database, sessionId: string): P
   await db.delete(sessions).where(eq(sessions.id, sessionId));
 }
 
+/** Ends the browser session with this token hash, if there is one. */
+export async function revokeWebSession(db: DrizzleD1Database, tokenHash: string): Promise<void> {
+  await db.delete(sessions).where(and(eq(sessions.tokenHash, tokenHash), eq(sessions.kind, "web")));
+}
+
 /** Deletes an account; its sessions, keys and records go with it (cascade). */
 export async function deleteAccount(db: DrizzleD1Database, accountId: string): Promise<void> {
   await db.delete(accounts).where(eq(accounts.id, accountId));

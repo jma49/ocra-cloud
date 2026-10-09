@@ -4,12 +4,7 @@ import { randomToken } from "./crypto.js";
 import { upsertAccount } from "./db/accounts.js";
 import { deadline } from "./deadline.js";
 import { apiError } from "./http.js";
-import {
-  clearSessionCookie,
-  requireSession,
-  setSessionCookie,
-  startWebSession,
-} from "./session.js";
+import { clearSessionCookie, requireSession, signInBrowser } from "./session.js";
 import type { AppEnv } from "./types.js";
 
 // Signing in with GitHub, and signing out.
@@ -119,8 +114,7 @@ auth.get("/github/callback", async (c) => {
     return apiError(c, "github_user");
   }
   const account = await upsertAccount(c.var.db, user.id, user.login);
-  const token = await startWebSession(c.var.db, account.id);
-  setSessionCookie(c, token);
+  await signInBrowser(c, account.id);
   return c.redirect(safeNext(next), 302);
 });
 
