@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { deleteCookie, getSignedCookie, setSignedCookie } from "hono/cookie";
 import { randomToken } from "./crypto.js";
 import { upsertAccount } from "./db/accounts.js";
+import { deadline } from "./deadline.js";
 import { apiError } from "./http.js";
 import {
   clearSessionCookie,
@@ -48,6 +49,23 @@ function callbackUrl(requestUrl: string): string {
   return new URL("/api/auth/github/callback", requestUrl).toString();
 }
 
+/** How long each GitHub call at sign-in may take, its answer read (audit C5). */
+const GITHUB_TIMEOUT_MS = 10_000;
+
+/** A GitHub call's JSON answer; null when it failed, was refused or took too long. */
+async function github<T>(url: string, init: RequestInit): Promise<T | null> {
+  const clock = deadline(GITHUB_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, { ...init, signal: clock.signal });
+    const body = (await res.json()) as T;
+    return res.ok ? body : null;
+  } catch {
+    return null;
+  } finally {
+    clock.clear();
+  }
+}
+
 auth.get("/github/login", async (c) => {
   const state = randomToken("");
   const next = safeNext(c.req.query("next"));
@@ -75,28 +93,29 @@ auth.get("/github/callback", async (c) => {
   if (!code || !state || !expected || state !== expected) {
     return apiError(c, "bad_state");
   }
-  const tokenRes = await fetch("https://github.com/login/oauth/access_token", {
-    method: "POST",
-    headers: { accept: "application/json", "content-type": "application/json" },
-    body: JSON.stringify({
-      client_id: c.env.GITHUB_CLIENT_ID,
-      client_secret: c.env.GITHUB_CLIENT_SECRET,
-      code,
-      redirect_uri: callbackUrl(c.req.url),
-    }),
-  });
-  const tokenBody = (await tokenRes.json().catch(() => ({}))) as { access_token?: string };
-  if (!tokenRes.ok || !tokenBody.access_token) return apiError(c, "github_exchange");
+  const tokenBody = await github<{ access_token?: string }>(
+    "https://github.com/login/oauth/access_token",
+    {
+      method: "POST",
+      headers: { accept: "application/json", "content-type": "application/json" },
+      body: JSON.stringify({
+        client_id: c.env.GITHUB_CLIENT_ID,
+        client_secret: c.env.GITHUB_CLIENT_SECRET,
+        code,
+        redirect_uri: callbackUrl(c.req.url),
+      }),
+    },
+  );
+  if (!tokenBody?.access_token) return apiError(c, "github_exchange");
   // The GitHub token is used once, to learn who signed in, and not kept.
-  const userRes = await fetch("https://api.github.com/user", {
+  const user = await github<{ id?: number; login?: string }>("https://api.github.com/user", {
     headers: {
       authorization: `Bearer ${tokenBody.access_token}`,
       accept: "application/vnd.github+json",
       "user-agent": "ocra-cloud",
     },
   });
-  const user = (await userRes.json().catch(() => ({}))) as { id?: number; login?: string };
-  if (!userRes.ok || typeof user.id !== "number" || typeof user.login !== "string") {
+  if (typeof user?.id !== "number" || typeof user.login !== "string") {
     return apiError(c, "github_user");
   }
   const account = await upsertAccount(c.var.db, user.id, user.login);
