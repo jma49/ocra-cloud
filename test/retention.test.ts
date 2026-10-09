@@ -136,8 +136,10 @@ describe("retention", () => {
     expect(await d.list("sessions")).toHaveLength(1);
     expect(await db.select().from(schema.deviceCodes).all()).toEqual([]);
     expect(log).toHaveBeenCalledTimes(1);
-    expect(log.mock.calls.flat().join(" ")).toContain("reviews");
-    expect(log.mock.calls.flat().join(" ")).not.toContain("sk-secret");
+    expect(log.mock.calls[0]).toEqual([
+      { level: "error", event: "retention_failed", table: "reviews", error: "Error" },
+    ]);
+    expect(JSON.stringify(log.mock.calls)).not.toContain("sk-secret");
   });
 
   it("runs from the cron trigger", async () => {

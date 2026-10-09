@@ -9,6 +9,7 @@ import { exportRoute } from "./export.js";
 import { gateway } from "./gateway.js";
 import { apiError } from "./http.js";
 import { keys } from "./keys.js";
+import { errorName, logError } from "./log.js";
 import { me } from "./me.js";
 import { memory } from "./memory.js";
 import { preferences } from "./preferences.js";
@@ -70,8 +71,13 @@ app.route("/gateway", gateway);
 app.notFound((c) => apiError(c, "not_found"));
 app.onError((err, c) => {
   if (err instanceof BodyTooLarge) return apiError(c, "body_too_large");
-  // The message only: an error may quote a request, and bodies are never logged.
-  console.error(`api error on ${c.req.method} ${c.req.routePath}: ${err.name}`);
+  logError("api_error", {
+    // Cloudflare's id of the request, to find it again; random elsewhere.
+    requestId: c.req.header("cf-ray") ?? crypto.randomUUID(),
+    method: c.req.method,
+    route: c.req.routePath,
+    error: errorName(err),
+  });
   return apiError(c, "internal");
 });
 

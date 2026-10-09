@@ -1,6 +1,7 @@
 import { and, inArray, lt, sql } from "drizzle-orm";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
+import { errorName, logError } from "../log.js";
 import { DAY, utcDay } from "../time.js";
 import {
   accounts,
@@ -93,9 +94,7 @@ export async function enforceRetention(db: DrizzleD1Database, now = new Date()):
       await run();
     } catch (e) {
       failed.push(table);
-      console.error(
-        `retention: deleting from ${table} failed (${e instanceof Error ? e.name : "unknown"})`,
-      );
+      logError("retention_failed", { table, error: errorName(e) });
     }
   }
   if (failed.length > 0) throw new Error(`retention failed for: ${failed.join(", ")}`);
