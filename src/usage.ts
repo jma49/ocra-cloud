@@ -25,12 +25,15 @@ usage.get("/", async (c) => {
     tokensIn: number;
     tokensOut: number;
     errors: number;
-    byModel: Record<string, { calls: number; tokens: number }>;
+    // A Map: a model name is the caller's string, and `__proto__` as a
+    // plain object's key would replace its prototype, not add an entry
+    // (audit C10). Object.fromEntries below makes it an own key.
+    byModel: Map<string, { calls: number; tokens: number }>;
   };
   const series = new Map<string, Day>();
   for (let i = 0; i < days; i++) {
     const day = utcDay(new Date(since.getTime() + i * DAY));
-    series.set(day, { day, calls: 0, tokensIn: 0, tokensOut: 0, errors: 0, byModel: {} });
+    series.set(day, { day, calls: 0, tokensIn: 0, tokensOut: 0, errors: 0, byModel: new Map() });
   }
   for (const { day, ...totals } of sums.days) {
     const d = series.get(day);
@@ -38,14 +41,14 @@ usage.get("/", async (c) => {
   }
   for (const { day, model, calls, tokens } of sums.dayModels) {
     const d = series.get(day);
-    if (d) d.byModel[model] = { calls, tokens };
+    d?.byModel.set(model, { calls, tokens });
   }
   const today = series.get(utcDay(todayStart));
   return c.json({
     days,
     today: today?.calls ?? 0,
     dailyLimit: config(c.env).gatewayDailyCalls,
-    series: [...series.values()],
+    series: [...series.values()].map((d) => ({ ...d, byModel: Object.fromEntries(d.byModel) })),
     models: sums.models,
     calls: latest.map((call) => ({
       id: call.id,

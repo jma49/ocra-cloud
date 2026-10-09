@@ -47,6 +47,25 @@ describe("usage", () => {
     expect(body.calls.map((c) => c.id).sort()).toEqual(["a", "b", "c"]);
     expect(JSON.stringify(body)).not.toContain("theirs");
   });
+
+  it("keeps a model whose name is an object's own key (audit C10)", async () => {
+    const me = await signIn(1, "me");
+    const mine = scoped(db, me.account.id);
+    for (const [id, model] of [
+      ["p", "__proto__"],
+      ["c", "constructor"],
+    ] as const) {
+      await mine.insert("gatewayCalls", { ...rows.gatewayCalls(id), model });
+    }
+    const body = (await (await call("/api/usage?days=1", { auth: me.auth })).json()) as {
+      series: { byModel: Record<string, { calls: number }> }[];
+    };
+    const byModel = body.series.at(-1)?.byModel ?? {};
+    expect(Object.keys(byModel).sort()).toEqual(["__proto__", "constructor"]);
+    expect(Object.getOwnPropertyDescriptor(byModel, "__proto__")?.value).toMatchObject({
+      calls: 1,
+    });
+  });
 });
 
 describe("sessions", () => {
