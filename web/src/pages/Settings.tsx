@@ -1,9 +1,30 @@
 import { useState } from "react";
 import { api, type Me } from "../api.js";
 import { date } from "../format.js";
-import { PageHead, useLoad } from "../ui.js";
+import { LoadError, Loading, PageHead, useLoad } from "../ui.js";
+
+type SharingLoad = ReturnType<typeof useSharing>;
+
+function useSharing() {
+  return useLoad(() => api<{ shareFindings: boolean; findingsStored: number }>("/account/sharing"));
+}
+
+/**
+ * What the account keeps, true for the sharing setting when it is known
+ * (audit C2): with findings sent, their quoted code is kept too.
+ */
+function dataKept(shareFindings: boolean | undefined): string {
+  const kept =
+    "Your GitHub id and login, encrypted provider keys, review counts and a record of each model call (model, status, token counts, duration)";
+  if (shareFindings === true) {
+    return `${kept}; while you send findings, also the findings and the code they quote. No prompts or answers.`;
+  }
+  if (shareFindings === false) return `${kept}. No code, prompts or answers.`;
+  return `${kept}. No prompts or answers; code only in findings you choose to send.`;
+}
 
 export function Settings(props: { me: Me }) {
+  const sharing = useSharing();
   const [typed, setTyped] = useState("");
   const [error, setError] = useState("");
   const remove = async () => {
@@ -31,14 +52,11 @@ export function Settings(props: { me: Me }) {
           <dt>Member since</dt>
           <dd>{date(props.me.since)}</dd>
           <dt>Data kept</dt>
-          <dd className="muted">
-            Your GitHub id and login, encrypted provider keys, and a record of each model call
-            (model, status, token counts, duration). No code, prompts or answers.
-          </dd>
+          <dd className="muted">{dataKept(sharing.data?.shareFindings)}</dd>
         </dl>
       </div>
 
-      <Sharing />
+      <Sharing load={sharing} />
 
       <div className="section card">
         <div className="card-head">
@@ -88,10 +106,8 @@ export function Settings(props: { me: Me }) {
   );
 }
 
-export function Sharing() {
-  const { data, reload } = useLoad(() =>
-    api<{ shareFindings: boolean; findingsStored: number }>("/account/sharing"),
-  );
+function Sharing({ load }: { load: SharingLoad }) {
+  const { data, error, reload } = load;
   const [asking, setAsking] = useState(false);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -110,11 +126,23 @@ export function Sharing() {
     if (ok) setAsking(false);
     reload();
   };
-  if (!data) return null;
+  const title = <h3>Send findings and the code they quote to ocra Cloud</h3>;
+  if (!data) {
+    return (
+      <div className="section card">
+        <div className="card-head">{title}</div>
+        {error ? (
+          <LoadError what="the sharing setting" error={error} retry={reload} />
+        ) : (
+          <Loading what="the sharing setting" />
+        )}
+      </div>
+    );
+  }
   return (
     <div className="section card">
       <div className="card-head">
-        <h3>Send findings and the code they quote to ocra Cloud</h3>
+        {title}
         <button
           type="button"
           role="switch"
