@@ -5,6 +5,7 @@ import { config } from "./config.js";
 import type { Row, Scoped } from "./db/scoped.js";
 import { parseFindings } from "./findings.js";
 import { apiError, jsonBody, queryDays } from "./http.js";
+import { perMinute } from "./rate.js";
 import { requireSession } from "./session.js";
 import type { ReviewerCounts } from "./shared/index.js";
 import { DAY } from "./time.js";
@@ -59,7 +60,7 @@ export function reviewRow(u: Upload) {
 // bounded to 256 KB of text (ADR-0028). Past MAX_UPLOAD bytes: 413.
 const uploadBody = jsonBody(reviewUploadSchema, { max: MAX_UPLOAD });
 
-reviews.post("/", requireSession(["web", "cli"]), uploadBody, async (c) => {
+reviews.post("/", requireSession(["web", "cli"]), perMinute("upload"), uploadBody, async (c) => {
   const upload = c.req.valid("json");
   const { reviewersDropped, ...row } = reviewRow(upload);
   // Findings are kept only while the account shares them, whatever the CLI sent.

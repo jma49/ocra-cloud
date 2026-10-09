@@ -4,6 +4,7 @@ import { config } from "./config.js";
 import { apiError } from "./http.js";
 import { keyFor, masterKeys } from "./keyring.js";
 import { applyAuth, isProvider, matchRoute, PASS_HEADERS, providers } from "./providers.js";
+import { perMinute } from "./rate.js";
 import { requireSession } from "./session.js";
 import type { AppEnv } from "./types.js";
 
@@ -15,7 +16,7 @@ import type { AppEnv } from "./types.js";
 const MAX_BODY = 8 * 1024 * 1024;
 const EDGE = 16 * 1024;
 
-export const gateway = new Hono<AppEnv>().use(requireSession(["web", "cli"]));
+export const gateway = new Hono<AppEnv>().use(requireSession(["web", "cli"]), perMinute("gateway"));
 
 gateway.post("/:provider/*", async (c) => {
   const name = c.req.param("provider");
