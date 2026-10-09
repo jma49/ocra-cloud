@@ -5,6 +5,7 @@ import {
 } from "@open-cr-agent/cloud-contract";
 import { Hono, type MiddlewareHandler } from "hono";
 import { z } from "zod";
+import { config } from "./config.js";
 import { randomToken, sha256Hex } from "./crypto.js";
 import {
   byDeviceCodeHash,
@@ -87,12 +88,17 @@ device.post("/code", jsonBody(codeRequest), async (c) => {
   const label = name === undefined ? null : name.slice(0, 80).replace(/[^\w .@()-]/g, "");
   const deviceCode = randomToken("ocra_dev_");
   const userCode = newUserCode();
-  await createDeviceCode(c.var.db, {
-    deviceCodeHash: await sha256Hex(deviceCode),
-    userCode,
-    label: label || null,
-    expiresAt: new Date(Date.now() + CODE_TTL_MS),
-  });
+  const created = await createDeviceCode(
+    c.var.db,
+    {
+      deviceCodeHash: await sha256Hex(deviceCode),
+      userCode,
+      label: label || null,
+      expiresAt: new Date(Date.now() + CODE_TTL_MS),
+    },
+    config(c.env).deviceDailyCodes,
+  );
+  if (!created) return apiError(c, "slow_down", {}, 429);
   const verify = new URL("/device", c.req.url);
   return c.json({
     device_code: deviceCode,

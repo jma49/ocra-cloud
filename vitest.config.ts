@@ -20,6 +20,7 @@ export default defineConfig({
                 GATEWAY_DAILY_CALLS: "3",
                 REVIEW_DAILY_UPLOADS: "500",
                 REVIEW_MAX_FINDINGS: "20000",
+                DEVICE_DAILY_CODES: "500",
               },
             },
           })),

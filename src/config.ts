@@ -8,9 +8,14 @@ export type Config = {
   reviewDailyUploads: number;
   /** Shared findings an account may send within the retention window (deleted ones count). */
   reviewMaxFindings: number;
+  /** Login codes (ocra login) the whole service may make per UTC day. */
+  deviceDailyCodes: number;
 };
 
-type Vars = Record<"GATEWAY_DAILY_CALLS" | "REVIEW_DAILY_UPLOADS" | "REVIEW_MAX_FINDINGS", string>;
+type Vars = Record<
+  "GATEWAY_DAILY_CALLS" | "REVIEW_DAILY_UPLOADS" | "REVIEW_MAX_FINDINGS" | "DEVICE_DAILY_CODES",
+  string
+>;
 
 const parsed = new WeakMap<Vars, Config>();
 
@@ -21,6 +26,7 @@ export function config(env: Vars): Config {
       gatewayDailyCalls: Number(env.GATEWAY_DAILY_CALLS),
       reviewDailyUploads: Number(env.REVIEW_DAILY_UPLOADS),
       reviewMaxFindings: Number(env.REVIEW_MAX_FINDINGS),
+      deviceDailyCodes: Number(env.DEVICE_DAILY_CODES),
     };
     parsed.set(env, c);
   }

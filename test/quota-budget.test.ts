@@ -141,7 +141,7 @@ describe("checking a cap", () => {
 });
 
 describe("the deployed caps", () => {
-  it(`keep ${HEAVY_ACCOUNTS} accounts at every cap within ${SHARE * 100}% of each Free quota`, async () => {
+  it(`keep ${HEAVY_ACCOUNTS} accounts at every cap, and a day's login codes, within ${SHARE * 100}% of each Free quota`, async () => {
     // What one request of each kind costs, measured on a warm session.
     const auth = await sharing();
     await call("/api/reviews", { ...upload("warm"), auth });
@@ -156,8 +156,9 @@ describe("the deployed caps", () => {
       method: "POST",
       json: { refresh_token: tokens.refresh_token },
     });
-    expect([bare.status, full.status, gateway.status, refresh.status]).toEqual([
-      200, 200, 200, 200,
+    const code = await measure("/api/device/code", { method: "POST", json: {} });
+    expect([bare.status, full.status, gateway.status, refresh.status, code.status]).toEqual([
+      200, 200, 200, 200, 200,
     ]);
 
     const caps = deployed();
@@ -175,6 +176,14 @@ describe("the deployed caps", () => {
       read: uploads * full.read + calls * gateway.read + REFRESHES * refresh.read,
       requests: uploads + calls + REFRESHES,
     };
+    // Login codes are capped for the whole service, not per account.
+    const codes = Number(caps.DEVICE_DAILY_CODES);
+    const service = {
+      written: codes * code.written,
+      writtenSteady: 2 * codes * code.written,
+      read: codes * code.read,
+      requests: codes,
+    };
     const budget = {
       written: SHARE * FREE.rowsWritten,
       writtenSteady: SHARE * FREE.rowsWritten,
@@ -182,9 +191,10 @@ describe("the deployed caps", () => {
       requests: SHARE * FREE.requests,
     };
     for (const [what, n] of Object.entries(perAccount)) {
-      const total = HEAVY_ACCOUNTS * n;
-      const limit = budget[what as keyof typeof budget];
-      expect(total, `${what}: ${HEAVY_ACCOUNTS} x ${n} > ${limit}`).toBeLessThanOrEqual(limit);
+      const key = what as keyof typeof budget;
+      const total = HEAVY_ACCOUNTS * n + service[key];
+      const why = `${what}: ${HEAVY_ACCOUNTS} x ${n} + ${service[key]} > ${budget[key]}`;
+      expect(total, why).toBeLessThanOrEqual(budget[key]);
     }
   });
 });

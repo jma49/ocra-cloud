@@ -197,11 +197,12 @@ describe("retention", () => {
       "device_codes",
       "gateway_calls",
       "reviews",
+      "service_counters",
       "sessions",
       "usage_counters",
     ]);
     for (const [table, p] of plans) {
-      // Login codes expire ten minutes after they are made: few are kept.
+      // DEVICE_DAILY_CODES a day at most.
       if (table === "device_codes") continue;
       expect(p, table).toMatch(new RegExp(`SEARCH ${table} USING (COVERING )?INDEX`));
       expect(p, table).not.toMatch(/\bSCAN\b/);
