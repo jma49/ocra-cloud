@@ -283,7 +283,10 @@ export const accountMemory = sqliteTable(
     reason: text("reason").notNull(),
     createdAt: createdAt(),
   },
-  (t) => [index("account_memory_account").on(t.accountId)],
+  (t) => [
+    index("account_memory_account_created").on(t.accountId, t.createdAt),
+    index("account_memory_repo_created").on(t.accountId, t.repoHash, t.createdAt),
+  ],
 );
 
 // What an account used on a UTC day, counted as it happens, so a cap is

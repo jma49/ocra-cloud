@@ -133,13 +133,13 @@ export function scoped(db: DrizzleD1Database, accountId: string) {
         .get();
       return row?.n ?? 0;
     },
-    /** This account's newest rows, newest first. */
-    listNewest<N extends IdName>(name: N, limit: number): Promise<Row<N>[]> {
+    /** This account's newest rows whose columns equal where's values, newest first. */
+    listNewest<N extends IdName>(name: N, limit: number, where: Where<N> = {}): Promise<Row<N>[]> {
       const t = accountTables[name];
       return db
         .select()
         .from(t)
-        .where(own(name))
+        .where(matching(name, where))
         .orderBy(desc(t.createdAt))
         .limit(limit)
         .all() as Promise<Row<N>[]>;

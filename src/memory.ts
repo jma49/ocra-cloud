@@ -6,19 +6,25 @@ import {
 } from "@open-cr-agent/cloud-contract";
 import { Hono } from "hono";
 import type { Row } from "./db/scoped.js";
-import { apiError, jsonBody } from "./http.js";
+import { apiError, jsonBody, queryLimit } from "./http.js";
 import { requireSession } from "./session.js";
 import type { AppEnv } from "./types.js";
 
 // Findings the account remembers (ADR-0028, 4). Set from the web; a
-// signed-in review fetches its repository's entries.
+// signed-in review fetches its repository's entries. A list answers at most
+// one repository's worth, the newest, so its cost does not grow with the
+// account's repositories (#96); `total` says how many there are.
 
 export const memory = new Hono<AppEnv>();
 
 memory.get("/", requireSession(["web", "cli"]), async (c) => {
   const repo = c.req.query("repo");
-  const list = await c.var.data.find("accountMemory", repo ? { repoHash: repo } : {});
-  return c.json({ entries: list.map(memoryEntryDto) });
+  const where = repo ? { repoHash: repo } : {};
+  const [list, total] = await Promise.all([
+    c.var.data.listNewest("accountMemory", queryLimit(c, MAX_MEMORY_PER_REPO), where),
+    c.var.data.count("accountMemory", where),
+  ]);
+  return c.json({ entries: list.map(memoryEntryDto), total });
 });
 
 memory.post("/", requireSession(), jsonBody(rememberRequestSchema), async (c) => {
