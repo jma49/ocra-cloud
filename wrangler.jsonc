@@ -9,10 +9,17 @@
   "workers_dev": true,
   // The product address; workers.dev stays on for development.
   "routes": [{ "pattern": "app.ocracloud.com", "custom_domain": true }],
-  // Our own console messages only (never bodies, keys or tokens), kept 3 days
-  // on the free plan. Invocation logs are off: they record requests, and a
-  // request's headers carry session tokens.
-  "observability": { "enabled": true, "logs": { "invocation_logs": false } },
+  // Our own console messages only (never bodies, keys or tokens), one JSON
+  // object each (src/log.ts), kept 3 days on the free plan. Invocation logs
+  // are off: they record requests, and a request's headers carry session
+  // tokens. Traces are off too: their spans record each URL in full, and the
+  // sign-in callback's and the device page's carry a GitHub code and a login
+  // code (audit C10).
+  "observability": {
+    "enabled": true,
+    "logs": { "invocation_logs": false },
+    "traces": { "enabled": false }
+  },
   // Daily retention (src/db/retention.ts).
   "triggers": { "crons": ["17 4 * * *"] },
   // The GitHub App "ocra Cloud dev" signs users in. Secrets (set with

@@ -173,7 +173,7 @@ describe("gateway", () => {
     const logged: string[] = [];
     for (const m of ["log", "info", "warn", "error", "debug"] as const) {
       vi.spyOn(console, m).mockImplementation((...args: unknown[]) => {
-        logged.push(args.map(String).join(" "));
+        logged.push(args.map((a) => (typeof a === "string" ? a : JSON.stringify(a))).join(" "));
       });
     }
     upstreamFake(() => new Response(sse([{ choices: [{ delta: { content: "ANSWER-TEXT" } }] }])));
