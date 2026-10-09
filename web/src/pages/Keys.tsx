@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { forgetKeys, loadKeys } from "../account-keys.js";
 import { api, type CheckStatus, type Key, type ProviderInfo, why } from "../api.js";
 import { ago, date, num } from "../format.js";
 import { anyProvider } from "../site.js";
@@ -10,7 +11,12 @@ import { AddKeyDrawer, formats, POPULAR } from "./KeyDrawer.js";
 
 export function Keys() {
   const providers = useProviders();
-  const { data: keys, error: keysError, reload } = useLoad(() => api<{ keys: Key[] }>("/keys"));
+  const { data: keys, error: keysError, reload: load } = useLoad(loadKeys);
+  // A save, a test or a delete changes what every page reads.
+  const reload = () => {
+    forgetKeys();
+    load();
+  };
   const [drawer, setDrawer] = useState<{ provider: string | null } | null>(null);
   const info = useMemo(() => new Map((providers ?? []).map((p) => [p.name, p])), [providers]);
   const list = keys?.keys ?? [];

@@ -1,11 +1,13 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { forgetKeys } from "../account-keys.js";
 import { PrefsProvider } from "../prefs.js";
 import { forgetProviders } from "../ui.js";
 import { Agents } from "./Agents.js";
 
 afterEach(() => {
   forgetProviders();
+  forgetKeys();
   cleanup();
   vi.unstubAllGlobals();
 });

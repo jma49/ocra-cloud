@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { formatModelId, parseModelId } from "../../../src/shared/index.js";
-import { api, type Key } from "../api.js";
+import { loadKeys } from "../account-keys.js";
+import { api } from "../api.js";
 import { ago } from "../format.js";
 import { type Prefs, type Settings, usePrefs } from "../prefs.js";
 import { useToast } from "../toast.js";
@@ -117,7 +118,7 @@ function importConfig(text: string, current: Prefs, keyed: Set<string>): Importe
 export function Defaults() {
   const { draft, setDraft } = usePrefs();
   const toast = useToast();
-  const { data: keys } = useLoad(() => api<{ keys: Key[] }>("/keys"));
+  const { data: keys } = useLoad(loadKeys);
   const { data: versions, reload: reloadVersions } = useLoad(() =>
     api<{ versions: { id: string; createdAt: string; changed: string[] }[] }>(
       "/preferences/versions",

@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { forgetKeys } from "./account-keys.js";
 import { Footer, TopBar } from "./chrome.js";
 import { Keys } from "./pages/Keys.js";
 import { Overview } from "./pages/Overview.js";
@@ -39,6 +40,7 @@ function fakeApi() {
 }
 
 afterEach(() => {
+  forgetKeys();
   cleanup();
   vi.unstubAllGlobals();
 });

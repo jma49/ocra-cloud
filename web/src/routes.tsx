@@ -1,20 +1,26 @@
-import type { ReactNode } from "react";
+import { lazy, type ReactNode } from "react";
+import { loadKeys } from "./account-keys.js";
 import type { Me } from "./api.js";
 import { Activity } from "./pages/Activity.js";
 import { Agents } from "./pages/Agents.js";
-import { Defaults } from "./pages/Defaults.js";
-import { Device } from "./pages/Device.js";
 import { Keys } from "./pages/Keys.js";
 import { Memory } from "./pages/Memory.js";
 import { Overview } from "./pages/Overview.js";
 import { Plugins } from "./pages/Plugins.js";
-import { ReviewDetail } from "./pages/ReviewDetail.js";
 import { ReviewSettings } from "./pages/ReviewSettings.js";
 import { Reviews } from "./pages/Reviews.js";
 import { Rules } from "./pages/Rules.js";
 import { Sessions } from "./pages/Sessions.js";
 import { Settings } from "./pages/Settings.js";
-import { type icons, NotFound } from "./ui.js";
+import { type icons, loadProviders, NotFound } from "./ui.js";
+
+// Pages few visits open load on demand, so the sign-in screen and the
+// console's first page do not wait for them (audit C11).
+const Defaults = lazy(() => import("./pages/Defaults.js").then((m) => ({ default: m.Defaults })));
+const Device = lazy(() => import("./pages/Device.js").then((m) => ({ default: m.Device })));
+const ReviewDetail = lazy(() =>
+  import("./pages/ReviewDetail.js").then((m) => ({ default: m.ReviewDetail })),
+);
 
 // The signed-in pages, in the sidebar's order: one table drives the
 // sidebar, the page title and which page a path shows. An unknown path is
@@ -29,13 +35,21 @@ export type Route = {
   nav?: { label: string; icon: keyof typeof icons; group: NavGroup };
   /** Edits the account's preferences: the save bar and its draft apply. */
   prefs?: true;
+  /**
+   * What the page reads that can start before /me answers, so it is not a
+   * second round trip after it (audit C11); a 401 means what /me's does.
+   */
+  loads?: readonly (() => Promise<unknown>)[];
   page: (me: Me, params: string[]) => ReactNode;
 };
+
+const keysAndProviders = [loadKeys, loadProviders] as const;
 
 const ROUTES: readonly Route[] = [
   {
     path: "/",
     nav: { label: "Overview", icon: "home", group: "Console" },
+    loads: keysAndProviders,
     page: (me) => <Overview login={me.login} />,
   },
   {
@@ -52,16 +66,18 @@ const ROUTES: readonly Route[] = [
   {
     path: "/keys",
     nav: { label: "Provider keys", icon: "key", group: "Configure" },
+    loads: keysAndProviders,
     page: () => <Keys />,
   },
   {
     path: "/agents",
     nav: { label: "Agents", icon: "layers", group: "Configure" },
     prefs: true,
+    loads: keysAndProviders,
     page: () => <Agents />,
   },
   // The page's name before per-agent settings; old links still work.
-  { path: "/models", prefs: true, page: () => <Agents /> },
+  { path: "/models", prefs: true, loads: keysAndProviders, page: () => <Agents /> },
   {
     path: "/review-settings",
     nav: { label: "Review settings", icon: "sliders", group: "Configure" },
@@ -89,6 +105,7 @@ const ROUTES: readonly Route[] = [
     path: "/defaults",
     nav: { label: "Defaults & history", icon: "file", group: "Configure" },
     prefs: true,
+    loads: keysAndProviders,
     page: () => <Defaults />,
   },
   {

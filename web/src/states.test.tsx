@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { forgetKeys } from "./account-keys.js";
 import { Keys } from "./pages/Keys.js";
 import { Memory } from "./pages/Memory.js";
 import { Overview } from "./pages/Overview.js";
@@ -34,6 +35,7 @@ const never = () => new Promise<Response>(() => {});
 
 afterEach(() => {
   forgetProviders();
+  forgetKeys();
   cleanup();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();

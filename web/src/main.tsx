@@ -1,22 +1,25 @@
-import { StrictMode, useEffect, useState } from "react";
+import { lazy, StrictMode, Suspense, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { api, type Me } from "./api.js";
 import { Footer, TopBar } from "./chrome.js";
 import { completeAgents } from "./pages/Agents.js";
-import { Privacy } from "./pages/Privacy.js";
 import { PrefsProvider } from "./prefs.js";
 import { Link, usePath } from "./router.js";
 import { matchRoute, NAV_GROUPS } from "./routes.js";
 import { SignIn } from "./signin.js";
 import { DOCS } from "./site.js";
 import { ToastProvider } from "./toast.js";
-import { ErrorBoundary, Icon, NotFound } from "./ui.js";
+import { ErrorBoundary, Icon, Loading, NotFound } from "./ui.js";
 import "./styles.css";
+
+const Privacy = lazy(() => import("./pages/Privacy.js").then((m) => ({ default: m.Privacy })));
 
 function App() {
   const [me, setMe] = useState<Me | null | undefined>(undefined);
   const path = usePath();
   useEffect(() => {
+    // With /me, not after it: the first page's reads are already on their way.
+    for (const load of matchRoute(location.pathname)?.route.loads ?? []) load().catch(() => {});
     api<Me>("/me").then(setMe, () => setMe(null));
   }, []);
   const found = matchRoute(path);
@@ -30,7 +33,9 @@ function App() {
       <>
         <TopBar me={me ?? null} />
         <main className="content content-narrow">
-          <Privacy />
+          <Suspense fallback={<Loading what="the data policy" />}>
+            <Privacy />
+          </Suspense>
         </main>
         <Footer />
       </>
@@ -78,7 +83,9 @@ function App() {
         <main className="content">
           <PrefsProvider clean={completeAgents} idle={!found?.route.prefs}>
             <ErrorBoundary key={path}>
-              {found ? found.route.page(me, found.params) : <NotFound />}
+              <Suspense fallback={<Loading what="the page" />}>
+                {found ? found.route.page(me, found.params) : <NotFound />}
+              </Suspense>
             </ErrorBoundary>
           </PrefsProvider>
         </main>

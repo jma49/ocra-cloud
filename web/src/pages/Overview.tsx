@@ -1,4 +1,5 @@
-import { api, type Key, type Usage } from "../api.js";
+import { loadKeys } from "../account-keys.js";
+import { api, type Usage } from "../api.js";
 import { compact, num } from "../format.js";
 import { Link } from "../router.js";
 import { anyProvider } from "../site.js";
@@ -10,7 +11,7 @@ export function Overview(props: { login: string }) {
     error: usageError,
     reload: reloadUsage,
   } = useLoad(() => api<Usage>("/usage?days=14"));
-  const { data: keys } = useLoad(() => api<{ keys: Key[] }>("/keys"));
+  const { data: keys } = useLoad(loadKeys);
   const providers = useProviders();
   const week = usage?.series.slice(-7) ?? [];
   const sum = (f: (d: Usage["series"][number]) => number) => week.reduce((n, d) => n + f(d), 0);
