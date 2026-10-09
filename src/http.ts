@@ -58,6 +58,11 @@ export function jsonBody<S extends z.ZodType>(
   };
 }
 
+/** The `limit` query, clamped to 1..`max`; `max` when it is missing or not a number. */
+export function queryLimit(c: Context, max: number): number {
+  return Math.min(Math.max(Math.trunc(Number(c.req.query("limit") ?? max)) || max, 1), max);
+}
+
 /**
  * The `days` query, clamped to 1..`max` (by default RETENTION_DAYS: older
  * records are gone); `fallback` when it is missing or not a number.

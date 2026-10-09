@@ -16,7 +16,11 @@ type Entry = {
 };
 
 export function Memory() {
-  const { data, error: loadError, reload } = useLoad(() => api<{ entries: Entry[] }>("/memory"));
+  const {
+    data,
+    error: loadError,
+    reload,
+  } = useLoad(() => api<{ entries: Entry[]; total?: number }>("/memory"));
   const forget = useAction((id: string) => api(`/memory/${id}`, { method: "DELETE" }));
   const remove = async (id: string) => {
     if ((await forget.run(id)) !== undefined) reload();
@@ -47,6 +51,12 @@ export function Memory() {
         </div>
       ) : (
         <div className="card">
+          {(data.total ?? 0) > data.entries.length && (
+            <p className="muted small">
+              Showing the newest {data.entries.length} of {data.total}. Forget some to see the older
+              ones; reviews apply them all.
+            </p>
+          )}
           <div className="table-wrap">
             <table>
               <thead>

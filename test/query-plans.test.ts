@@ -104,6 +104,17 @@ describe("query plans", () => {
     }
   });
 
+  it("the memory list walks an index in created_at order and stops at its limit (#96)", async () => {
+    const seen: Captured[] = [];
+    const d = scoped(drizzle(recording(seen)), "acct");
+    await d.listNewest("accountMemory", 500);
+    await d.listNewest("accountMemory", 500, { repoHash: "h" });
+    const [all, repo] = await Promise.all(seen.map(plan));
+    expect(all).toMatch(/SEARCH account_memory USING INDEX account_memory_account_created/);
+    expect(repo).toMatch(/SEARCH account_memory USING INDEX account_memory_repo_created/);
+    for (const p of [all, repo]) expect(p).not.toMatch(/\bSCAN\b|TEMP B-TREE/);
+  });
+
   it("a review's findings are found by review_id, for the delete's cascade", async () => {
     const p = await plan({ sql: "SELECT id FROM findings WHERE review_id = ?", params: ["r"] });
     expect(p).toMatch(/SEARCH findings USING (COVERING )?INDEX findings_review/);
