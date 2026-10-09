@@ -1,5 +1,5 @@
 import { Component, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
-import { api, type Day, type ProviderInfo, why } from "./api.js";
+import { api, type Day, needsSignIn, type ProviderInfo, why } from "./api.js";
 import { compact } from "./format.js";
 import { Link } from "./router.js";
 
@@ -143,6 +143,24 @@ export function LoadError(props: { what: string; error: unknown; retry: () => vo
         Try again
       </button>
     </div>
+  );
+}
+
+/**
+ * An action that failed: what, why, and a fresh sign-in when that is what
+ * it needs (audit C7), which comes back to this page.
+ */
+export function ActionError(props: { what: string; error: unknown }) {
+  const back = `/api/auth/github/login?next=${encodeURIComponent(location.pathname)}`;
+  return (
+    <p className="error" role="alert">
+      Could not {props.what}: {why(props.error)}.{" "}
+      {needsSignIn(props.error) && (
+        <a className="btn btn-sm" href={back}>
+          Sign in again
+        </a>
+      )}
+    </p>
   );
 }
 

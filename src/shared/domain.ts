@@ -27,3 +27,12 @@ export type Rule = NonNullable<
 >[number];
 
 export type ProviderGroup = "Major" | "China" | "Platforms";
+
+/**
+ * The `reason` of a forbidden_for_session refusal of a web session whose
+ * sign-in is older than RECENT_SIGN_IN_MINUTES: deleting the account,
+ * replacing a key or deleting the findings sent needs a fresh sign-in
+ * (audit C7). The web offers one.
+ */
+export const RECENT_SIGN_IN = "recent_sign_in";
+export const RECENT_SIGN_IN_MINUTES = 15;

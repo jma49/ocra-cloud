@@ -8,7 +8,7 @@ import { decryptKey, storedKey } from "./keyring.js";
 import { checkKey, listModels } from "./provider-keys.js";
 import { isProvider, providers } from "./providers.js";
 import { perMinute } from "./rate.js";
-import { requireSession } from "./session.js";
+import { needsRecentSignIn, requireSession } from "./session.js";
 import { DAY } from "./time.js";
 import type { AppEnv } from "./types.js";
 
@@ -56,6 +56,11 @@ const keyRequest = z.object({
 keys.put("/:provider", perMinute("keys"), jsonBody(keyRequest), async (c) => {
   const provider = c.req.param("provider");
   if (!isProvider(provider)) return apiError(c, "unknown_provider");
+  // A replaced key sends later calls, and what they carry, to its owner.
+  if (await storedKey(c.var.data, provider)) {
+    const refused = needsRecentSignIn(c);
+    if (refused) return refused;
+  }
   const { key } = c.req.valid("json");
   const sealed = await encryptSecret(
     c.env.MASTER_KEY,

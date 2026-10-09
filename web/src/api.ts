@@ -6,6 +6,7 @@ import type {
   RiskTier,
   Verdict,
 } from "../../src/shared/index.js";
+import { RECENT_SIGN_IN, RECENT_SIGN_IN_MINUTES } from "../../src/shared/index.js";
 
 export type Me = { login: string; githubId: number; session: "web" | "cli"; since: string };
 export type ProviderInfo = {
@@ -69,9 +70,16 @@ export class ApiError extends Error {
   constructor(
     readonly status: number,
     readonly code: ErrorCode | undefined,
+    /** What some refusals add to their code (RECENT_SIGN_IN). */
+    readonly reason?: string,
   ) {
     super(code ?? String(status));
   }
+}
+
+/** A refusal that a fresh sign-in would lift (audit C7). */
+export function needsSignIn(e: unknown): boolean {
+  return e instanceof ApiError && e.reason === RECENT_SIGN_IN;
 }
 
 const SIGNED_OUT = "you are signed out; sign in again in a new tab";
@@ -126,14 +134,20 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     ...init,
     headers: { "content-type": "application/json", ...init.headers },
   });
-  const body = (await res.json().catch(() => ({}))) as { error?: unknown };
-  if (!res.ok) throw new ApiError(res.status, codeOf(body.error));
+  const body = (await res.json().catch(() => ({}))) as { error?: unknown; reason?: unknown };
+  if (!res.ok) {
+    const reason = typeof body.reason === "string" ? body.reason : undefined;
+    throw new ApiError(res.status, codeOf(body.error), reason);
+  }
   return body as T;
 }
 
 /** Why a request failed, in words for the person (no codes). */
 export function why(e: unknown): string {
   if (e instanceof ApiError) {
+    if (needsSignIn(e)) {
+      return `this needs a sign-in within the last ${RECENT_SIGN_IN_MINUTES} minutes; sign in again, then retry`;
+    }
     if (e.code) return MESSAGES[e.code];
     if (e.status === 401) return SIGNED_OUT;
     if (e.status === 403) return NOT_ALLOWED;

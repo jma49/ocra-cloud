@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { api, type Me } from "../api.js";
 import { date, num } from "../format.js";
-import { LoadError, Loading, PageHead, useLoad } from "../ui.js";
+import { ActionError, LoadError, Loading, PageHead, useLoad } from "../ui.js";
 
 type SharingLoad = ReturnType<typeof useSharing>;
 
@@ -30,13 +30,14 @@ function dataKept(shareFindings: boolean | undefined): string {
 export function Settings(props: { me: Me }) {
   const sharing = useSharing();
   const [typed, setTyped] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState<unknown>(null);
   const remove = async () => {
+    setError(null);
     try {
       await api("/account", { method: "DELETE", body: JSON.stringify({ confirm: typed }) });
       location.href = "/";
-    } catch {
-      setError("Could not delete the account.");
+    } catch (e) {
+      setError(e);
     }
   };
   return (
@@ -103,7 +104,7 @@ export function Settings(props: { me: Me }) {
               Delete my account
             </button>
           </div>
-          {error && <p className="error">{error}</p>}
+          {error !== null && <ActionError what="delete the account" error={error} />}
         </div>
       </div>
     </>
@@ -114,20 +115,20 @@ function Sharing({ load }: { load: SharingLoad }) {
   const { data, error, reload } = load;
   const [asking, setAsking] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [failed, setFailed] = useState<unknown>(null);
   const put = async (enabled: boolean, deleteExisting = false) => {
     setBusy(true);
-    setFailed(false);
-    const ok = await api("/account/sharing", {
+    setFailed(null);
+    const error = await api("/account/sharing", {
       method: "PUT",
       body: JSON.stringify({ enabled, deleteExisting }),
     }).then(
-      () => true,
-      () => false,
+      () => null,
+      (e: unknown) => e ?? new Error("refused"),
     );
     setBusy(false);
-    setFailed(!ok);
-    if (ok) setAsking(false);
+    setFailed(error);
+    if (error === null) setAsking(false);
     reload();
   };
   const title = <h3>Send findings and the code they quote to ocra Cloud</h3>;
@@ -170,10 +171,8 @@ function Sharing({ load }: { load: SharingLoad }) {
           does not give that room back.
         </span>
         <span className="subtle">{data.findingsStored} finding(s) stored now.</span>
-        {failed && (
-          <span className="error" role="alert">
-            Could not change this setting; nothing was deleted. Try again.
-          </span>
+        {failed !== null && (
+          <ActionError what="change this setting (nothing was deleted)" error={failed} />
         )}
         {asking && (
           <div className="note confirm-note">

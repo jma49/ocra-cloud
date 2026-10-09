@@ -5,7 +5,7 @@ import { config } from "./config.js";
 import { accountSalt, deleteAccount, setSharing } from "./db/accounts.js";
 import { apiError, jsonBody } from "./http.js";
 import { perMinute } from "./rate.js";
-import { clearSessionCookie, requireSession } from "./session.js";
+import { clearSessionCookie, needsRecentSignIn, requireSession } from "./session.js";
 import type { AppEnv } from "./types.js";
 
 // The account itself: deleting it, and sharing findings. Its routes differ
@@ -21,6 +21,8 @@ account.delete("/", requireSession(), jsonBody(deleteRequest), async (c) => {
   if (c.req.valid("json").confirm !== c.var.session.account.login) {
     return apiError(c, "confirm_with_login");
   }
+  const refused = needsRecentSignIn(c);
+  if (refused) return refused;
   await deleteAccount(c.var.db, c.var.session.account.id);
   clearSessionCookie(c);
   return c.json({ deleted: true });
@@ -50,11 +52,11 @@ account.put(
   jsonBody(sharingRequest),
   async (c) => {
     const body = c.req.valid("json");
+    const deletes = !body.enabled && body.deleteExisting === true;
+    const refused = deletes ? needsRecentSignIn(c) : undefined;
+    if (refused) return refused;
     await setSharing(c.var.db, c.var.session.account.id, body.enabled);
-    const deleted =
-      !body.enabled && body.deleteExisting === true
-        ? await c.var.data.removeWhere("findings", {})
-        : 0;
+    const deleted = deletes ? await c.var.data.removeWhere("findings", {}) : 0;
     await audit(c.var.data, "sharing.changed", { shareFindings: body.enabled, deleted });
     return c.json({ shareFindings: body.enabled, deleted });
   },

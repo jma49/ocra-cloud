@@ -1,6 +1,6 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { ApiError, api, type KeyCheck, type ProviderInfo } from "../api.js";
-import { ProviderLogo } from "../ui.js";
+import { ActionError, ProviderLogo } from "../ui.js";
 
 // Adding or replacing a key: a drawer that starts with the common providers,
 // then takes the key and says what the provider made of it.
@@ -43,7 +43,7 @@ export function AddKeyDrawer(props: {
   const [value, setValue] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<KeyCheck | null>(null);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<unknown>(null);
   const byName = new Map(props.providers.map((p) => [p.name, p]));
   const p = chosen ? byName.get(chosen) : undefined;
 
@@ -57,7 +57,7 @@ export function AddKeyDrawer(props: {
     e.preventDefault();
     if (!p) return;
     setBusy(true);
-    setError("");
+    setError(null);
     setResult(null);
     try {
       const res = await api<{ check: KeyCheck }>(`/keys/${p.name}`, {
@@ -68,11 +68,7 @@ export function AddKeyDrawer(props: {
       setResult(res.check);
       props.onSaved();
     } catch (err) {
-      setError(
-        err instanceof ApiError && err.code === "invalid_body"
-          ? "That does not look like an API key."
-          : "Could not save the key.",
-      );
+      setError(err);
     } finally {
       setBusy(false);
     }
@@ -206,7 +202,12 @@ export function AddKeyDrawer(props: {
               <span className="hint">Formats: {formats(p)}.</span>
             </div>
             {result && <CheckNote check={result} label={p.label} />}
-            {error && <div className="note err">{error}</div>}
+            {error !== null &&
+              (error instanceof ApiError && error.code === "invalid_body" ? (
+                <div className="note err">That does not look like an API key.</div>
+              ) : (
+                <ActionError what="save the key" error={error} />
+              ))}
             <div className="grow" />
             <div className="drawer-foot">
               <button type="button" className="btn" onClick={props.onClose}>
