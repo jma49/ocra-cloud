@@ -10,6 +10,7 @@ import type { z } from "zod";
 import { newId, type Scoped } from "./db/scoped.js";
 import { apiError, jsonBody } from "./http.js";
 import { hasChatRoute } from "./providers.js";
+import { perMinute } from "./rate.js";
 import { requireSession } from "./session.js";
 import { parseModelId } from "./shared/index.js";
 import type { AppEnv } from "./types.js";
@@ -148,20 +149,26 @@ preferences.get("/", requireSession(["web", "cli"]), async (c) => {
   });
 });
 
-preferences.put("/", requireSession(), jsonBody(preferencesBody), async (c) => {
-  const body = c.req.valid("json");
-  const next = merged(body, savedOf(await current(c.var.data)));
-  // The web sends the version its draft started from; a save from a stale
-  // tab must not overwrite a newer one. A body without it (the CLI) saves.
-  if (body.baseVersion !== undefined) {
-    const latest = await latestVersion(c.var.data);
-    if (body.baseVersion !== latest) {
-      return apiError(c, "stale", { version: latest });
+preferences.put(
+  "/",
+  requireSession(),
+  perMinute("settings"),
+  jsonBody(preferencesBody),
+  async (c) => {
+    const body = c.req.valid("json");
+    const next = merged(body, savedOf(await current(c.var.data)));
+    // The web sends the version its draft started from; a save from a stale
+    // tab must not overwrite a newer one. A body without it (the CLI) saves.
+    if (body.baseVersion !== undefined) {
+      const latest = await latestVersion(c.var.data);
+      if (body.baseVersion !== latest) {
+        return apiError(c, "stale", { version: latest });
+      }
     }
-  }
-  const { version } = await store(c.var.data, next);
-  return c.json({ ...next, updatedAt: new Date(), version });
-});
+    const { version } = await store(c.var.data, next);
+    return c.json({ ...next, updatedAt: new Date(), version });
+  },
+);
 
 preferences.get("/versions", requireSession(), async (c) => {
   const rows = await c.var.data.listNewest("preferenceVersions", KEEP_VERSIONS);
@@ -170,7 +177,7 @@ preferences.get("/versions", requireSession(), async (c) => {
   });
 });
 
-preferences.post("/versions/:id/restore", requireSession(), async (c) => {
+preferences.post("/versions/:id/restore", requireSession(), perMinute("settings"), async (c) => {
   const old = await c.var.data.get("preferenceVersions", c.req.param("id"));
   if (!old) return apiError(c, "not_found");
   // Checked again: a version saved under older rules must still fit today's.

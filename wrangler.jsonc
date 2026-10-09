@@ -43,8 +43,8 @@
   // Device codes an address may request (ocra login), per minute; code
   // lookups and decisions an account, and an address, may make per minute
   // (/api/device/info and /decide), so a signed-in user cannot guess codes;
-  // and uploads, and gateway calls, an account may make per minute
-  // (src/rate.ts).
+  // and an account's uploads, gateway calls, key checks and settings saves
+  // per minute, each kind counted apart (src/rate.ts).
   "ratelimits": [
     { "name": "DEVICE_CODES", "namespace_id": "1001", "simple": { "limit": 10, "period": 60 } },
     { "name": "DEVICE_LOOKUPS", "namespace_id": "1002", "simple": { "limit": 20, "period": 60 } },

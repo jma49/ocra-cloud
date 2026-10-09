@@ -83,3 +83,81 @@ describe("the per-minute limit", () => {
     expect(env.ACCOUNT_CALLS).toBeDefined();
   });
 });
+
+// Audit C4: key saves, checks and model lists each call the provider with
+// the stored key, and settings saves each write an audit row; both are
+// limited per account per minute too, apart from each other.
+describe("the per-minute limit on keys and settings", () => {
+  const SAVED_KEY = { method: "PUT", json: { key: "sk-or-0123456789" } };
+
+  it("refuses key saves, checks and model lists past it, without calling the provider", async () => {
+    const { auth, account } = await signIn(1, "octo");
+    await call("/api/keys/openrouter", { ...SAVED_KEY, auth });
+    const upstream = vi
+      .spyOn(globalThis, "fetch")
+      .mockClear()
+      .mockImplementation(async () => Response.json({ data: [] }));
+    const keyCalls: [string, CallInit][] = [
+      ["/api/keys/openrouter", { method: "PUT", json: { key: "sk-or-9876543210" } }],
+      ["/api/keys/openrouter/test", { method: "POST" }],
+      ["/api/keys/openrouter/models", {}],
+    ];
+    for (const [path, init] of keyCalls) {
+      const rate = limiter(0);
+      const refused = await send(path, { ...init, auth }, rate.binding);
+      expect(refused, `${init.method ?? "GET"} ${path}`).toMatchObject({
+        status: 429,
+        retryAfter: "60",
+        body: { error: "slow_down" },
+        written: 0,
+      });
+      expect(rate.keys).toEqual([`keys:${account.id}`]);
+    }
+    expect(upstream).not.toHaveBeenCalled();
+    const [stored] = await scoped(db, account.id).list("providerKeys");
+    expect(stored?.last4).toBe("6789");
+  });
+
+  it("refuses settings saves past it, writing nothing", async () => {
+    const { auth, account } = await signIn(1, "octo");
+    await call("/api/keys/openrouter", { ...SAVED_KEY, auth });
+    const saved = await call("/api/preferences", {
+      method: "PUT",
+      auth,
+      json: { settings: { maxCostUsd: 1 } },
+    });
+    const { version } = (await saved.json()) as { version: string };
+    const before = await scoped(db, account.id).count("auditEvents");
+    const saves: [string, CallInit][] = [
+      ["/api/preferences", { method: "PUT", json: { settings: { maxCostUsd: 2 } } }],
+      [`/api/preferences/versions/${version}/restore`, { method: "POST" }],
+      ["/api/account/sharing", { method: "PUT", json: { enabled: true } }],
+      ["/api/keys/openrouter", { method: "DELETE" }],
+    ];
+    for (const [path, init] of saves) {
+      const rate = limiter(0);
+      const refused = await send(path, { ...init, auth }, rate.binding);
+      expect(refused, `${init.method} ${path}`).toMatchObject({
+        status: 429,
+        retryAfter: "60",
+        body: { error: "slow_down" },
+        written: 0,
+      });
+      expect(rate.keys).toEqual([`settings:${account.id}`]);
+    }
+    expect(await scoped(db, account.id).count("auditEvents")).toBe(before);
+    expect(await scoped(db, account.id).count("providerKeys")).toBe(1);
+  });
+
+  it("lets a settings save within it through", async () => {
+    const { auth, account } = await signIn(1, "octo");
+    const rate = limiter(1);
+    const saved = await send(
+      "/api/preferences",
+      { method: "PUT", auth, json: { settings: { maxCostUsd: 2 } } },
+      rate.binding,
+    );
+    expect(saved.status).toBe(200);
+    expect(rate.keys).toEqual([`settings:${account.id}`]);
+  });
+});

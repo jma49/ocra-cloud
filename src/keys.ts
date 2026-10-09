@@ -7,6 +7,7 @@ import { apiError, jsonBody } from "./http.js";
 import { decryptKey, storedKey } from "./keyring.js";
 import { checkKey, listModels } from "./provider-keys.js";
 import { isProvider, providers } from "./providers.js";
+import { perMinute } from "./rate.js";
 import { requireSession } from "./session.js";
 import { DAY } from "./time.js";
 import type { AppEnv } from "./types.js";
@@ -52,7 +53,7 @@ const keyRequest = z.object({
     .pipe(z.string().min(8).max(512).regex(/^\S+$/, "a key has no spaces")),
 });
 
-keys.put("/:provider", jsonBody(keyRequest), async (c) => {
+keys.put("/:provider", perMinute("keys"), jsonBody(keyRequest), async (c) => {
   const provider = c.req.param("provider");
   if (!isProvider(provider)) return apiError(c, "unknown_provider");
   const { key } = c.req.valid("json");
@@ -86,7 +87,7 @@ keys.put("/:provider", jsonBody(keyRequest), async (c) => {
   return c.json({ provider, last4: key.slice(-4), check });
 });
 
-keys.post("/:provider/test", async (c) => {
+keys.post("/:provider/test", perMinute("keys"), async (c) => {
   const provider = c.req.param("provider");
   const row = await storedKey(c.var.data, provider);
   if (!row || !isProvider(provider)) return apiError(c, "no_key");
@@ -100,7 +101,7 @@ keys.post("/:provider/test", async (c) => {
 });
 
 // The models the provider offers this key, for choosing defaults on the web.
-keys.get("/:provider/models", async (c) => {
+keys.get("/:provider/models", perMinute("keys"), async (c) => {
   const provider = c.req.param("provider");
   const row = await storedKey(c.var.data, provider);
   if (!row || !isProvider(provider)) return apiError(c, "no_key");
@@ -108,7 +109,7 @@ keys.get("/:provider/models", async (c) => {
   return c.json({ provider, models: ids });
 });
 
-keys.delete("/:provider", async (c) => {
+keys.delete("/:provider", perMinute("settings"), async (c) => {
   const provider = c.req.param("provider");
   const removed = (await c.var.data.removeWhere("providerKeys", { provider })) > 0;
   if (removed) await audit(c.var.data, "key.deleted", { provider });
