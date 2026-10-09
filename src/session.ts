@@ -10,6 +10,7 @@ import {
 } from "./db/accounts.js";
 import { scoped } from "./db/scoped.js";
 import { apiError } from "./http.js";
+import { RECENT_SIGN_IN, RECENT_SIGN_IN_MINUTES } from "./shared/index.js";
 import { DAY, HOUR, MINUTE } from "./time.js";
 import type { AppEnv } from "./types.js";
 
@@ -23,6 +24,8 @@ import type { AppEnv } from "./types.js";
  */
 const SESSION_COOKIE = "__Host-ocra_session";
 const SESSION_DAYS = { web: 30, cli: 90 } as const;
+/** A browser session unused this long has ended, within its SESSION_DAYS.web (audit C7). */
+const WEB_IDLE_MS = 7 * DAY;
 /** A CLI access token lives an hour; its refresh token, SESSION_DAYS.cli. */
 const CLI_ACCESS_MS = HOUR;
 /** How long a refresh token used once still answers, for a response that was lost. */
@@ -47,8 +50,12 @@ export function requireSession(kinds: readonly Kind[] = ["web"]): MiddlewareHand
       const origin = c.req.header("origin");
       if (origin !== new URL(c.req.url).origin) return apiError(c, "bad_origin");
     }
-    const session = await sessionByTokenHash(c.var.db, await sha256Hex(token));
+    const now = new Date();
+    const session = await sessionByTokenHash(c.var.db, await sha256Hex(token), now);
     if (!session) return apiError(c, "unauthenticated");
+    if (session.kind === "web" && webSessionEnd(session) <= now) {
+      return apiError(c, "unauthenticated");
+    }
     // A CLI token reaches only what the CLI needs (ADR-0024): never keys,
     // sessions or the account.
     if (!kinds.includes(session.kind)) return apiError(c, "forbidden_for_session");
@@ -56,12 +63,36 @@ export function requireSession(kinds: readonly Kind[] = ["web"]): MiddlewareHand
     const data = scoped(c.var.db, session.account.id);
     c.set("data", data);
     // When a session was last used, to the nearest few minutes.
-    const now = new Date();
     if (!session.lastUsedAt || now.getTime() - session.lastUsedAt.getTime() > LAST_USED_EVERY_MS) {
       c.executionCtx.waitUntil(data.update("sessions", session.sessionId, { lastUsedAt: now }));
     }
     await next();
   };
+}
+
+/**
+ * When a browser session ends: SESSION_DAYS.web after its sign-in, or
+ * WEB_IDLE_MS after its last use (its sign-in if never used), whichever
+ * comes first. Its last use is written at most every LAST_USED_EVERY_MS.
+ */
+export function webSessionEnd(s: {
+  createdAt: Date;
+  expiresAt: Date;
+  lastUsedAt: Date | null;
+}): Date {
+  const used = (s.lastUsedAt ?? s.createdAt).getTime();
+  return new Date(Math.min(s.expiresAt.getTime(), used + WEB_IDLE_MS));
+}
+
+/**
+ * A refusal unless the request's session signed in within
+ * RECENT_SIGN_IN_MINUTES: for a change a stolen or forgotten session must
+ * not make (audit C7). Web sessions only; the CLI never reaches these.
+ */
+export function needsRecentSignIn(c: Context<AppEnv>): Response | undefined {
+  const age = Date.now() - c.var.session.createdAt.getTime();
+  if (age <= RECENT_SIGN_IN_MINUTES * MINUTE) return undefined;
+  return apiError(c, "forbidden_for_session", { reason: RECENT_SIGN_IN });
 }
 
 /** Starts a browser session and returns its token, set once as a cookie. */

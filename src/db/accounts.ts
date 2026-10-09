@@ -26,6 +26,9 @@ export type SessionAccount = {
   account: Account;
   sessionId: string;
   kind: "web" | "cli";
+  /** When the session's sign-in happened. */
+  createdAt: Date;
+  expiresAt: Date;
   lastUsedAt: Date | null;
 };
 
@@ -40,6 +43,8 @@ export async function sessionByTokenHash(
       account: accounts,
       sessionId: sessions.id,
       kind: sessions.kind,
+      createdAt: sessions.createdAt,
+      expiresAt: sessions.expiresAt,
       lastUsedAt: sessions.lastUsedAt,
     })
     .from(sessions)
