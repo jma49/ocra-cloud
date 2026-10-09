@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { readText } from "./body.js";
 import { config } from "./config.js";
+import { deadline } from "./deadline.js";
 import { apiError } from "./http.js";
 import { keyFor, masterKeys } from "./keyring.js";
 import { applyAuth, isProvider, matchRoute, PASS_HEADERS, providers } from "./providers.js";
@@ -15,6 +16,12 @@ import type { AppEnv } from "./types.js";
 
 const MAX_BODY = 8 * 1024 * 1024;
 const EDGE = 16 * 1024;
+/**
+ * How long a provider may take to start answering (audit C5). Long: a
+ * reasoning model's whole answer can come before its headers when the
+ * client does not stream. Once it starts, the answer may take its time.
+ */
+const HEADERS_TIMEOUT_MS = 5 * 60_000;
 
 export const gateway = new Hono<AppEnv>().use(requireSession(["web", "cli"]), perMinute("gateway"));
 
@@ -65,13 +72,24 @@ gateway.post("/:provider/*", async (c) => {
       data.update("gatewayCalls", id, { status, ...usage, ms: Date.now() - started }),
     );
 
+  const client = c.req.raw.signal;
+  const clock = deadline(HEADERS_TIMEOUT_MS, client);
   let upstream: Response;
   try {
     // Not followed: a redirect would resend the user's key to another address.
-    upstream = await fetch(target, { method: "POST", headers, body, redirect: "manual" });
+    upstream = await fetch(target, {
+      method: "POST",
+      headers,
+      body,
+      redirect: "manual",
+      signal: clock.signal,
+    });
   } catch {
-    finish(502, { tokensIn: 0, tokensOut: 0 });
+    const status = client.aborted ? END_STATUS.cancelled : clock.timedOut() ? TIMED_OUT : 502;
+    finish(status, { tokensIn: 0, tokensOut: 0 });
     return apiError(c, "upstream_unreachable");
+  } finally {
+    clock.clear();
   }
   if (upstream.status >= 300 && upstream.status < 400) {
     await upstream.body?.cancel().catch(() => {});
@@ -98,6 +116,8 @@ gateway.post("/:provider/*", async (c) => {
 const PENDING = 0;
 /** Recorded when the client went away (499) or upstream broke off (502) mid-answer. */
 const END_STATUS = { cancelled: 499, failed: 502 } as const;
+/** Recorded when the provider did not start answering within HEADERS_TIMEOUT_MS. */
+const TIMED_OUT = 504;
 
 export type Usage = { tokensIn: number; tokensOut: number };
 
