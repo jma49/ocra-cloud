@@ -28,9 +28,11 @@
     // them, deleted ones included; past it a review is stored without its
     // findings.
     "REVIEW_MAX_FINDINGS": "1000",
-    // Login codes (ocra login) the whole service may make in a UTC day: they
-    // are asked for before anyone signs in.
-    "DEVICE_DAILY_CODES": "500"
+    // Login codes (ocra login) one network (an IPv4 address, an IPv6 /64)
+    // may ask for in a UTC day, and the whole service may make: they are
+    // asked for before anyone signs in.
+    "DEVICE_DAILY_CODES_PER_NETWORK": "20",
+    "DEVICE_DAILY_CODES": "1000"
   },
   // The web app is a single-page app; the Worker answers /api first.
   "assets": {

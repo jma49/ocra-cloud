@@ -6,7 +6,7 @@ import {
 import { Hono, type MiddlewareHandler } from "hono";
 import { z } from "zod";
 import { config } from "./config.js";
-import { randomToken, sha256Hex } from "./crypto.js";
+import { hmacHex, randomToken, sha256Hex } from "./crypto.js";
 import {
   byDeviceCodeHash,
   byUserCode,
@@ -16,6 +16,7 @@ import {
   recordPoll,
 } from "./db/device.js";
 import { apiError, jsonBody } from "./http.js";
+import { retryTomorrow } from "./rate.js";
 import {
   refreshCliSession,
   reissueCliSession,
@@ -68,6 +69,26 @@ const limitLookups: MiddlewareHandler<AppEnv> = async (c, next) => {
   await next();
 };
 
+/**
+ * The network an address stands for in the daily count of codes: an IPv4
+ * address itself, and an IPv6 address's /64, which one subscriber usually
+ * holds whole and could otherwise walk through.
+ */
+export function network(ip: string): string {
+  if (!ip.includes(":")) return ip;
+  const [head = "", tail] = ip.split("::");
+  const front = head ? head.split(":") : [];
+  const back = tail ? tail.split(":") : [];
+  const groups =
+    tail === undefined
+      ? front
+      : [...front, ...Array(8 - front.length - back.length).fill("0"), ...back];
+  return `${groups
+    .slice(0, 4)
+    .map((g) => (Number.parseInt(g, 16) || 0).toString(16))
+    .join(":")}::/64`;
+}
+
 export function normalizeUserCode(input: string): string | undefined {
   const s = input.toUpperCase().replace(/[^A-Z]/g, "");
   if (s.length !== 8 || [...s].some((ch) => !ALPHABET.includes(ch))) return undefined;
@@ -83,11 +104,15 @@ const RFC_INVALID = { invalid: "invalid_request" } as const;
 device.post("/code", jsonBody(codeRequest), async (c) => {
   const ip = c.req.header("cf-connecting-ip") ?? "unknown";
   const { success } = await c.env.DEVICE_CODES.limit({ key: ip });
-  if (!success) return apiError(c, "slow_down", {}, 429);
+  if (!success) {
+    c.header("retry-after", "60");
+    return apiError(c, "slow_down", {}, 429);
+  }
   const name = c.req.valid("json").client_name;
   const label = name === undefined ? null : name.slice(0, 80).replace(/[^\w .@()-]/g, "");
   const deviceCode = randomToken("ocra_dev_");
   const userCode = newUserCode();
+  const { deviceDailyCodes, deviceDailyCodesPerNetwork } = config(c.env);
   const created = await createDeviceCode(
     c.var.db,
     {
@@ -96,9 +121,17 @@ device.post("/code", jsonBody(codeRequest), async (c) => {
       label: label || null,
       expiresAt: new Date(Date.now() + CODE_TTL_MS),
     },
-    config(c.env).deviceDailyCodes,
+    {
+      // Keyed, so the database holds no address.
+      network: (await hmacHex(c.env.SESSION_SECRET, `device-codes:${network(ip)}`)).slice(0, 32),
+      perNetwork: deviceDailyCodesPerNetwork,
+      daily: deviceDailyCodes,
+    },
   );
-  if (!created) return apiError(c, "slow_down", {}, 429);
+  if (!created) {
+    retryTomorrow(c);
+    return apiError(c, "slow_down", {}, 429);
+  }
   const verify = new URL("/device", c.req.url);
   return c.json({
     device_code: deviceCode,

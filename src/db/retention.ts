@@ -57,17 +57,10 @@ export async function enforceRetention(db: DrizzleD1Database, now = new Date()):
     ],
     // DEVICE_DAILY_CODES a day at most, so they are read whole.
     ["device_codes", () => db.delete(deviceCodes).where(lt(deviceCodes.expiresAt, now))],
+    // Only today's counts are used, and some are per network: the rest go.
     [
       "service_counters",
-      () =>
-        db
-          .delete(serviceCounters)
-          .where(
-            and(
-              inArray(serviceCounters.name, serviceCounters.name.enumValues),
-              lt(serviceCounters.day, utcDay(cutoff)),
-            ),
-          ),
+      () => db.delete(serviceCounters).where(lt(serviceCounters.day, utcDay(now))),
     ],
     // A session ends with its last token: for the CLI, the refresh token
     // (the sessions_ends index).

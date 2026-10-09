@@ -103,8 +103,10 @@ export function Privacy() {
           then deleted by a daily job.
         </li>
         <li>
-          Expired sign-in codes and sessions: deleted the day they expire. Browser sessions last 30
-          days, terminal sessions 90 from sign-in, however often they refresh.
+          Expired sign-in codes and sessions: deleted the day they expire. The day's count of
+          sign-in codes asked for from each network, kept under a keyed hash rather than the
+          address: deleted the next day. Browser sessions last 30 days, terminal sessions 90 from
+          sign-in, however often they refresh.
         </li>
         <li>
           Your account, keys, settings and memory: until you delete them. The newest 50 versions of

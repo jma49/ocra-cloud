@@ -5,7 +5,7 @@ import { config } from "./config.js";
 import type { Row, Scoped } from "./db/scoped.js";
 import { parseFindings } from "./findings.js";
 import { apiError, jsonBody, queryDays } from "./http.js";
-import { perMinute } from "./rate.js";
+import { perMinute, retryTomorrow } from "./rate.js";
 import { requireSession } from "./session.js";
 import type { ReviewerCounts } from "./shared/index.js";
 import { DAY } from "./time.js";
@@ -84,7 +84,10 @@ reviews.post("/", requireSession(["web", "cli"]), perMinute("upload"), uploadBod
     maxFindings: reviewMaxFindings,
   });
   if (stored.outcome === "duplicate") return c.json({ id: stored.id, duplicate: true });
-  if (stored.outcome === "limited") return apiError(c, "daily_limit", { limit });
+  if (stored.outcome === "limited") {
+    retryTomorrow(c);
+    return apiError(c, "daily_limit", { limit });
+  }
   const { id, findingsSkipped } = stored;
   return c.json({
     id,
