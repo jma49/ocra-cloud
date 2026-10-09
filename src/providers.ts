@@ -388,16 +388,25 @@ export function modelsCall(p: Provider): KeyCall | undefined {
   return p.models ?? (p.verify?.path.endsWith("/models") ? p.verify : undefined);
 }
 
-/** GET /api/providers: the providers and paths the gateway forwards, for the web app and the CLI. */
+/**
+ * GET /api/providers: the providers and paths the gateway forwards, for the
+ * web app and the CLI. It needs no session and changes only with a deploy,
+ * so a browser keeps it an hour instead of asking the Worker on every page
+ * (audit C1).
+ */
 export const providersRoute = new Hono<AppEnv>().get("/", (c) =>
-  c.json({
-    providers: Object.entries(providers).map(([name, p]) => ({
-      name,
-      label: p.label,
-      group: p.group,
-      base: p.base,
-      paths: p.routes.map((r) => (typeof r.path === "string" ? r.path : r.path.source)),
-      ...(p.effort ? { effort: p.effort } : {}),
-    })),
-  }),
+  c.json(
+    {
+      providers: Object.entries(providers).map(([name, p]) => ({
+        name,
+        label: p.label,
+        group: p.group,
+        base: p.base,
+        paths: p.routes.map((r) => (typeof r.path === "string" ? r.path : r.path.source)),
+        ...(p.effort ? { effort: p.effort } : {}),
+      })),
+    },
+    200,
+    { "cache-control": "public, max-age=3600" },
+  ),
 );

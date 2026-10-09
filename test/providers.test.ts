@@ -103,3 +103,11 @@ describe("routes", () => {
     expect(body.providers.filter((p) => p.effort).map((p) => p.name)).toEqual(["openrouter"]);
   });
 });
+
+describe("the provider list", () => {
+  it("is kept by the browser for an hour, as it needs no session (audit C1)", async () => {
+    const res = await call("/api/providers");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("cache-control")).toBe("public, max-age=3600");
+  });
+});
