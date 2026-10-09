@@ -22,12 +22,17 @@ export const app = new Hono<AppEnv>().basePath("/api");
 
 /**
  * On every API answer, errors included: never read as another type, never
- * framed, and no referrer. The web app's own headers are in web/public/_headers.
+ * framed, no referrer, HTTPS only for a year, no powerful features and no
+ * opener across origins (audit C8). The web app's own headers are in
+ * web/public/_headers.
  */
 export const API_HEADERS = {
   "x-content-type-options": "nosniff",
   "referrer-policy": "no-referrer",
   "content-security-policy": "default-src 'none'; frame-ancestors 'none'",
+  "strict-transport-security": "max-age=31536000; includeSubDomains",
+  "permissions-policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+  "cross-origin-opener-policy": "same-origin",
 } as const;
 
 app.use(async (c, next) => {

@@ -39,6 +39,14 @@ describe("web app headers", () => {
     expect(rules().get("referrer-policy")).toBe("no-referrer");
   });
 
+  it("keep the app on HTTPS, without powerful features or a cross-origin opener (audit C8)", () => {
+    expect(rules().get("strict-transport-security")).toBe("max-age=31536000; includeSubDomains");
+    expect(rules().get("permissions-policy")).toBe(
+      "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+    );
+    expect(rules().get("cross-origin-opener-policy")).toBe("same-origin");
+  });
+
   it("forbid framing and inline or evaluated code", () => {
     const policy = csp();
     expect(policy.get("frame-ancestors")).toEqual(["'none'"]);
