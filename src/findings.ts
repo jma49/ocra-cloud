@@ -1,16 +1,16 @@
 import {
-  MAX_FIELD,
   MAX_FINDINGS,
   MAX_TOTAL_BYTES,
-  redact,
+  redactField,
   sharedFindingSchema,
 } from "@open-cr-agent/cloud-contract";
 import type { Severity, Verification } from "./shared/index.js";
 
 // A finding as the CLI uploads it when the account shares findings
-// (ADR-0028, 2), checked with the contract's schema, then redacted and
-// bounded again on the server: a client that skipped its own pass, or a
-// hostile one, gets no more stored.
+// (ADR-0028, 2), checked with the contract's schema, then bounded and
+// redacted again on the server: a client that skipped its own pass, or a
+// hostile one, gets no more stored. Each field is cut before it is redacted
+// (redactField), so the work per field is bounded by the cap.
 
 export type FindingRow = {
   fingerprint: string;
@@ -28,6 +28,8 @@ export type FindingRow = {
   redacted: boolean;
   truncated: boolean;
 };
+
+const MAX_CATEGORY = 64;
 
 /** dropped: findings left out because a field was missing or malformed. */
 export function parseFindings(list: unknown): {
@@ -49,20 +51,17 @@ export function parseFindings(list: unknown): {
     const f = parsed.data;
     let rowRedacted = false;
     let rowTruncated = false;
-    const text = (v: string): string => {
-      const r = redact(v);
+    const text = (v: string, max?: number): string => {
+      const r = redactField(v, max);
       rowRedacted ||= r.redacted;
-      if (r.text.length > MAX_FIELD) {
-        rowTruncated = true;
-        return r.text.slice(0, MAX_FIELD);
-      }
+      rowTruncated ||= r.truncated;
       return r.text;
     };
     const row: FindingRow = {
       fingerprint: f.fingerprint,
       reviewer: f.reviewer,
       severity: f.severity,
-      category: f.category === null ? null : text(f.category.slice(0, 64)),
+      category: f.category === null ? null : text(f.category, MAX_CATEGORY),
       verification: f.verification,
       file: text(f.file),
       lineStart: f.lineStart,
