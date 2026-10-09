@@ -36,8 +36,9 @@ export type Route = {
   /** Edits the account's preferences: the save bar and its draft apply. */
   prefs?: true;
   /**
-   * What the page reads that can start before /me answers, so it is not a
-   * second round trip after it (audit C11); a 401 means what /me's does.
+   * What the page reads that can start before /me answers, in a browser
+   * that was signed in, so it is not a second round trip after it (audit
+   * C11); a 401 means what /me's does.
    */
   loads?: readonly (() => Promise<unknown>)[];
   page: (me: Me, params: string[]) => ReactNode;

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { api, type Me } from "./api.js";
 import { EyesMark } from "./eyes.js";
 import { Link } from "./router.js";
+import { rememberSignedIn } from "./signed-in.js";
 import { brandTag, DOCS, GITHUB } from "./site.js";
 
 // The bar across the top and the footer, on every page.
@@ -31,6 +32,7 @@ export function TopBar(props: { me: Me | null }) {
     };
   }, []);
   const logout = async () => {
+    rememberSignedIn(false);
     await api("/auth/logout", { method: "POST" }).catch(() => {});
     location.href = "/";
   };
