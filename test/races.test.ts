@@ -49,6 +49,35 @@ describe("parallel writes", () => {
     expect(await scoped(db, me.account.id).list("preferences")).toHaveLength(1);
   });
 
+  it("let only one of two saves from the same version of the preferences land", async () => {
+    const me = await signIn(1, "me");
+    const save = (body: unknown) =>
+      call("/api/preferences", { method: "PUT", auth: me.auth, headers: origin, json: body });
+    const v1 = (
+      (await (await save({ baseVersion: null, settings: { maxCostUsd: 1 } })).json()) as {
+        version: string;
+      }
+    ).version;
+    // Two tabs, both opened on v1, save at once: the second must not
+    // silently overwrite the first.
+    const answers = await Promise.all([
+      save({ baseVersion: v1, settings: { maxCostUsd: 5 } }),
+      save({ baseVersion: v1, settings: { maxCostUsd: 9 } }),
+    ]);
+    expect(answers.map((r) => r.status).sort()).toEqual([200, 409]);
+    const [won] = answers.filter((r) => r.status === 200);
+    const saved = (await won?.json()) as { version: string; settings: unknown };
+    const now = (await (await call("/api/preferences", { auth: me.auth })).json()) as {
+      version: string;
+      settings: unknown;
+    };
+    expect(now).toMatchObject({ version: saved.version, settings: saved.settings });
+    expect(await scoped(db, me.account.id).count("preferenceVersions")).toBe(2);
+    expect(await scoped(db, me.account.id).count("auditEvents", { kind: "settings.changed" })).toBe(
+      2,
+    );
+  });
+
   it("stop at the memory cap and keep one entry per finding", async () => {
     const web = await signIn(1, "octo");
     const cli = await signInCli(1, "octo");

@@ -108,36 +108,45 @@ const flat = (p: Saved) => ({
   ...p.settings,
 });
 const KEEP_VERSIONS = 50;
+// A save without a base version (the CLI's) is merged again over a save
+// that landed first; past this many it answers stale rather than loop.
+const SAVE_ATTEMPTS = 3;
+
+type Stored = { saved: Saved; version: string | null } | { stale: string | null };
 
 /**
- * Saves the preferences as a new version; returns the version id, or the
- * current one if nothing changed. The update, the version, pruning to the
- * newest KEEP_VERSIONS and the audit event are one D1 batch: all or none.
+ * Saves build's preferences as a new version; returns the saved values and
+ * the version id, the current one if nothing changed. With a base version
+ * (the web's draft), a save whose base is no longer current is stale; the
+ * version check and the write are one compare-and-set in the database, so
+ * two saves from the same base cannot both land (audit C6). The row, the
+ * version, pruning to the newest KEEP_VERSIONS and the audit event are one
+ * D1 batch: all or none.
  */
 async function store(
   data: Scoped,
-  next: Saved,
-): Promise<{ version: string | null; changed: string[] }> {
-  const row = await current(data);
-  const changed = changedKeys(flat(savedOf(row)), flat(next));
-  if (changed.length === 0) return { version: await latestVersion(data), changed };
-  const fields = { ...next, updatedAt: new Date() };
-  const version = newId();
-  // An upsert on the account: two first saves at once both land, not a 500.
-  await data.batch((w) => [
-    w.upsert("preferences", fields, ["accountId"]),
-    w.insert("preferenceVersions", { id: version, snapshot: next, changed }),
-    w.keepNewest("preferenceVersions", KEEP_VERSIONS),
-    w.insert("auditEvents", {
-      kind: "settings.changed",
-      detail: { keys: changed, version },
-    }),
-  ]);
-  return { version, changed };
-}
-
-async function latestVersion(data: Scoped): Promise<string | null> {
-  return (await data.listNewest("preferenceVersions", 1))[0]?.id ?? null;
+  base: string | null | undefined,
+  build: (saved: Saved) => Saved,
+): Promise<Stored> {
+  for (let attempt = 0; attempt < SAVE_ATTEMPTS; attempt++) {
+    const row = await current(data);
+    const stored = row?.version ?? null;
+    if (base !== undefined && base !== stored) return { stale: stored };
+    const next = build(savedOf(row));
+    const changed = changedKeys(flat(savedOf(row)), flat(next));
+    if (changed.length === 0) return { saved: next, version: stored };
+    const version = newId();
+    const landed = await data.savePreferences({
+      values: next,
+      expected: stored,
+      version,
+      changed,
+      keep: KEEP_VERSIONS,
+      auditId: newId(),
+    });
+    if (landed) return { saved: next, version };
+  }
+  return { stale: (await current(data))?.version ?? null };
 }
 
 preferences.get("/", requireSession(["web", "cli"]), async (c) => {
@@ -145,7 +154,7 @@ preferences.get("/", requireSession(["web", "cli"]), async (c) => {
   return c.json({
     ...savedOf(row),
     updatedAt: row?.updatedAt ?? null,
-    version: await latestVersion(c.var.data),
+    version: row?.version ?? null,
   });
 });
 
@@ -156,17 +165,11 @@ preferences.put(
   jsonBody(preferencesBody),
   async (c) => {
     const body = c.req.valid("json");
-    const next = merged(body, savedOf(await current(c.var.data)));
     // The web sends the version its draft started from; a save from a stale
     // tab must not overwrite a newer one. A body without it (the CLI) saves.
-    if (body.baseVersion !== undefined) {
-      const latest = await latestVersion(c.var.data);
-      if (body.baseVersion !== latest) {
-        return apiError(c, "stale", { version: latest });
-      }
-    }
-    const { version } = await store(c.var.data, next);
-    return c.json({ ...next, updatedAt: new Date(), version });
+    const result = await store(c.var.data, body.baseVersion, (saved) => merged(body, saved));
+    if ("stale" in result) return apiError(c, "stale", { version: result.stale });
+    return c.json({ ...result.saved, updatedAt: new Date(), version: result.version });
   },
 );
 
@@ -183,7 +186,7 @@ preferences.post("/versions/:id/restore", requireSession(), perMinute("settings"
   // Checked again: a version saved under older rules must still fit today's.
   const parsed = preferencesBody.safeParse(old.snapshot);
   if (!parsed.success) return apiError(c, "version_no_longer_valid");
-  const next = merged(parsed.data, savedOf(undefined));
-  const { version } = await store(c.var.data, next);
-  return c.json({ ...next, updatedAt: new Date(), version });
+  const result = await store(c.var.data, undefined, () => merged(parsed.data, savedOf(undefined)));
+  if ("stale" in result) return apiError(c, "stale", { version: result.stale });
+  return c.json({ ...result.saved, updatedAt: new Date(), version: result.version });
 });
