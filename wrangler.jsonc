@@ -15,15 +15,19 @@
   "triggers": { "crons": ["17 4 * * *"] },
   // The GitHub App "ocra Cloud dev" signs users in. Secrets (set with
   // wrangler secret put): GITHUB_CLIENT_SECRET, MASTER_KEY, SESSION_SECRET.
+  // The caps are sized for the Workers Free plan, whose D1 rows and Worker
+  // requests per day are shared by every account: test/quota-budget.test.ts
+  // checks that five accounts at every cap use at most half of each.
   "vars": {
     "GITHUB_CLIENT_ID": "Iv23liQIb7RBK0JvrxbN",
     // Model calls one account may make through the gateway in a UTC day.
-    "GATEWAY_DAILY_CALLS": "2000",
+    "GATEWAY_DAILY_CALLS": "500",
     // Reviews one account may upload in a UTC day (POST /api/reviews).
-    "REVIEW_DAILY_UPLOADS": "500",
-    // Shared findings one account may keep; past it a review is stored
-    // without its findings.
-    "REVIEW_MAX_FINDINGS": "20000"
+    "REVIEW_DAILY_UPLOADS": "50",
+    // Shared findings one account may upload in the 90 days retention keeps
+    // them, deleted ones included; past it a review is stored without its
+    // findings.
+    "REVIEW_MAX_FINDINGS": "1000"
   },
   // The web app is a single-page app; the Worker answers /api first.
   "assets": {

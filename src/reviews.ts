@@ -7,7 +7,7 @@ import { parseFindings } from "./findings.js";
 import { apiError, jsonBody, queryDays } from "./http.js";
 import { requireSession } from "./session.js";
 import type { ReviewerCounts } from "./shared/index.js";
-import { DAY, utcDayStart } from "./time.js";
+import { DAY } from "./time.js";
 import type { AppEnv } from "./types.js";
 
 // Review metadata: the CLI uploads counts after a review, the web lists them.
@@ -74,20 +74,17 @@ reviews.post("/", requireSession(["web", "cli"]), uploadBody, async (c) => {
     ...(reviewersDropped > 0 ? { reviewers: reviewersDropped } : {}),
   };
   // A run uploads once; a retry of the same run, even a concurrent one, is
-  // not a second review. Uploads per UTC day and stored findings are capped
-  // per account (audit S3): a loop of uploads cannot fill the database.
+  // not a second review. Uploads per UTC day and shared findings are capped
+  // per account (audits S3, C1): a loop of uploads cannot fill the database
+  // or use up the plan's daily writes.
   const { reviewDailyUploads: limit, reviewMaxFindings } = config(c.env);
-  const { id, duplicate, limited, findingsSkipped } = await c.var.data.insertReview(
-    row,
-    parsed.rows,
-    {
-      since: utcDayStart(),
-      dailyUploads: limit,
-      maxFindings: reviewMaxFindings,
-    },
-  );
-  if (duplicate) return c.json({ id, duplicate: true });
-  if (limited) return apiError(c, "daily_limit", { limit });
+  const stored = await c.var.data.insertReview(row, parsed.rows, {
+    dailyUploads: limit,
+    maxFindings: reviewMaxFindings,
+  });
+  if (stored.outcome === "duplicate") return c.json({ id: stored.id, duplicate: true });
+  if (stored.outcome === "limited") return apiError(c, "daily_limit", { limit });
+  const { id, findingsSkipped } = stored;
   return c.json({
     id,
     findings: findingsSkipped ? 0 : parsed.rows.length,

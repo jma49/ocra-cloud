@@ -53,6 +53,10 @@ export function Privacy() {
           use your machine's salt. Deleting your account deletes it.
         </li>
         <li>
+          <b>Daily counts</b> of your review uploads, model calls and findings sent, which the daily
+          limits are checked against.
+        </li>
+        <li>
           <b>Memory</b> you add on the web: the repository's hash, the finding's fingerprint, file
           and title, and your reason.
         </li>
@@ -95,8 +99,8 @@ export function Privacy() {
       <h2>How long</h2>
       <ul>
         <li>
-          Model call records, review counts, findings and the audit log: 90 days, then deleted by a
-          daily job.
+          Model call records, review counts, findings, the daily counts and the audit log: 90 days,
+          then deleted by a daily job.
         </li>
         <li>
           Expired sign-in codes and sessions: deleted the day they expire. Browser sessions last 30

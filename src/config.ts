@@ -6,7 +6,7 @@ export type Config = {
   gatewayDailyCalls: number;
   /** Review uploads an account may make per UTC day. */
   reviewDailyUploads: number;
-  /** Findings an account may have stored. */
+  /** Shared findings an account may send within the retention window (deleted ones count). */
   reviewMaxFindings: number;
 };
 
