@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import indexHtml from "../index.html?raw";
 import headers from "../public/_headers?raw";
+import viteConfig from "../vite.config.ts?raw";
 
 // Audit S-hard (#15): the web app is served with a CSP that forbids framing
 // and inline code, nosniff and no referrer (Workers static assets read
@@ -34,6 +35,12 @@ function csp(): Map<string, string[]> {
 }
 
 describe("web app headers", () => {
+  // Vite inlines assets under 4 KB as data: URLs by default; the CSP's
+  // font-src and img-src allow 'self' only, so an inlined font was blocked.
+  it("serve every asset from 'self', never inlined as a data: URL", () => {
+    expect(csp().get("font-src")).toEqual(["'self'"]);
+    expect(viteConfig).toMatch(/assetsInlineLimit:\s*0\b/);
+  });
   it("send nosniff and no referrer on every path", () => {
     expect(rules().get("x-content-type-options")).toBe("nosniff");
     expect(rules().get("referrer-policy")).toBe("no-referrer");
