@@ -5,47 +5,66 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  height: 34px;
+  height: 36px;
   padding: 0 14px;
-  border-radius: 8px;
-  border: 1px solid var(--border-strong);
-  background: var(--bg);
+  border-radius: var(--r-ctl);
+  border: 0;
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--border-strong);
   color: var(--fg);
   cursor: pointer;
   text-decoration: none;
   font-size: 14px;
   font-weight: 500;
   white-space: nowrap;
+  transition:
+    background-color 150ms var(--e-std),
+    box-shadow 150ms var(--e-std),
+    transform 200ms var(--e-std);
 }
-.btn:hover {
-  background: var(--bg-subtle);
+/* Under a pointer a button gives a little, and a little more pressed. */
+.btn:active:not(:disabled) {
+  transform: scale(0.98);
 }
-.btn-primary {
+@media (hover: hover) {
+  .btn:hover:not(:disabled) {
+    background: var(--tint);
+    box-shadow: inset 0 0 0 1px var(--fg-subtle);
+    transform: scale(0.98);
+  }
+  .btn:hover:active:not(:disabled) {
+    transform: scale(0.96);
+  }
+}
+.btn-primary,
+.btn-primary:hover:not(:disabled) {
   background: var(--button);
   color: var(--on-button);
-  border-color: var(--button);
+  box-shadow: none;
 }
-.btn-primary:hover {
-  background: var(--button);
-  opacity: 0.88;
+@media (hover: hover) {
+  .btn-primary:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--button) 86%, var(--on-button));
+  }
 }
 .btn-danger {
   color: var(--critical);
 }
-.btn-danger-solid {
+.btn-danger-solid,
+.btn-danger-solid:hover:not(:disabled) {
   background: var(--critical);
-  border-color: var(--critical);
-  color: #fff;
+  box-shadow: none;
+  color: var(--sheet-bg);
 }
 .btn-sm {
-  height: 28px;
+  height: 30px;
   padding: 0 10px;
   font-size: 13px;
 }
 .btn-lg {
-  height: 42px;
+  height: 46px;
   padding: 0 20px;
-  font-size: 14px;
+  font-size: 15px;
 }
 .btn:disabled {
   opacity: 0.45;
@@ -55,8 +74,8 @@
   height: 34px;
   padding: 0 10px;
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
-  background: var(--bg);
+  border-radius: var(--r-ctl);
+  background: var(--bg-subtle);
   color: var(--fg);
   font: inherit;
   font-size: 14px;
@@ -64,7 +83,7 @@
 }
 .input:focus,
 .btn:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--primary) 45%, transparent);
+  outline: 2px solid var(--fg);
   outline-offset: 1px;
 }
 .seg {
@@ -72,7 +91,7 @@
   margin: 0;
   min-width: 0;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--r-ctl);
   padding: 2px;
   background: var(--bg-subtle);
 }
@@ -80,15 +99,17 @@
   border: 0;
   background: none;
   padding: 4px 10px;
-  border-radius: 6px;
+  border-radius: var(--r-tab);
   color: var(--fg-muted);
   cursor: pointer;
   font-size: 13px;
 }
 .seg button.on {
-  background: var(--bg);
+  background: var(--sheet-bg);
   color: var(--fg);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+  box-shadow:
+    inset 0 0 0 1px var(--border),
+    0 1px 2px color-mix(in srgb, var(--umbra) 12%, transparent);
 }
 
 .badge {
@@ -97,17 +118,17 @@
   gap: 5px;
   font-size: 12px;
   font-weight: 500;
-  padding: 1px 8px;
-  border-radius: 99px;
+  padding: 1px 7px;
+  border-radius: var(--r-tag);
   border: 1px solid var(--border);
+  font-family: var(--mono);
   color: var(--fg-muted);
-  background: var(--bg-subtle);
+  background: transparent;
   white-space: nowrap;
 }
 .badge-ok {
-  color: var(--primary);
-  border-color: color-mix(in srgb, var(--primary) 35%, transparent);
-  background: var(--primary-soft);
+  color: var(--fg);
+  border-color: var(--border-strong);
 }
 .badge-err {
   color: var(--critical);
@@ -159,16 +180,15 @@
   display: flex;
   gap: 10px;
   padding: 12px 14px;
-  border-radius: 10px;
-  font-size: 13px;
+  border-radius: var(--r-chip);
+  font-size: 13.5px;
   border: 1px solid var(--border);
   background: var(--bg-subtle);
   color: var(--fg-muted);
   margin-top: 18px;
 }
 .note.ok {
-  border-color: color-mix(in srgb, var(--primary) 35%, transparent);
-  background: var(--primary-soft);
+  border-color: var(--border-strong);
   color: var(--fg);
 }
 .note.err {
@@ -179,7 +199,7 @@
 .badge-warn {
   color: var(--warning);
   border-color: color-mix(in srgb, var(--warning) 30%, transparent);
-  background: color-mix(in srgb, var(--warning) 8%, var(--bg));
+  background: color-mix(in srgb, var(--warning) 6%, transparent);
 }
 .row-actions {
   display: flex;
@@ -191,7 +211,7 @@
   text-align: center;
 }
 .empty-hero h3 {
-  font-size: 16px;
+  font-size: 20px;
   font-weight: 600;
 }
 .empty-hero p {
@@ -212,14 +232,14 @@
   gap: 8px;
   padding: 5px 12px 5px 5px;
   border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--bg);
+  border-radius: var(--r-ctl);
+  background: transparent;
   cursor: pointer;
   font-size: 14px;
   color: var(--fg);
 }
 .chip:hover {
-  background: var(--bg-subtle);
+  background: var(--tint);
   border-color: var(--border-strong);
 }
 
@@ -236,8 +256,8 @@
   border-bottom: 0;
 }
 .form-row .label {
-  font-weight: 500;
-  font-size: 14px;
+  font-weight: 600;
+  font-size: 14.5px;
 }
 .form-row .desc {
   color: var(--fg-subtle);
@@ -257,7 +277,7 @@
   position: relative;
   width: 36px;
   height: 20px;
-  border-radius: 99px;
+  border-radius: var(--r-chip);
   background: var(--border-strong);
   border: 0;
   cursor: pointer;
@@ -271,10 +291,10 @@
   left: 2px;
   width: 16px;
   height: 16px;
-  border-radius: 99px;
-  background: #fff;
-  transition: transform 140ms ease;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.2);
+  border-radius: 4px;
+  background: var(--sheet-bg);
+  transition: transform 140ms var(--e-std);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--umbra) 30%, transparent);
 }
 .switch[aria-checked="true"] {
   background: var(--primary);
@@ -295,7 +315,7 @@
   align-items: center;
   gap: 6px;
   padding: 3px 4px 3px 10px;
-  border-radius: 99px;
+  border-radius: var(--r-chip);
   border: 1px solid var(--border);
   background: var(--bg-subtle);
   font: 12.5px var(--mono);
@@ -320,7 +340,8 @@
   font: 12.5px / 1.6 var(--mono);
   overflow-x: auto;
   white-space: pre;
-  border-radius: 0 0 12px 12px;
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 var(--r-chip) var(--r-chip);
 }
 textarea.input {
   height: auto;

@@ -1,61 +1,123 @@
-/* Base: fonts, colour tokens (light and dark), element defaults, text tones. Imported first. */
-@import "@fontsource-variable/plus-jakarta-sans";
-@import "@fontsource-variable/geist-mono";
+/* Base: fonts, colour tokens (light and dark), element defaults, text tones. Imported first.
+   The console is the landing page's desk (ocra-site DESIGN.md and app/docs.css,
+   "the manual on the desk"): the chrome sits on the ink-teal desk, each page
+   is a printed sheet lying on it. The desk and print values are copies of
+   ocra-site's app/tokens.css: the two apps share no package, so a change to
+   them goes into both. The pen (cinnabar) marks only critical findings,
+   errors and what cannot be undone; never navigation, links or states. */
+@import "@fontsource-variable/archivo/wdth.css";
+@import "@fontsource/maple-mono/400.css";
+@import "@fontsource/maple-mono/500.css";
 
 :root {
-  --bg: #ffffff;
-  --page: #fbfbfc;
-  --bg-subtle: #fafafa;
-  --muted: #f4f4f5;
-  --fg: #09090b;
-  --fg-muted: #52525b;
-  --fg-subtle: #71717a;
-  --border: #e4e4e7;
-  --border-strong: #d4d4d8;
-  --primary: #0b7a5c;
-  --primary-soft: #e6f6f0;
-  --on-primary: #ffffff;
-  --button: #09090b;
-  --on-button: #ffffff;
-  --critical: #b91c1c;
-  --critical-soft: #fdecec;
-  --warning: #b45309;
-  --c1: #0b7a5c;
-  --c2: #6366f1;
-  --c3: #f59e0b;
-  --c4: #ec4899;
-  --c5: #06b6d4;
-  --c6: #a1a1aa;
-  --font: "Plus Jakarta Sans Variable", ui-sans-serif, system-ui, sans-serif;
-  --display: "Archivo Variable", "Plus Jakarta Sans Variable", ui-sans-serif, sans-serif;
-  --mono: "Geist Mono Variable", ui-monospace, monospace;
+  /* The desk, as on the landing page. */
+  --desk: #17272c;
+  --desk-hi: #24393f;
+  --desk-lo: #0c1618;
+  --desk-eve: #0f1b1e;
+  --desk-eve-lo: #060c0e;
+  --lamp: #ffdeb6;
+  --umbra: #020b0d;
+  --on-desk: #eef2f0;
+  --on-desk-2: color-mix(in srgb, var(--on-desk) 70%, transparent);
+  --on-desk-3: color-mix(in srgb, var(--on-desk) 50%, transparent);
+  --line-desk: color-mix(in srgb, var(--on-desk) 14%, transparent);
+  --print-paper: #faf8f2;
+  --print-paper-2: #f0ece3;
+  --print-ink: #1c2226;
+  --print-ink-2: #545c5f;
+  --print-ink-3: #697173;
+  --print-teal: #2d6870;
+  --card-stock: #fdfcf8;
+  --card-rule: #d6463c;
+  --white: #ffffff;
+  --black: #000000;
+  --pen: #bd2718;
+  --amber: #935508;
+
+  /* The ground the chrome sits on, and the sheet's own palette. */
+  --ground: var(--desk);
+  --ground-hi: var(--desk-hi);
+  --ground-lo: var(--desk-lo);
+  --lamp-glow: color-mix(in srgb, var(--lamp) 9%, transparent);
+  --sheet-bg: var(--print-paper);
+  --sheet-bg-2: var(--print-paper-2);
+  --sheet-lit: color-mix(in srgb, var(--white) 45%, transparent);
+  --stock: var(--card-stock);
+
+  /* What the components name: the sheet's print. */
+  --bg: var(--sheet-bg);
+  --page: var(--sheet-bg);
+  --bg-subtle: color-mix(in srgb, var(--print-ink) 3.5%, var(--sheet-bg));
+  --muted: var(--sheet-bg-2);
+  --fg: var(--print-ink);
+  --fg-muted: var(--print-ink-2);
+  --fg-subtle: var(--print-ink-3);
+  --border: color-mix(in srgb, var(--print-ink) 14%, transparent);
+  --border-strong: color-mix(in srgb, var(--print-ink) 26%, transparent);
+  --tint: color-mix(in srgb, var(--print-ink) 6%, transparent);
+  --primary: var(--print-ink);
+  --primary-soft: var(--tint);
+  --on-primary: var(--sheet-bg);
+  --button: var(--print-ink);
+  --on-button: var(--sheet-bg);
+  --critical: var(--pen);
+  --critical-soft: color-mix(in srgb, var(--pen) 8%, var(--sheet-bg));
+  --warning: var(--amber);
+  /* Chart series: print tones, darkest for the most used model. */
+  --c1: var(--print-ink);
+  --c2: var(--print-teal);
+  --c3: color-mix(in srgb, var(--print-ink) 55%, var(--sheet-bg));
+  --c4: color-mix(in srgb, var(--print-teal) 45%, var(--sheet-bg));
+  --c5: color-mix(in srgb, var(--print-ink) 30%, var(--sheet-bg));
+  --c6: color-mix(in srgb, var(--print-ink) 14%, var(--sheet-bg));
+
+  --float:
+    0 0.5px 1px color-mix(in srgb, var(--umbra) 45%, transparent),
+    6px 30px 46px -20px color-mix(in srgb, var(--umbra) 50%, transparent),
+    2px 10px 18px -10px color-mix(in srgb, var(--umbra) 25%, transparent);
+  --e-std: cubic-bezier(0.4, 0, 0.2, 1);
+  --e-enter: cubic-bezier(0.22, 1, 0.36, 1);
+  --e-settle: cubic-bezier(0.2, 0.75, 0.15, 1);
+  --r-tag: 5px;
+  --r-chip: 6px;
+  --r-tab: 7px;
+  --r-ctl: 10px;
+  --r-sheet: 14px;
+
+  --font: "Archivo Variable", ui-sans-serif, system-ui, sans-serif;
+  --display: "Archivo Variable", ui-sans-serif, system-ui, sans-serif;
+  --mono: "Maple Mono", ui-monospace, monospace;
   color-scheme: light;
 }
+
+/* Evening: the room light is down and the sheet is charcoal stock under the
+   lamp, lighter than the desk around it (app/docs.css). */
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0e0e10;
-    --page: #09090b;
-    --bg-subtle: #0f0f11;
-    --muted: #18181b;
-    --fg: #fafafa;
-    --fg-muted: #a1a1aa;
-    --fg-subtle: #85858e;
-    --border: #27272a;
-    --border-strong: #3f3f46;
-    --primary: #7fffd4;
-    --primary-soft: #13261f;
-    --on-primary: #04110c;
-    --button: #fafafa;
-    --on-button: #09090b;
-    --critical: #f87171;
-    --critical-soft: #2a1416;
-    --warning: #fbbf24;
-    --c1: #34d399;
-    --c2: #818cf8;
-    --c3: #fbbf24;
-    --c4: #f472b6;
-    --c5: #22d3ee;
-    --c6: #52525b;
+    --ground: var(--desk-eve);
+    --ground-hi: color-mix(in srgb, var(--desk-hi) 72%, var(--desk-eve));
+    --ground-lo: var(--desk-eve-lo);
+    --lamp-glow: color-mix(in srgb, var(--lamp) 13%, transparent);
+    --charcoal: color-mix(in oklab, var(--white) 23%, var(--black));
+    --sheet-bg: color-mix(in oklab, var(--lamp) 7%, var(--charcoal));
+    --sheet-bg-2: color-mix(in oklab, var(--sheet-bg) 86%, var(--desk-eve-lo));
+    --sheet-lit: color-mix(in srgb, var(--print-paper) 3%, transparent);
+    --stock: color-mix(
+      in oklab,
+      var(--lamp) 7%,
+      color-mix(in oklab, var(--white) 27%, var(--black))
+    );
+    --print-ink: color-mix(in oklab, var(--print-paper) 90%, var(--sheet-bg));
+    --print-ink-2: color-mix(in oklab, var(--print-paper) 69%, var(--sheet-bg));
+    --print-ink-3: color-mix(in oklab, var(--print-paper) 55%, var(--sheet-bg));
+    --print-teal: #8cc4c2;
+    --border: color-mix(in srgb, var(--print-paper) 12%, transparent);
+    --border-strong: color-mix(in srgb, var(--print-paper) 24%, transparent);
+    --bg-subtle: color-mix(in srgb, var(--print-paper) 4%, var(--sheet-bg));
+    --tint: color-mix(in srgb, var(--print-paper) 7%, transparent);
+    --pen: #fd545f;
+    --amber: #efad48;
     color-scheme: dark;
   }
 }
@@ -68,10 +130,35 @@ body {
   margin: 0;
 }
 body {
-  background: var(--page);
-  color: var(--fg);
-  font: 450 14px / 1.625 var(--font);
+  min-height: 100vh;
+  background: var(--ground);
+  color: var(--on-desk);
+  font: 400 14.5px / 1.6 var(--font);
+  font-kerning: normal;
   -webkit-font-smoothing: antialiased;
+}
+/* The desk under everything: grain, the lit middle, the lamp's warmth and
+   the falloff, fixed to the viewport so scrolling moves only the paper. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      120% 100% at 50% 20%,
+      transparent 46%,
+      color-mix(in srgb, var(--ground-lo) 72%, transparent) 100%
+    ),
+    url(/tex/desk-grain.webp) 0 0 / 128px 128px,
+    radial-gradient(44% 40% at 54% 6%, var(--lamp-glow), transparent 74%),
+    radial-gradient(72% 64% at 50% 18%, var(--ground-hi), transparent 74%),
+    var(--ground);
+  background-blend-mode: normal, overlay, normal, normal, normal;
+}
+#root {
+  isolation: isolate;
 }
 a {
   color: inherit;
@@ -86,11 +173,27 @@ h2,
 h3 {
   margin: 0;
   font-family: var(--display);
-  font-stretch: 108%;
+  font-stretch: 92%;
+  font-weight: 600;
   letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+p {
+  text-wrap: pretty;
 }
 button {
   font: inherit;
+}
+/* Native checkboxes, radios and ranges in ink, not the browser's blue. */
+input {
+  accent-color: var(--fg);
+}
+:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+::selection {
+  background: color-mix(in srgb, var(--print-teal) 26%, transparent);
 }
 
 .muted {

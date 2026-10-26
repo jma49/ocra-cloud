@@ -3,7 +3,7 @@
 .scrim {
   position: fixed;
   inset: 0;
-  background: rgb(0 0 0 / 0.32);
+  background: color-mix(in srgb, var(--umbra) 45%, transparent);
   z-index: 40;
   animation: fade 120ms ease-out;
 }
@@ -13,12 +13,16 @@
   right: 0;
   bottom: 0;
   width: min(520px, 100vw);
-  background: var(--bg);
-  border-left: 1px solid var(--border);
+  color: var(--fg);
+  background:
+    linear-gradient(170deg, var(--sheet-lit), transparent 28%),
+    url(/tex/paper-tooth.webp) 0 0 / 256px 256px,
+    var(--sheet-bg);
+  background-blend-mode: normal, multiply, normal;
   z-index: 41;
   display: flex;
   flex-direction: column;
-  box-shadow: -12px 0 32px rgb(0 0 0 / 0.08);
+  box-shadow: -14px 0 50px -10px color-mix(in srgb, var(--umbra) 60%, transparent);
   animation: slide 160ms ease-out;
 }
 .drawer-head {
@@ -29,8 +33,9 @@
   border-bottom: 1px solid var(--border);
 }
 .drawer-head h2 {
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 22px;
+  font-weight: 560;
+  font-stretch: 86%;
 }
 .drawer-body {
   flex: 1;
@@ -47,7 +52,7 @@
 .icon-btn {
   width: 30px;
   height: 30px;
-  border-radius: 7px;
+  border-radius: var(--r-tab);
   border: 0;
   background: none;
   color: var(--fg-muted);
@@ -57,7 +62,7 @@
   font-size: 18px;
 }
 .icon-btn:hover {
-  background: var(--muted);
+  background: var(--tint);
   color: var(--fg);
 }
 @keyframes slide {
@@ -89,15 +94,15 @@
   gap: 10px;
   padding: 10px 12px;
   border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--bg);
+  border-radius: var(--r-ctl);
+  background: transparent;
   cursor: pointer;
   text-align: left;
   color: var(--fg);
 }
 .tile:hover {
   border-color: var(--border-strong);
-  background: var(--bg-subtle);
+  background: var(--tint);
 }
 .tile .t-name {
   font-weight: 500;
@@ -111,15 +116,13 @@
   opacity: 0.55;
 }
 .group-label {
-  font: 500 11px var(--mono);
-  color: var(--fg-subtle);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  font: 400 12.5px var(--mono);
+  color: var(--fg-muted);
   margin: 20px 0 8px;
 }
 .pick-list {
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--r-chip);
   overflow: hidden;
 }
 .pick {
@@ -130,7 +133,7 @@
   padding: 9px 12px;
   border: 0;
   border-bottom: 1px solid var(--border);
-  background: var(--bg);
+  background: transparent;
   cursor: pointer;
   text-align: left;
   color: var(--fg);
@@ -140,7 +143,7 @@
   border-bottom: 0;
 }
 .pick:hover {
-  background: var(--bg-subtle);
+  background: var(--tint);
 }
 .pick .grow {
   flex: 1;
@@ -152,7 +155,7 @@
   gap: 12px;
   padding: 14px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--r-chip);
   background: var(--bg-subtle);
 }
 
