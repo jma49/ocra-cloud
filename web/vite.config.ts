@@ -5,6 +5,8 @@ export default defineConfig({
   // Paths are from the repository root, where the npm scripts run.
   root: "web",
   plugins: [react()],
-  build: { outDir: "dist", emptyOutDir: true },
+  // Nothing inlined as a data: URL: the CSP allows fonts and images from
+  // 'self' only (public/_headers), so an inlined font is blocked.
+  build: { outDir: "dist", emptyOutDir: true, assetsInlineLimit: 0 },
   server: { proxy: { "/api": "http://localhost:8787" } },
 });
