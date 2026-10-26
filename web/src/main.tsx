@@ -13,6 +13,27 @@ import { ToastProvider } from "./toast.js";
 import { ErrorBoundary, Icon, Loading, NotFound } from "./ui.js";
 import "./styles.css";
 
+const NAV_PATHS = NAV_GROUPS.flatMap((g) => g.routes.map((r) => r.path));
+
+// The printed head of the sheet, as the manual heads its pages: where this
+// page is and, for a page in the sidebar, which page of the console it is.
+function SheetHead(props: { path: string; route?: string | undefined }) {
+  const n = props.route === undefined ? -1 : NAV_PATHS.indexOf(props.route);
+  return (
+    <div className="sheet-head" aria-hidden="true">
+      <span>
+        {location.host}
+        {props.path}
+      </span>
+      {n >= 0 && (
+        <span>
+          page {n + 1} of {NAV_PATHS.length}
+        </span>
+      )}
+    </div>
+  );
+}
+
 const Privacy = lazy(() => import("./pages/Privacy.js").then((m) => ({ default: m.Privacy })));
 
 function App() {
@@ -45,7 +66,8 @@ function App() {
     return (
       <>
         <TopBar me={me ?? null} />
-        <main className="content content-narrow">
+        <main className="content">
+          <SheetHead path={path} />
           <Suspense fallback={<Loading what="the data policy" />}>
             <Privacy />
           </Suspense>
@@ -94,6 +116,7 @@ function App() {
           </a>
         </nav>
         <main className="content">
+          <SheetHead path={path} route={found?.route.path} />
           <PrefsProvider clean={completeAgents} idle={!found?.route.prefs}>
             <ErrorBoundary key={path}>
               <Suspense fallback={<Loading what="the page" />}>

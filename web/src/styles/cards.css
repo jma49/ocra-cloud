@@ -1,8 +1,8 @@
 /* Cards: cards, stats and meters, charts and legends, steps, key-value lists. */
 .card {
   border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--bg);
+  border-radius: var(--r-chip);
+  background: transparent;
 }
 .card-pad {
   padding: 24px;
@@ -15,7 +15,7 @@
   gap: 12px;
 }
 .card-head h3 {
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 600;
 }
 
@@ -28,16 +28,17 @@
   padding: 18px 20px;
 }
 .stat-label {
-  font-size: 14px;
+  font: 400 12.5px var(--mono);
   color: var(--fg-muted);
 }
 .stat-value {
   font-family: var(--display);
-  font-stretch: 108%;
-  font-size: 26px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  margin-top: 6px;
+  font-stretch: 78%;
+  font-size: 40px;
+  line-height: 1.05;
+  font-weight: 520;
+  letter-spacing: -0.01em;
+  margin-top: 8px;
   font-variant-numeric: tabular-nums;
 }
 .stat-note {
@@ -46,8 +47,8 @@
   margin-top: 2px;
 }
 .meter {
-  height: 6px;
-  border-radius: 99px;
+  height: 4px;
+  border-radius: 0;
   background: var(--muted);
   overflow: hidden;
   margin-top: 10px;
@@ -70,7 +71,7 @@
 .chart-axis {
   display: flex;
   justify-content: space-between;
-  font: 11px var(--mono);
+  font: 11.5px var(--mono);
   color: var(--fg-subtle);
   margin-top: 6px;
 }
@@ -88,9 +89,9 @@
   gap: 6px;
 }
 .legend i {
-  width: 8px;
-  height: 8px;
-  border-radius: 2px;
+  width: 9px;
+  height: 9px;
+  border-radius: 0;
   display: inline-block;
 }
 
@@ -113,7 +114,7 @@
 .step-n {
   width: 22px;
   height: 22px;
-  border-radius: 99px;
+  border-radius: 3px;
   border: 1px solid var(--border-strong);
   display: grid;
   place-items: center;
@@ -130,9 +131,10 @@
 .cmd {
   display: inline-block;
   margin-top: 6px;
-  padding: 5px 10px;
-  border-radius: 6px;
-  background: var(--muted);
+  padding: 4px 10px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  background: var(--bg-subtle);
   font: 12.5px var(--mono);
 }
 

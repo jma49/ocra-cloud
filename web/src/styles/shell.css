@@ -1,74 +1,99 @@
-/* Shell: top bar and account menu, sidebar, page header, footer, save bar and toast, the privacy page. */
+/* Shell: top bar and account menu, sidebar, the sheet, page header, footer, save bar and toast, the privacy page.
+   The bar and the sidebar lie on the desk; the page is a printed sheet. */
 /* Top bar */
 .topbar {
   position: sticky;
   top: 0;
   z-index: 10;
-  height: 52px;
+  height: 60px;
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 4px;
   padding: 0 20px;
-  border-bottom: 1px solid var(--border);
-  background: var(--page);
+  color: var(--on-desk);
+  background: color-mix(in srgb, var(--ground) 88%, transparent);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  box-shadow: inset 0 -1px 0 var(--line-desk);
 }
 .brand {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-weight: 600;
+  gap: 9px;
+  height: 44px;
+  margin-right: 8px;
+  font-weight: 540;
+  font-stretch: 78%;
+  font-size: 22px;
+  letter-spacing: -0.01em;
   text-decoration: none;
-  letter-spacing: -0.02em;
-  font-size: 15px;
 }
 .brand-tag {
-  font: 500 11px var(--mono);
-  color: var(--fg-subtle);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 1px 7px;
+  font: 400 12px var(--mono);
+  color: var(--on-desk-2);
+  padding: 2px 7px;
+  border-radius: var(--r-chip);
+  box-shadow: inset 0 0 0 1px var(--line-desk);
 }
 .topbar .spacer {
   flex: 1;
 }
 .toplink {
-  color: var(--fg);
+  display: inline-flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 11px;
+  border-radius: var(--r-tab);
+  color: var(--on-desk-2);
   text-decoration: none;
+  font-weight: 500;
   font-size: 14px;
-}
-.toplink:hover {
-  color: var(--primary);
+  transition:
+    background-color 150ms var(--e-std),
+    color 150ms var(--e-std);
 }
 .avatar-btn {
   display: flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid var(--border);
-  background: var(--bg);
-  border-radius: 999px;
-  padding: 3px 10px 3px 3px;
+  height: 38px;
+  margin-left: 8px;
+  border: 0;
+  background: transparent;
+  border-radius: var(--r-ctl);
+  padding: 0 11px 0 5px;
   cursor: pointer;
-  color: var(--fg);
+  color: var(--on-desk);
+  box-shadow: inset 0 0 0 1px var(--line-desk);
+  transition: background-color 150ms var(--e-std);
+}
+@media (hover: hover) {
+  .toplink:hover,
+  .avatar-btn:hover {
+    background: color-mix(in srgb, var(--on-desk) 7%, transparent);
+    color: var(--on-desk);
+  }
 }
 .avatar {
-  width: 26px;
-  height: 26px;
-  border-radius: 999px;
-  background: var(--muted);
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-chip);
+  background: var(--line-desk);
 }
+/* The account menu: a slip of card stock laid on the desk. */
 .menu {
   position: absolute;
   right: 20px;
-  top: 48px;
-  min-width: 200px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  box-shadow: 0 8px 24px rgb(0 0 0 / 0.08);
+  top: 54px;
+  min-width: 220px;
+  color: var(--fg);
+  background: var(--stock);
+  border-radius: var(--r-ctl);
+  box-shadow: var(--float);
   padding: 6px;
 }
 .menu-head {
-  padding: 8px 10px;
+  padding: 8px 10px 10px;
   border-bottom: 1px solid var(--border);
   margin-bottom: 4px;
 }
@@ -79,79 +104,138 @@
   padding: 7px 10px;
   border: 0;
   background: none;
-  border-radius: 6px;
+  border-radius: var(--r-tab);
   color: var(--fg);
   text-decoration: none;
   cursor: pointer;
   font-size: 14px;
 }
 .menu-item:hover {
-  background: var(--muted);
+  background: var(--tint);
 }
 
 /* Shell */
 .shell {
   display: grid;
-  grid-template-columns: 236px minmax(0, 1fr);
+  grid-template-columns: 248px minmax(0, 1fr);
 }
 .sidebar {
   position: sticky;
-  top: 52px;
+  top: 60px;
   align-self: start;
-  padding: 20px 12px;
-  height: calc(100vh - 52px);
+  padding: 20px 14px 32px 20px;
+  height: calc(100vh - 60px);
   overflow-y: auto;
-  border-right: 1px solid var(--border);
-  background: var(--page);
+  font-size: 15px;
 }
 .side-label {
-  font-size: 12.5px;
-  font-weight: 500;
-  color: var(--fg-subtle);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--on-desk);
   padding: 0 10px;
-  margin: 20px 0 4px;
+  margin: 26px 0 6px;
 }
 .sidebar > :first-child .side-label {
-  margin-top: 0;
+  margin-top: 6px;
 }
 .side-link {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 6px 12px;
-  border-radius: 6px;
-  font-weight: 500;
-  color: var(--fg);
+  padding: 7px 10px;
+  border-radius: 3px;
+  color: var(--on-desk-2);
   text-decoration: none;
-  font-size: 14px;
+  transition:
+    color 150ms var(--e-std),
+    background-color 150ms var(--e-std),
+    translate 260ms var(--e-settle);
 }
 .side-link + .side-link {
   margin-top: 2px;
 }
 .side-link:hover {
-  background: var(--muted);
-  color: var(--fg);
+  color: var(--on-desk);
 }
+/* The open page is a paper slip, pulled out from under the desk's edge. */
 .side-link.active {
-  background: var(--primary-soft);
-  color: var(--primary);
+  background: var(--sheet-bg);
+  color: var(--fg);
   font-weight: 500;
+  translate: 6px 0;
+  box-shadow:
+    0 0.5px 1px color-mix(in srgb, var(--umbra) 55%, transparent),
+    2px 4px 10px -4px color-mix(in srgb, var(--umbra) 80%, transparent);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .side-link.active {
+    animation: slip 420ms var(--e-settle);
+  }
+}
+@keyframes slip {
+  from {
+    translate: -10px 0;
+    background-color: transparent;
+    box-shadow: none;
+  }
 }
 .side-link svg {
   width: 16px;
   height: 16px;
   flex: none;
-  color: var(--fg-muted);
+  opacity: 0.8;
 }
 .side-link.active svg {
-  color: currentColor;
+  opacity: 1;
 }
+
+/* The sheet: printed paper with its tooth, lit from the top left, its wide
+   shadow on the desk. */
 .content {
-  width: 100%;
-  max-width: 1040px;
-  margin: 0 auto;
-  padding: 28px 40px 72px;
+  position: relative;
+  width: min(100% - 48px, 1120px);
+  margin: 20px auto 72px;
+  padding: 32px 48px 64px;
   min-width: 0;
+  border-radius: 2px;
+  color: var(--fg);
+  background:
+    linear-gradient(170deg, var(--sheet-lit), transparent 28%),
+    url(/tex/paper-tooth.webp) 0 0 / 256px 256px,
+    var(--sheet-bg);
+  background-blend-mode: normal, multiply, normal;
+  box-shadow:
+    inset 1px 1px 0 var(--sheet-lit),
+    0 0.5px 1px color-mix(in srgb, var(--umbra) 55%, transparent),
+    1px 3px 8px color-mix(in srgb, var(--umbra) 30%, transparent),
+    10px 34px 60px -18px color-mix(in srgb, var(--umbra) 70%, transparent);
+}
+/* A page lands like a sheet put down. */
+@media (prefers-reduced-motion: no-preference) {
+  .content {
+    animation: land 620ms var(--e-settle) backwards;
+  }
+}
+@keyframes land {
+  from {
+    opacity: 0.55;
+    transform: translate3d(-2px, -12px, 0) rotate(-0.3deg) scale(1.01);
+  }
+  30% {
+    opacity: 1;
+  }
+}
+/* The sheet's printed head: where this page is, and which page of the console. */
+.sheet-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 12px;
+  margin-bottom: 36px;
+  border-bottom: 1px solid var(--border-strong);
+  font: 400 13px var(--mono);
+  color: var(--fg-muted);
 }
 
 /* Page */
@@ -160,24 +244,30 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 28px;
+  margin-bottom: 32px;
   flex-wrap: wrap;
 }
 .page-head h1 {
-  font-size: 22px;
-  font-weight: 600;
+  font-size: clamp(2.1rem, 3.2vw, 2.75rem);
+  font-weight: 560;
+  font-stretch: 86%;
+  line-height: 1;
+  letter-spacing: -0.022em;
 }
 .page-head p {
-  margin: 6px 0 0;
+  margin: 12px 0 0;
+  max-width: 40rem;
   color: var(--fg-muted);
+  font-size: 16px;
+  line-height: 1.55;
 }
 .section {
-  margin-top: 40px;
+  margin-top: 48px;
 }
 .section-title {
-  font-size: 15px;
+  font-size: 19px;
   font-weight: 600;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -191,12 +281,13 @@
   .sidebar {
     position: static;
     height: auto;
-    padding: 8px 16px;
+    padding: 8px 12px 12px;
     display: flex;
     gap: 4px;
     overflow-x: auto;
-    border-right: 0;
-    border-bottom: 1px solid var(--border);
+  }
+  .sidebar > div {
+    display: contents;
   }
   .side-label {
     display: none;
@@ -204,11 +295,23 @@
   .side-link {
     white-space: nowrap;
   }
+  .side-link + .side-link {
+    margin-top: 0;
+  }
+  .side-link.active {
+    translate: 0 0;
+    animation: none;
+  }
   .content {
-    padding: 24px 16px 48px;
+    width: calc(100% - 20px);
+    margin: 4px auto 40px;
+    padding: 22px 20px 40px;
+  }
+  .sheet-head {
+    margin-bottom: 24px;
   }
   .topbar {
-    padding: 0 16px;
+    padding: 0 12px;
   }
   .toplink.hide-sm {
     display: none;
@@ -220,15 +323,17 @@
   max-width: 720px;
 }
 .policy h2 {
-  font-size: 17px;
-  font-weight: 600;
-  margin: 28px 0 8px;
+  font-size: 22px;
+  font-weight: 560;
+  margin: 36px 0 10px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
 }
 .policy p,
 .policy li {
   color: var(--fg-muted);
-  font-size: 14px;
-  line-height: 1.65;
+  font-size: 15px;
+  line-height: 1.7;
 }
 .policy ul {
   padding-left: 20px;
@@ -239,23 +344,30 @@
 }
 .policy b {
   color: var(--fg);
-  font-weight: 500;
+  font-weight: 600;
 }
 .policy a {
-  color: var(--primary);
+  color: var(--fg);
+  text-underline-offset: 4px;
+  text-decoration-color: var(--border-strong);
 }
 .footer {
   padding: 24px 16px 32px;
   text-align: center;
   font-size: 13px;
-  color: var(--fg-subtle);
+  color: var(--on-desk-3);
 }
 .footer a {
-  color: var(--fg-muted);
+  color: var(--on-desk-2);
   margin: 0 8px;
+  text-underline-offset: 4px;
+  text-decoration-color: var(--line-desk);
+}
+.footer a:hover {
+  color: var(--on-desk);
 }
 
-/* Save bar and toast */
+/* Save bar and toast: a slip of card stock, and a dark one, over the sheet. */
 .savebar {
   position: fixed;
   left: 50%;
@@ -268,25 +380,25 @@
   gap: 20px;
   width: min(640px, calc(100vw - 32px));
   padding: 10px 12px 10px 18px;
-  border: 1px solid var(--border-strong);
-  border-radius: 12px;
-  background: var(--bg);
-  box-shadow: 0 10px 30px rgb(0 0 0 / 0.12);
+  border-radius: var(--r-sheet);
+  color: var(--fg);
+  background: var(--stock);
+  box-shadow: var(--float);
   font-size: 14px;
-  animation: rise 160ms ease-out;
+  animation: rise 160ms var(--e-enter);
 }
 .toast {
   position: fixed;
   right: 20px;
   bottom: 20px;
   z-index: 31;
-  padding: 10px 14px;
-  border-radius: 10px;
-  background: var(--button);
-  color: var(--on-button);
+  padding: 11px 16px;
+  border-radius: var(--r-ctl);
+  background: var(--desk-hi);
+  color: var(--on-desk);
   font-size: 14px;
-  box-shadow: 0 10px 30px rgb(0 0 0 / 0.15);
-  animation: rise 160ms ease-out;
+  box-shadow: var(--float);
+  animation: rise 160ms var(--e-enter);
 }
 @keyframes rise {
   from {
