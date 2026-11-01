@@ -26,8 +26,8 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.15",
-    "@cloudflare/vitest-pool-workers": "^0.22.0",
+    "@biomejs/biome": "^2.6.3",
+    "@cloudflare/vitest-pool-workers": "^0.23.0",
     "@fontsource-variable/archivo": "^5.3.0",
     "@fontsource/maple-mono": "^5.3.0",
     "@testing-library/dom": "^10.4.2",
@@ -35,16 +35,16 @@
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "@vitejs/plugin-react": "^6.1.1",
+    "@vitejs/plugin-react": "^6.1.2",
     "drizzle-kit": "^0.31.11",
     "happy-dom": "^20.14.5",
-    "knip": "^6.42.1",
+    "knip": "^6.43.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "typescript": "^7.0.2",
-    "vite": "^8.3.2",
+    "vite": "^8.3.5",
     "vitest": "^4.1.11",
-    "wrangler": "^4.151.2"
+    "wrangler": "^4.152.0"
   },
   "packageManager": "npm@10.9.9",
   "overrides": {
