@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { githubIdOf, type SessionAccount } from "./db/accounts.js";
-import type { Scoped } from "./db/scoped.js";
+import type { PageKey, Scoped } from "./db/scoped.js";
 import { requireSession } from "./session.js";
 import type { AppEnv } from "./types.js";
 
@@ -136,10 +136,10 @@ async function* exportChunks(
   for (const [table, key] of Object.entries(EXPORTED) as [Table, string][]) {
     const shape = SHAPES[table] ?? strip;
     let text = `,${JSON.stringify(key)}:[`;
-    let after = 0;
+    let after: PageKey | null = null;
     let written = 0;
     for (;;) {
-      const page = await d.page(table, after, EXPORT_PAGE);
+      const page: Awaited<ReturnType<Scoped["page"]>> = await d.page(table, after, EXPORT_PAGE);
       for (const row of page.rows) {
         if (written >= EXPORT_MAX_ROWS) break;
         text += `${written > 0 ? "," : ""}${JSON.stringify(shape(row as never))}`;

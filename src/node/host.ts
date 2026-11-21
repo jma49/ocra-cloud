@@ -11,12 +11,19 @@ import type { AppBindings } from "../types.js";
 import { clientAddress } from "./client-address.js";
 import { type GraphOptions, startGraphs } from "./graph-worker.js";
 import { type RateLimitStore, rateLimits } from "./limits.js";
+import { openPostgres } from "./postgres.js";
 
 export type HostOptions = {
-  /** A libSQL URL: `file:ocra.db` for a local SQLite file, or a libSQL server. */
+  /**
+   * A Postgres server (`postgres://…`), or a libSQL URL: `file:ocra.db` for
+   * a local SQLite file, or a libSQL server.
+   */
   databaseUrl: string;
   bindings: AppBindings;
-  /** The migrations folder (`migrations/`), applied before the first request. */
+  /**
+   * The migrations folder (`migrations/`), applied before the first request;
+   * a Postgres database takes those of the folder beside it (`migrations-pg/`).
+   */
   migrations: string;
   /** The built web app (`web/dist`); without it only the API is served. */
   web?: string;
@@ -44,27 +51,15 @@ export type HostOptions = {
 };
 
 /**
- * The same API on Node: libSQL in place of D1, the built web app served
- * from disk with the headers of its `_headers` file. Answers requests with
- * `fetch`, as the Worker does.
+ * The same API on Node: Postgres or libSQL in place of D1, the built web
+ * app served from disk with the headers of its `_headers` file. Answers
+ * requests with `fetch`, as the Worker does.
  */
 export async function openHost(options: HostOptions) {
-  const client = createClient({ url: options.databaseUrl });
-  // Deletes rely on foreign key cascades, which D1 enforces: said here, not
-  // left to the client's default.
-  await client.execute("PRAGMA foreign_keys = ON");
-  if (options.databaseUrl.startsWith("file:")) {
-    // Several processes may share the file (several replicas on one
-    // machine): readers do not block the writer, and a writer waits for
-    // another's lock instead of failing at once.
-    await client.execute("PRAGMA journal_mode = WAL");
-    await client.execute("PRAGMA busy_timeout = 5000");
-  }
-  const db = drizzle(client);
-  if (options.migrate ?? true) await migrate(db, { migrationsFolder: options.migrations });
-  // The one place the libSQL database is taken as the type every query uses:
-  // the same Drizzle SQLite API, its write results read by changedRows.
-  const shared = db as unknown as Db;
+  const migrate = options.migrate ?? true;
+  const { db: shared, close } = /^postgres(ql)?:\/\//.test(options.databaseUrl)
+    ? await openPostgres(options.databaseUrl, { migrations: `${options.migrations}-pg`, migrate })
+    : await openLibsql(options.databaseUrl, { migrations: options.migrations, migrate });
   const bindings =
     options.rateLimits === "database"
       ? { ...options.bindings, ...rateLimits({ db: shared }) }
@@ -115,9 +110,28 @@ export async function openHost(options: HostOptions) {
     graphWorker: graphs?.worker,
     close: () => {
       graphs?.worker.stop();
-      client.close();
+      close();
     },
   };
+}
+
+async function openLibsql(url: string, options: { migrations: string; migrate: boolean }) {
+  const client = createClient({ url });
+  // Deletes rely on foreign key cascades, which D1 enforces: said here, not
+  // left to the client's default.
+  await client.execute("PRAGMA foreign_keys = ON");
+  if (url.startsWith("file:")) {
+    // Several processes may share the file (several replicas on one
+    // machine): readers do not block the writer, and a writer waits for
+    // another's lock instead of failing at once.
+    await client.execute("PRAGMA journal_mode = WAL");
+    await client.execute("PRAGMA busy_timeout = 5000");
+  }
+  const db = drizzle(client);
+  if (options.migrate) await migrate(db, { migrationsFolder: options.migrations });
+  // The one place the libSQL database is taken as the type every query uses:
+  // the same Drizzle SQLite API, its write results read by changedRows.
+  return { db: db as unknown as Db, close: () => client.close() };
 }
 
 function rebase(url: string, origin: string): string {

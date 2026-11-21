@@ -1,6 +1,6 @@
 import { and, desc, eq, getTableColumns, inArray, isNull, lt, lte, ne, or, sql } from "drizzle-orm";
 import { DAY } from "../time.js";
-import { changedRows, type Db } from "./client.js";
+import { changedRows, type Db, first } from "./client.js";
 import { graphBuilds, graphRepos } from "./schema.js";
 
 // The code graphs the server keeps: an account's graph repositories and
@@ -43,7 +43,7 @@ export function accountGraphs(db: Db, accountId: string) {
         .insert(t)
         .select(sql`SELECT ${crypto.randomUUID()}, ${accountId}, ${repo.platform}, ${repo.host},
           ${repo.platformRepoId}, ${repo.fullName}, ${repo.branch}, ${repo.webhookSecretHash ?? null},
-          ${repo.consentedAt?.getTime() ?? null}, unixepoch('subsec') * 1000
+          ${repo.consentedAt?.getTime() ?? null}, ${Date.now()}
         WHERE (SELECT count(*) FROM ${t} WHERE account_id = ${accountId}) < ${cap}
           OR EXISTS (SELECT 1 FROM ${t} WHERE account_id = ${accountId} AND platform = ${repo.platform}
             AND host = ${repo.host} AND platform_repo_id = ${repo.platformRepoId})`)
@@ -65,15 +65,14 @@ export function accountGraphs(db: Db, accountId: string) {
       const result = await db
         .insert(b)
         .values({ id: crypto.randomUUID(), accountId, graphRepoId, commit })
-        .onConflictDoNothing({ target: [b.graphRepoId, b.commit] })
-        .run();
+        .onConflictDoNothing({ target: [b.graphRepoId, b.commit] });
       return changedRows(result) > 0;
     },
 
     /** Each repository's newest build, without its graph. */
     latestBuilds(): Promise<BuildSummary[]> {
       const newest = sql`${b.createdAt} = (SELECT max(n.created_at) FROM ${b} n WHERE n.graph_repo_id = ${b.graphRepoId})`;
-      return db.select(buildSummary).from(b).where(and(own, newest)).all();
+      return db.select(buildSummary).from(b).where(and(own, newest));
     },
 
     /** The repository's graph of the commit, or its newest graph when commit is undefined. */
@@ -90,7 +89,8 @@ export function accountGraphs(db: Db, accountId: string) {
           ),
         )
         .orderBy(desc(b.finishedAt))
-        .get();
+        .limit(1)
+        .then(first);
     },
 
     /**
@@ -114,8 +114,7 @@ export function accountGraphs(db: Db, accountId: string) {
           leaseUntil: null,
           finishedAt: now,
         })
-        .where(and(own, eq(b.id, id), eq(b.state, "running"), eq(b.attempts, attempts)))
-        .run();
+        .where(and(own, eq(b.id, id), eq(b.state, "running"), eq(b.attempts, attempts)));
       return changedRows(result) > 0;
     },
 
@@ -134,16 +133,14 @@ export function accountGraphs(db: Db, accountId: string) {
             ? { state: "queued", notBefore: retryAt, leaseUntil: null, error }
             : { state: "failed", leaseUntil: null, error, finishedAt: now },
         )
-        .where(and(own, eq(b.id, id), eq(b.state, "running"), eq(b.attempts, attempts)))
-        .run();
+        .where(and(own, eq(b.id, id), eq(b.state, "running"), eq(b.attempts, attempts)));
     },
 
     /** Deletes the repository's graphs and finished builds; one running finishes into nothing. */
     async purgeBuilds(graphRepoId: string): Promise<number> {
       const result = await db
         .delete(b)
-        .where(and(own, eq(b.graphRepoId, graphRepoId), ne(b.state, "running")))
-        .run();
+        .where(and(own, eq(b.graphRepoId, graphRepoId), ne(b.state, "running")));
       return changedRows(result);
     },
   };
@@ -161,8 +158,7 @@ export function reposForPush(
     .select()
     .from(t)
     .where(and(eq(t.platform, platform), eq(t.host, host), eq(t.platformRepoId, platformRepoId)))
-    .limit(1_000)
-    .all();
+    .limit(1_000);
 }
 
 /** A build this runner now owns, until leaseUntil. */
@@ -193,21 +189,20 @@ export async function claimBuild(
     AND r.state = 'running' AND r.lease_until > ${now.getTime()})`;
   const lapsed = and(eq(b.state, "running"), lt(b.leaseUntil, now));
   // A run that died keeps its row running until its lease lapses: queued again here.
-  await db.update(b).set({ state: "queued", leaseUntil: null }).where(lapsed).run();
+  await db.update(b).set({ state: "queued", leaseUntil: null }).where(lapsed);
   const waiting = await db
     .select({ graphRepoId: b.graphRepoId })
     .from(b)
     .where(and(due, sql`NOT ${busy}`))
     .orderBy(b.createdAt)
     .limit(1)
-    .get();
+    .then(first);
   if (!waiting) return undefined;
   const queued = await db
     .select({ id: b.id })
     .from(b)
     .where(and(due, eq(b.graphRepoId, waiting.graphRepoId)))
-    .orderBy(desc(b.createdAt))
-    .all();
+    .orderBy(desc(b.createdAt));
   const [newest, ...older] = queued;
   if (!newest) return undefined;
   if (older.length > 0) {
@@ -222,8 +217,7 @@ export async function claimBuild(
             older.map((o) => o.id),
           ),
         ),
-      )
-      .run();
+      );
   }
   const leaseUntil = new Date(now.getTime() + leaseMs);
   const [claimed] = await db
@@ -247,13 +241,12 @@ export async function claimBuild(
 export async function pruneGraphBuilds(db: Db, keep: boolean, now = new Date()): Promise<number> {
   const b = graphBuilds;
   const idle = ne(b.state, "running");
-  if (!keep) return changedRows(await db.delete(b).where(idle).run());
+  if (!keep) return changedRows(await db.delete(b).where(idle));
   const cutoff = new Date(now.getTime() - GRAPH_HISTORY_DAYS * DAY);
   const newestGraph = sql`${b.id} = (SELECT n.id FROM ${b} n WHERE n.graph_repo_id = ${b.graphRepoId}
     AND n.state = 'done' ORDER BY n.finished_at DESC LIMIT 1)`;
   const result = await db
     .delete(b)
-    .where(and(idle, lt(b.createdAt, cutoff), sql`NOT ${newestGraph}`))
-    .run();
+    .where(and(idle, lt(b.createdAt, cutoff), sql`NOT ${newestGraph}`));
   return changedRows(result);
 }

@@ -50,8 +50,8 @@ export async function countCall(
   now: Date,
 ): Promise<boolean> {
   if (!(cap >= 1)) return false;
-  const limit = sql`min(${cap}, coalesce((SELECT ${budgets.dailyCalls} FROM ${budgets}
-    WHERE ${budgets.accountId} = ${accountId}), ${cap}))`;
+  const own = sql`(SELECT ${budgets.dailyCalls} FROM ${budgets} WHERE ${budgets.accountId} = ${accountId})`;
+  const limit = sql`CASE WHEN ${own} < ${cap} THEN ${own} ELSE ${cap} END`;
   // A day's first call is always within a budget: the smallest is 1.
   const counted = await db
     .insert(c)
@@ -75,8 +75,7 @@ export function uncountOne(
   return db
     .update(c)
     .set({ n: sql`${c.n} - 1` })
-    .where(and(eq(c.accountId, accountId), eq(c.kind, kind), eq(c.day, utcDay(now)), gt(c.n, 0)))
-    .run();
+    .where(and(eq(c.accountId, accountId), eq(c.kind, kind), eq(c.day, utcDay(now)), gt(c.n, 0)));
 }
 
 /**
@@ -108,8 +107,7 @@ export function countFindingsOf(
   // In the table's column order: insert … select names every column.
   return db
     .insert(c)
-    .select(sql`SELECT ${accountId}, 'findings', ${utcDay(now)}, stored,
-        unixepoch('subsec') * 1000
+    .select(sql`SELECT ${accountId}, 'findings', ${utcDay(now)}, stored, ${now.getTime()}
       FROM (SELECT count(*) AS stored FROM findings WHERE review_id = ${reviewId})
       WHERE stored > 0`)
     .onConflictDoUpdate({

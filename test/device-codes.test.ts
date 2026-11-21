@@ -43,9 +43,9 @@ describe("login codes", () => {
     const refused = await ask("192.0.2.12", cap);
     expect(refused).toMatchObject({ status: 429, body: { error: "slow_down" }, written: 0 });
     expect(tomorrow(refused.retryAfter)).toBe(true);
-    expect(await db.select().from(schema.deviceCodes).all()).toHaveLength(2);
+    expect(await db.select().from(schema.deviceCodes)).toHaveLength(2);
     // Past the service's cap, a new network leaves no row of its own.
-    const counts = await db.select().from(schema.serviceCounters).all();
+    const counts = await db.select().from(schema.serviceCounters);
     expect(counts).toHaveLength(3);
   });
 
@@ -62,7 +62,7 @@ describe("login codes", () => {
     expect((await ask("2001:db8:1:2:ffff::b", cap)).status).toBe(200);
     expect((await ask("2001:db8:1:2::c", cap)).status).toBe(429);
     expect((await ask("2001:db8:1:3::a", cap)).status).toBe(200);
-    const names = (await db.select().from(schema.serviceCounters).all()).map((r) => r.name);
+    const names = (await db.select().from(schema.serviceCounters)).map((r) => r.name);
     expect(names.join(" ")).not.toMatch(/198\.51|2001/);
   });
 

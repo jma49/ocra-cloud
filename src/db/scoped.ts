@@ -13,8 +13,8 @@ import {
   sql,
 } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
-import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
-import { changedRows, type Db } from "./client.js";
+import { getTableConfig, type SQLiteColumn } from "drizzle-orm/sqlite-core";
+import { changedRows, type Db, first } from "./client.js";
 import {
   countCall,
   countFindingsOf,
@@ -23,6 +23,7 @@ import {
   findingsCounted,
   uncountOne,
 } from "./counters.js";
+import { countWhere, jsonMembers, jsonNumber, jsonRecords, utcDayOf } from "./dialect.js";
 import { accountGraphs } from "./graphs.js";
 import {
   type Decision,
@@ -55,6 +56,39 @@ export type Where<N extends Name> = { [K in keyof Row<N>]?: Row<N>[K] };
 
 /** A new row's id. */
 export const newId = (): string => crypto.randomUUID();
+
+/** An uploaded finding's fields, as insertReview reads them from its JSON. */
+const FINDING_FIELDS = {
+  id: "text",
+  fingerprint: "text",
+  reviewer: "text",
+  severity: "text",
+  category: "text",
+  verification: "text",
+  file: "text",
+  lineStart: "bigint",
+  lineEnd: "bigint",
+  title: "text",
+  body: "text",
+  suggestion: "text",
+  code: "text",
+  redacted: "bigint",
+  truncated: "bigint",
+  position: "bigint",
+} as const;
+
+/** Where a page of rows ends: the last row's primary key, column by column. */
+export type PageKey = unknown[];
+
+/** A table's primary key columns, in order. */
+function primaryKeyOf(table: Tables[Name]): SQLiteColumn[] {
+  const config = getTableConfig(table);
+  const composite = config.primaryKeys[0]?.columns;
+  if (composite) return composite;
+  const single = config.columns.filter((c) => c.primary);
+  if (single.length === 0) throw new Error(`${config.name} has no primary key`);
+  return single;
+}
 
 /** What insertReview did with an upload. */
 type StoredUpload =
@@ -121,7 +155,7 @@ export function scoped(db: Db, accountId: string) {
     accountId,
     list<N extends Name>(name: N): Promise<Row<N>[]> {
       // The generic table loses drizzle's row type; the row is the table's.
-      return db.select().from(accountTables[name]).where(own(name)).all() as Promise<Row<N>[]>;
+      return db.select().from(accountTables[name]).where(own(name)) as Promise<Row<N>[]>;
     },
     /** This account's rows whose columns equal where's values. */
     find<N extends Name>(name: N, where: Where<N>, limit = 10_000): Promise<Row<N>[]> {
@@ -129,14 +163,16 @@ export function scoped(db: Db, accountId: string) {
         .select()
         .from(accountTables[name])
         .where(matching(name, where))
-        .limit(limit)
-        .all() as Promise<Row<N>[]>;
+        .limit(limit) as Promise<Row<N>[]>;
     },
     /** The first such row; for preferences, the account's one row (where is {}). */
     async findOne<N extends Name>(name: N, where: Where<N>): Promise<Row<N> | undefined> {
-      return (await db.select().from(accountTables[name]).where(matching(name, where)).get()) as
-        | Row<N>
-        | undefined;
+      return (await db
+        .select()
+        .from(accountTables[name])
+        .where(matching(name, where))
+        .limit(1)
+        .then(first)) as Row<N> | undefined;
     },
     /** How many such rows, counted in SQL. */
     async count<N extends Name>(name: N, where: Where<N> = {}): Promise<number> {
@@ -144,7 +180,8 @@ export function scoped(db: Db, accountId: string) {
         .select({ n: count() })
         .from(accountTables[name])
         .where(matching(name, where))
-        .get();
+        .limit(1)
+        .then(first);
       return row?.n ?? 0;
     },
     /** This account's newest rows whose columns equal where's values, newest first. */
@@ -155,13 +192,15 @@ export function scoped(db: Db, accountId: string) {
         .from(t)
         .where(matching(name, where))
         .orderBy(desc(t.createdAt))
-        .limit(limit)
-        .all() as Promise<Row<N>[]>;
+        .limit(limit) as Promise<Row<N>[]>;
     },
     async get<N extends IdName>(name: N, id: string): Promise<Row<N> | undefined> {
-      return (await db.select().from(accountTables[name]).where(byId(name, id)).get()) as
-        | Row<N>
-        | undefined;
+      return (await db
+        .select()
+        .from(accountTables[name])
+        .where(byId(name, id))
+        .limit(1)
+        .then(first)) as Row<N> | undefined;
     },
     /** Inserts a row; returns its id (made here unless the row brings one). */
     async insert<N extends Name>(name: N, row: Insert<N>): Promise<string> {
@@ -177,8 +216,7 @@ export function scoped(db: Db, accountId: string) {
         .from(t)
         .where(and(own(name), gte(t.createdAt, since)))
         .orderBy(desc(t.createdAt))
-        .limit(limit)
-        .all() as Promise<Row<N>[]>;
+        .limit(limit) as Promise<Row<N>[]>;
     },
     /** Rows of this account created at or after since. */
     async countSince(name: Name, since: Date): Promise<number> {
@@ -187,7 +225,8 @@ export function scoped(db: Db, accountId: string) {
         .select({ n: count() })
         .from(t)
         .where(and(own(name), gte(t.createdAt, since)))
-        .get();
+        .limit(1)
+        .then(first);
       return row?.n ?? 0;
     },
     /** Counts one more of kind today, unless today's count is at cap; returns whether it did. */
@@ -214,12 +253,11 @@ export function scoped(db: Db, accountId: string) {
       const same = and(sameRepo, eq(m.fingerprint, row.fingerprint));
       const inserted = await db.insert(m).select(sql`
         SELECT ${row.id}, ${accountId}, ${row.repoHash}, ${row.fingerprint},
-          ${row.file ?? null}, ${row.title ?? null}, ${row.reason},
-          unixepoch('subsec') * 1000
+          ${row.file ?? null}, ${row.title ?? null}, ${row.reason}, ${Date.now()}
         WHERE NOT EXISTS (SELECT 1 FROM ${m} WHERE ${same})
           AND (SELECT count(*) FROM ${m} WHERE ${sameRepo}) < ${cap}`);
       if (changedRows(inserted) > 0) return { id: row.id, duplicate: false };
-      const existing = await db.select({ id: m.id }).from(m).where(same).get();
+      const existing = await db.select({ id: m.id }).from(m).where(same).limit(1).then(first);
       return existing ? { id: existing.id, duplicate: true } : "full";
     },
     /** Saves the preferences unless their version moved; returns whether it did (./preferences.ts). */
@@ -238,8 +276,7 @@ export function scoped(db: Db, accountId: string) {
       const result = await db
         .update(accountTables[name])
         .set(rest as never)
-        .where(byId(name, id))
-        .run();
+        .where(byId(name, id));
       return changedRows(result) > 0;
     },
     /**
@@ -269,7 +306,8 @@ export function scoped(db: Db, accountId: string) {
           .select({ id: r.id })
           .from(r)
           .where(and(own("reviews"), eq(r.runId, counts.runId)))
-          .get();
+          .limit(1)
+          .then(first);
       // A retry of a stored run is answered as such and counts nothing.
       const before = await storedRun();
       if (before) return { outcome: "duplicate", id: before.id };
@@ -281,22 +319,24 @@ export function scoped(db: Db, accountId: string) {
         .insert(r)
         .values({ ...review, accountId })
         .onConflictDoNothing({ target: [r.accountId, r.runId] });
-      const rows = JSON.stringify(list.map((f) => ({ ...f, id: newId() })));
+      const rows = JSON.stringify(
+        list.map((f, position) => ({
+          ...f,
+          id: newId(),
+          position,
+          redacted: f.redacted ? 1 : 0,
+          truncated: f.truncated ? 1 : 0,
+        })),
+      );
       // Only when the review row above was this upload's own, and all of its
       // findings fit in the account's allowance.
       // In the table's column order: insert … select names every column.
       const findings = db.insert(accountTables.findings).select(sql`
-        SELECT json_extract(value, '$.id'), ${accountId}, ${review.id},
-          json_extract(value, '$.fingerprint'), json_extract(value, '$.reviewer'),
-          json_extract(value, '$.severity'), json_extract(value, '$.category'),
-          json_extract(value, '$.verification'), json_extract(value, '$.file'),
-          json_extract(value, '$.lineStart'), json_extract(value, '$.lineEnd'),
-          json_extract(value, '$.title'), json_extract(value, '$.body'),
-          json_extract(value, '$.suggestion'), json_extract(value, '$.code'),
-          coalesce(json_extract(value, '$.redacted'), 0),
-          coalesce(json_extract(value, '$.truncated'), 0),
-          unixepoch('subsec') * 1000, 'open', NULL, NULL, NULL
-        FROM json_each(${rows})
+        SELECT je."id", ${accountId}, ${review.id}, je."fingerprint", je."reviewer",
+          je."severity", je."category", je."verification", je."file", je."lineStart",
+          je."lineEnd", je."title", je."body", je."suggestion", je."code", je."redacted",
+          je."truncated", ${now.getTime()}, 'open', NULL, NULL, NULL, je."position"
+        FROM ${jsonRecords(db, rows, FINDING_FIELDS)}
         WHERE EXISTS (SELECT 1 FROM reviews WHERE id = ${review.id} AND account_id = ${accountId})
           AND ${findingsCounted(accountId, now)} + ${list.length} <= ${limits.maxFindings}`);
       const [stored, kept] =
@@ -313,28 +353,36 @@ export function scoped(db: Db, accountId: string) {
       return { outcome: "duplicate", id: existing?.id ?? review.id };
     },
     /**
-     * Up to limit rows of this account after the row numbered after, in
-     * insertion order, with the number to pass for the next page.
+     * Up to limit rows of this account after the row whose primary key is
+     * `after` (the first page when null), in primary key order, with the key
+     * to pass for the next page.
      */
     async page<N extends Name>(
       name: N,
-      after: number,
+      after: PageKey | null,
       limit: number,
-    ): Promise<{ rows: Row<N>[]; next: number | null }> {
+    ): Promise<{ rows: Row<N>[]; next: PageKey | null }> {
       const t = accountTables[name];
-      const seq = sql<number>`${t}.rowid`;
-      // The generic table loses drizzle's row type; the row is the table's.
+      const keys = primaryKeyOf(t);
+      const key = sql.join(keys, sql`, `);
+      const past = after
+        ? sql`(${key}) > (${sql.join(
+            after.map((v) => sql`${v}`),
+            sql`, `,
+          )})`
+        : undefined;
       const rows = (await db
-        .select({ ...getTableColumns(t as Tables["sessions"]), seq })
+        .select()
         .from(t)
-        .where(and(own(name), gt(seq, after)))
-        .orderBy(asc(seq))
-        .limit(limit)
-        .all()) as unknown as (Row<N> & { seq: number })[];
-      const last = rows.at(-1);
+        .where(and(own(name), past))
+        .orderBy(...keys.map((k) => asc(k)))
+        .limit(limit)) as unknown as Row<N>[];
+      const last = rows.at(-1) as Record<string, unknown> | undefined;
+      const columns = getTableColumns(t as Tables["sessions"]) as Record<string, SQLiteColumn>;
+      const fieldOf = new Map(Object.entries(columns).map(([field, c]) => [c, field]));
       return {
-        rows: rows.map(({ seq: _s, ...r }) => r as unknown as Row<N>),
-        next: rows.length === limit && last ? last.seq : null,
+        rows,
+        next: rows.length === limit && last ? keys.map((k) => last[fieldOf.get(k) ?? ""]) : null,
       };
     },
     /** The account's findings across its reviews (./inbox.ts). */
@@ -365,7 +413,7 @@ export function scoped(db: Db, accountId: string) {
         .select()
         .from(f)
         .where(and(own("findings"), eq(f.reviewId, reviewId)))
-        .all();
+        .orderBy(f.position);
     },
     /**
      * Gateway calls since a time, summed in SQL: per UTC day, per provider
@@ -375,7 +423,7 @@ export function scoped(db: Db, accountId: string) {
     async usage(since: Date, models = 100, dayModels = 2_000) {
       const t = accountTables.gatewayCalls;
       const where = and(own("gatewayCalls"), gte(t.createdAt, since));
-      const day = sql<string>`strftime('%Y-%m-%d', ${t.createdAt} / 1000, 'unixepoch')`;
+      const day = utcDayOf(db, sql`${t.createdAt}`);
       const model = sql<string>`coalesce(${t.model}, '(unknown)')`;
       const calls = sql<number>`count(*)`;
       const tokensIn = sql<number>`coalesce(sum(${t.tokensIn}), 0)`;
@@ -387,7 +435,7 @@ export function scoped(db: Db, accountId: string) {
             calls,
             tokensIn,
             tokensOut,
-            errors: sql<number>`coalesce(sum(${t.status} >= 400), 0)`,
+            errors: countWhere(sql`${t.status} >= 400`),
           })
           .from(t)
           .where(where)
@@ -416,12 +464,11 @@ export function scoped(db: Db, accountId: string) {
         .select({
           provider: t.provider,
           lastUsedAt: sql<number>`max(${t.createdAt})`,
-          recent: sql<number>`coalesce(sum(${t.createdAt} >= ${recent.getTime()}), 0)`,
+          recent: countWhere(sql`${t.createdAt} >= ${recent.getTime()}`),
         })
         .from(t)
         .where(and(own("gatewayCalls"), gte(t.createdAt, since)))
-        .groupBy(t.provider)
-        .all();
+        .groupBy(t.provider);
     },
     /** Reviews since a time, summed in SQL, with the per-reviewer counts summed too. */
     async reviewSummary(since: Date, reviewers = 200) {
@@ -430,7 +477,7 @@ export function scoped(db: Db, accountId: string) {
       const total = (c: unknown) => sql<number>`coalesce(sum(${c}), 0)`;
       // Each column has its own name: D1 keys a result row by column name.
       const n = (path: string, as: string) =>
-        sql<number>`coalesce(sum(json_extract(je.value, ${path})), 0)`.as(as);
+        sql<number>`coalesce(sum(${jsonNumber(db, sql`je.value`, path)}), 0)`.as(as);
       const [[summary], byReviewer] = await db.batch([
         db
           .select({
@@ -439,8 +486,8 @@ export function scoped(db: Db, accountId: string) {
             findings: total(r.findings),
             critical: total(r.critical),
             // significant_concerns is the verdict that blocks a merge.
-            blocking: total(sql`${r.verdict} = 'significant_concerns'`),
-            incomplete: total(sql`${r.complete} = 0`),
+            blocking: countWhere(sql`${r.verdict} = 'significant_concerns'`),
+            incomplete: countWhere(sql`${r.complete} = 0`),
             fixed: total(r.fixed),
             dismissed: total(r.dismissed),
             tokensIn: total(r.tokensIn),
@@ -452,16 +499,16 @@ export function scoped(db: Db, accountId: string) {
         db
           .select({
             id: sql<string>`je.key`,
-            tasks: n("$.tasks", "tasks"),
-            failedTasks: n("$.failedTasks", "failedTasks"),
-            critical: n("$.findings.critical", "critical"),
-            warning: n("$.findings.warning", "warning"),
-            suggestion: n("$.findings.suggestion", "suggestion"),
-            costUsd: n("$.costUsd", "costUsd"),
-            fixed: n("$.fixed", "fixed"),
-            dismissed: n("$.dismissed", "dismissed"),
+            tasks: n("tasks", "tasks"),
+            failedTasks: n("failedTasks", "failedTasks"),
+            critical: n("findings.critical", "critical"),
+            warning: n("findings.warning", "warning"),
+            suggestion: n("findings.suggestion", "suggestion"),
+            costUsd: n("costUsd", "costUsd"),
+            fixed: n("fixed", "fixed"),
+            dismissed: n("dismissed", "dismissed"),
           })
-          .from(sql`${r}, json_each(${r.byReviewer}) AS je`)
+          .from(sql`${r}, ${jsonMembers(db, sql`${r.byReviewer}`)}`)
           .where(and(where, sql`${r.byReviewer} IS NOT NULL`))
           .groupBy(sql`je.key`)
           .orderBy(sql`je.key`)
@@ -471,7 +518,7 @@ export function scoped(db: Db, accountId: string) {
     },
     /** Deletes this account's rows whose columns equal where's values; returns how many. */
     async removeWhere<N extends Name>(name: N, where: Where<N>): Promise<number> {
-      const result = await db.delete(accountTables[name]).where(matching(name, where)).run();
+      const result = await db.delete(accountTables[name]).where(matching(name, where));
       return changedRows(result);
     },
     /** This account's sessions not yet expired (a CLI session lives as long as its refresh token), newest first. */
@@ -486,12 +533,11 @@ export function scoped(db: Db, accountId: string) {
             gt(sql`coalesce(${t.refreshExpiresAt}, ${t.expiresAt})`, now.getTime()),
           ),
         )
-        .orderBy(desc(t.createdAt))
-        .all();
+        .orderBy(desc(t.createdAt));
     },
     /** Returns whether a row of this account was deleted. */
     async remove(name: IdName, id: string): Promise<boolean> {
-      const result = await db.delete(accountTables[name]).where(byId(name, id)).run();
+      const result = await db.delete(accountTables[name]).where(byId(name, id));
       return changedRows(result) > 0;
     },
   };

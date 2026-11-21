@@ -126,10 +126,10 @@ describe("deleting an account", () => {
   async function held(accountId: string) {
     const out: Record<string, number> = {};
     for (const [name, t] of Object.entries(schema.accountTables)) {
-      const all = await db.select().from(t).all();
+      const all = await db.select().from(t);
       out[name] = all.filter((r) => r.accountId === accountId).length;
     }
-    const codes = await db.select().from(schema.deviceCodes).all();
+    const codes = await db.select().from(schema.deviceCodes);
     out.deviceCodes = codes.filter((c) => c.approvedAccountId === accountId).length;
     return out;
   }
