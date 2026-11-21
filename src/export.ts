@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import type { SessionAccount } from "./db/accounts.js";
+import { githubIdOf, type SessionAccount } from "./db/accounts.js";
 import type { Scoped } from "./db/scoped.js";
 import { requireSession } from "./session.js";
 import type { AppEnv } from "./types.js";
@@ -93,7 +93,8 @@ const SHAPES: Partial<Record<Table, (row: never) => unknown>> = {
 };
 
 exportRoute.get("/", (c) => {
-  const chunks = exportChunks(c.var.data, c.var.session.account);
+  const { account } = c.var.session;
+  const chunks = exportChunks(c.var.data, account, () => githubIdOf(c.var.db, account.id));
   const enc = new TextEncoder();
   // One chunk per pull, so a page is read only once the client has taken
   // the last (audit C9); a slow client never makes the Worker queue tables.
@@ -118,10 +119,14 @@ exportRoute.get("/", (c) => {
 type Account = SessionAccount["account"];
 
 /** The export's JSON text: the account, then each table a page at a time. */
-async function* exportChunks(d: Scoped, a: Account): AsyncGenerator<string, void> {
+async function* exportChunks(
+  d: Scoped,
+  a: Account,
+  githubId: () => Promise<number | null>,
+): AsyncGenerator<string, void> {
   yield `{"exportedAt":${JSON.stringify(new Date())},"account":${JSON.stringify({
     login: a.login,
-    githubId: a.githubId,
+    githubId: await githubId(),
     createdAt: a.createdAt,
     shareFindings: a.shareFindings,
     // The repository-hash salt, held once findings were shared (null before).

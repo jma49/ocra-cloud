@@ -27,6 +27,7 @@ import {
   type PullFilters,
   type ReviewerCounts,
   type ReviewSettings,
+  SIGN_IN_PROVIDERS,
 } from "../shared/index.js";
 
 // Every table but accounts carries accountId, and is read and written only
@@ -45,7 +46,6 @@ const accountId = () =>
 
 export const accounts = sqliteTable("accounts", {
   id: text("id").primaryKey(),
-  githubId: integer("github_id").notNull().unique(),
   login: text("login").notNull(),
   // ADR-0028: findings and their quoted code are uploaded only when on.
   shareFindings: integer("share_findings", { mode: "boolean" }).notNull().default(false),
@@ -53,6 +53,24 @@ export const accounts = sqliteTable("accounts", {
   salt: text("salt"),
   createdAt: createdAt(),
 });
+
+// Who signs in as an account: a sign-in provider's user, by the id it never
+// reuses (a GitHub user id, an OpenID Connect `sub`).
+export const identities = sqliteTable(
+  "identities",
+  {
+    provider: text("provider", { enum: SIGN_IN_PROVIDERS }).notNull(),
+    subject: text("subject").notNull(),
+    accountId: text("account_id")
+      .notNull()
+      .references(() => accounts.id, { onDelete: "cascade" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.provider, t.subject] }),
+    index("identities_account").on(t.accountId),
+  ],
+);
 
 // A signed-in browser or CLI. Only a hash of the token is stored.
 export const sessions = sqliteTable(

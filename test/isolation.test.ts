@@ -35,8 +35,8 @@ const changes = {
 beforeEach(async () => {
   await db.delete(schema.accounts);
   await db.insert(schema.accounts).values([
-    { id: A, githubId: 1, login: "a" },
-    { id: B, githubId: 2, login: "b" },
+    { id: A, login: "a" },
+    { id: B, login: "b" },
   ]);
 });
 
@@ -48,6 +48,9 @@ const unscoped: Record<string, string> = {
   // known; approved_account_id is only set when a signed-in user approves it.
   // Only src/db/device.ts reads it, by code (test/device.test.ts).
   device_codes: "found by its codes before the account is known",
+  // Signing in finds the account by its identity; only src/db/accounts.ts
+  // reads it (test/identities.test.ts).
+  identities: "found by provider and subject before the account is known",
 };
 
 const schemaTables = (Object.values(schema) as unknown[]).filter((t): t is SQLiteTable =>

@@ -4,15 +4,16 @@ import { join, resolve } from "node:path";
 import { eq } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { hmacHex } from "../src/crypto.js";
-import { upsertAccount } from "../src/db/accounts.js";
+import { githubIdentity, upsertAccount } from "../src/db/accounts.js";
 import * as schema from "../src/db/schema.js";
 import { scoped } from "../src/db/scoped.js";
 import { graphPolicy } from "../src/graph/policy.js";
 import { bindingsFrom } from "../src/node/env.js";
 import { openHost } from "../src/node/host.js";
+import { github } from "../src/platforms/github.js";
 import { gitlab } from "../src/platforms/gitlab.js";
 import { saveToken } from "../src/platforms/links.js";
-import { githubOf, gitlabCallback, gitlabClientOf } from "../src/platforms/registry.js";
+import { githubClientOf, gitlabCallback, gitlabClientOf } from "../src/platforms/registry.js";
 import { startWebSession } from "../src/session.js";
 import { C1, C2, C3, fakeBuilder, GITLAB, repoFake } from "./graph-fakes.js";
 
@@ -32,6 +33,9 @@ const VARS = {
   GITLAB_URL: GITLAB,
 };
 const bindings = bindingsFrom(VARS);
+const githubClient = githubClientOf(bindings);
+if (!githubClient) throw new Error("the test bindings configure GitHub");
+const githubPlatform = github(githubClient);
 
 let dir: string;
 let n = 0;
@@ -62,9 +66,9 @@ async function serverWith(policy: "keep" | "opt-in" | "off", builder = fakeBuild
     );
   };
   const signIn = async (githubId: number) => {
-    const account = await upsertAccount(host.db, githubId, `user-${githubId}`);
+    const account = await upsertAccount(host.db, githubIdentity(githubId), `user-${githubId}`);
     const data = scoped(host.db, account.id);
-    await saveToken(data, bindings, githubOf(bindings), { access_token: `ghu_${githubId}` });
+    await saveToken(data, bindings, githubPlatform, { access_token: `ghu_${githubId}` });
     const lab = gitlabClientOf(bindings);
     if (lab) {
       await saveToken(data, bindings, gitlab(lab, gitlabCallback(ORIGIN)), {

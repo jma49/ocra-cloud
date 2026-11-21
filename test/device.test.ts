@@ -1,12 +1,12 @@
 import { env } from "cloudflare:workers";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
-import { safeNext } from "../src/auth.js";
 import { sha256Hex } from "../src/crypto.js";
 import { rotateSession, sessionByRefreshHash } from "../src/db/accounts.js";
 import * as schema from "../src/db/schema.js";
 import { newUserCode, normalizeUserCode } from "../src/device.js";
 import { REFRESH_GRACE_MS } from "../src/session.js";
+import { safeNext } from "../src/sign-in-state.js";
 import { DAY } from "../src/time.js";
 import { call, db, resetDb, signIn, signInCli } from "./helpers.js";
 

@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { githubIdOf } from "./db/accounts.js";
 import { requireSession } from "./session.js";
 import type { AppEnv } from "./types.js";
 
@@ -6,7 +7,8 @@ import type { AppEnv } from "./types.js";
 
 export const me = new Hono<AppEnv>().use(requireSession(["web", "cli"]));
 
-me.get("/", (c) => {
+me.get("/", async (c) => {
   const { account: a, kind } = c.var.session;
-  return c.json({ login: a.login, githubId: a.githubId, session: kind, since: a.createdAt });
+  const githubId = await githubIdOf(c.var.db, a.id);
+  return c.json({ login: a.login, githubId, session: kind, since: a.createdAt });
 });

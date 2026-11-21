@@ -19,6 +19,7 @@ async function load(answer: (() => Response) | undefined): Promise<string[]> {
       if (path === "/me") return answer ? answer() : new Promise<Response>(() => {});
       if (path === "/keys") return Response.json({ error: "unauthenticated" }, { status: 401 });
       if (path === "/providers") return Response.json({ providers: [] });
+      if (path === "/auth/methods") return Response.json({ methods: [GITHUB] });
       return Response.json(usage);
     }),
   );
@@ -29,6 +30,7 @@ async function load(answer: (() => Response) | undefined): Promise<string[]> {
   return asked;
 }
 
+const GITHUB = { id: "github", name: "GitHub" };
 const signedOut = () => Response.json({ error: "unauthenticated" }, { status: 401 });
 
 // Node's own localStorage, which needs a file, shadows the simulated

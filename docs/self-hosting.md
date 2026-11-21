@@ -28,7 +28,9 @@ Without Docker: `npm ci && npm run build:web && npm run build:node`, then `node 
 
 | Variable | Required | Meaning |
 |---|---|---|
-| `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | yes | Your own GitHub App's client; its callback URL is `<PUBLIC_URL>/api/auth/github/callback` |
+| `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | one way to sign in | Your own GitHub App's client; its callback URL is `<PUBLIC_URL>/api/auth/github/callback` |
+| `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` | one way to sign in | An OpenID Connect provider: the company's SSO (Keycloak, Azure AD, Okta) or a self-hosted GitLab, which is one. A confidential client with the scopes `openid profile email` and the redirect URI `<PUBLIC_URL>/api/auth/oidc/callback`; the issuer is the URL its discovery document names, such as `https://gitlab.example.com` |
+| `OIDC_NAME` | no | the provider's name on the sign-in button, "SSO" when unset |
 | `MASTER_KEY` | yes | base64 of 32 random bytes (`openssl rand -base64 32`); wraps every stored key. Losing it loses them |
 | `MASTER_KEY_PREVIOUS` | during a rotation | as on Workers (`docs/rotation.md`) |
 | `SESSION_SECRET` | yes | signs the sign-in state cookie |
@@ -50,6 +52,6 @@ An account adds a repository under `/api/graphs/repos`; the server then keeps a 
 ## Limits of this first version
 
 - One process: the rate limits live in its memory, so run one replica.
-- Sign-in is through a GitHub App, so `GITHUB_CLIENT_ID` is required even where reviews run on GitLab.
+- Set GitHub, OpenID Connect or both; the server refuses to start with neither. An account belongs to the identity it signed in with: the same person through GitHub and through SSO is two accounts.
 - SQLite or a libSQL server only; Postgres is not supported yet.
 - Back up the `/data` volume; there is no Time Travel as on D1.

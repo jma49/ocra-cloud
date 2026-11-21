@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { eq } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { upsertAccount } from "../src/db/accounts.js";
+import { githubIdentity, upsertAccount } from "../src/db/accounts.js";
 import { claimBuild, GRAPH_HISTORY_DAYS, pruneGraphBuilds } from "../src/db/graphs.js";
 import * as schema from "../src/db/schema.js";
 import { type Scoped, scoped } from "../src/db/scoped.js";
@@ -11,8 +11,9 @@ import { gzip } from "../src/graph/gzip.js";
 import { runNextBuild } from "../src/graph/runner.js";
 import { bindingsFrom } from "../src/node/env.js";
 import { openHost } from "../src/node/host.js";
+import { github } from "../src/platforms/github.js";
 import { saveToken } from "../src/platforms/links.js";
-import { githubOf } from "../src/platforms/registry.js";
+import { githubClientOf } from "../src/platforms/registry.js";
 import { DAY } from "../src/time.js";
 import { C1, C2, C3, fakeBuilder, repoFake } from "./graph-fakes.js";
 
@@ -25,7 +26,10 @@ const bindings = bindingsFrom({
   MASTER_KEY: btoa(String.fromCharCode(...new Uint8Array(32).fill(7))),
   SESSION_SECRET: "test-session-secret",
 });
-const platforms = [githubOf(bindings)];
+const githubClient = githubClientOf(bindings);
+if (!githubClient) throw new Error("the test bindings configure GitHub");
+const githubPlatform = github(githubClient);
+const platforms = [githubPlatform];
 const LEASE = 60_000;
 
 let dir: string;
@@ -49,9 +53,9 @@ afterEach(() => vi.restoreAllMocks());
 
 beforeEach(async () => {
   await host.db.delete(schema.accounts);
-  const account = await upsertAccount(host.db, 1, "octo");
+  const account = await upsertAccount(host.db, githubIdentity(1), "octo");
   data = scoped(host.db, account.id);
-  await saveToken(data, bindings, githubOf(bindings), { access_token: "ghu_1" });
+  await saveToken(data, bindings, githubPlatform, { access_token: "ghu_1" });
   repoId =
     (await data.graphs.addRepo(
       {

@@ -13,4 +13,10 @@ interface __BaseEnv_Env {
   GITLAB_CLIENT_SECRET?: string;
   /** The GitLab instance; https://gitlab.com when unset. */
   GITLAB_URL?: string;
+  /** An OpenID Connect provider to sign in through, as a self-hosted server's SSO (docs/self-hosting.md). */
+  OIDC_ISSUER?: string;
+  OIDC_CLIENT_ID?: string;
+  OIDC_CLIENT_SECRET?: string;
+  /** The provider's name on the sign-in button. */
+  OIDC_NAME?: string;
 }

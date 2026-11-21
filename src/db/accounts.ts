@@ -1,21 +1,68 @@
 import { and, eq, gt, isNull, or } from "drizzle-orm";
 import { changedRows, type Db } from "./client.js";
-import { accounts, sessions } from "./schema.js";
+import { accounts, identities, sessions } from "./schema.js";
 
 // The queries that cannot be scoped by an account, because they find it:
-// signing in by GitHub id, and resolving a session token.
+// signing in by a provider's identity, and resolving a session token.
 
 export type Account = typeof accounts.$inferSelect;
+export type Identity = Pick<typeof identities.$inferSelect, "provider" | "subject">;
 
-/** The account of a GitHub user, created on first sign-in; the login is kept current. */
-export async function upsertAccount(db: Db, githubId: number, login: string): Promise<Account> {
-  const [row] = await db
-    .insert(accounts)
-    .values({ id: crypto.randomUUID(), githubId, login })
-    .onConflictDoUpdate({ target: accounts.githubId, set: { login } })
-    .returning();
-  if (!row) throw new Error("account upsert returned no row");
-  return row;
+export const githubIdentity = (githubId: number): Identity => ({
+  provider: "github",
+  subject: String(githubId),
+});
+
+async function accountOf(db: Db, identity: Identity): Promise<Account | undefined> {
+  const row = await db
+    .select({ account: accounts })
+    .from(identities)
+    .innerJoin(accounts, eq(accounts.id, identities.accountId))
+    .where(
+      and(eq(identities.provider, identity.provider), eq(identities.subject, identity.subject)),
+    )
+    .get();
+  return row?.account;
+}
+
+/**
+ * The account an identity signs in as, created on its first sign-in; the
+ * login is kept current. Of two first sign-ins racing, the identity's
+ * primary key keeps one account and the other is removed.
+ */
+export async function upsertAccount(db: Db, identity: Identity, login: string): Promise<Account> {
+  const found = await accountOf(db, identity);
+  if (found) {
+    if (found.login === login) return found;
+    const [row] = await db
+      .update(accounts)
+      .set({ login })
+      .where(eq(accounts.id, found.id))
+      .returning();
+    return row ?? found;
+  }
+  const id = crypto.randomUUID();
+  await db.batch([
+    db.insert(accounts).values({ id, login }),
+    db
+      .insert(identities)
+      .values({ ...identity, accountId: id })
+      .onConflictDoNothing(),
+  ]);
+  const owner = await accountOf(db, identity);
+  if (owner?.id !== id) await db.delete(accounts).where(eq(accounts.id, id));
+  if (!owner) throw new Error("account upsert found no account");
+  return owner;
+}
+
+/** The GitHub user an account signs in as, if it does. */
+export async function githubIdOf(db: Db, accountId: string): Promise<number | null> {
+  const row = await db
+    .select({ subject: identities.subject })
+    .from(identities)
+    .where(and(eq(identities.accountId, accountId), eq(identities.provider, "github")))
+    .get();
+  return row ? Number(row.subject) : null;
 }
 
 export type SessionAccount = {
