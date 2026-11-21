@@ -12,7 +12,7 @@ import {
   type SQL,
   sql,
 } from "drizzle-orm";
-import type { DrizzleD1Database } from "drizzle-orm/d1";
+import { changedRows, type Db } from "./client.js";
 import { accountMemory, findings, reviews } from "./schema.js";
 
 // The findings inbox: every review's findings of one account, filtered and
@@ -34,7 +34,7 @@ export type InboxCursor = { createdAt: Date; id: string };
 export type Decision = Pick<Finding, "status" | "reason" | "note" | "decidedAt">;
 
 export async function inbox(
-  db: DrizzleD1Database,
+  db: Db,
   accountId: string,
   filter: InboxFilter,
   limit: number,
@@ -79,7 +79,7 @@ export async function inbox(
 }
 
 /** How many of the account's findings have each status. */
-export function findingStatusCounts(db: DrizzleD1Database, accountId: string) {
+export function findingStatusCounts(db: Db, accountId: string) {
   return db
     .select({ status: findings.status, n: count() })
     .from(findings)
@@ -90,7 +90,7 @@ export function findingStatusCounts(db: DrizzleD1Database, accountId: string) {
 
 /** Sets one decision on the account's findings with these ids; returns how many changed. */
 export async function decide(
-  db: DrizzleD1Database,
+  db: Db,
   accountId: string,
   ids: readonly string[],
   decision: Decision,
@@ -101,7 +101,7 @@ export async function decide(
     .set(decision)
     .where(and(eq(findings.accountId, accountId), inArray(findings.id, [...ids])))
     .run();
-  return result.meta.changes;
+  return changedRows(result);
 }
 
 /**
@@ -112,7 +112,7 @@ export async function decide(
  * and whether a repository was full.
  */
 export async function rememberFindings(
-  db: DrizzleD1Database,
+  db: Db,
   accountId: string,
   ids: readonly string[],
   reason: string,
@@ -142,7 +142,7 @@ export async function rememberFindings(
       WHERE f.account_id = ${accountId} AND f.id IN (SELECT value FROM json_each(${list}))
         AND NOT EXISTS (SELECT 1 FROM ${accountMemory} m WHERE m.account_id = ${accountId}
           AND m.repo_hash = r.repo_hash AND m.fingerprint = f.fingerprint))`);
-  return { added: result.meta.changes, full: (wanted?.n ?? 0) > 0 };
+  return { added: changedRows(result), full: (wanted?.n ?? 0) > 0 };
 }
 
 /**
@@ -150,7 +150,7 @@ export async function rememberFindings(
  * by reviewer, severity, category, verification and dismissal reason: what
  * the inbox's decisions say about each part of the review.
  */
-export async function findingInsights(db: DrizzleD1Database, accountId: string, since: Date) {
+export async function findingInsights(db: Db, accountId: string, since: Date) {
   const f = findings;
   const where = and(eq(f.accountId, accountId), gte(f.createdAt, since));
   const tally = {

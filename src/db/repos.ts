@@ -1,12 +1,12 @@
 import { and, count, desc, eq, gte, max, sql, sum } from "drizzle-orm";
-import type { DrizzleD1Database } from "drizzle-orm/d1";
+import { changedRows, type Db } from "./client.js";
 import { findings, repositories, reviews } from "./schema.js";
 
 // The account's repositories: the hashes its reviews came from, summed in
 // SQL, and the names it gave them. Reached only through scoped().
 
 /** Per repository hash reviewed since a time: reviews, findings, open findings, last review. */
-export async function reviewedRepos(db: DrizzleD1Database, accountId: string, since: Date) {
+export async function reviewedRepos(db: Db, accountId: string, since: Date) {
   const r = reviews;
   const f = findings;
   const [byRepo, open] = await db.batch([
@@ -37,7 +37,7 @@ export async function reviewedRepos(db: DrizzleD1Database, accountId: string, si
  * while the account has fewer than cap. Returns whether it was stored.
  */
 export async function nameRepo(
-  db: DrizzleD1Database,
+  db: Db,
   accountId: string,
   repoHash: string,
   name: string,
@@ -49,11 +49,11 @@ export async function nameRepo(
     .set({ name })
     .where(and(eq(t.accountId, accountId), eq(t.repoHash, repoHash)))
     .run();
-  if (renamed.meta.changes > 0) return true;
+  if (changedRows(renamed) > 0) return true;
   const inserted = await db.run(sql`
     INSERT INTO ${t} (id, account_id, repo_hash, name)
     SELECT ${crypto.randomUUID()}, ${accountId}, ${repoHash}, ${name}
     WHERE (SELECT count(*) FROM ${t} WHERE account_id = ${accountId}) < ${cap}
     ON CONFLICT (account_id, repo_hash) DO UPDATE SET name = excluded.name`);
-  return inserted.meta.changes > 0;
+  return changedRows(inserted) > 0;
 }

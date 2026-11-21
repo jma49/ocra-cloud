@@ -1,8 +1,8 @@
 import { and, inArray, lt, sql } from "drizzle-orm";
-import type { DrizzleD1Database } from "drizzle-orm/d1";
 import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
 import { errorName, logError } from "../log.js";
 import { DAY, utcDay } from "../time.js";
+import type { Db } from "./client.js";
 import {
   accounts,
   auditEvents,
@@ -27,7 +27,7 @@ export const RETENTION_DAYS = 90;
  * run shows as failed. Only our own message is logged, never the error's
  * text, which could quote a row.
  */
-export async function enforceRetention(db: DrizzleD1Database, now = new Date()): Promise<void> {
+export async function enforceRetention(db: Db, now = new Date()): Promise<void> {
   const cutoff = new Date(now.getTime() - RETENTION_DAYS * DAY);
   // Account by account, so a delete finds its rows through the index that
   // starts with account_id instead of reading the whole table (audit C3).

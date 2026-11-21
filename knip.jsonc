@@ -2,7 +2,13 @@
   "$schema": "https://unpkg.com/knip@6/schema.json",
   // src/index.ts (wrangler) and web/src/main.tsx (vite) are found by knip's plugins.
   "entry": ["scripts/*.{ts,mjs}"],
-  "project": ["src/**/*.ts", "web/src/**/*.{ts,tsx}", "test/**/*.ts", "scripts/*.{ts,mjs}"],
+  "project": [
+    "src/**/*.ts",
+    "web/src/**/*.{ts,tsx}",
+    "test/**/*.ts",
+    "test-node/**/*.ts",
+    "scripts/*.{ts,mjs}"
+  ],
   "ignoreDependencies": [
     // cloudflare:test and cloudflare:workers are runtime modules, not packages.
     "cloudflare",

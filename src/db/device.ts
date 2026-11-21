@@ -1,6 +1,6 @@
 import { and, eq, sql } from "drizzle-orm";
-import type { DrizzleD1Database } from "drizzle-orm/d1";
 import { utcDay } from "../time.js";
+import { changedRows, type Db } from "./client.js";
 import { deviceCodes, serviceCounters } from "./schema.js";
 
 // Device codes are found by their codes before any account is known; only
@@ -22,7 +22,7 @@ const SERVICE = "device_codes";
  * codes and past days' counts are left to the daily retention run.
  */
 export async function createDeviceCode(
-  db: DrizzleD1Database,
+  db: Db,
   row: Pick<DeviceCode, "deviceCodeHash" | "userCode" | "label" | "expiresAt">,
   limits: { network: string; perNetwork: number; daily: number },
   now = new Date(),
@@ -59,17 +59,17 @@ export async function createDeviceCode(
   return true;
 }
 
-export function byUserCode(db: DrizzleD1Database, userCode: string) {
+export function byUserCode(db: Db, userCode: string) {
   return db.select().from(deviceCodes).where(eq(deviceCodes.userCode, userCode)).get();
 }
 
-export function byDeviceCodeHash(db: DrizzleD1Database, hash: string) {
+export function byDeviceCodeHash(db: Db, hash: string) {
   return db.select().from(deviceCodes).where(eq(deviceCodes.deviceCodeHash, hash)).get();
 }
 
 /** Moves a pending code to approved or denied; false if it was not pending. */
 export async function decide(
-  db: DrizzleD1Database,
+  db: Db,
   id: string,
   approve: boolean,
   accountId: string,
@@ -79,11 +79,11 @@ export async function decide(
     .set(approve ? { status: "approved", approvedAccountId: accountId } : { status: "denied" })
     .where(and(eq(deviceCodes.id, id), eq(deviceCodes.status, "pending")))
     .run();
-  return result.meta.changes > 0;
+  return changedRows(result) > 0;
 }
 
 export async function recordPoll(
-  db: DrizzleD1Database,
+  db: Db,
   id: string,
   at: Date,
   intervalSeconds: number,
@@ -95,11 +95,11 @@ export async function recordPoll(
 }
 
 /** Marks an approved code used; false if another poll got there first. */
-export async function consume(db: DrizzleD1Database, id: string): Promise<boolean> {
+export async function consume(db: Db, id: string): Promise<boolean> {
   const result = await db
     .update(deviceCodes)
     .set({ status: "consumed" })
     .where(and(eq(deviceCodes.id, id), eq(deviceCodes.status, "approved")))
     .run();
-  return result.meta.changes > 0;
+  return changedRows(result) > 0;
 }

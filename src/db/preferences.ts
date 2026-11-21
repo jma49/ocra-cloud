@@ -1,5 +1,5 @@
 import { and, desc, eq, notInArray, sql } from "drizzle-orm";
-import type { DrizzleD1Database } from "drizzle-orm/d1";
+import { changedRows, type Db } from "./client.js";
 import { auditEvents, preferences, preferenceVersions } from "./schema.js";
 
 // The preferences' save as compare-and-set (audit C6): the row changes only
@@ -26,7 +26,7 @@ export type PreferencesSave = {
 
 /** Returns whether the save landed; false when another save changed the version first. */
 export async function savePreferences(
-  db: DrizzleD1Database,
+  db: Db,
   accountId: string,
   save: PreferencesSave,
 ): Promise<boolean> {
@@ -59,5 +59,5 @@ export async function savePreferences(
         unixepoch('subsec') * 1000
       WHERE ${landed}`),
   ]);
-  return upsert.meta.changes > 0;
+  return changedRows(upsert) > 0;
 }
