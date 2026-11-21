@@ -4,6 +4,19 @@ The same API and web app as app.ocracloud.com, on Node with a SQLite file instea
 
 ## Run it
 
+With Docker Compose, on one machine: the server, and Caddy in front of it ending TLS (`selfhost/`).
+
+```sh
+cd selfhost
+cp .env.example .env            # OCRA_DOMAIN, OCRA_TLS
+cp ocra.env.example ocra.env    # the server's variables, below
+docker compose up -d
+```
+
+`OCRA_TLS` says where the certificate comes from: `internal` (Caddy's own CA, for a trial), an email for a public name that Let's Encrypt can reach, or `/certs/<cert>.pem /certs/<key>.pem` with the company's certificate placed in `selfhost/certs/`. Compose sets `PUBLIC_URL` and `TRUSTED_PROXY_HOPS` for you. Data lives in the `ocra-data` volume.
+
+Behind your own load balancer instead, run the image alone:
+
 ```sh
 docker build -t ocra-cloud .
 docker run -p 8787:8787 -v ocra-data:/data --env-file ocra.env ocra-cloud
@@ -32,5 +45,6 @@ Serve it over HTTPS: session cookies are `__Host-` cookies, which browsers keep 
 ## Limits of this first version
 
 - One process: the rate limits live in its memory, so run one replica.
+- Sign-in is through a GitHub App, so `GITHUB_CLIENT_ID` is required even where reviews run on GitLab.
 - SQLite or a libSQL server only; Postgres is not supported yet.
 - Back up the `/data` volume; there is no Time Travel as on D1.

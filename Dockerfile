@@ -21,4 +21,6 @@ USER node
 ENV DATABASE_URL=file:/data/ocra-cloud.db PORT=8787
 VOLUME /data
 EXPOSE 8787
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s \
+  CMD ["node", "-e", "fetch(`http://127.0.0.1:${process.env.PORT}/api/health`).then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
 CMD ["node", "dist/server.mjs"]

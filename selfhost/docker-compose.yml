@@ -1,0 +1,40 @@
+# ocra Cloud on one machine: the server and Caddy in front of it, ending TLS
+# (docs/self-hosting.md). From this folder: cp ocra.env.example ocra.env,
+# fill it in, then docker compose up -d.
+
+name: ocra-cloud
+
+services:
+  ocra:
+    build: ..
+    image: ocra-cloud
+    restart: unless-stopped
+    env_file: ocra.env
+    environment:
+      PUBLIC_URL: https://${OCRA_DOMAIN:?set OCRA_DOMAIN in .env}
+      TRUSTED_PROXY_HOPS: "1"
+    volumes:
+      - ocra-data:/data
+    expose:
+      - "8787"
+
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    depends_on:
+      ocra:
+        condition: service_healthy
+    environment:
+      OCRA_DOMAIN: ${OCRA_DOMAIN}
+      OCRA_TLS: ${OCRA_TLS:-internal}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./certs:/certs:ro
+      - caddy-data:/data
+
+volumes:
+  ocra-data:
+  caddy-data:
