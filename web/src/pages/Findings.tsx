@@ -20,6 +20,7 @@ type Listed = {
   reviewId: string;
   repoHash: string;
   repo: string;
+  name: string | null;
   reviewer: string;
   severity: Severity;
   category: string | null;
@@ -92,7 +93,7 @@ export function Findings() {
   const extra = more && more.for === data ? more : undefined;
   const rows = [...(data?.findings ?? []), ...(extra?.rows ?? [])];
   const next = extra ? extra.next : (data?.next ?? null);
-  const repos = [...new Map(rows.map((r) => [r.repoHash, r.repo])).entries()];
+  const repos = [...new Map(rows.map((r) => [r.repoHash, r.name ?? r.repo])).entries()];
 
   const loadMore = useAction(async () => {
     if (!data || !next) return;
@@ -306,7 +307,7 @@ export function Findings() {
                         {f.verification ? ` · ${f.verification}` : ""}
                       </div>
                     </td>
-                    <td className="mono">{f.repo}</td>
+                    <td className="mono">{f.name ?? f.repo}</td>
                     <td>
                       {f.status}
                       {f.reason && <div className="muted small">{reasonLabel(f.reason)}</div>}
