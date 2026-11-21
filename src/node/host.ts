@@ -10,6 +10,7 @@ import type { Db } from "../db/client.js";
 import type { AppBindings } from "../types.js";
 import { clientAddress } from "./client-address.js";
 import { type GraphOptions, startGraphs } from "./graph-worker.js";
+import { type RateLimitStore, rateLimits } from "./limits.js";
 
 export type HostOptions = {
   /** A libSQL URL: `file:ocra.db` for a local SQLite file, or a libSQL server. */
@@ -31,6 +32,13 @@ export type HostOptions = {
    * the socket's peer.
    */
   trustedProxyHops?: number;
+  /** Where the rate limits count: memory (one process) or the database (several sharing it). */
+  rateLimits?: RateLimitStore;
+  /**
+   * Whether this process applies the migrations at start: on by default.
+   * Several processes sharing a database leave it to one run (MIGRATE=only).
+   */
+  migrate?: boolean;
   /** Code graphs built after pushes, by the engine's builder; none when policy is off. */
   graphs?: GraphOptions;
 };
@@ -45,14 +53,24 @@ export async function openHost(options: HostOptions) {
   // Deletes rely on foreign key cascades, which D1 enforces: said here, not
   // left to the client's default.
   await client.execute("PRAGMA foreign_keys = ON");
+  if (options.databaseUrl.startsWith("file:")) {
+    // Several processes may share the file (several replicas on one
+    // machine): readers do not block the writer, and a writer waits for
+    // another's lock instead of failing at once.
+    await client.execute("PRAGMA journal_mode = WAL");
+    await client.execute("PRAGMA busy_timeout = 5000");
+  }
   const db = drizzle(client);
-  await migrate(db, { migrationsFolder: options.migrations });
+  if (options.migrate ?? true) await migrate(db, { migrationsFolder: options.migrations });
   // The one place the libSQL database is taken as the type every query uses:
   // the same Drizzle SQLite API, its write results read by changedRows.
   const shared = db as unknown as Db;
+  const bindings =
+    options.rateLimits === "database"
+      ? { ...options.bindings, ...rateLimits({ db: shared }) }
+      : options.bindings;
   const addresses = new WeakMap<Request, string | undefined>();
-  const graphs =
-    options.graphs && startGraphs(options.graphs, shared, options.bindings, options.publicUrl);
+  const graphs = options.graphs && startGraphs(options.graphs, shared, bindings, options.publicUrl);
   const api = createApp({
     openDb: () => shared,
     clientAddress: (c) => addresses.get(c.req.raw),
@@ -90,7 +108,7 @@ export async function openHost(options: HostOptions) {
       );
       const { pathname } = new URL(request.url);
       return pathname === "/api" || pathname.startsWith("/api/")
-        ? api.fetch(request, options.bindings)
+        ? api.fetch(request, bindings)
         : site.fetch(request);
     },
     /** The graph build worker, when graphs are on. */
