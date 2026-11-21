@@ -1,3 +1,4 @@
+import { githubPulls } from "./github-pulls.js";
 import { platformCall } from "./http.js";
 import type { CodePlatform, PlatformRepo, TokenAnswer } from "./platform.js";
 
@@ -22,6 +23,19 @@ export function github(client: { id: string; secret: string }): CodePlatform {
         "user-agent": "ocra-cloud",
       },
     });
+  const post =
+    (token: string) =>
+    <T>(path: string, body: unknown) =>
+      platformCall<T>(`${API}${path}`, {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${token}`,
+          accept: "application/json",
+          "content-type": "application/json",
+          "user-agent": "ocra-cloud",
+        },
+        body: JSON.stringify(body),
+      });
   return {
     kind: "github",
     host: "github.com",
@@ -36,6 +50,7 @@ export function github(client: { id: string; secret: string }): CodePlatform {
           refresh_token: refreshToken,
         }),
       }),
+    listPulls: (token) => githubPulls(post(token)),
     async listRepos(token) {
       const installs = await get<{ installations: Installation[] }>(
         token,

@@ -5,6 +5,7 @@ import { Activity } from "./pages/Activity.js";
 import { Agents } from "./pages/Agents.js";
 import { BudgetPage } from "./pages/Budget.js";
 import { Findings } from "./pages/Findings.js";
+import { Inbox } from "./pages/Inbox.js";
 import { Insights } from "./pages/Insights.js";
 import { Keys } from "./pages/Keys.js";
 import { Memory } from "./pages/Memory.js";
@@ -56,6 +57,11 @@ const ROUTES: readonly Route[] = [
     nav: { label: "Overview", icon: "home", group: "Console" },
     loads: keysAndProviders,
     page: (me) => <Overview login={me.login} />,
+  },
+  {
+    path: "/pulls",
+    nav: { label: "Pull requests", icon: "layers", group: "Console" },
+    page: () => <Inbox />,
   },
   {
     path: "/activity",
