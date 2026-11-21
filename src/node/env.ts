@@ -1,4 +1,4 @@
-import { catalogOf } from "../catalog.js";
+import { startingModels } from "../preferences.js";
 import type { AppBindings } from "../types.js";
 import { rateLimits } from "./limits.js";
 
@@ -23,6 +23,7 @@ const OPTIONAL = [
   "GITLAB_URL",
   "MODEL_ENDPOINTS",
   "BUILTIN_PROVIDERS",
+  "DEFAULT_MODELS",
 ] as const;
 
 const DEFAULTS = {
@@ -36,7 +37,7 @@ const DEFAULTS = {
 /**
  * The app's bindings from `vars`; throws naming every required variable that
  * is missing, when no way to sign in is complete, and on malformed model
- * endpoints.
+ * endpoints or default models.
  */
 export function bindingsFrom(vars: Record<string, string | undefined>): AppBindings {
   const missing = SECRETS.filter((name) => !vars[name]);
@@ -50,8 +51,7 @@ export function bindingsFrom(vars: Record<string, string | undefined>): AppBindi
   const optional = Object.fromEntries(
     OPTIONAL.flatMap((name) => (vars[name] ? [[name, vars[name]]] : [])),
   ) as Partial<Record<(typeof OPTIONAL)[number], string>>;
-  catalogOf(optional);
-  return {
+  const bindings: AppBindings = {
     ...optional,
     MASTER_KEY: vars.MASTER_KEY as string,
     SESSION_SECRET: vars.SESSION_SECRET as string,
@@ -62,6 +62,10 @@ export function bindingsFrom(vars: Record<string, string | undefined>): AppBindi
     DEVICE_DAILY_CODES: pick("DEVICE_DAILY_CODES"),
     ...rateLimits("memory"),
   };
+  // Read once here so that a malformed MODEL_ENDPOINTS, BUILTIN_PROVIDERS or
+  // DEFAULT_MODELS stops the server at start, not at a request.
+  startingModels(bindings);
+  return bindings;
 }
 
 /** TRUSTED_PROXY_HOPS: a whole number of proxies, 0 when unset; throws on anything else. */

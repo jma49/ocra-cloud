@@ -13,7 +13,7 @@ import { apiError, jsonBody } from "./http.js";
 import { perMinute } from "./rate.js";
 import { requireSession } from "./session.js";
 import { parseModelId } from "./shared/index.js";
-import type { AppEnv } from "./types.js";
+import type { AppBindings, AppEnv } from "./types.js";
 
 // Default models for a review that configures none (ADR-0024 zero
 // configuration). The CLI reads them; only the web changes them.
@@ -26,7 +26,7 @@ async function current(data: Scoped) {
 
 // The 0.4.0 CLI reads this; saving goes through PUT / (versioned and audited).
 preferences.get("/models", requireSession(["web", "cli"]), async (c) => {
-  return c.json({ models: (await current(c.var.data))?.models ?? {} });
+  return c.json({ models: savedOf(await current(c.var.data), c.env).models });
 });
 
 /**
@@ -68,6 +68,29 @@ export const preferencesBody = (catalog: Catalog) =>
     }
   });
 
+/**
+ * DEFAULT_MODELS: the models an account starts with until it saves its own,
+ * as a self-hosted server sets them for everyone (a company's own models).
+ * Checked as a save is; throws naming what is wrong, so a server with a
+ * broken setting does not start.
+ */
+export function startingModels(env: AppBindings): ModelChains {
+  const raw = env.DEFAULT_MODELS;
+  if (!raw?.trim()) return {};
+  let json: unknown;
+  try {
+    json = JSON.parse(raw);
+  } catch {
+    throw new Error("DEFAULT_MODELS is not JSON");
+  }
+  const parsed = preferencesBody(catalogOf(env)).safeParse({ models: json });
+  if (!parsed.success) {
+    const where = parsed.error.issues.map((i) => `${i.path.slice(1).join(".")}: ${i.message}`);
+    throw new Error(`DEFAULT_MODELS cannot be served (${where.join("; ")})`);
+  }
+  return parsed.data.models ?? {};
+}
+
 // Everything the CLI layers under a repository's configuration.
 type Saved = {
   runtime: Runtime | null;
@@ -86,10 +109,11 @@ function merged(body: z.output<ReturnType<typeof preferencesBody>>, saved: Saved
   };
 }
 
-function savedOf(row: Awaited<ReturnType<typeof current>>): Saved {
+/** The saved preferences; an account that never saved any starts with the server's models. */
+function savedOf(row: Awaited<ReturnType<typeof current>>, env: AppBindings): Saved {
   return {
     runtime: row?.runtime ?? null,
-    models: row?.models ?? {},
+    models: row ? (row.models ?? {}) : startingModels(env),
     agents: row?.agents ?? {},
     settings: row?.settings ?? {},
   };
@@ -127,6 +151,7 @@ type Stored = { saved: Saved; version: string | null } | { stale: string | null 
  * D1 batch: all or none.
  */
 async function store(
+  env: AppBindings,
   data: Scoped,
   base: string | null | undefined,
   build: (saved: Saved) => Saved,
@@ -135,8 +160,8 @@ async function store(
     const row = await current(data);
     const stored = row?.version ?? null;
     if (base !== undefined && base !== stored) return { stale: stored };
-    const next = build(savedOf(row));
-    const changed = changedKeys(flat(savedOf(row)), flat(next));
+    const next = build(savedOf(row, env));
+    const changed = changedKeys(flat(savedOf(row, env)), flat(next));
     if (changed.length === 0) return { saved: next, version: stored };
     const version = newId();
     const landed = await data.savePreferences({
@@ -155,7 +180,7 @@ async function store(
 preferences.get("/", requireSession(["web", "cli"]), async (c) => {
   const row = await current(c.var.data);
   return c.json({
-    ...savedOf(row),
+    ...savedOf(row, c.env),
     updatedAt: row?.updatedAt ?? null,
     version: row?.version ?? null,
   });
@@ -170,7 +195,7 @@ preferences.put(
     const body = c.req.valid("json");
     // The web sends the version its draft started from; a save from a stale
     // tab must not overwrite a newer one. A body without it (the CLI) saves.
-    const result = await store(c.var.data, body.baseVersion, (saved) => merged(body, saved));
+    const result = await store(c.env, c.var.data, body.baseVersion, (saved) => merged(body, saved));
     if ("stale" in result) return apiError(c, "stale", { version: result.stale });
     return c.json({ ...result.saved, updatedAt: new Date(), version: result.version });
   },
@@ -189,7 +214,9 @@ preferences.post("/versions/:id/restore", requireSession(), perMinute("settings"
   // Checked again: a version saved under older rules must still fit today's.
   const parsed = preferencesBody(catalogOf(c.env)).safeParse(old.snapshot);
   if (!parsed.success) return apiError(c, "version_no_longer_valid");
-  const result = await store(c.var.data, undefined, () => merged(parsed.data, savedOf(undefined)));
+  const result = await store(c.env, c.var.data, undefined, () =>
+    merged(parsed.data, savedOf(undefined, c.env)),
+  );
   if ("stale" in result) return apiError(c, "stale", { version: result.stale });
   return c.json({ ...result.saved, updatedAt: new Date(), version: result.version });
 });

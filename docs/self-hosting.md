@@ -39,6 +39,7 @@ Without Docker: `npm ci && npm run build:web && npm run build:node`, then `node 
 | `PUBLIC_URL` | behind a TLS proxy | the address people open, such as `https://ocra.example.com` |
 | `TRUSTED_PROXY_HOPS` | behind a proxy | how many proxies in front append to `X-Forwarded-For` (1 for one TLS proxy); the login code limits count by the address read past them. 0, the socket's peer, when unset |
 | `MODEL_ENDPOINTS` | for company models | the company's own OpenAI-compatible model endpoints, as JSON (Company models below) |
+| `DEFAULT_MODELS` | no | the default models, as JSON (`{"top": ["ocra-corp/qwen3-coder"], "light": "ocra-corp/qwen3-8b"}`), that an account starts with until it saves its own; each must be one the gateway serves |
 | `BUILTIN_PROVIDERS` | no | `off` forwards to `MODEL_ENDPOINTS` only, never to the public providers; `on` when unset |
 | `CODE_GRAPH` | no | what the server does with code graphs: `keep` (the default), `opt-in` (only for repositories added with the owner's consent) or `off` (none kept; the daily retention deletes any that are) |
 | `DATABASE_URL` | no | a libSQL URL; `file:/data/ocra-cloud.db` in the image, or a libSQL server's for processes on several machines |
@@ -75,7 +76,7 @@ Serve it over HTTPS: session cookies are `__Host-` cookies, which browsers keep 
 | `models` | no | a GET that lists the models in OpenAI's shape; it also checks a key |
 | `key` | no | the server's own key: every account's calls use it and nobody stores one. Without it, each person adds their own key for the endpoint on the keys page |
 
-The endpoints appear in the console's "Your company" group, and the CLI reaches them through the gateway like any other provider, with the same metering and daily caps. A declaration the server cannot read stops it from starting, naming the field. Keep the filled-in environment file secret when it holds a `key`.
+With `DEFAULT_MODELS` naming them, a colleague who signs in for the first time reviews with the company's models without setting anything. The endpoints appear in the console's "Your company" group, and the CLI reaches them through the gateway like any other provider, with the same metering and daily caps. A declaration the server cannot read stops it from starting, naming the field. Keep the filled-in environment file secret when it holds a `key`.
 
 ## Several processes
 
