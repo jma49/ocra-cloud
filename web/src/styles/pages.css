@@ -15,9 +15,6 @@
 .stats.stats-3 {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
-.stats.stats-4 {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
 .stat-value.stat-word {
   font-size: 26px;
   line-height: 1.15;
@@ -352,4 +349,7 @@ td.finding-cell {
   .pull-row .grow {
     flex-basis: 100%;
   }
+}
+.inbox-sections .section.is-empty h3 {
+  color: var(--fg-muted);
 }
