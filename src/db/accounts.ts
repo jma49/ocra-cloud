@@ -1,5 +1,5 @@
 import { and, eq, gt, isNull, or } from "drizzle-orm";
-import type { DrizzleD1Database } from "drizzle-orm/d1";
+import { changedRows, type Db } from "./client.js";
 import { accounts, sessions } from "./schema.js";
 
 // The queries that cannot be scoped by an account, because they find it:
@@ -8,11 +8,7 @@ import { accounts, sessions } from "./schema.js";
 export type Account = typeof accounts.$inferSelect;
 
 /** The account of a GitHub user, created on first sign-in; the login is kept current. */
-export async function upsertAccount(
-  db: DrizzleD1Database,
-  githubId: number,
-  login: string,
-): Promise<Account> {
+export async function upsertAccount(db: Db, githubId: number, login: string): Promise<Account> {
   const [row] = await db
     .insert(accounts)
     .values({ id: crypto.randomUUID(), githubId, login })
@@ -34,7 +30,7 @@ export type SessionAccount = {
 
 /** The live session with this token hash, and its account. */
 export async function sessionByTokenHash(
-  db: DrizzleD1Database,
+  db: Db,
   tokenHash: string,
   now = new Date(),
 ): Promise<SessionAccount | undefined> {
@@ -76,7 +72,7 @@ export type RefreshSession = {
  * while the session lasts. The caller tells the two apart by refreshHash.
  */
 export async function sessionByRefreshHash(
-  db: DrizzleD1Database,
+  db: Db,
   refreshHash: string,
   now = new Date(),
 ): Promise<RefreshSession | undefined> {
@@ -106,7 +102,7 @@ export async function sessionByRefreshHash(
  * `currentRefreshHash`: of two refreshes racing with the same token, one wins.
  */
 export async function rotateSession(
-  db: DrizzleD1Database,
+  db: Db,
   sessionId: string,
   currentRefreshHash: string,
   changes: Partial<typeof sessions.$inferInsert>,
@@ -116,34 +112,30 @@ export async function rotateSession(
     .set(changes)
     .where(and(eq(sessions.id, sessionId), eq(sessions.refreshHash, currentRefreshHash)))
     .run();
-  return result.meta.changes > 0;
+  return changedRows(result) > 0;
 }
 
 /** Ends a session, as when a refresh token is used again after its rotation. */
-export async function revokeSession(db: DrizzleD1Database, sessionId: string): Promise<void> {
+export async function revokeSession(db: Db, sessionId: string): Promise<void> {
   await db.delete(sessions).where(eq(sessions.id, sessionId));
 }
 
 /** Ends the browser session with this token hash, if there is one. */
-export async function revokeWebSession(db: DrizzleD1Database, tokenHash: string): Promise<void> {
+export async function revokeWebSession(db: Db, tokenHash: string): Promise<void> {
   await db.delete(sessions).where(and(eq(sessions.tokenHash, tokenHash), eq(sessions.kind, "web")));
 }
 
 /** Deletes an account; its sessions, keys and records go with it (cascade). */
-export async function deleteAccount(db: DrizzleD1Database, accountId: string): Promise<void> {
+export async function deleteAccount(db: Db, accountId: string): Promise<void> {
   await db.delete(accounts).where(eq(accounts.id, accountId));
 }
 
-export async function setSharing(
-  db: DrizzleD1Database,
-  accountId: string,
-  on: boolean,
-): Promise<void> {
+export async function setSharing(db: Db, accountId: string, on: boolean): Promise<void> {
   await db.update(accounts).set({ shareFindings: on }).where(eq(accounts.id, accountId));
 }
 
 /** The account's salt, made on first use (64 hex characters). */
-export async function accountSalt(db: DrizzleD1Database, accountId: string): Promise<string> {
+export async function accountSalt(db: Db, accountId: string): Promise<string> {
   const row = await db
     .select({ salt: accounts.salt })
     .from(accounts)

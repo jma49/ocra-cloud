@@ -1,7 +1,7 @@
 import { and, eq, gt, type SQL, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
-import type { DrizzleD1Database } from "drizzle-orm/d1";
 import { DAY, utcDay } from "../time.js";
+import type { Db } from "./client.js";
 import { RETENTION_DAYS } from "./retention.js";
 import { budgets, usageCounters } from "./schema.js";
 
@@ -20,7 +20,7 @@ const c = usageCounters;
  * refusal writes nothing.
  */
 export async function countOne(
-  db: DrizzleD1Database,
+  db: Db,
   accountId: string,
   kind: DailyKind,
   cap: number,
@@ -44,7 +44,7 @@ export async function countOne(
  * own daily budget (budgets.daily_calls), read in the same statement.
  */
 export async function countCall(
-  db: DrizzleD1Database,
+  db: Db,
   accountId: string,
   cap: number,
   now: Date,
@@ -67,7 +67,7 @@ export async function countCall(
 
 /** Takes back one countOne, for an upload that turned out to be a retry. */
 export function uncountOne(
-  db: DrizzleD1Database,
+  db: Db,
   accountId: string,
   kind: DailyKind,
   now: Date,
@@ -100,7 +100,7 @@ export function findingsCounted(accountId: string, now: Date): SQL {
  * count reads the review's own findings, at most MAX_FINDINGS.
  */
 export function countFindingsOf(
-  db: DrizzleD1Database,
+  db: Db,
   accountId: string,
   reviewId: string,
   now: Date,

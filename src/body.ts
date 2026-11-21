@@ -6,7 +6,7 @@ import type { Context } from "hono";
 /** What a small JSON request (settings, a key, a device code) may weigh. */
 export const SMALL_BODY = 64 * 1024;
 
-/** Thrown past the limit; the app answers 413 body_too_large (src/index.ts). */
+/** Thrown past the limit; the app answers 413 body_too_large (src/app.ts). */
 export class BodyTooLarge extends Error {
   override name = "BodyTooLarge";
 }

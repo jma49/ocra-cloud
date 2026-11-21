@@ -2,8 +2,9 @@ import { cloudflareTest, readD1Migrations } from "@cloudflare/vitest-pool-worker
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
 
-// Two projects in one run: the Worker's tests in workerd, with a local D1;
-// the web app's in a simulated browser.
+// Three projects in one run: the Worker's tests in workerd, with a local D1;
+// the self-hosted server's on Node, with a SQLite file; the web app's in a
+// simulated browser.
 export default defineConfig({
   test: {
     projects: [
@@ -31,6 +32,13 @@ export default defineConfig({
           name: "worker",
           include: ["test/**/*.test.ts"],
           setupFiles: ["./test/apply-migrations.ts"],
+        },
+      },
+      {
+        test: {
+          name: "node",
+          environment: "node",
+          include: ["test-node/**/*.test.ts"],
         },
       },
       {

@@ -1,5 +1,8 @@
 node_modules/
 web/dist/
+dist/
+*.db
+*.db-*
 .wrangler/
 .dev.vars*
 !.dev.vars.example

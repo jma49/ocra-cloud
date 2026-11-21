@@ -1,5 +1,5 @@
 # Security headers for the web app (Workers static assets). The API sets its
-# own in src/index.ts. The app has no inline scripts or styles: React applies
+# own in src/app.ts. The app has no inline scripts or styles: React applies
 # style={} props through the CSSOM, which style-src does not govern, so
 # 'unsafe-inline' is not needed (web/src/headers.test.ts checks this file).
 # HSTS is set here and on the API, whatever the zone sets (audit C8).

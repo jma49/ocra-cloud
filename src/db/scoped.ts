@@ -13,8 +13,8 @@ import {
   sql,
 } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
-import type { DrizzleD1Database } from "drizzle-orm/d1";
 import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
+import { changedRows, type Db } from "./client.js";
 import {
   countCall,
   countFindingsOf,
@@ -65,7 +65,7 @@ type StoredUpload =
  * the account, and every insert sets it. Code outside src/db/ does not
  * import the tables.
  */
-export function scoped(db: DrizzleD1Database, accountId: string) {
+export function scoped(db: Db, accountId: string) {
   const own = (name: Name) => eq(accountTables[name].accountId, accountId);
   const byId = (name: IdName, id: string) => and(own(name), eq(accountTables[name].id, id));
   const matching = <N extends Name>(name: N, where: Where<N>) => {
@@ -216,7 +216,7 @@ export function scoped(db: DrizzleD1Database, accountId: string) {
           unixepoch('subsec') * 1000
         WHERE NOT EXISTS (SELECT 1 FROM ${m} WHERE ${same})
           AND (SELECT count(*) FROM ${m} WHERE ${sameRepo}) < ${cap}`);
-      if (inserted.meta.changes > 0) return { id: row.id, duplicate: false };
+      if (changedRows(inserted) > 0) return { id: row.id, duplicate: false };
       const existing = await db.select({ id: m.id }).from(m).where(same).get();
       return existing ? { id: existing.id, duplicate: true } : "full";
     },
@@ -238,7 +238,7 @@ export function scoped(db: DrizzleD1Database, accountId: string) {
         .set(rest as never)
         .where(byId(name, id))
         .run();
-      return result.meta.changes > 0;
+      return changedRows(result) > 0;
     },
     /**
      * Stores a review and its findings atomically, unless this account already
@@ -301,8 +301,8 @@ export function scoped(db: DrizzleD1Database, accountId: string) {
         list.length > 0
           ? await db.batch([insert, findings, countFindingsOf(db, accountId, review.id, now)])
           : await db.batch([insert]);
-      if (stored.meta.changes > 0) {
-        const findingsSkipped = list.length > 0 && (kept?.meta.changes ?? 0) === 0;
+      if (changedRows(stored) > 0) {
+        const findingsSkipped = list.length > 0 && (kept ? changedRows(kept) : 0) === 0;
         return { outcome: "stored", id: review.id, findingsSkipped };
       }
       // A concurrent upload of the same run stored it first: not a second upload.
@@ -472,7 +472,7 @@ export function scoped(db: DrizzleD1Database, accountId: string) {
     /** Deletes this account's rows whose columns equal where's values; returns how many. */
     async removeWhere<N extends Name>(name: N, where: Where<N>): Promise<number> {
       const result = await db.delete(accountTables[name]).where(matching(name, where)).run();
-      return result.meta.changes;
+      return changedRows(result);
     },
     /** This account's sessions not yet expired (a CLI session lives as long as its refresh token), newest first. */
     liveSessions(now: Date): Promise<Row<"sessions">[]> {
@@ -492,7 +492,7 @@ export function scoped(db: DrizzleD1Database, accountId: string) {
     /** Returns whether a row of this account was deleted. */
     async remove(name: IdName, id: string): Promise<boolean> {
       const result = await db.delete(accountTables[name]).where(byId(name, id)).run();
-      return result.meta.changes > 0;
+      return changedRows(result) > 0;
     },
   };
 }

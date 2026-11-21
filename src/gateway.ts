@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { readText } from "./body.js";
 import { config } from "./config.js";
 import { deadline } from "./deadline.js";
+import { defer } from "./defer.js";
 import { apiError } from "./http.js";
 import { keyFor, masterKeys } from "./keyring.js";
 import { applyAuth, isProvider, matchRoute, PASS_HEADERS, providers } from "./providers.js";
@@ -70,9 +71,7 @@ gateway.post("/:provider/*", async (c) => {
 
   const started = Date.now();
   const finish = (status: number, usage: Usage) =>
-    c.executionCtx.waitUntil(
-      data.update("gatewayCalls", id, { status, ...usage, ms: Date.now() - started }),
-    );
+    defer(c, data.update("gatewayCalls", id, { status, ...usage, ms: Date.now() - started }));
 
   const client = c.req.raw.signal;
   const clock = deadline(HEADERS_TIMEOUT_MS, client);

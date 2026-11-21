@@ -1,4 +1,3 @@
-import type { DrizzleD1Database } from "drizzle-orm/d1";
 import type { Context, MiddlewareHandler } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { randomToken, sha256Hex } from "./crypto.js";
@@ -9,7 +8,9 @@ import {
   sessionByRefreshHash,
   sessionByTokenHash,
 } from "./db/accounts.js";
+import type { Db } from "./db/client.js";
 import { scoped } from "./db/scoped.js";
+import { defer } from "./defer.js";
 import { apiError } from "./http.js";
 import { RECENT_SIGN_IN, RECENT_SIGN_IN_MINUTES } from "./shared/index.js";
 import { DAY, HOUR, MINUTE } from "./time.js";
@@ -65,7 +66,7 @@ export function requireSession(kinds: readonly Kind[] = ["web"]): MiddlewareHand
     c.set("data", data);
     // When a session was last used, to the nearest few minutes.
     if (!session.lastUsedAt || now.getTime() - session.lastUsedAt.getTime() > LAST_USED_EVERY_MS) {
-      c.executionCtx.waitUntil(data.update("sessions", session.sessionId, { lastUsedAt: now }));
+      defer(c, data.update("sessions", session.sessionId, { lastUsedAt: now }));
     }
     await next();
   };
@@ -108,7 +109,7 @@ export async function signInBrowser(c: Context<AppEnv>, accountId: string): Prom
 }
 
 /** Starts a browser session and returns its token, set once as a cookie. */
-export async function startWebSession(db: DrizzleD1Database, accountId: string): Promise<string> {
+export async function startWebSession(db: Db, accountId: string): Promise<string> {
   const token = randomToken("ocra_web_");
   await scoped(db, accountId).insert("sessions", {
     tokenHash: await sha256Hex(token),
@@ -148,7 +149,7 @@ async function cliTokens(now: number, refreshExpiresAt: number) {
 
 /** Starts a CLI session: an access token and a refresh token, shown once. */
 export async function startCliSession(
-  db: DrizzleD1Database,
+  db: Db,
   accountId: string,
   label: string | null,
   id: string = crypto.randomUUID(),
@@ -174,7 +175,7 @@ export async function startCliSession(
  * was lost); used later, it ends the session, since someone else holds a copy.
  */
 export async function refreshCliSession(
-  db: DrizzleD1Database,
+  db: Db,
   refreshToken: string,
   now = new Date(),
 ): Promise<CliTokens | undefined> {
@@ -206,7 +207,7 @@ export async function refreshCliSession(
  * or REFRESH_GRACE_MS after it started.
  */
 export async function reissueCliSession(
-  db: DrizzleD1Database,
+  db: Db,
   accountId: string,
   sessionId: string,
   now = new Date(),
