@@ -106,10 +106,16 @@ export function graphsRoute(service: GraphService) {
       });
     }
     if (await c.var.data.graphs.queueBuild(id, head.commit)) service.kick();
-    const repo = await c.var.data.get("graphRepos", id);
+    const [repo, latest] = await Promise.all([
+      c.var.data.get("graphRepos", id),
+      c.var.data.graphs.latestBuilds(),
+    ]);
     if (!repo) return apiError(c, "not_found");
     return c.json({
-      repo: repoView(repo, undefined),
+      repo: repoView(
+        repo,
+        latest.find((b) => b.graphRepoId === id),
+      ),
       webhook: {
         url: new URL(`/api/graphs/webhooks/${platform.kind}`, c.req.url).toString(),
         ...(secret ? { secret } : {}),
