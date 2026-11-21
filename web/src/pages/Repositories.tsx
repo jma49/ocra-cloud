@@ -29,7 +29,7 @@ function NameField(props: { repo: Repo; saved: () => void }) {
   const changed = draft.trim() !== (props.repo.name ?? "");
   return (
     <form
-      className="inline-form"
+      className="name-field"
       onSubmit={async (e) => {
         e.preventDefault();
         if ((await save.run()) !== undefined) props.saved();
@@ -37,15 +37,18 @@ function NameField(props: { repo: Repo; saved: () => void }) {
     >
       <input
         type="text"
+        className="input"
         aria-label={`Name of ${props.repo.repo}`}
         placeholder="owner/name"
         maxLength={200}
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
       />
-      <button type="submit" className="btn btn-sm" disabled={!changed || save.busy}>
-        {draft.trim() ? "Save" : "Clear"}
-      </button>
+      {changed && (
+        <button type="submit" className="btn btn-sm" disabled={save.busy}>
+          {draft.trim() ? "Save" : "Clear"}
+        </button>
+      )}
       {save.error ? (
         <span className="error small" role="alert">
           {why(save.error)}
@@ -82,67 +85,96 @@ function PlatformsSection(props: { synced: () => void }) {
   const anyRepos = data.platforms.some((p) => p.repositories.length > 0);
   return (
     <div className="card">
-      <h3>Connected platforms</h3>
+      <div className="card-head">
+        <h3>Connected platforms</h3>
+      </div>
       {data.platforms.map((p) => (
-        <section key={`${p.platform}:${p.host}`}>
-          <h4>
-            {PLATFORM_NAME[p.platform]} <span className="muted small mono">{p.host}</span>
-          </h4>
-          {!p.linked ? (
-            <p>Sign out and sign in again to let ocra Cloud read your repositories here.</p>
-          ) : p.failed ? (
-            <p className="error">{PLATFORM_NAME[p.platform]} refused to list your repositories.</p>
-          ) : p.repositories.length === 0 ? (
-            <p>
-              The ocra Cloud app is not installed on any repository you can reach. Install it on the
-              repositories you want here.
-            </p>
-          ) : (
-            <>
-              <p className="muted">
-                {p.repositories.length} repositories{p.more ? " (the first ones)" : ""}.
-              </p>
-              <ul className="small mono">
-                {p.repositories.map((r) => (
-                  <li key={r.id}>
-                    {r.fullName}
-                    {r.private ? " (private)" : ""}
-                  </li>
-                ))}
-              </ul>
-            </>
+        <div className="list-row row-top" key={`${p.platform}:${p.host}`}>
+          <div className="grow">
+            <div className="strong">
+              {PLATFORM_NAME[p.platform]} <span className="muted small mono">{p.host}</span>
+            </div>
+            <PlatformState p={p} />
+          </div>
+          {!p.linked && p.platform === "gitlab" && (
+            <a className="btn btn-sm" href="/api/platforms/gitlab/connect">
+              Connect GitLab
+            </a>
           )}
-        </section>
+        </div>
       ))}
-      {anyRepos &&
-        (data.sharing ? (
-          <button
-            type="button"
-            className="btn btn-sm"
-            disabled={sync.busy}
-            onClick={async () => {
-              const answer = await sync.run();
-              if (answer) {
-                setDone(`${answer.named} repositories named.`);
-                props.synced();
-              }
-            }}
-          >
-            Name repositories from these platforms
-          </button>
-        ) : (
-          <p className="muted small">
-            Turn on findings sharing in Settings to match reviews to these repositories: only then
-            does the CLI hash a repository the same way on every machine.
-          </p>
-        ))}
-      {done && <p className="muted small">{done}</p>}
-      {sync.error ? (
-        <p className="error" role="alert">
-          Could not name them: {why(sync.error)}.
-        </p>
-      ) : null}
+      {anyRepos && (
+        <div className="list-row row-top">
+          {data.sharing ? (
+            <>
+              <button
+                type="button"
+                className="btn btn-sm"
+                disabled={sync.busy}
+                onClick={async () => {
+                  const answer = await sync.run();
+                  if (answer) {
+                    setDone(`${answer.named} repositories named.`);
+                    props.synced();
+                  }
+                }}
+              >
+                Name repositories from these platforms
+              </button>
+              {done && <span className="muted small">{done}</span>}
+              {sync.error ? (
+                <span className="error small" role="alert">
+                  Could not name them: {why(sync.error)}.
+                </span>
+              ) : null}
+            </>
+          ) : (
+            <p className="muted small">
+              Turn on findings sharing in Settings to match reviews to these repositories: only then
+              does the CLI hash a repository the same way on every machine.
+            </p>
+          )}
+        </div>
+      )}
     </div>
+  );
+}
+
+function PlatformState(props: { p: PlatformRepos["platforms"][number] }) {
+  const { p } = props;
+  if (!p.linked)
+    return (
+      <p className="muted small">
+        {p.platform === "github"
+          ? "Sign out and sign in again to let ocra Cloud read your repositories here."
+          : "Not connected. Connect it to see your merge requests and name your repositories."}
+      </p>
+    );
+  if (p.failed)
+    return (
+      <p className="error small">{PLATFORM_NAME[p.platform]} refused to list your repositories.</p>
+    );
+  if (p.repositories.length === 0)
+    return (
+      <p className="muted small">
+        The ocra Cloud app is not installed on any repository you can reach. Install it on the
+        repositories you want here.
+      </p>
+    );
+  return (
+    <details className="small">
+      <summary className="muted">
+        {p.repositories.length} repositories{p.more ? " (the first ones)" : ""}
+      </summary>
+      <ul className="mono repo-list">
+        {p.repositories.map((r) => (
+          <li key={r.id}>
+            {r.fullName}
+            {r.private ? " (private)" : ""}
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }
 
@@ -162,14 +194,14 @@ export function Repositories() {
       ) : !data ? (
         <Loading what="repositories" />
       ) : data.repositories.length === 0 ? (
-        <div className="card empty-hero">
+        <div className="section card empty-hero">
           <h3>No repositories yet</h3>
           <p>
             Run a signed-in review (ocra login, then ocra review) and its repository appears here.
           </p>
         </div>
       ) : (
-        <div className="card">
+        <div className="section card">
           <div className="table-wrap">
             <table>
               <thead>
