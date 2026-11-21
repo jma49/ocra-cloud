@@ -57,3 +57,29 @@ export async function nameRepo(
     ON CONFLICT (account_id, repo_hash) DO UPDATE SET name = excluded.name`);
   return changedRows(inserted) > 0;
 }
+
+/**
+ * Names many repositories in one batch: each statement inserts or
+ * renames one, a new one only while the account has fewer than cap.
+ * Returns how many were stored.
+ */
+export async function nameRepos(
+  db: Db,
+  accountId: string,
+  list: readonly { repoHash: string; name: string }[],
+  cap: number,
+): Promise<number> {
+  const t = repositories;
+  const [first, ...rest] = list.map((r) =>
+    db
+      .insert(t)
+      .select(sql`SELECT ${crypto.randomUUID()}, ${accountId}, ${r.repoHash}, ${r.name},
+        unixepoch('subsec') * 1000
+      WHERE (SELECT count(*) FROM ${t} WHERE account_id = ${accountId}) < ${cap}
+        OR EXISTS (SELECT 1 FROM ${t} WHERE account_id = ${accountId} AND repo_hash = ${r.repoHash})`)
+      .onConflictDoUpdate({ target: [t.accountId, t.repoHash], set: { name: sql`excluded.name` } }),
+  );
+  if (!first) return 0;
+  const results = await db.batch([first, ...rest]);
+  return results.filter((r) => changedRows(r) > 0).length;
+}

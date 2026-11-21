@@ -16,7 +16,7 @@ import type { AppEnv } from "./types.js";
 export const repositoriesRoute = new Hono<AppEnv>();
 
 /** How many repositories an account may name. */
-const MAX_NAMED = 500;
+export const MAX_NAMED = 500;
 const nameSchema = z.object({
   name: z
     .string()
