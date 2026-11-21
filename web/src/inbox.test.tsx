@@ -2,11 +2,13 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PullItem } from "../../src/shared/index.js";
 import { clearCache } from "./cache.js";
-import { Inbox, inboxRows } from "./pages/Inbox.js";
+import { inboxSections, type Row, rowsOf, sectionOf } from "./inbox/sections.js";
+import { Inbox } from "./pages/Inbox.js";
 
 afterEach(async () => {
   cleanup();
   vi.unstubAllGlobals();
+  localStorage.clear();
   await clearCache();
 });
 
@@ -16,11 +18,13 @@ const pull = (n: number, over: Partial<PullItem> = {}): PullItem => ({
   title: `Change ${n}`,
   url: `https://github.com/octo/api/pull/${n}`,
   repo: "octo/api",
-  author: "ada",
+  author: "octo",
   draft: false,
+  state: "open",
   createdAt: "2026-11-20T10:00:00Z",
   updatedAt: "2026-11-21T10:00:00Z",
-  sections: ["review"],
+  mergedAt: null,
+  roles: ["author"],
   checks: null,
   review: null,
   additions: null,
@@ -37,9 +41,13 @@ const answer = {
       failed: false,
       more: false,
       pulls: [
-        pull(1, { checks: "failing" }),
-        pull(2, { sections: ["review", "authored"], draft: true }),
-        pull(3, { sections: ["authored"], review: "approved", title: "Fix login" }),
+        pull(1, { roles: ["reviewer"], author: "ada", checks: "failing" }),
+        pull(2, { roles: ["reviewer"], author: "ada", title: "Fix login" }),
+        pull(3, { review: "approved" }),
+        pull(4, { review: "changes_requested", repo: "octo/web" }),
+        pull(5, { draft: true }),
+        pull(6),
+        pull(7, { state: "merged", mergedAt: "2026-11-21T09:00:00Z" }),
       ],
     },
     {
@@ -53,28 +61,35 @@ const answer = {
   ],
 };
 
-describe("the inbox's rows", () => {
-  it("show a pull once, under review, when it is in both lists", () => {
-    const s = inboxRows(answer, "all", "", true);
-    expect(s.map((x) => [x.section, x.rows.map((r) => r.number)])).toEqual([
-      ["review", [1, 2]],
-      ["authored", [3]],
+describe("the inbox's sections", () => {
+  it("put each pull where it waits on someone", () => {
+    expect(answer.platforms[0]?.pulls.map((p) => [p.number, sectionOf(p)])).toEqual([
+      [1, "review"],
+      [2, "review"],
+      [3, "approved"],
+      [4, "returned"],
+      [5, "drafts"],
+      [6, "waiting"],
+      [7, "merged"],
     ]);
-    expect(inboxRows(answer, "authored", "", true)[0]?.rows.map((r) => r.number)).toEqual([2, 3]);
   });
 
-  it("filter by text and leave drafts out when asked", () => {
-    expect(
-      inboxRows(answer, "all", "LOGIN", true).flatMap((s) => s.rows.map((r) => r.number)),
-    ).toEqual([3]);
-    expect(inboxRows(answer, "all", "", false).flatMap((s) => s.rows.map((r) => r.number))).toEqual(
-      [1, 3],
-    );
+  it("leave out a draft asking your review, and your own pull asking it", () => {
+    expect(sectionOf(pull(8, { roles: ["reviewer"], draft: true }))).toBeNull();
+    expect(sectionOf(pull(9, { roles: ["reviewer", "author"] }))).toBe("waiting");
+  });
+
+  it("filter by text and by repository", () => {
+    const rows = rowsOf(answer);
+    const numbers = (f: { text: string; repo: string }) =>
+      inboxSections(rows, f).flatMap((s) => s.rows.map((r: Row) => r.number));
+    expect(numbers({ text: "LOGIN", repo: "" })).toEqual([2]);
+    expect(numbers({ text: "", repo: "github.com/octo/web" })).toEqual([4]);
   });
 });
 
 describe("the inbox page", () => {
-  it("walks the rows with j and k and opens the current one with Enter", async () => {
+  const show = async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => Response.json(answer)),
@@ -83,23 +98,22 @@ describe("the inbox page", () => {
     vi.stubGlobal("open", open);
     render(<Inbox />);
     await waitFor(() => expect(screen.getByText("Change 1")).toBeTruthy());
-    expect(screen.getByText("Checks fail")).toBeTruthy();
+    return open;
+  };
+  const current = () => document.querySelector("[aria-current='true']")?.getAttribute("href");
+  const key = (k: string, on: Element = document.body) =>
+    act(() => void fireEvent.keyDown(on, { key: k }));
+
+  it("walks the rows in section order with j and k and opens one with Enter", async () => {
+    const open = await show();
     expect(screen.getByText(/gitlab.example.com is not connected/)).toBeTruthy();
-    const current = () => document.querySelector("[aria-current='true']")?.getAttribute("href");
+    expect(document.title).toMatch(/^\(2\) /);
     expect(current()).toBe("https://github.com/octo/api/pull/1");
-    act(() => {
-      fireEvent.keyDown(document.body, { key: "j" });
-      fireEvent.keyDown(document.body, { key: "j" });
-    });
+    key("j");
+    key("j");
     expect(current()).toBe("https://github.com/octo/api/pull/3");
-    act(() => {
-      fireEvent.keyDown(document.body, { key: "j" });
-      fireEvent.keyDown(document.body, { key: "k" });
-    });
-    expect(current()).toBe("https://github.com/octo/api/pull/2");
-    act(() => {
-      fireEvent.keyDown(document.body, { key: "Enter" });
-    });
+    key("k");
+    key("Enter");
     expect(open).toHaveBeenCalledWith(
       "https://github.com/octo/api/pull/2",
       "_blank",
@@ -107,23 +121,20 @@ describe("the inbox page", () => {
     );
   });
 
-  it("leaves keys typed in the filter to the filter", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => Response.json(answer)),
-    );
-    render(<Inbox />);
-    await waitFor(() => expect(screen.getByText("Change 1")).toBeTruthy());
-    const box = screen.getByLabelText("Filter");
-    act(() => {
-      fireEvent.keyDown(document.body, { key: "/" });
-    });
+  it("skips a folded section and remembers it", async () => {
+    await show();
+    fireEvent.click(screen.getByRole("button", { name: /Needs your review/ }));
+    expect(screen.queryByText("Change 1")).toBeNull();
+    expect(current()).toBe("https://github.com/octo/api/pull/3");
+    expect(localStorage.getItem("ocra-inbox-collapsed")).toBe('["review"]');
+  });
+
+  it("leaves keys typed in the finder to it", async () => {
+    await show();
+    key("/");
+    const box = screen.getByLabelText("Find");
     expect(document.activeElement).toBe(box);
-    act(() => {
-      fireEvent.keyDown(box, { key: "j" });
-    });
-    expect(document.querySelector("[aria-current='true']")?.getAttribute("href")).toBe(
-      "https://github.com/octo/api/pull/1",
-    );
+    key("j", box);
+    expect(current()).toBe("https://github.com/octo/api/pull/1");
   });
 });

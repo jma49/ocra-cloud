@@ -1,12 +1,25 @@
-import type { PullChecks, PullItem, PullReview } from "../shared/index.js";
-import { mergeSections, PULLS_PER_SECTION, type PullListing } from "./platform.js";
+import type { PullChecks, PullReview } from "../shared/index.js";
+import {
+  type ListedPull,
+  MERGED_PER_LIST,
+  mergedSince,
+  OPEN_PER_LIST,
+  type PullListing,
+  withRoles,
+} from "./pulls.js";
 
-const query = (checks: boolean) => `query($review: String!, $authored: String!, $n: Int!) {
-  review: search(query: $review, type: ISSUE, first: $n) { issueCount nodes { ...P } }
-  authored: search(query: $authored, type: ISSUE, first: $n) { issueCount nodes { ...P } }
+const LISTS = ["review", "authored", "merged"] as const;
+type List = (typeof LISTS)[number];
+
+const query = (
+  checks: boolean,
+) => `query($review: String!, $authored: String!, $merged: String!, $open: Int!, $done: Int!) {
+  review: search(query: $review, type: ISSUE, first: $open) { issueCount nodes { ...P } }
+  authored: search(query: $authored, type: ISSUE, first: $open) { issueCount nodes { ...P } }
+  merged: search(query: $merged, type: ISSUE, first: $done) { issueCount nodes { ...P } }
 }
 fragment P on PullRequest {
-  id number title url isDraft createdAt updatedAt additions deletions reviewDecision
+  id number title url isDraft state createdAt updatedAt mergedAt additions deletions reviewDecision
   author { login }
   repository { nameWithOwner }
   ${checks ? "commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }" : ""}
@@ -18,8 +31,10 @@ type Node = {
   title: string;
   url: string;
   isDraft: boolean;
+  state: "OPEN" | "MERGED" | "CLOSED";
   createdAt: string;
   updatedAt: string;
+  mergedAt: string | null;
   additions: number;
   deletions: number;
   reviewDecision: "APPROVED" | "CHANGES_REQUESTED" | "REVIEW_REQUIRED" | null;
@@ -27,8 +42,8 @@ type Node = {
   repository: { nameWithOwner: string };
   commits?: { nodes: { commit: { statusCheckRollup: { state: string } | null } }[] };
 };
-type Search = { issueCount: number; nodes: Node[] };
-type Answer = { data?: { review?: Search; authored?: Search }; errors?: unknown[] };
+type Search = { issueCount: number; nodes: (Node | null)[] };
+type Answer = { data?: Partial<Record<List, Search>>; errors?: unknown[] };
 
 const CHECKS: Record<string, PullChecks> = {
   SUCCESS: "passing",
@@ -43,7 +58,7 @@ const REVIEW: Record<string, PullReview> = {
   REVIEW_REQUIRED: "required",
 };
 
-function item(n: Node): Omit<PullItem, "sections"> {
+function item(n: Node): ListedPull {
   const rollup = n.commits?.nodes[0]?.commit.statusCheckRollup?.state;
   return {
     id: n.id ?? `${n.repository.nameWithOwner}#${n.number}`,
@@ -53,8 +68,10 @@ function item(n: Node): Omit<PullItem, "sections"> {
     repo: n.repository.nameWithOwner,
     author: n.author?.login ?? null,
     draft: n.isDraft,
+    state: n.state === "MERGED" ? "merged" : "open",
     createdAt: n.createdAt,
     updatedAt: n.updatedAt,
+    mergedAt: n.mergedAt,
     checks: (rollup && CHECKS[rollup]) || null,
     review: (n.reviewDecision && REVIEW[n.reviewDecision]) || null,
     additions: n.additions,
@@ -62,35 +79,35 @@ function item(n: Node): Omit<PullItem, "sections"> {
   };
 }
 
-const pulls = (s: Search | undefined) =>
-  (s?.nodes ?? []).filter((n) => n?.repository && typeof n.number === "number");
+const pulls = (s: Search) => s.nodes.filter((n): n is Node => Boolean(n?.repository)).map(item);
 
 export async function githubPulls(
   post: <T>(path: string, body: unknown) => Promise<T | null>,
+  now = Date.now(),
 ): Promise<PullListing | null> {
+  const since = mergedSince(now).toISOString().slice(0, 10);
   const ask = (checks: boolean) =>
     post<Answer>("/graphql", {
       query: query(checks),
       variables: {
         review: "is:pr is:open archived:false review-requested:@me",
         authored: "is:pr is:open archived:false author:@me",
-        n: PULLS_PER_SECTION,
+        merged: `is:pr is:merged author:@me merged:>=${since}`,
+        open: OPEN_PER_LIST,
+        done: MERGED_PER_LIST,
       },
     });
   let answer = await ask(true);
   // Without the App's checks permission GitHub nulls the whole pull.
-  const lost = (s: Search | undefined) => s?.nodes.some((n) => n === null) ?? false;
-  if (answer?.errors && (lost(answer.data?.review) || lost(answer.data?.authored))) {
-    answer = await ask(false);
-  }
+  const lost = LISTS.some((l) => answer?.data?.[l]?.nodes.some((n) => n === null));
+  if (answer?.errors && lost) answer = await ask(false);
   const data = answer?.data;
-  if (!data?.review || !data.authored) return null;
+  if (!data?.review || !data.authored || !data.merged) return null;
   return {
-    pulls: mergeSections([
-      { section: "review", pulls: pulls(data.review).map(item) },
-      { section: "authored", pulls: pulls(data.authored).map(item) },
+    pulls: withRoles([
+      { role: "reviewer", pulls: pulls(data.review) },
+      { role: "author", pulls: [...pulls(data.authored), ...pulls(data.merged)] },
     ]),
-    more:
-      data.review.issueCount > PULLS_PER_SECTION || data.authored.issueCount > PULLS_PER_SECTION,
+    more: data.review.issueCount > OPEN_PER_LIST || data.authored.issueCount > OPEN_PER_LIST,
   };
 }
