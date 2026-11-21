@@ -67,6 +67,7 @@ export function Inbox() {
     setFilters((f) => ({ ...f, ...change }));
     setAt(0);
   };
+  const filtering = Boolean(filters.text || filters.repo);
   const dismissOffer = () => {
     forgetSharedView();
     setOffered(null);
@@ -137,6 +138,23 @@ export function Inbox() {
         <LoadError what="pull requests" error={error} retry={reload} />
       ) : !data ? (
         <Loading what="pull requests" />
+      ) : !data.platforms.some((p) => p.linked) ? (
+        <div className="section card empty-hero">
+          <h3>Connect a platform</h3>
+          <p>Link GitHub or GitLab to see the pull requests that wait on you.</p>
+          <Link to="/repositories" className="btn">
+            Connect under Repositories
+          </Link>
+        </div>
+      ) : sections.every((s) => s.rows.length === 0) ? (
+        <div className="section card empty-hero">
+          <h3>{filtering ? "No pull request matches" : "Nothing waits on you"}</h3>
+          <p>
+            {filtering
+              ? "Clear the search or the repository to see every section."
+              : "Pull requests asking your review, and your own open ones, appear here."}
+          </p>
+        </div>
       ) : (
         <div ref={list} className="inbox-sections">
           {sections.map((s) => (
@@ -144,7 +162,6 @@ export function Inbox() {
               key={s.key}
               s={s}
               open={!collapsed.has(s.key)}
-              filtering={Boolean(filters.text || filters.repo)}
               toggle={() => toggle(s.key)}
               edit={s.view && (() => s.view && setEditing({ draft: s.view, id: s.view.id }))}
             >
@@ -175,14 +192,13 @@ export function Inbox() {
 function Section(props: {
   s: ShownSection;
   open: boolean;
-  filtering: boolean;
   toggle: () => void;
   edit: (() => void) | undefined;
   children: React.ReactNode;
 }) {
   const { s } = props;
   return (
-    <section className="section card" aria-label={s.title}>
+    <section className={`section card${s.rows.length ? "" : " is-empty"}`} aria-label={s.title}>
       <div className="section-head">
         <button
           type="button"
@@ -204,12 +220,7 @@ function Section(props: {
           </button>
         )}
       </div>
-      {props.open &&
-        (s.rows.length === 0 ? (
-          <div className="empty">{props.filtering ? "None match." : s.empty}</div>
-        ) : (
-          props.children
-        ))}
+      {props.open && props.children}
     </section>
   );
 }
@@ -229,7 +240,7 @@ function PlatformNotes(props: { data: InboxAnswer | undefined; retry: () => void
           </p>
         ))}
       {platforms
-        .filter((p) => !p.linked)
+        .filter((p) => !p.linked && platforms.some((q) => q.linked))
         .map((p) => (
           <p key={p.host} className="muted small">
             {p.host} is not connected. <Link to="/repositories">Connect it under Repositories</Link>

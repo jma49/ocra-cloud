@@ -17,15 +17,15 @@ export type InboxAnswer = { platforms: PlatformPulls[] };
 export type Row = PullItem & { host: string };
 
 export type SectionId = "review" | "approved" | "returned" | "merged" | "drafts" | "waiting";
-type Section = { id: SectionId; title: string; empty: string };
+type Section = { id: SectionId; title: string };
 
 const SECTIONS: readonly Section[] = [
-  { id: "review", title: "Needs your review", empty: "Nothing is waiting on your review." },
-  { id: "approved", title: "Approved", empty: "None of yours is approved and open." },
-  { id: "returned", title: "Returned to you", empty: "No reviewer asked you for changes." },
-  { id: "merged", title: "Merged this week", empty: "Nothing of yours merged in the last 7 days." },
-  { id: "drafts", title: "Drafts", empty: "You have no open drafts." },
-  { id: "waiting", title: "Waiting for review", empty: "None of yours is waiting on a reviewer." },
+  { id: "review", title: "Needs your review" },
+  { id: "approved", title: "Approved" },
+  { id: "returned", title: "Returned to you" },
+  { id: "merged", title: "Merged this week" },
+  { id: "drafts", title: "Drafts" },
+  { id: "waiting", title: "Waiting for review" },
 ];
 
 /** Each pull belongs to one section; null when it waits on no one (a draft asking your review). */
@@ -56,7 +56,6 @@ export const rowsOf = (answer: InboxAnswer): Row[] =>
 export type ShownSection = {
   key: string;
   title: string;
-  empty: string;
   rows: Row[];
   view?: PullView;
 };
@@ -72,13 +71,11 @@ export function inboxSections(rows: Row[], f: Filters, views: PullView[] = []): 
     ...SECTIONS.map((s) => ({
       key: s.id,
       title: s.title,
-      empty: s.empty,
       rows: by.get(s.id) ?? [],
     })),
     ...views.map((view) => ({
       key: `view:${view.id}`,
       title: view.name,
-      empty: "No pull request matches this section.",
       rows: rows.filter((r) => matchesView(r, view.filters) && matches(r, f)),
       view,
     })),

@@ -197,6 +197,25 @@ describe("the inbox page", () => {
     await waitFor(() => expect(screen.getByRole("region", { name: "Web" })).toBeTruthy());
   });
 
+  it("asks to connect a platform when none is linked, once instead of each section", async () => {
+    const none = answer.platforms.map((p) => ({ ...p, linked: false, pulls: [] }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ platforms: none })),
+    );
+    render(<Inbox />);
+    await waitFor(() => expect(screen.getByText("Connect a platform")).toBeTruthy());
+    expect(screen.queryByRole("region", { name: "Approved" })).toBeNull();
+    expect(screen.queryByText(/is not connected/)).toBeNull();
+  });
+
+  it("says nothing waits when every section is empty, and what to clear when a search empties them", async () => {
+    await show();
+    expect(screen.queryByText("Nothing waits on you")).toBeNull();
+    fireEvent.change(screen.getByLabelText("Find"), { target: { value: "no such pull" } });
+    expect(screen.getByText("No pull request matches")).toBeTruthy();
+  });
+
   it("leaves keys typed in the finder to it", async () => {
     await show();
     key("/");
