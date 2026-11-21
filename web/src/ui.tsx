@@ -1,4 +1,5 @@
 import { Component, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import type { SignInMethod } from "../../src/shared/index.js";
 import { api, type Day, needsSignIn, type ProviderInfo, why } from "./api.js";
 import { compact } from "./format.js";
 import { Link } from "./router.js";
@@ -124,6 +125,29 @@ export function useProviders(): ProviderInfo[] | undefined {
   return useLoad(loadProviders).data;
 }
 
+// How this deployment signs people in changes only with its settings: one
+// request per page load, as for the providers.
+let methodsOnce: Promise<SignInMethod[]> | undefined;
+
+function loadSignInMethods(): Promise<SignInMethod[]> {
+  methodsOnce ??= api<{ methods: SignInMethod[] }>("/auth/methods").then(
+    (r) => r.methods,
+    (e) => {
+      methodsOnce = undefined;
+      throw e;
+    },
+  );
+  return methodsOnce;
+}
+
+export function useSignInMethods(): SignInMethod[] | undefined {
+  return useLoad(loadSignInMethods).data;
+}
+
+/** Where a sign-in through `method` starts, coming back to `next`. */
+export const signInHref = (method: SignInMethod, next?: string) =>
+  `/api/auth/${method.id}/login${next ? `?next=${encodeURIComponent(next)}` : ""}`;
+
 /** Shown while a page's data is on its way, so "nothing yet" is never a guess. */
 export function Loading(props: { what: string }) {
   return (
@@ -151,12 +175,12 @@ export function LoadError(props: { what: string; error: unknown; retry: () => vo
  * it needs (audit C7), which comes back to this page.
  */
 export function ActionError(props: { what: string; error: unknown }) {
-  const back = `/api/auth/github/login?next=${encodeURIComponent(location.pathname)}`;
+  const method = useSignInMethods()?.[0];
   return (
     <p className="error" role="alert">
       Could not {props.what}: {why(props.error)}.{" "}
-      {needsSignIn(props.error) && (
-        <a className="btn btn-sm" href={back}>
+      {needsSignIn(props.error) && method && (
+        <a className="btn btn-sm" href={signInHref(method, location.pathname)}>
           Sign in again
         </a>
       )}

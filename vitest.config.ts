@@ -22,6 +22,11 @@ export default defineConfig({
                 GITLAB_CLIENT_ID: "test-gitlab-app",
                 GITLAB_CLIENT_SECRET: "test-gitlab-secret",
                 GITLAB_URL: "https://gitlab.example.com:8443",
+                // A company's SSO, as a self-hosted server signs people in.
+                OIDC_ISSUER: "https://sso.example.com/realms/eng",
+                OIDC_CLIENT_ID: "ocra-cloud",
+                OIDC_CLIENT_SECRET: "test-oidc-secret",
+                OIDC_NAME: "Example SSO",
                 GATEWAY_DAILY_CALLS: "3",
                 REVIEW_DAILY_UPLOADS: "500",
                 REVIEW_MAX_FINDINGS: "20000",

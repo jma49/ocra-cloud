@@ -4,7 +4,7 @@ import { join, resolve } from "node:path";
 import { count, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { API_HEADERS } from "../src/app.js";
-import { upsertAccount } from "../src/db/accounts.js";
+import { githubIdentity, upsertAccount } from "../src/db/accounts.js";
 import * as schema from "../src/db/schema.js";
 import { bindingsFrom } from "../src/node/env.js";
 import { openHost, parseHeaders } from "../src/node/host.js";
@@ -66,6 +66,22 @@ describe("the self-hosted server", () => {
     );
   });
 
+  it("starts with OpenID Connect as its only sign-in, and refuses to start with none", async () => {
+    const { GITHUB_CLIENT_ID: _id, GITHUB_CLIENT_SECRET: _secret, ...rest } = VARS;
+    const sso = {
+      OIDC_ISSUER: "https://sso.example.com",
+      OIDC_CLIENT_ID: "o",
+      OIDC_CLIENT_SECRET: "s",
+    };
+    expect(bindingsFrom({ ...rest, ...sso })).toMatchObject({
+      OIDC_ISSUER: "https://sso.example.com",
+    });
+    expect(bindingsFrom({ ...rest, ...sso }).GITHUB_CLIENT_ID).toBeUndefined();
+    expect(() => bindingsFrom({ ...rest, OIDC_ISSUER: "https://sso.example.com" })).toThrow(
+      "no way to sign in: set GitHub (GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET) or OpenID Connect (OIDC_ISSUER, OIDC_CLIENT_ID, OIDC_CLIENT_SECRET)",
+    );
+  });
+
   it("answers the API with its headers", async () => {
     const res = await call("/api/health");
     expect(await res.json()).toEqual({ ok: true });
@@ -76,7 +92,7 @@ describe("the self-hosted server", () => {
   });
 
   it("takes an upload, a decision and a deletion on SQLite as on D1", async () => {
-    const account = await upsertAccount(host.db, 1, "octo");
+    const account = await upsertAccount(host.db, githubIdentity(1), "octo");
     const web = { authorization: `Bearer ${await startWebSession(host.db, account.id)}` };
     const cli = {
       authorization: `Bearer ${(await startCliSession(host.db, account.id, "terminal")).access_token}`,
@@ -140,7 +156,7 @@ describe("behind a proxy that ends TLS", () => {
       publicUrl: "https://ocra.example.com/",
     });
     try {
-      const account = await upsertAccount(proxied.db, 2, "proxied");
+      const account = await upsertAccount(proxied.db, githubIdentity(2), "proxied");
       // The browser's cookie: only a cookie request has its origin checked.
       const auth = {
         cookie: `__Host-ocra_session=${await startWebSession(proxied.db, account.id)}`,

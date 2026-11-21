@@ -15,13 +15,15 @@ const me = { login: "ada", githubId: 1, session: "web" as const, since: "2026-10
 it("offers a fresh sign-in when deleting the account needs one", async () => {
   vi.stubGlobal(
     "fetch",
-    vi.fn(async (_input: string, init?: RequestInit) =>
-      init?.method === "DELETE"
-        ? Response.json(
-            { error: "forbidden_for_session", reason: "recent_sign_in" },
-            { status: 403 },
-          )
-        : Response.json({ shareFindings: false, findingsStored: 0, findingsAllowance: 1000 }),
+    vi.fn(async (input: string, init?: RequestInit) =>
+      String(input).endsWith("/auth/methods")
+        ? Response.json({ methods: [{ id: "github", name: "GitHub" }] })
+        : init?.method === "DELETE"
+          ? Response.json(
+              { error: "forbidden_for_session", reason: "recent_sign_in" },
+              { status: 403 },
+            )
+          : Response.json({ shareFindings: false, findingsStored: 0, findingsAllowance: 1000 }),
     ),
   );
   history.replaceState(null, "", "/settings");

@@ -14,6 +14,7 @@ import { keys } from "./keys.js";
 import { errorName, logError } from "./log.js";
 import { me } from "./me.js";
 import { memory } from "./memory.js";
+import { oidc } from "./oidc.js";
 import { platformConnect } from "./platform-connect.js";
 import { platformsRoute } from "./platform-routes.js";
 import { preferences } from "./preferences.js";
@@ -69,6 +70,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
   app.get("/health", (c) => c.json({ ok: true }));
 
   app.route("/auth", auth);
+  app.route("/auth/oidc", oidc);
   app.route("/device", device);
 
   app.route("/providers", providersRoute);
