@@ -2,7 +2,7 @@ import { resolve } from "node:path";
 import { serve } from "@hono/node-server";
 import { enforceRetention } from "../db/retention.js";
 import { errorName, logError } from "../log.js";
-import { bindingsFrom } from "./env.js";
+import { bindingsFrom, trustedProxyHops } from "./env.js";
 import { openHost } from "./host.js";
 
 // The self-hosted server: `node --import tsx src/node/server.ts`, or the
@@ -18,6 +18,7 @@ const host = await openHost({
   migrations: resolve(process.env.MIGRATIONS_DIR || "migrations"),
   web: resolve(process.env.WEB_DIR || "web/dist"),
   ...(process.env.PUBLIC_URL ? { publicUrl: process.env.PUBLIC_URL } : {}),
+  trustedProxyHops: trustedProxyHops(process.env.TRUSTED_PROXY_HOPS),
 });
 
 const retention = () =>

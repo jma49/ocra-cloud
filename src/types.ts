@@ -15,6 +15,7 @@ export type AppEnv = {
   Bindings: AppBindings;
   Variables: {
     db: Db;
+    clientAddress: string;
     /** Set by requireSession: the signed-in account and its scoped data. */
     session: SessionAccount;
     data: Scoped;

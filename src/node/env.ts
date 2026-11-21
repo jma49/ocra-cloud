@@ -44,3 +44,11 @@ export function bindingsFrom(vars: Record<string, string | undefined>): AppBindi
     ACCOUNT_CALLS: memoryRateLimit(120, 60),
   };
 }
+
+/** TRUSTED_PROXY_HOPS: a whole number of proxies, 0 when unset; throws on anything else. */
+export function trustedProxyHops(value: string | undefined): number {
+  if (!value) return 0;
+  if (!/^\d+$/.test(value))
+    throw new Error(`TRUSTED_PROXY_HOPS must be a whole number, not ${value}`);
+  return Number(value);
+}

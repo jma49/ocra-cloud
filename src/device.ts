@@ -61,7 +61,7 @@ export function newUserCode(random: RandomBytes = randomBytes): string {
  * address, so a signed-in user cannot walk the code space.
  */
 const limitLookups: MiddlewareHandler<AppEnv> = async (c, next) => {
-  const ip = c.req.header("cf-connecting-ip") ?? "unknown";
+  const ip = c.var.clientAddress;
   for (const key of [`account:${c.var.session.account.id}`, `ip:${ip}`]) {
     const { success } = await c.env.DEVICE_LOOKUPS.limit({ key });
     if (!success) return apiError(c, "slow_down", {}, 429);
@@ -102,7 +102,7 @@ const decideRequest = z.object({ user_code: z.string(), approve: z.boolean() });
 const RFC_INVALID = { invalid: "invalid_request" } as const;
 
 device.post("/code", jsonBody(codeRequest), async (c) => {
-  const ip = c.req.header("cf-connecting-ip") ?? "unknown";
+  const ip = c.var.clientAddress;
   const { success } = await c.env.DEVICE_CODES.limit({ key: ip });
   if (!success) {
     c.header("retry-after", "60");
