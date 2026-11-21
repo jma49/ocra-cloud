@@ -36,3 +36,20 @@ export type ProviderGroup = "Major" | "China" | "Platforms";
  */
 export const RECENT_SIGN_IN = "recent_sign_in";
 export const RECENT_SIGN_IN_MINUTES = 15;
+
+/**
+ * What the account decided about a finding in the console. The engine's
+ * feedback schema (team memory) will name these words; until it is
+ * published they are the cloud's own.
+ */
+export const FINDING_STATUSES = ["open", "fixed", "dismissed"] as const;
+export type FindingStatus = (typeof FINDING_STATUSES)[number];
+
+/** Why a finding was dismissed; a dismissal always names one. */
+export const DISMISS_REASONS = [
+  "false_positive",
+  "not_important",
+  "wrong_fix",
+  "already_known",
+] as const;
+export type DismissReason = (typeof DISMISS_REASONS)[number];

@@ -178,6 +178,10 @@ function findingDto(f: FindingRow) {
     redacted: f.redacted,
     truncated: f.truncated,
     createdAt: f.createdAt,
+    status: f.status,
+    reason: f.reason,
+    note: f.note,
+    decidedAt: f.decidedAt,
   } satisfies Omit<FindingRow, "accountId" | "reviewId">;
 }
 

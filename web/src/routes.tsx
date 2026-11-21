@@ -3,6 +3,7 @@ import { loadKeys } from "./account-keys.js";
 import type { Me } from "./api.js";
 import { Activity } from "./pages/Activity.js";
 import { Agents } from "./pages/Agents.js";
+import { Findings } from "./pages/Findings.js";
 import { Keys } from "./pages/Keys.js";
 import { Memory } from "./pages/Memory.js";
 import { Overview } from "./pages/Overview.js";
@@ -64,6 +65,11 @@ const ROUTES: readonly Route[] = [
     page: () => <Reviews />,
   },
   { path: "/reviews/:id", page: (_me, [id]) => <ReviewDetail id={id ?? ""} /> },
+  {
+    path: "/findings",
+    nav: { label: "Findings", icon: "list", group: "Console" },
+    page: () => <Findings />,
+  },
   {
     path: "/keys",
     nav: { label: "Provider keys", icon: "key", group: "Configure" },

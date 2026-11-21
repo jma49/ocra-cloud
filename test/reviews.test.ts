@@ -274,6 +274,10 @@ describe("review export", () => {
       redacted: false,
       truncated: false,
       createdAt: new Date(0),
+      status: "open" as const,
+      reason: null,
+      note: null,
+      decidedAt: null,
     };
     expect(exportFinding(bare)).toEqual({
       fingerprint: "fp-1",
