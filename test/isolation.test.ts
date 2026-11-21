@@ -23,6 +23,7 @@ const changes = {
   findings: { severity: "critical" },
   accountMemory: { reason: "changed" },
   usageCounters: { n: 9 },
+  repositories: { name: "octo/changed" },
 } satisfies { [N in keyof typeof rows]: Record<string, unknown> };
 
 // Storage persists across tests in a file; deleting the accounts cascades.

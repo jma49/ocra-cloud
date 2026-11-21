@@ -163,6 +163,8 @@ export type Review = {
   id: string;
   runId: string;
   repo: string;
+  /** The name the account gave the repository, if any. */
+  name?: string | null;
   source: ReviewSource;
   tier: RiskTier | null;
   verdict: Verdict | null;

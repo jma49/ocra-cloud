@@ -324,6 +324,20 @@ export const usageCounters = sqliteTable(
   (t) => [primaryKey({ columns: [t.accountId, t.kind, t.day] })],
 );
 
+// The name the account gave a repository the CLI knows only by its hash
+// (ADR-0028 keeps uploads to the hash). Kept until the account clears it.
+export const repositories = sqliteTable(
+  "repositories",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    repoHash: text("repo_hash").notNull(),
+    name: text("name").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("repositories_account_repo").on(t.accountId, t.repoHash)],
+);
+
 /** The tables scoped by account, by the name scoped() uses. */
 export const accountTables = {
   sessions,
@@ -336,4 +350,5 @@ export const accountTables = {
   findings,
   accountMemory,
   usageCounters,
+  repositories,
 } as const;

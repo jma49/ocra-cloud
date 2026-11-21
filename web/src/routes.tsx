@@ -8,6 +8,7 @@ import { Keys } from "./pages/Keys.js";
 import { Memory } from "./pages/Memory.js";
 import { Overview } from "./pages/Overview.js";
 import { Plugins } from "./pages/Plugins.js";
+import { Repositories } from "./pages/Repositories.js";
 import { ReviewSettings } from "./pages/ReviewSettings.js";
 import { Reviews } from "./pages/Reviews.js";
 import { Rules } from "./pages/Rules.js";
@@ -69,6 +70,11 @@ const ROUTES: readonly Route[] = [
     path: "/findings",
     nav: { label: "Findings", icon: "list", group: "Console" },
     page: () => <Findings />,
+  },
+  {
+    path: "/repositories",
+    nav: { label: "Repositories", icon: "layers", group: "Console" },
+    page: () => <Repositories />,
   },
   {
     path: "/keys",

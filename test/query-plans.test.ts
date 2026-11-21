@@ -59,6 +59,7 @@ const TABLE: Record<string, string> = {
   findings: "findings",
   accountMemory: "account_memory",
   usageCounters: "usage_counters",
+  repositories: "repositories",
 };
 
 describe("query plans", () => {

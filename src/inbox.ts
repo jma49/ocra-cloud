@@ -12,6 +12,7 @@ import { z } from "zod";
 import type { Decision, InboxCursor } from "./db/inbox.js";
 import { apiError, jsonBody, queryLimit } from "./http.js";
 import { perMinute } from "./rate.js";
+import { repoNames } from "./repositories.js";
 import { requireSession } from "./session.js";
 import { DISMISS_REASONS, FINDING_STATUSES } from "./shared/index.js";
 import type { AppEnv } from "./types.js";
@@ -74,7 +75,7 @@ inbox.get("/", requireSession(), async (c) => {
     });
   }
   const q = parsed.data;
-  const [{ rows, next }, counts] = await Promise.all([
+  const [{ rows, next }, counts, names] = await Promise.all([
     c.var.data.inbox(
       {
         status: q.status,
@@ -87,6 +88,7 @@ inbox.get("/", requireSession(), async (c) => {
       parseCursor(q.after),
     ),
     c.var.data.findingStatusCounts(),
+    repoNames(c.var.data),
   ]);
   const statuses = Object.fromEntries(FINDING_STATUSES.map((s) => [s, 0]));
   for (const { status, n } of counts) statuses[status] = n;
@@ -97,6 +99,7 @@ inbox.get("/", requireSession(), async (c) => {
       runId,
       repoHash,
       repo: repoHash.slice(0, 8),
+      name: names.get(repoHash) ?? null,
       fingerprint: f.fingerprint,
       reviewer: f.reviewer,
       severity: f.severity,

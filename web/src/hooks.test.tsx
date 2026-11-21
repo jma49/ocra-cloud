@@ -61,7 +61,7 @@ describe("useLoad", () => {
 describe("the routes", () => {
   it("drive the sidebar in its order, and old and detail paths", () => {
     expect(NAV_GROUPS.map((g) => [g.label, g.routes.map((r) => r.path)])).toEqual([
-      ["Console", ["/", "/activity", "/reviews", "/findings"]],
+      ["Console", ["/", "/activity", "/reviews", "/findings", "/repositories"]],
       [
         "Configure",
         ["/keys", "/agents", "/review-settings", "/rules", "/plugins", "/memory", "/defaults"],

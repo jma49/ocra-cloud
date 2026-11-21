@@ -6,6 +6,7 @@ import type { Row, Scoped } from "./db/scoped.js";
 import { parseFindings } from "./findings.js";
 import { apiError, jsonBody, queryDays } from "./http.js";
 import { perMinute, retryTomorrow } from "./rate.js";
+import { repoNames } from "./repositories.js";
 import { requireSession } from "./session.js";
 import type { ReviewerCounts } from "./shared/index.js";
 import { DAY } from "./time.js";
@@ -222,15 +223,16 @@ reviews.get("/", requireSession(), async (c) => {
   const days = queryDays(c, 30);
   const since = new Date(Date.now() - days * DAY);
   // The totals are summed in SQL (audit D5); the list shows the newest 500.
-  const [{ summary, byReviewer }, rows] = await Promise.all([
+  const [{ summary, byReviewer }, rows, names] = await Promise.all([
     c.var.data.reviewSummary(since),
     c.var.data.listSince("reviews", since, 500),
+    repoNames(c.var.data),
   ]);
   return c.json({
     days,
     summary,
     reviewers: perReviewer(byReviewer),
-    reviews: rows.map(listedReview),
+    reviews: rows.map((r) => ({ ...listedReview(r), name: names.get(r.repoHash) ?? null })),
   });
 });
 

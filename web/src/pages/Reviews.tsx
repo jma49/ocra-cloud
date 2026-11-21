@@ -127,7 +127,9 @@ export function Reviews() {
       <div className="section card">
         <div className="card-head">
           <h3>History</h3>
-          <span className="subtle small">repositories are shown by an anonymous hash</span>
+          <span className="subtle small">
+            repositories are shown by an anonymous hash until you name them under Repositories
+          </span>
         </div>
         {!data ? (
           <Loading what="reviews" />
@@ -155,7 +157,7 @@ export function Reviews() {
                     <td>
                       <Link to={`/reviews/${r.id}`}>{time(r.createdAt)}</Link>
                     </td>
-                    <td className="mono">{r.repo}</td>
+                    <td className="mono">{r.name ?? r.repo}</td>
                     <td className="muted">
                       {r.source === "local"
                         ? "Local"

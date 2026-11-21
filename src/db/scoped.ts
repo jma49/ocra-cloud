@@ -32,6 +32,7 @@ import {
   rememberFindings,
 } from "./inbox.js";
 import { type PreferencesSave, savePreferences } from "./preferences.js";
+import { nameRepo, reviewedRepos } from "./repos.js";
 import { accountTables } from "./schema.js";
 
 type Tables = typeof accountTables;
@@ -340,6 +341,13 @@ export function scoped(db: DrizzleD1Database, accountId: string) {
     },
     rememberFindings(ids: readonly string[], reason: string, cap: number) {
       return rememberFindings(db, accountId, ids, reason, cap);
+    },
+    /** The repositories reviewed since a time, summed (./repos.ts). */
+    reviewedRepos(since: Date) {
+      return reviewedRepos(db, accountId, since);
+    },
+    nameRepo(repoHash: string, name: string, cap: number): Promise<boolean> {
+      return nameRepo(db, accountId, repoHash, name, cap);
     },
     /** The findings of one of this account's reviews. */
     findingsOf(reviewId: string): Promise<Row<"findings">[]> {
