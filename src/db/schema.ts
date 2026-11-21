@@ -22,6 +22,7 @@ import {
   DISMISS_REASONS,
   FINDING_STATUSES,
   type ModelChains,
+  type PullFilters,
   type ReviewerCounts,
   type ReviewSettings,
 } from "../shared/index.js";
@@ -368,6 +369,20 @@ export const repositories = sqliteTable(
   (t) => [uniqueIndex("repositories_account_repo").on(t.accountId, t.repoHash)],
 );
 
+// The account's own inbox sections, after the fixed ones, in position order.
+export const pullViews = sqliteTable(
+  "pull_views",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    name: text("name").notNull(),
+    filters: text("filters", { mode: "json" }).$type<PullFilters>().notNull(),
+    position: integer("position").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("pull_views_account_position").on(t.accountId, t.position)],
+);
+
 /** The tables scoped by account, by the name scoped() uses. */
 export const accountTables = {
   sessions,
@@ -383,4 +398,5 @@ export const accountTables = {
   repositories,
   budgets,
   platformLinks,
+  pullViews,
 } as const;

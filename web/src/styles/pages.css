@@ -284,6 +284,35 @@ td.finding-cell {
 .section-toggle[aria-expanded="false"] {
   padding-bottom: 18px;
 }
+.section-head {
+  display: flex;
+  align-items: center;
+}
+.section-head .section-toggle {
+  flex: 1;
+}
+.section-head .icon-btn {
+  margin-right: 16px;
+}
+.drawer-form {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.view-group {
+  border: 0;
+  padding: 0;
+  margin: 18px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  font-size: 14px;
+}
+.view-group legend {
+  font-weight: 500;
+  margin-bottom: 6px;
+}
 .pull-title {
   overflow-wrap: anywhere;
 }

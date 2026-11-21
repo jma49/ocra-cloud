@@ -1,4 +1,9 @@
-import type { CodePlatformKind, PullItem } from "../../../src/shared/index.js";
+import type {
+  CodePlatformKind,
+  PullFilters,
+  PullItem,
+  PullView,
+} from "../../../src/shared/index.js";
 
 type PlatformPulls = {
   platform: CodePlatformKind;
@@ -48,15 +53,55 @@ const matches = (r: Row, f: Filters) => {
 export const rowsOf = (answer: InboxAnswer): Row[] =>
   answer.platforms.flatMap((p) => p.pulls.map((pull) => ({ ...pull, host: p.host })));
 
-export function inboxSections(rows: Row[], f: Filters) {
+export type ShownSection = {
+  key: string;
+  title: string;
+  empty: string;
+  rows: Row[];
+  view?: PullView;
+};
+
+/** The fixed sections, then the account's own, each with its rows. */
+export function inboxSections(rows: Row[], f: Filters, views: PullView[] = []): ShownSection[] {
   const by = new Map<SectionId, Row[]>(SECTIONS.map((s) => [s.id, []]));
   for (const r of rows) {
     const id = sectionOf(r);
     if (id && matches(r, f)) by.get(id)?.push(r);
   }
-  return SECTIONS.map((s) => ({ ...s, rows: by.get(s.id) ?? [] }));
+  return [
+    ...SECTIONS.map((s) => ({
+      key: s.id,
+      title: s.title,
+      empty: s.empty,
+      rows: by.get(s.id) ?? [],
+    })),
+    ...views.map((view) => ({
+      key: `view:${view.id}`,
+      title: view.name,
+      empty: "No pull request matches this section.",
+      rows: rows.filter((r) => matchesView(r, view.filters) && matches(r, f)),
+      view,
+    })),
+  ];
 }
 
 /** Every repository with a pull in the inbox, by its platform host. */
 export const reposOf = (rows: Row[]) =>
   [...new Set(rows.map((r) => `${r.host}/${r.repo}`))].sort((a, b) => a.localeCompare(b));
+
+const any = <T>(allowed: T[] | undefined, value: T) => !allowed || allowed.includes(value);
+
+/** Whether a pull belongs in an account's own section. */
+export function matchesView(r: Row, f: PullFilters): boolean {
+  const drafts = f.drafts ?? "include";
+  if (drafts === "exclude" && r.draft) return false;
+  if (drafts === "only" && !r.draft) return false;
+  return (
+    (!f.roles || r.roles.some((role) => f.roles?.includes(role))) &&
+    any(f.states, r.state) &&
+    any(f.repos, `${r.host}/${r.repo}`) &&
+    (!f.authors || (r.author !== null && f.authors.includes(r.author))) &&
+    (!f.checks || (r.checks !== null && f.checks.includes(r.checks))) &&
+    (!f.reviews || (r.review !== null && f.reviews.includes(r.review)))
+  );
+}

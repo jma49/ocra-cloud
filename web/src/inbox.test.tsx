@@ -2,7 +2,8 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PullItem } from "../../src/shared/index.js";
 import { clearCache } from "./cache.js";
-import { inboxSections, type Row, rowsOf, sectionOf } from "./inbox/sections.js";
+import { inboxSections, matchesView, type Row, rowsOf, sectionOf } from "./inbox/sections.js";
+import { sharedView, shareLink } from "./inbox/views.js";
 import { Inbox } from "./pages/Inbox.js";
 
 afterEach(async () => {
@@ -88,6 +89,42 @@ describe("the inbox's sections", () => {
   });
 });
 
+describe("an account's own sections", () => {
+  const rows = rowsOf(answer);
+  const numbers = (f: Parameters<typeof matchesView>[1]) =>
+    rows.filter((r) => matchesView(r, f)).map((r) => r.number);
+
+  it("match every group set, and any choice within one", () => {
+    expect(numbers({})).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(numbers({ roles: ["author"], states: ["open"], drafts: "exclude" })).toEqual([3, 4, 6]);
+    expect(numbers({ checks: ["failing"] })).toEqual([1]);
+    expect(numbers({ reviews: ["approved", "changes_requested"] })).toEqual([3, 4]);
+    expect(numbers({ drafts: "only" })).toEqual([5]);
+    expect(numbers({ authors: ["ada"], repos: ["github.com/octo/api"] })).toEqual([1, 2]);
+  });
+
+  it("come after the fixed ones", () => {
+    const view = {
+      id: "v1",
+      name: "Failing",
+      position: 0,
+      filters: { checks: ["failing" as const] },
+    };
+    const shown = inboxSections(rows, { text: "", repo: "" }, [view]);
+    expect(shown.at(-1)).toMatchObject({ key: "view:v1", title: "Failing" });
+    expect(shown.at(-1)?.rows.map((r) => r.number)).toEqual([1]);
+  });
+
+  it("travel in a link, names and all, and a broken link offers nothing", () => {
+    const view = { name: "Équipe web", filters: { repos: ["github.com/octo/web"] } };
+    const link = new URL(shareLink(view));
+    expect(link.pathname).toBe("/pulls");
+    expect(sharedView(link.search)).toEqual(view);
+    expect(sharedView("?section=%%%")).toBeNull();
+    expect(sharedView("")).toBeNull();
+  });
+});
+
 describe("the inbox page", () => {
   const show = async () => {
     vi.stubGlobal(
@@ -127,6 +164,37 @@ describe("the inbox page", () => {
     expect(screen.queryByText("Change 1")).toBeNull();
     expect(current()).toBe("https://github.com/octo/api/pull/3");
     expect(localStorage.getItem("ocra-inbox-collapsed")).toBe('["review"]');
+  });
+
+  it("saves a new section and shows it at once", async () => {
+    const posted: unknown[] = [];
+    let views: unknown[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url === "/api/pull-views" && init?.method === "POST") {
+          const body = JSON.parse(String(init.body));
+          posted.push(body);
+          views = [{ id: "v1", position: 0, ...body }];
+          return Response.json(views[0], { status: 201 });
+        }
+        if (url === "/api/pull-views") return Response.json({ views });
+        return Response.json(answer);
+      }),
+    );
+    render(<Inbox />);
+    await waitFor(() => expect(screen.getByText("Change 1")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "New section" }));
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Web" } });
+    fireEvent.click(screen.getByLabelText("github.com/octo/web"));
+    await act(async () => void fireEvent.click(screen.getByRole("button", { name: "Save" })));
+    expect(posted).toEqual([
+      {
+        name: "Web",
+        filters: { roles: ["author"], states: ["open"], repos: ["github.com/octo/web"] },
+      },
+    ]);
+    await waitFor(() => expect(screen.getByRole("region", { name: "Web" })).toBeTruthy());
   });
 
   it("leaves keys typed in the finder to it", async () => {

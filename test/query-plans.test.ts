@@ -62,6 +62,7 @@ const TABLE: Record<string, string> = {
   repositories: "repositories",
   budgets: "budgets",
   platformLinks: "platform_links",
+  pullViews: "pull_views",
 };
 
 describe("query plans", () => {
