@@ -269,6 +269,8 @@ describe("gateway", () => {
     expect(await capped.json()).toMatchObject({ error: "daily_limit", limit: 2 });
     const now = (await (await call("/api/budget", { auth })).json()) as { callsToday: number };
     expect(now.callsToday).toBe(2);
+    const used = (await (await call("/api/usage", { auth })).json()) as { dailyLimit: number };
+    expect(used.dailyLimit).toBe(2);
 
     await call("/api/budget", {
       method: "PUT",

@@ -14,10 +14,13 @@ usage.get("/", async (c) => {
   const todayStart = utcDayStart();
   const since = new Date(todayStart.getTime() - (days - 1) * DAY);
   // Summed in SQL (audit D5): exact however many calls there are.
-  const [sums, latest] = await Promise.all([
+  const [sums, latest, budget] = await Promise.all([
     c.var.data.usage(since),
     c.var.data.listSince("gatewayCalls", since, 200),
+    c.var.data.findOne("budgets", {}),
   ]);
+  const cap = config(c.env).gatewayDailyCalls;
+  const own = budget?.dailyCalls;
 
   type Day = {
     day: string;
@@ -47,7 +50,8 @@ usage.get("/", async (c) => {
   return c.json({
     days,
     today: today?.calls ?? 0,
-    dailyLimit: config(c.env).gatewayDailyCalls,
+    // The account's own budget when it is the smaller (./budget.ts).
+    dailyLimit: own != null && own < cap ? own : cap,
     series: [...series.values()].map((d) => ({ ...d, byModel: Object.fromEntries(d.byModel) })),
     models: sums.models,
     calls: latest.map((call) => ({
