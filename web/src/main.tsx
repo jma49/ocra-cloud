@@ -10,6 +10,7 @@ import { matchRoute, NAV_GROUPS } from "./routes.js";
 import { rememberSignedIn, wasSignedIn } from "./signed-in.js";
 import { SignIn } from "./signin.js";
 import { DOCS } from "./site.js";
+import { setPageTitle } from "./title.js";
 import { ToastProvider } from "./toast.js";
 import { ErrorBoundary, Icon, Loading, NotFound } from "./ui.js";
 import "./styles.css";
@@ -62,8 +63,7 @@ function App() {
   }, []);
   const found = matchRoute(path);
   useEffect(() => {
-    const page = found?.route.nav?.label;
-    document.title = page && me ? `${page} · ocra Cloud` : "ocra Cloud";
+    setPageTitle(me ? found?.route.nav?.label : undefined);
   }, [found?.route, me]);
 
   if (path === "/privacy") {

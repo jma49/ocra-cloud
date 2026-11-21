@@ -1,16 +1,24 @@
-import type { PullItem } from "../shared/index.js";
 import { platformCall } from "./http.js";
-import { mergeSections, PULLS_PER_SECTION, type PullListing } from "./platform.js";
+import {
+  type ListedPull,
+  MERGED_PER_LIST,
+  mergedSince,
+  OPEN_PER_LIST,
+  type PullListing,
+  withRoles,
+} from "./pulls.js";
 
 type MergeRequest = {
   id: number;
   iid: number;
   title: string;
   web_url: string;
+  state: string;
   draft?: boolean;
   work_in_progress?: boolean;
   created_at: string;
   updated_at: string;
+  merged_at?: string | null;
   author: { username: string } | null;
   references?: { full?: string };
 };
@@ -22,7 +30,7 @@ function repoOf(mr: MergeRequest): string {
   return path.split("/-/")[0] ?? path;
 }
 
-const item = (mr: MergeRequest): Omit<PullItem, "sections"> => ({
+const item = (mr: MergeRequest): ListedPull => ({
   id: String(mr.id),
   number: mr.iid,
   title: mr.title,
@@ -30,8 +38,10 @@ const item = (mr: MergeRequest): Omit<PullItem, "sections"> => ({
   repo: repoOf(mr),
   author: mr.author?.username ?? null,
   draft: Boolean(mr.draft ?? mr.work_in_progress),
+  state: mr.state === "merged" ? "merged" : "open",
   createdAt: mr.created_at,
   updatedAt: mr.updated_at,
+  mergedAt: mr.merged_at ?? null,
   // The listing has no pipeline, approvals or line counts; one call per MR would.
   checks: null,
   review: null,
@@ -39,24 +49,32 @@ const item = (mr: MergeRequest): Omit<PullItem, "sections"> => ({
   deletions: null,
 });
 
-export async function gitlabPulls(baseUrl: string, token: string): Promise<PullListing | null> {
+export async function gitlabPulls(
+  baseUrl: string,
+  token: string,
+  now = Date.now(),
+): Promise<PullListing | null> {
   const get = <T>(path: string) =>
     platformCall<T>(`${baseUrl}/api/v4${path}`, {
       headers: { authorization: `Bearer ${token}`, accept: "application/json" },
     });
   const me = await get<{ id: number }>("/user");
   if (!me) return null;
-  const list = `state=opened&order_by=updated_at&per_page=${PULLS_PER_SECTION}`;
-  const [review, authored] = await Promise.all([
-    get<MergeRequest[]>(`/merge_requests?scope=all&reviewer_id=${me.id}&${list}`),
-    get<MergeRequest[]>(`/merge_requests?scope=created_by_me&${list}`),
+  const open = `state=opened&order_by=updated_at&per_page=${OPEN_PER_LIST}`;
+  const since = encodeURIComponent(mergedSince(now).toISOString());
+  const [review, authored, merged] = await Promise.all([
+    get<MergeRequest[]>(`/merge_requests?scope=all&reviewer_id=${me.id}&${open}`),
+    get<MergeRequest[]>(`/merge_requests?scope=created_by_me&${open}`),
+    get<MergeRequest[]>(
+      `/merge_requests?scope=created_by_me&state=merged&updated_after=${since}&order_by=updated_at&per_page=${MERGED_PER_LIST}`,
+    ),
   ]);
-  if (!review || !authored) return null;
+  if (!review || !authored || !merged) return null;
   return {
-    pulls: mergeSections([
-      { section: "review", pulls: review.map(item) },
-      { section: "authored", pulls: authored.map(item) },
+    pulls: withRoles([
+      { role: "reviewer", pulls: review.map(item) },
+      { role: "author", pulls: [...authored, ...merged].map(item) },
     ]),
-    more: review.length >= PULLS_PER_SECTION || authored.length >= PULLS_PER_SECTION,
+    more: review.length >= OPEN_PER_LIST || authored.length >= OPEN_PER_LIST,
   };
 }

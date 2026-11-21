@@ -1,5 +1,6 @@
 import { sha256Hex } from "../crypto.js";
-import type { CodePlatformKind, PullItem } from "../shared/index.js";
+import type { CodePlatformKind } from "../shared/index.js";
+import type { PullListing } from "./pulls.js";
 
 // What the product layer needs from a code platform, whatever it is: GitHub,
 // gitlab.com or a self-hosted GitLab. Each one is reached as the signed-in
@@ -21,28 +22,6 @@ type RepoListing = {
   /** True when more were reachable than one request may read. */
   more: boolean;
 };
-
-export type PullListing = {
-  pulls: PullItem[];
-  more: boolean;
-};
-
-export const PULLS_PER_SECTION = 50;
-
-export function mergeSections(
-  lists: { section: PullItem["sections"][number]; pulls: Omit<PullItem, "sections">[] }[],
-): PullItem[] {
-  const byId = new Map<string, PullItem>();
-  for (const { section, pulls } of lists) {
-    for (const p of pulls) {
-      const seen = byId.get(p.id);
-      if (seen) {
-        if (!seen.sections.includes(section)) seen.sections.push(section);
-      } else byId.set(p.id, { ...p, sections: [section] });
-    }
-  }
-  return [...byId.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-}
 
 /** What a code exchange or refresh answers, in OAuth 2's words. */
 export type TokenAnswer = {
