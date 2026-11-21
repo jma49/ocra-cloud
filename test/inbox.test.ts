@@ -165,3 +165,33 @@ describe("the findings inbox", () => {
     ).toBe(403);
   });
 });
+
+describe("finding insights", () => {
+  it("counts the decisions per reviewer, severity and reason, with an acceptance rate", async () => {
+    const a = await sharing();
+    await a.post(
+      upload("r1", [
+        finding({ fingerprint: "fp-1", reviewer: "security", severity: "critical" }),
+        finding({ fingerprint: "fp-2", reviewer: "security", severity: "warning" }),
+        finding({ fingerprint: "fp-3", reviewer: "correctness", severity: "warning" }),
+      ]),
+    );
+    const listed = (await a.list()).findings;
+    const [x, y, z] = listed;
+    if (!x || !y || !z) throw new Error("three findings expected");
+    await a.decide({ ids: [x.id], status: "fixed" });
+    await a.decide({ ids: [y.id], status: "dismissed", reason: "false_positive" });
+
+    const got = (await (await call("/api/findings/insights", { auth: a.web.auth })).json()) as {
+      total: { total: number; fixed: number; dismissed: number; acceptanceRate: number | null };
+      byReviewer: { key: string; total: number }[];
+      dismissReasons: { key: string; n: number }[];
+    };
+    expect(got.total).toMatchObject({ total: 3, fixed: 1, dismissed: 1, acceptanceRate: 0.5 });
+    expect(got.byReviewer.map((r) => [r.key, r.total]).sort()).toEqual([
+      ["correctness", 1],
+      ["security", 2],
+    ]);
+    expect(got.dismissReasons).toEqual([{ key: "false_positive", n: 1 }]);
+  });
+});

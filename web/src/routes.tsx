@@ -4,6 +4,7 @@ import type { Me } from "./api.js";
 import { Activity } from "./pages/Activity.js";
 import { Agents } from "./pages/Agents.js";
 import { Findings } from "./pages/Findings.js";
+import { Insights } from "./pages/Insights.js";
 import { Keys } from "./pages/Keys.js";
 import { Memory } from "./pages/Memory.js";
 import { Overview } from "./pages/Overview.js";
@@ -70,6 +71,11 @@ const ROUTES: readonly Route[] = [
     path: "/findings",
     nav: { label: "Findings", icon: "list", group: "Console" },
     page: () => <Findings />,
+  },
+  {
+    path: "/insights",
+    nav: { label: "Review quality", icon: "activity", group: "Console" },
+    page: () => <Insights />,
   },
   {
     path: "/repositories",

@@ -10,11 +10,12 @@ import {
 import { Hono } from "hono";
 import { z } from "zod";
 import type { Decision, InboxCursor } from "./db/inbox.js";
-import { apiError, jsonBody, queryLimit } from "./http.js";
+import { apiError, jsonBody, queryDays, queryLimit } from "./http.js";
 import { perMinute } from "./rate.js";
 import { repoNames } from "./repositories.js";
 import { requireSession } from "./session.js";
 import { DISMISS_REASONS, FINDING_STATUSES } from "./shared/index.js";
+import { DAY } from "./time.js";
 import type { AppEnv } from "./types.js";
 
 // The findings inbox: every shared finding of the account across its
@@ -153,3 +154,28 @@ inbox.post(
     });
   },
 );
+
+type Tally = { total: number; open: number; fixed: number; dismissed: number };
+/** fixed / (fixed + dismissed): of the findings someone decided on, how many were right; null before any. */
+const withRate = <T extends Tally>(t: T) => ({
+  ...t,
+  acceptanceRate: t.fixed + t.dismissed > 0 ? t.fixed / (t.fixed + t.dismissed) : null,
+});
+
+// What the account's decisions say about its reviews: acceptance per
+// reviewer, severity, category and verification, and why findings were
+// dismissed. Only shared findings count; the rest never reach the cloud.
+inbox.get("/insights", requireSession(), async (c) => {
+  const days = queryDays(c, 30);
+  const i = await c.var.data.findingInsights(new Date(Date.now() - days * DAY));
+  const rows = (list: (Tally & { key: string | null })[]) => list.map(withRate);
+  return c.json({
+    days,
+    total: withRate(i.all ?? { total: 0, open: 0, fixed: 0, dismissed: 0 }),
+    byReviewer: rows(i.reviewer),
+    bySeverity: rows(i.severity),
+    byCategory: rows(i.category),
+    byVerification: rows(i.verification),
+    dismissReasons: i.reasons,
+  });
+});
