@@ -353,3 +353,16 @@ td.finding-cell {
 .inbox-sections .section.is-empty h3 {
   color: var(--fg-muted);
 }
+.name-field {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.name-field .input {
+  height: 30px;
+  width: 220px;
+}
+.repo-list {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
