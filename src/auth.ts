@@ -2,8 +2,12 @@ import { Hono } from "hono";
 import { deleteCookie, getSignedCookie, setSignedCookie } from "hono/cookie";
 import { randomToken } from "./crypto.js";
 import { upsertAccount } from "./db/accounts.js";
+import { scoped } from "./db/scoped.js";
 import { deadline } from "./deadline.js";
 import { apiError } from "./http.js";
+import { saveToken } from "./platforms/links.js";
+import type { TokenAnswer } from "./platforms/platform.js";
+import { githubOf } from "./platforms/registry.js";
 import { clearSessionCookie, requireSession, signInBrowser } from "./session.js";
 import type { AppEnv } from "./types.js";
 
@@ -88,21 +92,18 @@ auth.get("/github/callback", async (c) => {
   if (!code || !state || !expected || state !== expected) {
     return apiError(c, "bad_state");
   }
-  const tokenBody = await github<{ access_token?: string }>(
-    "https://github.com/login/oauth/access_token",
-    {
-      method: "POST",
-      headers: { accept: "application/json", "content-type": "application/json" },
-      body: JSON.stringify({
-        client_id: c.env.GITHUB_CLIENT_ID,
-        client_secret: c.env.GITHUB_CLIENT_SECRET,
-        code,
-        redirect_uri: callbackUrl(c.req.url),
-      }),
-    },
-  );
+  const tokenBody = await github<TokenAnswer>("https://github.com/login/oauth/access_token", {
+    method: "POST",
+    headers: { accept: "application/json", "content-type": "application/json" },
+    body: JSON.stringify({
+      client_id: c.env.GITHUB_CLIENT_ID,
+      client_secret: c.env.GITHUB_CLIENT_SECRET,
+      code,
+      redirect_uri: callbackUrl(c.req.url),
+    }),
+  });
   if (!tokenBody?.access_token) return apiError(c, "github_exchange");
-  // The GitHub token is used once, to learn who signed in, and not kept.
+  // The GitHub token tells who signed in, and is kept below.
   const user = await github<{ id?: number; login?: string }>("https://api.github.com/user", {
     headers: {
       authorization: `Bearer ${tokenBody.access_token}`,
@@ -114,6 +115,9 @@ auth.get("/github/callback", async (c) => {
     return apiError(c, "github_user");
   }
   const account = await upsertAccount(c.var.db, user.id, user.login);
+  // Kept so the console can read what the user reaches on GitHub
+  // (./platforms/links.ts).
+  await saveToken(scoped(c.var.db, account.id), c.env, githubOf(c.env), tokenBody);
   await signInBrowser(c, account.id);
   return c.redirect(safeNext(next), 302);
 });

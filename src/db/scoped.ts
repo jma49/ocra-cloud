@@ -34,7 +34,7 @@ import {
   rememberFindings,
 } from "./inbox.js";
 import { type PreferencesSave, savePreferences } from "./preferences.js";
-import { nameRepo, reviewedRepos } from "./repos.js";
+import { nameRepo, nameRepos, reviewedRepos } from "./repos.js";
 import { accountTables } from "./schema.js";
 
 type Tables = typeof accountTables;
@@ -357,6 +357,9 @@ export function scoped(db: Db, accountId: string) {
     },
     nameRepo(repoHash: string, name: string, cap: number): Promise<boolean> {
       return nameRepo(db, accountId, repoHash, name, cap);
+    },
+    nameRepos(list: readonly { repoHash: string; name: string }[], cap: number) {
+      return nameRepos(db, accountId, list, cap);
     },
     /** The findings of one of this account's reviews. */
     findingsOf(reviewId: string): Promise<Row<"findings">[]> {

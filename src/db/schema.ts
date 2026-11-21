@@ -18,6 +18,7 @@ import {
 } from "drizzle-orm/sqlite-core";
 import {
   type AgentPrefs,
+  CODE_PLATFORMS,
   DISMISS_REASONS,
   FINDING_STATUSES,
   type ModelChains,
@@ -324,6 +325,27 @@ export const usageCounters = sqliteTable(
   (t) => [primaryKey({ columns: [t.accountId, t.kind, t.day] })],
 );
 
+// The account's token on a code platform (GitHub, GitLab, a self-hosted
+// GitLab), one per platform and host, encrypted like a provider key and
+// bound to the account, so the console can read what the user reaches
+// there. Dropped when it no longer decrypts or its refresh is refused; the
+// next connection stores a new one.
+export const platformLinks = sqliteTable(
+  "platform_links",
+  {
+    accountId: accountId(),
+    platform: text("platform", { enum: CODE_PLATFORMS }).notNull(),
+    /** The platform's host, such as github.com or gitlab.example.com. */
+    host: text("host").notNull(),
+    wrappedKey: text("wrapped_key").notNull(),
+    ciphertext: text("ciphertext").notNull(),
+    accessExpiresAt: integer("access_expires_at", { mode: "timestamp_ms" }),
+    refreshExpiresAt: integer("refresh_expires_at", { mode: "timestamp_ms" }),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.accountId, t.platform, t.host] })],
+);
+
 // The account's own limits, under the service's: one row per account.
 // dailyCalls caps the gateway's calls a UTC day; null leaves the service's.
 export const budgets = sqliteTable("budgets", {
@@ -360,4 +382,5 @@ export const accountTables = {
   usageCounters,
   repositories,
   budgets,
+  platformLinks,
 } as const;

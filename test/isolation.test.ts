@@ -25,6 +25,7 @@ const changes = {
   usageCounters: { n: 9 },
   repositories: { name: "octo/changed" },
   budgets: { dailyCalls: 7 },
+  platformLinks: { ciphertext: "changed" },
 } satisfies { [N in keyof typeof rows]: Record<string, unknown> };
 
 // Storage persists across tests in a file; deleting the accounts cascades.
@@ -84,9 +85,10 @@ it("covers every table with a foreign key to accounts, whatever the column's nam
 });
 
 // Tables whose rows have their own id; preferences and budgets are one row
-// per account, and usage counters one per account, kind and day.
-type Keyed = "preferences" | "budgets" | "usageCounters";
-const KEYED: readonly string[] = ["preferences", "budgets", "usageCounters"];
+// per account, platform links one per account, platform and host, and
+// usage counters one per account, kind and day.
+type Keyed = "preferences" | "budgets" | "platformLinks" | "usageCounters";
+const KEYED: readonly string[] = ["preferences", "budgets", "platformLinks", "usageCounters"];
 const withIds = (Object.keys(rows) as (keyof typeof rows)[]).filter(
   (n): n is Exclude<keyof typeof rows, Keyed> => !KEYED.includes(n),
 );

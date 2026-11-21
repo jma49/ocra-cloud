@@ -34,10 +34,25 @@ export const EXPORTED = {
   usageCounters: "usage",
   repositories: "repositories",
   budgets: "budgets",
+  platformLinks: "platforms",
 } as const satisfies Record<Table, string>;
 
 // How a table's row is shown; any other table's row loses only its account id.
 const SHAPES: Partial<Record<Table, (row: never) => unknown>> = {
+  // Never the token: only that one is held, and until when.
+  platformLinks: (g: {
+    platform: string;
+    host: string;
+    accessExpiresAt: Date | null;
+    refreshExpiresAt: Date | null;
+    createdAt: Date;
+  }) => ({
+    platform: g.platform,
+    host: g.host,
+    accessExpiresAt: g.accessExpiresAt,
+    refreshExpiresAt: g.refreshExpiresAt,
+    createdAt: g.createdAt,
+  }),
   // Never the encrypted key: provider, last four and when it was checked.
   providerKeys: (k: {
     provider: string;

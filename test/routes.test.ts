@@ -28,6 +28,8 @@ const ACCESS: Record<string, Access> = {
   "GET /api/export": "web",
   "GET /api/findings": "web",
   "GET /api/budget": "web",
+  "GET /api/platforms/repos": "web",
+  "POST /api/platforms/sync-names": "web",
   "PUT /api/budget": "web",
   "GET /api/findings/insights": "web",
   "GET /api/repositories": "web",

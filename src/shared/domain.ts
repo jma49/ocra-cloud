@@ -53,3 +53,7 @@ export const DISMISS_REASONS = [
   "already_known",
 ] as const;
 export type DismissReason = (typeof DISMISS_REASONS)[number];
+
+/** The code platforms an account can connect: GitHub and GitLab, hosted or self-hosted. */
+export const CODE_PLATFORMS = ["github", "gitlab"] as const;
+export type CodePlatformKind = (typeof CODE_PLATFORMS)[number];

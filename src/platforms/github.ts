@@ -1,0 +1,74 @@
+import { platformCall } from "./http.js";
+import type { CodePlatform, PlatformRepo, TokenAnswer } from "./platform.js";
+
+// GitHub, through the ocra Cloud GitHub App: the user's expiring token
+// (8 hours, with a single-use refresh token) reads the App's installations
+// the user can see and their repositories.
+
+const API = "https://api.github.com";
+/** Bounds the calls of one request (Workers' subrequest limit). */
+const MAX_INSTALLATIONS = 10;
+
+type Installation = { id: number };
+type Repo = { id: number; full_name: string; private: boolean; html_url: string };
+
+export function github(client: { id: string; secret: string }): CodePlatform {
+  const get = <T>(token: string, path: string) =>
+    platformCall<T>(`${API}${path}`, {
+      headers: {
+        authorization: `Bearer ${token}`,
+        accept: "application/vnd.github+json",
+        "x-github-api-version": "2022-11-28",
+        "user-agent": "ocra-cloud",
+      },
+    });
+  return {
+    kind: "github",
+    host: "github.com",
+    refresh: (refreshToken) =>
+      platformCall<TokenAnswer>("https://github.com/login/oauth/access_token", {
+        method: "POST",
+        headers: { accept: "application/json", "content-type": "application/json" },
+        body: JSON.stringify({
+          client_id: client.id,
+          client_secret: client.secret,
+          grant_type: "refresh_token",
+          refresh_token: refreshToken,
+        }),
+      }),
+    async listRepos(token) {
+      const installs = await get<{ installations: Installation[] }>(
+        token,
+        "/user/installations?per_page=100",
+      );
+      if (!installs) return null;
+      const picked = installs.installations.slice(0, MAX_INSTALLATIONS);
+      const pages = await Promise.all(
+        picked.map((i) =>
+          get<{ repositories: Repo[] }>(
+            token,
+            `/user/installations/${i.id}/repositories?per_page=100`,
+          ),
+        ),
+      );
+      const seen = new Set<number>();
+      const repositories: PlatformRepo[] = [];
+      for (const r of pages.flatMap((p) => p?.repositories ?? [])) {
+        if (seen.has(r.id)) continue;
+        seen.add(r.id);
+        repositories.push({
+          id: String(r.id),
+          fullName: r.full_name,
+          url: r.html_url,
+          private: r.private,
+        });
+      }
+      return {
+        repositories,
+        more:
+          installs.installations.length > MAX_INSTALLATIONS ||
+          pages.some((p) => (p?.repositories.length ?? 0) >= 100),
+      };
+    },
+  };
+}
