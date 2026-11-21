@@ -1,12 +1,10 @@
 import type { EffortStyle, ProviderId } from "@open-cr-agent/cloud-contract";
-import { Hono } from "hono";
 import type { ProviderGroup } from "./shared/index.js";
-import type { AppEnv } from "./types.js";
 
-// The model providers the gateway forwards to, one record each: how the web
+// The built-in model providers the gateway forwards to, one record each: how the web
 // shows it, where it is, the only paths the gateway forwards to it, and how
 // a stored key is checked and its models listed. Exactly the contract's
-// PROVIDER_IDS. A request to any other provider or path is refused. Every
+// PROVIDER_IDS; ./catalog.ts adds a self-hosted server's own. Every
 // endpoint here answered 401 or 403 to a request with a wrong key (checked
 // 2026-10-04), so it exists and wants a key.
 
@@ -21,7 +19,7 @@ export type AuthStyle =
   // The Gemini API's native endpoints.
   | "goog";
 
-export type Route = {
+type Route = {
   /** The path after the provider, exactly, or a pattern for paths with a model name. */
   path: string | RegExp;
   auth: AuthStyle;
@@ -48,6 +46,8 @@ export type Provider = {
   models?: KeyCall;
   /** How the CLI's direct runtime sends a reasoning effort; absent, OpenAI's `reasoning_effort`. */
   effort?: EffortStyle;
+  /** The server's own key, which every account's calls use (a self-hosted MODEL_ENDPOINTS entry). */
+  sharedKey?: string;
 };
 
 const chat = (path = "/v1/chat/completions"): Route => ({ path, auth: "bearer" });
@@ -340,25 +340,6 @@ export const providers: Readonly<Record<ProviderId, Provider>> = {
   },
 };
 
-export type ProviderName = ProviderId;
-
-export function isProvider(name: string): name is ProviderName {
-  return Object.hasOwn(providers, name);
-}
-
-/**
- * Whether the provider has an OpenAI-compatible chat route, the one the CLI
- * declares a gateway provider with (packages/cli/src/review/cloud-providers.ts).
- */
-export function hasChatRoute(name: string): boolean {
-  return (
-    isProvider(name) &&
-    providers[name].routes.some(
-      (r) => typeof r.path === "string" && r.path.endsWith("/chat/completions"),
-    )
-  );
-}
-
 export type Match = { route: Route; model: string | null };
 
 /** The route this path takes at this provider, with a model named in the path. */
@@ -387,26 +368,3 @@ export const PASS_HEADERS = ["anthropic-version", "anthropic-beta"] as const;
 export function modelsCall(p: Provider): KeyCall | undefined {
   return p.models ?? (p.verify?.path.endsWith("/models") ? p.verify : undefined);
 }
-
-/**
- * GET /api/providers: the providers and paths the gateway forwards, for the
- * web app and the CLI. It needs no session and changes only with a deploy,
- * so a browser keeps it an hour instead of asking the Worker on every page
- * (audit C1).
- */
-export const providersRoute = new Hono<AppEnv>().get("/", (c) =>
-  c.json(
-    {
-      providers: Object.entries(providers).map(([name, p]) => ({
-        name,
-        label: p.label,
-        group: p.group,
-        base: p.base,
-        paths: p.routes.map((r) => (typeof r.path === "string" ? r.path : r.path.source)),
-        ...(p.effort ? { effort: p.effort } : {}),
-      })),
-    },
-    200,
-    { "cache-control": "public, max-age=3600" },
-  ),
-);

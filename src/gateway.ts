@@ -1,19 +1,21 @@
 import { Hono } from "hono";
 import { readText } from "./body.js";
+import { catalogOf } from "./catalog.js";
 import { config } from "./config.js";
 import { deadline } from "./deadline.js";
 import { defer } from "./defer.js";
 import { apiError } from "./http.js";
 import { keyFor, masterKeys } from "./keyring.js";
-import { applyAuth, isProvider, matchRoute, PASS_HEADERS, providers } from "./providers.js";
+import { applyAuth, matchRoute, PASS_HEADERS } from "./providers.js";
 import { perMinute, retryTomorrow } from "./rate.js";
 import { requireSession } from "./session.js";
 import type { AppEnv } from "./types.js";
 
-// Forwards one model call with the user's stored key. The request body goes
-// upstream as sent and the answer streams back as it comes; the gateway
-// reads only the model name from the request and the token counts from the
-// first and last bytes of the answer. Bodies are never logged or stored.
+// Forwards one model call with the user's stored key, or the server's own
+// for a provider it holds one for. The request body goes upstream as sent
+// and the answer streams back as it comes; the gateway reads only the model
+// name from the request and the token counts from the first and last bytes
+// of the answer. Bodies are never logged or stored.
 
 const MAX_BODY = 8 * 1024 * 1024;
 const EDGE = 16 * 1024;
@@ -28,16 +30,17 @@ export const gateway = new Hono<AppEnv>().use(requireSession(["web", "cli"]), pe
 
 gateway.post("/:provider/*", async (c) => {
   const name = c.req.param("provider");
-  if (!isProvider(name)) return apiError(c, "unknown_provider");
+  const provider = catalogOf(c.env).get(name);
+  if (!provider) return apiError(c, "unknown_provider");
   const path = c.req.path.slice(`/api/gateway/${name}`.length);
-  const match = matchRoute(providers[name], path);
+  const match = matchRoute(provider, path);
   if (!match) return apiError(c, "path_not_allowed");
 
   // Counted as it arrives, so a chunked body without a length is bounded too.
   const body = await readText(c, MAX_BODY);
 
   const data = c.var.data;
-  const key = await keyFor(data, masterKeys(c.env), name);
+  const key = provider.sharedKey ?? (await keyFor(data, masterKeys(c.env), name));
   if (!key) return apiError(c, "no_key", { provider: name });
   const model = match.model ?? topLevelModel(body);
 
@@ -63,7 +66,7 @@ gateway.post("/:provider/*", async (c) => {
     if (v) headers.set(h, v);
   }
   applyAuth(headers, match.route.auth, key);
-  const target = new URL(providers[name].base + path);
+  const target = new URL(provider.base + path);
   for (const q of match.route.query ?? []) {
     const v = c.req.query(q);
     if (v !== undefined) target.searchParams.set(q, v);

@@ -1,3 +1,4 @@
+import { catalogOf } from "../catalog.js";
 import type { AppBindings } from "../types.js";
 import { memoryRateLimit } from "./limits.js";
 
@@ -20,6 +21,8 @@ const OPTIONAL = [
   "GITLAB_CLIENT_ID",
   "GITLAB_CLIENT_SECRET",
   "GITLAB_URL",
+  "MODEL_ENDPOINTS",
+  "BUILTIN_PROVIDERS",
 ] as const;
 
 const DEFAULTS = {
@@ -32,7 +35,8 @@ const DEFAULTS = {
 
 /**
  * The app's bindings from `vars`; throws naming every required variable that
- * is missing, and when no way to sign in is complete.
+ * is missing, when no way to sign in is complete, and on malformed model
+ * endpoints.
  */
 export function bindingsFrom(vars: Record<string, string | undefined>): AppBindings {
   const missing = SECRETS.filter((name) => !vars[name]);
@@ -46,6 +50,7 @@ export function bindingsFrom(vars: Record<string, string | undefined>): AppBindi
   const optional = Object.fromEntries(
     OPTIONAL.flatMap((name) => (vars[name] ? [[name, vars[name]]] : [])),
   ) as Partial<Record<(typeof OPTIONAL)[number], string>>;
+  catalogOf(optional);
   return {
     ...optional,
     MASTER_KEY: vars.MASTER_KEY as string,

@@ -15,12 +15,16 @@ export type ProviderInfo = {
   group: ProviderGroup;
   base: string;
   paths: string[];
+  /** The server holds this provider's key; accounts store none. */
+  managed?: boolean;
 };
 export type CheckStatus = "ok" | "invalid" | "error" | "unchecked";
 export type Key = {
   provider: string;
-  last4: string;
-  createdAt: string;
+  /** The server's own key: nothing to replace or delete, and no last4 or date. */
+  managed: boolean;
+  last4: string | null;
+  createdAt: string | null;
   checkStatus: CheckStatus | null;
   checkedAt: string | null;
   checkable: boolean;

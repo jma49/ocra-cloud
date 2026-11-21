@@ -26,7 +26,7 @@ export type Rule = NonNullable<
   import("@open-cr-agent/cloud-contract").ReviewSettings["rules"]
 >[number];
 
-export type ProviderGroup = "Major" | "China" | "Platforms";
+export type ProviderGroup = "Major" | "China" | "Platforms" | "Company";
 
 /**
  * The `reason` of a forbidden_for_session refusal of a web session whose

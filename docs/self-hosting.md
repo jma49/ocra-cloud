@@ -38,12 +38,42 @@ Without Docker: `npm ci && npm run build:web && npm run build:node`, then `node 
 | `GITLAB_URL` | for a self-hosted GitLab | the instance, such as `https://gitlab.example.com`; `https://gitlab.com` when unset |
 | `PUBLIC_URL` | behind a TLS proxy | the address people open, such as `https://ocra.example.com` |
 | `TRUSTED_PROXY_HOPS` | behind a proxy | how many proxies in front append to `X-Forwarded-For` (1 for one TLS proxy); the login code limits count by the address read past them. 0, the socket's peer, when unset |
+| `MODEL_ENDPOINTS` | for company models | the company's own OpenAI-compatible model endpoints, as JSON (Company models below) |
+| `BUILTIN_PROVIDERS` | no | `off` forwards to `MODEL_ENDPOINTS` only, never to the public providers; `on` when unset |
 | `CODE_GRAPH` | no | what the server does with code graphs: `keep` (the default), `opt-in` (only for repositories added with the owner's consent) or `off` (none kept; the daily retention deletes any that are) |
 | `DATABASE_URL` | no | a libSQL URL; `file:/data/ocra-cloud.db` in the image |
 | `PORT` | no | 8787 |
 | `GATEWAY_DAILY_CALLS`, `REVIEW_DAILY_UPLOADS`, `REVIEW_MAX_FINDINGS`, `DEVICE_DAILY_CODES`, `DEVICE_DAILY_CODES_PER_NETWORK` | no | the Worker's defaults (`wrangler.jsonc`) |
 
 Serve it over HTTPS: session cookies are `__Host-` cookies, which browsers keep only on secure origins.
+
+## Company models
+
+`MODEL_ENDPOINTS` declares the company's own model endpoints, such as an internal gateway in front of vLLM or a hosted model, as a JSON list:
+
+```json
+[
+  {
+    "id": "corp",
+    "label": "Corp LLM",
+    "base": "https://llm.corp.example/openai",
+    "models": "/v1/models",
+    "key": "the server's key for it"
+  }
+]
+```
+
+| Field | Required | Meaning |
+|---|---|---|
+| `id` | yes | lowercase letters, digits and `-`, not a built-in provider's id; models are named `ocra-<id>/<model>`, such as `ocra-corp/qwen3-coder` |
+| `label` | yes | the name the console shows |
+| `base` | yes | an http or https URL without credentials, query or fragment; the paths are appended to it |
+| `paths` | no | the paths the gateway forwards, `["/v1/chat/completions"]` when unset; the CLI needs one ending in `/chat/completions` |
+| `auth` | no | `bearer` (the default) or `x-api-key`: how the key goes on the request |
+| `models` | no | a GET that lists the models in OpenAI's shape; it also checks a key |
+| `key` | no | the server's own key: every account's calls use it and nobody stores one. Without it, each person adds their own key for the endpoint on the keys page |
+
+The endpoints appear in the console's "Your company" group, and the CLI reaches them through the gateway like any other provider, with the same metering and daily caps. A declaration the server cannot read stops it from starting, naming the field. Keep the filled-in environment file secret when it holds a `key`.
 
 ## Code graphs
 
