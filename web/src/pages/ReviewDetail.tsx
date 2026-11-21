@@ -104,7 +104,7 @@ export function ReviewDetail(props: { id: string }) {
           </span>
         }
       />
-      <div className="stats stats-4">
+      <div className="stats">
         <div className="card stat">
           <div className="stat-label">Result</div>
           <div className="stat-value stat-word">
