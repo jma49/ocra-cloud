@@ -3,6 +3,7 @@ import { loadKeys } from "./account-keys.js";
 import type { Me } from "./api.js";
 import { Activity } from "./pages/Activity.js";
 import { Agents } from "./pages/Agents.js";
+import { BudgetPage } from "./pages/Budget.js";
 import { Findings } from "./pages/Findings.js";
 import { Insights } from "./pages/Insights.js";
 import { Keys } from "./pages/Keys.js";
@@ -119,6 +120,11 @@ const ROUTES: readonly Route[] = [
     path: "/memory",
     nav: { label: "Memory", icon: "check", group: "Configure" },
     page: () => <Memory />,
+  },
+  {
+    path: "/budget",
+    nav: { label: "Budget", icon: "sliders", group: "Configure" },
+    page: () => <BudgetPage />,
   },
   {
     path: "/defaults",

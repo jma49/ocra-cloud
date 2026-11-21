@@ -148,6 +148,13 @@
       "when": 1795259198836,
       "tag": "0020_repositories",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "6",
+      "when": 1795259654167,
+      "tag": "0021_budgets",
+      "breakpoints": true
     }
   ]
 }

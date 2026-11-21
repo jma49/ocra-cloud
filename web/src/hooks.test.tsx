@@ -64,7 +64,16 @@ describe("the routes", () => {
       ["Console", ["/", "/activity", "/reviews", "/findings", "/insights", "/repositories"]],
       [
         "Configure",
-        ["/keys", "/agents", "/review-settings", "/rules", "/plugins", "/memory", "/defaults"],
+        [
+          "/keys",
+          "/agents",
+          "/review-settings",
+          "/rules",
+          "/plugins",
+          "/memory",
+          "/budget",
+          "/defaults",
+        ],
       ],
       ["Account", ["/sessions", "/settings"]],
     ]);
