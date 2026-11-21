@@ -115,6 +115,19 @@ describe("query plans", () => {
     for (const p of [all, repo]) expect(p).not.toMatch(/\bSCAN\b|TEMP B-TREE/);
   });
 
+  it("the findings inbox walks the (account_id, status, created_at, id) index for a status", async () => {
+    const seen: Captured[] = [];
+    const d = scoped(drizzle(recording(seen)), "acct");
+    await d.inbox({ status: "open" }, 50);
+    await d.findingStatusCounts();
+    const [list, counts] = await Promise.all(seen.map(plan));
+    expect(list).toMatch(/SEARCH findings USING INDEX findings_account_status_created/);
+    expect(list).not.toMatch(/\bSCAN\b|TEMP B-TREE/);
+    expect(counts).toMatch(
+      /SEARCH findings USING (COVERING )?INDEX findings_account_status_created/,
+    );
+  });
+
   it("a review's findings are found by review_id, for the delete's cascade", async () => {
     const p = await plan({ sql: "SELECT id FROM findings WHERE review_id = ?", params: ["r"] });
     expect(p).toMatch(/SEARCH findings USING (COVERING )?INDEX findings_review/);
@@ -134,7 +147,7 @@ async function plansOf(path: string, init: CallInit): Promise<string[]> {
 
 // Audit C1: a cap is checked by reading the account's counter rows, not by
 // counting its reviews, findings or calls, which grow with use.
-const COUNTED = /\b(findings_account|reviews_account_created|gateway_calls_account_created)\b/;
+const COUNTED = /\b(findings_account\w*|reviews_account_created|gateway_calls_account_created)\b/;
 
 describe("checking a cap", () => {
   it("an upload with findings counts none of the account's records", async () => {

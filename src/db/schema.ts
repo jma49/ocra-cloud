@@ -16,7 +16,14 @@ import {
   text,
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
-import type { AgentPrefs, ModelChains, ReviewerCounts, ReviewSettings } from "../shared/index.js";
+import {
+  type AgentPrefs,
+  DISMISS_REASONS,
+  FINDING_STATUSES,
+  type ModelChains,
+  type ReviewerCounts,
+  type ReviewSettings,
+} from "../shared/index.js";
 
 // Every table but accounts carries accountId, and is read and written only
 // through scoped() in ./scoped.ts, which filters by it. The isolation test
@@ -264,9 +271,21 @@ export const findings = sqliteTable(
     redacted: integer("redacted", { mode: "boolean" }).notNull().default(false),
     truncated: integer("truncated", { mode: "boolean" }).notNull().default(false),
     createdAt: createdAt(),
+    // What the account decided about the finding in the console; after
+    // createdAt, in the order the migration added them (insertReview names
+    // every column in this order).
+    status: text("status", { enum: FINDING_STATUSES }).notNull().default("open"),
+    reason: text("reason", { enum: DISMISS_REASONS }),
+    note: text("note"),
+    decidedAt: integer("decided_at", { mode: "timestamp_ms" }),
   },
   // review_id: a review's delete cascades here (by the user or retention).
-  (t) => [index("findings_account").on(t.accountId), index("findings_review").on(t.reviewId)],
+  // findings_account_status_created leads with account_id, so it also
+  // serves every read by account: one index per finding row written.
+  (t) => [
+    index("findings_review").on(t.reviewId),
+    index("findings_account_status_created").on(t.accountId, t.status, t.createdAt, t.id),
+  ],
 );
 
 // Findings the account remembers (ADR-0028, 4), applied with a repository's

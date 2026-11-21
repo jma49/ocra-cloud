@@ -26,6 +26,8 @@ const ACCESS: Record<string, Access> = {
   "GET /api/sessions": "web",
   "DELETE /api/sessions/:id": "web",
   "GET /api/export": "web",
+  "GET /api/findings": "web",
+  "POST /api/findings/decide": "web",
   "DELETE /api/account": "web",
   "GET /api/account/sharing": "web",
   "PUT /api/account/sharing": "web",

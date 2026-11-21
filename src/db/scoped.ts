@@ -22,6 +22,15 @@ import {
   findingsCounted,
   uncountOne,
 } from "./counters.js";
+import {
+  type Decision,
+  decide,
+  findingStatusCounts,
+  type InboxCursor,
+  type InboxFilter,
+  inbox,
+  rememberFindings,
+} from "./inbox.js";
 import { type PreferencesSave, savePreferences } from "./preferences.js";
 import { accountTables } from "./schema.js";
 
@@ -277,7 +286,7 @@ export function scoped(db: DrizzleD1Database, accountId: string) {
           json_extract(value, '$.suggestion'), json_extract(value, '$.code'),
           coalesce(json_extract(value, '$.redacted'), 0),
           coalesce(json_extract(value, '$.truncated'), 0),
-          unixepoch('subsec') * 1000
+          unixepoch('subsec') * 1000, 'open', NULL, NULL, NULL
         FROM json_each(${rows})
         WHERE EXISTS (SELECT 1 FROM reviews WHERE id = ${review.id} AND account_id = ${accountId})
           AND ${findingsCounted(accountId, now)} + ${list.length} <= ${limits.maxFindings}`);
@@ -318,6 +327,19 @@ export function scoped(db: DrizzleD1Database, accountId: string) {
         rows: rows.map(({ seq: _s, ...r }) => r as unknown as Row<N>),
         next: rows.length === limit && last ? last.seq : null,
       };
+    },
+    /** The account's findings across its reviews (./inbox.ts). */
+    inbox(filter: InboxFilter, limit: number, after?: InboxCursor) {
+      return inbox(db, accountId, filter, limit, after);
+    },
+    findingStatusCounts() {
+      return findingStatusCounts(db, accountId);
+    },
+    decide(ids: readonly string[], decision: Decision): Promise<number> {
+      return decide(db, accountId, ids, decision);
+    },
+    rememberFindings(ids: readonly string[], reason: string, cap: number) {
+      return rememberFindings(db, accountId, ids, reason, cap);
     },
     /** The findings of one of this account's reviews. */
     findingsOf(reviewId: string): Promise<Row<"findings">[]> {
