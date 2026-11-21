@@ -33,6 +33,7 @@ export const EXPORTED = {
   accountMemory: "memory",
   usageCounters: "usage",
   repositories: "repositories",
+  budgets: "budgets",
 } as const satisfies Record<Table, string>;
 
 // How a table's row is shown; any other table's row loses only its account id.

@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { scoped } from "../src/db/scoped.js";
 import { parseUsage, topLevelModel } from "../src/gateway.js";
 import app from "../src/index.js";
-import { call, db, request, resetDb, signIn } from "./helpers.js";
+import { call, db, ORIGIN, request, resetDb, signIn } from "./helpers.js";
 
 const KEY = "sk-or-v1-0123456789abcdef";
 const PROMPT = "PROMPT-BODY-should-never-be-logged";
@@ -245,6 +245,39 @@ describe("gateway", () => {
     const capped = await post();
     expect(capped.status).toBe(429);
     expect(await capped.json()).toMatchObject({ error: "daily_limit", limit: 3 });
+  });
+
+  it("stops at the account's own daily budget when it is under the cap", async () => {
+    const { auth } = await withKey();
+    upstreamFake(() => Response.json({ usage: { prompt_tokens: 1, completion_tokens: 1 } }));
+    const set = await call("/api/budget", {
+      method: "PUT",
+      auth,
+      headers: { origin: ORIGIN },
+      json: { dailyCalls: 2 },
+    });
+    expect(await set.json()).toMatchObject({ dailyCalls: 2, callsToday: 0, serviceDailyCalls: 3 });
+    const post = () =>
+      call("/api/gateway/openrouter/v1/chat/completions", {
+        method: "POST",
+        auth: auth,
+        json: chatRequest(false),
+      });
+    for (let i = 0; i < 2; i++) expect((await post()).status).toBe(200);
+    const capped = await post();
+    expect(capped.status).toBe(429);
+    expect(await capped.json()).toMatchObject({ error: "daily_limit", limit: 2 });
+    const now = (await (await call("/api/budget", { auth })).json()) as { callsToday: number };
+    expect(now.callsToday).toBe(2);
+
+    await call("/api/budget", {
+      method: "PUT",
+      auth,
+      headers: { origin: ORIGIN },
+      json: { dailyCalls: null },
+    });
+    expect((await post()).status).toBe(200);
+    expect((await post()).status).toBe(429);
   });
 
   it("forwards at most the cap of parallel calls", async () => {

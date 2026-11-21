@@ -3,7 +3,7 @@ import type { BatchItem } from "drizzle-orm/batch";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import { DAY, utcDay } from "../time.js";
 import { RETENTION_DAYS } from "./retention.js";
-import { usageCounters } from "./schema.js";
+import { budgets, usageCounters } from "./schema.js";
 
 // An account's use, counted as it happens (audit C1): a cap reads the
 // account's counter rows, never counts its records, so checking it costs
@@ -34,6 +34,32 @@ export async function countOne(
       target: [c.accountId, c.kind, c.day],
       set: { n: sql`${c.n} + 1` },
       setWhere: sql`${c.n} < ${cap}`,
+    })
+    .returning({ n: c.n });
+  return counted.length > 0;
+}
+
+/**
+ * countOne for a gateway call, under the smaller of cap and the account's
+ * own daily budget (budgets.daily_calls), read in the same statement.
+ */
+export async function countCall(
+  db: DrizzleD1Database,
+  accountId: string,
+  cap: number,
+  now: Date,
+): Promise<boolean> {
+  if (!(cap >= 1)) return false;
+  const limit = sql`min(${cap}, coalesce((SELECT ${budgets.dailyCalls} FROM ${budgets}
+    WHERE ${budgets.accountId} = ${accountId}), ${cap}))`;
+  // A day's first call is always within a budget: the smallest is 1.
+  const counted = await db
+    .insert(c)
+    .values({ accountId, kind: "gateway_calls", day: utcDay(now), n: 1 })
+    .onConflictDoUpdate({
+      target: [c.accountId, c.kind, c.day],
+      set: { n: sql`${c.n} + 1` },
+      setWhere: sql`${c.n} < ${limit}`,
     })
     .returning({ n: c.n });
   return counted.length > 0;

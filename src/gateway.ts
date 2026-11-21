@@ -45,9 +45,11 @@ gateway.post("/:provider/*", async (c) => {
   // forwarding too, so a call that never finishes still shows in the log;
   // it is updated at the end.
   const cap = config(c.env).gatewayDailyCalls;
-  if (!(await data.take("gateway_calls", cap))) {
+  if (!(await data.takeCall(cap))) {
     retryTomorrow(c);
-    return apiError(c, "daily_limit", { limit: cap });
+    // Read only on a refusal: the account's own budget, when it is the smaller.
+    const own = (await data.findOne("budgets", {}))?.dailyCalls;
+    return apiError(c, "daily_limit", { limit: own != null && own < cap ? own : cap });
   }
   const id = await data.insert("gatewayCalls", { provider: name, path, model, status: PENDING });
 

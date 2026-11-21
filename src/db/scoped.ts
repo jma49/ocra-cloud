@@ -16,6 +16,7 @@ import type { BatchItem } from "drizzle-orm/batch";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
 import {
+  countCall,
   countFindingsOf,
   countOne,
   type DailyKind,
@@ -190,6 +191,10 @@ export function scoped(db: DrizzleD1Database, accountId: string) {
     /** Counts one more of kind today, unless today's count is at cap; returns whether it did. */
     take(kind: DailyKind, cap: number, now = new Date()): Promise<boolean> {
       return countOne(db, accountId, kind, cap, now);
+    },
+    /** take("gateway_calls") under the account's own budget too (./counters.ts). */
+    takeCall(cap: number, now = new Date()): Promise<boolean> {
+      return countCall(db, accountId, cap, now);
     },
     /**
      * Remembers a finding for a repository in one statement, so parallel

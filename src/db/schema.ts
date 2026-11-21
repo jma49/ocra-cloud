@@ -324,6 +324,14 @@ export const usageCounters = sqliteTable(
   (t) => [primaryKey({ columns: [t.accountId, t.kind, t.day] })],
 );
 
+// The account's own limits, under the service's: one row per account.
+// dailyCalls caps the gateway's calls a UTC day; null leaves the service's.
+export const budgets = sqliteTable("budgets", {
+  accountId: accountId().primaryKey(),
+  dailyCalls: integer("daily_calls"),
+  createdAt: createdAt(),
+});
+
 // The name the account gave a repository the CLI knows only by its hash
 // (ADR-0028 keeps uploads to the hash). Kept until the account clears it.
 export const repositories = sqliteTable(
@@ -351,4 +359,5 @@ export const accountTables = {
   accountMemory,
   usageCounters,
   repositories,
+  budgets,
 } as const;

@@ -24,6 +24,7 @@ const changes = {
   accountMemory: { reason: "changed" },
   usageCounters: { n: 9 },
   repositories: { name: "octo/changed" },
+  budgets: { dailyCalls: 7 },
 } satisfies { [N in keyof typeof rows]: Record<string, unknown> };
 
 // Storage persists across tests in a file; deleting the accounts cascades.
@@ -82,11 +83,12 @@ it("covers every table with a foreign key to accounts, whatever the column's nam
   expect(Object.keys(rows).sort()).toEqual(Object.keys(schema.accountTables).sort());
 });
 
-// Tables whose rows have their own id; preferences is one row per account,
-// and usage counters one per account, kind and day.
-type Keyed = "preferences" | "usageCounters";
+// Tables whose rows have their own id; preferences and budgets are one row
+// per account, and usage counters one per account, kind and day.
+type Keyed = "preferences" | "budgets" | "usageCounters";
+const KEYED: readonly string[] = ["preferences", "budgets", "usageCounters"];
 const withIds = (Object.keys(rows) as (keyof typeof rows)[]).filter(
-  (n): n is Exclude<keyof typeof rows, Keyed> => n !== "preferences" && n !== "usageCounters",
+  (n): n is Exclude<keyof typeof rows, Keyed> => !KEYED.includes(n),
 );
 
 describe.each(withIds)("%s", (name) => {
@@ -130,6 +132,19 @@ describe.each(withIds)("%s", (name) => {
     await a.update(name, "row-3", { ...changes[name], accountId: B } as never);
     expect(await a.get(name, "row-3")).toMatchObject({ accountId: A });
     expect(await scoped(db, B).list(name)).toEqual([]);
+  });
+});
+
+describe("budgets, one row per account", () => {
+  it("one account cannot read, change or delete another's row", async () => {
+    const a = scoped(db, A);
+    const b = scoped(db, B);
+    await a.batch((w) => [w.upsert("budgets", { dailyCalls: 5 }, ["accountId"])]);
+    expect(await b.findOne("budgets", {})).toBeUndefined();
+    expect(await b.removeWhere("budgets", {})).toBe(0);
+    await b.batch((w) => [w.upsert("budgets", changes.budgets, ["accountId"])]);
+    expect(await a.findOne("budgets", {})).toMatchObject({ accountId: A, dailyCalls: 5 });
+    expect(await b.findOne("budgets", {})).toMatchObject({ accountId: B, dailyCalls: 7 });
   });
 });
 
