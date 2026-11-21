@@ -80,7 +80,7 @@ describe("retention", () => {
       { name: "device_codes:k2", day: utcDay(now), n: 1 },
     ]);
     await enforceRetention(db, now);
-    const left = await db.select().from(schema.serviceCounters).all();
+    const left = await db.select().from(schema.serviceCounters);
     expect(left.map((r) => r.name).sort()).toEqual(["device_codes", "device_codes:k2"]);
     expect(left.every((r) => r.day === utcDay(now))).toBe(true);
   });
@@ -134,7 +134,7 @@ describe("retention", () => {
     // The sign-in's own session is live; the expired one is gone.
     expect((await d.list("sessions")).map((s) => s.id)).not.toContain("dead");
     expect(await d.list("sessions")).toHaveLength(1);
-    expect(await db.select().from(schema.deviceCodes).all()).toEqual([]);
+    expect(await db.select().from(schema.deviceCodes)).toEqual([]);
     expect(log).toHaveBeenCalledTimes(1);
     expect(log.mock.calls[0]).toEqual([
       { level: "error", event: "retention_failed", table: "reviews", error: "Error" },
@@ -195,9 +195,13 @@ describe("export and deletion", () => {
     // The findings' review first (the foreign key needs it), then one row per table.
     await d.insert("reviews", rows.reviews("review-of-a"));
     for (const [table, row] of Object.entries(rows)) {
-      if (table === "reviews") continue;
+      if (table === "reviews" || table === "graphBuilds") continue;
       await d.insert(table as keyof typeof rows, row(`x-${table}`) as never);
     }
+    await d.insert("graphBuilds", {
+      ...rows.graphBuilds("x-graphBuilds"),
+      graphRepoId: "x-graphRepos",
+    });
     await setSharing(db, me.account.id, true);
     const salt = await accountSalt(db, me.account.id);
 

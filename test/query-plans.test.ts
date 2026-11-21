@@ -63,6 +63,8 @@ const TABLE: Record<string, string> = {
   budgets: "budgets",
   platformLinks: "platform_links",
   pullViews: "pull_views",
+  graphRepos: "graph_repos",
+  graphBuilds: "graph_builds",
 };
 
 describe("query plans", () => {
@@ -224,6 +226,7 @@ describe("retention", () => {
       "audit_events",
       "device_codes",
       "gateway_calls",
+      "rate_windows",
       "reviews",
       "service_counters",
       "sessions",

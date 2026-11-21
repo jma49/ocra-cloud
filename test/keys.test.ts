@@ -18,7 +18,10 @@ const answer = (status: number, body = "{}") =>
 describe("checking a key", () => {
   it("asks the provider's key-checking route with the key", async () => {
     const fake = answer(200);
-    expect(await checkKey("anthropic", "sk-ant-x")).toEqual({ status: "ok", httpStatus: 200 });
+    expect(await checkKey(providers.anthropic, "sk-ant-x")).toEqual({
+      status: "ok",
+      httpStatus: 200,
+    });
     const [input, init] = fake.mock.calls[0] ?? [];
     expect(String(input)).toBe("https://api.anthropic.com/v1/models");
     const h = new Headers(init?.headers);
@@ -29,30 +32,30 @@ describe("checking a key", () => {
 
   it("tells a rejected key from other failures", async () => {
     answer(401);
-    expect((await checkKey("openai", "k")).status).toBe("invalid");
+    expect((await checkKey(providers.openai, "k")).status).toBe("invalid");
     answer(403);
-    expect((await checkKey("openai", "k")).status).toBe("invalid");
+    expect((await checkKey(providers.openai, "k")).status).toBe("invalid");
     answer(400, '{"error":{"message":"API key not valid"}}');
-    expect((await checkKey("gemini", "k")).status).toBe("invalid");
+    expect((await checkKey(providers.gemini, "k")).status).toBe("invalid");
     answer(400, '{"error":"bad model"}');
-    expect((await checkKey("gemini", "k")).status).toBe("error");
+    expect((await checkKey(providers.gemini, "k")).status).toBe("error");
     answer(503);
-    expect(await checkKey("openai", "k")).toEqual({ status: "error", httpStatus: 503 });
+    expect(await checkKey(providers.openai, "k")).toEqual({ status: "error", httpStatus: 503 });
     vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("down"));
-    expect(await checkKey("openai", "k")).toEqual({ status: "error" });
+    expect(await checkKey(providers.openai, "k")).toEqual({ status: "error" });
   });
 
   it("does not follow a redirect with the key (#15)", async () => {
     const fake = answer(302);
-    expect(await checkKey("openai", "k")).toEqual({ status: "error", httpStatus: 302 });
-    expect(await listModels("openai", "k")).toEqual([]);
+    expect(await checkKey(providers.openai, "k")).toEqual({ status: "error", httpStatus: 302 });
+    expect(await listModels(providers.openai, "k")).toEqual([]);
     expect(fake.mock.calls.map(([, init]) => init?.redirect)).toEqual(["manual", "manual"]);
   });
 
   it("does not check providers that list models without a key", async () => {
     const fake = answer(200);
     expect(providers.huggingface.verify).toBeUndefined();
-    expect(await checkKey("huggingface", "k")).toEqual({ status: "unchecked" });
+    expect(await checkKey(providers.huggingface, "k")).toEqual({ status: "unchecked" });
     expect(fake).not.toHaveBeenCalled();
   });
 });

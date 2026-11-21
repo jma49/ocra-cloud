@@ -1,9 +1,12 @@
 import { resolve } from "node:path";
 import { serve } from "@hono/node-server";
+import { pruneGraphBuilds } from "../db/graphs.js";
 import { enforceRetention } from "../db/retention.js";
+import { graphPolicy } from "../graph/policy.js";
 import { errorName, logError } from "../log.js";
-import { bindingsFrom } from "./env.js";
+import { bindingsFrom, migrateMode, trustedProxyHops } from "./env.js";
 import { openHost } from "./host.js";
+import { rateLimitStore } from "./limits.js";
 
 // The self-hosted server: `node --import tsx src/node/server.ts`, or the
 // Docker image. DATABASE_URL defaults to a SQLite file in the working
@@ -11,17 +14,35 @@ import { openHost } from "./host.js";
 // every variable.
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const keepGraphs = graphPolicy(process.env.CODE_GRAPH) !== "off";
 
+const migrate = migrateMode(process.env.MIGRATE);
 const host = await openHost({
   databaseUrl: process.env.DATABASE_URL || "file:ocra-cloud.db",
+  migrate: migrate !== "off",
+  rateLimits: rateLimitStore(process.env.RATE_LIMITS),
   bindings: bindingsFrom(process.env),
   migrations: resolve(process.env.MIGRATIONS_DIR || "migrations"),
   web: resolve(process.env.WEB_DIR || "web/dist"),
   ...(process.env.PUBLIC_URL ? { publicUrl: process.env.PUBLIC_URL } : {}),
+  trustedProxyHops: trustedProxyHops(process.env.TRUSTED_PROXY_HOPS),
 });
 
+if (migrate === "only") {
+  host.close();
+  console.log({ level: "info", event: "migrated" });
+  process.exit(0);
+}
+
 const retention = () =>
-  enforceRetention(host.db).catch((err) => logError("retention_failed", { error: errorName(err) }));
+  Promise.all([
+    enforceRetention(host.db).catch((err) =>
+      logError("retention_failed", { error: errorName(err) }),
+    ),
+    pruneGraphBuilds(host.db, keepGraphs).catch((err) =>
+      logError("retention_failed", { table: "graph_builds", error: errorName(err) }),
+    ),
+  ]);
 setInterval(retention, DAY_MS).unref();
 void retention();
 

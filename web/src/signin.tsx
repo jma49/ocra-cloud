@@ -1,6 +1,6 @@
 import { EyesMark } from "./eyes.js";
 import { anyProvider } from "./site.js";
-import { useProviders } from "./ui.js";
+import { signInHref, useProviders, useSignInMethods } from "./ui.js";
 import "./signin.css";
 
 // The signed-out screen, in the landing page's look (ocra-site DESIGN.md):
@@ -35,6 +35,7 @@ function Arrow() {
 export function SignIn(props: { next?: string | undefined }) {
   const device = props.next?.startsWith("/device");
   const providers = useProviders();
+  const methods = useSignInMethods();
   return (
     <div className="si">
       <div className="si-head">
@@ -63,15 +64,22 @@ export function SignIn(props: { next?: string | undefined }) {
             ? "After signing in you will confirm the code shown by ocra login."
             : "Sign in to manage provider keys and see what ocra does with them."}
         </p>
-        <a
-          className="si-btn"
-          href={`/api/auth/github/login${props.next ? `?next=${encodeURIComponent(props.next)}` : ""}`}
-        >
-          <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-            <path d={GITHUB_PATH} />
-          </svg>
-          Continue with GitHub <Arrow />
-        </a>
+        {methods?.map((method) => (
+          <a key={method.id} className="si-btn" href={signInHref(method, props.next)}>
+            {method.id === "github" && (
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 16 16"
+                fill="currentColor"
+                aria-hidden="true"
+              >
+                <path d={GITHUB_PATH} />
+              </svg>
+            )}
+            Continue with {method.name} <Arrow />
+          </a>
+        ))}
         <ul className="si-points">
           {points(providers?.length).map(([t, d]) => (
             <li key={t}>

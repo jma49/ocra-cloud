@@ -1,10 +1,27 @@
+import { resolve } from "node:path";
 import { cloudflareTest, readD1Migrations } from "@cloudflare/vitest-pool-workers";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
+import { TEST_BINDINGS } from "./test/bindings.js";
 
-// Three projects in one run: the Worker's tests in workerd, with a local D1;
-// the self-hosted server's on Node, with a SQLite file; the web app's in a
-// simulated browser.
+// Tests of D1 itself (its query plans, migrations written for it, its
+// binding replaced to count or fail statements) and of workerd's own
+// request streams and timers.
+const POSTGRES_EXCLUDE = [
+  "test/query-plans.test.ts",
+  "test/preferences-backfill.test.ts",
+  "test/usage-backfill.test.ts",
+  "test/upload-atomic.test.ts",
+  "test/logs.test.ts",
+  "test/health.test.ts",
+  "test/body-limits.test.ts",
+  "test/timeouts.test.ts",
+];
+
+// Four projects in one run: the Worker's tests in workerd, with a local D1;
+// the same tests on Node with Postgres (PGlite), but those that read D1
+// itself; the self-hosted server's on Node, with a SQLite file; the web
+// app's in a simulated browser.
 export default defineConfig({
   test: {
     projects: [
@@ -15,19 +32,7 @@ export default defineConfig({
             miniflare: {
               bindings: {
                 TEST_MIGRATIONS: await readD1Migrations("./migrations"),
-                GITHUB_CLIENT_SECRET: "test-client-secret",
-                MASTER_KEY: btoa(String.fromCharCode(...new Uint8Array(32).fill(7))),
-                SESSION_SECRET: "test-session-secret",
-                // A self-hosted GitLab, with a port the CLI's identity drops.
-                GITLAB_CLIENT_ID: "test-gitlab-app",
-                GITLAB_CLIENT_SECRET: "test-gitlab-secret",
-                GITLAB_URL: "https://gitlab.example.com:8443",
-                GATEWAY_DAILY_CALLS: "3",
-                REVIEW_DAILY_UPLOADS: "500",
-                REVIEW_MAX_FINDINGS: "20000",
-                DEVICE_DAILY_CODES: "500",
-                // Above what a test file asks for from one address.
-                DEVICE_DAILY_CODES_PER_NETWORK: "100",
+                ...TEST_BINDINGS,
               },
             },
           })),
@@ -36,6 +41,22 @@ export default defineConfig({
           name: "worker",
           include: ["test/**/*.test.ts"],
           setupFiles: ["./test/apply-migrations.ts"],
+        },
+      },
+      {
+        resolve: {
+          alias: {
+            "cloudflare:workers": resolve("test-pg/workers.ts"),
+            "cloudflare:test": resolve("test-pg/test.ts"),
+            "drizzle-orm/d1": resolve("test-pg/d1.ts"),
+          },
+        },
+        test: {
+          name: "postgres",
+          environment: "node",
+          include: ["test/**/*.test.ts"],
+          exclude: POSTGRES_EXCLUDE,
+          setupFiles: ["./test-pg/scheduler.ts", "./test/apply-migrations.ts"],
         },
       },
       {

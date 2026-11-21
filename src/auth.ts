@@ -1,48 +1,31 @@
 import { Hono } from "hono";
-import { deleteCookie, getSignedCookie, setSignedCookie } from "hono/cookie";
-import { randomToken } from "./crypto.js";
-import { upsertAccount } from "./db/accounts.js";
+import { githubIdentity, upsertAccount } from "./db/accounts.js";
 import { scoped } from "./db/scoped.js";
 import { deadline } from "./deadline.js";
 import { apiError } from "./http.js";
+import { oidcClientOf } from "./oidc.js";
+import { github } from "./platforms/github.js";
 import { saveToken } from "./platforms/links.js";
 import type { TokenAnswer } from "./platforms/platform.js";
-import { githubOf } from "./platforms/registry.js";
+import { githubClientOf } from "./platforms/registry.js";
 import { clearSessionCookie, requireSession, signInBrowser } from "./session.js";
+import type { SignInMethod } from "./shared/index.js";
+import { finishSignIn, startSignIn } from "./sign-in-state.js";
 import type { AppEnv } from "./types.js";
 
-// Signing in with GitHub, and signing out.
-
-// `__Host-` needs Path=/, so the state cookie is sent site-wide for its ten
-// minutes; in return a sibling subdomain cannot plant a state it signed
-// for itself and finish a sign-in as its own account in this browser.
-const STATE_COOKIE = "__Host-ocra_oauth_state";
-const STATE_OPTIONS = { secure: true, path: "/" } as const;
-
-const unsafeChar = (ch: string) => ch.charCodeAt(0) < 0x20 || ch === "\x7f" || ch === "\\";
-
-/**
- * A path on this site to return to after sign-in, or "/". Browsers drop tabs
- * and newlines from a URL and read a backslash as a slash, so "/\t/evil.example"
- * would leave the site: those are refused, and what remains must resolve to
- * a path on this origin that does not start with "//".
- */
-export function safeNext(next: string | undefined): string {
-  if (!next?.startsWith("/") || next.length > 512 || [...next].some(unsafeChar)) return "/";
-  const base = "https://ocra.invalid";
-  let url: URL;
-  try {
-    url = new URL(next, base);
-  } catch {
-    return "/";
-  }
-  // Checked on the output too: dot segments resolve, so "/.//evil.example"
-  // becomes the path "//evil.example", which a browser reads as a host.
-  if (url.origin !== base || url.pathname.startsWith("//")) return "/";
-  return url.pathname + url.search + url.hash;
-}
+// Signing in with GitHub, and signing out. ./oidc.ts signs in through an
+// OpenID Connect provider instead.
 
 export const auth = new Hono<AppEnv>();
+
+/** How this deployment signs people in, for the sign-in page. */
+auth.get("/methods", (c) => {
+  const methods: SignInMethod[] = [];
+  if (githubClientOf(c.env)) methods.push({ id: "github", name: "GitHub" });
+  const oidc = oidcClientOf(c.env);
+  if (oidc) methods.push({ id: "oidc", name: oidc.name });
+  return c.json({ methods });
+});
 
 function callbackUrl(requestUrl: string): string {
   return new URL("/api/auth/github/callback", requestUrl).toString();
@@ -52,7 +35,7 @@ function callbackUrl(requestUrl: string): string {
 const GITHUB_TIMEOUT_MS = 10_000;
 
 /** A GitHub call's JSON answer; null when it failed, was refused or took too long. */
-async function github<T>(url: string, init: RequestInit): Promise<T | null> {
+async function githubCall<T>(url: string, init: RequestInit): Promise<T | null> {
   const clock = deadline(GITHUB_TIMEOUT_MS);
   try {
     const res = await fetch(url, { ...init, signal: clock.signal });
@@ -66,16 +49,11 @@ async function github<T>(url: string, init: RequestInit): Promise<T | null> {
 }
 
 auth.get("/github/login", async (c) => {
-  const state = randomToken("");
-  const next = safeNext(c.req.query("next"));
-  await setSignedCookie(c, STATE_COOKIE, `${state} ${next}`, c.env.SESSION_SECRET, {
-    httpOnly: true,
-    sameSite: "Lax",
-    maxAge: 600,
-    ...STATE_OPTIONS,
-  });
+  const client = githubClientOf(c.env);
+  if (!client) return apiError(c, "not_found");
+  const state = await startSignIn(c);
   const url = new URL("https://github.com/login/oauth/authorize");
-  url.searchParams.set("client_id", c.env.GITHUB_CLIENT_ID);
+  url.searchParams.set("client_id", client.id);
   url.searchParams.set("redirect_uri", callbackUrl(c.req.url));
   url.searchParams.set("state", state);
   url.searchParams.set("allow_signup", "true");
@@ -83,28 +61,24 @@ auth.get("/github/login", async (c) => {
 });
 
 auth.get("/github/callback", async (c) => {
-  const cookie = await getSignedCookie(c, c.env.SESSION_SECRET, STATE_COOKIE);
-  deleteCookie(c, STATE_COOKIE, STATE_OPTIONS);
-  const space = cookie ? cookie.indexOf(" ") : -1;
-  const expected = cookie && space > 0 ? cookie.slice(0, space) : cookie || undefined;
-  const next = cookie && space > 0 ? cookie.slice(space + 1) : undefined;
-  const { code, state } = c.req.query();
-  if (!code || !state || !expected || state !== expected) {
-    return apiError(c, "bad_state");
-  }
-  const tokenBody = await github<TokenAnswer>("https://github.com/login/oauth/access_token", {
+  const client = githubClientOf(c.env);
+  if (!client) return apiError(c, "not_found");
+  const signIn = await finishSignIn(c);
+  const code = c.req.query("code");
+  if (!signIn || !code) return apiError(c, "bad_state");
+  const tokenBody = await githubCall<TokenAnswer>("https://github.com/login/oauth/access_token", {
     method: "POST",
     headers: { accept: "application/json", "content-type": "application/json" },
     body: JSON.stringify({
-      client_id: c.env.GITHUB_CLIENT_ID,
-      client_secret: c.env.GITHUB_CLIENT_SECRET,
+      client_id: client.id,
+      client_secret: client.secret,
       code,
       redirect_uri: callbackUrl(c.req.url),
     }),
   });
   if (!tokenBody?.access_token) return apiError(c, "github_exchange");
   // The GitHub token tells who signed in, and is kept below.
-  const user = await github<{ id?: number; login?: string }>("https://api.github.com/user", {
+  const user = await githubCall<{ id?: number; login?: string }>("https://api.github.com/user", {
     headers: {
       authorization: `Bearer ${tokenBody.access_token}`,
       accept: "application/vnd.github+json",
@@ -114,12 +88,12 @@ auth.get("/github/callback", async (c) => {
   if (typeof user?.id !== "number" || typeof user.login !== "string") {
     return apiError(c, "github_user");
   }
-  const account = await upsertAccount(c.var.db, user.id, user.login);
+  const account = await upsertAccount(c.var.db, githubIdentity(user.id), user.login);
   // Kept so the console can read what the user reaches on GitHub
   // (./platforms/links.ts).
-  await saveToken(scoped(c.var.db, account.id), c.env, githubOf(c.env), tokenBody);
+  await saveToken(scoped(c.var.db, account.id), c.env, github(client), tokenBody);
   await signInBrowser(c, account.id);
-  return c.redirect(safeNext(next), 302);
+  return c.redirect(signIn.next, 302);
 });
 
 auth.post("/logout", requireSession(["web", "cli"]), async (c) => {

@@ -22,7 +22,7 @@ describe("the API boundary", () => {
           ...text.matchAll(/c\.req\.(json|text|parseBody|arrayBuffer)\(|readJson\(|readText\(/g),
         ].map((m) => `${file.replace("../src/", "")}: ${m[0]}`),
       );
-    expect(readers).toEqual(["gateway.ts: readText(", "http.ts: readJson("]);
+    expect(readers).toEqual(["gateway.ts: readText(", "http.ts: readJson(", "http.ts: readText("]);
     expect(Object.keys(sources).length).toBeGreaterThan(20);
   });
 

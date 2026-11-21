@@ -63,18 +63,26 @@ export function TopBar(props: { me: Me | null }) {
             aria-controls="account-menu"
             aria-label={`Account: ${props.me.login}`}
           >
-            <img
-              className="avatar"
-              src={`https://avatars.githubusercontent.com/u/${props.me.githubId}?s=64`}
-              alt=""
-            />
+            {props.me.githubId === null ? (
+              <span className="avatar" aria-hidden="true" />
+            ) : (
+              <img
+                className="avatar"
+                src={`https://avatars.githubusercontent.com/u/${props.me.githubId}?s=64`}
+                alt=""
+              />
+            )}
             <span className="small">{props.me.login}</span>
           </button>
           {open && (
             <div className="menu" id="account-menu">
               <div className="menu-head">
                 <div className="strong">{props.me.login}</div>
-                <div className="subtle small">Signed in with GitHub</div>
+                <div className="subtle small">
+                  {props.me.githubId === null
+                    ? "Signed in with single sign-on"
+                    : "Signed in with GitHub"}
+                </div>
               </div>
               <Link to="/settings" className="menu-item">
                 Settings

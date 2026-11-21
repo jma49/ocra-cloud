@@ -209,3 +209,7 @@
     transition: none;
   }
 }
+
+.si-btn + .si-btn {
+  margin-top: 10px;
+}

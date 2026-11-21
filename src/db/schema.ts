@@ -8,6 +8,7 @@ import {
 } from "@open-cr-agent/cloud-contract";
 import { sql } from "drizzle-orm";
 import {
+  blob,
   index,
   integer,
   primaryKey,
@@ -21,10 +22,12 @@ import {
   CODE_PLATFORMS,
   DISMISS_REASONS,
   FINDING_STATUSES,
+  GRAPH_BUILD_STATES,
   type ModelChains,
   type PullFilters,
   type ReviewerCounts,
   type ReviewSettings,
+  SIGN_IN_PROVIDERS,
 } from "../shared/index.js";
 
 // Every table but accounts carries accountId, and is read and written only
@@ -43,7 +46,6 @@ const accountId = () =>
 
 export const accounts = sqliteTable("accounts", {
   id: text("id").primaryKey(),
-  githubId: integer("github_id").notNull().unique(),
   login: text("login").notNull(),
   // ADR-0028: findings and their quoted code are uploaded only when on.
   shareFindings: integer("share_findings", { mode: "boolean" }).notNull().default(false),
@@ -51,6 +53,24 @@ export const accounts = sqliteTable("accounts", {
   salt: text("salt"),
   createdAt: createdAt(),
 });
+
+// Who signs in as an account: a sign-in provider's user, by the id it never
+// reuses (a GitHub user id, an OpenID Connect `sub`).
+export const identities = sqliteTable(
+  "identities",
+  {
+    provider: text("provider", { enum: SIGN_IN_PROVIDERS }).notNull(),
+    subject: text("subject").notNull(),
+    accountId: text("account_id")
+      .notNull()
+      .references(() => accounts.id, { onDelete: "cascade" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.provider, t.subject] }),
+    index("identities_account").on(t.accountId),
+  ],
+);
 
 // A signed-in browser or CLI. Only a hash of the token is stored.
 export const sessions = sqliteTable(
@@ -121,6 +141,24 @@ export const serviceCounters = sqliteTable(
   },
   // Day first: retention deletes past days by it.
   (t) => [primaryKey({ columns: [t.day, t.name] })],
+);
+
+/**
+ * A rate limit's current window per key, for self-hosted servers that run
+ * several processes against one database (RATE_LIMITS=database). Unused on
+ * Workers, where the rate limiting bindings count.
+ */
+export const rateWindows = sqliteTable(
+  "rate_windows",
+  {
+    /** The limit and what it counts, as "gateway:<account id>" or "device_codes:<address>". */
+    key: text("key").primaryKey(),
+    /** When the window began, in milliseconds. */
+    start: integer("start").notNull(),
+    n: integer("n").notNull(),
+  },
+  // Retention deletes windows long over by it.
+  (t) => [index("rate_windows_start").on(t.start)],
 );
 
 // A model provider key, encrypted with a data key that the master key wraps.
@@ -280,6 +318,8 @@ export const findings = sqliteTable(
     reason: text("reason", { enum: DISMISS_REASONS }),
     note: text("note"),
     decidedAt: integer("decided_at", { mode: "timestamp_ms" }),
+    // Where the finding was in the upload: the report's order, kept on any database.
+    position: integer("position").notNull().default(0),
   },
   // review_id: a review's delete cascades here (by the user or retention).
   // findings_account_status_created leads with account_id, so it also
@@ -383,6 +423,64 @@ export const pullViews = sqliteTable(
   (t) => [index("pull_views_account_position").on(t.accountId, t.position)],
 );
 
+// A repository whose default branch the account has the server keep a code
+// graph of: symbol names, kinds and line numbers per file, never code. Found
+// by a push webhook through (platform, host, platform_repo_id); a GitLab
+// project's hook proves itself with the secret whose hash is kept here.
+export const graphRepos = sqliteTable(
+  "graph_repos",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    platform: text("platform", { enum: CODE_PLATFORMS }).notNull(),
+    host: text("host").notNull(),
+    platformRepoId: text("platform_repo_id").notNull(),
+    fullName: text("full_name").notNull(),
+    branch: text("branch").notNull(),
+    webhookSecretHash: text("webhook_secret_hash"),
+    // When the account agreed to keep the graph, where the deployment asks.
+    consentedAt: integer("consented_at", { mode: "timestamp_ms" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("graph_repos_account_repo").on(t.accountId, t.platform, t.host, t.platformRepoId),
+    index("graph_repos_platform_repo").on(t.platform, t.host, t.platformRepoId),
+  ],
+);
+
+// One build of a graph repository's commit, from queued to done; a done
+// build holds the engine's serialized graph, gzipped, as opaque bytes.
+export const graphBuilds = sqliteTable(
+  "graph_builds",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    graphRepoId: text("graph_repo_id")
+      .notNull()
+      .references(() => graphRepos.id, { onDelete: "cascade" }),
+    commit: text("commit").notNull(),
+    state: text("state", { enum: GRAPH_BUILD_STATES }).notNull().default("queued"),
+    attempts: integer("attempts").notNull().default(0),
+    notBefore: integer("not_before", { mode: "timestamp_ms" }),
+    leaseUntil: integer("lease_until", { mode: "timestamp_ms" }),
+    error: text("error"),
+    content: blob("content", { mode: "buffer" }),
+    bytes: integer("bytes"),
+    files: integer("files"),
+    parsed: integer("parsed"),
+    reused: integer("reused"),
+    skipped: integer("skipped"),
+    truncated: integer("truncated", { mode: "boolean" }).notNull().default(false),
+    finishedAt: integer("finished_at", { mode: "timestamp_ms" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("graph_builds_repo_commit").on(t.graphRepoId, t.commit),
+    index("graph_builds_state").on(t.state, t.createdAt),
+    index("graph_builds_account_created").on(t.accountId, t.createdAt),
+  ],
+);
+
 /** The tables scoped by account, by the name scoped() uses. */
 export const accountTables = {
   sessions,
@@ -399,4 +497,6 @@ export const accountTables = {
   budgets,
   platformLinks,
   pullViews,
+  graphRepos,
+  graphBuilds,
 } as const;

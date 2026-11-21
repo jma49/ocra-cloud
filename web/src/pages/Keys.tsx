@@ -104,7 +104,7 @@ export function Keys() {
       </p>
       {drawer && providers && (
         <AddKeyDrawer
-          providers={providers}
+          providers={providers.filter((p) => !p.managed)}
           configured={new Set(list.map((k) => k.provider))}
           initial={drawer.provider}
           onClose={() => setDrawer(null)}
@@ -191,13 +191,17 @@ function KeyRow(props: {
           </div>
         </div>
       </td>
-      <td className="mono">••••{k.last4}</td>
+      {k.managed ? (
+        <td className="muted">Provided by this server</td>
+      ) : (
+        <td className="mono">••••{k.last4}</td>
+      )}
       <td>
         <StatusBadge status={k.checkStatus} checkable={k.checkable} checkedAt={k.checkedAt} />
       </td>
       <td className="muted">{ago(k.lastUsedAt)}</td>
       <td className="num">{num(k.calls7d)}</td>
-      <td className="muted">{date(k.createdAt)}</td>
+      <td className="muted">{k.createdAt ? date(k.createdAt) : "–"}</td>
       <td>
         <div className="row-actions">
           {confirm ? (
@@ -221,16 +225,20 @@ function KeyRow(props: {
                   {busy === "test" ? "Testing…" : "Test"}
                 </button>
               )}
-              <button type="button" className="btn btn-sm" onClick={props.onReplace}>
-                Replace
-              </button>
-              <button
-                type="button"
-                className="btn btn-sm btn-danger"
-                onClick={() => setConfirm(true)}
-              >
-                Delete
-              </button>
+              {!k.managed && (
+                <>
+                  <button type="button" className="btn btn-sm" onClick={props.onReplace}>
+                    Replace
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-danger"
+                    onClick={() => setConfirm(true)}
+                  >
+                    Delete
+                  </button>
+                </>
+              )}
             </>
           )}
         </div>

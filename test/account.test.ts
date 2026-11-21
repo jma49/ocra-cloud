@@ -104,10 +104,14 @@ describe("deleting an account", () => {
     // The findings' review first (the foreign key needs it), then one row per table.
     await d.insert("reviews", rows.reviews(id("reviews")));
     for (const [table, row] of Object.entries(rows)) {
-      if (table === "reviews" || table === "findings") continue;
+      if (["reviews", "findings", "graphBuilds"].includes(table)) continue;
       await d.insert(table as keyof typeof rows, row(id(table)) as never);
     }
     await d.insert("findings", { ...rows.findings(id("findings")), reviewId: id("reviews") });
+    await d.insert("graphBuilds", {
+      ...rows.graphBuilds(id("graphBuilds")),
+      graphRepoId: id("graphRepos"),
+    });
     await db.insert(schema.deviceCodes).values({
       id: `dc-${accountId}`,
       deviceCodeHash: `dch-${accountId}`,
@@ -122,10 +126,10 @@ describe("deleting an account", () => {
   async function held(accountId: string) {
     const out: Record<string, number> = {};
     for (const [name, t] of Object.entries(schema.accountTables)) {
-      const all = await db.select().from(t).all();
+      const all = await db.select().from(t);
       out[name] = all.filter((r) => r.accountId === accountId).length;
     }
-    const codes = await db.select().from(schema.deviceCodes).all();
+    const codes = await db.select().from(schema.deviceCodes);
     out.deviceCodes = codes.filter((c) => c.approvedAccountId === accountId).length;
     return out;
   }

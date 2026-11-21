@@ -41,8 +41,21 @@ export async function hmacHex(secret: string, text: string): Promise<string> {
   return Array.from(mac, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+/** Whether two strings are equal, in time that depends only on their length. */
+export function sameText(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
 export function randomToken(prefix: string): string {
   return prefix + base64url(crypto.getRandomValues(new Uint8Array(32)));
+}
+
+/** The S256 code challenge of a PKCE verifier (RFC 7636). */
+export async function pkceChallenge(verifier: string): Promise<string> {
+  return base64url(new Uint8Array(await crypto.subtle.digest("SHA-256", enc.encode(verifier))));
 }
 
 async function aesKey(raw: Uint8Array<ArrayBuffer>): Promise<CryptoKey> {

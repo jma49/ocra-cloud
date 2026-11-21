@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import type { SessionAccount } from "./db/accounts.js";
-import type { Scoped } from "./db/scoped.js";
+import { githubIdOf, type SessionAccount } from "./db/accounts.js";
+import type { PageKey, Scoped } from "./db/scoped.js";
 import { requireSession } from "./session.js";
 import type { AppEnv } from "./types.js";
 
@@ -36,6 +36,8 @@ export const EXPORTED = {
   budgets: "budgets",
   platformLinks: "platforms",
   pullViews: "pullViews",
+  graphRepos: "graphRepos",
+  graphBuilds: "graphBuilds",
 } as const satisfies Record<Table, string>;
 
 // How a table's row is shown; any other table's row loses only its account id.
@@ -68,6 +70,11 @@ const SHAPES: Partial<Record<Table, (row: never) => unknown>> = {
     checkedAt: k.checkedAt,
     createdAt: k.createdAt,
   }),
+  // Never the hook secret's hash.
+  graphRepos: ({ webhookSecretHash: _hash, accountId: _account, ...r }: Record<string, unknown>) =>
+    r,
+  // The graph itself is served by GET /api/graphs/repos/:id/graph.
+  graphBuilds: ({ content: _content, accountId: _account, ...b }: Record<string, unknown>) => b,
   // Never the token hashes.
   sessions: (s: {
     kind: string;
@@ -86,7 +93,8 @@ const SHAPES: Partial<Record<Table, (row: never) => unknown>> = {
 };
 
 exportRoute.get("/", (c) => {
-  const chunks = exportChunks(c.var.data, c.var.session.account);
+  const { account } = c.var.session;
+  const chunks = exportChunks(c.var.data, account, () => githubIdOf(c.var.db, account.id));
   const enc = new TextEncoder();
   // One chunk per pull, so a page is read only once the client has taken
   // the last (audit C9); a slow client never makes the Worker queue tables.
@@ -111,10 +119,14 @@ exportRoute.get("/", (c) => {
 type Account = SessionAccount["account"];
 
 /** The export's JSON text: the account, then each table a page at a time. */
-async function* exportChunks(d: Scoped, a: Account): AsyncGenerator<string, void> {
+async function* exportChunks(
+  d: Scoped,
+  a: Account,
+  githubId: () => Promise<number | null>,
+): AsyncGenerator<string, void> {
   yield `{"exportedAt":${JSON.stringify(new Date())},"account":${JSON.stringify({
     login: a.login,
-    githubId: a.githubId,
+    githubId: await githubId(),
     createdAt: a.createdAt,
     shareFindings: a.shareFindings,
     // The repository-hash salt, held once findings were shared (null before).
@@ -124,10 +136,10 @@ async function* exportChunks(d: Scoped, a: Account): AsyncGenerator<string, void
   for (const [table, key] of Object.entries(EXPORTED) as [Table, string][]) {
     const shape = SHAPES[table] ?? strip;
     let text = `,${JSON.stringify(key)}:[`;
-    let after = 0;
+    let after: PageKey | null = null;
     let written = 0;
     for (;;) {
-      const page = await d.page(table, after, EXPORT_PAGE);
+      const page: Awaited<ReturnType<Scoped["page"]>> = await d.page(table, after, EXPORT_PAGE);
       for (const row of page.rows) {
         if (written >= EXPORT_MAX_ROWS) break;
         text += `${written > 0 ? "," : ""}${JSON.stringify(shape(row as never))}`;

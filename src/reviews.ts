@@ -183,7 +183,7 @@ function findingDto(f: FindingRow) {
     reason: f.reason,
     note: f.note,
     decidedAt: f.decidedAt,
-  } satisfies Omit<FindingRow, "accountId" | "reviewId">;
+  } satisfies Omit<FindingRow, "accountId" | "reviewId" | "position">;
 }
 
 export function exportFinding(f: FindingRow) {

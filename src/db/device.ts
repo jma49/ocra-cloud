@@ -1,6 +1,6 @@
 import { and, eq, sql } from "drizzle-orm";
 import { utcDay } from "../time.js";
-import { changedRows, type Db } from "./client.js";
+import { changedRows, type Db, first } from "./client.js";
 import { deviceCodes, serviceCounters } from "./schema.js";
 
 // Device codes are found by their codes before any account is known; only
@@ -60,11 +60,21 @@ export async function createDeviceCode(
 }
 
 export function byUserCode(db: Db, userCode: string) {
-  return db.select().from(deviceCodes).where(eq(deviceCodes.userCode, userCode)).get();
+  return db
+    .select()
+    .from(deviceCodes)
+    .where(eq(deviceCodes.userCode, userCode))
+    .limit(1)
+    .then(first);
 }
 
 export function byDeviceCodeHash(db: Db, hash: string) {
-  return db.select().from(deviceCodes).where(eq(deviceCodes.deviceCodeHash, hash)).get();
+  return db
+    .select()
+    .from(deviceCodes)
+    .where(eq(deviceCodes.deviceCodeHash, hash))
+    .limit(1)
+    .then(first);
 }
 
 /** Moves a pending code to approved or denied; false if it was not pending. */
@@ -77,8 +87,7 @@ export async function decide(
   const result = await db
     .update(deviceCodes)
     .set(approve ? { status: "approved", approvedAccountId: accountId } : { status: "denied" })
-    .where(and(eq(deviceCodes.id, id), eq(deviceCodes.status, "pending")))
-    .run();
+    .where(and(eq(deviceCodes.id, id), eq(deviceCodes.status, "pending")));
   return changedRows(result) > 0;
 }
 
@@ -99,7 +108,6 @@ export async function consume(db: Db, id: string): Promise<boolean> {
   const result = await db
     .update(deviceCodes)
     .set({ status: "consumed" })
-    .where(and(eq(deviceCodes.id, id), eq(deviceCodes.status, "approved")))
-    .run();
+    .where(and(eq(deviceCodes.id, id), eq(deviceCodes.status, "approved")));
   return changedRows(result) > 0;
 }

@@ -1,0 +1,14 @@
+# OCRA_TLS: "internal" (Caddy's own CA), an ACME account email for a public
+# name, or "/certs/<cert>.pem /certs/<key>.pem" for the company's certificate.
+{$OCRA_DOMAIN} {
+	tls {$OCRA_TLS}
+	encode zstd gzip
+	# Every replica of the ocra service, found by name, in turn.
+	reverse_proxy {
+		dynamic a ocra 8787 {
+			refresh 10s
+		}
+		lb_policy round_robin
+		health_uri /api/health
+	}
+}

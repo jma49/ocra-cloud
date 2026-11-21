@@ -8,6 +8,7 @@ import {
   auditEvents,
   deviceCodes,
   gatewayCalls,
+  rateWindows,
   reviews,
   serviceCounters,
   sessions,
@@ -62,6 +63,11 @@ export async function enforceRetention(db: Db, now = new Date()): Promise<void> 
     [
       "service_counters",
       () => db.delete(serviceCounters).where(lt(serviceCounters.day, utcDay(now))),
+    ],
+    // A window lasts a minute or so; a day later it is long over.
+    [
+      "rate_windows",
+      () => db.delete(rateWindows).where(lt(rateWindows.start, now.getTime() - DAY)),
     ],
     // A session ends with its last token: for the CLI, the refresh token
     // (the sessions_ends index).

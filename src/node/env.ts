@@ -1,15 +1,29 @@
+import { startingModels } from "../preferences.js";
 import type { AppBindings } from "../types.js";
-import { memoryRateLimit } from "./limits.js";
+import { rateLimits } from "./limits.js";
 
 // A self-hosted server's settings come from its environment variables, with
 // the same names and defaults as the Worker's (wrangler.jsonc), and the same
-// rate limits, kept in memory.
+// rate limits, kept in memory until the host counts them in its database.
 
-const SECRETS = [
-  "GITHUB_CLIENT_ID",
-  "GITHUB_CLIENT_SECRET",
-  "MASTER_KEY",
-  "SESSION_SECRET",
+const SECRETS = ["MASTER_KEY", "SESSION_SECRET"] as const;
+
+const SIGN_IN = {
+  GitHub: ["GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET"],
+  "OpenID Connect": ["OIDC_ISSUER", "OIDC_CLIENT_ID", "OIDC_CLIENT_SECRET"],
+} as const;
+
+const OPTIONAL = [
+  ...SIGN_IN.GitHub,
+  ...SIGN_IN["OpenID Connect"],
+  "OIDC_NAME",
+  "MASTER_KEY_PREVIOUS",
+  "GITLAB_CLIENT_ID",
+  "GITLAB_CLIENT_SECRET",
+  "GITLAB_URL",
+  "MODEL_ENDPOINTS",
+  "BUILTIN_PROVIDERS",
+  "DEFAULT_MODELS",
 ] as const;
 
 const DEFAULTS = {
@@ -20,27 +34,51 @@ const DEFAULTS = {
   DEVICE_DAILY_CODES: "1000",
 } as const;
 
-/** The app's bindings from `vars`; throws naming every required variable that is missing. */
+/**
+ * The app's bindings from `vars`; throws naming every required variable that
+ * is missing, when no way to sign in is complete, and on malformed model
+ * endpoints or default models.
+ */
 export function bindingsFrom(vars: Record<string, string | undefined>): AppBindings {
   const missing = SECRETS.filter((name) => !vars[name]);
   if (missing.length > 0) throw new Error(`missing environment variables: ${missing.join(", ")}`);
+  const ways = Object.values(SIGN_IN);
+  if (!ways.some((names) => names.every((name) => vars[name]))) {
+    const sets = Object.entries(SIGN_IN).map(([way, names]) => `${way} (${names.join(", ")})`);
+    throw new Error(`no way to sign in: set ${sets.join(" or ")}`);
+  }
   const pick = (name: keyof typeof DEFAULTS) => vars[name] || DEFAULTS[name];
-  return {
-    GITHUB_CLIENT_ID: vars.GITHUB_CLIENT_ID as string,
-    GITHUB_CLIENT_SECRET: vars.GITHUB_CLIENT_SECRET as string,
+  const optional = Object.fromEntries(
+    OPTIONAL.flatMap((name) => (vars[name] ? [[name, vars[name]]] : [])),
+  ) as Partial<Record<(typeof OPTIONAL)[number], string>>;
+  const bindings: AppBindings = {
+    ...optional,
     MASTER_KEY: vars.MASTER_KEY as string,
-    ...(vars.MASTER_KEY_PREVIOUS ? { MASTER_KEY_PREVIOUS: vars.MASTER_KEY_PREVIOUS } : {}),
     SESSION_SECRET: vars.SESSION_SECRET as string,
-    ...(vars.GITLAB_CLIENT_ID ? { GITLAB_CLIENT_ID: vars.GITLAB_CLIENT_ID } : {}),
-    ...(vars.GITLAB_CLIENT_SECRET ? { GITLAB_CLIENT_SECRET: vars.GITLAB_CLIENT_SECRET } : {}),
-    ...(vars.GITLAB_URL ? { GITLAB_URL: vars.GITLAB_URL } : {}),
     GATEWAY_DAILY_CALLS: pick("GATEWAY_DAILY_CALLS"),
     REVIEW_DAILY_UPLOADS: pick("REVIEW_DAILY_UPLOADS"),
     REVIEW_MAX_FINDINGS: pick("REVIEW_MAX_FINDINGS"),
     DEVICE_DAILY_CODES_PER_NETWORK: pick("DEVICE_DAILY_CODES_PER_NETWORK"),
     DEVICE_DAILY_CODES: pick("DEVICE_DAILY_CODES"),
-    DEVICE_CODES: memoryRateLimit(10, 60),
-    DEVICE_LOOKUPS: memoryRateLimit(20, 60),
-    ACCOUNT_CALLS: memoryRateLimit(120, 60),
+    ...rateLimits("memory"),
   };
+  // Read once here so that a malformed MODEL_ENDPOINTS, BUILTIN_PROVIDERS or
+  // DEFAULT_MODELS stops the server at start, not at a request.
+  startingModels(bindings);
+  return bindings;
+}
+
+/** TRUSTED_PROXY_HOPS: a whole number of proxies, 0 when unset; throws on anything else. */
+export function trustedProxyHops(value: string | undefined): number {
+  if (!value) return 0;
+  if (!/^\d+$/.test(value))
+    throw new Error(`TRUSTED_PROXY_HOPS must be a whole number, not ${value}`);
+  return Number(value);
+}
+
+/** MIGRATE: on (the default) applies the migrations at start, off leaves them, only applies them and exits. */
+export function migrateMode(value: string | undefined): "on" | "off" | "only" {
+  if (!value) return "on";
+  if (value === "on" || value === "off" || value === "only") return value;
+  throw new Error(`MIGRATE must be on, off or only, not ${value}`);
 }

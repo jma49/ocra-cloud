@@ -1,22 +1,24 @@
-import { Hono } from "hono";
+import { type Context, Hono } from "hono";
 import { account } from "./account.js";
 import { auth } from "./auth.js";
 import { BodyTooLarge } from "./body.js";
 import { budget } from "./budget.js";
+import { providersRoute } from "./catalog.js";
 import type { Db } from "./db/client.js";
 import { device } from "./device.js";
 import { exportRoute } from "./export.js";
 import { gateway } from "./gateway.js";
+import { type GraphService, graphsRoute } from "./graph/routes.js";
 import { apiError } from "./http.js";
 import { inbox } from "./inbox.js";
 import { keys } from "./keys.js";
 import { errorName, logError } from "./log.js";
 import { me } from "./me.js";
 import { memory } from "./memory.js";
+import { oidc } from "./oidc.js";
 import { platformConnect } from "./platform-connect.js";
 import { platformsRoute } from "./platform-routes.js";
 import { preferences } from "./preferences.js";
-import { providersRoute } from "./providers.js";
 import { pullViewsRoute } from "./pull-views.js";
 import { repositoriesRoute } from "./repositories.js";
 import { reviews } from "./reviews.js";
@@ -39,11 +41,17 @@ export const API_HEADERS = {
   "cross-origin-opener-policy": "same-origin",
 } as const;
 
-/**
- * The API, the same on every host: `openDb` gives each request its database
- * from the host's bindings (D1 on Workers, libSQL when self-hosted).
- */
-export function createApp<E extends AppBindings>(openDb: (env: E) => Db) {
+/** What differs between the hosts the API runs on (src/index.ts, src/node/). */
+export type Host<E extends AppBindings> = {
+  /** Each request's database, from the host's bindings: D1 on Workers, libSQL self-hosted. */
+  openDb: (env: E) => Db;
+  /** The address the request came from, as the host's network vouches for it. */
+  clientAddress: (c: Context) => string | undefined;
+  /** Code graphs, where the host builds them (src/node/). */
+  graphs?: GraphService;
+};
+
+export function createApp<E extends AppBindings>(host: Host<E>) {
   const app = new Hono<AppEnv>().basePath("/api");
 
   app.use(async (c, next) => {
@@ -52,7 +60,8 @@ export function createApp<E extends AppBindings>(openDb: (env: E) => Db) {
   });
 
   app.use(async (c, next) => {
-    c.set("db", openDb(c.env as E));
+    c.set("db", host.openDb(c.env as E));
+    c.set("clientAddress", host.clientAddress(c) ?? "unknown");
     await next();
   });
 
@@ -61,6 +70,7 @@ export function createApp<E extends AppBindings>(openDb: (env: E) => Db) {
   app.get("/health", (c) => c.json({ ok: true }));
 
   app.route("/auth", auth);
+  app.route("/auth/oidc", oidc);
   app.route("/device", device);
 
   app.route("/providers", providersRoute);
@@ -83,6 +93,7 @@ export function createApp<E extends AppBindings>(openDb: (env: E) => Db) {
   app.route("/platforms", platformsRoute);
   app.route("/platforms", platformConnect);
   app.route("/pull-views", pullViewsRoute);
+  if (host.graphs) app.route("/graphs", graphsRoute(host.graphs));
 
   app.notFound((c) => apiError(c, "not_found"));
   app.onError((err, c) => {

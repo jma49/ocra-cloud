@@ -2,7 +2,7 @@ import { type BodyIssue, ERROR_STATUS, type ErrorCode } from "@open-cr-agent/clo
 import type { Context, MiddlewareHandler } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import type { z } from "zod";
-import { readJson, SMALL_BODY } from "./body.js";
+import { readJson, readText, SMALL_BODY } from "./body.js";
 import { RETENTION_DAYS } from "./db/retention.js";
 import type { AppEnv } from "./types.js";
 
@@ -42,17 +42,42 @@ function issuesOf(error: z.ZodError): BodyIssue[] {
  * its issues, or `invalid` (RFC 8628's invalid_request for the device flow).
  */
 export function jsonBody<S extends z.ZodType>(
-  schema: S,
+  schema: S | ((c: Context<AppEnv>) => S),
   options: { max?: number; invalid?: "invalid_body" | "invalid_request" } = {},
 ): MiddlewareHandler<AppEnv, string, { in: { json: z.input<S> }; out: { json: z.output<S> } }> {
   const { max = SMALL_BODY, invalid = "invalid_body" } = options;
   return async (c, next) => {
-    const parsed = schema.safeParse(await readJson(c, max));
+    const shape = typeof schema === "function" ? schema(c) : schema;
+    const parsed = shape.safeParse(await readJson(c, max));
     if (!parsed.success) {
       return invalid === "invalid_body"
         ? apiError(c, invalid, { issues: issuesOf(parsed.error) })
         : apiError(c, invalid);
     }
+    c.req.addValidatedData("json", parsed.data as object);
+    await next();
+  };
+}
+
+/**
+ * A webhook's body: at most `max` bytes, its raw text proven by `verify`
+ * (a signature over exactly those bytes) before it is parsed and checked
+ * against `schema`. One that fails verify answers unauthenticated.
+ */
+export function signedBody<S extends z.ZodType>(
+  schema: S,
+  verify: (c: Context<AppEnv>, raw: string) => Promise<boolean>,
+  max: number,
+): MiddlewareHandler<AppEnv, string, { in: { json: z.input<S> }; out: { json: z.output<S> } }> {
+  return async (c, next) => {
+    const raw = await readText(c, max);
+    if (!(await verify(c, raw))) return apiError(c, "unauthenticated");
+    let json: unknown = null;
+    try {
+      json = JSON.parse(raw);
+    } catch {}
+    const parsed = schema.safeParse(json);
+    if (!parsed.success) return apiError(c, "invalid_body", { issues: issuesOf(parsed.error) });
     c.req.addValidatedData("json", parsed.data as object);
     await next();
   };
