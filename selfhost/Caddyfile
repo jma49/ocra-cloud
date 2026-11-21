@@ -1,0 +1,7 @@
+# OCRA_TLS: "internal" (Caddy's own CA), an ACME account email for a public
+# name, or "/certs/<cert>.pem /certs/<key>.pem" for the company's certificate.
+{$OCRA_DOMAIN} {
+	tls {$OCRA_TLS}
+	encode zstd gzip
+	reverse_proxy ocra:8787
+}
