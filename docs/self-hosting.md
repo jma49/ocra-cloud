@@ -36,11 +36,16 @@ Without Docker: `npm ci && npm run build:web && npm run build:node`, then `node 
 | `GITLAB_URL` | for a self-hosted GitLab | the instance, such as `https://gitlab.example.com`; `https://gitlab.com` when unset |
 | `PUBLIC_URL` | behind a TLS proxy | the address people open, such as `https://ocra.example.com` |
 | `TRUSTED_PROXY_HOPS` | behind a proxy | how many proxies in front append to `X-Forwarded-For` (1 for one TLS proxy); the login code limits count by the address read past them. 0, the socket's peer, when unset |
+| `CODE_GRAPH` | no | what the server does with code graphs: `keep` (the default), `opt-in` (only for repositories added with the owner's consent) or `off` (none kept; the daily retention deletes any that are) |
 | `DATABASE_URL` | no | a libSQL URL; `file:/data/ocra-cloud.db` in the image |
 | `PORT` | no | 8787 |
 | `GATEWAY_DAILY_CALLS`, `REVIEW_DAILY_UPLOADS`, `REVIEW_MAX_FINDINGS`, `DEVICE_DAILY_CODES`, `DEVICE_DAILY_CODES_PER_NETWORK` | no | the Worker's defaults (`wrangler.jsonc`) |
 
 Serve it over HTTPS: session cookies are `__Host-` cookies, which browsers keep only on secure origins.
+
+## Code graphs
+
+An account adds a repository under `/api/graphs/repos`; the server then keeps a graph of its default branch (symbol names, kinds and line numbers per file, never code), built after each push from the platform's tree and blob APIs with the account's own token, reading only the files that changed. Pushes arrive at `<PUBLIC_URL>/api/graphs/webhooks/github` (the GitHub App's webhook, signed with its secret) or `/api/graphs/webhooks/gitlab` (a project hook with the secret the server answers when the project is added). Builds older than 14 days are deleted daily, except each repository's newest; an account purges a repository's graphs or removes it at any time. Builds start once the server runs the engine's graph builder, which comes with the engine's next release.
 
 ## Limits of this first version
 

@@ -1,5 +1,6 @@
 import { sha256Hex } from "../crypto.js";
 import type { CodePlatformKind } from "../shared/index.js";
+import type { RepoContents } from "./contents.js";
 import type { PullListing } from "./pulls.js";
 
 // What the product layer needs from a code platform, whatever it is: GitHub,
@@ -41,6 +42,7 @@ export interface CodePlatform {
   listRepos(accessToken: string): Promise<RepoListing | null>;
   /** null when the platform refused the token. */
   listPulls(accessToken: string): Promise<PullListing | null>;
+  readonly contents: RepoContents;
 }
 
 /**

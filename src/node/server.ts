@@ -1,6 +1,8 @@
 import { resolve } from "node:path";
 import { serve } from "@hono/node-server";
+import { pruneGraphBuilds } from "../db/graphs.js";
 import { enforceRetention } from "../db/retention.js";
+import { graphPolicy } from "../graph/policy.js";
 import { errorName, logError } from "../log.js";
 import { bindingsFrom, trustedProxyHops } from "./env.js";
 import { openHost } from "./host.js";
@@ -11,6 +13,7 @@ import { openHost } from "./host.js";
 // every variable.
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const keepGraphs = graphPolicy(process.env.CODE_GRAPH) !== "off";
 
 const host = await openHost({
   databaseUrl: process.env.DATABASE_URL || "file:ocra-cloud.db",
@@ -22,7 +25,14 @@ const host = await openHost({
 });
 
 const retention = () =>
-  enforceRetention(host.db).catch((err) => logError("retention_failed", { error: errorName(err) }));
+  Promise.all([
+    enforceRetention(host.db).catch((err) =>
+      logError("retention_failed", { error: errorName(err) }),
+    ),
+    pruneGraphBuilds(host.db, keepGraphs).catch((err) =>
+      logError("retention_failed", { table: "graph_builds", error: errorName(err) }),
+    ),
+  ]);
 setInterval(retention, DAY_MS).unref();
 void retention();
 

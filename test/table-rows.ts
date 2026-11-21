@@ -57,6 +57,16 @@ export const rows = {
     filters: { roles: ["author" as const] },
     position: 0,
   }),
+  graphRepos: (id: string) => ({
+    id,
+    platform: "github" as const,
+    host: "github.com",
+    platformRepoId: `gh-${id}`,
+    fullName: `octo/${id}`,
+    branch: "main",
+  }),
+  // The graph repository it belongs to is made in beforeEach (the foreign key needs one).
+  graphBuilds: (id: string) => ({ id, graphRepoId: "graph-repo-of-a", commit: `c-${id}` }),
   repositories: (id: string) => ({ id, repoHash: `h-${id}`, name: `octo/${id}` }),
   // One row per account, kind and day; the id names the day.
   usageCounters: (id: string) => ({ kind: "uploads" as const, day: id, n: 1 }),

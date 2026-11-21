@@ -23,6 +23,7 @@ import {
   findingsCounted,
   uncountOne,
 } from "./counters.js";
+import { accountGraphs } from "./graphs.js";
 import {
   type Decision,
   decide,
@@ -356,6 +357,7 @@ export function scoped(db: Db, accountId: string) {
       nameRepos(db, accountId, list, cap),
     addPullView: (view: Parameters<typeof addPullView>[2], cap: number) =>
       addPullView(db, accountId, view, cap),
+    graphs: accountGraphs(db, accountId),
     /** The findings of one of this account's reviews. */
     findingsOf(reviewId: string): Promise<Row<"findings">[]> {
       const f = accountTables.findings;

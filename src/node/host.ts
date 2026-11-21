@@ -9,6 +9,7 @@ import { createApp } from "../app.js";
 import type { Db } from "../db/client.js";
 import type { AppBindings } from "../types.js";
 import { clientAddress } from "./client-address.js";
+import { type GraphOptions, startGraphs } from "./graph-worker.js";
 
 export type HostOptions = {
   /** A libSQL URL: `file:ocra.db` for a local SQLite file, or a libSQL server. */
@@ -30,6 +31,8 @@ export type HostOptions = {
    * the socket's peer.
    */
   trustedProxyHops?: number;
+  /** Code graphs built after pushes, by the engine's builder; none when policy is off. */
+  graphs?: GraphOptions;
 };
 
 /**
@@ -48,9 +51,12 @@ export async function openHost(options: HostOptions) {
   // the same Drizzle SQLite API, its write results read by changedRows.
   const shared = db as unknown as Db;
   const addresses = new WeakMap<Request, string | undefined>();
+  const graphs =
+    options.graphs && startGraphs(options.graphs, shared, options.bindings, options.publicUrl);
   const api = createApp({
     openDb: () => shared,
     clientAddress: (c) => addresses.get(c.req.raw),
+    ...(graphs ? { graphs: graphs.service } : {}),
   });
 
   const origin = options.publicUrl ? new URL(options.publicUrl).origin : undefined;
@@ -87,7 +93,12 @@ export async function openHost(options: HostOptions) {
         ? api.fetch(request, options.bindings)
         : site.fetch(request);
     },
-    close: () => client.close(),
+    /** The graph build worker, when graphs are on. */
+    graphWorker: graphs?.worker,
+    close: () => {
+      graphs?.worker.stop();
+      client.close();
+    },
   };
 }
 

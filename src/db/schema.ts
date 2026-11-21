@@ -8,6 +8,7 @@ import {
 } from "@open-cr-agent/cloud-contract";
 import { sql } from "drizzle-orm";
 import {
+  blob,
   index,
   integer,
   primaryKey,
@@ -21,6 +22,7 @@ import {
   CODE_PLATFORMS,
   DISMISS_REASONS,
   FINDING_STATUSES,
+  GRAPH_BUILD_STATES,
   type ModelChains,
   type PullFilters,
   type ReviewerCounts,
@@ -383,6 +385,64 @@ export const pullViews = sqliteTable(
   (t) => [index("pull_views_account_position").on(t.accountId, t.position)],
 );
 
+// A repository whose default branch the account has the server keep a code
+// graph of: symbol names, kinds and line numbers per file, never code. Found
+// by a push webhook through (platform, host, platform_repo_id); a GitLab
+// project's hook proves itself with the secret whose hash is kept here.
+export const graphRepos = sqliteTable(
+  "graph_repos",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    platform: text("platform", { enum: CODE_PLATFORMS }).notNull(),
+    host: text("host").notNull(),
+    platformRepoId: text("platform_repo_id").notNull(),
+    fullName: text("full_name").notNull(),
+    branch: text("branch").notNull(),
+    webhookSecretHash: text("webhook_secret_hash"),
+    // When the account agreed to keep the graph, where the deployment asks.
+    consentedAt: integer("consented_at", { mode: "timestamp_ms" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("graph_repos_account_repo").on(t.accountId, t.platform, t.host, t.platformRepoId),
+    index("graph_repos_platform_repo").on(t.platform, t.host, t.platformRepoId),
+  ],
+);
+
+// One build of a graph repository's commit, from queued to done; a done
+// build holds the engine's serialized graph, gzipped, as opaque bytes.
+export const graphBuilds = sqliteTable(
+  "graph_builds",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    graphRepoId: text("graph_repo_id")
+      .notNull()
+      .references(() => graphRepos.id, { onDelete: "cascade" }),
+    commit: text("commit").notNull(),
+    state: text("state", { enum: GRAPH_BUILD_STATES }).notNull().default("queued"),
+    attempts: integer("attempts").notNull().default(0),
+    notBefore: integer("not_before", { mode: "timestamp_ms" }),
+    leaseUntil: integer("lease_until", { mode: "timestamp_ms" }),
+    error: text("error"),
+    content: blob("content", { mode: "buffer" }),
+    bytes: integer("bytes"),
+    files: integer("files"),
+    parsed: integer("parsed"),
+    reused: integer("reused"),
+    skipped: integer("skipped"),
+    truncated: integer("truncated", { mode: "boolean" }).notNull().default(false),
+    finishedAt: integer("finished_at", { mode: "timestamp_ms" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("graph_builds_repo_commit").on(t.graphRepoId, t.commit),
+    index("graph_builds_state").on(t.state, t.createdAt),
+    index("graph_builds_account_created").on(t.accountId, t.createdAt),
+  ],
+);
+
 /** The tables scoped by account, by the name scoped() uses. */
 export const accountTables = {
   sessions,
@@ -399,4 +459,6 @@ export const accountTables = {
   budgets,
   platformLinks,
   pullViews,
+  graphRepos,
+  graphBuilds,
 } as const;

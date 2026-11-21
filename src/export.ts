@@ -36,6 +36,8 @@ export const EXPORTED = {
   budgets: "budgets",
   platformLinks: "platforms",
   pullViews: "pullViews",
+  graphRepos: "graphRepos",
+  graphBuilds: "graphBuilds",
 } as const satisfies Record<Table, string>;
 
 // How a table's row is shown; any other table's row loses only its account id.
@@ -68,6 +70,11 @@ const SHAPES: Partial<Record<Table, (row: never) => unknown>> = {
     checkedAt: k.checkedAt,
     createdAt: k.createdAt,
   }),
+  // Never the hook secret's hash.
+  graphRepos: ({ webhookSecretHash: _hash, accountId: _account, ...r }: Record<string, unknown>) =>
+    r,
+  // The graph itself is served by GET /api/graphs/repos/:id/graph.
+  graphBuilds: ({ content: _content, accountId: _account, ...b }: Record<string, unknown>) => b,
   // Never the token hashes.
   sessions: (s: {
     kind: string;
