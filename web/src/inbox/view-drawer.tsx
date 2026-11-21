@@ -103,7 +103,7 @@ export function ViewDrawer(props: {
     <>
       <div className="scrim" onClick={onClose} aria-hidden="true" />
       <aside className="drawer" role="dialog" aria-modal="true" aria-label="Section">
-        <form className="drawer-form" onSubmit={submit}>
+        <form className="view-form" onSubmit={submit}>
           <div className="drawer-head">
             <h2>{props.editing ? "Edit section" : "New section"}</h2>
             <button type="button" className="icon-btn" onClick={onClose} aria-label="Close">

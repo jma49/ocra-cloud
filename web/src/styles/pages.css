@@ -294,7 +294,7 @@ td.finding-cell {
 .section-head .icon-btn {
   margin-right: 16px;
 }
-.drawer-form {
+.view-form {
   display: flex;
   flex-direction: column;
   flex: 1;
