@@ -144,7 +144,7 @@ describe("the inbox page", () => {
   it("walks the rows in section order with j and k and opens one with Enter", async () => {
     const open = await show();
     expect(screen.getByText(/gitlab.example.com is not connected/)).toBeTruthy();
-    expect(document.title).toMatch(/^\(2\) /);
+    await waitFor(() => expect(document.title).toMatch(/^\(2\) /));
     expect(current()).toBe("https://github.com/octo/api/pull/1");
     key("j");
     key("j");
