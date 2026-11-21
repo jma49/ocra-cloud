@@ -86,6 +86,36 @@
   outline: 2px solid var(--fg);
   outline-offset: 1px;
 }
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  margin: 0;
+  min-width: 0;
+  padding: 12px 16px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+}
+.toolbar label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--fg-muted);
+}
+.toolbar .input {
+  height: 30px;
+  font-size: 13px;
+}
+.toolbar.bulk {
+  gap: 8px 10px;
+  background: var(--bg-subtle);
+}
+.toolbar.bulk input[type="text"] {
+  width: 120px;
+}
+
 .seg {
   display: inline-flex;
   margin: 0;
