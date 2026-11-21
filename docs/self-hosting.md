@@ -19,6 +19,8 @@ Without Docker: `npm ci && npm run build:web && npm run build:node`, then `node 
 | `MASTER_KEY` | yes | base64 of 32 random bytes (`openssl rand -base64 32`); wraps every stored key. Losing it loses them |
 | `MASTER_KEY_PREVIOUS` | during a rotation | as on Workers (`docs/rotation.md`) |
 | `SESSION_SECRET` | yes | signs the sign-in state cookie |
+| `GITLAB_CLIENT_ID`, `GITLAB_CLIENT_SECRET` | to connect GitLab | a GitLab OAuth application (scope `read_api`); its redirect URI is `<PUBLIC_URL>/api/platforms/gitlab/callback` |
+| `GITLAB_URL` | for a self-hosted GitLab | the instance, such as `https://gitlab.example.com`; `https://gitlab.com` when unset |
 | `PUBLIC_URL` | behind a TLS proxy | the address people open, such as `https://ocra.example.com` |
 | `DATABASE_URL` | no | a libSQL URL; `file:/data/ocra-cloud.db` in the image |
 | `PORT` | no | 8787 |

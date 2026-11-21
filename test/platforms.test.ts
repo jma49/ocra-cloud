@@ -1,14 +1,17 @@
 import { env } from "cloudflare:workers";
 import { drizzle } from "drizzle-orm/d1";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { sha256Hex } from "../src/crypto.js";
 import * as schema from "../src/db/schema.js";
 import { repoHashOf, repoIdentity } from "../src/platforms/platform.js";
-import { call, ORIGIN, resetDb } from "./helpers.js";
+import { call, ORIGIN, resetDb, signIn } from "./helpers.js";
 
 beforeEach(resetDb);
 afterEach(() => vi.restoreAllMocks());
 
 const SESSION = "__Host-ocra_session";
+/** The self-hosted GitLab of vitest.config.ts. */
+const GITLAB = "https://gitlab.example.com:8443";
 const STATE = "__Host-ocra_oauth_state";
 const db = drizzle(env.DB);
 
@@ -53,6 +56,28 @@ function githubFake(fake: Fake = {}) {
         installations: [{ id: 7, account: { login: "octo", type: "Organization" } }],
       });
     }
+    if (url === `${GITLAB}/oauth/token`) {
+      const body = (await req.json()) as { grant_type?: string; client_secret?: string };
+      if (body.client_secret !== "test-gitlab-secret") return new Response(null, { status: 401 });
+      return Response.json({
+        access_token: "glpat_first",
+        refresh_token: "glr_first",
+        expires_in: 7200,
+      });
+    }
+    if (url.startsWith(`${GITLAB}/api/v4/projects?membership=true`)) {
+      if (req.headers.get("authorization") !== "Bearer glpat_first") {
+        return new Response(null, { status: 401 });
+      }
+      return Response.json([
+        {
+          id: 9,
+          path_with_namespace: "Group/Sub/Project",
+          web_url: `${GITLAB}/Group/Sub/Project`,
+          visibility: "private",
+        },
+      ]);
+    }
     throw new Error(`unexpected fetch ${url}`);
   });
 }
@@ -66,7 +91,7 @@ async function signInWithGithub() {
   const cookie = `${SESSION}=${cookieValue(res, SESSION)}`;
   const send = (path: string, init: RequestInit = {}) =>
     call(path, { ...init, headers: { cookie, origin: ORIGIN, ...init.headers } });
-  return { send };
+  return { send, cookie };
 }
 
 type Listed = {
@@ -161,5 +186,61 @@ describe("the GitHub link", () => {
     await db.update(schema.platformLinks).set({ accessExpiresAt: new Date(0) });
     expect(await linked()).toBe(false);
     expect(await db.select().from(schema.platformLinks)).toEqual([]);
+  });
+});
+
+describe("connecting GitLab", () => {
+  async function connect(a: Awaited<ReturnType<typeof signInWithGithub>>) {
+    const start = await a.send("/api/platforms/gitlab/connect");
+    expect(start.status).toBe(302);
+    const to = new URL(start.headers.get("location") ?? "");
+    expect(to.origin + to.pathname).toBe(`${GITLAB}/oauth/authorize`);
+    expect(to.searchParams.get("scope")).toBe("read_api");
+    const state = to.searchParams.get("state") ?? "";
+    const stateCookie = `__Host-ocra_gitlab_state=${cookieValue(start, "__Host-ocra_gitlab_state")}`;
+    return (query: string, cookie = a.cookie) =>
+      call(`/api/platforms/gitlab/callback?${query.replace("STATE", state)}`, {
+        headers: { cookie: `${cookie}; ${stateCookie}` },
+      });
+  }
+
+  it("keeps the user's token for the instance and lists their projects under the CLI's hash", async () => {
+    githubFake();
+    const a = await signInWithGithub();
+    const back = await (await connect(a))("code=c&state=STATE");
+    expect(back.status).toBe(302);
+    expect(back.headers.get("location")).toBe("/repositories");
+    const links = await db.select().from(schema.platformLinks);
+    expect(links.map((l) => [l.platform, l.host]).sort()).toEqual([
+      ["github", "github.com"],
+      ["gitlab", "gitlab.example.com:8443"],
+    ]);
+    expect(JSON.stringify(links)).not.toContain("glpat_first");
+
+    await a.send("/api/account/sharing", {
+      method: "PUT",
+      body: JSON.stringify({ enabled: true }),
+    });
+    const salt = ((await (await a.send("/api/account/salt")).json()) as { salt: string }).salt;
+    const listed = (await (await a.send("/api/platforms/repos")).json()) as Listed;
+    const lab = listed.platforms.find((p) => p.platform === "gitlab");
+    expect(lab?.repositories.map((r) => r.fullName)).toEqual(["Group/Sub/Project"]);
+    // The CLI's identity for a clone of it: https, no port, case-folded.
+    expect(lab?.repositories[0]?.repoHash).toBe(
+      await sha256Hex(`${salt}:https://gitlab.example.com/group/sub/project`),
+    );
+  });
+
+  it("finishes only for the account that started it, with its state", async () => {
+    githubFake();
+    const a = await signInWithGithub();
+    const finish = await connect(a);
+    expect((await finish("code=c&state=forged")).status).toBe(400);
+    const other = await signIn(2, "other");
+    const otherCookie = `${SESSION}=${other.token}`;
+    expect((await finish("code=c&state=STATE", otherCookie)).status).toBe(400);
+    expect(
+      (await db.select().from(schema.platformLinks)).filter((l) => l.platform === "gitlab"),
+    ).toEqual([]);
   });
 });

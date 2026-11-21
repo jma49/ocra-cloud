@@ -13,6 +13,7 @@ import { keys } from "./keys.js";
 import { errorName, logError } from "./log.js";
 import { me } from "./me.js";
 import { memory } from "./memory.js";
+import { platformConnect } from "./platform-connect.js";
 import { platformsRoute } from "./platform-routes.js";
 import { preferences } from "./preferences.js";
 import { providersRoute } from "./providers.js";
@@ -79,6 +80,7 @@ export function createApp<E extends AppBindings>(openDb: (env: E) => Db) {
   app.route("/keys", keys);
   app.route("/gateway", gateway);
   app.route("/platforms", platformsRoute);
+  app.route("/platforms", platformConnect);
 
   app.notFound((c) => apiError(c, "not_found"));
   app.onError((err, c) => {

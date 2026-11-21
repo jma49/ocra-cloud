@@ -25,9 +25,13 @@ type Listed = {
   failed: boolean;
 };
 
-async function listAll(c: { var: AppEnv["Variables"]; env: AppEnv["Bindings"] }) {
+async function listAll(c: {
+  var: AppEnv["Variables"];
+  env: AppEnv["Bindings"];
+  req: { url: string };
+}) {
   return Promise.all(
-    platformsOf(c.env).map(async (platform): Promise<Listed> => {
+    platformsOf(c.env, c.req.url).map(async (platform): Promise<Listed> => {
       const empty = { platform, repositories: [], more: false };
       const token = await accessToken(c.var.data, c.env, platform);
       if (!token) return { ...empty, linked: false, failed: false };
