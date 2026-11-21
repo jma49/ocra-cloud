@@ -19,4 +19,8 @@ interface __BaseEnv_Env {
   OIDC_CLIENT_SECRET?: string;
   /** The provider's name on the sign-in button. */
   OIDC_NAME?: string;
+  /** A self-hosted server's own model endpoints, as JSON (docs/self-hosting.md); may hold their keys. */
+  MODEL_ENDPOINTS?: string;
+  /** off: forward to MODEL_ENDPOINTS only, never to the built-in public providers. */
+  BUILTIN_PROVIDERS?: string;
 }

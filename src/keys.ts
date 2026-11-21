@@ -1,18 +1,22 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { audit } from "./audit.js";
+import { catalogOf } from "./catalog.js";
 import { encryptSecret, keyBinding } from "./crypto.js";
 import { RETENTION_DAYS } from "./db/retention.js";
+import type { Scoped } from "./db/scoped.js";
 import { apiError, jsonBody } from "./http.js";
 import { decryptKey, storedKey } from "./keyring.js";
 import { checkKey, listModels } from "./provider-keys.js";
-import { isProvider, providers } from "./providers.js";
+import type { Provider } from "./providers.js";
 import { perMinute } from "./rate.js";
 import { needsRecentSignIn, requireSession } from "./session.js";
 import { DAY } from "./time.js";
-import type { AppEnv } from "./types.js";
+import type { AppBindings, AppEnv } from "./types.js";
 
 // The user's model keys: stored encrypted, one per provider, never returned.
+// A provider the server holds the key for (MODEL_ENDPOINTS) is listed as
+// managed, and takes no key of the user's.
 
 export const keys = new Hono<AppEnv>().use(requireSession());
 
@@ -20,7 +24,10 @@ export const keys = new Hono<AppEnv>().use(requireSession());
 const RECENT_DAYS = 7;
 
 keys.get("/", async (c) => {
-  const rows = await c.var.data.list("providerKeys");
+  const catalog = catalogOf(c.env);
+  const managed = catalog.entries.filter(([, p]) => p.sharedKey).map(([name, p]) => ({ name, p }));
+  const isManaged = new Set(managed.map((m) => m.name));
+  const rows = (await c.var.data.list("providerKeys")).filter((r) => !isManaged.has(r.provider));
   // One row per provider, summed in SQL (audit D5).
   const now = Date.now();
   // Last use is looked for as far back as call records are kept.
@@ -31,19 +38,48 @@ keys.get("/", async (c) => {
   const use = new Map(
     sums.map((u) => [u.provider, { lastUsedAt: new Date(u.lastUsedAt), calls7d: u.recent }]),
   );
+  const used = (provider: string) => ({
+    lastUsedAt: use.get(provider)?.lastUsedAt ?? null,
+    calls7d: use.get(provider)?.calls7d ?? 0,
+  });
   return c.json({
-    keys: rows.map((r) => ({
-      provider: r.provider,
-      last4: r.last4,
-      createdAt: r.createdAt,
-      checkStatus: r.checkStatus,
-      checkedAt: r.checkedAt,
-      checkable: isProvider(r.provider) && providers[r.provider].verify !== undefined,
-      lastUsedAt: use.get(r.provider)?.lastUsedAt ?? null,
-      calls7d: use.get(r.provider)?.calls7d ?? 0,
-    })),
+    keys: [
+      ...managed.map(({ name, p }) => ({
+        provider: name,
+        managed: true,
+        last4: null,
+        createdAt: null,
+        checkStatus: null,
+        checkedAt: null,
+        checkable: p.verify !== undefined,
+        ...used(name),
+      })),
+      ...rows.map((r) => ({
+        provider: r.provider,
+        managed: false,
+        last4: r.last4,
+        createdAt: r.createdAt,
+        checkStatus: r.checkStatus,
+        checkedAt: r.checkedAt,
+        checkable: catalog.get(r.provider)?.verify !== undefined,
+        ...used(r.provider),
+      })),
+    ],
   });
 });
+
+/** The key a provider's calls use: the server's own, or the account's, decrypted. */
+async function usableKey(
+  env: AppBindings,
+  data: Scoped,
+  name: string,
+): Promise<{ provider: Provider; key: string; rowId?: string } | undefined> {
+  const provider = catalogOf(env).get(name);
+  if (!provider) return undefined;
+  if (provider.sharedKey) return { provider, key: provider.sharedKey };
+  const row = await storedKey(data, name);
+  return row ? { provider, key: await decryptKey(env, row), rowId: row.id } : undefined;
+}
 
 // A provider's API key, as pasted: surrounding spaces go, inner ones never fit.
 const keyRequest = z.object({
@@ -55,7 +91,9 @@ const keyRequest = z.object({
 
 keys.put("/:provider", perMinute("keys"), jsonBody(keyRequest), async (c) => {
   const provider = c.req.param("provider");
-  if (!isProvider(provider)) return apiError(c, "unknown_provider");
+  const target = catalogOf(c.env).get(provider);
+  // A managed provider's calls use the server's key; one of the user's would never be used.
+  if (!target || target.sharedKey) return apiError(c, "unknown_provider");
   // A replaced key sends later calls, and what they carry, to its owner.
   if (await storedKey(c.var.data, provider)) {
     const refused = needsRecentSignIn(c);
@@ -67,7 +105,7 @@ keys.put("/:provider", perMinute("keys"), jsonBody(keyRequest), async (c) => {
     key,
     keyBinding(c.var.session.account.id, provider),
   );
-  const check = await checkKey(provider, key);
+  const check = await checkKey(target, key);
   // One statement replaces the provider's key, so parallel saves leave one
   // key, never two for keyFor to choose between.
   const now = new Date();
@@ -94,13 +132,15 @@ keys.put("/:provider", perMinute("keys"), jsonBody(keyRequest), async (c) => {
 
 keys.post("/:provider/test", perMinute("keys"), async (c) => {
   const provider = c.req.param("provider");
-  const row = await storedKey(c.var.data, provider);
-  if (!row || !isProvider(provider)) return apiError(c, "no_key");
-  const check = await checkKey(provider, await decryptKey(c.env, row));
-  await c.var.data.update("providerKeys", row.id, {
-    checkStatus: check.status,
-    checkedAt: new Date(),
-  });
+  const found = await usableKey(c.env, c.var.data, provider);
+  if (!found) return apiError(c, "no_key");
+  const check = await checkKey(found.provider, found.key);
+  if (found.rowId) {
+    await c.var.data.update("providerKeys", found.rowId, {
+      checkStatus: check.status,
+      checkedAt: new Date(),
+    });
+  }
   await audit(c.var.data, "key.checked", { provider, check: check.status });
   return c.json({ provider, check });
 });
@@ -108,9 +148,9 @@ keys.post("/:provider/test", perMinute("keys"), async (c) => {
 // The models the provider offers this key, for choosing defaults on the web.
 keys.get("/:provider/models", perMinute("keys"), async (c) => {
   const provider = c.req.param("provider");
-  const row = await storedKey(c.var.data, provider);
-  if (!row || !isProvider(provider)) return apiError(c, "no_key");
-  const ids = await listModels(provider, await decryptKey(c.env, row));
+  const found = await usableKey(c.env, c.var.data, provider);
+  if (!found) return apiError(c, "no_key");
+  const ids = await listModels(found.provider, found.key);
   return c.json({ provider, models: ids });
 });
 

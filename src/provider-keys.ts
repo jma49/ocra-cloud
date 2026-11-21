@@ -1,5 +1,5 @@
 import { MODEL_ID } from "@open-cr-agent/cloud-contract";
-import { applyAuth, type KeyCall, modelsCall, type ProviderName, providers } from "./providers.js";
+import { applyAuth, type KeyCall, modelsCall, type Provider } from "./providers.js";
 import { type Effort, effortLevels } from "./shared/index.js";
 
 // The provider calls the keys routes make with a stored key: checking it,
@@ -19,11 +19,11 @@ const CHECK_TIMEOUT_MS = 10_000;
 const MAX_MODELS = 2000;
 
 /** One GET with the key. A redirect would carry the key to another address: never followed. */
-function keyGet(provider: ProviderName, call: KeyCall, key: string): Promise<Response> {
+function keyGet(provider: Provider, call: KeyCall, key: string): Promise<Response> {
   const headers = new Headers({ accept: "application/json" });
   if (call.auth === "x-api-key") headers.set("anthropic-version", ANTHROPIC_VERSION);
   applyAuth(headers, call.auth, key);
-  return fetch(providers[provider].base + call.path, {
+  return fetch(provider.base + call.path, {
     headers,
     redirect: "manual",
     signal: AbortSignal.timeout(CHECK_TIMEOUT_MS),
@@ -34,8 +34,8 @@ function keyGet(provider: ProviderName, call: KeyCall, key: string): Promise<Res
  * Asks the provider whether the key works. The answer's body is read only
  * to tell a rejected key from another 400, and is never kept or logged.
  */
-export async function checkKey(provider: ProviderName, key: string): Promise<KeyCheck> {
-  const call = providers[provider].verify;
+export async function checkKey(provider: Provider, key: string): Promise<KeyCheck> {
+  const call = provider.verify;
   if (!call) return { status: "unchecked" };
   let res: Response;
   try {
@@ -60,8 +60,8 @@ export type ModelInfo = { id: string; efforts: Effort[] };
  * Model ids from the provider's model list: OpenAI-style data[].id, or the
  * Gemini API's models[].name. Empty when the provider has no list.
  */
-export async function listModels(provider: ProviderName, key: string): Promise<ModelInfo[]> {
-  const call = modelsCall(providers[provider]);
+export async function listModels(provider: Provider, key: string): Promise<ModelInfo[]> {
+  const call = modelsCall(provider);
   if (!call) return [];
   try {
     const res = await keyGet(provider, call, key);

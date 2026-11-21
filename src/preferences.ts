@@ -7,9 +7,9 @@ import {
 } from "@open-cr-agent/cloud-contract";
 import { Hono } from "hono";
 import type { z } from "zod";
+import { type Catalog, catalogOf, hasChatRoute } from "./catalog.js";
 import { newId, type Scoped } from "./db/scoped.js";
 import { apiError, jsonBody } from "./http.js";
-import { hasChatRoute } from "./providers.js";
 import { perMinute } from "./rate.js";
 import { requireSession } from "./session.js";
 import { parseModelId } from "./shared/index.js";
@@ -34,36 +34,39 @@ preferences.get("/models", requireSession(["web", "cli"]), async (c) => {
  * OpenAI-compatible chat route for: the CLI can use no other (audit K-models).
  * The contract checks the name's form; only the server knows the routes.
  */
-function chatModel(model: string): boolean {
+function chatModel(catalog: Catalog, model: string): boolean {
   const ref = parseModelId(model);
-  return ref !== null && hasChatRoute(ref.provider);
+  return ref !== null && hasChatRoute(catalog.get(ref.provider));
 }
 
 /** PUT /api/preferences and a restored version: the contract's shape, and models the gateway can serve. */
-export const preferencesBody = preferencesUpdateSchema.superRefine((body, ctx) => {
-  const chains: [PropertyKey[], readonly string[] | undefined][] = [
-    ...Object.entries(body.models ?? {}).map(
-      ([tier, chain]) => [["models", tier], chain] as [PropertyKey[], string[]],
-    ),
-    ...Object.entries(body.agents?.reviewers ?? {}).map(
-      ([id, r]) => [["agents", "reviewers", id, "models"], r?.models] as [PropertyKey[], string[]],
-    ),
-    ...Object.entries(body.agents?.roles ?? {}).map(
-      ([role, r]) => [["agents", "roles", role, "models"], r?.models] as [PropertyKey[], string[]],
-    ),
-  ];
-  for (const [path, chain] of chains) {
-    for (const [i, model] of (chain ?? []).entries()) {
-      if (!chatModel(model)) {
-        ctx.addIssue({
-          code: "custom",
-          path: [...path, i],
-          message: "the gateway has no OpenAI-compatible chat route for this provider",
-        });
+export const preferencesBody = (catalog: Catalog) =>
+  preferencesUpdateSchema.superRefine((body, ctx) => {
+    const chains: [PropertyKey[], readonly string[] | undefined][] = [
+      ...Object.entries(body.models ?? {}).map(
+        ([tier, chain]) => [["models", tier], chain] as [PropertyKey[], string[]],
+      ),
+      ...Object.entries(body.agents?.reviewers ?? {}).map(
+        ([id, r]) =>
+          [["agents", "reviewers", id, "models"], r?.models] as [PropertyKey[], string[]],
+      ),
+      ...Object.entries(body.agents?.roles ?? {}).map(
+        ([role, r]) =>
+          [["agents", "roles", role, "models"], r?.models] as [PropertyKey[], string[]],
+      ),
+    ];
+    for (const [path, chain] of chains) {
+      for (const [i, model] of (chain ?? []).entries()) {
+        if (!chatModel(catalog, model)) {
+          ctx.addIssue({
+            code: "custom",
+            path: [...path, i],
+            message: "the gateway has no OpenAI-compatible chat route for this provider",
+          });
+        }
       }
     }
-  }
-});
+  });
 
 // Everything the CLI layers under a repository's configuration.
 type Saved = {
@@ -74,7 +77,7 @@ type Saved = {
 };
 
 /** The saved preferences with a body's parts; a part it leaves out keeps its value, null clears it. */
-function merged(body: z.output<typeof preferencesBody>, saved: Saved): Saved {
+function merged(body: z.output<ReturnType<typeof preferencesBody>>, saved: Saved): Saved {
   return {
     runtime: body.runtime === undefined ? saved.runtime : body.runtime,
     models: body.models === undefined ? saved.models : (body.models ?? {}),
@@ -162,7 +165,7 @@ preferences.put(
   "/",
   requireSession(),
   perMinute("settings"),
-  jsonBody(preferencesBody),
+  jsonBody((c) => preferencesBody(catalogOf(c.env))),
   async (c) => {
     const body = c.req.valid("json");
     // The web sends the version its draft started from; a save from a stale
@@ -184,7 +187,7 @@ preferences.post("/versions/:id/restore", requireSession(), perMinute("settings"
   const old = await c.var.data.get("preferenceVersions", c.req.param("id"));
   if (!old) return apiError(c, "not_found");
   // Checked again: a version saved under older rules must still fit today's.
-  const parsed = preferencesBody.safeParse(old.snapshot);
+  const parsed = preferencesBody(catalogOf(c.env)).safeParse(old.snapshot);
   if (!parsed.success) return apiError(c, "version_no_longer_valid");
   const result = await store(c.var.data, undefined, () => merged(parsed.data, savedOf(undefined)));
   if ("stale" in result) return apiError(c, "stale", { version: result.stale });

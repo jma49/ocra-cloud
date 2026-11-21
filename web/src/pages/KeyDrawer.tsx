@@ -16,6 +16,7 @@ export const POPULAR = [
   "qwen",
 ];
 const GROUPS: { id: ProviderInfo["group"]; label: string }[] = [
+  { id: "Company", label: "Your company" },
   { id: "Major", label: "Model makers" },
   { id: "China", label: "China" },
   { id: "Platforms", label: "Inference platforms" },
@@ -126,18 +127,17 @@ export function AddKeyDrawer(props: {
                       </button>
                     ))}
                 </div>
-                {GROUPS.map((g) => (
-                  <div key={g.id}>
-                    <div className="group-label">{g.label}</div>
-                    <PickList
-                      items={props.providers.filter(
-                        (x) => x.group === g.id && !POPULAR.includes(x.name),
-                      )}
-                      configured={props.configured}
-                      onPick={setChosen}
-                    />
-                  </div>
-                ))}
+                {GROUPS.map((g) => {
+                  const items = props.providers.filter(
+                    (x) => x.group === g.id && !POPULAR.includes(x.name),
+                  );
+                  return items.length === 0 ? null : (
+                    <div key={g.id}>
+                      <div className="group-label">{g.label}</div>
+                      <PickList items={items} configured={props.configured} onPick={setChosen} />
+                    </div>
+                  );
+                })}
               </>
             ) : matches.length ? (
               <>

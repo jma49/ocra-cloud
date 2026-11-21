@@ -42,12 +42,13 @@ function issuesOf(error: z.ZodError): BodyIssue[] {
  * its issues, or `invalid` (RFC 8628's invalid_request for the device flow).
  */
 export function jsonBody<S extends z.ZodType>(
-  schema: S,
+  schema: S | ((c: Context<AppEnv>) => S),
   options: { max?: number; invalid?: "invalid_body" | "invalid_request" } = {},
 ): MiddlewareHandler<AppEnv, string, { in: { json: z.input<S> }; out: { json: z.output<S> } }> {
   const { max = SMALL_BODY, invalid = "invalid_body" } = options;
   return async (c, next) => {
-    const parsed = schema.safeParse(await readJson(c, max));
+    const shape = typeof schema === "function" ? schema(c) : schema;
+    const parsed = shape.safeParse(await readJson(c, max));
     if (!parsed.success) {
       return invalid === "invalid_body"
         ? apiError(c, invalid, { issues: issuesOf(parsed.error) })
