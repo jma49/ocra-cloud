@@ -57,3 +57,7 @@ export type DismissReason = (typeof DISMISS_REASONS)[number];
 /** The code platforms an account can connect: GitHub and GitLab, hosted or self-hosted. */
 export const CODE_PLATFORMS = ["github", "gitlab"] as const;
 export type CodePlatformKind = (typeof CODE_PLATFORMS)[number];
+
+/** Where a code graph build is: waiting, running, kept, given up, or passed by a newer push. */
+export const GRAPH_BUILD_STATES = ["queued", "running", "done", "failed", "superseded"] as const;
+export type GraphBuildState = (typeof GRAPH_BUILD_STATES)[number];

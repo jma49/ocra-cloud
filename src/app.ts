@@ -7,6 +7,7 @@ import type { Db } from "./db/client.js";
 import { device } from "./device.js";
 import { exportRoute } from "./export.js";
 import { gateway } from "./gateway.js";
+import { type GraphService, graphsRoute } from "./graph/routes.js";
 import { apiError } from "./http.js";
 import { inbox } from "./inbox.js";
 import { keys } from "./keys.js";
@@ -45,6 +46,8 @@ export type Host<E extends AppBindings> = {
   openDb: (env: E) => Db;
   /** The address the request came from, as the host's network vouches for it. */
   clientAddress: (c: Context) => string | undefined;
+  /** Code graphs, where the host builds them (src/node/). */
+  graphs?: GraphService;
 };
 
 export function createApp<E extends AppBindings>(host: Host<E>) {
@@ -88,6 +91,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
   app.route("/platforms", platformsRoute);
   app.route("/platforms", platformConnect);
   app.route("/pull-views", pullViewsRoute);
+  if (host.graphs) app.route("/graphs", graphsRoute(host.graphs));
 
   app.notFound((c) => apiError(c, "not_found"));
   app.onError((err, c) => {

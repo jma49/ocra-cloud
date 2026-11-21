@@ -2,7 +2,7 @@ import { type BodyIssue, ERROR_STATUS, type ErrorCode } from "@open-cr-agent/clo
 import type { Context, MiddlewareHandler } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import type { z } from "zod";
-import { readJson, SMALL_BODY } from "./body.js";
+import { readJson, readText, SMALL_BODY } from "./body.js";
 import { RETENTION_DAYS } from "./db/retention.js";
 import type { AppEnv } from "./types.js";
 
@@ -53,6 +53,30 @@ export function jsonBody<S extends z.ZodType>(
         ? apiError(c, invalid, { issues: issuesOf(parsed.error) })
         : apiError(c, invalid);
     }
+    c.req.addValidatedData("json", parsed.data as object);
+    await next();
+  };
+}
+
+/**
+ * A webhook's body: at most `max` bytes, its raw text proven by `verify`
+ * (a signature over exactly those bytes) before it is parsed and checked
+ * against `schema`. One that fails verify answers unauthenticated.
+ */
+export function signedBody<S extends z.ZodType>(
+  schema: S,
+  verify: (c: Context<AppEnv>, raw: string) => Promise<boolean>,
+  max: number,
+): MiddlewareHandler<AppEnv, string, { in: { json: z.input<S> }; out: { json: z.output<S> } }> {
+  return async (c, next) => {
+    const raw = await readText(c, max);
+    if (!(await verify(c, raw))) return apiError(c, "unauthenticated");
+    let json: unknown = null;
+    try {
+      json = JSON.parse(raw);
+    } catch {}
+    const parsed = schema.safeParse(json);
+    if (!parsed.success) return apiError(c, "invalid_body", { issues: issuesOf(parsed.error) });
     c.req.addValidatedData("json", parsed.data as object);
     await next();
   };

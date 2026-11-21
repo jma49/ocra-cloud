@@ -195,9 +195,13 @@ describe("export and deletion", () => {
     // The findings' review first (the foreign key needs it), then one row per table.
     await d.insert("reviews", rows.reviews("review-of-a"));
     for (const [table, row] of Object.entries(rows)) {
-      if (table === "reviews") continue;
+      if (table === "reviews" || table === "graphBuilds") continue;
       await d.insert(table as keyof typeof rows, row(`x-${table}`) as never);
     }
+    await d.insert("graphBuilds", {
+      ...rows.graphBuilds("x-graphBuilds"),
+      graphRepoId: "x-graphRepos",
+    });
     await setSharing(db, me.account.id, true);
     const salt = await accountSalt(db, me.account.id);
 
