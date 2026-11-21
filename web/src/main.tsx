@@ -1,6 +1,7 @@
 import { lazy, StrictMode, Suspense, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { ApiError, api, type Me } from "./api.js";
+import { cacheFor, clearCache } from "./cache.js";
 import { Footer, TopBar } from "./chrome.js";
 import { completeAgents } from "./pages/Agents.js";
 import { PrefsProvider } from "./prefs.js";
@@ -48,10 +49,14 @@ function App() {
     api<Me>("/me").then(
       (m) => {
         rememberSignedIn(true);
-        setMe(m);
+        // Before any page reads the cache: another account's answers go first.
+        cacheFor(m.login).then(() => setMe(m));
       },
       (e: unknown) => {
-        if (e instanceof ApiError && e.status === 401) rememberSignedIn(false);
+        if (e instanceof ApiError && e.status === 401) {
+          rememberSignedIn(false);
+          void clearCache();
+        }
         setMe(null);
       },
     );
