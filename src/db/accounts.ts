@@ -1,5 +1,5 @@
 import { and, eq, gt, isNull, or } from "drizzle-orm";
-import { changedRows, type Db } from "./client.js";
+import { changedRows, type Db, first } from "./client.js";
 import { accounts, identities, sessions } from "./schema.js";
 
 // The queries that cannot be scoped by an account, because they find it:
@@ -21,7 +21,8 @@ async function accountOf(db: Db, identity: Identity): Promise<Account | undefine
     .where(
       and(eq(identities.provider, identity.provider), eq(identities.subject, identity.subject)),
     )
-    .get();
+    .limit(1)
+    .then(first);
   return row?.account;
 }
 
@@ -61,7 +62,8 @@ export async function githubIdOf(db: Db, accountId: string): Promise<number | nu
     .select({ subject: identities.subject })
     .from(identities)
     .where(and(eq(identities.accountId, accountId), eq(identities.provider, "github")))
-    .get();
+    .limit(1)
+    .then(first);
   return row ? Number(row.subject) : null;
 }
 
@@ -99,7 +101,8 @@ export async function sessionByTokenHash(
         and(eq(sessions.prevTokenHash, tokenHash), gt(sessions.prevExpiresAt, now)),
       ),
     )
-    .get();
+    .limit(1)
+    .then(first);
   return row;
 }
 
@@ -141,7 +144,8 @@ export async function sessionByRefreshHash(
         gt(sessions.refreshExpiresAt, now),
       ),
     )
-    .get();
+    .limit(1)
+    .then(first);
 }
 
 /**
@@ -157,8 +161,7 @@ export async function rotateSession(
   const result = await db
     .update(sessions)
     .set(changes)
-    .where(and(eq(sessions.id, sessionId), eq(sessions.refreshHash, currentRefreshHash)))
-    .run();
+    .where(and(eq(sessions.id, sessionId), eq(sessions.refreshHash, currentRefreshHash)));
   return changedRows(result) > 0;
 }
 
@@ -187,7 +190,8 @@ export async function accountSalt(db: Db, accountId: string): Promise<string> {
     .select({ salt: accounts.salt })
     .from(accounts)
     .where(eq(accounts.id, accountId))
-    .get();
+    .limit(1)
+    .then(first);
   if (row?.salt) return row.salt;
   const salt = Array.from(crypto.getRandomValues(new Uint8Array(32)), (b) =>
     b.toString(16).padStart(2, "0"),
@@ -201,6 +205,7 @@ export async function accountSalt(db: Db, accountId: string): Promise<string> {
     .select({ salt: accounts.salt })
     .from(accounts)
     .where(eq(accounts.id, accountId))
-    .get();
+    .limit(1)
+    .then(first);
   return after?.salt ?? salt;
 }

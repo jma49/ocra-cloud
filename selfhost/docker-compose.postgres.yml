@@ -1,0 +1,44 @@
+# ocra Cloud on Postgres instead of the SQLite file, in a container beside it
+# (docs/self-hosting.md, Postgres):
+#   docker compose -f docker-compose.yml -f docker-compose.postgres.yml up -d
+# One run applies the migrations before the server starts. Add
+# -f docker-compose.replicas.yml for several processes.
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ocra
+      POSTGRES_DB: ocra
+      POSTGRES_PASSWORD: ${OCRA_DB_PASSWORD:?set OCRA_DB_PASSWORD in .env}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "ocra", "-d", "ocra"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    build: ..
+    image: ocra-cloud
+    env_file: ocra.env
+    environment:
+      DATABASE_URL: postgres://ocra:${OCRA_DB_PASSWORD}@postgres:5432/ocra
+      MIGRATE: only
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  ocra:
+    environment:
+      DATABASE_URL: postgres://ocra:${OCRA_DB_PASSWORD}@postgres:5432/ocra
+      MIGRATE: "off"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  postgres-data:

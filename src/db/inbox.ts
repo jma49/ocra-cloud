@@ -12,7 +12,8 @@ import {
   type SQL,
   sql,
 } from "drizzle-orm";
-import { changedRows, type Db } from "./client.js";
+import { changedRows, type Db, first } from "./client.js";
+import { countWhere, jsonTexts, randomId } from "./dialect.js";
 import { accountMemory, findings, reviews } from "./schema.js";
 
 // The findings inbox: every review's findings of one account, filtered and
@@ -66,8 +67,7 @@ export async function inbox(
     .innerJoin(r, and(eq(r.id, f.reviewId), eq(r.accountId, accountId)))
     .where(and(...conditions))
     .orderBy(desc(f.createdAt), desc(f.id))
-    .limit(limit)
-    .all();
+    .limit(limit);
   const last = rows.at(-1);
   return {
     rows,
@@ -84,8 +84,7 @@ export function findingStatusCounts(db: Db, accountId: string) {
     .select({ status: findings.status, n: count() })
     .from(findings)
     .where(eq(findings.accountId, accountId))
-    .groupBy(findings.status)
-    .all();
+    .groupBy(findings.status);
 }
 
 /** Sets one decision on the account's findings with these ids; returns how many changed. */
@@ -99,8 +98,7 @@ export async function decide(
   const result = await db
     .update(findings)
     .set(decision)
-    .where(and(eq(findings.accountId, accountId), inArray(findings.id, [...ids])))
-    .run();
+    .where(and(eq(findings.accountId, accountId), inArray(findings.id, [...ids])));
   return changedRows(result);
 }
 
@@ -121,27 +119,29 @@ export async function rememberFindings(
   if (ids.length === 0) return { added: 0, full: false };
   const list = JSON.stringify([...ids]);
   const result = await db.run(sql`
-    INSERT INTO ${accountMemory}
-    SELECT lower(hex(randomblob(16))), ${accountId}, repo_hash, fingerprint, file, title, ${reason},
-      unixepoch('subsec') * 1000
+    INSERT INTO ${accountMemory} (id, account_id, repo_hash, fingerprint, file, title, reason, created_at)
+    SELECT ${randomId(db)}, ${accountId}, repo_hash, fingerprint, file, title, ${reason},
+      ${Date.now()}
     FROM (
       SELECT r.repo_hash, f.fingerprint, min(f.file) AS file, min(f.title) AS title,
         row_number() OVER (PARTITION BY r.repo_hash ORDER BY f.fingerprint) AS n
       FROM ${findings} f JOIN ${reviews} r ON r.id = f.review_id AND r.account_id = ${accountId}
-      WHERE f.account_id = ${accountId} AND f.id IN (SELECT value FROM json_each(${list}))
+      WHERE f.account_id = ${accountId} AND f.id IN (${jsonTexts(db, list)})
         AND NOT EXISTS (SELECT 1 FROM ${accountMemory} m WHERE m.account_id = ${accountId}
           AND m.repo_hash = r.repo_hash AND m.fingerprint = f.fingerprint)
       GROUP BY r.repo_hash, f.fingerprint
     ) AS picked
     WHERE (SELECT count(*) FROM ${accountMemory} m WHERE m.account_id = ${accountId}
       AND m.repo_hash = picked.repo_hash) + n <= ${cap}`);
-  const wanted = await db.get<{ n: number }>(sql`
-    SELECT count(*) AS n FROM (
+  const wanted = await db
+    .select({ n: sql<number>`count(*)` })
+    .from(sql`(
       SELECT DISTINCT r.repo_hash, f.fingerprint
       FROM ${findings} f JOIN ${reviews} r ON r.id = f.review_id AND r.account_id = ${accountId}
-      WHERE f.account_id = ${accountId} AND f.id IN (SELECT value FROM json_each(${list}))
+      WHERE f.account_id = ${accountId} AND f.id IN (${jsonTexts(db, list)})
         AND NOT EXISTS (SELECT 1 FROM ${accountMemory} m WHERE m.account_id = ${accountId}
-          AND m.repo_hash = r.repo_hash AND m.fingerprint = f.fingerprint))`);
+          AND m.repo_hash = r.repo_hash AND m.fingerprint = f.fingerprint)) AS w`)
+    .then(first);
   return { added: changedRows(result), full: (wanted?.n ?? 0) > 0 };
 }
 
@@ -155,9 +155,9 @@ export async function findingInsights(db: Db, accountId: string, since: Date) {
   const where = and(eq(f.accountId, accountId), gte(f.createdAt, since));
   const tally = {
     total: count(),
-    open: sql<number>`coalesce(sum(${f.status} = 'open'), 0)`,
-    fixed: sql<number>`coalesce(sum(${f.status} = 'fixed'), 0)`,
-    dismissed: sql<number>`coalesce(sum(${f.status} = 'dismissed'), 0)`,
+    open: countWhere(sql`${f.status} = 'open'`),
+    fixed: countWhere(sql`${f.status} = 'fixed'`),
+    dismissed: countWhere(sql`${f.status} = 'dismissed'`),
   };
   const by = (key: SQL<string | null> | typeof f.reviewer, limit = 50) =>
     db

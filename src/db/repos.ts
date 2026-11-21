@@ -47,8 +47,7 @@ export async function nameRepo(
   const renamed = await db
     .update(t)
     .set({ name })
-    .where(and(eq(t.accountId, accountId), eq(t.repoHash, repoHash)))
-    .run();
+    .where(and(eq(t.accountId, accountId), eq(t.repoHash, repoHash)));
   if (changedRows(renamed) > 0) return true;
   const inserted = await db.run(sql`
     INSERT INTO ${t} (id, account_id, repo_hash, name)
@@ -70,11 +69,11 @@ export async function nameRepos(
   cap: number,
 ): Promise<number> {
   const t = repositories;
+  const now = Date.now();
   const [first, ...rest] = list.map((r) =>
     db
       .insert(t)
-      .select(sql`SELECT ${crypto.randomUUID()}, ${accountId}, ${r.repoHash}, ${r.name},
-        unixepoch('subsec') * 1000
+      .select(sql`SELECT ${crypto.randomUUID()}, ${accountId}, ${r.repoHash}, ${r.name}, ${now}
       WHERE (SELECT count(*) FROM ${t} WHERE account_id = ${accountId}) < ${cap}
         OR EXISTS (SELECT 1 FROM ${t} WHERE account_id = ${accountId} AND repo_hash = ${r.repoHash})`)
       .onConflictDoUpdate({ target: [t.accountId, t.repoHash], set: { name: sql`excluded.name` } }),

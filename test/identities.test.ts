@@ -9,7 +9,14 @@ import { db, resetDb } from "./helpers.js";
 
 beforeEach(resetDb);
 
-const accountsNow = async () => (await db.select({ n: count() }).from(schema.accounts).get())?.n;
+const accountsNow = async () =>
+  (
+    await db
+      .select({ n: count() })
+      .from(schema.accounts)
+      .limit(1)
+      .then((r) => r[0])
+  )?.n;
 
 it("makes one account for two first sign-ins racing", async () => {
   const both = await Promise.all([
@@ -31,5 +38,5 @@ it("keeps a provider's subjects apart from another provider's", async () => {
 it("goes with its account", async () => {
   const account = await upsertAccount(db, githubIdentity(7), "octo");
   await db.delete(schema.accounts).where(eq(schema.accounts.id, account.id));
-  expect(await db.select().from(schema.identities).all()).toEqual([]);
+  expect(await db.select().from(schema.identities)).toEqual([]);
 });

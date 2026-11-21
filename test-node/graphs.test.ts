@@ -87,8 +87,7 @@ async function serverWith(policy: "keep" | "opt-in" | "off", builder = fakeBuild
       .select()
       .from(schema.graphBuilds)
       .where(eq(schema.graphBuilds.accountId, accountId))
-      .orderBy(schema.graphBuilds.createdAt)
-      .all();
+      .orderBy(schema.graphBuilds.createdAt);
   return { host, call, signIn, settled, builds, builder };
 }
 

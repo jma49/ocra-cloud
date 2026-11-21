@@ -130,7 +130,8 @@ describe("the self-hosted server", () => {
         .select({ n: count() })
         .from(schema.findings)
         .where(eq(schema.findings.accountId, account.id))
-        .get();
+        .limit(1)
+        .then((r) => r[0]);
     expect((await findingsOf())?.n).toBe(2);
     await host.db.delete(schema.accounts).where(eq(schema.accounts.id, account.id));
     // Foreign keys are on, so the account's findings went with it.

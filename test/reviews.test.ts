@@ -278,6 +278,7 @@ describe("review export", () => {
       reason: null,
       note: null,
       decidedAt: null,
+      position: 0,
     };
     expect(exportFinding(bare)).toEqual({
       fingerprint: "fp-1",

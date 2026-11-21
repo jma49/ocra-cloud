@@ -32,7 +32,8 @@ export async function savePreferences(
 ): Promise<boolean> {
   const p = preferences;
   const v = preferenceVersions;
-  const set = { ...save.values, version: save.version, updatedAt: new Date() };
+  const now = Date.now();
+  const set = { ...save.values, version: save.version, updatedAt: new Date(now) };
   // Written by this save: the version only it could have set.
   const landed = sql`EXISTS (SELECT 1 FROM ${p} WHERE ${p.accountId} = ${accountId}
     AND ${p.version} = ${save.version})`;
@@ -45,18 +46,18 @@ export async function savePreferences(
       .onConflictDoUpdate({
         target: p.accountId,
         set,
-        setWhere: sql`${p.version} IS ${save.expected}`,
+        setWhere: sql`${p.version} IS NOT DISTINCT FROM ${save.expected}`,
       }),
     // In the table's column order: insert … select names every column.
     db.insert(v).select(sql`
       SELECT ${save.version}, ${accountId}, ${JSON.stringify(save.values)},
-        ${JSON.stringify(save.changed)}, unixepoch('subsec') * 1000
+        ${JSON.stringify(save.changed)}, ${now}
       WHERE ${landed}`),
     db.delete(v).where(and(own, notInArray(v.id, newest.limit(save.keep)))),
     db.insert(auditEvents).select(sql`
       SELECT ${save.auditId}, ${accountId}, 'settings.changed',
         ${JSON.stringify({ keys: save.changed, version: save.version })},
-        unixepoch('subsec') * 1000
+        ${now}
       WHERE ${landed}`),
   ]);
   return changedRows(upsert) > 0;

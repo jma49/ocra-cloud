@@ -148,7 +148,12 @@ describe("ocra login (device flow)", () => {
     return { status: res.status, body: (await res.json()) as Record<string, string> };
   };
   const cliSession = () =>
-    db.select().from(schema.sessions).where(eq(schema.sessions.kind, "cli")).get();
+    db
+      .select()
+      .from(schema.sessions)
+      .where(eq(schema.sessions.kind, "cli"))
+      .limit(1)
+      .then((r) => r[0]);
 
   it("refresh rotates the pair; the old access token works until its own expiry", async () => {
     const { tokens } = await signInCli(1, "octo");

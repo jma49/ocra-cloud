@@ -1,12 +1,14 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
   // src/index.ts (wrangler) and web/src/main.tsx (vite) are found by knip's plugins.
-  "entry": ["scripts/*.{ts,mjs}"],
+  // test-pg/ stands in for the cloudflare: modules (vitest.config.ts aliases).
+  "entry": ["scripts/*.{ts,mjs}", "test-pg/*.ts"],
   "project": [
     "src/**/*.ts",
     "web/src/**/*.{ts,tsx}",
     "test/**/*.ts",
     "test-node/**/*.ts",
+    "test-pg/**/*.ts",
     "scripts/*.{ts,mjs}"
   ],
   "ignoreDependencies": [
