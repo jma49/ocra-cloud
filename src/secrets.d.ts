@@ -23,4 +23,6 @@ interface __BaseEnv_Env {
   MODEL_ENDPOINTS?: string;
   /** off: forward to MODEL_ENDPOINTS only, never to the built-in public providers. */
   BUILTIN_PROVIDERS?: string;
+  /** The default models, as JSON, that an account starts with until it saves its own. */
+  DEFAULT_MODELS?: string;
 }

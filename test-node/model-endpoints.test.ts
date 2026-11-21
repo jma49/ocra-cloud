@@ -24,6 +24,7 @@ const VARS = {
     { id: "corp", label: "Corp LLM", base: UPSTREAM, models: "/v1/models", key: SERVER_KEY },
     { id: "lab", label: "Lab LLM", base: "https://lab.corp.internal" },
   ]),
+  DEFAULT_MODELS: JSON.stringify({ top: ["ocra-corp/qwen3-coder"], light: "ocra-corp/qwen3-8b" }),
 };
 
 let dir: string;
@@ -136,5 +137,35 @@ describe("a company's own model endpoints", () => {
 
   it("stop a server whose declaration is broken from starting", () => {
     expect(() => bindingsFrom({ ...VARS, MODEL_ENDPOINTS: "[{" })).toThrow("not JSON");
+  });
+});
+
+describe("the server's default models", () => {
+  it("are what an account starts with, until it saves its own", async () => {
+    const models = async () =>
+      (
+        (await (await call("/api/preferences/models", { headers: cli })).json()) as {
+          models: unknown;
+        }
+      ).models;
+    expect(await models()).toEqual({
+      top: ["ocra-corp/qwen3-coder"],
+      light: ["ocra-corp/qwen3-8b"],
+    });
+    const saved = await call("/api/preferences", {
+      method: "PUT",
+      headers: { ...web, "content-type": "application/json" },
+      body: JSON.stringify({ models: { top: ["ocra-lab/glm-4.6"] } }),
+    });
+    expect(saved.status).toBe(200);
+    expect(await models()).toEqual({ top: ["ocra-lab/glm-4.6"] });
+  });
+
+  it("stop a server from starting when they name a provider it does not have", () => {
+    const named = (model: string) => JSON.stringify({ top: [model] });
+    expect(() => bindingsFrom({ ...VARS, DEFAULT_MODELS: named("ocra-openai/gpt-5") })).toThrow(
+      "DEFAULT_MODELS cannot be served",
+    );
+    expect(() => bindingsFrom({ ...VARS, DEFAULT_MODELS: "{" })).toThrow("not JSON");
   });
 });
