@@ -1,14 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-// What the console last read, kept so a page opens on it at once and then
-// refreshes: in memory for this tab, and in IndexedDB so a reload or the
-// next visit starts from it too. It belongs to one account: a different
-// sign-in clears it, and so does signing out. Storage can be missing or
-// refuse (a private window, blocked site data); then only memory is kept.
-
 const DB = "ocra-cache";
 const STORE = "answers";
-/** How long a stored answer is worth showing while the fresh one loads. */
 const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 type Entry = { data: unknown; at: number };
@@ -52,10 +45,7 @@ async function run<T>(mode: IDBTransactionMode, act: (s: IDBObjectStore) => IDBR
 
 const OWNER_KEY = "\u0000owner";
 
-/**
- * Who the cache belongs to, from /me: a different account than the one that
- * filled it empties it first.
- */
+/** A different account than the one that filled the cache empties it first. */
 export async function cacheFor(login: string): Promise<void> {
   if (owner === login) return;
   const stored = await run<string>("readonly", (s) => s.get(OWNER_KEY) as IDBRequest<string>);
@@ -64,7 +54,6 @@ export async function cacheFor(login: string): Promise<void> {
   await run("readwrite", (s) => s.put(login, OWNER_KEY));
 }
 
-/** Forgets everything read: on sign-out, or when the session is gone. */
 export async function clearCache(): Promise<void> {
   memory.clear();
   owner = undefined;
@@ -86,12 +75,7 @@ function keep(key: string, data: unknown): void {
   void run("readwrite", (s) => s.put(e, key));
 }
 
-/**
- * The answer for `key`, shown from the cache at once when there is one and
- * refreshed from `load`. `stale` is true while what is shown came from the
- * cache and the fresh answer is still on its way. `change` edits what is
- * shown at once (an optimistic update) and gives back how to undo it.
- */
+/** Shows the cached answer for `key` at once, then refreshes it. `change` is an optimistic edit that returns its undo. */
 export function useCached<T>(key: string, load: () => Promise<T>) {
   const [state, setState] = useState<{
     key: string;
@@ -107,7 +91,6 @@ export function useCached<T>(key: string, load: () => Promise<T>) {
   loadRef.current = load;
   const asked = useRef(0);
 
-  // A new key starts from that key's cache, never from the previous key's data.
   const current =
     state.key === key
       ? state
@@ -165,7 +148,6 @@ export function useCached<T>(key: string, load: () => Promise<T>) {
   return {
     data: current.data,
     error: current.error,
-    /** No answer yet, cached or fresh. */
     loading: current.data === undefined && current.error === null,
     stale: current.stale,
     reload,

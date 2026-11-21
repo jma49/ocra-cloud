@@ -1,3 +1,4 @@
+import { gitlabPulls } from "./gitlab-pulls.js";
 import { platformCall } from "./http.js";
 import type { CodePlatform, PlatformRepo, TokenAnswer } from "./platform.js";
 
@@ -30,6 +31,7 @@ export function gitlab(client: GitlabClient, redirectUri: string): CodePlatform 
         refresh_token: refreshToken,
         redirect_uri: redirectUri,
       }),
+    listPulls: (token) => gitlabPulls(client.url, token),
     async listRepos(token) {
       const repositories: PlatformRepo[] = [];
       for (let page = 1; page <= MAX_PAGES; page++) {

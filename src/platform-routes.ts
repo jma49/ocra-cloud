@@ -69,6 +69,20 @@ platformsRoute.get("/repos", requireSession(), async (c) => {
   });
 });
 
+platformsRoute.get("/pulls", requireSession(), async (c) => {
+  const platforms = await Promise.all(
+    platformsOf(c.env, c.req.url).map(async (platform) => {
+      const head = { platform: platform.kind, host: platform.host };
+      const token = await accessToken(c.var.data, c.env, platform);
+      if (!token) return { ...head, linked: false, failed: false, more: false, pulls: [] };
+      const listing = await platform.listPulls(token);
+      if (!listing) return { ...head, linked: true, failed: true, more: false, pulls: [] };
+      return { ...head, linked: true, failed: false, ...listing };
+    }),
+  );
+  return c.json({ platforms });
+});
+
 // Names every repository the user reaches with its platform name, so the
 // console shows it in place of the hash. Needs sharing: only then does the
 // CLI hash with the account's salt.

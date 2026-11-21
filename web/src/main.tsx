@@ -49,7 +49,6 @@ function App() {
     api<Me>("/me").then(
       (m) => {
         rememberSignedIn(true);
-        // Before any page reads the cache: another account's answers go first.
         cacheFor(m.login).then(() => setMe(m));
       },
       (e: unknown) => {

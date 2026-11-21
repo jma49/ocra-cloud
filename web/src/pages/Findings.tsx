@@ -75,11 +75,6 @@ const lines = (f: Listed) =>
 
 type Decision = { status: FindingStatus; reason?: DismissReason; note?: string };
 
-/**
- * The page as it will be once the decision lands, shown before the server
- * answers: rows that leave the status filter go, the rest change in place,
- * and the counts move with them.
- */
 export function decided(page: Page, ids: Set<string>, shown: StatusFilter, d: Decision): Page {
   const statuses = { ...page.statuses };
   const findings: Listed[] = [];

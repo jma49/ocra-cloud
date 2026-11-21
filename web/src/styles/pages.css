@@ -239,3 +239,20 @@ td.finding-cell {
   margin-top: 0;
   margin-bottom: 16px;
 }
+
+/* Pull requests: a row is a link to the platform; j and k move the current one. */
+.pull-row {
+  color: inherit;
+  text-decoration: none;
+  flex-wrap: wrap;
+}
+.pull-row:hover,
+.pull-row.current {
+  background: var(--tint);
+}
+.pull-row.current {
+  box-shadow: inset 2px 0 0 var(--fg);
+}
+.pull-title {
+  overflow-wrap: anywhere;
+}
