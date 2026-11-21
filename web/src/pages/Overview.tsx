@@ -1,5 +1,6 @@
 import { loadKeys } from "../account-keys.js";
 import { api, type Usage } from "../api.js";
+import { useCached } from "../cache.js";
 import { compact, num } from "../format.js";
 import { Link } from "../router.js";
 import { anyProvider } from "../site.js";
@@ -10,7 +11,7 @@ export function Overview(props: { login: string }) {
     data: usage,
     error: usageError,
     reload: reloadUsage,
-  } = useLoad(() => api<Usage>("/usage?days=14"));
+  } = useCached("/usage?days=14", () => api<Usage>("/usage?days=14"));
   const { data: keys } = useLoad(loadKeys);
   const providers = useProviders();
   const week = usage?.series.slice(-7) ?? [];

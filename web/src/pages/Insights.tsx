@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { api } from "../api.js";
+import { useCached } from "../cache.js";
 import { num } from "../format.js";
-import { LoadError, Loading, PageHead, Seg, useLoad } from "../ui.js";
+import { LoadError, Loading, PageHead, Seg } from "../ui.js";
 
 // What the decisions in the findings inbox say about the reviews: of the
 // findings someone marked fixed or dismissed, how many were right, per
@@ -71,9 +72,8 @@ function Breakdown(props: { title: string; rows: Row[]; none: string }) {
 
 export function Insights() {
   const [days, setDays] = useState(30);
-  const { data, error, reload } = useLoad(
-    () => api<Insights>(`/findings/insights?days=${days}`),
-    [days],
+  const { data, error, reload } = useCached(`/findings/insights?days=${days}`, () =>
+    api<Insights>(`/findings/insights?days=${days}`),
   );
   return (
     <>

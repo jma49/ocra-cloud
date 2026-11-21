@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { api, why } from "../api.js";
+import { useCached } from "../cache.js";
 import { num } from "../format.js";
-import { LoadError, Loading, PageHead, useAction, useLoad } from "../ui.js";
+import { LoadError, Loading, PageHead, useAction } from "../ui.js";
 
 // The account's own daily limit on gateway calls, under the service's cap.
 // A review's spend in dollars is capped by Review settings, maxCostUsd.
@@ -9,7 +10,7 @@ import { LoadError, Loading, PageHead, useAction, useLoad } from "../ui.js";
 type Budget = { serviceDailyCalls: number; dailyCalls: number | null; callsToday: number };
 
 export function BudgetPage() {
-  const { data, error, reload } = useLoad(() => api<Budget>("/budget"));
+  const { data, error, reload } = useCached("/budget", () => api<Budget>("/budget"));
   const [draft, setDraft] = useState<string>();
   const save = useAction((dailyCalls: number | null) =>
     api<Budget>("/budget", { method: "PUT", body: JSON.stringify({ dailyCalls }) }),

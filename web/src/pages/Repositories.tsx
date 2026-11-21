@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { CodePlatformKind } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
+import { useCached } from "../cache.js";
 import { ago, num } from "../format.js";
 import { LoadError, Loading, PageHead, useAction, useLoad } from "../ui.js";
 
@@ -146,7 +147,9 @@ function PlatformsSection(props: { synced: () => void }) {
 }
 
 export function Repositories() {
-  const { data, error, reload } = useLoad(() => api<{ repositories: Repo[] }>("/repositories"));
+  const { data, error, reload } = useCached("/repositories", () =>
+    api<{ repositories: Repo[] }>("/repositories"),
+  );
   return (
     <>
       <PageHead

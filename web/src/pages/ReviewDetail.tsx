@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
 import type { Severity, Verdict, Verification } from "../../../src/shared/index.js";
 import { ApiError, api } from "../api.js";
+import { useCached } from "../cache.js";
 import { time } from "../format.js";
 import { Link } from "../router.js";
-import { LoadError, Loading, PageHead, Seg, useLoad } from "../ui.js";
+import { LoadError, Loading, PageHead, Seg } from "../ui.js";
 
 // One review and, when the account shares findings, its findings (ADR-0028).
 // Every text is rendered as plain text: findings quote untrusted code.
@@ -44,9 +45,8 @@ type Detail = {
 const SEV_CLASS = { critical: "badge-err", warning: "badge-warn", suggestion: "" } as const;
 
 export function ReviewDetail(props: { id: string }) {
-  const { data, error, reload } = useLoad(
-    () => api<Detail>(`/reviews/${encodeURIComponent(props.id)}`),
-    [props.id],
+  const { data, error, reload } = useCached(`/reviews/${props.id}`, () =>
+    api<Detail>(`/reviews/${encodeURIComponent(props.id)}`),
   );
   const [severity, setSeverity] = useState<"all" | Finding["severity"]>("all");
   const byFile = useMemo(() => {
