@@ -1,6 +1,6 @@
 # Self-hosting ocra Cloud
 
-The same API and web app as app.ocracloud.com, on Node with a SQLite file instead of Cloudflare Workers and D1. `src/node/` is the only code that differs: it opens libSQL, keeps the rate limits in memory, runs the daily retention, and serves `web/dist`. `test-node/` runs the app this way in CI.
+The same API and web app as app.ocracloud.com, on Node with a SQLite file instead of Cloudflare Workers and D1. `src/node/` is the only code that differs: it opens libSQL, reads the client's address from the socket or a trusted proxy, keeps the rate limits in memory, runs the daily retention, and serves `web/dist`. `test-node/` runs the app this way in CI.
 
 ## Run it
 
@@ -22,6 +22,7 @@ Without Docker: `npm ci && npm run build:web && npm run build:node`, then `node 
 | `GITLAB_CLIENT_ID`, `GITLAB_CLIENT_SECRET` | to connect GitLab | a GitLab OAuth application (scope `read_api`); its redirect URI is `<PUBLIC_URL>/api/platforms/gitlab/callback` |
 | `GITLAB_URL` | for a self-hosted GitLab | the instance, such as `https://gitlab.example.com`; `https://gitlab.com` when unset |
 | `PUBLIC_URL` | behind a TLS proxy | the address people open, such as `https://ocra.example.com` |
+| `TRUSTED_PROXY_HOPS` | behind a proxy | how many proxies in front append to `X-Forwarded-For` (1 for one TLS proxy); the login code limits count by the address read past them. 0, the socket's peer, when unset |
 | `DATABASE_URL` | no | a libSQL URL; `file:/data/ocra-cloud.db` in the image |
 | `PORT` | no | 8787 |
 | `GATEWAY_DAILY_CALLS`, `REVIEW_DAILY_UPLOADS`, `REVIEW_MAX_FINDINGS`, `DEVICE_DAILY_CODES`, `DEVICE_DAILY_CODES_PER_NETWORK` | no | the Worker's defaults (`wrangler.jsonc`) |

@@ -161,6 +161,47 @@ describe("behind a proxy that ends TLS", () => {
   });
 });
 
+describe("the login code limit", () => {
+  const askForCode = (target: Awaited<ReturnType<typeof openHost>>, headers: HeadersInit) =>
+    target.fetch(
+      new Request(`${ORIGIN}/api/device/code`, {
+        method: "POST",
+        headers: { ...headers, "content-type": "application/json" },
+        body: "{}",
+      }),
+    );
+
+  it("counts by the client's address, not by a header the client sets", async () => {
+    const statuses = [];
+    for (let i = 0; i < 11; i++) {
+      statuses.push((await askForCode(host, { "cf-connecting-ip": `192.0.2.${i}` })).status);
+    }
+    expect(statuses.slice(0, 10).every((s) => s === 200)).toBe(true);
+    expect(statuses[10]).toBe(429);
+  });
+
+  it("reads the address past the trusted proxy, ignoring what the client prepended", async () => {
+    const proxied = await openHost({
+      databaseUrl: `file:${join(dir, "hops.db")}`,
+      bindings: bindingsFrom(VARS),
+      migrations: resolve("migrations"),
+      trustedProxyHops: 1,
+    });
+    try {
+      const statuses = [];
+      for (let i = 0; i < 11; i++) {
+        const forwarded = `192.0.2.${i}, 198.51.100.7`;
+        statuses.push((await askForCode(proxied, { "x-forwarded-for": forwarded })).status);
+      }
+      expect(statuses[10]).toBe(429);
+      const other = await askForCode(proxied, { "x-forwarded-for": "198.51.100.8" });
+      expect(other.status).toBe(200);
+    } finally {
+      proxied.close();
+    }
+  });
+});
+
 describe("the in-memory rate limit", () => {
   it("allows `limit` calls per key in a window", async () => {
     const limit = memoryRateLimit(2, 60);

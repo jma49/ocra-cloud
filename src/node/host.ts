@@ -8,6 +8,7 @@ import { Hono } from "hono";
 import { createApp } from "../app.js";
 import type { Db } from "../db/client.js";
 import type { AppBindings } from "../types.js";
+import { clientAddress } from "./client-address.js";
 
 export type HostOptions = {
   /** A libSQL URL: `file:ocra.db` for a local SQLite file, or a libSQL server. */
@@ -23,6 +24,12 @@ export type HostOptions = {
    * request's URL, which would otherwise be the proxy's `http://` one.
    */
   publicUrl?: string;
+  /**
+   * How many proxies in front append to X-Forwarded-For, so that the client's
+   * address, which the login code limits count by, is read past them. 0 reads
+   * the socket's peer.
+   */
+  trustedProxyHops?: number;
 };
 
 /**
@@ -40,7 +47,11 @@ export async function openHost(options: HostOptions) {
   // The one place the libSQL database is taken as the type every query uses:
   // the same Drizzle SQLite API, its write results read by changedRows.
   const shared = db as unknown as Db;
-  const api = createApp(() => shared);
+  const addresses = new WeakMap<Request, string | undefined>();
+  const api = createApp({
+    openDb: () => shared,
+    clientAddress: (c) => addresses.get(c.req.raw),
+  });
 
   const origin = options.publicUrl ? new URL(options.publicUrl).origin : undefined;
   const site = new Hono();
@@ -57,8 +68,20 @@ export async function openHost(options: HostOptions) {
 
   return {
     db: shared,
-    fetch(incoming: Request): Response | Promise<Response> {
+    /** As `serve` calls it: the request, and the Node request it came on. */
+    fetch(
+      incoming: Request,
+      node?: { incoming: { socket: { remoteAddress?: string | undefined } } },
+    ): Response | Promise<Response> {
       const request = origin ? new Request(rebase(incoming.url, origin), incoming) : incoming;
+      addresses.set(
+        request,
+        clientAddress(
+          node?.incoming.socket.remoteAddress,
+          request.headers.get("x-forwarded-for"),
+          options.trustedProxyHops ?? 0,
+        ),
+      );
       const { pathname } = new URL(request.url);
       return pathname === "/api" || pathname.startsWith("/api/")
         ? api.fetch(request, options.bindings)

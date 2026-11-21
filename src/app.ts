@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { type Context, Hono } from "hono";
 import { account } from "./account.js";
 import { auth } from "./auth.js";
 import { BodyTooLarge } from "./body.js";
@@ -38,11 +38,15 @@ export const API_HEADERS = {
   "cross-origin-opener-policy": "same-origin",
 } as const;
 
-/**
- * The API, the same on every host: `openDb` gives each request its database
- * from the host's bindings (D1 on Workers, libSQL when self-hosted).
- */
-export function createApp<E extends AppBindings>(openDb: (env: E) => Db) {
+/** What differs between the hosts the API runs on (src/index.ts, src/node/). */
+export type Host<E extends AppBindings> = {
+  /** Each request's database, from the host's bindings: D1 on Workers, libSQL self-hosted. */
+  openDb: (env: E) => Db;
+  /** The address the request came from, as the host's network vouches for it. */
+  clientAddress: (c: Context) => string | undefined;
+};
+
+export function createApp<E extends AppBindings>(host: Host<E>) {
   const app = new Hono<AppEnv>().basePath("/api");
 
   app.use(async (c, next) => {
@@ -51,7 +55,8 @@ export function createApp<E extends AppBindings>(openDb: (env: E) => Db) {
   });
 
   app.use(async (c, next) => {
-    c.set("db", openDb(c.env as E));
+    c.set("db", host.openDb(c.env as E));
+    c.set("clientAddress", host.clientAddress(c) ?? "unknown");
     await next();
   });
 
