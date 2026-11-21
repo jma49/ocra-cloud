@@ -3,6 +3,7 @@ import {
   count,
   desc,
   eq,
+  gte,
   type InferSelectModel,
   inArray,
   isNull,
@@ -142,4 +143,41 @@ export async function rememberFindings(
         AND NOT EXISTS (SELECT 1 FROM ${accountMemory} m WHERE m.account_id = ${accountId}
           AND m.repo_hash = r.repo_hash AND m.fingerprint = f.fingerprint))`);
   return { added: result.meta.changes, full: (wanted?.n ?? 0) > 0 };
+}
+
+/**
+ * The account's findings since a time, counted per status in SQL, grouped
+ * by reviewer, severity, category, verification and dismissal reason: what
+ * the inbox's decisions say about each part of the review.
+ */
+export async function findingInsights(db: DrizzleD1Database, accountId: string, since: Date) {
+  const f = findings;
+  const where = and(eq(f.accountId, accountId), gte(f.createdAt, since));
+  const tally = {
+    total: count(),
+    open: sql<number>`coalesce(sum(${f.status} = 'open'), 0)`,
+    fixed: sql<number>`coalesce(sum(${f.status} = 'fixed'), 0)`,
+    dismissed: sql<number>`coalesce(sum(${f.status} = 'dismissed'), 0)`,
+  };
+  const by = (key: SQL<string | null> | typeof f.reviewer, limit = 50) =>
+    db
+      .select({ key: sql<string | null>`${key}`, ...tally })
+      .from(f)
+      .where(where)
+      .groupBy(key)
+      .orderBy(desc(count()))
+      .limit(limit);
+  const [all, reviewer, severity, category, verification, reasons] = await db.batch([
+    db.select(tally).from(f).where(where),
+    by(f.reviewer),
+    by(sql`${f.severity}`),
+    by(sql`${f.category}`, 20),
+    by(sql`${f.verification}`),
+    db
+      .select({ key: f.reason, n: count() })
+      .from(f)
+      .where(and(where, eq(f.status, "dismissed")))
+      .groupBy(f.reason),
+  ]);
+  return { all: all[0], reviewer, severity, category, verification, reasons };
 }

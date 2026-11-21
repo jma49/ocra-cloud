@@ -25,6 +25,7 @@ import {
 import {
   type Decision,
   decide,
+  findingInsights,
   findingStatusCounts,
   type InboxCursor,
   type InboxFilter,
@@ -338,6 +339,9 @@ export function scoped(db: DrizzleD1Database, accountId: string) {
     },
     decide(ids: readonly string[], decision: Decision): Promise<number> {
       return decide(db, accountId, ids, decision);
+    },
+    findingInsights(since: Date) {
+      return findingInsights(db, accountId, since);
     },
     rememberFindings(ids: readonly string[], reason: string, cap: number) {
       return rememberFindings(db, accountId, ids, reason, cap);
