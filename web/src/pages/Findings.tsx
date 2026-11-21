@@ -6,9 +6,10 @@ import type {
   Verification,
 } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
+import { useCached } from "../cache.js";
 import { ago } from "../format.js";
 import { Link } from "../router.js";
-import { LoadError, Loading, PageHead, Seg, useAction, useLoad } from "../ui.js";
+import { LoadError, Loading, PageHead, Seg, useAction } from "../ui.js";
 
 // Every shared finding of the account, across its reviews: filter them,
 // mark them fixed, dismiss them with a reason (and remember them for the
@@ -72,6 +73,36 @@ const lines = (f: Listed) =>
       ? `:${f.lineStart}-${f.lineEnd}`
       : `:${f.lineStart}`;
 
+type Decision = { status: FindingStatus; reason?: DismissReason; note?: string };
+
+/**
+ * The page as it will be once the decision lands, shown before the server
+ * answers: rows that leave the status filter go, the rest change in place,
+ * and the counts move with them.
+ */
+export function decided(page: Page, ids: Set<string>, shown: StatusFilter, d: Decision): Page {
+  const statuses = { ...page.statuses };
+  const findings: Listed[] = [];
+  for (const f of page.findings) {
+    if (!ids.has(f.id) || f.status === d.status) {
+      findings.push(f);
+      continue;
+    }
+    statuses[f.status]--;
+    statuses[d.status]++;
+    if (shown !== "all" && shown !== d.status) continue;
+    const open = d.status === "open";
+    findings.push({
+      ...f,
+      status: d.status,
+      reason: open ? null : (d.reason ?? null),
+      note: open ? null : (d.note ?? null),
+      decidedAt: open ? null : new Date().toISOString(),
+    });
+  }
+  return { ...page, findings, statuses };
+}
+
 export function Findings() {
   const [filters, setFilters] = useState<Filters>({
     status: "open",
@@ -79,10 +110,8 @@ export function Findings() {
     verification: "",
     repo: "",
   });
-  const { data, error, reload } = useLoad(
-    () => api<Page>(`/findings${query(filters)}`),
-    [filters.status, filters.severity, filters.verification, filters.repo],
-  );
+  const path = `/findings${query(filters)}`;
+  const { data, error, reload, change } = useCached(path, () => api<Page>(path));
   const [more, setMore] = useState<{ for: Page; rows: Listed[]; next: string | null }>();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [reason, setReason] = useState<DismissReason>("false_positive");
@@ -127,8 +156,13 @@ export function Findings() {
       status === "dismissed"
         ? { ids, status, reason, ...(note.trim() ? { note: note.trim() } : {}), remember }
         : { ids, status };
+    setDone("");
+    const undo = change((page) => decided(page, new Set(ids), filters.status, body));
     const answer = await decide.run(body);
-    if (!answer) return;
+    if (!answer) {
+      undo();
+      return;
+    }
     const memory =
       answer.remembered > 0 ? `, ${answer.remembered} remembered for their repository` : "";
     const full = answer.memoryFull ? " (a repository's memory is full; forget some first)" : "";

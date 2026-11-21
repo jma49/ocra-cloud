@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api, type Me } from "./api.js";
+import { clearCache } from "./cache.js";
 import { EyesMark } from "./eyes.js";
 import { Link } from "./router.js";
 import { rememberSignedIn } from "./signed-in.js";
@@ -33,6 +34,7 @@ export function TopBar(props: { me: Me | null }) {
   }, []);
   const logout = async () => {
     rememberSignedIn(false);
+    await clearCache();
     await api("/auth/logout", { method: "POST" }).catch(() => {});
     location.href = "/";
   };
