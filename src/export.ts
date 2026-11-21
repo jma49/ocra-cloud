@@ -35,6 +35,7 @@ export const EXPORTED = {
   repositories: "repositories",
   budgets: "budgets",
   platformLinks: "platforms",
+  pullViews: "pullViews",
 } as const satisfies Record<Table, string>;
 
 // How a table's row is shown; any other table's row loses only its account id.

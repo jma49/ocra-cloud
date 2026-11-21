@@ -51,6 +51,12 @@ export const rows = {
     wrappedKey: "w",
     ciphertext: "c",
   }),
+  pullViews: (id: string) => ({
+    id,
+    name: `view ${id}`,
+    filters: { roles: ["author" as const] },
+    position: 0,
+  }),
   repositories: (id: string) => ({ id, repoHash: `h-${id}`, name: `octo/${id}` }),
   // One row per account, kind and day; the id names the day.
   usageCounters: (id: string) => ({ kind: "uploads" as const, day: id, n: 1 }),

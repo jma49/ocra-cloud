@@ -26,6 +26,7 @@ const changes = {
   repositories: { name: "octo/changed" },
   budgets: { dailyCalls: 7 },
   platformLinks: { ciphertext: "changed" },
+  pullViews: { name: "changed" },
 } satisfies { [N in keyof typeof rows]: Record<string, unknown> };
 
 // Storage persists across tests in a file; deleting the accounts cascades.

@@ -34,6 +34,7 @@ import {
   rememberFindings,
 } from "./inbox.js";
 import { type PreferencesSave, savePreferences } from "./preferences.js";
+import { addPullView } from "./pull-views.js";
 import { nameRepo, nameRepos, reviewedRepos } from "./repos.js";
 import { accountTables } from "./schema.js";
 
@@ -339,28 +340,22 @@ export function scoped(db: Db, accountId: string) {
     inbox(filter: InboxFilter, limit: number, after?: InboxCursor) {
       return inbox(db, accountId, filter, limit, after);
     },
-    findingStatusCounts() {
-      return findingStatusCounts(db, accountId);
-    },
+    findingStatusCounts: () => findingStatusCounts(db, accountId),
     decide(ids: readonly string[], decision: Decision): Promise<number> {
       return decide(db, accountId, ids, decision);
     },
-    findingInsights(since: Date) {
-      return findingInsights(db, accountId, since);
-    },
+    findingInsights: (since: Date) => findingInsights(db, accountId, since),
     rememberFindings(ids: readonly string[], reason: string, cap: number) {
       return rememberFindings(db, accountId, ids, reason, cap);
     },
     /** The repositories reviewed since a time, summed (./repos.ts). */
-    reviewedRepos(since: Date) {
-      return reviewedRepos(db, accountId, since);
-    },
-    nameRepo(repoHash: string, name: string, cap: number): Promise<boolean> {
-      return nameRepo(db, accountId, repoHash, name, cap);
-    },
-    nameRepos(list: readonly { repoHash: string; name: string }[], cap: number) {
-      return nameRepos(db, accountId, list, cap);
-    },
+    reviewedRepos: (since: Date) => reviewedRepos(db, accountId, since),
+    nameRepo: (repoHash: string, name: string, cap: number) =>
+      nameRepo(db, accountId, repoHash, name, cap),
+    nameRepos: (list: readonly { repoHash: string; name: string }[], cap: number) =>
+      nameRepos(db, accountId, list, cap),
+    addPullView: (view: Parameters<typeof addPullView>[2], cap: number) =>
+      addPullView(db, accountId, view, cap),
     /** The findings of one of this account's reviews. */
     findingsOf(reviewId: string): Promise<Row<"findings">[]> {
       const f = accountTables.findings;

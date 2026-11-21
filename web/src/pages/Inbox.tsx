@@ -10,26 +10,38 @@ import {
   inboxSections,
   reposOf,
   rowsOf,
+  type ShownSection,
 } from "../inbox/sections.js";
+import { ViewDrawer } from "../inbox/view-drawer.js";
+import { forgetSharedView, sharedView, usePullViews, type ViewDraft } from "../inbox/views.js";
 import { Link } from "../router.js";
 import { useTitleCount } from "../title.js";
 import { LoadError, Loading, PageHead } from "../ui.js";
+
+type Editing = { draft: ViewDraft; id?: string };
+const BLANK: ViewDraft = { name: "", filters: { roles: ["author"], states: ["open"] } };
 
 export function Inbox() {
   const { data, error, reload, stale } = useCached("/platforms/pulls", () =>
     api<InboxAnswer>("/platforms/pulls"),
   );
+  const views = usePullViews();
   const [filters, setFilters] = useState<Filters>({ text: "", repo: "" });
   const [at, setAt] = useState(0);
+  const [editing, setEditing] = useState<Editing | null>(null);
+  const [offered, setOffered] = useState(() => sharedView(location.search));
   const { collapsed, toggle } = useCollapsed();
   const finder = useRef<HTMLInputElement>(null);
   const list = useRef<HTMLDivElement>(null);
 
   const rows = useMemo(() => (data ? rowsOf(data) : []), [data]);
-  const sections = useMemo(() => inboxSections(rows, filters), [rows, filters]);
-  const visible = sections.flatMap((s) => (collapsed.has(s.id) ? [] : s.rows));
+  const sections = useMemo(
+    () => inboxSections(rows, filters, views.views),
+    [rows, filters, views.views],
+  );
+  const visible = sections.flatMap((s) => (collapsed.has(s.key) ? [] : s.rows));
   const current = Math.min(at, Math.max(visible.length - 1, 0));
-  useTitleCount(sections.find((s) => s.id === "review")?.rows.length ?? 0);
+  useTitleCount(sections.find((s) => s.key === "review")?.rows.length ?? 0);
 
   useEffect(() => {
     list.current
@@ -39,9 +51,10 @@ export function Inbox() {
 
   useListKeys({
     move: (step) =>
-      setAt((a) =>
-        Math.max(0, Math.min(visible.length - 1, Math.min(a, visible.length - 1) + step)),
-      ),
+      setAt((a) => {
+        const last = Math.max(visible.length - 1, 0);
+        return Math.max(0, Math.min(last, Math.min(a, last) + step));
+      }),
     open: () => {
       const r = visible[current];
       if (r) window.open(r.url, "_blank", "noopener,noreferrer");
@@ -54,7 +67,10 @@ export function Inbox() {
     setFilters((f) => ({ ...f, ...change }));
     setAt(0);
   };
-  const filtering = Boolean(filters.text || filters.repo);
+  const dismissOffer = () => {
+    forgetSharedView();
+    setOffered(null);
+  };
   let index = 0;
 
   return (
@@ -62,7 +78,30 @@ export function Inbox() {
       <PageHead
         title="Pull requests"
         sub="What waits on you across every connected platform, read live. j and k move, Enter opens, / finds, r refreshes."
+        actions={
+          <button type="button" className="btn" onClick={() => setEditing({ draft: BLANK })}>
+            New section
+          </button>
+        }
       />
+      {offered && (
+        <div className="note" role="status">
+          <span className="grow">Someone shared the section “{offered.name}” with you.</span>
+          <button
+            type="button"
+            className="btn btn-sm"
+            onClick={() => {
+              setEditing({ draft: offered });
+              dismissOffer();
+            }}
+          >
+            Add it
+          </button>
+          <button type="button" className="btn btn-sm" onClick={dismissOffer}>
+            Dismiss
+          </button>
+        </div>
+      )}
       <div className="inbox-tools">
         <input
           ref={finder}
@@ -100,37 +139,78 @@ export function Inbox() {
         <Loading what="pull requests" />
       ) : (
         <div ref={list} className="inbox-sections">
-          {sections.map((s) => {
-            const open = !collapsed.has(s.id);
-            return (
-              <section key={s.id} className="section card" aria-label={s.title}>
-                <button
-                  type="button"
-                  className="card-head section-toggle"
-                  aria-expanded={open}
-                  onClick={() => toggle(s.id)}
-                >
-                  <h3>{s.title}</h3>
-                  <span className="subtle small">{s.rows.length}</span>
-                </button>
-                {open &&
-                  (s.rows.length === 0 ? (
-                    <div className="empty">{filtering ? "None match." : s.empty}</div>
-                  ) : (
-                    s.rows.map((r) => {
-                      const i = index++;
-                      return (
-                        <PullRow key={`${r.host}:${r.id}`} r={r} i={i} current={i === current} />
-                      );
-                    })
-                  ))}
-              </section>
-            );
-          })}
+          {sections.map((s) => (
+            <Section
+              key={s.key}
+              s={s}
+              open={!collapsed.has(s.key)}
+              filtering={Boolean(filters.text || filters.repo)}
+              toggle={() => toggle(s.key)}
+              edit={s.view && (() => s.view && setEditing({ draft: s.view, id: s.view.id }))}
+            >
+              {!collapsed.has(s.key) &&
+                s.rows.map((r) => {
+                  const i = index++;
+                  return <PullRow key={`${r.host}:${r.id}`} r={r} i={i} current={i === current} />;
+                })}
+            </Section>
+          ))}
         </div>
       )}
       {error && data ? <p className="error">Could not refresh: {why(error)}.</p> : null}
+      {editing && (
+        <ViewDrawer
+          initial={editing.draft}
+          repos={reposOf(rows)}
+          editing={Boolean(editing.id)}
+          onSave={(draft) => (editing.id ? views.save(editing.id, draft) : views.add(draft))}
+          {...(editing.id && { onDelete: () => views.remove(editing.id ?? "") })}
+          onClose={() => setEditing(null)}
+        />
+      )}
     </>
+  );
+}
+
+function Section(props: {
+  s: ShownSection;
+  open: boolean;
+  filtering: boolean;
+  toggle: () => void;
+  edit: (() => void) | undefined;
+  children: React.ReactNode;
+}) {
+  const { s } = props;
+  return (
+    <section className="section card" aria-label={s.title}>
+      <div className="section-head">
+        <button
+          type="button"
+          className="card-head section-toggle"
+          aria-expanded={props.open}
+          onClick={props.toggle}
+        >
+          <h3>{s.title}</h3>
+          <span className="subtle small">{s.rows.length}</span>
+        </button>
+        {props.edit && (
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label={`Edit ${s.title}`}
+            onClick={props.edit}
+          >
+            ⋯
+          </button>
+        )}
+      </div>
+      {props.open &&
+        (s.rows.length === 0 ? (
+          <div className="empty">{props.filtering ? "None match." : s.empty}</div>
+        ) : (
+          props.children
+        ))}
+    </section>
   );
 }
 

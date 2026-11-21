@@ -1,11 +1,10 @@
 import { useState } from "react";
-import type { SectionId } from "./sections.js";
 
 const KEY = "ocra-inbox-collapsed";
 
-function read(): Set<SectionId> {
+function read(): Set<string> {
   try {
-    return new Set(JSON.parse(localStorage.getItem(KEY) ?? "[]") as SectionId[]);
+    return new Set(JSON.parse(localStorage.getItem(KEY) ?? "[]") as string[]);
   } catch {
     return new Set();
   }
@@ -14,10 +13,10 @@ function read(): Set<SectionId> {
 /** Which sections this browser keeps folded. */
 export function useCollapsed() {
   const [collapsed, set] = useState(read);
-  const toggle = (id: SectionId) =>
+  const toggle = (key: string) =>
     set((c) => {
       const next = new Set(c);
-      if (!next.delete(id)) next.add(id);
+      if (!next.delete(key)) next.add(key);
       try {
         localStorage.setItem(KEY, JSON.stringify([...next]));
       } catch {}

@@ -17,6 +17,7 @@ import { platformConnect } from "./platform-connect.js";
 import { platformsRoute } from "./platform-routes.js";
 import { preferences } from "./preferences.js";
 import { providersRoute } from "./providers.js";
+import { pullViewsRoute } from "./pull-views.js";
 import { repositoriesRoute } from "./repositories.js";
 import { reviews } from "./reviews.js";
 import { sessions } from "./sessions.js";
@@ -86,6 +87,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
   app.route("/gateway", gateway);
   app.route("/platforms", platformsRoute);
   app.route("/platforms", platformConnect);
+  app.route("/pull-views", pullViewsRoute);
 
   app.notFound((c) => apiError(c, "not_found"));
   app.onError((err, c) => {
