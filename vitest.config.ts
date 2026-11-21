@@ -18,6 +18,10 @@ export default defineConfig({
                 GITHUB_CLIENT_SECRET: "test-client-secret",
                 MASTER_KEY: btoa(String.fromCharCode(...new Uint8Array(32).fill(7))),
                 SESSION_SECRET: "test-session-secret",
+                // A self-hosted GitLab, with a port the CLI's identity drops.
+                GITLAB_CLIENT_ID: "test-gitlab-app",
+                GITLAB_CLIENT_SECRET: "test-gitlab-secret",
+                GITLAB_URL: "https://gitlab.example.com:8443",
                 GATEWAY_DAILY_CALLS: "3",
                 REVIEW_DAILY_UPLOADS: "500",
                 REVIEW_MAX_FINDINGS: "20000",

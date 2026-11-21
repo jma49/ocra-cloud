@@ -8,4 +8,9 @@ interface __BaseEnv_Env {
   MASTER_KEY_PREVIOUS?: string;
   /** Signs the OAuth state cookie. */
   SESSION_SECRET: string;
+  /** A GitLab OAuth application, set to let accounts connect GitLab (docs/self-hosting.md). */
+  GITLAB_CLIENT_ID?: string;
+  GITLAB_CLIENT_SECRET?: string;
+  /** The GitLab instance; https://gitlab.com when unset. */
+  GITLAB_URL?: string;
 }
