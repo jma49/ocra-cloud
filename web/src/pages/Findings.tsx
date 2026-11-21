@@ -192,6 +192,7 @@ export function Findings() {
           <label>
             Severity{" "}
             <select
+              className="input"
               value={filters.severity}
               onChange={(e) => set({ severity: e.target.value as Filters["severity"] })}
             >
@@ -204,6 +205,7 @@ export function Findings() {
           <label>
             Verified{" "}
             <select
+              className="input"
               value={filters.verification}
               onChange={(e) => set({ verification: e.target.value as Filters["verification"] })}
             >
@@ -216,7 +218,11 @@ export function Findings() {
           </label>
           <label>
             Repository{" "}
-            <select value={filters.repo} onChange={(e) => set({ repo: e.target.value })}>
+            <select
+              className="input"
+              value={filters.repo}
+              onChange={(e) => set({ repo: e.target.value })}
+            >
               <option value="">Any</option>
               {repos.map(([hash, short]) => (
                 <option key={hash} value={hash}>
@@ -227,44 +233,54 @@ export function Findings() {
           </label>
         </div>
 
-        <fieldset className="toolbar" disabled={selected.size === 0 || decide.busy}>
-          <span className="muted small">{selected.size} selected</span>
-          <button type="button" className="btn btn-sm" onClick={() => apply("fixed")}>
-            Mark fixed
-          </button>
-          <label>
-            Reason{" "}
-            <select value={reason} onChange={(e) => setReason(e.target.value as DismissReason)}>
-              {REASONS.map((r) => (
-                <option key={r.value} value={r.value}>
-                  {r.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <input
-            type="text"
-            placeholder="Note (optional)"
-            aria-label="Note"
-            maxLength={4096}
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-          />
-          <label>
+        {selected.size > 0 && (
+          <fieldset className="toolbar bulk" disabled={decide.busy}>
+            <span className="small">{selected.size} selected</span>
+            <button type="button" className="btn btn-sm" onClick={() => apply("fixed")}>
+              Mark fixed
+            </button>
+            <label>
+              Reason{" "}
+              <select
+                className="input"
+                value={reason}
+                onChange={(e) => setReason(e.target.value as DismissReason)}
+              >
+                {REASONS.map((r) => (
+                  <option key={r.value} value={r.value}>
+                    {r.label}
+                  </option>
+                ))}
+              </select>
+            </label>
             <input
-              type="checkbox"
-              checked={remember}
-              onChange={(e) => setRemember(e.target.checked)}
-            />{" "}
-            Remember
-          </label>
-          <button type="button" className="btn btn-sm" onClick={() => apply("dismissed")}>
-            Dismiss
-          </button>
-          <button type="button" className="btn btn-sm" onClick={() => apply("open")}>
-            Reopen
-          </button>
-        </fieldset>
+              type="text"
+              className="input"
+              placeholder="Note (optional)"
+              aria-label="Note"
+              maxLength={4096}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
+            <label>
+              <input
+                type="checkbox"
+                checked={remember}
+                onChange={(e) => setRemember(e.target.checked)}
+              />{" "}
+              Remember
+            </label>
+            <button type="button" className="btn btn-sm" onClick={() => apply("dismissed")}>
+              Dismiss
+            </button>
+            <button type="button" className="btn btn-sm" onClick={() => apply("open")}>
+              Reopen
+            </button>
+            <button type="button" className="btn btn-sm" onClick={() => setSelected(new Set())}>
+              Clear
+            </button>
+          </fieldset>
+        )}
         {decide.error ? (
           <p className="error" role="alert">
             Could not update them: {why(decide.error)}.
