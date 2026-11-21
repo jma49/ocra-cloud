@@ -170,7 +170,9 @@ function Sharing({ load }: { load: SharingLoad }) {
           Up to {num(data.findingsAllowance)} findings can be sent in any 90 days; deleting findings
           does not give that room back.
         </span>
-        <span className="subtle">{data.findingsStored} finding(s) stored now.</span>
+        <span className="subtle">
+          {data.findingsStored} finding{data.findingsStored === 1 ? "" : "s"} stored now.
+        </span>
         {failed !== null && (
           <ActionError what="change this setting (nothing was deleted)" error={failed} />
         )}
