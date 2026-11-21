@@ -26,5 +26,20 @@ setInterval(retention, DAY_MS).unref();
 void retention();
 
 const port = Number(process.env.PORT || 8787);
-serve({ fetch: host.fetch, port });
+const server = serve({ fetch: host.fetch, port });
 console.log({ level: "info", event: "listening", port });
+
+// As PID 1 in a container, Node gets no default handler for these: without
+// one, `docker stop` waits out its timeout and kills the server mid-write.
+for (const signal of ["SIGTERM", "SIGINT"] as const) {
+  process.once(signal, () => {
+    server.close(() => {
+      host.close();
+      process.exit(0);
+    });
+    // Idle keep-alive connections would hold close() open; a request still
+    // running gets ten seconds.
+    if ("closeIdleConnections" in server) server.closeIdleConnections();
+    setTimeout(() => process.exit(1), 10_000).unref();
+  });
+}
