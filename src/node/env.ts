@@ -1,10 +1,10 @@
 import { catalogOf } from "../catalog.js";
 import type { AppBindings } from "../types.js";
-import { memoryRateLimit } from "./limits.js";
+import { rateLimits } from "./limits.js";
 
 // A self-hosted server's settings come from its environment variables, with
 // the same names and defaults as the Worker's (wrangler.jsonc), and the same
-// rate limits, kept in memory.
+// rate limits, kept in memory until the host counts them in its database.
 
 const SECRETS = ["MASTER_KEY", "SESSION_SECRET"] as const;
 
@@ -60,9 +60,7 @@ export function bindingsFrom(vars: Record<string, string | undefined>): AppBindi
     REVIEW_MAX_FINDINGS: pick("REVIEW_MAX_FINDINGS"),
     DEVICE_DAILY_CODES_PER_NETWORK: pick("DEVICE_DAILY_CODES_PER_NETWORK"),
     DEVICE_DAILY_CODES: pick("DEVICE_DAILY_CODES"),
-    DEVICE_CODES: memoryRateLimit(10, 60),
-    DEVICE_LOOKUPS: memoryRateLimit(20, 60),
-    ACCOUNT_CALLS: memoryRateLimit(120, 60),
+    ...rateLimits("memory"),
   };
 }
 
@@ -72,4 +70,11 @@ export function trustedProxyHops(value: string | undefined): number {
   if (!/^\d+$/.test(value))
     throw new Error(`TRUSTED_PROXY_HOPS must be a whole number, not ${value}`);
   return Number(value);
+}
+
+/** MIGRATE: on (the default) applies the migrations at start, off leaves them, only applies them and exits. */
+export function migrateMode(value: string | undefined): "on" | "off" | "only" {
+  if (!value) return "on";
+  if (value === "on" || value === "off" || value === "only") return value;
+  throw new Error(`MIGRATE must be on, off or only, not ${value}`);
 }

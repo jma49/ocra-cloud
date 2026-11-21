@@ -1,0 +1,26 @@
+# Several ocra processes on this machine, sharing its database, behind the
+# same Caddy (docs/self-hosting.md, Several processes):
+#   docker compose -f docker-compose.yml -f docker-compose.replicas.yml up -d
+# One run applies the migrations first; the replicas then count the rate
+# limits in the database, so each limit holds for the whole deployment.
+
+services:
+  migrate:
+    build: ..
+    image: ocra-cloud
+    env_file: ocra.env
+    environment:
+      MIGRATE: only
+    volumes:
+      - ocra-data:/data
+    restart: "no"
+
+  ocra:
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      MIGRATE: "off"
+      RATE_LIMITS: database
+    deploy:
+      replicas: ${OCRA_REPLICAS:-2}

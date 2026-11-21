@@ -41,7 +41,9 @@ Without Docker: `npm ci && npm run build:web && npm run build:node`, then `node 
 | `MODEL_ENDPOINTS` | for company models | the company's own OpenAI-compatible model endpoints, as JSON (Company models below) |
 | `BUILTIN_PROVIDERS` | no | `off` forwards to `MODEL_ENDPOINTS` only, never to the public providers; `on` when unset |
 | `CODE_GRAPH` | no | what the server does with code graphs: `keep` (the default), `opt-in` (only for repositories added with the owner's consent) or `off` (none kept; the daily retention deletes any that are) |
-| `DATABASE_URL` | no | a libSQL URL; `file:/data/ocra-cloud.db` in the image |
+| `DATABASE_URL` | no | a libSQL URL; `file:/data/ocra-cloud.db` in the image, or a libSQL server's for processes on several machines |
+| `RATE_LIMITS` | with several processes | `database` counts the rate limits in the database, so that each holds for the deployment; `memory`, per process, when unset |
+| `MIGRATE` | with several processes | `on` (the default) applies the migrations at start, `off` leaves them, `only` applies them and exits |
 | `PORT` | no | 8787 |
 | `GATEWAY_DAILY_CALLS`, `REVIEW_DAILY_UPLOADS`, `REVIEW_MAX_FINDINGS`, `DEVICE_DAILY_CODES`, `DEVICE_DAILY_CODES_PER_NETWORK` | no | the Worker's defaults (`wrangler.jsonc`) |
 
@@ -75,13 +77,22 @@ Serve it over HTTPS: session cookies are `__Host-` cookies, which browsers keep 
 
 The endpoints appear in the console's "Your company" group, and the CLI reaches them through the gateway like any other provider, with the same metering and daily caps. A declaration the server cannot read stops it from starting, naming the field. Keep the filled-in environment file secret when it holds a `key`.
 
+## Several processes
+
+`docker-compose.replicas.yml` runs several ocra processes on this machine against its database, behind the same Caddy:
+
+```sh
+docker compose -f docker-compose.yml -f docker-compose.replicas.yml up -d
+```
+
+A one-off `migrate` run (`MIGRATE=only`) applies the migrations first; the replicas (`OCRA_REPLICAS` in `.env`, 2 by default) start after it with `MIGRATE=off` and `RATE_LIMITS=database`. Caddy sends requests to each in turn and skips one that fails its health check. The SQLite file runs in WAL mode, so readers do not wait for the writer. For processes on several machines, point `DATABASE_URL` at a libSQL server instead of a file, with the same two settings.
+
 ## Code graphs
 
 An account adds a repository under `/api/graphs/repos`; the server then keeps a graph of its default branch (symbol names, kinds and line numbers per file, never code), built after each push from the platform's tree and blob APIs with the account's own token, reading only the files that changed. Pushes arrive at `<PUBLIC_URL>/api/graphs/webhooks/github` (the GitHub App's webhook, signed with its secret) or `/api/graphs/webhooks/gitlab` (a project hook with the secret the server answers when the project is added). Builds older than 14 days are deleted daily, except each repository's newest; an account purges a repository's graphs or removes it at any time. Builds start once the server runs the engine's graph builder, which comes with the engine's next release.
 
 ## Limits of this first version
 
-- One process: the rate limits live in its memory, so run one replica.
+- Several processes share one database file or libSQL server; there is no Postgres or MySQL yet.
 - Set GitHub, OpenID Connect or both; the server refuses to start with neither. An account belongs to the identity it signed in with: the same person through GitHub and through SSO is two accounts.
-- SQLite or a libSQL server only; Postgres is not supported yet.
 - Back up the `/data` volume; there is no Time Travel as on D1.

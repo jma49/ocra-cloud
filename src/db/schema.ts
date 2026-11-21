@@ -143,6 +143,24 @@ export const serviceCounters = sqliteTable(
   (t) => [primaryKey({ columns: [t.day, t.name] })],
 );
 
+/**
+ * A rate limit's current window per key, for self-hosted servers that run
+ * several processes against one database (RATE_LIMITS=database). Unused on
+ * Workers, where the rate limiting bindings count.
+ */
+export const rateWindows = sqliteTable(
+  "rate_windows",
+  {
+    /** The limit and what it counts, as "gateway:<account id>" or "device_codes:<address>". */
+    key: text("key").primaryKey(),
+    /** When the window began, in milliseconds. */
+    start: integer("start").notNull(),
+    n: integer("n").notNull(),
+  },
+  // Retention deletes windows long over by it.
+  (t) => [index("rate_windows_start").on(t.start)],
+);
+
 // A model provider key, encrypted with a data key that the master key wraps.
 export const providerKeys = sqliteTable(
   "provider_keys",

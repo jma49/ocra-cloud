@@ -226,6 +226,7 @@ describe("retention", () => {
       "audit_events",
       "device_codes",
       "gateway_calls",
+      "rate_windows",
       "reviews",
       "service_counters",
       "sessions",
