@@ -1,0 +1,40 @@
+/* A pull request's stack, first in the pull request page's sidebar. */
+.pull-stack-list {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.pull-stack-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 4px 8px;
+  border-radius: var(--r-tab);
+  color: var(--t1);
+  text-decoration: none;
+  font-size: 12px;
+}
+.pull-stack-link:hover {
+  background: var(--fill);
+}
+.pull-stack-link[aria-current="page"] {
+  background: var(--fill2);
+  font-weight: 600;
+}
+.pull-stack-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pull-stack-steps {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
