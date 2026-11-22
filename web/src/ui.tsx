@@ -151,8 +151,11 @@ export const signInHref = (method: SignInMethod, next?: string) =>
 /** Shown while a page's data is on its way, so "nothing yet" is never a guess. */
 export function Loading(props: { what: string }) {
   return (
-    <div className="empty" aria-busy="true">
-      Loading {props.what}…
+    <div className="skeleton" role="status" aria-busy="true">
+      <span className="sr-only">Loading {props.what}…</span>
+      <span className="skeleton-bar" />
+      <span className="skeleton-bar" />
+      <span className="skeleton-bar" />
     </div>
   );
 }

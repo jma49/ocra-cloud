@@ -11,7 +11,7 @@ import { Sessions } from "./pages/Sessions.js";
 import { PrefsProvider } from "./prefs.js";
 import { pageFor } from "./routes.js";
 import { ToastProvider } from "./toast.js";
-import { ErrorBoundary, forgetProviders } from "./ui.js";
+import { ErrorBoundary, forgetProviders, Loading } from "./ui.js";
 
 // Honest states: a failure says what failed and why, loading is not "empty",
 // and a bad address or a throwing page does not blank the console.
@@ -222,6 +222,14 @@ describe("actions say when they fail", () => {
 });
 
 describe("loading and load errors", () => {
+  it("loading is a busy status named for what loads, drawn as placeholder lines", () => {
+    const { container } = render(<Loading what="reviews" />);
+    const status = screen.getByRole("status");
+    expect(status.getAttribute("aria-busy")).toBe("true");
+    expect(status.textContent).toBe("Loading reviews…");
+    expect(container.querySelectorAll(".skeleton-bar")).toHaveLength(3);
+  });
+
   it("Sessions and Memory say when they could not load, and retry", async () => {
     let up = false;
     fakeApi((path) =>
