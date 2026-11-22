@@ -44,6 +44,8 @@ export function FileDiff(props: {
   onDrop: (c: LineComment) => void;
   fixes: readonly FixProposalView[];
   onFixDone: (outcome: PullActionOutcome) => void;
+  /** Shows the diff without a way to comment on its lines. */
+  readOnly?: boolean;
 }) {
   const { file } = props;
   const lines = useMemo(() => (file.patch ? parsePatch(file.patch) : []), [file.patch]);
@@ -130,10 +132,14 @@ export function FileDiff(props: {
                     <Fragment key={i}>
                       <Row
                         line={line}
-                        onOpen={() => {
-                          setOpen(open === i ? null : i);
-                          setSuggestion(null);
-                        }}
+                        onOpen={
+                          props.readOnly
+                            ? undefined
+                            : () => {
+                                setOpen(open === i ? null : i);
+                                setSuggestion(null);
+                              }
+                        }
                       />
                       {fixRows(i)}
                       {here.map((c) => (
@@ -225,7 +231,7 @@ export function FileDiff(props: {
   );
 }
 
-function Row(props: { line: DiffLine; onOpen: () => void }) {
+function Row(props: { line: DiffLine; onOpen: (() => void) | undefined }) {
   const { line } = props;
   if (line.kind === "hunk") {
     return (
@@ -234,16 +240,19 @@ function Row(props: { line: DiffLine; onOpen: () => void }) {
       </tr>
     );
   }
-  const comment = (n: number) => (
-    <button
-      type="button"
-      className="diff-add-comment"
-      aria-label={`Comment on ${lineName(line)}`}
-      onClick={props.onOpen}
-    >
-      {n}
-    </button>
-  );
+  const comment = (n: number) =>
+    props.onOpen ? (
+      <button
+        type="button"
+        className="diff-add-comment"
+        aria-label={`Comment on ${lineName(line)}`}
+        onClick={props.onOpen}
+      >
+        {n}
+      </button>
+    ) : (
+      n
+    );
   // The button sits on the number its comment anchors to: old for a removed line, new otherwise.
   return (
     <tr className={`diff-${line.kind}`}>

@@ -13,6 +13,7 @@ import { api, why } from "../api.js";
 import { useFixes } from "../fixes/use-fixes.js";
 import { count } from "../format.js";
 import { PlatformMark } from "../platform-mark.js";
+import { SinceBar, sinceFiles, useSince } from "../pull/changes-since.js";
 import { ChecksBox } from "../pull/checks-box.js";
 import { DescriptionBox } from "../pull/description-box.js";
 import { DraftToggle } from "../pull/draft-toggle.js";
@@ -66,11 +67,14 @@ export function PullPage(props: {
   const { repo } = props;
   const updatedAt = data?.updatedAt;
   const head = data?.head;
+  const since = useSince(query.toString());
+  const compared = since.ready;
   useEffect(() => {
-    if (!updatedAt) return;
+    // The comparison reads the last visit's mark, so it goes first.
+    if (!updatedAt || !compared) return;
     const mark = { platform, repo, number, updatedAt, head };
     api("/pulls/seen", { method: "POST", body: JSON.stringify(mark) }).catch(() => undefined);
-  }, [platform, repo, number, updatedAt, head]);
+  }, [platform, repo, number, updatedAt, head, compared]);
   const fixes = useFixes(head ? `/pulls/fixes?${query}&head=${head}` : null);
   const queue = useLoad(() => api<MergeQueueView>(`/pulls/queue?${query}`), [query.toString()]);
   // Ticks sent from this page, over what the page read; a new head reads them afresh.
@@ -113,7 +117,10 @@ export function PullPage(props: {
   };
   const settled = data.state === "merged" || data.state === "closed";
   const sent = ticked.head === data.head ? ticked.paths : new Map<string, boolean>();
-  const isViewed = (f: PullFilesView["files"][number]) => sent.get(f.path) ?? f.viewed === true;
+  const read = new Map(data.files.map((f) => [f.path, f.viewed === true]));
+  const isViewed = (f: { path: string }) => sent.get(f.path) ?? read.get(f.path) === true;
+  const narrowed = sinceFiles(since);
+  const shown = narrowed ?? data.files;
   const markViewed = async (path: string, viewed: boolean) => {
     const head = data.head;
     // A path is a map key, never an object's: it may be any name, `__proto__` included.
@@ -172,7 +179,7 @@ export function PullPage(props: {
           <StackPanel pull={ref} mergeMethods={data.mergeMethods} onMerged={reload} />
           <ReviewersPanel pull={ref} />
           <LabelsBox pull={ref} onDone={(o) => done("Labels", o)} />
-          <FileList files={data.files} isViewed={isViewed} />
+          <FileList files={shown} isViewed={isViewed} />
           <ReviewBox data={data} pull={ref} pending={pending} onDone={(o) => done("Review", o)} />
           {!settled && <DescriptionBox pull={ref} onDone={(o) => done("Description", o)} />}
           <ThreadsPanel pull={ref} onDone={(o) => done("Review threads", o)} />
@@ -204,16 +211,18 @@ export function PullPage(props: {
           )}
         </aside>
         <div className="pull-main">
-          {data.files.map((f) => (
+          <SinceBar since={since} />
+          {shown.map((f) => (
             <FileDiff
-              key={f.path}
+              key={`${since.picked ?? ""}:${f.path}`}
+              readOnly={narrowed !== null}
               file={f}
               viewed={isViewed(f)}
               onViewed={(v) => markViewed(f.path, v)}
               pending={pending}
               onComment={(c) => setPending([...pending, c])}
               onDrop={(c) => setPending(pending.filter((x) => x !== c))}
-              fixes={fixes.filter((x) => x.file === f.path)}
+              fixes={narrowed === null ? fixes.filter((x) => x.file === f.path) : []}
               onFixDone={(o) => done("Fix", o)}
             />
           ))}
