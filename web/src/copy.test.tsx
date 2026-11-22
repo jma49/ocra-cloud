@@ -48,7 +48,7 @@ afterEach(() => {
 });
 
 describe("links", () => {
-  it("every docs link goes to ocracloud.com/docs", () => {
+  it("every docs link goes to ocracloud.com/docs", async () => {
     render(
       <>
         <TopBar
@@ -65,8 +65,8 @@ describe("links", () => {
       </>,
     );
     fireEvent.click(screen.getByRole("button", { name: /ada/ }));
-    const docs = screen
-      .getAllByRole("link")
+    await screen.findByRole("menu");
+    const docs = [...document.querySelectorAll("a")]
       .filter((a) => /^Doc/.test(a.textContent ?? ""))
       .map((a) => a.getAttribute("href"));
     expect(docs).toHaveLength(3);
