@@ -38,8 +38,7 @@ type Detail = {
     createdAt: string;
     prRepository: string | null;
     prNumber: number | null;
-    // Absent from a review uploaded before the console stored them.
-    linkedTasks?: LinkedTaskView[] | null;
+    linkedTasks: LinkedTaskView[] | null;
   };
   findings: Finding[];
   walkthrough: ReviewWalkthroughView | null;
