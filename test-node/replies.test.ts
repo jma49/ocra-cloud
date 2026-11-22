@@ -80,6 +80,8 @@ describe("an @ocra comment on GitHub", () => {
     const skipped = [
       { action: "created", comment: comment(1, "@ocra hi", "Bot"), issue: pull, repository },
       { action: "created", comment: comment(2, "@ocrabot hi"), issue: pull, repository },
+      { action: "created", comment: comment(6, "@ocra-team hi"), issue: pull, repository },
+      { action: "created", comment: comment(7, "mail me@ocra.dev"), issue: pull, repository },
       { action: "created", comment: comment(3, "@ocra hi"), issue: { number: 7 }, repository },
       { action: "edited", comment: comment(4, "@ocra hi"), issue: pull, repository },
       {
