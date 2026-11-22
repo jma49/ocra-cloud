@@ -211,6 +211,15 @@ describe("a pull request's page", () => {
     expect(screen.getByRole("button", { name: "Comment on line 11" })).toBeTruthy();
   });
 
+  it("keeps a path that starts with a dot left to right in the file list", async () => {
+    show(undefined, {
+      ...files,
+      files: files.files.map((f) => ({ ...f, path: ".changeset/refund.md" })),
+    });
+    const link = await screen.findByTitle(".changeset/refund.md");
+    expect(link.querySelector(".file-name bdi[dir=ltr]")?.textContent).toBe(".changeset/refund.md");
+  });
+
   it("writes a suggestion on a new line into the review", async () => {
     const sent = show();
     fireEvent.click(await screen.findByRole("button", { name: "Comment on line 11" }));

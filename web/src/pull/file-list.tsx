@@ -32,9 +32,13 @@ export function FileList(props: { files: File[]; isViewed: (f: File) => boolean 
             <span className="file-tick" aria-hidden="true">
               {done && <Check size={12} />}
             </span>
+            {/* The box is right to left so a long path loses its start, not its name;
+                the path itself stays left to right, or a leading "." moves to the end. */}
             <span className="file-name">
-              <span className="subtle">{dir}</span>
-              {name}
+              <bdi dir="ltr">
+                <span className="subtle">{dir}</span>
+                {name}
+              </bdi>
             </span>
             <span className="diff-count small">
               <span className="add-n">+{f.additions}</span>{" "}
