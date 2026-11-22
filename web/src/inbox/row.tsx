@@ -2,16 +2,12 @@ import Layers from "lucide-react/icons/layers";
 import MessageSquare from "lucide-react/icons/message-square";
 import type { MouseEvent } from "react";
 import { since } from "../format.js";
+import { CHECKS } from "../pull/check-state.js";
 import { pullPath } from "../pull/path.js";
 import { navigate } from "../router.js";
 import type { Row } from "./sections.js";
 import { UNREAD_REASON } from "./unread.js";
 
-const CHECKS = {
-  passing: { label: "Checks pass", cls: "ok" },
-  failing: { label: "Checks fail", cls: "fail" },
-  pending: { label: "Checks running", cls: "wait" },
-} as const;
 const REVIEW = {
   approved: { label: "Approved", cls: "badge-ok" },
   changes_requested: { label: "Changes requested", cls: "badge-warn" },
