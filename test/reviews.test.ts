@@ -69,6 +69,38 @@ describe("review uploads", () => {
     expect(parseUpload(upload({ findings: { warning: -5 } }))?.warning).toBe(0);
   });
 
+  it("keeps the pull request a PR-mode review was of, and none for a local one", async () => {
+    const cli = await signInCli(1, "octo");
+    const web = await signIn(1, "octo");
+    const pullRequest = {
+      repository: "https://github.com/octo/api",
+      number: 482,
+      headSha: "9".repeat(40),
+    };
+    const post = (over: Record<string, unknown>) =>
+      call("/api/reviews", { method: "POST", auth: cli.auth, json: upload(over) });
+    const pr = (await (await post({ source: "github", pullRequest })).json()) as { id: string };
+    const local = (await (await post({ runId: "20261004T060000Z-0a0b0c" })).json()) as {
+      id: string;
+    };
+    const detail = async (id: string) =>
+      (
+        (await (await call(`/api/reviews/${id}`, { auth: web.auth })).json()) as {
+          review: Record<string, unknown>;
+        }
+      ).review;
+    expect(await detail(pr.id)).toMatchObject({
+      prRepository: pullRequest.repository,
+      prNumber: 482,
+      prHeadSha: pullRequest.headSha,
+    });
+    expect(await detail(local.id)).toMatchObject({
+      prRepository: null,
+      prNumber: null,
+      prHeadSha: null,
+    });
+  });
+
   it("each account sees only its own reviews", async () => {
     const a = await signInCli(1, "a");
     const b = await signIn(2, "b");

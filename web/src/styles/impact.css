@@ -1,0 +1,157 @@
+/* Impact rail: beside the review's findings; under 900 px a sheet raised from the bottom
+   while a finding is chosen. The pen marks only the use a critical finding names. */
+.review-layout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  align-items: flex-start;
+  margin-top: 48px;
+}
+.review-layout > .section {
+  flex: 999 1 560px;
+  min-width: 0;
+  margin-top: 0;
+}
+.impact-rail {
+  flex: 1 1 340px;
+  max-width: 460px;
+  min-width: 0;
+  overflow: hidden;
+  position: sticky;
+  top: 76px;
+  max-height: calc(100vh - 96px);
+  overflow-y: auto;
+}
+.impact-rail h2 {
+  font-size: 15px;
+}
+.impact-head {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.impact-pad {
+  margin: 0;
+  padding: 12px 16px;
+}
+.impact-pad .btn {
+  margin-top: 10px;
+}
+.impact-note {
+  margin: 12px 16px 0;
+  padding: 8px 10px;
+  border-radius: var(--r-chip);
+  background: var(--muted);
+  color: var(--fg-muted);
+  font-size: 12.5px;
+}
+.impact-note.warn {
+  color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 8%, transparent);
+}
+.impact-symbol {
+  border-bottom: 1px solid var(--border);
+}
+.impact-symbol-head {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  width: 100%;
+  min-height: 44px;
+  padding: 12px 16px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.impact-symbol-head:hover {
+  background: var(--tint);
+}
+.impact-where {
+  display: block;
+}
+.impact-count {
+  white-space: nowrap;
+}
+.impact-uses {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 4px;
+}
+.impact-use {
+  display: flex;
+  gap: 10px;
+  padding: 9px 16px;
+  border-top: 1px solid var(--border);
+  text-decoration: none;
+}
+.impact-use:hover {
+  background: var(--tint);
+}
+.impact-text {
+  min-width: 0;
+}
+.impact-use-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  align-items: baseline;
+}
+.impact-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-top: 7px;
+  border-radius: 50%;
+  border: 1.5px solid var(--fg-muted);
+}
+.impact-dot.pen {
+  border-color: var(--critical);
+  background: var(--critical);
+}
+.impact-named {
+  color: var(--critical);
+}
+.impact-code {
+  display: block;
+  margin-top: 4px;
+  padding: 4px 8px;
+  border-radius: var(--r-tag);
+  background: var(--muted);
+  white-space: pre;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.impact-foot {
+  margin: 0;
+  padding: 10px 16px 14px;
+}
+
+@media (max-width: 900px) {
+  .impact-rail {
+    flex-basis: 100%;
+    max-width: none;
+    position: static;
+    max-height: none;
+  }
+  .impact-rail.is-open {
+    position: fixed;
+    inset: auto 0 0;
+    z-index: 20;
+    max-height: 72vh;
+    background:
+      linear-gradient(170deg, var(--sheet-lit), transparent 28%),
+      url(/tex/paper-tooth.webp) 0 0 / 256px 256px,
+      var(--sheet-bg);
+    background-blend-mode: normal, multiply, normal;
+    border-radius: var(--r-sheet) var(--r-sheet) 0 0;
+    box-shadow: var(--float);
+  }
+}
+.finding.is-focused {
+  background: color-mix(in srgb, var(--print-teal) 7%, transparent);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--print-teal) 45%, transparent);
+}

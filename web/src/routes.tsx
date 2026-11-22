@@ -76,7 +76,10 @@ const ROUTES: readonly Route[] = [
     nav: { label: "Reviews", icon: "check", group: "Console" },
     page: () => <Reviews />,
   },
-  { path: "/reviews/:id", page: (_me, [id]) => <ReviewDetail id={id ?? ""} /> },
+  {
+    path: "/reviews/:id",
+    page: (me, [id]) => <ReviewDetail id={id ?? ""} graphs={me.codeGraphs !== "off"} />,
+  },
   {
     path: "/findings",
     nav: { label: "Findings", icon: "list", group: "Console" },

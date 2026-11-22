@@ -1,8 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReviewSource, Severity, Verdict, Verification } from "../../../src/shared/index.js";
 import { ApiError, api } from "../api.js";
 import { useCached } from "../cache.js";
 import { sourceLabel, time } from "../format.js";
+import { type FocusedFinding, ImpactRail } from "../impact/rail.js";
+import { symbolsOf } from "../impact/select.js";
+import { type Impact, useImpact } from "../impact/use-impact.js";
 import { Link } from "../router.js";
 import { LoadError, Loading, PageHead, Seg } from "../ui.js";
 
@@ -38,16 +41,30 @@ type Detail = {
     warning: number;
     suggestion: number;
     createdAt: string;
+    prRepository: string | null;
+    prNumber: number | null;
   };
   findings: Finding[];
 };
 
 const SEV_CLASS = { critical: "badge-err", warning: "badge-warn", suggestion: "" } as const;
 
-export function ReviewDetail(props: { id: string }) {
+export function ReviewDetail(props: { id: string; graphs: boolean }) {
   const { data, error, reload } = useCached(`/reviews/${props.id}`, () =>
     api<Detail>(`/reviews/${encodeURIComponent(props.id)}`),
   );
+  const pr = data?.review;
+  const impact = useImpact(
+    pr?.prRepository && pr.prNumber ? { repository: pr.prRepository, number: pr.prNumber } : null,
+    props.graphs,
+  );
+  const [focused, setFocused] = useState<FocusedFinding | null>(null);
+  useEffect(() => {
+    if (!focused) return;
+    const close = (e: KeyboardEvent) => e.key === "Escape" && setFocused(null);
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
+  }, [focused]);
   const [severity, setSeverity] = useState<"all" | Finding["severity"]>("all");
   const byFile = useMemo(() => {
     const groups = new Map<string, Finding[]>();
@@ -119,56 +136,67 @@ export function ReviewDetail(props: { id: string }) {
         ))}
       </div>
 
-      {data.findings.length === 0 ? (
-        <div className="section card empty-hero">
-          <h3>No findings stored for this review</h3>
-          <p>
-            Findings are kept only when you share them (Settings). Counts are always kept; turn
-            sharing on to see findings of later reviews here.
-          </p>
-          <Link to="/settings" className="btn">
-            Open settings
-          </Link>
-        </div>
-      ) : (
-        <div className="section">
-          <div className="section-title">
-            <span>
-              {data.findings.length} finding{data.findings.length === 1 ? "" : "s"} in{" "}
-              {byFile.length} file
-              {byFile.length === 1 ? "" : "s"}
-            </span>
-            <Seg
-              label="Severity"
-              value={severity}
-              options={[
-                { value: "all", label: "All" },
-                { value: "critical", label: "Critical" },
-                { value: "warning", label: "Warning" },
-                { value: "suggestion", label: "Suggestion" },
-              ]}
-              onChange={setSeverity}
-            />
+      <div className="review-layout">
+        {data.findings.length === 0 ? (
+          <div className="section card empty-hero">
+            <h3>No findings stored for this review</h3>
+            <p>
+              Findings are kept only when you share them (Settings). Counts are always kept; turn
+              sharing on to see findings of later reviews here.
+            </p>
+            <Link to="/settings" className="btn">
+              Open settings
+            </Link>
           </div>
-          {byFile.map(([file, list]) => (
-            <div className="card file-card" key={file}>
-              <div className="card-head">
-                <h3 className="mono">{file}</h3>
-                <span className="subtle small">{list.length}</span>
-              </div>
-              {list.map((f) => (
-                <FindingRow key={f.id} f={f} />
-              ))}
+        ) : (
+          <div className="section">
+            <div className="section-title">
+              <span>
+                {data.findings.length} finding{data.findings.length === 1 ? "" : "s"} in{" "}
+                {byFile.length} file
+                {byFile.length === 1 ? "" : "s"}
+              </span>
+              <Seg
+                label="Severity"
+                value={severity}
+                options={[
+                  { value: "all", label: "All" },
+                  { value: "critical", label: "Critical" },
+                  { value: "warning", label: "Warning" },
+                  { value: "suggestion", label: "Suggestion" },
+                ]}
+                onChange={setSeverity}
+              />
             </div>
-          ))}
-        </div>
-      )}
+            {byFile.map(([file, list]) => (
+              <div className="card file-card" key={file}>
+                <div className="card-head">
+                  <h3 className="mono">{file}</h3>
+                  <span className="subtle small">{list.length}</span>
+                </div>
+                {list.map((f) => (
+                  <FindingRow
+                    key={f.id}
+                    f={f}
+                    impact={impact}
+                    focused={focused?.id === f.id}
+                    onImpact={() => setFocused(focused?.id === f.id ? null : f)}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
+        <ImpactRail impact={impact} finding={focused} onClose={() => setFocused(null)} />
+      </div>
     </>
   );
 }
 
-function FindingRow(props: { f: Finding }) {
+function FindingRow(props: { f: Finding; impact: Impact; focused: boolean; onImpact: () => void }) {
   const { f } = props;
+  const reached = props.impact.state === "ready" ? symbolsOf(props.impact.view.symbols, f) : [];
+  const uses = reached.reduce((n, s) => n + s.useCount, 0);
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [state, setState] = useState<"" | "saving" | "saved" | "error">("");
@@ -188,7 +216,7 @@ function FindingRow(props: { f: Finding }) {
         ? `L${f.lineStart}–${f.lineEnd}`
         : `L${f.lineStart}`;
   return (
-    <div className="finding">
+    <div className={`finding${props.focused ? " is-focused" : ""}`}>
       <div className="finding-head">
         <span className={`badge ${SEV_CLASS[f.severity]}`}>{f.severity}</span>
         <span className="mono subtle small">{lines}</span>
@@ -199,6 +227,17 @@ function FindingRow(props: { f: Finding }) {
           {f.redacted ? " · redacted" : ""}
           {f.truncated ? " · cut" : ""}
         </span>
+        {reached[0] && (
+          <button
+            type="button"
+            className="btn btn-sm"
+            aria-pressed={props.focused}
+            onClick={props.onImpact}
+          >
+            Reaches {uses} use{uses === 1 ? "" : "s"} of {reached[0].name}
+            {reached.length > 1 ? ` and ${reached.length - 1} more` : ""}
+          </button>
+        )}
         <button type="button" className="btn btn-sm" onClick={() => setOpen(!open)}>
           {open ? "Hide" : "Details"}
         </button>
