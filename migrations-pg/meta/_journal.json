@@ -211,6 +211,13 @@
       "when": 1795376021328,
       "tag": "0029_platform_link_login",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1795376937482,
+      "tag": "0030_review_profiles",
+      "breakpoints": true
     }
   ]
 }

@@ -3,6 +3,7 @@ import { appendFile, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { profileRun } from "../auto-review/profiles.js";
 import { loginOf } from "../db/accounts.js";
 import type { Db } from "../db/client.js";
 import { claimGenerate } from "../db/generate-jobs.js";
@@ -126,16 +127,18 @@ export async function runNextReview(runner: ReviewRunner): Promise<boolean> {
         jobs.releaseJob(id, attempts, error, retryAt, at),
     },
     {
-      args: (platform, fullName, config) => [
+      args: (platform, fullName, config, flags) => [
         "review",
         ...pull(platform, fullName, job.number),
         "--publish",
         "--no-repo-config",
+        ...flags,
         "--config",
         config,
       ],
       ok: REVIEWED,
       mergeChecks: true,
+      profile: true,
     },
   );
   return true;
@@ -187,12 +190,20 @@ export async function runNextGeneration(runner: ReviewRunner): Promise<boolean> 
  * plain-language checks.
  */
 type Command = {
-  args: (platform: CodePlatform, fullName: string, config: string) => string[];
+  /** `flags` are the review profile's (none unless `profile`). */
+  args: (
+    platform: CodePlatform,
+    fullName: string,
+    config: string,
+    flags: readonly string[],
+  ) => string[];
   ok: ReadonlySet<number>;
   /** Exit codes that end the job without a retry: running it again would not change them. */
   settled?: ReadonlySet<number>;
   access?: BotAccess;
   mergeChecks?: true;
+  /** Whether the repository's review profile applies (src/shared/review-profiles.ts). */
+  profile?: true;
 };
 
 /** Clones the job's repository and runs the command there, signed in and posting as the bot. */
@@ -228,14 +239,16 @@ async function inCheckout(runner: ReviewRunner, job: Job, command: Command, sign
     const mergeChecks = command.mergeChecks
       ? await engineMergeChecks(await checksOf(data, repo.id))
       : [];
+    const profile = command.profile ? profileRun(repo.reviewProfile) : { config: {}, flags: [] };
     await writeFile(
       config,
       JSON.stringify({
+        ...profile.config,
         ...(bot.login ? { github: { botLogin: bot.login } } : {}),
         ...(mergeChecks.length > 0 ? { mergeChecks } : {}),
       }),
     );
-    const args = command.args(platform, repo.fullName, config);
+    const args = command.args(platform, repo.fullName, config, profile.flags);
     const ran = await exec(process.execPath, [runner.cli ?? installedCli(), ...args], {
       cwd: checkout,
       env: { ...baseEnv(home), OCRA_CLOUD_URL: runner.publicUrl, ...botEnv(platform, bot) },

@@ -50,6 +50,7 @@ import {
   type PullFilters,
   REVIEW_CHAT_ROLES,
   REVIEW_JOB_STATES,
+  REVIEW_PROFILES,
   type ReviewerCounts,
   type ReviewSettings,
   type ReviewWalkthroughView,
@@ -665,6 +666,8 @@ export const reviewRepos = sqliteTable(
     createdAt: createdAt(),
     /** Whether a blocking check that waits on the head's review keeps the merge pending. */
     holdUnreviewed: integer("hold_unreviewed", { mode: "boolean" }).notNull().default(true),
+    /** How much its hosted reviews say (src/shared/review-profiles.ts). */
+    reviewProfile: text("review_profile", { enum: REVIEW_PROFILES }).notNull().default("balanced"),
   },
   (t) => [
     uniqueIndex("review_repos_platform_repo").on(t.platform, t.host, t.platformRepoId),

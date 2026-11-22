@@ -1,4 +1,5 @@
 import { and, desc, eq, inArray, isNull, lt, lte, ne, or, sql } from "drizzle-orm";
+import { DEFAULT_REVIEW_PROFILE } from "../shared/index.js";
 import { changedRows, type Db, first } from "./client.js";
 import { reviewJobs, reviewRepos } from "./schema.js";
 
@@ -39,7 +40,7 @@ export function accountReviewJobs(db: Db, accountId: string) {
       const [row] = await db
         .insert(t)
         .select(sql`SELECT ${crypto.randomUUID()}, ${accountId}, ${repo.platform}, ${repo.host},
-          ${repo.platformRepoId}, ${repo.fullName}, ${repo.webhookSecretHash ?? null}, ${Date.now()}, 1
+          ${repo.platformRepoId}, ${repo.fullName}, ${repo.webhookSecretHash ?? null}, ${Date.now()}, 1, ${DEFAULT_REVIEW_PROFILE}
         WHERE (SELECT count(*) FROM ${t} WHERE account_id = ${accountId}) < ${cap}
           OR EXISTS (SELECT 1 FROM ${t} WHERE account_id = ${accountId} AND platform = ${repo.platform}
             AND host = ${repo.host} AND platform_repo_id = ${repo.platformRepoId})`)
