@@ -568,6 +568,8 @@ export const reviewRepos = sqliteTable(
     fullName: text("full_name").notNull(),
     webhookSecretHash: text("webhook_secret_hash"),
     createdAt: createdAt(),
+    /** Whether a blocking check that waits on the head's review keeps the merge pending. */
+    holdUnreviewed: integer("hold_unreviewed", { mode: "boolean" }).notNull().default(true),
   },
   (t) => [
     uniqueIndex("review_repos_platform_repo").on(t.platform, t.host, t.platformRepoId),
@@ -852,7 +854,7 @@ export const mergeCheckRuns = sqliteTable(
       .references(() => reviewRepos.id, { onDelete: "cascade" }),
     number: integer("number").notNull(),
     head: text("head").notNull(),
-    conclusion: text("conclusion", { enum: ["success", "neutral", "failure"] })
+    conclusion: text("conclusion", { enum: ["success", "neutral", "failure", "pending"] })
       .$type<MergeChecksConclusion>()
       .notNull(),
     results: text("results", { mode: "json" }).$type<MergeCheckResultView[]>().notNull(),

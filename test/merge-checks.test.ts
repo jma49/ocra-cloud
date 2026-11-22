@@ -85,6 +85,22 @@ describe("judging a pull request", () => {
     );
   });
 
+  it("holds the head pending while a blocking check waits on its review, when asked to", () => {
+    const linked = check("linked_issue", { open: true });
+    const hold = (checks: CheckConfig[], review: Parameters<typeof evaluateChecks>[2] = null) =>
+      evaluateChecks(checks, facts(), review, true).conclusion;
+    expect(hold([linked])).toBe("pending");
+    expect(evaluateChecks([linked], facts(), null).conclusion).toBe("success");
+    // Only a blocking check that the review judges holds it.
+    expect(hold([{ ...linked, mode: "warn" }])).toBe("success");
+    expect(hold([check("size", { maxFiles: 10 })], null)).toBe("success");
+    expect(hold([check("size", { maxFiles: 10 }), check("critical_findings", {})])).toBe("pending");
+    // A failing blocking check still fails; a landed review ends the wait.
+    expect(hold([linked, check("title", { prefixes: ["fix"] })])).toBe("failure");
+    expect(hold([linked], { unresolvedCritical: 0, linkedTasks: [] })).toBe("failure");
+    expect(hold([linked], { unresolvedCritical: 0 })).toBe("success");
+  });
+
   it("blocks on the head's unresolved critical findings, once it has a review", () => {
     const critical = check("critical_findings", {});
     expect(evaluateChecks([critical], facts(), null)).toMatchObject({

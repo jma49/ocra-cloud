@@ -118,11 +118,12 @@ describe("pre-merge checks on an enrolled repository", () => {
       body: {
         name: "ocra / pre-merge",
         head_sha: C2,
-        status: "completed",
-        conclusion: "neutral",
-        output: { title: "Passed with 1 warning" },
+        // Blocking checks wait on the head's review, which has not landed: in progress.
+        status: "in_progress",
+        output: { title: "Waiting for the review: 2 checks not evaluated yet" },
       },
     });
+    expect(sent[0]?.body).not.toHaveProperty("conclusion");
     const summary = (sent[0]?.body.output as { summary?: string } | undefined)?.summary;
     expect(summary).toContain("**Critical findings** (blocking): not evaluated yet: ocra has not");
     expect(summary).toContain(
@@ -142,9 +143,34 @@ describe("pre-merge checks on an enrolled repository", () => {
     expect(sent[1]).toMatchObject({
       method: "PATCH",
       url: `${API}/check-runs/900`,
-      body: { conclusion: "success" },
+      body: { status: "in_progress" },
     });
+    expect(sent[1]?.body.output).not.toMatchObject({ summary: expect.stringContaining("failed") });
     expect(await runs()).toHaveLength(1);
+  });
+
+  it("pass checks that wait on the review when the repository does not hold for it", async () => {
+    const me = await enrolledWithChecks();
+    const listed = await s.call("/api/auto-review/repos", { headers: me.auth });
+    const { repos } = (await listed.json()) as { repos: { id: string }[] };
+    const repo = `/api/merge-checks/repos/${repos[0]?.id}`;
+    const before = (await (await s.call(`${repo}/checks`, { headers: me.auth })).json()) as {
+      holdUnreviewed: boolean;
+    };
+    expect(before.holdUnreviewed).toBe(true);
+    const changed = await s.call(repo, {
+      method: "PATCH",
+      headers: me.auth,
+      json: { holdUnreviewed: false },
+    });
+    expect(await changed.json()).toEqual({ holdUnreviewed: false });
+    await pullEvent("opened");
+    await posted();
+    expect(sent[0]?.body).toMatchObject({
+      status: "completed",
+      conclusion: "neutral",
+      output: { title: "Passed with 1 warning" },
+    });
   });
 
   it("block the head once its review lands with an unresolved critical finding", async () => {

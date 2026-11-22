@@ -56,6 +56,7 @@ const ACCESS: Record<string, Access> = {
   "GET /api/repo-config": "web",
   "POST /api/repo-config": "web",
   "GET /api/pulls/checks": "web",
+  "PATCH /api/merge-checks/repos/:id": "web",
   "GET /api/merge-checks/repos/:id/checks": "web",
   "POST /api/merge-checks/repos/:id/checks": "web",
   "PATCH /api/merge-checks/repos/:id/checks/:check": "web",

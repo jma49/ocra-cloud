@@ -13,9 +13,8 @@ const result = (over: Partial<MergeCheckResultView>): MergeCheckResultView => ({
   detail: "links #12",
   ...over,
 });
-const title = (results: MergeCheckResultView[]) =>
-  statusOf({ head: "a".repeat(40), conclusion: "success", results }, "https://ocra.example/p")
-    .title;
+const title = (results: MergeCheckResultView[], conclusion: "success" | "pending" = "success") =>
+  statusOf({ head: "a".repeat(40), conclusion, results }, "https://ocra.example/p").title;
 
 describe("the posted title of a pull request's checks", () => {
   it("says checks are not evaluated yet rather than that all passed", () => {
@@ -37,6 +36,14 @@ describe("the posted title of a pull request's checks", () => {
     );
     expect(title([result({ mode: "warn", outcome: "failed" }), waiting])).toBe(
       "Passed with 1 warning",
+    );
+  });
+
+  it("says a pending head waits for its review, even with a warning failed", () => {
+    const waiting = result({ outcome: "not_evaluated", detail: "not evaluated yet" });
+    const warned = result({ id: "c2", mode: "warn", outcome: "failed" });
+    expect(title([waiting, warned], "pending")).toBe(
+      "Waiting for the review: 1 check not evaluated yet",
     );
   });
 });

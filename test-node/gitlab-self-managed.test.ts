@@ -283,18 +283,22 @@ describe("ocra Cloud with a self-managed GitLab", () => {
   );
 
   it("posts the pre-merge check on the reviewed head, passed by the issue it closes", async () => {
-    // Posted when the hook queued the head, before its review, and again once the review landed.
+    // Posted when the hook queued the head, before its review, and again once it landed.
     const described = () =>
       gitlab.statuses.map((st) => (st as { description: string }).description);
     await vi.waitFor(() => expect(described().at(-1)).toBe("All checks passed"), {
       timeout: 10_000,
       interval: 200,
     });
-    expect(
-      described()
-        .slice(0, -1)
-        .every((d) => d === "1 check not evaluated yet"),
-    ).toBe(true);
+    // The blocking check waited on the review: pending until it landed.
+    expect(gitlab.statuses.slice(0, -1)).toEqual(
+      gitlab.statuses.slice(0, -1).map(() =>
+        expect.objectContaining({
+          state: "pending",
+          description: "Waiting for the review: 1 check not evaluated yet",
+        }),
+      ),
+    );
     expect(gitlab.statuses.at(-1)).toMatchObject({ name: "ocra / pre-merge", state: "success" });
     const status = gitlab.requests.find((r) => r.path.includes("/statuses/"));
     expect(status?.path).toContain(`/statuses/${gitlab.head}`);

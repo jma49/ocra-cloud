@@ -35,8 +35,10 @@ export function githubMergeStatus(): PullMergeStatus {
     async publish(token, fullName, head, status, previous) {
       const run = {
         name: CHECK_NAME,
-        status: "completed",
-        conclusion: status.conclusion,
+        // A pending result is a check run still in progress, which has no conclusion.
+        ...(status.conclusion === "pending"
+          ? { status: "in_progress" }
+          : { status: "completed", conclusion: status.conclusion }),
         details_url: status.detailsUrl,
         output: { title: status.title, summary: status.summary.slice(0, MAX_SUMMARY) },
       };
