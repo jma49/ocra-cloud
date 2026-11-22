@@ -5,6 +5,7 @@ import { hmacHex } from "../src/crypto.js";
 import { githubIdentity, upsertAccount } from "../src/db/accounts.js";
 import * as schema from "../src/db/schema.js";
 import { scoped } from "../src/db/scoped.js";
+import { engineGraphParser } from "../src/node/engine-graph.js";
 import { bindingsFrom } from "../src/node/env.js";
 import { openHost } from "../src/node/host.js";
 import { github } from "../src/platforms/github.js";
@@ -43,7 +44,12 @@ export async function graphServer(
     bindings,
     migrations: resolve("migrations"),
     publicUrl: ORIGIN,
-    graphs: { policy, builder: builder.builder, githubWebhookSecret: SECRET },
+    graphs: {
+      policy,
+      builder: builder.builder,
+      parse: engineGraphParser,
+      githubWebhookSecret: SECRET,
+    },
   });
   const call = (path: string, init: RequestInit & { json?: unknown } = {}) => {
     const { json, ...rest } = init;

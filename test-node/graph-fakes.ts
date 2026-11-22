@@ -8,12 +8,28 @@ export const GITLAB = "https://gitlab.example.com";
 
 type Files = Record<string, string>;
 
+/** A pull request as the fake platforms report it: GitHub's file statuses and patches. */
+export type FakePull = {
+  base: string;
+  head: string;
+  files: {
+    path: string;
+    oldPath?: string;
+    status: "added" | "removed" | "modified" | "renamed";
+    patch?: string;
+  }[];
+};
+
 /**
  * GitHub's and GitLab's repository APIs for one repository (Octo/API, id
  * 11 on GitHub, project 21 on GitLab): each commit's files by path, with
  * blob ids made from their content. Counts the blobs read.
  */
-export function repoFake(commits: Record<string, Files>, head = C1) {
+export function repoFake(
+  commits: Record<string, Files>,
+  head = C1,
+  pulls: Record<number, FakePull> = {},
+) {
   const blobs = new Map<string, string>();
   const blobId = (text: string) => {
     const id = Buffer.from(text).toString("hex").padEnd(40, "0").slice(0, 40);
@@ -53,7 +69,47 @@ export function repoFake(commits: Record<string, Files>, head = C1) {
     }
     const ghBlob = /git\/blobs\/(\w+)$/.exec(url)?.[1];
     if (url.startsWith(gh) && ghBlob) return blob(ghBlob);
+    const ghPull =
+      /^https:\/\/api\.github\.com\/repos\/Octo\/API\/pulls\/(\d+)(\/files\?per_page=100&page=1)?$/.exec(
+        url,
+      );
+    const pull = ghPull && pulls[Number(ghPull[1])];
+    if (ghPull) {
+      if (!pull) return new Response(null, { status: 404 });
+      if (!ghPull[2]) {
+        return Response.json({
+          base: { sha: pull.base },
+          head: { sha: pull.head },
+          changed_files: pull.files.length,
+        });
+      }
+      return Response.json(
+        pull.files.map((f) => ({
+          filename: f.path,
+          ...(f.oldPath ? { previous_filename: f.oldPath } : {}),
+          status: f.status,
+          changes: f.patch ? 1 : 0,
+          ...(f.patch ? { patch: f.patch } : {}),
+        })),
+      );
+    }
     const lab = `${GITLAB}/api/v4/projects/`;
+    const labMr = /merge_requests\/(\d+)(\/diffs\?per_page=100&page=1)?$/.exec(url);
+    if (url.startsWith(`${lab}group%2Fapi/`) && labMr) {
+      const mr = pulls[Number(labMr[1])];
+      if (!mr) return new Response(null, { status: 404 });
+      if (!labMr[2]) return Response.json({ diff_refs: { base_sha: mr.base, head_sha: mr.head } });
+      return Response.json(
+        mr.files.map((f) => ({
+          old_path: f.oldPath ?? f.path,
+          new_path: f.path,
+          new_file: f.status === "added",
+          deleted_file: f.status === "removed",
+          renamed_file: f.status === "renamed",
+          diff: f.patch ?? "",
+        })),
+      );
+    }
     if (url === `${lab}group%2Fapi`) {
       return Response.json({ id: 21, path_with_namespace: "group/api", default_branch: "main" });
     }

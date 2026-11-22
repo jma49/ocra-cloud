@@ -1,5 +1,6 @@
 import { sha256Hex } from "../crypto.js";
 import type { CodePlatformKind } from "../shared/index.js";
+import type { PullDiffs } from "./changes.js";
 import type { RepoContents } from "./contents.js";
 import type { PullListing } from "./pulls.js";
 
@@ -43,6 +44,7 @@ export interface CodePlatform {
   /** null when the platform refused the token. */
   listPulls(accessToken: string): Promise<PullListing | null>;
   readonly contents: RepoContents;
+  readonly changes: PullDiffs;
 }
 
 /**
