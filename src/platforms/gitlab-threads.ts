@@ -15,6 +15,8 @@ import {
 // together as the user and refuses one whose lines changed since.
 
 const PER_PAGE = 100;
+/** Pages of discussions read: each push or label change is one, and the diff's are among them. */
+const MAX_PAGES = 10;
 
 type Position = {
   head_sha: string;
@@ -98,6 +100,10 @@ export function gitlabThreads(origin: string): PullThreads {
     const threads: Thread[] = [];
     let truncated = false;
     for (let page = 1; ; page++) {
+      if (page > MAX_PAGES) {
+        truncated = true;
+        break;
+      }
       const found = await platformCall<Discussion[]>(
         `${url}/discussions?per_page=${PER_PAGE}&page=${page}`,
         headers,

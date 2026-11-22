@@ -134,6 +134,27 @@ describe("a GitLab merge request's threads", () => {
     expect(outdated?.comments[0]?.suggestions[0]?.applicable).toBe(false);
   });
 
+  it("reads a bounded number of pages of a merge request with many other discussions", async () => {
+    const pages: number[] = [];
+    const comments = Array.from({ length: 100 }, (_, i) => ({
+      id: `c${i}`.padEnd(40, "0"),
+      notes: [{ ...note(i), type: null, position: null }],
+    }));
+    const routes: Record<string, () => Response> = { ...routesAt() };
+    for (let page = 1; page <= 30; page++) {
+      routes[`GET ${MR}/discussions?per_page=100&page=${page}`] = () => {
+        pages.push(page);
+        return Response.json(page === 30 ? DISCUSSIONS : comments);
+      };
+    }
+    platform(routes);
+    const a = await signedIn();
+    const res = await a.send(`/api/pulls/threads?platform=gitlab&repo=Group/Sub/Project&number=3`);
+    const view = (await res.json()) as PullThreadsView;
+    expect(pages.length).toBeLessThanOrEqual(10);
+    expect(view).toMatchObject({ threads: [], truncated: true });
+  });
+
   it("applies one suggestion, or several in one batch, through GitLab's suggestion API", async () => {
     const sent = platform({
       ...routesAt(),
