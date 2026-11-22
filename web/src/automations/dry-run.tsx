@@ -3,17 +3,20 @@ import { Button } from "@/components/ui/button";
 import type {
   AutomationMatchView,
   AutomationPullFacts,
+  AutomationSkipView,
   AutomationTrigger,
   Verdict,
 } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
 import { listOf } from "../form.js";
 import { Seg, useAction } from "../ui.js";
-import { ACTION_LABEL, VERDICT_LABEL, VERDICT_LIST } from "./describe.js";
+import { ACTION_LABEL, SKIP_LABEL, VERDICT_LABEL, VERDICT_LIST } from "./describe.js";
 import type { Choice } from "./rule-form.js";
 
 // Describe a pull request and see which enabled rules would act on it;
 // nothing is done.
+
+type Tried = { matches: AutomationMatchView[]; skipped: AutomationSkipView[] };
 
 export function DryRun(props: { queued: boolean; repos: Choice[] | null }) {
   const [trigger, setTrigger] = useState<AutomationTrigger>(props.queued ? "queued" : "reviewed");
@@ -24,9 +27,11 @@ export function DryRun(props: { queued: boolean; repos: Choice[] | null }) {
   const [labels, setLabels] = useState("");
   const [critical, setCritical] = useState(false);
   const [verdict, setVerdict] = useState<Verdict | "">("");
-  const [matches, setMatches] = useState<AutomationMatchView[] | null>(null);
+  const [paths, setPaths] = useState("");
+  const [tried, setTried] = useState<Tried | null>(null);
   const pull = (): AutomationPullFacts => ({
     repoId: repoId || undefined,
+    paths: listOf(paths.replaceAll("\n", ",")),
     ...(trigger === "queued"
       ? {
           author: author.trim() || undefined,
@@ -37,7 +42,7 @@ export function DryRun(props: { queued: boolean; repos: Choice[] | null }) {
       : { critical, verdict: verdict || undefined }),
   });
   const run = useAction(() =>
-    api<{ matches: AutomationMatchView[] }>("/automations/dry-run", {
+    api<Tried>("/automations/dry-run", {
       method: "POST",
       body: JSON.stringify({ trigger, pull: pull() }),
     }),
@@ -45,7 +50,7 @@ export function DryRun(props: { queued: boolean; repos: Choice[] | null }) {
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     const r = await run.run();
-    if (r) setMatches(r.matches);
+    if (r) setTried(r);
   };
   return (
     <form className="card card-pad stack section" onSubmit={submit} aria-label="Try the rules">
@@ -60,7 +65,7 @@ export function DryRun(props: { queued: boolean; repos: Choice[] | null }) {
             value={trigger}
             onChange={(t) => {
               setTrigger(t);
-              setMatches(null);
+              setTried(null);
             }}
             options={[
               { value: "queued", label: "Queued" },
@@ -139,6 +144,13 @@ export function DryRun(props: { queued: boolean; repos: Choice[] | null }) {
             </label>
           </>
         )}
+        <input
+          className="input mono grow"
+          aria-label="Changed files"
+          placeholder="changed files: src/payments/refund.ts, db/001.sql"
+          value={paths}
+          onChange={(e) => setPaths(e.target.value)}
+        />
         <Button type="submit" variant="outline" disabled={run.busy}>
           Try
         </Button>
@@ -148,17 +160,28 @@ export function DryRun(props: { queued: boolean; repos: Choice[] | null }) {
           Could not try it: {why(run.error)}.
         </p>
       )}
-      {matches && (
+      {tried && (
         <div role="status">
-          {matches.length === 0 ? (
+          {tried.matches.length === 0 && tried.skipped.length === 0 ? (
             <p className="muted small m-0">No enabled rule would act on it.</p>
           ) : (
             <ul className="dry-matches">
-              {matches.map((m) => (
+              {tried.matches.map((m) => (
                 <li key={m.ruleId}>
                   <span className="strong">{m.name}</span>{" "}
                   <span className="muted">
                     would {m.actions.map((k) => ACTION_LABEL[k].toLowerCase()).join(", ")}
+                  </span>
+                </li>
+              ))}
+              {tried.skipped.map((m) => (
+                <li key={m.ruleId}>
+                  <span className="strong">{m.name}</span>{" "}
+                  <span className="muted">
+                    not decided:{" "}
+                    {m.reason === "paths_unavailable"
+                      ? "list the changed files to try it"
+                      : SKIP_LABEL[m.reason].toLowerCase()}
                   </span>
                 </li>
               ))}

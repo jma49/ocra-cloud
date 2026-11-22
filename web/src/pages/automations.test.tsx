@@ -50,6 +50,7 @@ function serve(rules: unknown[]) {
         if (url === "/api/automations/dry-run")
           return Response.json({
             matches: [{ ruleId: "r1", name: rule.name, actions: ["request_reviewers"] }],
+            skipped: [{ ruleId: "r2", name: "Huge changes", reason: "too_many_files" }],
           });
         return Response.json({ rule });
       }
@@ -95,6 +96,13 @@ describe("the Automations page", () => {
     fireEvent.change(within(form).getByLabelText("Critical finding"), {
       target: { value: "yes" },
     });
+    fireEvent.change(within(form).getByLabelText("Changed files to match"), {
+      target: { value: "db/**, *.sql" },
+    });
+    fireEvent.change(within(form).getByLabelText("Changed files to leave out"), {
+      target: { value: "db/seeds/**" },
+    });
+    fireEvent.click(within(form).getByLabelText(/Every changed file must match/));
     fireEvent.change(within(form).getByLabelText("Notify a channel, action 1"), {
       target: { value: "n1" },
     });
@@ -108,7 +116,10 @@ describe("the Automations page", () => {
         name: "Critical",
         enabled: true,
         trigger: "reviewed",
-        conditions: { critical: true },
+        conditions: {
+          critical: true,
+          paths: { include: ["db/**", "*.sql"], exclude: ["db/seeds/**"], every: true },
+        },
         actions: [{ kind: "notify", channelId: "n1" }],
       },
     });
@@ -128,12 +139,19 @@ describe("the Automations page", () => {
 
     const tryIt = screen.getByRole("form", { name: "Try the rules" });
     fireEvent.change(within(tryIt).getByLabelText("Base branch"), { target: { value: "main" } });
+    fireEvent.change(within(tryIt).getByLabelText("Changed files"), {
+      target: { value: "db/001.sql, src/refund.ts" },
+    });
     await act(async () => void fireEvent.click(within(tryIt).getByRole("button", { name: "Try" })));
     expect(sent[0]).toEqual({
       url: "/api/automations/dry-run",
       method: "POST",
-      body: { trigger: "queued", pull: { baseBranch: "main" } },
+      body: {
+        trigger: "queued",
+        pull: { baseBranch: "main", paths: ["db/001.sql", "src/refund.ts"] },
+      },
     });
     await waitFor(() => expect(within(tryIt).getByText("would request reviewers")).toBeTruthy());
+    expect(within(tryIt).getByText("not decided: too many changed files to decide")).toBeTruthy();
   });
 });
