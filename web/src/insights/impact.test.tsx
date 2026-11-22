@@ -85,7 +85,9 @@ describe("what ocra changed on Insights", () => {
     expect(within(section).getByText("Opened to merge, not reviewed")).toBeTruthy();
     expect(within(section).getByText("9.0h")).toBeTruthy();
     expect(
-      within(section).getByText(/6 marked fixed, 4 dismissed, 15 open, 1 issue opened/),
+      within(section).getByText(
+        "In the console: 6 marked fixed (2 by committing ocra's fix, 1 by a suggestion, 2 by hand, 1 before this was recorded), 4 dismissed, 15 open, 1 issue opened from a finding, 3 threads resolved.",
+      ),
     ).toBeTruthy();
     expect(within(section).getByText("acme/ledger")).toBeTruthy();
     expect(within(section).getByText("25%")).toBeTruthy();
