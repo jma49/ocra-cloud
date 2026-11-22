@@ -1,15 +1,10 @@
 import type { LiveFinding } from "@open-cr-agent/cloud-contract";
 import type { LiveCommentView } from "../../../src/shared/index.js";
+import { SeverityBadge } from "../severity.js";
 import { type CommentActions, CommentThread } from "./comments.js";
 
 // A finding as it arrives in a live run, with its comments. Plain text
 // throughout: findings quote untrusted code.
-
-const SEV = {
-  critical: { label: "Critical", cls: "badge-err" },
-  warning: { label: "Warning", cls: "badge-warn" },
-  suggestion: { label: "Suggestion", cls: "" },
-} as const;
 
 const linesOf = (f: LiveFinding) =>
   f.lineStart === undefined
@@ -25,13 +20,12 @@ export function LiveFindingEvent(props: {
   actions: CommentActions;
 }) {
   const { f } = props;
-  const sev = SEV[f.severity];
   return (
     <li className="event finding" id={`finding-${f.id}`}>
       <span className={`event-mark sev-${f.severity}`} aria-hidden="true" />
       <div className="event-body">
         <div className="event-meta">
-          <span className={`badge ${sev.cls}`}>{sev.label}</span>
+          <SeverityBadge severity={f.severity} />
           <span className="subtle">
             {f.reviewer}
             {f.verification ? ` · ${f.verification}` : ""}

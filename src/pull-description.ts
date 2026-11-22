@@ -2,9 +2,9 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { draftSection, withSection } from "./description-draft.js";
 import { apiError, jsonBody } from "./http.js";
-import { type CodePlatform, repoIdentity } from "./platforms/platform.js";
 import { byKind, pullRef, reach, sha } from "./pull-page.js";
 import { perMinute } from "./rate.js";
+import { identityOf } from "./review-pull.js";
 import { requireSession } from "./session.js";
 import {
   MAX_DESCRIPTION_CHARS,
@@ -27,15 +27,6 @@ const saveBody = z.object({
   head: sha,
   body: z.string().max(MAX_DESCRIPTION_CHARS),
 });
-
-/** The CLI's name for the repository, or null for one the platform's address cannot name. */
-function identityOf(platform: CodePlatform, repo: string): string | null {
-  try {
-    return repoIdentity(platform, repo);
-  } catch {
-    return null;
-  }
-}
 
 pullDescription.get(
   "/description-draft",

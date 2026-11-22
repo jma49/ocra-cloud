@@ -1,12 +1,6 @@
-import { reviewUploadSchema } from "@open-cr-agent/cloud-contract";
-import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { identities } from "../src/db/schema.js";
-import { scoped } from "../src/db/scoped.js";
-import { parseFindings } from "../src/findings.js";
-import { reviewRow } from "../src/reviews.js";
-import { finding, upload } from "./finding-uploads.js";
-import { db, resetDb } from "./helpers.js";
+import { FILE, HEAD, seed } from "./fix-fakes.js";
+import { resetDb } from "./helpers.js";
 import { connectGitlab, GITLAB, githubFake, signInWithGithub } from "./platform-fakes.js";
 
 // Committing a finding's fix to the pull request it was found on, as the
@@ -15,12 +9,9 @@ import { connectGitlab, GITLAB, githubFake, signInWithGithub } from "./platform-
 beforeEach(resetDb);
 afterEach(() => vi.restoreAllMocks());
 
-const HEAD = "a".repeat(40);
 const MOVED = "b".repeat(40);
 const PULL = "https://api.github.com/repos/octo/api/pulls/7";
 const CONTENTS = "https://api.github.com/repos/octo/api/contents/src/db.ts";
-const FILE = "const a = 1;\nconst b = 2;\nconst c = 3;\n";
-const FIX = { fixStartLine: 2, fixEndLine: 2, fixReplacement: "const b = 20;" };
 
 const b64 = (text: string) => btoa(text);
 const unb64 = (text: string) => atob(text);
@@ -40,28 +31,6 @@ function platform(routes: Record<string, () => Response>) {
     },
   });
   return sent;
-}
-
-/** A PR-mode review of the signed-in account with one finding; the finding's id. */
-async function seed(repository: string, number: number, over: Record<string, unknown> = {}) {
-  const [identity] = await db.select().from(identities).where(eq(identities.subject, "42"));
-  const data = scoped(db, identity?.accountId ?? "");
-  const { reviewersDropped: _, ...row } = reviewRow(
-    // The contract's schema fills the defaults the route's body would have.
-    reviewUploadSchema.parse({
-      ...upload("run-1", []),
-      pullRequest: { repository, number, headSha: HEAD },
-    }),
-  );
-  const [shared] = parseFindings([finding()]).rows;
-  if (!shared) throw new Error("the finding was not read");
-  const stored = await data.insertReview(row, [{ ...shared, ...FIX, ...over }], {
-    dailyUploads: 10,
-    maxFindings: 10,
-  });
-  if (stored.outcome !== "stored") throw new Error(stored.outcome);
-  const [f] = await data.findingsOf(stored.id);
-  return { id: f?.id ?? "", data };
 }
 
 const apply = (a: Awaited<ReturnType<typeof signInWithGithub>>, id: string) =>

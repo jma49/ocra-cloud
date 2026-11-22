@@ -1,5 +1,5 @@
 import type { Row } from "./db/scoped.js";
-import type { CodePlatform } from "./platforms/platform.js";
+import { type CodePlatform, repoIdentity } from "./platforms/platform.js";
 
 // The pull request a PR-mode review was of (ADR-0038), read back from what
 // the CLI uploaded: checked part by part before anything acts on it.
@@ -58,4 +58,13 @@ export function pullPageUrl(platform: CodePlatform, pull: Pick<ReviewPull, "repo
   return platform.kind === "gitlab"
     ? `${base}/-/merge_requests/${pull.number}`
     : `${base}/pull/${pull.number}`;
+}
+
+/** The CLI's name for the repository, or null for one the platform's address cannot name. */
+export function identityOf(platform: CodePlatform, repo: string): string | null {
+  try {
+    return repoIdentity(platform, repo);
+  } catch {
+    return null;
+  }
 }
