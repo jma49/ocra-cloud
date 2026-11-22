@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { api, type Me } from "../api.js";
 import { date, num } from "../format.js";
 import { ActionError, LoadError, Loading, PageHead, useLoad } from "../ui.js";
@@ -73,9 +73,9 @@ export function Settings(props: { me: Me }) {
             Download everything stored for your account as JSON. Records are kept 90 days;{" "}
             <a href="/privacy">data policy</a>.
           </span>
-          <a className={buttonVariants({ variant: "outline" })} href="/api/export" download>
+          <Button variant="outline" render={<a href="/api/export" download />}>
             Export my data
-          </a>
+          </Button>
         </div>
       </div>
 

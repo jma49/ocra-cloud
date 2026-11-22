@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { api, why } from "../api.js";
 import { useCached } from "../cache.js";
 import { useCollapsed } from "../inbox/collapsed.js";
@@ -149,9 +149,9 @@ export function Inbox() {
         <div className="section card empty-hero">
           <h3>Connect a platform</h3>
           <p>Link GitHub or GitLab to see the pull requests that wait on you.</p>
-          <Link to="/repositories" className={buttonVariants({ variant: "outline" })}>
+          <Button variant="outline" render={<Link to="/repositories" />}>
             Connect under Repositories
-          </Link>
+          </Button>
         </div>
       ) : sections.every((s) => s.rows.length === 0) ? (
         <div className="section card empty-hero">
