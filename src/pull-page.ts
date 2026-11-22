@@ -36,7 +36,7 @@ const MAX_REVIEW_BYTES = 1024 * 1024;
 const SEGMENT = /^(?!\.{1,2}$)[\w.-]+$/;
 
 /** `owner/repo` or `group/subgroup/repo`, each part a plain name. */
-const repoName = z
+export const repoName = z
   .string()
   .max(255)
   .refine((n) => {

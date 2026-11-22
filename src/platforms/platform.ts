@@ -4,6 +4,7 @@ import type { PullActions } from "./actions.js";
 import type { PullDiffs } from "./changes.js";
 import type { RepoContents } from "./contents.js";
 import type { PullCycles } from "./cycles.js";
+import type { RepoLearnings } from "./learnings.js";
 import type { PullListing } from "./pulls.js";
 import type { MergeQueue } from "./queue.js";
 import type { PullStacks } from "./stacks.js";
@@ -53,6 +54,7 @@ export interface CodePlatform {
   readonly queue: MergeQueue;
   readonly cycles: PullCycles;
   readonly stacks: PullStacks;
+  readonly learnings: RepoLearnings;
 }
 
 /**
