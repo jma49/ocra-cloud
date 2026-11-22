@@ -1,3 +1,5 @@
+import type { ReviewSource } from "../../src/shared/index.js";
+
 // How numbers and times read on the console's pages.
 
 const nf = new Intl.NumberFormat("en-US");
@@ -31,3 +33,10 @@ export const time = (iso: string) =>
     hour: "2-digit",
     minute: "2-digit",
   });
+
+const SOURCES: Record<ReviewSource, string> = {
+  local: "Local",
+  github: "GitHub PR",
+  gitlab: "GitLab MR",
+};
+export const sourceLabel = (source: ReviewSource) => SOURCES[source];

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { api, type Review, type Reviews as ReviewsData, why } from "../api.js";
 import { useCached } from "../cache.js";
-import { compact, num, time } from "../format.js";
+import { compact, num, sourceLabel, time } from "../format.js";
 import { Link } from "../router.js";
 import { Loading, PageHead, Seg, useAction } from "../ui.js";
 
@@ -161,13 +161,7 @@ export function Reviews() {
                       <Link to={`/reviews/${r.id}`}>{time(r.createdAt)}</Link>
                     </td>
                     <td className="mono">{r.name ?? r.repo}</td>
-                    <td className="muted">
-                      {r.source === "local"
-                        ? "Local"
-                        : r.source === "github"
-                          ? "GitHub PR"
-                          : "GitLab MR"}
-                    </td>
+                    <td className="muted">{sourceLabel(r.source)}</td>
                     <td>
                       <Verdict r={r} />
                     </td>
