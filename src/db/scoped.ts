@@ -44,6 +44,7 @@ import { addPullView } from "./pull-views.js";
 import { accountReplyJobs } from "./reply-jobs.js";
 import { accountReports } from "./reports.js";
 import { nameRepo, nameRepos, pulledRepos, reviewedRepos } from "./repos.js";
+import { accountReviewChat } from "./review-chat.js";
 import { accountReviewJobs } from "./review-jobs.js";
 import { accountTables } from "./schema.js";
 
@@ -423,6 +424,7 @@ export function scoped(db: Db, accountId: string) {
     reports: accountReports(db, accountId),
     closedPulls: accountClosedPulls(db, accountId),
     replies: accountReplyJobs(db, accountId),
+    chat: accountReviewChat(db, accountId),
     automations: accountAutomations(db, accountId),
     mergeChecks: accountMergeChecks(db, accountId),
     /** The findings of one of this account's reviews. */

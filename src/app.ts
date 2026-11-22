@@ -32,6 +32,7 @@ import { pullPage } from "./pull-page.js";
 import { pullStack } from "./pull-stack.js";
 import { pullViewsRoute } from "./pull-views.js";
 import { repositoriesRoute } from "./repositories.js";
+import { reviewChat } from "./review-chat.js";
 import { reviews } from "./reviews.js";
 import { sessions } from "./sessions.js";
 import type { AppBindings, AppEnv } from "./types.js";
@@ -106,6 +107,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
   app.route("/export", exportRoute);
   app.route("/account", account);
   app.route("/reviews", reviews);
+  app.route("/reviews", reviewChat);
   app.route("/findings", inbox);
   app.route("/repositories", repositoriesRoute);
   app.route("/budget", budget);

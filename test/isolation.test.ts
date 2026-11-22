@@ -39,6 +39,7 @@ const changes = {
   automationRuns: { outcome: "failed" as const },
   mergeChecks: { mode: "block" as const },
   mergeCheckRuns: { conclusion: "failure" as const },
+  reviewChatMessages: { text: "changed" },
 } satisfies { [N in keyof typeof rows]: Record<string, unknown> };
 
 // Storage persists across tests in a file; deleting the accounts cascades.
@@ -112,7 +113,7 @@ const withIds = (Object.keys(rows) as (keyof typeof rows)[]).filter(
 describe.each(withIds)("%s", (name) => {
   beforeEach(async () => {
     // A finding needs a review to belong to (foreign key).
-    if (name === "findings" || name === "reviewWalkthroughs") {
+    if (["findings", "reviewWalkthroughs", "reviewChatMessages"].includes(name)) {
       await db
         .insert(schema.reviews)
         .values({ id: "review-of-a", accountId: A, runId: "r", repoHash: "h", source: "local" });

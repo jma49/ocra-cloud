@@ -75,6 +75,7 @@ const TABLE: Record<string, string> = {
   automationRuns: "automation_runs",
   mergeChecks: "merge_checks",
   mergeCheckRuns: "merge_check_runs",
+  reviewChatMessages: "review_chat_messages",
 };
 
 describe("query plans", () => {
@@ -155,6 +156,29 @@ describe("query plans", () => {
     expect(reviews).toMatch(/SEARCH reviews USING INDEX reviews_account_created/);
     expect(findings).toMatch(/SEARCH findings USING INDEX findings_account_status_created/);
     for (const p of [reviews, findings, ...channels]) expect(p).not.toMatch(/\bSCAN\b/);
+  });
+
+  it("a review's conversation is read by (account_id, review_id, created_at) and its cascade by review_id", async () => {
+    const seen: Captured[] = [];
+    const d = scoped(drizzle(recording(seen)), "acct");
+    await d.chat.latest("r", 20);
+    await d.chat.add("r", "user", "q", new Date(), 99);
+    const [latest, add] = await Promise.all(seen.map(plan));
+    expect(latest).toMatch(
+      /SEARCH review_chat_messages USING INDEX review_chat_messages_account_review/,
+    );
+    expect(latest).not.toMatch(/\bSCAN\b|TEMP B-TREE/);
+    expect(add).toMatch(
+      /SEARCH review_chat_messages USING COVERING INDEX review_chat_messages_account_review/,
+    );
+    expect(add).not.toMatch(/\bSCAN\b/);
+    const cascade = await plan({
+      sql: "SELECT id FROM review_chat_messages WHERE review_id = ?",
+      params: ["r"],
+    });
+    expect(cascade).toMatch(
+      /SEARCH review_chat_messages USING (COVERING )?INDEX review_chat_messages_review/,
+    );
   });
 
   it("a review's findings are found by review_id, for the delete's cascade", async () => {
