@@ -126,6 +126,15 @@ describe("an issue drafted from a finding on GitHub", () => {
     expect(view.body).toContain("in src/../../etc/passwd L10–12.");
   });
 
+  it("mentions no one from the finding's file path", async () => {
+    platform({});
+    const a = await signInWithGithub();
+    const { id } = await seed(await accountOf("42"), GITHUB_PULL, { file: "src/@admin/db.ts" });
+    const view = (await (await draftOf(a, id)).json()) as FindingIssueDraftView;
+    expect(view.body).toContain("src/\\@​admin/db.ts L10–12");
+    expect(view.body).not.toMatch(/@\w/);
+  });
+
   it("fits within what the platform takes however much the escapes grow the finding's text", async () => {
     platform({});
     const a = await signInWithGithub();
