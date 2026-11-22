@@ -170,24 +170,31 @@ export function Loading(props: { what: string }) {
   );
 }
 
-/** A load that failed: what, why, and a way to try again. */
-export function LoadError(props: { what: string; error: unknown; retry: () => void }) {
-  return (
-    <div className="card">
-      <EmptyState
-        role="alert"
-        icon={TriangleAlert}
-        title={`Could not load ${props.what}`}
-        action={
-          <Button type="button" variant="outline" onClick={props.retry}>
-            Try again
-          </Button>
-        }
-      >
-        {capital(why(props.error))}.
-      </EmptyState>
-    </div>
+/**
+ * A load that failed: what, why, and a way to try again. Inside a card
+ * already (`inCard`), it adds no card of its own: cards do not nest.
+ */
+export function LoadError(props: {
+  what: string;
+  error: unknown;
+  retry: () => void;
+  inCard?: boolean;
+}) {
+  const state = (
+    <EmptyState
+      role="alert"
+      icon={TriangleAlert}
+      title={`Could not load ${props.what}`}
+      action={
+        <Button type="button" variant="outline" onClick={props.retry}>
+          Try again
+        </Button>
+      }
+    >
+      {capital(why(props.error))}.
+    </EmptyState>
   );
+  return props.inCard ? state : <div className="card">{state}</div>;
 }
 
 /**

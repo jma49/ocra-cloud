@@ -77,7 +77,7 @@ export function Overview(props: { login: string }) {
           {usage && anyCalls ? (
             <StackedBars series={usage.series} metric="calls" />
           ) : usageError && !usage ? (
-            <LoadError what="your requests" error={usageError} retry={reloadUsage} />
+            <LoadError what="your requests" error={usageError} retry={reloadUsage} inCard />
           ) : !usage ? (
             <Loading what="requests" />
           ) : (
