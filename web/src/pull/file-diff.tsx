@@ -1,12 +1,19 @@
 import { Fragment, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import type { LineComment, PullFilesView } from "../../../src/shared/index.js";
-import { anchorOf, type DiffLine, parsePatch, splitPath } from "./diff.js";
+import type {
+  FixProposalView,
+  LineComment,
+  PullActionOutcome,
+  PullFilesView,
+} from "../../../src/shared/index.js";
+import { FixProposal } from "../fixes/fix-proposal.js";
+import { anchorOf, type DiffLine, parsePatch, placeOnLines, splitPath } from "./diff.js";
 import { SuggestionText } from "./suggestion.js";
 
 // One changed file of a pull request: its header and its diff, where a
-// line's number opens a comment box. Comments wait in the page's review
-// until it is sent. Every text is plain text: the diff is untrusted code.
+// line's number opens a comment box, and ocra's fixes under the lines they
+// replace. Comments wait in the page's review until it is sent. Every text
+// is plain text: the diff is untrusted code.
 
 type File = PullFilesView["files"][number];
 
@@ -35,9 +42,20 @@ export function FileDiff(props: {
   pending: LineComment[];
   onComment: (c: LineComment) => void;
   onDrop: (c: LineComment) => void;
+  fixes: readonly FixProposalView[];
+  onFixDone: (outcome: PullActionOutcome) => void;
 }) {
   const { file } = props;
   const lines = useMemo(() => (file.patch ? parsePatch(file.patch) : []), [file.patch]);
+  const fixesAt = useMemo(() => placeOnLines(lines, props.fixes), [lines, props.fixes]);
+  const fixRows = (i: number) =>
+    fixesAt.get(i)?.map((fix) => (
+      <tr key={fix.finding} className="diff-note">
+        <td colSpan={3}>
+          <FixProposal fix={fix} onDone={props.onFixDone} />
+        </td>
+      </tr>
+    ));
   const [open, setOpen] = useState<number | null>(null);
   const [draft, setDraft] = useState("");
   // A suggestion replaces the commented new line; null while the comment carries none.
@@ -104,6 +122,7 @@ export function FileDiff(props: {
           <div className="diff-scroll">
             <table className="diff">
               <tbody>
+                {fixRows(-1)}
                 {lines.map((line, i) => {
                   const here = props.pending.filter((c) => sameAnchor(c, file.path, line));
                   return (
@@ -116,6 +135,7 @@ export function FileDiff(props: {
                           setSuggestion(null);
                         }}
                       />
+                      {fixRows(i)}
                       {here.map((c) => (
                         <tr key={props.pending.indexOf(c)} className="diff-note">
                           <td colSpan={3}>

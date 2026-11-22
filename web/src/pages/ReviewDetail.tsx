@@ -10,6 +10,7 @@ import type {
 } from "../../../src/shared/index.js";
 import { ApiError, api } from "../api.js";
 import { useCached } from "../cache.js";
+import { useFixes } from "../fixes/use-fixes.js";
 import { ago, count, sourceLabel, time } from "../format.js";
 import { type FocusedFinding, ImpactRail } from "../impact/rail.js";
 import { useImpact } from "../impact/use-impact.js";
@@ -59,6 +60,8 @@ export function ReviewDetail(props: { id: string; graphs: boolean }) {
     props.graphs,
   );
   const pull = pr ? pullOf(pr) : null;
+  const withFix = pull !== null && (data?.findings ?? []).some((f) => f.fix !== null);
+  const fixes = useFixes(withFix ? `/pulls/fixes/review/${encodeURIComponent(props.id)}` : null);
   const [focused, setFocused] = useState<FocusedFinding | null>(null);
   useEffect(() => {
     if (!focused) return;
@@ -167,6 +170,7 @@ export function ReviewDetail(props: { id: string; graphs: boolean }) {
               focused={focused?.id === f.id}
               onImpact={() => setFocused(focused?.id === f.id ? null : f)}
               canFix={pull !== null}
+              before={fixes.find((x) => x.finding === f.id)?.before ?? null}
             />
           ))}
         </ol>

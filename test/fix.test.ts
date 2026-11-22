@@ -3,9 +3,11 @@ import {
   fixedFile,
   fixMessage,
   fromBase64,
+  linesAt,
   MAX_FIX_FILE_BYTES,
   toBase64,
 } from "../src/platforms/fix.js";
+import { replacementLines } from "../src/shared/index.js";
 
 const encode = (text: string) => new TextEncoder().encode(text);
 const decode = (bytes: Uint8Array | undefined) =>
@@ -39,6 +41,26 @@ describe("a fix applied to a file", () => {
     ).toBeUndefined();
     const big = new Uint8Array(MAX_FIX_FILE_BYTES + 1).fill(0x61);
     expect(fixedFile(big, { startLine: 1, endLine: 1, replacement: "" })).toBeUndefined();
+  });
+});
+
+describe("the lines a fix replaces, and with what", () => {
+  it("reads its range in the file's own line endings, past a byte order mark", () => {
+    expect(linesAt(encode("a\nb\nc\n"), { startLine: 2, endLine: 3 })).toEqual(["b", "c"]);
+    expect(linesAt(encode("a\r\nb\r\n"), { startLine: 1, endLine: 1 })).toEqual(["a"]);
+    expect(linesAt(encode("\uFEFFa\nb"), { startLine: 1, endLine: 2 })).toEqual(["a", "b"]);
+  });
+
+  it("reads nothing past the file's end, from a range that is not one, or from binary", () => {
+    expect(linesAt(encode("a\n"), { startLine: 1, endLine: 2 })).toBeUndefined();
+    expect(linesAt(encode("a\n"), { startLine: 2, endLine: 1 })).toBeUndefined();
+    expect(linesAt(new Uint8Array([0xff, 0xfe]), { startLine: 1, endLine: 1 })).toBeUndefined();
+  });
+
+  it("splits a replacement the way a commit of it writes it", () => {
+    expect(replacementLines("")).toEqual([]);
+    expect(replacementLines("x\r\ny\n")).toEqual(["x", "y"]);
+    expect(replacementLines("\n")).toEqual([""]);
   });
 });
 

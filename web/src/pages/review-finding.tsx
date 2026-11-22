@@ -1,16 +1,20 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import type {
-  FindingIssueView,
-  PullActionOutcome,
-  Severity,
-  Verification,
+import {
+  type FindingIssueView,
+  type FixProposalView,
+  replacementLines,
+  type Severity,
+  type Verification,
 } from "../../../src/shared/index.js";
 import { api } from "../api.js";
+import { FixDiff } from "../fixes/fix-diff.js";
+import { CommitFixNote } from "../fixes/fix-proposal.js";
+import { useCommitFix } from "../fixes/use-commit-fix.js";
 import { symbolsOf } from "../impact/select.js";
 import type { Impact } from "../impact/use-impact.js";
-import { OUTCOME } from "../pull/outcome.js";
 import { Link } from "../router.js";
+import { SeverityBadge } from "../severity.js";
 import { FindingIssue } from "./finding-issue.js";
 
 // A finding as an event on the review's timeline: what it says, where, and
@@ -39,12 +43,6 @@ export type Finding = {
   issue: FindingIssueView | null;
 };
 
-const SEV = {
-  critical: { label: "Critical", cls: "badge-err" },
-  warning: { label: "Warning", cls: "badge-warn" },
-  suggestion: { label: "Suggestion", cls: "" },
-} as const;
-
 export function FindingEvent(props: {
   f: Finding;
   impact: Impact;
@@ -52,6 +50,8 @@ export function FindingEvent(props: {
   onImpact: () => void;
   /** The review names its pull request, so a fix can be committed to it. */
   canFix: boolean;
+  /** The lines its fix replaces at the reviewed head; null when they could not be read. */
+  before: FixProposalView["before"];
 }) {
   const { f } = props;
   const reached = props.impact.state === "ready" ? symbolsOf(props.impact.view.symbols, f) : [];
@@ -68,19 +68,7 @@ export function FindingEvent(props: {
       setState("error");
     }
   };
-  const [fixed, setFixed] = useState<PullActionOutcome | "error" | "sending" | null>(null);
-  const commitFix = async () => {
-    setFixed("sending");
-    try {
-      const r = await api<{ outcome: PullActionOutcome }>("/pulls/apply-fix", {
-        method: "POST",
-        body: JSON.stringify({ finding: f.id }),
-      });
-      setFixed(r.outcome);
-    } catch {
-      setFixed("error");
-    }
-  };
+  const { state: fixed, commit: commitFix } = useCommitFix(f.id);
   const fixable = f.fix !== null && props.canFix && f.status !== "fixed" && fixed !== "done";
   const lines =
     f.lineStart === null
@@ -88,14 +76,13 @@ export function FindingEvent(props: {
       : f.lineEnd && f.lineEnd !== f.lineStart
         ? `L${f.lineStart}–${f.lineEnd}`
         : `L${f.lineStart}`;
-  const sev = SEV[f.severity];
   return (
     <li className={`event finding${props.focused ? " is-focused" : ""}`}>
       <span className={`event-mark sev-${f.severity}`} aria-hidden="true" />
       <div className="event-body">
         <div className="event-meta">
           <span>Finding</span>
-          <span className={`badge ${sev.cls}`}>{sev.label}</span>
+          <SeverityBadge severity={f.severity} />
           <span className="subtle">
             {f.reviewer}
             {f.verification ? ` · ${f.verification}` : ""}
@@ -109,7 +96,12 @@ export function FindingEvent(props: {
             <span className="mono">{f.file}</span>
             <span className="mono subtle">{lines}</span>
           </div>
-          {f.code && <pre className="codeblock">{f.code}</pre>}
+          {f.code && (!f.fix || props.before === null) && <pre className="codeblock">{f.code}</pre>}
+          {f.fix && (
+            <FixDiff
+              fix={{ ...f.fix, before: props.before, after: replacementLines(f.fix.replacement) }}
+            />
+          )}
         </div>
         <div className="event-actions">
           <Button type="button" variant="outline" size="sm" onClick={() => setOpen(!open)}>
@@ -143,16 +135,7 @@ export function FindingEvent(props: {
           )}
           {props.canFix && <FindingIssue findingId={f.id} issue={f.issue} />}
         </div>
-        {fixed && fixed !== "sending" && fixed !== "done" && (
-          <p className="error small m-0" role="alert">
-            {fixed === "error" ? "Could not commit the fix; try again." : OUTCOME[fixed]}
-          </p>
-        )}
-        {fixed === "done" && (
-          <p className="note small m-0" role="status">
-            The fix is committed to the pull request, and the finding is marked fixed.
-          </p>
-        )}
+        <CommitFixNote state={fixed} />
         {open && (
           <div className="finding-body">
             <p className="m-0 pre-wrap">{f.body}</p>
@@ -160,15 +143,6 @@ export function FindingEvent(props: {
               <div>
                 <div className="caps finding-label">Suggestion</div>
                 <p className="m-0 pre-wrap">{f.suggestion}</p>
-              </div>
-            )}
-            {f.fix && (
-              <div>
-                <div className="caps finding-label">
-                  Fix · replaces L{f.fix.startLine}
-                  {f.fix.endLine !== f.fix.startLine ? `–${f.fix.endLine}` : ""}
-                </div>
-                <pre className="codeblock">{f.fix.replacement}</pre>
               </div>
             )}
             <div className="inline-form">

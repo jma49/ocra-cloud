@@ -10,6 +10,7 @@ import type {
   PullVerdict,
 } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
+import { useFixes } from "../fixes/use-fixes.js";
 import { PlatformMark } from "../platform-mark.js";
 import { ChecksBox } from "../pull/checks-box.js";
 import { DescriptionBox } from "../pull/description-box.js";
@@ -71,6 +72,7 @@ export function PullPage(props: {
     const mark = { platform, repo, number, updatedAt, head };
     api("/pulls/seen", { method: "POST", body: JSON.stringify(mark) }).catch(() => undefined);
   }, [platform, repo, number, updatedAt, head]);
+  const fixes = useFixes(head ? `/pulls/fixes?${query}&head=${head}` : null);
   const queue = useLoad(() => api<MergeQueueView>(`/pulls/queue?${query}`), [query.toString()]);
   // Ticks sent from this page, over what the page read; a new head reads them afresh.
   const [ticked, setTicked] = useState<{ head: string; paths: ReadonlyMap<string, boolean> }>({
@@ -107,6 +109,8 @@ export function PullPage(props: {
   const done = (what: string, outcome: PullActionOutcome) => {
     setSaid({ what, outcome });
     if (outcome === "done" && what === "Review") setPending([]);
+    // A committed fix moved the head: the diff, and the fixes of the new head, are read again.
+    if (outcome === "done" && what === "Fix") reload();
   };
   const settled = data.state === "merged" || data.state === "closed";
   const sent = ticked.head === data.head ? ticked.paths : new Map<string, boolean>();
@@ -208,6 +212,8 @@ export function PullPage(props: {
               pending={pending}
               onComment={(c) => setPending([...pending, c])}
               onDrop={(c) => setPending(pending.filter((x) => x !== c))}
+              fixes={fixes.filter((x) => x.file === f.path)}
+              onFixDone={(o) => done("Fix", o)}
             />
           ))}
         </div>

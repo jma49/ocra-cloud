@@ -1,4 +1,5 @@
 import { REDACTED } from "@open-cr-agent/cloud-contract";
+import { replacementLines } from "../shared/index.js";
 
 // A finding's fix applied to the file it is in, as the console commits it to
 // the pull request: the file at the reviewed head, its lines startLine to
@@ -19,14 +20,10 @@ export const MAX_FIX_FILE_BYTES = 1024 * 1024;
 const decoder = new TextDecoder("utf-8", { fatal: true, ignoreBOM: false });
 const BOM = [0xef, 0xbb, 0xbf];
 
-/**
- * The file with the fixes in its own line endings, or undefined when it is not
- * UTF-8 text, is too large, has no such lines, or the fixes overlap.
- */
-export function fixedFile(
-  bytes: Uint8Array,
-  fixes: LineFix | readonly LineFix[],
-): Uint8Array | undefined {
+type Text = { lines: string[]; eol: string; bom: boolean; count: number };
+
+/** The file's lines, or undefined when it is not UTF-8 text or is too large. */
+function textOf(bytes: Uint8Array): Text | undefined {
   if (bytes.byteLength > MAX_FIX_FILE_BYTES) return undefined;
   // Kept by hand: not every runtime's decoder honours ignoreBOM.
   const bom = BOM.every((b, i) => bytes[i] === b);
@@ -38,19 +35,45 @@ export function fixedFile(
   }
   const eol = text.includes("\r\n") ? "\r\n" : "\n";
   const lines = text.split(eol);
-  const endsWithEol = lines.at(-1) === "";
-  const count = endsWithEol ? lines.length - 1 : lines.length;
+  const count = lines.at(-1) === "" ? lines.length - 1 : lines.length;
+  return { lines, eol, bom, count };
+}
+
+/** Lines startLine to endLine of the file, or undefined when it is not text that has them. */
+export function linesAt(
+  bytes: Uint8Array,
+  range: Pick<LineFix, "startLine" | "endLine">,
+): string[] | undefined {
+  const text = textOf(bytes);
+  if (!text || range.startLine < 1 || range.endLine < range.startLine) return undefined;
+  if (range.endLine > text.count) return undefined;
+  return text.lines.slice(range.startLine - 1, range.endLine);
+}
+
+/**
+ * The file with the fixes in its own line endings, or undefined when it is not
+ * UTF-8 text, is too large, has no such lines, or the fixes overlap.
+ */
+export function fixedFile(
+  bytes: Uint8Array,
+  fixes: LineFix | readonly LineFix[],
+): Uint8Array | undefined {
+  const text = textOf(bytes);
+  if (!text) return undefined;
+  const { lines, eol, bom } = text;
   // From the bottom up, so each fix's line numbers still hold when it is applied.
   const ordered = [fixes].flat().sort((a, b) => b.startLine - a.startLine);
-  let floor = count + 1;
+  let floor = text.count + 1;
   for (const fix of ordered) {
     if (fix.startLine < 1 || fix.endLine < fix.startLine || fix.endLine >= floor) return undefined;
     floor = fix.startLine;
     const found = lines.slice(fix.startLine - 1, fix.endLine);
     if (fix.expected && !sameLines(found, fix.expected)) return undefined;
-    const replacement = fix.replacement.replace(/\r\n/g, "\n").replace(/\n$/, "");
-    const added = fix.replacement === "" ? [] : replacement.split("\n");
-    lines.splice(fix.startLine - 1, fix.endLine - fix.startLine + 1, ...added);
+    lines.splice(
+      fix.startLine - 1,
+      fix.endLine - fix.startLine + 1,
+      ...replacementLines(fix.replacement),
+    );
   }
   const body = new TextEncoder().encode(lines.join(eol));
   if (!bom) return body;

@@ -51,3 +51,23 @@ export function splitPath(path: string): TreeEntry {
     ? { dir: "", name: path }
     : { dir: path.slice(0, at + 1), name: path.slice(at + 1) };
 }
+
+/**
+ * The diff's line, by index, that each item goes under: the new line its range
+ * ends on. Items whose line the diff does not show are under -1, the diff's top.
+ */
+export function placeOnLines<T extends { endLine: number }>(
+  lines: readonly DiffLine[],
+  items: readonly T[],
+): Map<number, T[]> {
+  const at = new Map<number, number>();
+  lines.forEach((line, i) => {
+    if (line.kind === "add" || line.kind === "context") at.set(line.new, i);
+  });
+  const placed = new Map<number, T[]>();
+  for (const item of items) {
+    const i = at.get(item.endLine) ?? -1;
+    placed.set(i, [...(placed.get(i) ?? []), item]);
+  }
+  return placed;
+}
