@@ -12,17 +12,22 @@ import {
   companyCa,
   type GitlabInstance,
   gitlabInstance,
+  ISSUE,
   MR,
   PERSON,
   PROJECT,
+  STACKED,
 } from "./gitlab-instance.js";
 import { KEY, MODEL, modelEndpoint } from "./model-endpoint.js";
 
 // The company deployment end to end: the built server in its own process,
 // signing people in through a self-managed GitLab (its own certificate
 // authority, under /gitlab), reviewing a merge request with the released
-// CLI and the company's model, and answering an @ocra comment. Nothing is
-// faked inside ocra: the instance and the model are the only stand-ins.
+// CLI and the company's model, posting its pre-merge check from the issue
+// the merge request closes, answering an @ocra comment, and acting on the
+// merge request as the person: a finding's fix committed, a merge train
+// joined and left, and a stack merged. Nothing is faked inside ocra: the
+// instance and the model are the only stand-ins.
 
 const RUN_MS = 120_000;
 const FINDING = {
@@ -158,6 +163,14 @@ afterAll(async () => {
 
 describe("ocra Cloud with a self-managed GitLab", () => {
   const visit = browser();
+  const send = (path: string, method: string, body: unknown) =>
+    visit(path, {
+      method,
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  const pullQuery = (number: number) =>
+    new URLSearchParams({ platform: "gitlab", repo: PROJECT.path, number: String(number) });
   let secret = "";
 
   it("signs a person in with the instance's OpenID Connect, which connects their GitLab too", async () => {
@@ -176,16 +189,26 @@ describe("ocra Cloud with a self-managed GitLab", () => {
     ]);
   });
 
-  it("enrolls the project for review and gives the hook's address and secret", async () => {
-    const res = await visit("/api/auto-review/repos", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ platform: "gitlab", fullName: PROJECT.path }),
+  it("enrolls the project for review, with a pre-merge check that it links an open issue", async () => {
+    const res = await send("/api/auto-review/repos", "POST", {
+      platform: "gitlab",
+      fullName: PROJECT.path,
     });
-    const body = (await res.json()) as { webhook: { url: string; secret: string } };
+    const body = (await res.json()) as {
+      repo: { id: string };
+      webhook: { url: string; secret: string };
+    };
     expect(res.status, JSON.stringify(body)).toBe(200);
     expect(body.webhook.url).toBe(`${origin}/api/auto-review/webhooks/gitlab`);
     secret = body.webhook.secret;
+    // Findings are shared, so the console can commit their fixes.
+    expect((await send("/api/account/sharing", "PUT", { enabled: true })).status).toBe(200);
+    const check = await send(`/api/merge-checks/repos/${body.repo.id}/checks`, "POST", {
+      kind: "linked_issue",
+      mode: "block",
+      settings: { open: true },
+    });
+    expect(check.status, await check.clone().text()).toBe(200);
   });
 
   it(
@@ -243,6 +266,8 @@ describe("ocra Cloud with a self-managed GitLab", () => {
           prNumber: MR,
         }),
       ]);
+      // The reviewers read the issue the merge request closes.
+      expect(model.chats.some((c) => JSON.stringify(c.messages).includes(ISSUE.title))).toBe(true);
       // The bot cloned over HTTPS under the instance's path, with its own token.
       expect(gitlab.requests.some((r) => r.path.endsWith(`/${PROJECT.path}.git/info/refs`))).toBe(
         true,
@@ -250,6 +275,38 @@ describe("ocra Cloud with a self-managed GitLab", () => {
     },
     RUN_MS + 10_000,
   );
+
+  it("posts the pre-merge check on the reviewed head, passed by the issue it closes", async () => {
+    // Posted when the hook queued the head, before its review, and again once the review landed.
+    const described = () =>
+      gitlab.statuses.map((st) => (st as { description: string }).description);
+    await vi.waitFor(() => expect(described().at(-1)).toBe("All checks passed"), {
+      timeout: 10_000,
+      interval: 200,
+    });
+    expect(
+      described()
+        .slice(0, -1)
+        .every((d) => d === "1 check not evaluated yet"),
+    ).toBe(true);
+    expect(gitlab.statuses.at(-1)).toMatchObject({ name: "ocra / pre-merge", state: "success" });
+    const status = gitlab.requests.find((r) => r.path.includes("/statuses/"));
+    expect(status?.path).toContain(`/statuses/${gitlab.head}`);
+    expect(status?.authorization).toBe(`Bearer ${BOT.token}`);
+    const page = (await (await visit(`/api/pulls/checks?${pullQuery(MR)}`)).json()) as {
+      report: { head: string; results: { kind: string; outcome: string; detail: string }[] };
+      postedAt: string | null;
+    };
+    expect(page.report.head).toBe(gitlab.head);
+    expect(page.report.results).toEqual([
+      expect.objectContaining({
+        kind: "linked_issue",
+        outcome: "passed",
+        detail: `links #${ISSUE.iid}`,
+      }),
+    ]);
+    expect(page.postedAt).not.toBeNull();
+  });
 
   it(
     "answers a person's @ocra comment in its thread",
@@ -281,4 +338,104 @@ describe("ocra Cloud with a self-managed GitLab", () => {
     },
     RUN_MS + 10_000,
   );
+  it("commits a finding's fix to the merge request as the person, and marks it fixed", async () => {
+    // The engine proposes no fix of its own yet (ADR-0029), so the review that
+    // carries one is uploaded as the CLI would send it, on the same head.
+    const uploaded = await send("/api/reviews", "POST", {
+      runId: "e2e-fix",
+      repoHash: "c".repeat(64),
+      source: "gitlab",
+      findings: { critical: 0, warning: 1, suggestion: 0 },
+      pullRequest: {
+        repository: repoIdentity({ url: gitlab.url }, PROJECT.path),
+        number: MR,
+        headSha: gitlab.head,
+      },
+      findingList: [
+        {
+          fingerprint: "fp-retries",
+          reviewer: "correctness",
+          severity: "warning",
+          verification: "confirmed",
+          file: "retry.ts",
+          lineStart: 2,
+          lineEnd: 2,
+          title: FINDING.title,
+          body: FINDING.body,
+          code: FINDING.existingCode,
+          fix: { startLine: 2, endLine: 2, replacement: "  return limit;" },
+        },
+      ],
+    });
+    expect(uploaded.status, await uploaded.clone().text()).toBe(200);
+    const { id } = (await uploaded.json()) as { id: string };
+    const review = (await (await visit(`/api/reviews/${id}`)).json()) as {
+      findings: { id: string; status: string }[];
+    };
+    const finding = review.findings[0]?.id;
+    const applied = await send("/api/pulls/apply-fix", "POST", { finding });
+    expect(await applied.json()).toEqual({ outcome: "done" });
+    expect(gitlab.commits).toEqual([
+      expect.objectContaining({ user: PERSON.username, branch: "feature" }),
+    ]);
+    expect(gitlab.repo.read("feature", "retry.ts")).toContain("  return limit;\n}");
+    const after = (await (await visit(`/api/reviews/${id}`)).json()) as typeof review;
+    expect(after.findings[0]?.status).toBe("fixed");
+    // The reviewed head is gone: a second click commits nothing.
+    const again = await send("/api/pulls/apply-fix", "POST", { finding });
+    expect(await again.json()).toEqual({ outcome: "head_moved" });
+    expect(gitlab.commits).toHaveLength(1);
+  });
+
+  it("adds the merge request to its merge train and takes it off again", async () => {
+    const queue = async () =>
+      (await (await visit(`/api/pulls/queue?${pullQuery(MR)}`)).json()) as unknown;
+    expect(await queue()).toEqual({ enabled: true, entry: null });
+    const head = gitlab.repo.at("feature");
+    const joined = await send("/api/pulls/enqueue", "POST", {
+      platform: "gitlab",
+      repo: PROJECT.path,
+      number: MR,
+      head,
+    });
+    expect(await joined.json()).toEqual({ outcome: "done" });
+    expect(await queue()).toEqual({ enabled: true, entry: { state: "checking", position: 1 } });
+    const left = await send("/api/pulls/dequeue", "POST", {
+      platform: "gitlab",
+      repo: PROJECT.path,
+      number: MR,
+    });
+    expect(await left.json()).toEqual({ outcome: "done" });
+    expect(await queue()).toEqual({ enabled: true, entry: null });
+  });
+
+  it("shows the stack the merge request is in and merges it from the bottom up", async () => {
+    const stack = (await (await visit(`/api/pulls/stack?${pullQuery(STACKED)}`)).json()) as {
+      trunk: string;
+      pulls: { number: number; base: string; headSha: string }[];
+    };
+    expect(stack.trunk).toBe("main");
+    expect(stack.pulls.map((p) => [p.number, p.base])).toEqual([
+      [MR, "main"],
+      [STACKED, "feature"],
+    ]);
+    const merged = await send("/api/pulls/merge-stack", "POST", {
+      platform: "gitlab",
+      repo: PROJECT.path,
+      number: STACKED,
+      method: "merge",
+      heads: stack.pulls.map((p) => ({ number: p.number, head: p.headSha })),
+    });
+    expect(await merged.json()).toEqual({
+      steps: [
+        { number: MR, outcome: "done" },
+        { number: STACKED, outcome: "done" },
+      ],
+    });
+    // The upper one was moved onto main before its merge, and both landed there.
+    expect(gitlab.pulls.get(STACKED)).toMatchObject({ target_branch: "main", state: "merged" });
+    expect(gitlab.pulls.get(MR)?.state).toBe("merged");
+    expect(gitlab.repo.read("main", "retry.ts")).toContain("  return limit;\n}");
+    expect(gitlab.repo.read("main", "backoff.ts")).toContain("backoff");
+  });
 });

@@ -1,6 +1,6 @@
 # ocra Cloud with a self-managed GitLab
 
-A company runs ocra Cloud next to its own GitLab, with its own models and without any public service: people sign in with GitLab, the console works on their merge requests as them, and a bot reviews every merge request and answers `@ocra` in its threads. `test-node/gitlab-self-managed.test.ts` runs this whole path in CI against a stand-in instance with its own certificate authority and a relative URL root. The variables are in [self-hosting.md](self-hosting.md), Variables.
+A company runs ocra Cloud next to its own GitLab, with its own models and without any public service: people sign in with GitLab, the console works on their merge requests as them, and a bot reviews every merge request and answers `@ocra` in its threads. `test-node/gitlab-self-managed.test.ts` runs this whole path in CI against a stand-in instance with its own certificate authority and a relative URL root: sign-in, a hosted review, its pre-merge check from the issue the merge request closes, an `@ocra` answer, a finding's fix committed, a merge train joined and left, and a stack merged. The variables are in [self-hosting.md](self-hosting.md), Variables.
 
 ## 1. In GitLab (an administrator)
 
@@ -44,5 +44,6 @@ The server clones the project over HTTPS with the bot's token, under `GITLAB_URL
 
 - `GET /api/health` answers.
 - Sign in with GitLab: a refusal names the step (`bad_state` for a redirect URI that does not match, `upstream_unreachable` for a discovery document, token or user that GitLab did not give, often a certificate the server does not trust).
+- Open a merge request with a pre-merge check enrolled: its commit status `ocra / pre-merge` says how many checks are not evaluated yet until the review lands, then the result.
 - Open a merge request: the Auto review page shows the job, and its error when a run failed (`clone_failed` is usually the bot's role or git's certificate; `review_failed` the model endpoint).
 
