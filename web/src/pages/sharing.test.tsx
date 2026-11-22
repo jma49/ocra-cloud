@@ -7,7 +7,13 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const me = { login: "ada", githubId: 1, session: "web" as const, since: "2026-10-01T00:00:00Z" };
+const me = {
+  login: "ada",
+  githubId: 1,
+  session: "web" as const,
+  since: "2026-10-01T00:00:00Z",
+  codeGraphs: "off" as const,
+};
 const never = () => new Promise<Response>(() => {});
 
 /** GET /api/account/sharing answers with `sharing`; anything else fails. */

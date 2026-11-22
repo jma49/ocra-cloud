@@ -49,7 +49,7 @@ describe("links", () => {
   it("every docs link goes to ocracloud.com/docs", () => {
     render(
       <>
-        <TopBar me={{ login: "ada", githubId: 1, session: "web", since: "" }} />
+        <TopBar me={{ login: "ada", githubId: 1, session: "web", since: "", codeGraphs: "off" }} />
         <Footer />
       </>,
     );

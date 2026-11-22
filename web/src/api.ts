@@ -1,5 +1,6 @@
 import type { ErrorCode } from "@open-cr-agent/cloud-contract";
 import type {
+  GraphPolicy,
   ProviderGroup,
   ReviewerCounts,
   ReviewSource,
@@ -8,7 +9,14 @@ import type {
 } from "../../src/shared/index.js";
 import { RECENT_SIGN_IN, RECENT_SIGN_IN_MINUTES } from "../../src/shared/index.js";
 
-export type Me = { login: string; githubId: number | null; session: "web" | "cli"; since: string };
+export type Me = {
+  login: string;
+  githubId: number | null;
+  session: "web" | "cli";
+  since: string;
+  /** What this server does with code graphs; off where it builds none. */
+  codeGraphs: GraphPolicy;
+};
 export type ProviderInfo = {
   name: string;
   label: string;

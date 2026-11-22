@@ -30,7 +30,13 @@ function fakeApi(handler: Handler) {
   return calls;
 }
 const prefs = { runtime: null, models: {}, agents: {}, settings: {}, version: "v1" };
-const me = { login: "ada", githubId: 1, session: "web" as const, since: "" };
+const me = {
+  login: "ada",
+  githubId: 1,
+  session: "web" as const,
+  since: "",
+  codeGraphs: "off" as const,
+};
 const never = () => new Promise<Response>(() => {});
 
 afterEach(() => {

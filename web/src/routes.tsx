@@ -4,6 +4,7 @@ import type { Me } from "./api.js";
 import { Activity } from "./pages/Activity.js";
 import { Agents } from "./pages/Agents.js";
 import { BudgetPage } from "./pages/Budget.js";
+import { CodeGraphs } from "./pages/CodeGraphs.js";
 import { Findings } from "./pages/Findings.js";
 import { Inbox } from "./pages/Inbox.js";
 import { Insights } from "./pages/Insights.js";
@@ -38,6 +39,8 @@ export type Route = {
   path: string;
   /** In the sidebar, under group, and the page title; absent: reached by link only. */
   nav?: { label: string; icon: keyof typeof icons; group: NavGroup };
+  /** In the sidebar only for whom it holds; absent: for everyone. */
+  shown?: (me: Me) => boolean;
   /** Edits the account's preferences: the save bar and its draft apply. */
   prefs?: true;
   /**
@@ -88,6 +91,12 @@ const ROUTES: readonly Route[] = [
     path: "/repositories",
     nav: { label: "Repositories", icon: "layers", group: "Console" },
     page: () => <Repositories />,
+  },
+  {
+    path: "/code-graphs",
+    nav: { label: "Code graphs", icon: "graph", group: "Console" },
+    shown: (me) => me.codeGraphs !== "off",
+    page: (me) => <CodeGraphs policy={me.codeGraphs} />,
   },
   {
     path: "/keys",
@@ -152,13 +161,15 @@ const ROUTES: readonly Route[] = [
   { path: "/device", page: () => <Device /> },
 ];
 
-/** The sidebar: each group's routes, in the table's order. */
-export const NAV_GROUPS: { label: NavGroup; routes: (Route & { nav: object })[] }[] = (
-  ["Console", "Configure", "Account"] as const
-).map((label) => ({
-  label,
-  routes: ROUTES.filter((r): r is Route & { nav: object } => r.nav?.group === label),
-}));
+/** The sidebar for whoever is signed in: each group's routes, in the table's order. */
+export function navGroups(me: Me): { label: NavGroup; routes: (Route & { nav: object })[] }[] {
+  return (["Console", "Configure", "Account"] as const).map((label) => ({
+    label,
+    routes: ROUTES.filter(
+      (r): r is Route & { nav: object } => r.nav?.group === label && (r.shown?.(me) ?? true),
+    ),
+  }));
+}
 
 /** A path segment, or null when it is not valid percent-encoding. */
 function decode(segment: string): string | null {

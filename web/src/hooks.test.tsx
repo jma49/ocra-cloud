@@ -1,8 +1,9 @@
 import { act, cleanup, render, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { loadKeys } from "./account-keys.js";
+import type { Me } from "./api.js";
 import { PrefsProvider } from "./prefs.js";
-import { matchRoute, NAV_GROUPS } from "./routes.js";
+import { matchRoute, navGroups } from "./routes.js";
 import { useLoad } from "./ui.js";
 
 afterEach(() => {
@@ -59,8 +60,17 @@ describe("useLoad", () => {
 });
 
 describe("the routes", () => {
+  const me = (codeGraphs: Me["codeGraphs"]): Me => ({
+    login: "ada",
+    githubId: 1,
+    session: "web",
+    since: "2026-11-01T00:00:00Z",
+    codeGraphs,
+  });
+  const consolePages = (m: Me) => navGroups(m)[0]?.routes.map((r) => r.path);
+
   it("drive the sidebar in its order, and old and detail paths", () => {
-    expect(NAV_GROUPS.map((g) => [g.label, g.routes.map((r) => r.path)])).toEqual([
+    expect(navGroups(me("off")).map((g) => [g.label, g.routes.map((r) => r.path)])).toEqual([
       [
         "Console",
         ["/", "/pulls", "/activity", "/reviews", "/findings", "/insights", "/repositories"],
@@ -85,6 +95,13 @@ describe("the routes", () => {
     expect(matchRoute("/reviews/%E0")).toBeUndefined();
     expect(matchRoute("/keys")?.route.prefs).toBeUndefined();
     expect(matchRoute("/nope")).toBeUndefined();
+  });
+
+  it("show code graphs only where the server keeps them", () => {
+    expect(consolePages(me("keep"))).toContain("/code-graphs");
+    expect(consolePages(me("opt-in"))).toContain("/code-graphs");
+    expect(consolePages(me("off"))).not.toContain("/code-graphs");
+    expect(matchRoute("/code-graphs")).toBeDefined();
   });
 
   it("start the keys a page shows with /me, not after it (audit C11)", () => {

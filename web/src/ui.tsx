@@ -390,6 +390,14 @@ export const icons = {
     <path d="M10 3h4v3a2 2 0 1 0 4 0V3h3v7h-3a2 2 0 1 0 0 4h3v7h-7v-3a2 2 0 1 0-4 0v3H3v-7h3a2 2 0 1 0 0-4H3V3h7z" />
   ),
   file: <path d="M14 3H6v18h12V7zM14 3v4h4M9 13h6M9 17h6" />,
+  graph: (
+    <>
+      <circle cx="6" cy="6" r="2.5" />
+      <circle cx="18" cy="8" r="2.5" />
+      <circle cx="9" cy="18" r="2.5" />
+      <path d="M8.4 6.6 15.6 7.6M7 8.3l1.3 7.3M16.4 10l-5.7 6.3" />
+    </>
+  ),
 };
 
 export function Icon(props: { name: keyof typeof icons }) {

@@ -6,7 +6,7 @@ import { Footer, TopBar } from "./chrome.js";
 import { completeAgents } from "./pages/Agents.js";
 import { PrefsProvider } from "./prefs.js";
 import { Link, usePath } from "./router.js";
-import { matchRoute, NAV_GROUPS } from "./routes.js";
+import { matchRoute, navGroups } from "./routes.js";
 import { rememberSignedIn, wasSignedIn } from "./signed-in.js";
 import { SignIn } from "./signin.js";
 import { DOCS } from "./site.js";
@@ -15,12 +15,11 @@ import { ToastProvider } from "./toast.js";
 import { ErrorBoundary, Icon, Loading, NotFound } from "./ui.js";
 import "./styles.css";
 
-const NAV_PATHS = NAV_GROUPS.flatMap((g) => g.routes.map((r) => r.path));
-
 // The printed head of the sheet, as the manual heads its pages: where this
 // page is and, for a page in the sidebar, which page of the console it is.
-function SheetHead(props: { path: string; route?: string | undefined }) {
-  const n = props.route === undefined ? -1 : NAV_PATHS.indexOf(props.route);
+function SheetHead(props: { path: string; route?: string | undefined; pages?: string[] }) {
+  const pages = props.pages ?? [];
+  const n = props.route === undefined ? -1 : pages.indexOf(props.route);
   return (
     <div className="sheet-head" aria-hidden="true">
       <span>
@@ -29,7 +28,7 @@ function SheetHead(props: { path: string; route?: string | undefined }) {
       </span>
       {n >= 0 && (
         <span>
-          page {n + 1} of {NAV_PATHS.length}
+          page {n + 1} of {pages.length}
         </span>
       )}
     </div>
@@ -89,12 +88,13 @@ function App() {
         <Footer />
       </>
     );
+  const nav = navGroups(me);
   return (
     <>
       <TopBar me={me} />
       <div className="shell">
         <nav className="sidebar" aria-label="Console">
-          {NAV_GROUPS.map((g) => (
+          {nav.map((g) => (
             <div key={g.label}>
               <div className="side-label">{g.label}</div>
               {g.routes.map((r) => (
@@ -120,7 +120,11 @@ function App() {
           </a>
         </nav>
         <main className="content">
-          <SheetHead path={path} route={found?.route.path} />
+          <SheetHead
+            path={path}
+            route={found?.route.path}
+            pages={nav.flatMap((g) => g.routes.map((r) => r.path))}
+          />
           <PrefsProvider clean={completeAgents} idle={!found?.route.prefs}>
             <ErrorBoundary key={path}>
               <Suspense fallback={<Loading what="the page" />}>

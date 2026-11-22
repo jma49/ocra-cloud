@@ -8,6 +8,11 @@ export function compact(n: number): string {
   if (n >= 1e3) return `${(n / 1e3).toFixed(1)}K`;
   return String(n);
 }
+export function bytes(n: number): string {
+  if (n >= 1024 ** 2) return `${(n / 1024 ** 2).toFixed(1)} MB`;
+  if (n >= 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${n} B`;
+}
 export function ago(iso: string | null): string {
   if (!iso) return "never";
   const s = (Date.now() - new Date(iso).getTime()) / 1000;
