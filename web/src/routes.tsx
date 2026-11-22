@@ -90,7 +90,7 @@ const ROUTES: readonly Route[] = [
     page: (me, [id]) => <ReviewDetail id={id ?? ""} graphs={graphsKept(me)} />,
   },
   {
-    path: "/pull/:platform/:repo/:number",
+    path: "/pull/:platform/:repo*/:number",
     place: "inbox",
     page: (me, [platform, repo, number]) => (
       <PullPage
@@ -263,6 +263,23 @@ export function placeHome(place: Place): string {
   return ROUTES.find((r) => r.place === place && r.tab)?.path ?? "/";
 }
 
+/**
+ * Pairs a route's segments with a path's; a `:name*` segment takes one or
+ * more of them, joined by "/", so a repository's path matches written out
+ * (`octo/api`, `group/sub/project`) as well as encoded. null: no fit.
+ */
+function spread(pattern: string[], parts: string[]): [string, string][] | null {
+  const star = pattern.findIndex((p) => p.endsWith("*"));
+  const extra = parts.length - pattern.length;
+  if (star < 0) return extra === 0 ? pattern.map((p, i) => [p, parts[i] ?? ""]) : null;
+  if (extra < 0) return null;
+  return pattern.map((p, i): [string, string] => {
+    if (i < star) return [p, parts[i] ?? ""];
+    if (i > star) return [p, parts[i + extra] ?? ""];
+    return [p.slice(0, -1), parts.slice(star, star + extra + 1).join("/")];
+  });
+}
+
 /** A path segment, or null when it is not valid percent-encoding. */
 function decode(segment: string): string | null {
   try {
@@ -280,11 +297,10 @@ function decode(segment: string): string | null {
 export function matchRoute(path: string, me?: Me): { route: Route; params: string[] } | undefined {
   const parts = path.split("/");
   for (const route of ROUTES) {
-    const pattern = route.path.split("/");
-    if (pattern.length !== parts.length) continue;
+    const segments = spread(route.path.split("/"), parts);
+    if (!segments) continue;
     const params: string[] = [];
-    const fits = pattern.every((p, i) => {
-      const part = parts[i] ?? "";
+    const fits = segments.every(([p, part]) => {
       if (!p.startsWith(":")) return p === part;
       const value = decode(part);
       if (!value) return false;
