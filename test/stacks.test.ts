@@ -66,6 +66,21 @@ describe("a stack of pull requests", () => {
     ).toEqual([1, 2]);
   });
 
+  it("cuts a cycle above its lowest number, as the inbox does, whichever is asked for", () => {
+    const cycle = [pull(2, "y", "x"), pull(1, "x", "z"), pull(3, "z", "y")];
+    for (const n of [1, 2, 3]) {
+      expect(shape(stackOf(cycle, n)?.pulls ?? [])).toEqual([
+        [1, null],
+        [2, 1],
+        [3, 2],
+      ]);
+    }
+  });
+
+  it("does not stack a pull request on itself", () => {
+    expect(shape(stackOf([pull(7, "a", "a")], 7)?.pulls ?? [])).toEqual([[7, null]]);
+  });
+
   it("takes the oldest of two pull requests from one head branch as the parent", () => {
     const twice = [pull(5, "a", "main"), pull(4, "a", "release"), pull(6, "b", "a")];
     expect(stackOf(twice, 6)?.pulls[0]?.number).toBe(4);
