@@ -78,6 +78,7 @@ describe("a pull request's files", () => {
         additions: 1,
         deletions: 1,
         patch: "@@ -1 +1 @@\n-a\n+b",
+        viewed: null,
       },
       {
         path: "logo.png",
@@ -86,6 +87,7 @@ describe("a pull request's files", () => {
         additions: 0,
         deletions: 0,
         patch: null,
+        viewed: null,
       },
     ]);
     expect(view.verdicts).toEqual(["approve", "request_changes", "comment"]);
@@ -110,6 +112,7 @@ describe("a pull request's files", () => {
       status: "modified" as const,
       ...lineCounts(patch),
       patch,
+      version: null,
     });
     const cut = withinBudget(
       {

@@ -1,3 +1,4 @@
+import { sha256Hex } from "../crypto.js";
 import {
   type ChangedFile,
   hunksOf,
@@ -15,6 +16,7 @@ type MergeRequest = { diff_refs: DiffRefs | null; updated_at?: string };
 type Diff = {
   old_path: string;
   new_path: string;
+  b_mode?: string;
   new_file: boolean;
   deleted_file: boolean;
   renamed_file: boolean;
@@ -61,6 +63,14 @@ async function listDiffs(
   };
 }
 
+/**
+ * GitLab names no blob per file, so a file's version is its diff's hash: it
+ * changes with the file at a later head (or a new base under it). A diff
+ * GitLab did not send (too large, collapsed) changes with every head.
+ */
+const versionOf = (d: Diff, head: string) =>
+  sha256Hex(d.diff ? `diff\0${d.b_mode ?? ""}\0${d.diff}` : `head\0${head}`);
+
 const where = (d: Diff) => ({ path: d.new_path, oldPath: d.old_path, status: statusOf(d) });
 
 export function gitlabChanges(origin: string): PullDiffs {
@@ -83,14 +93,15 @@ export function gitlabChanges(origin: string): PullDiffs {
       const listed = await listDiffs(origin, token, fullName, number);
       if (!listed) return null;
       const { diffs, ...rest } = listed;
-      return withinBudget({
-        ...rest,
-        files: diffs.map((d) => ({
+      const files = await Promise.all(
+        diffs.map(async (d) => ({
           ...where(d),
           ...lineCounts(d.diff),
           patch: d.diff || null,
+          version: await versionOf(d, rest.head),
         })),
-      });
+      );
+      return withinBudget({ ...rest, files });
     },
   };
 }

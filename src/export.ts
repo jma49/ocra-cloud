@@ -37,6 +37,7 @@ export const EXPORTED = {
   platformLinks: "platforms",
   pullViews: "pullViews",
   pullSeen: "pullSeen",
+  pullFileViews: "pullFileViews",
   graphRepos: "graphRepos",
   graphBuilds: "graphBuilds",
   reviewRepos: "reviewRepos",

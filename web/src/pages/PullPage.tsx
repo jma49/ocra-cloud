@@ -69,6 +69,11 @@ export function PullPage(props: {
     api("/pulls/seen", { method: "POST", body: JSON.stringify(mark) }).catch(() => undefined);
   }, [platform, repo, number, updatedAt, head]);
   const queue = useLoad(() => api<MergeQueueView>(`/pulls/queue?${query}`), [query.toString()]);
+  // Ticks sent from this page, over what the page read; a new head reads them afresh.
+  const [ticked, setTicked] = useState<{ head: string; paths: Record<string, boolean> }>({
+    head: "",
+    paths: {},
+  });
   const [pending, setPending] = useState<LineComment[]>([]);
   const [said, setSaid] = useState<{ what: string; outcome: PullActionOutcome } | null>(null);
   const title = `${props.repo} #${props.number}`;
@@ -96,6 +101,20 @@ export function PullPage(props: {
     setSaid({ what, outcome });
     if (outcome === "done" && what === "Review") setPending([]);
   };
+  const sent = ticked.head === data.head ? ticked.paths : {};
+  const isViewed = (f: PullFilesView["files"][number]) => sent[f.path] ?? f.viewed === true;
+  const viewedCount = data.files.filter(isViewed).length;
+  const markViewed = async (path: string, viewed: boolean) => {
+    const head = data.head;
+    setTicked((t) => ({ head, paths: { ...(t.head === head ? t.paths : {}), [path]: viewed } }));
+    const r = await post("viewed", { ...ref, head, paths: [path], viewed }).catch(() => undefined);
+    if (r?.outcome === "done") return;
+    setTicked((t) => {
+      const { [path]: _, ...rest } = t.head === head ? t.paths : {};
+      return { head, paths: rest };
+    });
+    if (r) done("Viewed", r.outcome);
+  };
   return (
     <>
       <PageHead
@@ -104,7 +123,8 @@ export function PullPage(props: {
           <>
             <PlatformMark platform={platform} size={14} /> {data.files.length} files ·{" "}
             <span className="add-n">+{total.add}</span> <span className="del-n">−{total.del}</span>{" "}
-            · head <span className="mono">{data.head.slice(0, 7)}</span>
+            · head <span className="mono">{data.head.slice(0, 7)}</span> · {viewedCount} of{" "}
+            {data.files.length} files viewed
           </>
         }
       />
@@ -172,6 +192,8 @@ export function PullPage(props: {
             <FileDiff
               key={f.path}
               file={f}
+              viewed={isViewed(f)}
+              onViewed={(v) => markViewed(f.path, v)}
               pending={pending}
               onComment={(c) => setPending([...pending, c])}
               onDrop={(c) => setPending(pending.filter((x) => x !== c))}

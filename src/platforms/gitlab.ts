@@ -67,6 +67,7 @@ export function gitlab(client: GitlabClient, redirectUri: string): CodePlatform 
     mergeStatus: gitlabMergeStatus(client.url),
     reviewers: gitlabReviewers(client.url),
     threads: gitlabThreads(client.url),
+    viewed: null,
     async listRepos(token) {
       const repositories: PlatformRepo[] = [];
       for (let page = 1; page <= MAX_PAGES; page++) {

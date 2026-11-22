@@ -58,6 +58,7 @@ const files = {
       additions: 2,
       deletions: 1,
       patch: PATCH,
+      viewed: false,
     },
   ],
   truncated: false,
@@ -154,6 +155,29 @@ describe("a pull request's page", () => {
     ]);
     expect(await screen.findByText(/Review: Done/)).toBeTruthy();
     expect(screen.queryByText("Why log?")).toBeNull();
+  });
+
+  it("ticks a file as viewed at the head it read, folds it and counts it", async () => {
+    const sent = show();
+    const box = await screen.findByRole("checkbox", { name: "Viewed src/refund.ts" });
+    expect(screen.getByText(/0 of 1 files viewed/)).toBeTruthy();
+    await act(async () => void fireEvent.click(box));
+    expect(sent).toEqual([
+      {
+        url: "/api/pulls/viewed",
+        body: {
+          platform: "github",
+          repo: "octo/api",
+          number: 7,
+          head: HEAD,
+          paths: ["src/refund.ts"],
+          viewed: true,
+        },
+      },
+    ]);
+    expect(await screen.findByText(/1 of 1 files viewed/)).toBeTruthy();
+    expect((box as HTMLInputElement).checked).toBe(true);
+    expect(screen.queryByRole("button", { name: "Comment on line 11" })).toBeNull();
   });
 
   it("writes a suggestion on a new line into the review", async () => {

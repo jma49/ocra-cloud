@@ -14,6 +14,7 @@ import type { MergeQueue } from "./queue.js";
 import type { PullReviewers } from "./reviewers.js";
 import type { PullStacks } from "./stacks.js";
 import type { PullThreads } from "./threads.js";
+import type { PullFileViewed } from "./viewed.js";
 
 // What the product layer needs from a code platform, whatever it is: GitHub,
 // gitlab.com or a self-hosted GitLab. Each one is reached as the signed-in
@@ -73,6 +74,8 @@ export interface CodePlatform {
   readonly mergeStatus: PullMergeStatus;
   readonly reviewers: PullReviewers;
   readonly threads: PullThreads;
+  /** null where the platform keeps no viewed files: the console keeps them (pull_file_views). */
+  readonly viewed: PullFileViewed | null;
 }
 
 /**

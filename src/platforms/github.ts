@@ -12,6 +12,7 @@ import { githubReviewers } from "./github-reviewers.js";
 import { githubSearch } from "./github-search.js";
 import { githubStacks } from "./github-stack.js";
 import { githubThreads } from "./github-threads.js";
+import { githubViewed } from "./github-viewed.js";
 import { platformCall } from "./http.js";
 import type { CodePlatform, PlatformRepo, TokenAnswer } from "./platform.js";
 
@@ -79,6 +80,7 @@ export function github(client: { id: string; secret: string }): CodePlatform {
     mergeStatus: githubMergeStatus(),
     reviewers: githubReviewers(post),
     threads: githubThreads(post, actions),
+    viewed: githubViewed(post),
     async listRepos(token) {
       const installs = await get<{ installations: Installation[] }>(
         token,

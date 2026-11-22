@@ -13,6 +13,11 @@ type PullFileView = {
   deletions: number;
   /** The unified diff's hunks; null when the platform sent none (binary, too large). */
   patch: string | null;
+  /**
+   * Whether the user ticked it as viewed at its current content: a file
+   * that changed since reads false. null when the platform did not say.
+   */
+  viewed: boolean | null;
 };
 
 export type PullFilesView = {
@@ -29,6 +34,19 @@ export type PullFilesView = {
   /** What this platform lets the console do on the pull request. */
   verdicts: PullVerdict[];
   mergeMethods: MergeMethod[];
+};
+
+/** Files one POST /api/pulls/viewed ticks or unticks. */
+export const MAX_VIEWED_PATHS = 100;
+
+/** Ticks files as viewed, or unticks them, only while the pull request is at `head`. */
+export type PullViewedRequest = {
+  platform: CodePlatformKind;
+  repo: string;
+  number: number;
+  head: string;
+  paths: string[];
+  viewed: boolean;
 };
 
 export const PULL_VERDICTS = ["approve", "request_changes", "comment"] as const;

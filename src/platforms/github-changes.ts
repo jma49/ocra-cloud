@@ -26,6 +26,7 @@ type File = {
   deletions: number;
   changes: number;
   patch?: string;
+  sha?: string;
 };
 
 const STATUS = {
@@ -99,6 +100,7 @@ export function githubChanges(): PullDiffs {
           additions: f.additions,
           deletions: f.deletions,
           patch: f.patch ?? null,
+          version: f.sha ?? null,
         }),
       );
       return withinBudget({ ...listed, files } satisfies PullPatches);

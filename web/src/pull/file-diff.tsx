@@ -29,6 +29,9 @@ const lineName = (line: DiffLine) => {
 
 export function FileDiff(props: {
   file: File;
+  viewed: boolean;
+  /** Ticks or unticks the file; a tick folds it. */
+  onViewed: (viewed: boolean) => void;
   pending: LineComment[];
   onComment: (c: LineComment) => void;
   onDrop: (c: LineComment) => void;
@@ -56,24 +59,38 @@ export function FileDiff(props: {
   };
   return (
     <section className="card diff-file" id={`file-${file.path}`} aria-label={file.path}>
-      <button
-        type="button"
-        className="diff-head"
-        aria-expanded={!folded}
-        onClick={() => setFolded(!folded)}
-      >
-        <span className="fold" aria-hidden="true" />
-        <span className="mono diff-path">
-          {file.status === "renamed" && <span className="subtle">{file.oldPath} → </span>}
-          <span className="subtle">{dir}</span>
-          {name}
-        </span>
-        {STATUS[file.status] && <span className="badge">{STATUS[file.status]}</span>}
-        <span className="diff-count">
-          <span className="add-n">+{file.additions}</span>{" "}
-          <span className="del-n">−{file.deletions}</span>
-        </span>
-      </button>
+      <div className="diff-head-row">
+        <button
+          type="button"
+          className="diff-head"
+          aria-expanded={!folded}
+          onClick={() => setFolded(!folded)}
+        >
+          <span className="fold" aria-hidden="true" />
+          <span className="mono diff-path">
+            {file.status === "renamed" && <span className="subtle">{file.oldPath} → </span>}
+            <span className="subtle">{dir}</span>
+            {name}
+          </span>
+          {STATUS[file.status] && <span className="badge">{STATUS[file.status]}</span>}
+          <span className="diff-count">
+            <span className="add-n">+{file.additions}</span>{" "}
+            <span className="del-n">−{file.deletions}</span>
+          </span>
+        </button>
+        <label className="check small diff-viewed">
+          <input
+            type="checkbox"
+            aria-label={`Viewed ${file.path}`}
+            checked={props.viewed}
+            onChange={(e) => {
+              if (e.target.checked) setFolded(true);
+              props.onViewed(e.target.checked);
+            }}
+          />
+          Viewed
+        </label>
+      </div>
       {!folded &&
         (file.patch === null ? (
           <p className="card-pad subtle small m-0">

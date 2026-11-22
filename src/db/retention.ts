@@ -13,6 +13,7 @@ import {
   liveRuns,
   mergeIntents,
   notifySends,
+  pullFileViews,
   pullFlows,
   pullPaths,
   pullReviews,
@@ -119,6 +120,13 @@ export async function enforceRetention(db: Db, now = new Date()): Promise<void> 
         db
           .delete(pullSeen)
           .where(and(ofEachAccount(pullSeen.accountId), lt(pullSeen.seenAt, cutoff))),
+    ],
+    [
+      "pull_file_views",
+      () =>
+        db
+          .delete(pullFileViews)
+          .where(and(ofEachAccount(pullFileViews.accountId), lt(pullFileViews.viewedAt, cutoff))),
     ],
     [
       "pull_paths",
