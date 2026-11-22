@@ -2,6 +2,7 @@ import { execFileSync, spawn } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { join } from "node:path";
+import { finished } from "node:stream/promises";
 
 // What the stand-in GitLab keeps on disk: the company's certificate
 // authority, and the project's bare repository, written to as GitLab writes
@@ -149,6 +150,10 @@ export function bareRepository(
 
 export type BareRepository = ReturnType<typeof bareRepository>;
 
+/** A peer that closed its end first, as git does once it has what it needs; a real server shrugs it off. */
+export const hungUp = (error: unknown) =>
+  ["EPIPE", "ECONNRESET"].includes((error as NodeJS.ErrnoException).code ?? "");
+
 export const readBody = async (req: IncomingMessage) => {
   const chunks: Buffer[] = [];
   for await (const chunk of req) chunks.push(chunk as Buffer);
@@ -179,8 +184,21 @@ export async function gitHttp(
       REMOTE_ADDR: "127.0.0.1",
     } as unknown as NodeJS.ProcessEnv,
   });
+  const exited = new Promise<void>((done, fail) => {
+    child.on("error", fail);
+    child.on("close", () => done());
+  });
+  // http-backend may exit without reading the body (a missing repository), so
+  // writing it can meet a closed pipe.
   child.stdin.end(body);
-  const out = await readBody(child.stdout as unknown as IncomingMessage);
+  const written = finished(child.stdin).catch((error) => {
+    if (!hungUp(error)) throw error;
+  });
+  const [out] = await Promise.all([
+    readBody(child.stdout as unknown as IncomingMessage),
+    written,
+    exited,
+  ]);
   const split = out.indexOf("\r\n\r\n");
   const headers: Record<string, string> = {};
   let status = 200;

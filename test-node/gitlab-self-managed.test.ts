@@ -156,7 +156,12 @@ beforeAll(async () => {
 }, 60_000);
 
 afterAll(async () => {
-  server?.kill("SIGTERM");
+  // The server's clones are the instance's clients: stop them before it.
+  if (server && server.exitCode === null && server.signalCode === null) {
+    const exited = new Promise((done) => server.once("exit", done));
+    server.kill("SIGTERM");
+    await exited;
+  }
   await Promise.all([gitlab?.close(), model?.close()]);
   await rm(dir, { recursive: true, force: true });
 });
