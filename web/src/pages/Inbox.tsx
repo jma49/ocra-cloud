@@ -17,6 +17,7 @@ import {
   reviewAsked,
   rowsOf,
   type ShownSection,
+  stackRun,
 } from "../inbox/sections.js";
 import { useUnreadMarks } from "../inbox/unread.js";
 import { ViewDrawer } from "../inbox/view-drawer.js";
@@ -224,7 +225,7 @@ export function Inbox() {
               }
             >
               {!collapsed.has(s.key) &&
-                s.rows.map((r) => {
+                s.rows.map((r, at) => {
                   const i = index++;
                   return (
                     <PullRow
@@ -232,6 +233,7 @@ export function Inbox() {
                       r={r}
                       i={i}
                       current={i === current}
+                      run={stackRun(s.rows, at)}
                       onOpen={() => marks.opened(r)}
                       onMark={(read) => marks.mark([r], read)}
                     />

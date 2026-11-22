@@ -611,6 +611,32 @@ td.finding-cell {
 .unread-mark:focus-visible::before {
   box-shadow: 0 0 0 1.5px var(--t3);
 }
+/* A stack's rows in one section: a rail down their left edge joins them. */
+.pull-line.in-stack::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 2px;
+  background: var(--t4);
+  pointer-events: none;
+}
+.pull-line.stack-first::after {
+  top: 10px;
+  border-radius: 1px 1px 0 0;
+}
+.pull-line.stack-last::after {
+  bottom: 10px;
+  border-radius: 0 0 1px 1px;
+}
+.pull-stack {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--t3);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
 .pull-row:hover {
   background: var(--fill);
 }
