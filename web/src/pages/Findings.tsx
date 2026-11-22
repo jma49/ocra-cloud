@@ -329,7 +329,7 @@ export function Findings() {
               </thead>
               <tbody>
                 {rows.map((f) => (
-                  <tr key={f.id}>
+                  <tr key={f.id} className={selected.has(f.id) ? "selected" : undefined}>
                     <td>
                       <input
                         type="checkbox"

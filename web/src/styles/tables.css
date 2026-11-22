@@ -75,3 +75,6 @@ th.num {
   color: var(--critical);
   font-size: 14px;
 }
+tr.selected td {
+  background: var(--tint);
+}
