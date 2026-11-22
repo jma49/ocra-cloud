@@ -11,7 +11,8 @@ import type { AutoReviewService } from "./routes.js";
 
 type Db = AppEnv["Variables"]["db"];
 
-const MENTION = /@ocra\b/i;
+// Not an address (me@ocra.dev) nor another name that starts with it (@ocra-team).
+const MENTION = /(?<![\w.@-])@ocra(?![\w-])/i;
 const MAX_ID = 10_000_000_000_000;
 
 const id = z.number().int().min(1).lt(MAX_ID);
