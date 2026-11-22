@@ -61,8 +61,9 @@ it("starts the first page's reads with /me once this browser was signed in", asy
   await load(() => Response.json(me));
   await screen.findByRole("heading", { name: /Overview|ada/ });
   const asked = await load(undefined);
-  await waitFor(() => expect(asked).toContain("/keys"));
-  expect(asked).toContain("/me");
+  // The app from the earlier load may ask /keys on this fetch too, so wait
+  // for both rather than reading /me once /keys shows up.
+  await waitFor(() => expect(asked).toEqual(expect.arrayContaining(["/me", "/keys"])));
 });
 
 it("stops once /me finds the browser signed out", async () => {
