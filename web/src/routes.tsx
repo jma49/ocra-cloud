@@ -35,6 +35,8 @@ const AutoReview = lazy(() =>
 const Defaults = lazy(() => import("./pages/Defaults.js").then((m) => ({ default: m.Defaults })));
 const Device = lazy(() => import("./pages/Device.js").then((m) => ({ default: m.Device })));
 const PullPage = lazy(() => import("./pages/PullPage.js").then((m) => ({ default: m.PullPage })));
+const Live = lazy(() => import("./pages/Live.js").then((m) => ({ default: m.Live })));
+const LivePage = lazy(() => import("./pages/LivePage.js").then((m) => ({ default: m.LivePage })));
 const ReviewDetail = lazy(() =>
   import("./pages/ReviewDetail.js").then((m) => ({ default: m.ReviewDetail })),
 );
@@ -77,6 +79,8 @@ const ROUTES: readonly Route[] = [
   { path: "/pulls", place: "inbox", page: () => <Inbox /> },
   { path: "/reviews", place: "reviews", tab: "Reviews", page: () => <Reviews /> },
   { path: "/activity", place: "reviews", tab: "Activity", page: () => <Activity /> },
+  { path: "/live", place: "reviews", tab: "Live", page: () => <Live /> },
+  { path: "/live/:id", place: "reviews", page: (_me, [id]) => <LivePage id={id ?? ""} /> },
   {
     path: "/reviews/:id",
     place: "reviews",

@@ -79,6 +79,10 @@ const TABLE: Record<string, string> = {
   mergeChecks: "merge_checks",
   mergeCheckRuns: "merge_check_runs",
   reviewChatMessages: "review_chat_messages",
+  liveRuns: "live_runs",
+  liveEvents: "live_events",
+  liveGrants: "live_grants",
+  liveComments: "live_comments",
 };
 
 describe("query plans", () => {
@@ -315,6 +319,7 @@ describe("retention", () => {
       "closed_pulls",
       "device_codes",
       "gateway_calls",
+      "live_runs",
       "pull_flows",
       "pull_reviews",
       "rate_windows",

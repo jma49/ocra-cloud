@@ -73,7 +73,7 @@ describe("the routes", () => {
   it("give each place its tabs and the settings their groups, in order", () => {
     const m = me("off");
     expect(paths(placeTabs("inbox", m))).toEqual(["/"]);
-    expect(paths(placeTabs("reviews", m))).toEqual(["/reviews", "/activity"]);
+    expect(paths(placeTabs("reviews", m))).toEqual(["/reviews", "/activity", "/live"]);
     expect(paths(placeTabs("repositories", m))).toEqual(["/repositories", "/learnings", "/memory"]);
     expect(paths(placeTabs("insights", m))).toEqual(["/insights", "/usage"]);
     expect(settingsGroups(m).map((g) => [g.label, paths(g.routes)])).toEqual([

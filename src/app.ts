@@ -17,6 +17,7 @@ import { apiError } from "./http.js";
 import { inbox } from "./inbox.js";
 import { keys } from "./keys.js";
 import { learningsRoute } from "./learnings.js";
+import { liveRoute } from "./live/routes.js";
 import { errorName, logError } from "./log.js";
 import { meRoute } from "./me.js";
 import { memory } from "./memory.js";
@@ -109,6 +110,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
   app.route("/account", account);
   app.route("/reviews", reviews);
   app.route("/reviews", reviewChat);
+  app.route("/live", liveRoute);
   app.route("/findings", inbox);
   app.route("/repositories", repositoriesRoute);
   app.route("/budget", budget);
