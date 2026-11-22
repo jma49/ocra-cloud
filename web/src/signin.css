@@ -161,7 +161,7 @@
   text-decoration-color: currentColor;
 }
 
-@media (max-width: 1023px) {
+@media (max-width: 1100px) {
   .si {
     grid-template-columns: minmax(0, 1fr);
     max-width: 600px;
@@ -174,7 +174,7 @@
   }
 }
 
-@media (max-width: 599px) {
+@media (max-width: 560px) {
   .si {
     width: calc(100% - 20px);
   }

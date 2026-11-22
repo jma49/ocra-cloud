@@ -433,7 +433,7 @@ td.finding-cell {
 .finding-label {
   margin-bottom: 4px;
 }
-@media (max-width: 960px) {
+@media (max-width: 900px) {
   .review-frame {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -668,7 +668,7 @@ td.finding-cell {
     width: auto;
   }
 }
-@media (max-width: 640px) {
+@media (max-width: 560px) {
   .pull-num {
     width: auto;
   }
@@ -1010,7 +1010,7 @@ td.finding-cell {
   justify-content: space-between;
   gap: 12px;
 }
-@media (max-width: 640px) {
+@media (max-width: 560px) {
   .repo-name {
     flex-direction: column;
     align-items: flex-start;
