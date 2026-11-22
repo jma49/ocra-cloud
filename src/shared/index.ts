@@ -19,6 +19,7 @@ export * from "./models.js";
 export * from "./notifications.js";
 export * from "./pull-page.js";
 export * from "./pulls.js";
+export * from "./repo-config.js";
 export * from "./review-chat.js";
 export * from "./sign-in.js";
 export * from "./stacks.js";

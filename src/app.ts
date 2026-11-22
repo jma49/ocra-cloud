@@ -34,6 +34,7 @@ import { preferences } from "./preferences.js";
 import { pullPage } from "./pull-page.js";
 import { pullStack } from "./pull-stack.js";
 import { pullViewsRoute } from "./pull-views.js";
+import { repoConfigRoute } from "./repo-config.js";
 import { repositoriesRoute } from "./repositories.js";
 import { reviewChat } from "./review-chat.js";
 import { reviews } from "./reviews.js";
@@ -127,6 +128,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
   app.route("/pulls", pullStack);
   app.route("/pulls", reviewNow);
   app.route("/learnings", learningsRoute);
+  app.route("/repo-config", repoConfigRoute);
   app.route("/merge-checks", mergeChecksRoute);
   app.route("/notifications", notifyRoute);
   app.route("/automations", automationsRoute);
