@@ -42,6 +42,7 @@ export type CodeOwnerGroupView = {
   required: boolean | null;
 };
 
+/** GET /api/pulls/readiness?platform=&repo=&number= */
 export type PullReadinessView = {
   platform: CodePlatformKind;
   repo: string;
