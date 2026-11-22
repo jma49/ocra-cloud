@@ -72,6 +72,13 @@ export function ThreadsPanel(props: { pull: Pull; onDone: (o: PullActionOutcome)
             toggle={toggle}
             resolving={resolving === t.id}
             busy={write.busy}
+            reply={async (body) => {
+              // Not this thread's id: only the reply's own button shows it is being sent.
+              setResolving(`reply:${t.id}`);
+              const r = await write.run("reply-thread", { ...props.pull, thread: t.id, body });
+              after(r);
+              return r?.outcome === "done";
+            }}
             resolve={async () => {
               setResolving(t.id);
               after(

@@ -172,3 +172,30 @@
   font-size: var(--text-sm);
   line-height: 18px;
 }
+
+/* A pull request's labels: the platform's colour as a dot, never as a fill. */
+.label-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.label-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.label-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--t4);
+}
+.label-menu {
+  max-height: min(320px, var(--available-height));
+  overflow-y: auto;
+}

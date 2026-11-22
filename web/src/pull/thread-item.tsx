@@ -1,5 +1,10 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import type { ReviewThreadView, ThreadSuggestion } from "../../../src/shared/index.js";
+import {
+  MAX_THREAD_REPLY_CHARS,
+  type ReviewThreadView,
+  type ThreadSuggestion,
+} from "../../../src/shared/index.js";
 import { ago } from "../format.js";
 import { splitPath } from "./diff.js";
 import { SuggestionText } from "./suggestion.js";
@@ -67,9 +72,61 @@ function Comments(props: ItemProps) {
   ));
 }
 
-/** One review thread: where it is, its comments and suggestions, and its resolve switch. */
+/** A reply to the thread, kept while it is being written and until the platform took it. */
+function Reply(props: { busy: boolean; send: (body: string) => Promise<boolean> }) {
+  const [open, setOpen] = useState(false);
+  const [body, setBody] = useState("");
+  const [sending, setSending] = useState(false);
+  if (!open) {
+    return (
+      <div>
+        <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+          Reply
+        </Button>
+      </div>
+    );
+  }
+  const send = async () => {
+    setSending(true);
+    const took = await props.send(body.trim());
+    setSending(false);
+    if (!took) return;
+    setBody("");
+    setOpen(false);
+  };
+  return (
+    <div className="stack-tight">
+      <textarea
+        className="input"
+        aria-label="Reply"
+        rows={3}
+        maxLength={MAX_THREAD_REPLY_CHARS}
+        value={body}
+        // biome-ignore lint/a11y/noAutofocus: the box opens because the person asked to reply
+        autoFocus
+        onChange={(e) => setBody(e.target.value)}
+      />
+      <div className="row-gap">
+        <Button size="sm" loading={sending} disabled={props.busy || !body.trim()} onClick={send}>
+          Send reply
+        </Button>
+        <Button variant="outline" size="sm" disabled={sending} onClick={() => setOpen(false)}>
+          Cancel
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/** One review thread: where it is, its comments and suggestions, a reply, and its resolve switch. */
 export function ThreadItem(
-  props: ItemProps & { resolving: boolean; busy: boolean; resolve: () => void },
+  props: ItemProps & {
+    resolving: boolean;
+    busy: boolean;
+    resolve: () => void;
+    /** Sends a reply as the user; true once the platform took it. */
+    reply: (body: string) => Promise<boolean>;
+  },
 ) {
   const { t } = props;
   const { dir, name } = splitPath(t.path);
@@ -105,7 +162,10 @@ export function ThreadItem(
           <Comments {...props} />
         </details>
       ) : (
-        <Comments {...props} />
+        <>
+          <Comments {...props} />
+          <Reply busy={props.busy} send={props.reply} />
+        </>
       )}
     </li>
   );
