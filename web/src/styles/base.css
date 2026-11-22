@@ -61,6 +61,7 @@
   --float:
     0 0 0 0.5px rgb(0 0 0 / 0.08), 0 8px 24px -6px rgb(0 0 0 / 0.16), 0 2px 6px rgb(0 0 0 / 0.05);
   --scrim: rgb(0 0 0 / 0.28);
+  --focus: color-mix(in srgb, var(--blue) 55%, transparent);
   --e-std: cubic-bezier(0.4, 0, 0.2, 1);
   --e-enter: cubic-bezier(0.22, 1, 0.36, 1);
   --e-settle: cubic-bezier(0.2, 0.75, 0.15, 1);
@@ -199,7 +200,7 @@ input {
   accent-color: var(--fg);
 }
 :focus-visible {
-  outline: 2px solid currentColor;
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 ::selection {
