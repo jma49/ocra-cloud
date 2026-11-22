@@ -42,6 +42,9 @@ Without Docker: `npm ci && npm run build:web && npm run build:node`, then `node 
 | `DEFAULT_MODELS` | no | the default models, as JSON (`{"top": ["ocra-corp/qwen3-coder"], "light": "ocra-corp/qwen3-8b"}`), that an account starts with until it saves its own; each must be one the gateway serves |
 | `BUILTIN_PROVIDERS` | no | `off` forwards to `MODEL_ENDPOINTS` only, never to the public providers; `on` when unset |
 | `GITHUB_WEBHOOK_SECRET` | for GitHub code graphs | your GitHub App's webhook secret; the App's webhook URL is `<PUBLIC_URL>/api/webhooks/github` (`/api/graphs/webhooks/github`, its earlier address, still answers), subscribed to push and pull request events. The App's webhooks are refused without it |
+| `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY` | for GitHub auto review | your GitHub App's id and private key (PEM; `\n` for line breaks on one line). Each review gets an installation token limited to its repository; the App needs Contents read, Pull requests read and write, and the pull request webhook event |
+| `GITLAB_BOT_TOKEN` | for GitLab auto review | a bot account's token (scope `api`), which posts the reviews |
+| `AUTO_REVIEW_WORKERS` | no | reviews at once in this process (default 1; 0 only queues them for another process on the same database) |
 | `GRAPH_WORKERS` | no | code graph builds a process runs at once, each of another repository; 1 when unset |
 | `CODE_GRAPH` | no | what the server does with code graphs: `keep` (the default), `opt-in` (only for repositories added with the owner's consent) or `off` (none kept; the daily retention deletes any that are) |
 | `DATABASE_URL` | no | a Postgres server's `postgres://user:password@host:5432/db`, or a libSQL URL: `file:/data/ocra-cloud.db` in the image, or a libSQL server's |
@@ -113,3 +116,9 @@ A pull request's impact (`/api/graphs/repos/<id>/impact?pull=<number>`) is compu
 
 - Set GitHub, OpenID Connect or both; the server refuses to start with neither. An account belongs to the identity it signed in with: the same person through GitHub and through SSO is two accounts.
 - Back up the `/data` volume, or the Postgres database; there is no Time Travel as on D1.
+
+## Auto review
+
+With a bot's credentials and `PUBLIC_URL` set, the server reviews pull requests itself (ADR-0046 of the engine): an account enrolls a repository (`/api/auto-review/repos`; one account per repository, whose models, keys, budget and rules the reviews use), and a pull request is queued when it opens, reopens, leaves draft or gains commits. GitHub's events come through the App's webhook (`/api/webhooks/github`), GitLab's through a project hook to `/api/auto-review/webhooks/gitlab` with the secret the server answers when the repository is enrolled. A newer head supersedes a queued one, and one pull request is reviewed once at a time.
+
+Each review clones the repository into a new temporary directory and runs the installed `ocra` CLI there, as CI does: `ocra review --pr <n> --publish --no-repo-config` (`--mr` on GitLab), signed in to this server as the enrolling account through a session made for the run. Nothing from the pull request runs. It posts as the bot, and gets only the variables it needs, none of this server's secrets. The directory and the session are removed when the run ends, whatever its outcome; a failed run is retried twice, five and ten minutes later. The image includes git; a server run outside it needs git on its `PATH`.

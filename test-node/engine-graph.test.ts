@@ -1,7 +1,7 @@
 import { parseGraph } from "@open-cr-agent/code-graph";
 import { describe, expect, it } from "vitest";
 import { engineGraphBuilder } from "../src/node/engine-graph.js";
-import { graphSettingsFrom } from "../src/node/env.js";
+import { autoReviewSettingsFrom, graphSettingsFrom } from "../src/node/env.js";
 
 // The engine's builder as the server calls it: a real tree-sitter parse, then
 // an update that reads only the changed blob.
@@ -57,5 +57,21 @@ describe("the graph settings", () => {
     expect(graphSettingsFrom({})).toEqual({ policy: "keep", workers: 1 });
     expect(graphSettingsFrom({ GRAPH_WORKERS: "3" })).toMatchObject({ workers: 3 });
     expect(() => graphSettingsFrom({ GRAPH_WORKERS: "0" })).toThrow("GRAPH_WORKERS");
+  });
+});
+
+describe("the auto review settings", () => {
+  it("are off without a bot, take one worker by default, and refuse a bad count", () => {
+    expect(autoReviewSettingsFrom({ GITHUB_APP_ID: "1" })).toBeUndefined();
+    expect(autoReviewSettingsFrom({ GITLAB_BOT_TOKEN: "t" })).toMatchObject({ workers: 1 });
+    const one = autoReviewSettingsFrom({
+      GITHUB_APP_ID: "1",
+      GITHUB_APP_PRIVATE_KEY: "-----BEGIN\\nKEY",
+      AUTO_REVIEW_WORKERS: "0",
+    });
+    expect(one).toMatchObject({ workers: 0, bots: { githubAppPrivateKey: "-----BEGIN\nKEY" } });
+    expect(() =>
+      autoReviewSettingsFrom({ GITLAB_BOT_TOKEN: "t", AUTO_REVIEW_WORKERS: "x" }),
+    ).toThrow("AUTO_REVIEW_WORKERS");
   });
 });

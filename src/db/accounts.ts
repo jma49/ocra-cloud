@@ -67,6 +67,17 @@ export async function githubIdOf(db: Db, accountId: string): Promise<number | nu
   return row ? Number(row.subject) : null;
 }
 
+/** The login an account goes by, as its sessions show it. */
+export async function loginOf(db: Db, accountId: string): Promise<string | null> {
+  const row = await db
+    .select({ login: accounts.login })
+    .from(accounts)
+    .where(eq(accounts.id, accountId))
+    .limit(1)
+    .then(first);
+  return row?.login ?? null;
+}
+
 export type SessionAccount = {
   account: Account;
   sessionId: string;

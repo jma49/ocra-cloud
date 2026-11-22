@@ -95,3 +95,24 @@ export function graphSettingsFrom(vars: Record<string, string | undefined>) {
     workers: Number(workers),
   };
 }
+
+/**
+ * AUTO_REVIEW_WORKERS (reviews at once; 1 when unset, 0 to only queue them)
+ * and the ocra bot's credentials: GITHUB_APP_ID with GITHUB_APP_PRIVATE_KEY,
+ * GITLAB_BOT_TOKEN. Off without any credential.
+ */
+export function autoReviewSettingsFrom(vars: Record<string, string | undefined>) {
+  const bots = {
+    githubAppId: vars.GITHUB_APP_ID || undefined,
+    // A key pasted on one line keeps its line breaks as \n.
+    githubAppPrivateKey: vars.GITHUB_APP_PRIVATE_KEY?.replace(/\\n/g, "\n") || undefined,
+    gitlabBotToken: vars.GITLAB_BOT_TOKEN || undefined,
+  };
+  const github = !!bots.githubAppId && !!bots.githubAppPrivateKey;
+  if (!github && !bots.gitlabBotToken) return undefined;
+  const workers = vars.AUTO_REVIEW_WORKERS || "1";
+  if (!/^\d+$/.test(workers)) {
+    throw new Error(`AUTO_REVIEW_WORKERS must be a whole number, not ${workers}`);
+  }
+  return { bots, workers: Number(workers) };
+}

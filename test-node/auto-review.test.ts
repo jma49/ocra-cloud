@@ -21,10 +21,9 @@ afterAll(() => rm(dir, { recursive: true, force: true }));
 afterEach(() => vi.restoreAllMocks());
 
 let s: Server;
-let kicks = 0;
 beforeEach(async () => {
-  kicks = 0;
-  s = await graphServer(dir, `auto-review-${n++}.db`, "off", undefined, { kick: () => kicks++ });
+  // No worker: the jobs stay as the webhooks leave them.
+  s = await graphServer(dir, `auto-review-${n++}.db`, "off", undefined, { bots: {}, workers: 0 });
   repoFake({ [C1]: {} });
 });
 afterEach(() => s.host.close());
@@ -94,11 +93,10 @@ describe("GitHub's pull request webhook", () => {
     await enroll(auth, { platform: "github", fullName: "octo/api" });
   });
 
-  it("queues a head when the pull request opens, once, and wakes the runner", async () => {
+  it("queues a head when the pull request opens, once", async () => {
     expect(await (await fromGithub(pullEvent("opened", C1))).json()).toEqual({ queued: 1 });
     expect(await (await fromGithub(pullEvent("opened", C1))).json()).toEqual({ queued: 0 });
     expect(await jobs()).toMatchObject([{ number: 7, head: C1, state: "queued" }]);
-    expect(kicks).toBe(1);
   });
 
   it("supersedes a queued head when the pull request gains commits", async () => {
