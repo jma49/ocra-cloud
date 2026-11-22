@@ -272,13 +272,34 @@
   color: var(--t1);
   background: var(--fill2);
 }
-/* The icons' soft variant mixes the text colour with white, which turns the
-   dark theme's translucent text into a white blob: idle icons take an opaque grey. */
-@media (prefers-color-scheme: dark) {
-  .rail-link svg,
-  .rail-docs svg,
-  .settings-link svg {
-    color: var(--icon);
+/* Place and settings icons: line icons in the link's colour, a touch
+   lighter at rest; the open page's is drawn heavier, and a press gives way. */
+.nav-icon {
+  flex: none;
+  color: var(--t3);
+  stroke-width: 1.75;
+  transition:
+    color 150ms var(--e-std),
+    stroke-width 150ms var(--e-std),
+    transform 200ms var(--e-settle);
+}
+:is(.rail-link, .settings-link):hover .nav-icon,
+:is(.rail-link, .settings-link).on .nav-icon {
+  color: var(--t1);
+}
+:is(.rail-link, .settings-link).on .nav-icon {
+  stroke-width: 2;
+}
+:is(.rail-link, .settings-link):active .nav-icon {
+  transform: scale(0.88);
+  transition-duration: 80ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  .nav-icon {
+    transition: none;
+  }
+  :is(.rail-link, .settings-link):active .nav-icon {
+    transform: none;
   }
 }
 .content {

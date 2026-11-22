@@ -1,23 +1,21 @@
-import {
-  Bell,
-  Book,
-  Brain,
-  ChartBar,
-  Coins,
-  Flag,
-  Folder,
-  GitPullRequest,
-  History,
-  Inbox,
-  Key,
-  type KubaiIconComponent,
-  ListChecks,
-  Puzzle,
-  SettingsIcon,
-  Sliders,
-  Terminal,
-  User,
-} from "kubai-icons-react";
+import type { LucideIcon } from "lucide-react";
+import Bell from "lucide-react/icons/bell";
+import BookOpen from "lucide-react/icons/book-open";
+import Brain from "lucide-react/icons/brain";
+import ChartColumn from "lucide-react/icons/chart-column";
+import Coins from "lucide-react/icons/coins";
+import Flag from "lucide-react/icons/flag";
+import Folder from "lucide-react/icons/folder";
+import GitPullRequest from "lucide-react/icons/git-pull-request";
+import History from "lucide-react/icons/history";
+import Inbox from "lucide-react/icons/inbox";
+import KeyRound from "lucide-react/icons/key-round";
+import ListChecks from "lucide-react/icons/list-checks";
+import Puzzle from "lucide-react/icons/puzzle";
+import Settings from "lucide-react/icons/settings";
+import SlidersHorizontal from "lucide-react/icons/sliders-horizontal";
+import Terminal from "lucide-react/icons/terminal";
+import UserRound from "lucide-react/icons/user-round";
 import { type ReactNode, useEffect, useRef } from "react";
 import type { Me } from "./api.js";
 import { AccountMenu } from "./chrome.js";
@@ -30,29 +28,33 @@ import { DOCS } from "./site.js";
 // The signed-in frame: the icon rail of places on the ground, and the open
 // page on a panel beside it, headed by where it is and its place's tabs.
 
-const PLACES: { id: Place; label: string; icon: KubaiIconComponent }[] = [
+const PLACES: { id: Place; label: string; icon: LucideIcon }[] = [
   { id: "inbox", label: "Inbox", icon: Inbox },
   { id: "reviews", label: "Reviews", icon: GitPullRequest },
   { id: "findings", label: "Findings", icon: Flag },
   { id: "repositories", label: "Repositories", icon: Folder },
-  { id: "insights", label: "Insights", icon: ChartBar },
+  { id: "insights", label: "Insights", icon: ChartColumn },
 ];
 
-const SETTINGS_ICONS: Record<string, KubaiIconComponent> = {
+const SETTINGS_ICONS: Record<string, LucideIcon> = {
   "/agents": Brain,
-  "/review-settings": Sliders,
+  "/review-settings": SlidersHorizontal,
   "/rules": ListChecks,
   "/plugins": Puzzle,
   "/defaults": History,
-  "/keys": Key,
+  "/keys": KeyRound,
   "/budget": Coins,
-  "/settings": User,
+  "/settings": UserRound,
   "/notifications": Bell,
   "/sessions": Terminal,
 };
 
-function RailLink(props: { to: string; label: string; on: boolean; icon: KubaiIconComponent }) {
+function NavIcon(props: { icon: LucideIcon; size: number }) {
   const Icon = props.icon;
+  return <Icon className="nav-icon" size={props.size} strokeWidth={1.75} aria-hidden="true" />;
+}
+
+function RailLink(props: { to: string; label: string; on: boolean; icon: LucideIcon }) {
   return (
     <Link
       to={props.to}
@@ -60,7 +62,7 @@ function RailLink(props: { to: string; label: string; on: boolean; icon: KubaiIc
       current={props.on}
       label={props.label}
     >
-      <Icon size={20} variant={props.on ? "color" : "soft"} trigger="parent" />
+      <NavIcon icon={props.icon} size={20} />
     </Link>
   );
 }
@@ -89,13 +91,13 @@ function Rail(props: { me: Me; place: Place | undefined }) {
         aria-label="Documentation"
         title="Documentation"
       >
-        <Book size={20} variant="soft" trigger="parent" />
+        <NavIcon icon={BookOpen} size={20} />
       </a>
       <RailLink
         to={placeHome("settings")}
         label="Settings"
         on={props.place === "settings"}
-        icon={SettingsIcon}
+        icon={Settings}
       />
       <AccountMenu me={props.me} compact />
     </nav>
@@ -118,7 +120,7 @@ function SettingsNav(props: { me: Me; path: string }) {
         <div key={g.label} className="settings-group">
           <div className="caps">{g.label}</div>
           {g.routes.map((r) => {
-            const Icon = SETTINGS_ICONS[r.path] ?? SettingsIcon;
+            const Icon = SETTINGS_ICONS[r.path] ?? Settings;
             const on = r.path === props.path;
             return (
               <Link
@@ -127,7 +129,7 @@ function SettingsNav(props: { me: Me; path: string }) {
                 className={`settings-link${on ? " on" : ""}`}
                 current={on}
               >
-                <Icon size={16} variant={on ? "color" : "soft"} trigger="parent" />
+                <NavIcon icon={Icon} size={16} />
                 {r.tab}
               </Link>
             );

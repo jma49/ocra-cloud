@@ -73,7 +73,6 @@
     "esbuild": "^0.28.2",
     "happy-dom": "^21.0.4",
     "knip": "^6.45.1",
-    "kubai-icons-react": "^0.13.1",
     "lucide-react": "^1.77.0",
     "mermaid": "^12.3.0",
     "react": "^19.3.1",
