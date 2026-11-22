@@ -1,3 +1,4 @@
+import { graphPolicy } from "../graph/policy.js";
 import { startingModels } from "../preferences.js";
 import type { AppBindings } from "../types.js";
 import { rateLimits } from "./limits.js";
@@ -81,4 +82,17 @@ export function migrateMode(value: string | undefined): "on" | "off" | "only" {
   if (!value) return "on";
   if (value === "on" || value === "off" || value === "only") return value;
   throw new Error(`MIGRATE must be on, off or only, not ${value}`);
+}
+
+/** CODE_GRAPH, GITHUB_WEBHOOK_SECRET and GRAPH_WORKERS (builds at once, 1 when unset). */
+export function graphSettingsFrom(vars: Record<string, string | undefined>) {
+  const workers = vars.GRAPH_WORKERS || "1";
+  if (!/^[1-9]\d*$/.test(workers)) {
+    throw new Error(`GRAPH_WORKERS must be a whole number above 0, not ${workers}`);
+  }
+  return {
+    policy: graphPolicy(vars.CODE_GRAPH),
+    githubWebhookSecret: vars.GITHUB_WEBHOOK_SECRET || undefined,
+    workers: Number(workers),
+  };
 }
