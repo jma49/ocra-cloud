@@ -41,6 +41,7 @@ const ACCESS: Record<string, Access> = {
   "POST /api/pulls/comment": "web",
   "POST /api/pulls/review": "web",
   "POST /api/pulls/merge": "web",
+  "POST /api/pulls/apply-fix": "web",
   "GET /api/platforms/repos": "web",
   "POST /api/platforms/sync-names": "web",
   "GET /api/platforms/gitlab/connect": "web",

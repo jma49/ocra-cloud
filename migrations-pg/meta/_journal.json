@@ -22,6 +22,13 @@
       "when": 1795326912765,
       "tag": "0002_review_jobs",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1795328813502,
+      "tag": "0003_finding_fix",
+      "breakpoints": true
     }
   ]
 }

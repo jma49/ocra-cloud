@@ -1,4 +1,5 @@
 import type { LineComment, MergeMethod, PullActionOutcome, PullVerdict } from "../shared/index.js";
+import type { LineFix } from "./fix.js";
 
 // What the signed-in user does on a pull request from the console, as
 // themselves: the platform checks their permission, and its refusal is
@@ -13,6 +14,9 @@ type ReviewRequest = {
 };
 
 type MergeRequest = { method: MergeMethod; head: string };
+
+/** A fix of the file at `path` as it is at `head`, committed on the pull request's branch. */
+type FixCommit = { path: string; head: string; fix: LineFix; message: string };
 
 export interface PullActions {
   readonly verdicts: readonly PullVerdict[];
@@ -34,6 +38,13 @@ export interface PullActions {
     fullName: string,
     number: number,
     merge: MergeRequest,
+  ): Promise<PullActionOutcome | null>;
+  /** `not_applicable` when the file at head is not text the fix's lines are in. */
+  applyFix(
+    token: string,
+    fullName: string,
+    number: number,
+    commit: FixCommit,
   ): Promise<PullActionOutcome | null>;
 }
 

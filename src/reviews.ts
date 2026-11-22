@@ -189,10 +189,22 @@ function findingDto(f: FindingRow) {
     reason: f.reason,
     note: f.note,
     decidedAt: f.decidedAt,
-  } satisfies Omit<FindingRow, "accountId" | "reviewId" | "position">;
+    fix: fixOf(f),
+  } satisfies Omit<FindingRow, "accountId" | "reviewId" | "position" | FixColumn> & {
+    fix: unknown;
+  };
+}
+
+type FixColumn = "fixStartLine" | "fixEndLine" | "fixReplacement";
+
+/** The finding's fix, which the pull request page can commit; null without one. */
+export function fixOf(f: Pick<FindingRow, FixColumn>) {
+  if (f.fixStartLine === null || f.fixEndLine === null || f.fixReplacement === null) return null;
+  return { startLine: f.fixStartLine, endLine: f.fixEndLine, replacement: f.fixReplacement };
 }
 
 export function exportFinding(f: FindingRow) {
+  const fix = fixOf(f);
   return {
     fingerprint: f.fingerprint,
     reviewer: f.reviewer,
@@ -207,6 +219,7 @@ export function exportFinding(f: FindingRow) {
     body: f.body,
     ...(f.suggestion !== null ? { suggestion: f.suggestion } : {}),
     ...(f.code !== null ? { code: f.code } : {}),
+    ...(fix ? { fix } : {}),
     redacted: f.redacted,
     truncated: f.truncated,
   };

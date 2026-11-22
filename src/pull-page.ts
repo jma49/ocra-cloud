@@ -1,9 +1,14 @@
+import { REDACTED } from "@open-cr-agent/cloud-contract";
 import { type Context, Hono } from "hono";
 import { z } from "zod";
+import type { Row } from "./db/scoped.js";
 import { apiError, jsonBody } from "./http.js";
+import { fixMessage } from "./platforms/fix.js";
 import { accessToken } from "./platforms/links.js";
+import type { CodePlatform } from "./platforms/platform.js";
 import { platformsOf } from "./platforms/registry.js";
 import { perMinute } from "./rate.js";
+import { fixOf } from "./reviews.js";
 import { requireSession } from "./session.js";
 import {
   CODE_PLATFORMS,
@@ -15,8 +20,9 @@ import {
 import type { AppEnv } from "./types.js";
 
 // A pull request's page: its diff, read live as the signed-in user, and
-// their comment, review and merge, sent to the platform as them. Nothing
-// read or sent is stored. Only the web session acts: a CLI token never merges.
+// their comment, review, merge and commit of a finding's fix, sent to the
+// platform as them. Nothing read or sent is stored. Only the web session
+// acts: a CLI token never merges.
 
 export const pullPage = new Hono<AppEnv>();
 
@@ -68,16 +74,44 @@ const reviewBody = z.object({
     .default([]),
 });
 const mergeBody = z.object({ ...pullRef, method: z.enum(MERGE_METHODS), head: sha });
+const fixBody = z.object({ finding: z.string().min(1).max(64) });
 
 type Ref = z.output<typeof filesQuery>;
 
 /** The platform and the user's token on it, or the refusal to answer. */
-async function reach(c: Context<AppEnv>, ref: Ref) {
-  const platform = platformsOf(c.env, c.req.url).find((p) => p.kind === ref.platform);
+async function reach(c: Context<AppEnv>, which: (p: CodePlatform) => boolean) {
+  const platform = platformsOf(c.env, c.req.url).find(which);
   if (!platform) return { refusal: apiError(c, "not_found") } as const;
   const token = await accessToken(c.var.data, c.env, platform);
   if (!token) return { refusal: apiError(c, "github_user") } as const;
   return { platform, token } as const;
+}
+
+const byKind = (ref: Ref) => (p: CodePlatform) => p.kind === ref.platform;
+
+/**
+ * The pull request a PR-mode review was of (ADR-0038): its host, its
+ * repository's path, its number and the head it reviewed; null for another review.
+ */
+function pullOf(review: Row<"reviews">) {
+  const { prRepository, prNumber, prHeadSha } = review;
+  if (!prRepository || !prNumber || !prHeadSha) return null;
+  let url: URL;
+  try {
+    url = new URL(prRepository);
+  } catch {
+    return null;
+  }
+  const repo = repoName.safeParse(url.pathname.slice(1));
+  if (url.protocol !== "https:" || !repo.success) return null;
+  return { host: url.hostname, repo: repo.data, number: prNumber, head: prHeadSha };
+}
+
+/** A path inside the repository, by its parts; undefined for one that leaves it or was redacted. */
+function repoFilePath(file: string): string | undefined {
+  if (file.includes(REDACTED) || /\p{Cc}/u.test(file)) return undefined;
+  const parts = file.split("/");
+  return parts.every((p) => p !== "" && p !== "." && p !== "..") ? file : undefined;
 }
 
 const answer = (c: Context<AppEnv>, outcome: PullActionOutcome | null) =>
@@ -86,7 +120,7 @@ const answer = (c: Context<AppEnv>, outcome: PullActionOutcome | null) =>
 pullPage.get("/files", requireSession(["web"]), perMinute("platform"), async (c) => {
   const ref = filesQuery.safeParse(c.req.query());
   if (!ref.success) return apiError(c, "not_found");
-  const reached = await reach(c, ref.data);
+  const reached = await reach(c, byKind(ref.data));
   if ("refusal" in reached) return reached.refusal;
   const { platform, token } = reached;
   const patches = await platform.changes.patches(token, ref.data.repo, ref.data.number);
@@ -118,7 +152,7 @@ pullPage.post(
   jsonBody(commentBody, { max: MAX_BODY * 2 }),
   async (c) => {
     const body = c.req.valid("json");
-    const reached = await reach(c, body);
+    const reached = await reach(c, byKind(body));
     if ("refusal" in reached) return reached.refusal;
     const { platform, token } = reached;
     return answer(c, await platform.actions.comment(token, body.repo, body.number, body.body));
@@ -132,7 +166,7 @@ pullPage.post(
   jsonBody(reviewBody, { max: MAX_REVIEW_BYTES }),
   async (c) => {
     const { repo, number, verdict, body, head, comments } = c.req.valid("json");
-    const reached = await reach(c, c.req.valid("json"));
+    const reached = await reach(c, byKind(c.req.valid("json")));
     if ("refusal" in reached) return reached.refusal;
     const { platform, token } = reached;
     if (!platform.actions.verdicts.includes(verdict)) return c.json({ outcome: "refused" });
@@ -148,10 +182,48 @@ pullPage.post(
   jsonBody(mergeBody),
   async (c) => {
     const { repo, number, method, head } = c.req.valid("json");
-    const reached = await reach(c, c.req.valid("json"));
+    const reached = await reach(c, byKind(c.req.valid("json")));
     if ("refusal" in reached) return reached.refusal;
     const { platform, token } = reached;
     if (!platform.actions.mergeMethods.includes(method)) return c.json({ outcome: "refused" });
     return answer(c, await platform.actions.merge(token, repo, number, { method, head }));
+  },
+);
+
+pullPage.post(
+  "/apply-fix",
+  requireSession(["web"]),
+  perMinute("platform"),
+  jsonBody(fixBody),
+  async (c) => {
+    const data = c.var.data;
+    const finding = await data.get("findings", c.req.valid("json").finding);
+    const fix = finding && fixOf(finding);
+    const review = fix && (await data.get("reviews", finding.reviewId));
+    const pull = review && pullOf(review);
+    if (!finding || !fix || !pull) return apiError(c, "not_found");
+    const path = repoFilePath(finding.file);
+    if (!path) return c.json({ outcome: "not_applicable" satisfies PullActionOutcome });
+    // The CLI writes the host without its port, as repoIdentity does.
+    const reached = await reach(c, (p) => p.host.replace(/:\d+$/, "").toLowerCase() === pull.host);
+    if ("refusal" in reached) return reached.refusal;
+    const { platform, token } = reached;
+    // The fix's lines are the reviewed head's: a pull request that moved since is head_moved,
+    // which also keeps a second click from committing it twice.
+    const outcome = await platform.actions.applyFix(token, pull.repo, pull.number, {
+      path,
+      head: pull.head,
+      fix,
+      message: fixMessage(finding.title),
+    });
+    if (outcome === "done") {
+      await data.decide([finding.id], {
+        status: "fixed",
+        reason: null,
+        note: null,
+        decidedAt: new Date(),
+      });
+    }
+    return answer(c, outcome);
   },
 );
