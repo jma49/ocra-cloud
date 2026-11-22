@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import {
+  Menu,
+  MenuItem,
+  MenuLinkItem,
+  MenuPopup,
+  MenuSeparator,
+  MenuTrigger,
+} from "@/components/ui/menu";
 import { api, type Me } from "./api.js";
 import { clearCache } from "./cache.js";
 import { EyesMark } from "./eyes.js";
@@ -40,30 +47,11 @@ function Avatar(props: { me: Me }) {
   );
 }
 
-/** The account button and the few links it shows; compact: the avatar alone, as in the rail. */
-export function AccountMenu(props: { me: Me; compact?: boolean }) {
-  // A disclosure: a click elsewhere closes it; Escape closes it and returns focus.
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  const button = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    const close = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      setOpen((was) => {
-        if (was) button.current?.focus();
-        return false;
-      });
-    };
-    document.addEventListener("click", close);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("click", close);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, []);
+/**
+ * The account button and the few links it shows; compact: the avatar alone, as in the rail.
+ * side: where the links open, beside the rail or below a bar.
+ */
+export function AccountMenu(props: { me: Me; compact?: boolean; side?: "bottom" | "right" }) {
   const logout = async () => {
     rememberSignedIn(false);
     await clearCache();
@@ -72,42 +60,30 @@ export function AccountMenu(props: { me: Me; compact?: boolean }) {
   };
   const { me } = props;
   return (
-    <div ref={ref} className={props.compact ? "account compact" : "account"}>
-      <button
-        ref={button}
-        type="button"
-        className="avatar-btn"
-        onClick={() => setOpen(!open)}
-        aria-expanded={open}
-        aria-controls="account-menu"
+    <Menu>
+      <MenuTrigger
+        className={props.compact ? "avatar-btn compact" : "avatar-btn"}
         aria-label={`Account: ${me.login}`}
       >
         <Avatar me={me} />
         {!props.compact && <span className="small">{me.login}</span>}
-      </button>
-      {open && (
-        <div className="menu" id="account-menu">
-          <div className="menu-head">
-            <div className="strong">{me.login}</div>
-            <div className="subtle small">
-              {me.githubId === null ? "Signed in with single sign-on" : "Signed in with GitHub"}
-            </div>
+      </MenuTrigger>
+      <MenuPopup className="account-menu" side={props.side ?? "bottom"} align="end" sideOffset={8}>
+        <div className="menu-head">
+          <div className="strong">{me.login}</div>
+          <div className="subtle small">
+            {me.githubId === null ? "Signed in with single sign-on" : "Signed in with GitHub"}
           </div>
-          <Link to="/settings" className="menu-item">
-            Settings
-          </Link>
-          <a className="menu-item" href={DOCS} target="_blank" rel="noreferrer">
-            Documentation
-          </a>
-          <a className="menu-item" href="/privacy">
-            Data policy
-          </a>
-          <button type="button" className="menu-item" onClick={logout}>
-            Sign out
-          </button>
         </div>
-      )}
-    </div>
+        <MenuLinkItem render={<Link to="/settings" />}>Settings</MenuLinkItem>
+        <MenuLinkItem href={DOCS} target="_blank" rel="noreferrer">
+          Documentation
+        </MenuLinkItem>
+        <MenuLinkItem href="/privacy">Data policy</MenuLinkItem>
+        <MenuSeparator />
+        <MenuItem onClick={logout}>Sign out</MenuItem>
+      </MenuPopup>
+    </Menu>
   );
 }
 

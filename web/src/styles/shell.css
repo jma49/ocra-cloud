@@ -51,9 +51,6 @@
     background-color 150ms var(--e-std),
     color 150ms var(--e-std);
 }
-.account {
-  position: relative;
-}
 .avatar-btn {
   display: flex;
   align-items: center;
@@ -68,7 +65,7 @@
   color: var(--t1);
   transition: background-color 150ms var(--e-std);
 }
-.account.compact .avatar-btn {
+.avatar-btn.compact {
   margin: 0;
   padding: 0;
   width: 32px;
@@ -87,43 +84,13 @@
   border-radius: 50%;
   background: var(--fill2);
 }
-.menu {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 6px);
-  z-index: 40;
+.account-menu {
   min-width: 220px;
-  color: var(--fg);
-  background: var(--raised);
-  border-radius: var(--r-ctl);
-  box-shadow: var(--float);
-  padding: 4px;
 }
-.account.compact .menu {
-  left: calc(100% + 8px);
-  right: auto;
-  top: auto;
-  bottom: 0;
-}
-.menu-head {
-  padding: 8px 10px;
+.account-menu .menu-head {
+  padding: 6px 8px 8px;
   border-bottom: 0.5px solid var(--hair2);
   margin-bottom: 4px;
-}
-.menu-item {
-  display: block;
-  width: 100%;
-  text-align: left;
-  padding: 6px 10px;
-  border: 0;
-  background: none;
-  border-radius: var(--r-tab);
-  color: var(--fg);
-  text-decoration: none;
-  cursor: pointer;
-}
-.menu-item:hover {
-  background: var(--fill2);
 }
 
 /* The frame: the rail on the ground, the page on a panel beside it. */
@@ -376,13 +343,6 @@
   }
   .rail-gap {
     min-width: 8px;
-  }
-  .account.compact .menu {
-    position: fixed;
-    top: 56px;
-    right: 8px;
-    bottom: auto;
-    left: auto;
   }
   .panel {
     border-radius: 0;

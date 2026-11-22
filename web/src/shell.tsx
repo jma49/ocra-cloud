@@ -98,6 +98,7 @@ function RailLink(props: { to: string; label: string; on: boolean; icon: LucideI
 }
 
 function Rail(props: { me: Me; place: Place | undefined }) {
+  const row = useRailRow();
   return (
     <TooltipProvider delay={300}>
       <nav className="rail" aria-label="Console">
@@ -131,7 +132,7 @@ function Rail(props: { me: Me; place: Place | undefined }) {
           on={props.place === "settings"}
           icon={Settings}
         />
-        <AccountMenu me={props.me} compact />
+        <AccountMenu me={props.me} compact side={row ? "bottom" : "right"} />
       </nav>
     </TooltipProvider>
   );

@@ -111,7 +111,7 @@ describe("ARIA", () => {
     expect(screen.getByRole("button", { name: "1M" }).getAttribute("aria-pressed")).toBe("false");
   });
 
-  it("the account menu is a disclosure that Escape closes, returning focus", () => {
+  it("the account menu is a menu that Escape closes, returning focus", async () => {
     render(
       <TopBar
         me={{
@@ -126,13 +126,12 @@ describe("ARIA", () => {
     );
     const button = screen.getByRole("button", { name: /ada/ });
     fireEvent.click(button);
+    const menu = await screen.findByRole("menu");
     expect(button.getAttribute("aria-expanded")).toBe("true");
-    expect(screen.queryByRole("menu")).toBeNull();
-    const controls = button.getAttribute("aria-controls");
-    expect(controls && document.getElementById(controls)).toBeTruthy();
-    fireEvent.keyDown(document, { key: "Escape" });
-    expect(button.getAttribute("aria-expanded")).toBe("false");
-    expect(document.activeElement).toBe(button);
+    expect(screen.getByRole("menuitem", { name: "Sign out" })).toBeTruthy();
+    fireEvent.keyDown(menu, { key: "Escape" });
+    await waitFor(() => expect(button.getAttribute("aria-expanded")).toBe("false"));
+    await waitFor(() => expect(document.activeElement).toBe(button));
   });
 });
 
