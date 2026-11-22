@@ -19,9 +19,10 @@ export type NotifyWhen = (typeof NOTIFY_WHEN)[number];
  * by the hourly run once a pull request has waited the channel's
  * reminderHours: a review asked of them still not given (review_waiting),
  * and a pull request they wrote that no one has reviewed (pull_waiting).
- * Two are of the conversation: someone else commented on a pull request
- * they wrote (pull_commented), or @-mentioned their login in a pull
- * request's comment or review (mentioned).
+ * Three are of the conversation: someone else commented on a pull request
+ * they wrote (pull_commented), @-mentioned their login in a pull request's
+ * comment or review (mentioned), or replied in a review thread they started
+ * (thread_replied; only threads started since ocra began keeping them).
  */
 export const NOTIFY_EVENTS = [
   "review_requested",
@@ -34,6 +35,7 @@ export const NOTIFY_EVENTS = [
   "pull_waiting",
   "pull_commented",
   "mentioned",
+  "thread_replied",
 ] as const;
 export type NotifyEvent = (typeof NOTIFY_EVENTS)[number];
 
@@ -41,7 +43,11 @@ export type NotifyEvent = (typeof NOTIFY_EVENTS)[number];
 export const REMINDER_EVENTS = ["review_waiting", "pull_waiting"] as const satisfies NotifyEvent[];
 
 /** The events a channel's quiet hours hold back: one that arrives in them goes in one message when they end. */
-export const QUIET_EVENTS = ["pull_commented", "mentioned"] as const satisfies NotifyEvent[];
+export const QUIET_EVENTS = [
+  "pull_commented",
+  "mentioned",
+  "thread_replied",
+] as const satisfies NotifyEvent[];
 
 /** After how many hours of waiting a channel is reminded. */
 export const REMINDER_HOURS = [4, 8, 24, 48] as const;

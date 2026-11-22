@@ -13,6 +13,7 @@ export const UNREAD_REASON: Record<PullUnreadReason, string> = {
   commits: "New commits",
   merged: "Merged",
   ocra_review: "New ocra review",
+  replies: "Replies waiting for you",
   activity: "New activity",
 };
 
@@ -27,7 +28,7 @@ function marked(answer: InboxAnswer, rows: Row[], read: boolean): InboxAnswer {
         if (!keys.has(keyOf({ host: p.host, id: pull.id }))) return pull;
         const { unreadReason: _, ...rest } = pull;
         return read
-          ? { ...rest, unread: false }
+          ? { ...rest, unread: false, repliesWaiting: 0 }
           : { ...rest, unread: true, unreadReason: "marked" };
       }),
     })),

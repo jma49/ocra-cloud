@@ -123,7 +123,7 @@ describe("retention", () => {
     expect(kept).toEqual(["armed-month", "ended-new"]);
   });
 
-  it("deletes a pull request's flow and directories 90 days after their last event, and reviews by when they were submitted", async () => {
+  it("deletes a pull request's flow, directories and review threads 90 days after their last event, and reviews by when they were submitted", async () => {
     const { account } = await signIn(1, "octo");
     const d = scoped(db, account.id);
     await d.insert("reviewRepos", rows.reviewRepos("repo"));
@@ -147,11 +147,17 @@ describe("retention", () => {
         reviewRepoId: "repo",
         seenAt: ago(days),
       });
+      await d.insert("reviewThreads", {
+        ...rows.reviewThreads(id),
+        reviewRepoId: "repo",
+        seenAt: ago(days),
+      });
     }
     await enforceRetention(db, now);
     expect((await d.list("pullFlows")).map((r) => r.id)).toEqual(["new"]);
     expect((await d.list("pullReviews")).map((r) => r.id)).toEqual(["new"]);
     expect((await d.list("pullPaths")).map((r) => r.id)).toEqual(["new"]);
+    expect((await d.list("reviewThreads")).map((r) => r.id)).toEqual(["new"]);
   });
 
   it("keeps only today's service counts, the per-network ones included", async () => {
@@ -333,6 +339,7 @@ describe("export and deletion", () => {
         "closedPulls",
         "pullFlows",
         "pullReviews",
+        "reviewThreads",
         "pullPaths",
         "reviewRequests",
         "mergeChecks",
@@ -366,6 +373,7 @@ describe("export and deletion", () => {
       "closedPulls",
       "pullFlows",
       "pullReviews",
+      "reviewThreads",
       "pullPaths",
       "reviewRequests",
       "mergeChecks",

@@ -6,11 +6,14 @@ import { plain } from "./channels.js";
 import { bySpecificity, githubCommentEvents, gitlabCommentEvents } from "./comment-hooks.js";
 import type { Outbox } from "./notify.js";
 import { type EventRepo, type PullEvent, tellPullEvent } from "./pull-events.js";
+import { keepGithubThread, keepGitlabThread } from "./thread-hooks.js";
 
 // The pull request events of the platforms' webhooks that may concern the
 // account's own user (./pull-events.ts): a review asked of them, and on a
 // pull request they wrote, a reviewer's review and its merge or close;
-// and the conversation's comments and mentions (./comment-hooks.ts).
+// and the conversation's comments and mentions (./comment-hooks.ts), and
+// replies in review threads the user started (./thread-hooks.ts), whose
+// starts and replies are kept whether or not a channel hears of them.
 // Read after the webhook is answered. A key is made of what a redelivery
 // repeats: the platform's review id, or the time it wrote for the change.
 
@@ -200,12 +203,14 @@ export async function tellGithubHook(
   if (!repoId.success) return 0;
   const repo = await reviewRepoFor(db, "github", "github.com", id(repoId.data.repository.id));
   if (!repo) return 0;
+  const data = scoped(db, repo.accountId);
   const events = bySpecificity([
     ...githubPullEvents(event, body, repo.id),
     ...githubCommentEvents(event, body, repo.id),
+    ...(await keepGithubThread(data, event, body, repo.id)),
   ]);
   if (events.length === 0) return 0;
-  return (await tellPullEvent(db, scoped(db, repo.accountId), out, repo, events)).length;
+  return (await tellPullEvent(db, data, out, repo, events)).length;
 }
 
 /** Tells the account of a GitLab merge request hook's events that are its own. */
@@ -227,7 +232,11 @@ export async function tellGitlabNote(
   repo: EventRepo & { accountId: string },
   body: unknown,
 ): Promise<number> {
-  const events = bySpecificity(gitlabCommentEvents(body, repo.id));
+  const data = scoped(db, repo.accountId);
+  const events = bySpecificity([
+    ...gitlabCommentEvents(body, repo.id),
+    ...(await keepGitlabThread(data, body, repo.id)),
+  ]);
   if (events.length === 0) return 0;
-  return (await tellPullEvent(db, scoped(db, repo.accountId), out, repo, events)).length;
+  return (await tellPullEvent(db, data, out, repo, events)).length;
 }

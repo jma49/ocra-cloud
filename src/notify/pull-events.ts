@@ -47,7 +47,11 @@ type OwnUser = { id: string; login: string | null };
  * The account's own user there: the platform's id, and the login it goes by
  * (on GitHub the one it last signed in with); null when it has none on record.
  */
-async function ownUser(db: Db, data: Scoped, repo: EventRepo): Promise<OwnUser | null> {
+export async function ownUser(
+  db: Db,
+  data: Scoped,
+  repo: Pick<EventRepo, "platform" | "host">,
+): Promise<OwnUser | null> {
   if (repo.platform === "github") {
     if (repo.host !== "github.com") return null;
     const id = await githubIdOf(db, data.accountId);

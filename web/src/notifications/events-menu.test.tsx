@@ -30,6 +30,7 @@ it("sets apart the events quiet hours hold back, with the hours", async () => {
   expect(names(group)).toEqual([
     "Someone comments on my pull request",
     "Someone mentions me in a pull request",
+    "Someone replies in a review thread I started",
   ]);
 });
 

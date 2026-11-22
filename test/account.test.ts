@@ -118,6 +118,7 @@ describe("deleting an account", () => {
           "closedPulls",
           "pullFlows",
           "pullReviews",
+          "reviewThreads",
           "pullPaths",
           "reviewRequests",
           "mergeChecks",
@@ -164,6 +165,7 @@ describe("deleting an account", () => {
       "closedPulls",
       "pullFlows",
       "pullReviews",
+      "reviewThreads",
       "pullPaths",
       "reviewRequests",
     ] as const) {

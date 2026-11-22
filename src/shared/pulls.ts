@@ -33,16 +33,30 @@ export type PullItem = {
   unread: boolean;
   /** What changed first, of what counts; only on an unread pull. */
   unreadReason?: PullUnreadReason;
+  /**
+   * Review threads the user started on it with a reply from someone else
+   * newer than both what they last saw of it and their own last reply in
+   * the thread; only threads started since ocra began keeping them count.
+   */
+  repliesWaiting: number;
   /** Its place among the listed open pulls of its repository stacked with it; none when unstacked. */
   stack?: PullStackPlace;
 };
 
 /**
  * Why a pull request is unread: opened since the inbox's baseline and never
- * seen, marked unread, new commits, a merge, a new ocra review, or other
- * activity on the platform (reviews, comments, a title or label change).
+ * seen, marked unread, new commits, a merge, a new ocra review, a reply
+ * waiting in a review thread the user started, or other activity on the
+ * platform (reviews, comments, a title or label change).
  */
-export type PullUnreadReason = "new" | "marked" | "commits" | "merged" | "ocra_review" | "activity";
+export type PullUnreadReason =
+  | "new"
+  | "marked"
+  | "commits"
+  | "merged"
+  | "ocra_review"
+  | "replies"
+  | "activity";
 
 /** At most this many pull requests per POST /api/pulls/seen/bulk. */
 export const MAX_SEEN_BULK = 250;
@@ -74,14 +88,16 @@ export type PullSeenState = {
 /**
  * Whether a listed pull request changed since the account saw it, and the
  * first reason that holds. reviewedAt is when the account's newest ocra
- * review of it was made; one with no mark counts as seen as it stood at
- * since, the account's inbox baseline.
+ * review of it was made, repliesWaiting its threads' replies waiting for
+ * the user; one with no mark counts as seen as it stood at since, the
+ * account's inbox baseline.
  */
 export function pullUnread(
   pull: Pick<PullItem, "createdAt" | "updatedAt" | "head" | "mergedAt">,
   mark: PullSeenState | undefined,
   reviewedAt: number | null,
   since: number,
+  repliesWaiting = 0,
 ): { unread: boolean; unreadReason?: PullUnreadReason } {
   const reason = ((): PullUnreadReason | null => {
     if (!mark && Date.parse(pull.createdAt) > since) return "new";
@@ -95,6 +111,7 @@ export function pullUnread(
       return "merged";
     }
     if (reviewedAt !== null && reviewedAt > seen.seenAt) return "ocra_review";
+    if (repliesWaiting > 0) return "replies";
     return moved ? "activity" : null;
   })();
   return reason ? { unread: true, unreadReason: reason } : { unread: false };
