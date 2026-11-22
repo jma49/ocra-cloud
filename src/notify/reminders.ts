@@ -58,12 +58,14 @@ export function isQuiet(ch: Pick<Row<"notifyChannels">, "quietStart" | "quietEnd
   return start < end ? hour >= start && hour < end : hour >= start || hour < end;
 }
 
-/** The account's own users on its platforms: its GitHub sign-in, the users of its GitLab links. */
-async function ownUsers(db: Db, data: Scoped): Promise<PlatformUser[]> {
+/**
+ * The account's own users on its platforms: its sign-in on `github`, the
+ * deployment's GitHub host, and the users of its GitLab links.
+ */
+async function ownUsers(db: Db, data: Scoped, github: string): Promise<PlatformUser[]> {
   const users: PlatformUser[] = [];
-  const github = await githubIdOf(db, data.accountId);
-  if (github !== null)
-    users.push({ platform: "github", host: "github.com", userId: String(github) });
+  const id = await githubIdOf(db, data.accountId);
+  if (id !== null) users.push({ platform: "github", host: github, userId: String(id) });
   for (const link of await data.find("platformLinks", { platform: "gitlab" }, 20)) {
     if (link.userId) users.push({ platform: "gitlab", host: link.host, userId: link.userId });
   }
@@ -100,6 +102,7 @@ function reminderMessage(list: Reminder[], now: Date, origin: string): Message {
 async function dueReminders(
   db: Db,
   data: Scoped,
+  github: string,
   channels: Row<"notifyChannels">[],
   now: Date,
 ): Promise<Reminder[]> {
@@ -108,7 +111,7 @@ async function dueReminders(
   const from = new Date(now.getTime() - WINDOW);
   const to = new Date(now.getTime() - least * HOUR);
   const found: Reminder[] = [];
-  for (const u of await ownUsers(db, data)) {
+  for (const u of await ownUsers(db, data, github)) {
     if (hears("review_waiting")) {
       for (const w of await data.reviewRequests.askedOf(u, from, to, READ)) {
         const key = `reminder:review:${w.reviewRepoId}#${w.number}:${u.userId}:${w.since}`;
@@ -132,6 +135,7 @@ async function dueReminders(
 async function sendReminders(
   db: Db,
   out: Outbox,
+  github: string,
   accountId: string,
   now = new Date(),
 ): Promise<string[]> {
@@ -143,7 +147,7 @@ async function sendReminders(
   const hour = hourIn(now, await data.notify.timeZone());
   const channels = all.filter((ch) => !isQuiet(ch, hour));
   if (channels.length === 0) return [];
-  const due = await dueReminders(db, data, channels, now);
+  const due = await dueReminders(db, data, github, channels, now);
   if (due.length === 0) return [];
   const told: string[] = [];
   for (const ch of channels) {
@@ -160,9 +164,17 @@ async function sendReminders(
   return told;
 }
 
-/** Every account's due reminders; one that fails is logged and the rest still go. */
-export async function runReminders(db: Db, out: Outbox, now = new Date()): Promise<void> {
+/**
+ * Every account's due reminders, `github` the deployment's GitHub host; one
+ * that fails is logged and the rest still go.
+ */
+export async function runReminders(
+  db: Db,
+  out: Outbox,
+  github: string,
+  now = new Date(),
+): Promise<void> {
   await forAccounts(await reminderAccounts(db), "reminders_failed", (id) =>
-    sendReminders(db, out, id, now),
+    sendReminders(db, out, github, id, now),
   );
 }

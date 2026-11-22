@@ -5,6 +5,7 @@ import {
   type MergedPull,
   type PullCycles,
 } from "./cycles.js";
+import type { GithubGraphql } from "./github-host.js";
 
 const QUERY = `query($q: String!, $n: Int!) {
   search(query: $q, type: ISSUE, first: $n) {
@@ -29,14 +30,12 @@ type Node = {
 };
 type Answer = { data?: { search?: { nodes: (Node | null)[] } } };
 
-export function githubCycles(
-  post: (token: string) => <T>(path: string, body: unknown) => Promise<T | null>,
-): PullCycles {
+export function githubCycles(post: GithubGraphql): PullCycles {
   return {
     async merged(token, scope: CycleScope, since) {
       const who = "mine" in scope ? "author:@me" : `repo:${scope.repo}`;
       const q = `is:pr is:merged ${who} merged:>=${since.toISOString().slice(0, 10)} sort:updated-desc`;
-      const answer = await post(token)<Answer>("/graphql", {
+      const answer = await post(token)<Answer>({
         query: QUERY,
         variables: { q, n: MAX_CYCLE_PULLS },
       });

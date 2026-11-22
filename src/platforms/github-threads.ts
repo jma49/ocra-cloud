@@ -1,5 +1,6 @@
 import type { PullActions } from "./actions.js";
 import { type LineFix, repoFilePath } from "./fix.js";
+import type { GithubGraphql } from "./github-host.js";
 import { githubSuggestions, newSideTail } from "./suggestions.js";
 import {
   actionOf,
@@ -20,8 +21,6 @@ import {
 // same contents API path as a finding's fix, with the lines the comment was
 // written on (the end of its diff hunk) checked against the file at head.
 // The contents API commits one file, so suggestions applied together are on one file.
-
-type Post = (token: string) => <T>(path: string, body: unknown) => Promise<T | null>;
 
 type Side = "LEFT" | "RIGHT";
 type Node = {
@@ -130,10 +129,13 @@ function threadOf(node: Node): Thread & { comments: { suggestions: GithubSuggest
   };
 }
 
-export function githubThreads(post: Post, actions: Pick<PullActions, "applyFix">): PullThreads {
+export function githubThreads(
+  post: GithubGraphql,
+  actions: Pick<PullActions, "applyFix">,
+): PullThreads {
   const read = async (token: string, fullName: string, number: number) => {
     const [owner, name] = fullName.split("/");
-    const answer = await post(token)<Listed>("/graphql", {
+    const answer = await post(token)<Listed>({
       query: THREADS,
       variables: { owner, name, number },
     });
@@ -176,7 +178,7 @@ export function githubThreads(post: Post, actions: Pick<PullActions, "applyFix">
       if (!found || (found.resolved !== resolved && !found.canResolve)) return actionOf("refused");
       const findings = findingsOfThread(found);
       if (found.resolved === resolved) return actionOf("done", findings);
-      const answer = await post(token)<Mutated>("/graphql", {
+      const answer = await post(token)<Mutated>({
         query: resolved ? RESOLVE : UNRESOLVE,
         variables: { id: thread },
       });

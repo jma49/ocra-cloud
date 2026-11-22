@@ -6,6 +6,7 @@ import { runDigests } from "./notify/digest.js";
 import { runHeld } from "./notify/held.js";
 import { runReminders } from "./notify/reminders.js";
 import { runReports } from "./notify/report.js";
+import { githubHostOf } from "./platforms/registry.js";
 
 // The Cloudflare Worker: D1, its rate limiting bindings and its crons: the
 // daily one runs retention, the hourly one (HOURLY, in wrangler.jsonc) the
@@ -33,7 +34,7 @@ export default {
       };
       ctx.waitUntil(runDigests(db, out));
       ctx.waitUntil(runReports(db, out));
-      ctx.waitUntil(runReminders(db, out));
+      ctx.waitUntil(runReminders(db, out, githubHostOf(env).host));
       ctx.waitUntil(runHeld(db, out));
     }
   },

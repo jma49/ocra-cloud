@@ -1,8 +1,8 @@
 import { githubHeaders, githubRepoPath } from "./github-changes.js";
+import type { GithubHost } from "./github-host.js";
 import { platformCall, platformSend } from "./http.js";
 import { CHECK_NAME, type PullMergeStatus } from "./merge-status.js";
 
-const API = "https://api.github.com";
 /** GitHub's longest check run summary. */
 const MAX_SUMMARY = 65_535;
 
@@ -15,8 +15,8 @@ type Pull = {
   deletions: number;
 };
 
-export function githubMergeStatus(): PullMergeStatus {
-  const repo = (fullName: string) => `${API}/repos/${githubRepoPath(fullName)}`;
+export function githubMergeStatus(host: GithubHost): PullMergeStatus {
+  const repo = (fullName: string) => `${host.api}/repos/${githubRepoPath(fullName)}`;
   return {
     async facts(token, fullName, number) {
       const pull = await platformCall<Pull>(`${repo(fullName)}/pulls/${number}`, {

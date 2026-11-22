@@ -5,6 +5,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { hmacHex } from "../src/crypto.js";
 import { MERGE_LEASE_MS } from "../src/db/merge-intents.js";
 import { scoped } from "../src/db/scoped.js";
+import { GITHUB_COM } from "../src/platforms/github-host.js";
 import { repoIdentity } from "../src/platforms/platform.js";
 import type { MergeWhenReadyAnswer, MergeWhenReadyView } from "../src/shared/index.js";
 import { C1, C2, GITLAB } from "./graph-fakes.js";
@@ -37,7 +38,7 @@ let chats: string[];
 
 beforeEach(async () => {
   s = await graphServer(dir, `merge-when-ready-${n++}.db`, "off", undefined, {
-    bots: {},
+    bots: { githubApi: GITHUB_COM.api },
     workers: 0,
   });
   pull = { allowed: true, state: "BLOCKED", head: C1, open: "OPEN" };

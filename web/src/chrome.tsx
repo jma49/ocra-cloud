@@ -36,14 +36,10 @@ export function TopBar(props: { me: Me | null }) {
 }
 
 function Avatar(props: { me: Me }) {
-  return props.me.githubId === null ? (
+  return props.me.avatarUrl === null ? (
     <span className="avatar" aria-hidden="true" />
   ) : (
-    <img
-      className="avatar"
-      src={`https://avatars.githubusercontent.com/u/${props.me.githubId}?s=64`}
-      alt=""
-    />
+    <img className="avatar" src={props.me.avatarUrl} alt="" />
   );
 }
 

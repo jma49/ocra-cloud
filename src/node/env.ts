@@ -1,5 +1,6 @@
 import { createPrivateKey } from "node:crypto";
 import { graphPolicy } from "../graph/policy.js";
+import { githubHostOf } from "../platforms/registry.js";
 import { startingModels } from "../preferences.js";
 import type { AppBindings } from "../types.js";
 import { rateLimits } from "./limits.js";
@@ -18,6 +19,7 @@ const SIGN_IN = {
 const OPTIONAL = [
   ...SIGN_IN.GitHub,
   "GITHUB_APP_SLUG",
+  "GITHUB_URL",
   ...SIGN_IN["OpenID Connect"],
   "OIDC_NAME",
   "MASTER_KEY_PREVIOUS",
@@ -72,8 +74,9 @@ export function bindingsFrom(vars: Record<string, string | undefined>): AppBindi
     DEVICE_DAILY_CODES: pick("DEVICE_DAILY_CODES"),
     ...rateLimits("memory"),
   };
-  // Read once here so that a malformed MODEL_ENDPOINTS, BUILTIN_PROVIDERS or
-  // DEFAULT_MODELS stops the server at start, not at a request.
+  // Read once here so that a malformed GITHUB_URL, MODEL_ENDPOINTS,
+  // BUILTIN_PROVIDERS or DEFAULT_MODELS stops the server at start, not at a request.
+  githubHostOf(bindings);
   startingModels(bindings);
   return bindings;
 }
@@ -134,6 +137,7 @@ export function graphSettingsFrom(vars: Record<string, string | undefined>) {
  */
 export function autoReviewSettingsFrom(vars: Record<string, string | undefined>) {
   const bots = {
+    githubApi: githubHostOf(vars).api,
     githubAppId: vars.GITHUB_APP_ID || undefined,
     // A key pasted on one line keeps its line breaks as \n.
     githubAppPrivateKey: vars.GITHUB_APP_PRIVATE_KEY?.replace(/\\n/g, "\n") || undefined,

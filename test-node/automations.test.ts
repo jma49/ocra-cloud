@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import * as schema from "../src/db/schema.js";
+import { GITHUB_COM } from "../src/platforms/github-host.js";
 import { C1, C2, GITLAB, repoFake } from "./graph-fakes.js";
 import { graphServer, type Server } from "./graph-server.js";
 
@@ -31,7 +32,7 @@ beforeEach(async () => {
   changed = [];
   failNotes = 0;
   s = await graphServer(dir, `automations-${n++}.db`, "off", undefined, {
-    bots: { gitlabBotToken: "glbot" },
+    bots: { githubApi: GITHUB_COM.api, gitlabBotToken: "glbot" },
     workers: 0,
   });
   sent = [];

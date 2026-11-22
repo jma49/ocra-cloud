@@ -1,8 +1,7 @@
 import { githubHeaders, githubRepoPath } from "./github-changes.js";
+import type { GithubGraphql, GithubHost } from "./github-host.js";
 import { platformCall } from "./http.js";
 import { isBotLogin, LOGIN, type PullReviewers } from "./reviewers.js";
-
-const API = "https://api.github.com";
 
 type User = { login: string; type?: string };
 type Pull = {
@@ -12,13 +11,11 @@ type Pull = {
 };
 type Searched = { data?: Record<string, { issueCount: number } | null> };
 
-type Post = (token: string) => <T>(path: string, body: unknown) => Promise<T | null>;
-
-export function githubReviewers(post: Post): PullReviewers {
+export function githubReviewers(host: GithubHost, post: GithubGraphql): PullReviewers {
   return {
     async people(token, fullName, number) {
       const pull = await platformCall<Pull>(
-        `${API}/repos/${githubRepoPath(fullName)}/pulls/${number}`,
+        `${host.api}/repos/${githubRepoPath(fullName)}/pulls/${number}`,
         { headers: githubHeaders(token) },
       );
       if (!pull) return null;
@@ -41,7 +38,7 @@ export function githubReviewers(post: Post): PullReviewers {
       const variables = Object.fromEntries(
         asked.map((l, i) => [`q${i}`, `is:pr is:open archived:false review-requested:${l}`]),
       );
-      const answer = await post(token)<Searched>("/graphql", {
+      const answer = await post(token)<Searched>({
         query: `query(${vars}) {\n${fields}\n}`,
         variables,
       });

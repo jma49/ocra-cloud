@@ -183,11 +183,12 @@ export async function moveIntents(
 /** A GitHub App delivery (src/webhooks.ts verified it), for its enrolled repository. */
 export async function moveGithubIntents(
   runner: MergeRunner,
+  host: string,
   event: string | undefined,
   body: unknown,
 ): Promise<void> {
   const said = githubSignal(event, body);
   if (!said) return;
-  const repo = await reviewRepoFor(runner.db, "github", "github.com", said.repoId);
+  const repo = await reviewRepoFor(runner.db, "github", host, said.repoId);
   if (repo) await moveIntents(runner, repo, said.fullName, said.signal);
 }

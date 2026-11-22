@@ -1,7 +1,6 @@
 import type { RepoContents, RepoTree } from "./contents.js";
+import type { GithubHost } from "./github-host.js";
 import { boundedBytes, platformCall, platformRead } from "./http.js";
-
-const API = "https://api.github.com";
 
 type Repo = { id: number; full_name: string; default_branch?: string };
 type Branch = { commit: { sha: string } };
@@ -13,7 +12,7 @@ type Tree = {
 // 100644 and 100755: symbolic links (120000) and submodules (160000) are not files.
 const REGULAR = new Set(["100644", "100755"]);
 
-export function githubContents(): RepoContents {
+export function githubContents(host: GithubHost): RepoContents {
   const headers = (token: string, accept = "application/vnd.github+json") => ({
     authorization: `Bearer ${token}`,
     accept,
@@ -23,12 +22,12 @@ export function githubContents(): RepoContents {
   const path = (fullName: string) => fullName.split("/").map(encodeURIComponent).join("/");
   return {
     async head(token, fullName) {
-      const repo = await platformCall<Repo>(`${API}/repos/${path(fullName)}`, {
+      const repo = await platformCall<Repo>(`${host.api}/repos/${path(fullName)}`, {
         headers: headers(token),
       });
       if (!repo?.default_branch) return null;
       const branch = await platformCall<Branch>(
-        `${API}/repos/${path(repo.full_name)}/branches/${encodeURIComponent(repo.default_branch)}`,
+        `${host.api}/repos/${path(repo.full_name)}/branches/${encodeURIComponent(repo.default_branch)}`,
         { headers: headers(token) },
       );
       if (!branch) return null;
@@ -41,7 +40,7 @@ export function githubContents(): RepoContents {
     },
     async tree(token, repo, commit, signal) {
       const tree = await platformRead(
-        `${API}/repos/${path(repo.fullName)}/git/trees/${commit}?recursive=1`,
+        `${host.api}/repos/${path(repo.fullName)}/git/trees/${commit}?recursive=1`,
         { headers: headers(token) },
         (res) => res.json() as Promise<Tree>,
         signal,
@@ -60,7 +59,7 @@ export function githubContents(): RepoContents {
     },
     async blob(token, repo, blobId, maxBytes, signal) {
       const bytes = await platformRead(
-        `${API}/repos/${path(repo.fullName)}/git/blobs/${blobId}`,
+        `${host.api}/repos/${path(repo.fullName)}/git/blobs/${blobId}`,
         { headers: headers(token, "application/vnd.github.raw+json") },
         (res) => boundedBytes(res, maxBytes),
         signal,

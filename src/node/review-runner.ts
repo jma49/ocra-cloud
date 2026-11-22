@@ -14,6 +14,7 @@ import { errorName, logError } from "../log.js";
 import { engineMergeChecks } from "../merge-checks/instruction.js";
 import { checksOf } from "../merge-checks/run.js";
 import type { BotAccess, BotCredential, BotTokens } from "../platforms/bot.js";
+import { githubHost } from "../platforms/github-host.js";
 import type { CodePlatform } from "../platforms/platform.js";
 import { startCliSession } from "../session.js";
 
@@ -304,7 +305,7 @@ const gitConfigEnv = (platform: CodePlatform, auth: string) => ({
 
 const botEnv = (platform: CodePlatform, bot: BotCredential): Record<string, string> =>
   platform.kind === "github"
-    ? { GITHUB_TOKEN: bot.token }
+    ? { GITHUB_TOKEN: bot.token, GITHUB_API_URL: githubHost(platform.url).api }
     : { GITLAB_TOKEN: bot.token, CI_API_V4_URL: `${platform.url}/api/v4` };
 
 /**

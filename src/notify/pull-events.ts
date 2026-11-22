@@ -53,8 +53,8 @@ export async function ownUser(
   data: Scoped,
   repo: Pick<EventRepo, "platform" | "host">,
 ): Promise<OwnUser | null> {
+  // Its GitHub sign-in is on the deployment's GitHub, where every enrolled GitHub repository is.
   if (repo.platform === "github") {
-    if (repo.host !== "github.com") return null;
     const id = await githubIdOf(db, data.accountId);
     return id === null ? null : { id: String(id), login: await loginOf(db, data.accountId) };
   }

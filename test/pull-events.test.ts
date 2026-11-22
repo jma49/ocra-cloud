@@ -165,8 +165,8 @@ describe("telling the account", () => {
     const { channel } = await setUp(["pull_reviewed"]);
     expect(channel.events).toEqual(["pull_reviewed"]);
     const body = review("approved");
-    expect(await tellGithubHook(db, out(), "pull_request_review", body)).toBe(1);
-    expect(await tellGithubHook(db, out(), "pull_request_review", body)).toBe(0);
+    expect(await tellGithubHook(db, "github.com", out(), "pull_request_review", body)).toBe(1);
+    expect(await tellGithubHook(db, "github.com", out(), "pull_request_review", body)).toBe(0);
     expect(posted).toHaveLength(1);
     expect(posted[0]).toContain("hubot approved your pull request");
     expect(posted[0]).toContain("<https://console.test/pull/github/octo%2Fapi/5|octo/api#5>");
@@ -177,7 +177,7 @@ describe("telling the account", () => {
     await setUp(["pull_reviewed", "review_requested"]);
     const theirs = review("approved");
     theirs.pull_request.user = user(OTHER + 1, "mona");
-    expect(await tellGithubHook(db, out(), "pull_request_review", theirs)).toBe(0);
+    expect(await tellGithubHook(db, "github.com", out(), "pull_request_review", theirs)).toBe(0);
     const asked = {
       action: "review_requested",
       number: 5,
@@ -186,7 +186,7 @@ describe("telling the account", () => {
       sender: user(ME, "mona"),
       repository: { id: 11 },
     };
-    expect(await tellGithubHook(db, out(), "pull_request", asked)).toBe(0);
+    expect(await tellGithubHook(db, "github.com", out(), "pull_request", asked)).toBe(0);
     expect(posted).toEqual([]);
   });
 
@@ -195,14 +195,16 @@ describe("telling the account", () => {
     await setUp(["pull_reviewed"]);
     const renamed = review("approved");
     renamed.pull_request.user = user(OTHER + 1, "mona");
-    expect(await tellGithubHook(db, out(), "pull_request_review", renamed)).toBe(0);
+    expect(await tellGithubHook(db, "github.com", out(), "pull_request_review", renamed)).toBe(0);
     expect(posted).toEqual([]);
   });
 
   it("tells only the channels that subscribed to the event", async () => {
     const posted = chats();
     await setUp(["pull_closed"]);
-    expect(await tellGithubHook(db, out(), "pull_request_review", review("approved"))).toBe(0);
+    expect(
+      await tellGithubHook(db, "github.com", out(), "pull_request_review", review("approved")),
+    ).toBe(0);
     expect(posted).toEqual([]);
   });
 

@@ -71,11 +71,11 @@ describe("a GitHub mention", () => {
     const posted = chats();
     await setUp();
     const own = issueComment("renamed", user(ME, "mona-new"), 1);
-    expect(await tellGithubHook(db, out, "issue_comment", own)).toBe(0);
+    expect(await tellGithubHook(db, "github.com", out, "issue_comment", own)).toBe(0);
     const old = issueComment("@mona hi", user(OTHER, "hubot"), 2);
-    expect(await tellGithubHook(db, out, "issue_comment", old)).toBe(0);
+    expect(await tellGithubHook(db, "github.com", out, "issue_comment", old)).toBe(0);
     const now = issueComment("@mona-new hi", user(OTHER, "hubot"), 3);
-    expect(await tellGithubHook(db, out, "issue_comment", now)).toBe(1);
+    expect(await tellGithubHook(db, "github.com", out, "issue_comment", now)).toBe(1);
     expect(posted).toHaveLength(1);
   });
 
@@ -84,7 +84,7 @@ describe("a GitHub mention", () => {
     await setUp();
     await signIn(99, "Mona");
     const body = issueComment("@mona hi", user(OTHER, "hubot"), 2);
-    expect(await tellGithubHook(db, out, "issue_comment", body)).toBe(0);
+    expect(await tellGithubHook(db, "github.com", out, "issue_comment", body)).toBe(0);
   });
 });
 

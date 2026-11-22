@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { claimJob } from "../src/db/review-jobs.js";
 import * as schema from "../src/db/schema.js";
+import { GITHUB_COM } from "../src/platforms/github-host.js";
 import type { PullReviewNowView } from "../src/shared/index.js";
 import { C1, C2, C3, repoFake } from "./graph-fakes.js";
 import { graphServer, type Server } from "./graph-server.js";
@@ -25,7 +26,10 @@ let auth: Record<string, string>;
 const pull = (head: string) => ({ 7: { base: C1, head, files: [] } });
 
 beforeEach(async () => {
-  s = await graphServer(dir, `review-now-${n++}.db`, "off", undefined, { bots: {}, workers: 0 });
+  s = await graphServer(dir, `review-now-${n++}.db`, "off", undefined, {
+    bots: { githubApi: GITHUB_COM.api },
+    workers: 0,
+  });
   repoFake({ [C1]: {} }, C1, pull(C2));
   auth = (await s.signIn(1)).auth;
   const enrolled = await s.call("/api/auto-review/repos", {

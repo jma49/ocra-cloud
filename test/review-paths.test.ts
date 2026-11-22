@@ -134,11 +134,18 @@ describe("the review webhooks", () => {
 
   it("name the pull request a GitHub review was kept on, not one by the author or a bot", async () => {
     const { repo } = await enrolled(1, "octo");
-    const reviewed = await recordGithubFlow(db, "pull_request_review", review("mona"));
+    const reviewed = await recordGithubFlow(
+      db,
+      "github.com",
+      "pull_request_review",
+      review("mona"),
+    );
     expect(reviewed).toMatchObject({ repo: { id: repo.id }, number: 7, head: H1 });
-    expect(await recordGithubFlow(db, "pull_request_review", review("author"))).toBeNull();
     expect(
-      await recordGithubFlow(db, "pull_request_review", review("ocra[bot]", "Bot")),
+      await recordGithubFlow(db, "github.com", "pull_request_review", review("author")),
+    ).toBeNull();
+    expect(
+      await recordGithubFlow(db, "github.com", "pull_request_review", review("ocra[bot]", "Bot")),
     ).toBeNull();
   });
 

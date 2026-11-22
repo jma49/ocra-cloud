@@ -5,6 +5,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { hmacHex } from "../src/crypto.js";
 import { claimReply } from "../src/db/reply-jobs.js";
 import * as schema from "../src/db/schema.js";
+import { GITHUB_COM } from "../src/platforms/github-host.js";
 import { C1, repoFake } from "./graph-fakes.js";
 import { graphServer, SECRET, type Server } from "./graph-server.js";
 
@@ -21,7 +22,10 @@ afterEach(() => vi.restoreAllMocks());
 
 let s: Server;
 beforeEach(async () => {
-  s = await graphServer(dir, `replies-${n++}.db`, "off", undefined, { bots: {}, workers: 0 });
+  s = await graphServer(dir, `replies-${n++}.db`, "off", undefined, {
+    bots: { githubApi: GITHUB_COM.api },
+    workers: 0,
+  });
   repoFake({ [C1]: {} });
 });
 afterEach(() => s.host.close());

@@ -1,4 +1,5 @@
 import { githubHeaders, githubRepoPath } from "./github-changes.js";
+import type { GithubHost } from "./github-host.js";
 import { platformSend } from "./http.js";
 import type { BranchRuleRead, RulesetsRead } from "./readiness.js";
 
@@ -6,8 +7,6 @@ import type { BranchRuleRead, RulesetsRead } from "./readiness.js";
 // classic branch protection rule and the repository's (or organization's)
 // rulesets. Both are folded into one rule where the strictest wins: the
 // higher approval count, any requirement either sets, every required check.
-
-const API = "https://api.github.com";
 
 /** Rules one reading of a branch's rulesets takes; a full page may hide more. */
 const MAX_BRANCH_RULES = 100;
@@ -141,12 +140,13 @@ function ruleOfProtection(p: Protection): GithubRule {
 }
 
 export async function protectionOf(
+  host: GithubHost,
   token: string,
   fullName: string,
   branch: string,
 ): Promise<{ read: BranchRuleRead; rule: GithubRule | null }> {
   const sent = await platformSend<Protection>(
-    `${API}/repos/${githubRepoPath(fullName)}/branches/${githubRepoPath(branch)}/protection`,
+    `${host.api}/repos/${githubRepoPath(fullName)}/branches/${githubRepoPath(branch)}/protection`,
     { headers: githubHeaders(token) },
   );
   if (sent?.status === 200 && sent.body) return { read: "read", rule: ruleOfProtection(sent.body) };
@@ -155,7 +155,7 @@ export async function protectionOf(
   if (sent?.status === 403 && PLAN_WITHOUT_RULES.test(message)) {
     return { read: "unavailable", rule: null };
   }
-  return summaryOf(token, fullName, branch);
+  return summaryOf(host, token, fullName, branch);
 }
 
 /**
@@ -165,12 +165,13 @@ export async function protectionOf(
  * those are a floor, and the rest of the rule stays not known.
  */
 async function summaryOf(
+  host: GithubHost,
   token: string,
   fullName: string,
   branch: string,
 ): Promise<{ read: BranchRuleRead; rule: GithubRule | null }> {
   const sent = await platformSend<BranchSummary>(
-    `${API}/repos/${githubRepoPath(fullName)}/branches/${githubRepoPath(branch)}`,
+    `${host.api}/repos/${githubRepoPath(fullName)}/branches/${githubRepoPath(branch)}`,
     { headers: githubHeaders(token) },
   );
   const summary = sent?.status === 200 ? sent.body : null;
@@ -193,12 +194,13 @@ async function summaryOf(
 
 /** The active ruleset rules on a branch, in one page; any refusal reads as unreadable. */
 export async function rulesetsOf(
+  host: GithubHost,
   token: string,
   fullName: string,
   branch: string,
 ): Promise<{ read: RulesetsRead; rule: GithubRule | null; unjudged: string[] }> {
   const sent = await platformSend<BranchRule[]>(
-    `${API}/repos/${githubRepoPath(fullName)}/rules/branches/${githubRepoPath(branch)}?per_page=${MAX_BRANCH_RULES}`,
+    `${host.api}/repos/${githubRepoPath(fullName)}/rules/branches/${githubRepoPath(branch)}?per_page=${MAX_BRANCH_RULES}`,
     { headers: githubHeaders(token) },
   );
   if (sent?.status !== 200 || !Array.isArray(sent.body)) {

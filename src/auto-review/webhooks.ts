@@ -13,7 +13,7 @@ import { gitlabStartOf } from "../notify/gitlab-starts.js";
 import { publicOutbox } from "../notify/notify.js";
 import { tellGitlabHook, tellGitlabNote } from "../notify/pull-hooks.js";
 import { COMMIT_ID } from "../platforms/contents.js";
-import { gitlabClientOf } from "../platforms/registry.js";
+import { githubHostOf, gitlabClientOf } from "../platforms/registry.js";
 import type { AppEnv } from "../types.js";
 import { recordGitlabClose } from "./closes.js";
 import { recordGitlabFlow } from "./flows.js";
@@ -65,7 +65,12 @@ export async function queueGithubPull(
   const { action, number, pull_request: pull, repository } = parsed.data;
   const reviews = GITHUB_ACTIONS.has(action);
   if ((!reviews && action !== "edited") || pull.draft) return 0;
-  const repo = await reviewRepoFor(c.var.db, "github", "github.com", String(repository.id));
+  const repo = await reviewRepoFor(
+    c.var.db,
+    "github",
+    githubHostOf(c.env).host,
+    String(repository.id),
+  );
   if (!repo) return 0;
   if (!reviews) {
     service.checkPull?.(repo.accountId, repo.id, number);

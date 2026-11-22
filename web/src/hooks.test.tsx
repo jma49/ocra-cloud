@@ -63,6 +63,8 @@ describe("the routes", () => {
   const me = (codeGraphs: Me["codeGraphs"], autoReview = false): Me => ({
     login: "ada",
     githubId: 1,
+    githubUrl: "https://github.com",
+    avatarUrl: null,
     session: "web",
     since: "2026-11-01T00:00:00Z",
     codeGraphs,

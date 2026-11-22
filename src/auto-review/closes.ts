@@ -31,11 +31,16 @@ const githubClosed = z.object({
 });
 
 /** A GitHub App webhook's pull request event (src/webhooks.ts verified it); whether it recorded a close. */
-export async function recordGithubClose(db: Db, body: unknown, now = new Date()): Promise<boolean> {
+export async function recordGithubClose(
+  db: Db,
+  host: string,
+  body: unknown,
+  now = new Date(),
+): Promise<boolean> {
   const parsed = githubClosed.safeParse(body);
   if (!parsed.success) return false;
   const { number, pull_request: pull, repository } = parsed.data;
-  const repo = await reviewRepoFor(db, "github", "github.com", String(repository.id));
+  const repo = await reviewRepoFor(db, "github", host, String(repository.id));
   if (!repo) return false;
   const merged = pull.merged === true;
   await record(db, repo, {

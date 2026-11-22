@@ -87,16 +87,17 @@ function githubFlow(
 /** A GitHub App webhook's pull request or review event (src/webhooks.ts verified it); the pull request a review was kept on. */
 export async function recordGithubFlow(
   db: Db,
+  host: string,
   event: string | undefined,
   body: unknown,
   now = new Date(),
 ): Promise<ReviewedPull | null> {
-  if (event === "pull_request_review") return recordGithubReview(db, body, now);
+  if (event === "pull_request_review") return recordGithubReview(db, host, body, now);
   if (event !== "pull_request") return null;
   const parsed = githubPullEvent.safeParse(body);
   if (!parsed.success) return null;
   const { action, number, pull_request: pull, repository } = parsed.data;
-  const repo = await reviewRepoFor(db, "github", "github.com", String(repository.id));
+  const repo = await reviewRepoFor(db, "github", host, String(repository.id));
   if (!repo) return null;
   const flow = githubFlow(repo, number, pull, now);
   const at = timeOf(pull.updated_at) ?? now;
@@ -111,11 +112,16 @@ export async function recordGithubFlow(
   return null;
 }
 
-async function recordGithubReview(db: Db, body: unknown, now: Date): Promise<ReviewedPull | null> {
+async function recordGithubReview(
+  db: Db,
+  host: string,
+  body: unknown,
+  now: Date,
+): Promise<ReviewedPull | null> {
   const parsed = githubReviewEvent.safeParse(body);
   if (!parsed.success) return null;
   const { review, pull_request: pull, repository } = parsed.data;
-  const repo = await reviewRepoFor(db, "github", "github.com", String(repository.id));
+  const repo = await reviewRepoFor(db, "github", host, String(repository.id));
   if (!repo) return null;
   const flow = githubFlow(repo, pull.number, pull, now);
   const data = scoped(db, repo.accountId).pullFlows;

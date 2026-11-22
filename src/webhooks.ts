@@ -16,6 +16,7 @@ import { moveGithubIntents } from "./merge-when-ready/hooks.js";
 import { runnerOf } from "./merge-when-ready/routes.js";
 import { publicOutbox } from "./notify/notify.js";
 import { tellGithubHook } from "./notify/pull-hooks.js";
+import { githubHostOf } from "./platforms/registry.js";
 import type { AppEnv } from "./types.js";
 
 // The GitHub App's one webhook, proven by its signature: a push queues
@@ -49,20 +50,21 @@ export function githubWebhook(host: WebhookHost) {
       const body = c.req.valid("json");
       const event = c.req.header("x-github-event");
       const review = host.autoReview;
+      const github = githubHostOf(c.env).host;
       // A close is kept wherever the repository is enrolled, reviews or not.
-      if (event === "pull_request") await recordGithubClose(c.var.db, body);
-      const reviewed = await recordGithubFlow(c.var.db, event, body);
+      if (event === "pull_request") await recordGithubClose(c.var.db, github, body);
+      const reviewed = await recordGithubFlow(c.var.db, github, event, body);
       if (reviewed) defer(c, keepReviewedPaths(pathReaderOf(c), reviewed));
-      await recordGithubRequest(c.var.db, event, body);
-      defer(c, tellGithubHook(c.var.db, publicOutbox(c), event, body));
-      defer(c, moveGithubIntents(runnerOf(c), event, body));
+      await recordGithubRequest(c.var.db, github, event, body);
+      defer(c, tellGithubHook(c.var.db, github, publicOutbox(c), event, body));
+      defer(c, moveGithubIntents(runnerOf(c), github, event, body));
       const queued =
         event === "push" && host.graphs
-          ? await queueGithubPush(c.var.db, host.graphs, body)
+          ? await queueGithubPush(c.var.db, github, host.graphs, body)
           : event === "pull_request" && review
             ? await queueGithubPull(c, review, body)
             : (event === "issue_comment" || event === "pull_request_review_comment") && review
-              ? await queueGithubComment(c.var.db, review, event, body)
+              ? await queueGithubComment(c.var.db, github, review, event, body)
               : 0;
       return c.json({ queued }, 202);
     },

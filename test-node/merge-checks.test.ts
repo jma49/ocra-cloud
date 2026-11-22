@@ -5,6 +5,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { hmacHex } from "../src/crypto.js";
 import * as schema from "../src/db/schema.js";
 import type { BotTokens } from "../src/platforms/bot.js";
+import { GITHUB_COM } from "../src/platforms/github-host.js";
 import { C1, C2, repoFake } from "./graph-fakes.js";
 import { graphServer, SECRET, type Server } from "./graph-server.js";
 
@@ -30,7 +31,7 @@ let sent: Sent[];
 let pullTitle: string;
 beforeEach(async () => {
   s = await graphServer(dir, `merge-checks-${n++}.db`, "off", undefined, {
-    bots: {},
+    bots: { githubApi: GITHUB_COM.api },
     tokens: bots,
     workers: 0,
   });

@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { githubIdOf } from "./db/accounts.js";
-import { platformsOf } from "./platforms/registry.js";
+import { githubClientOf, platformsOf } from "./platforms/registry.js";
 import { requireSession } from "./session.js";
 import type { GraphPolicy } from "./shared/index.js";
 import type { AppEnv } from "./types.js";
@@ -13,9 +13,13 @@ export function meRoute(codeGraphs: GraphPolicy, autoReview: boolean) {
   me.get("/", async (c) => {
     const { account: a, kind } = c.var.session;
     const githubId = await githubIdOf(c.var.db, a.id);
+    const github = githubClientOf(c.env)?.host;
     return c.json({
       login: a.login,
       githubId,
+      githubUrl: github?.url ?? null,
+      avatarUrl:
+        github?.avatars && githubId !== null ? `${github.avatars}/u/${githubId}?s=64` : null,
       session: kind,
       since: a.createdAt,
       codeGraphs,

@@ -14,7 +14,7 @@ import type { Mailer } from "../notify/email.js";
 import { runHeld } from "../notify/held.js";
 import { runReminders } from "../notify/reminders.js";
 import { runReports } from "../notify/report.js";
-import { platformsOf } from "../platforms/registry.js";
+import { githubHostOf, platformsOf } from "../platforms/registry.js";
 import type { AppBindings } from "../types.js";
 import { botTokens } from "./bot-tokens.js";
 import { clientAddress } from "./client-address.js";
@@ -153,7 +153,7 @@ export async function openHost(options: HostOptions) {
       await Promise.all([
         runDigests(shared, out),
         runReports(shared, out),
-        runReminders(shared, out),
+        runReminders(shared, out, githubHostOf(bindings).host),
         runHeld(shared, out),
       ]);
     },
