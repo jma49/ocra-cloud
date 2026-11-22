@@ -36,7 +36,7 @@ Pages and components style only through the custom properties in `base.css`.
 
 - **Steps:** 4, 8, 12, 16, 24, 32 px. Card padding 16; table cells 9×12 with 16 at the row's ends; sections 32 apart; page head 24 above content.
 - **Frame:** a 56 px icon rail on the ground, the page on one panel beside it (`.frame`, `.rail`, `.panel`). The pagebar on top of the panel shows the breadcrumb and the place's tabs.
-- **Places:** Inbox, Reviews, Findings, Repositories, Insights, and Settings as its own mode with a grouped side list. A new page belongs to one place and appears as one of its tabs (`routes.tsx`); it is reachable from the command menu (Ctrl/⌘ K) automatically.
+- **Places:** Inbox, Reviews, Findings, Repositories, Insights, and Settings as its own mode with a grouped side list. A new page belongs to one place and appears as one of its tabs (`routes.tsx`); it is reachable from the command menu (Ctrl/⌘ K) automatically. The same menu searches: past two characters it lists what the server finds (pull requests, reviews, findings, repositories) under the matching pages, a pull request named by its reference first.
 - **Content width:** 1120 px max, centred, for lists, settings and reports. Work pages (below) take the panel's full width.
 - **Breakpoints:** 1100 px (a work page's side columns stack), 900 px (grids and stat rows reflow), 760 px (the frame: rail becomes a row), 560 px (tables stack). A new media query uses one of these.
 - **Phone (760 px and narrower):** the rail becomes a row across the top, the panel fills the width, settings become a scrolling row, and wide tables stack (`.table-wrap.stack`, a `.cell-name` caption where a column head carried the meaning). Nothing scrolls the page sideways at 390 px.
