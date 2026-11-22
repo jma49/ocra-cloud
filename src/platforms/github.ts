@@ -4,6 +4,7 @@ import { githubContents } from "./github-contents.js";
 import { githubCycles } from "./github-cycles.js";
 import { githubPulls } from "./github-pulls.js";
 import { githubQueue } from "./github-queue.js";
+import { githubStacks } from "./github-stack.js";
 import { platformCall } from "./http.js";
 import type { CodePlatform, PlatformRepo, TokenAnswer } from "./platform.js";
 
@@ -61,6 +62,7 @@ export function github(client: { id: string; secret: string }): CodePlatform {
     actions: githubActions(),
     queue: githubQueue(),
     cycles: githubCycles(post),
+    stacks: githubStacks(post),
     async listRepos(token) {
       const installs = await get<{ installations: Installation[] }>(
         token,

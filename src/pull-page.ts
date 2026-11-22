@@ -13,6 +13,7 @@ import { requireSession } from "./session.js";
 import {
   CODE_PLATFORMS,
   MERGE_METHODS,
+  type MergeMethod,
   type MergeQueueView,
   PULL_VERDICTS,
   type PullActionOutcome,
@@ -43,7 +44,7 @@ const repoName = z
     return parts.length >= 2 && parts.every((p) => SEGMENT.test(p));
   }, "not a repository path");
 
-const pullRef = {
+export const pullRef = {
   platform: z.enum(CODE_PLATFORMS),
   repo: repoName,
   number: z.coerce
@@ -52,7 +53,7 @@ const pullRef = {
     .min(1)
     .max(2 ** 31 - 1),
 };
-const sha = z.string().regex(/^[0-9a-f]{40}([0-9a-f]{24})?$/);
+export const sha = z.string().regex(/^[0-9a-f]{40}([0-9a-f]{24})?$/);
 const text = z.string().max(MAX_BODY);
 
 const filesQuery = z.object(pullRef);
@@ -81,8 +82,19 @@ const fixBody = z.object({ finding: z.string().min(1).max(64) });
 
 type Ref = z.output<typeof filesQuery>;
 
+/** One merge as the user, of the head they saw; a method the platform has not is refused unsent. */
+export async function mergeOne(
+  platform: CodePlatform,
+  token: string,
+  pull: { repo: string; number: number; method: MergeMethod; head: string },
+): Promise<PullActionOutcome | null> {
+  if (!platform.actions.mergeMethods.includes(pull.method)) return "refused";
+  const { method, head } = pull;
+  return platform.actions.merge(token, pull.repo, pull.number, { method, head });
+}
+
 /** The platform and the user's token on it, or the refusal to answer. */
-async function reach(c: Context<AppEnv>, which: (p: CodePlatform) => boolean) {
+export async function reach(c: Context<AppEnv>, which: (p: CodePlatform) => boolean) {
   const platform = platformsOf(c.env, c.req.url).find(which);
   if (!platform) return { refusal: apiError(c, "not_found") } as const;
   const token = await accessToken(c.var.data, c.env, platform);
@@ -90,7 +102,7 @@ async function reach(c: Context<AppEnv>, which: (p: CodePlatform) => boolean) {
   return { platform, token } as const;
 }
 
-const byKind = (ref: Ref) => (p: CodePlatform) => p.kind === ref.platform;
+export const byKind = (ref: Ref) => (p: CodePlatform) => p.kind === ref.platform;
 
 /** A path inside the repository, by its parts; undefined for one that leaves it or was redacted. */
 function repoFilePath(file: string): string | undefined {
@@ -166,12 +178,10 @@ pullPage.post(
   perMinute("platform"),
   jsonBody(mergeBody),
   async (c) => {
-    const { repo, number, method, head } = c.req.valid("json");
-    const reached = await reach(c, byKind(c.req.valid("json")));
+    const body = c.req.valid("json");
+    const reached = await reach(c, byKind(body));
     if ("refusal" in reached) return reached.refusal;
-    const { platform, token } = reached;
-    if (!platform.actions.mergeMethods.includes(method)) return c.json({ outcome: "refused" });
-    return answer(c, await platform.actions.merge(token, repo, number, { method, head }));
+    return answer(c, await mergeOne(reached.platform, reached.token, body));
   },
 );
 

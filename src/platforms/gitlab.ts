@@ -4,6 +4,7 @@ import { gitlabContents } from "./gitlab-contents.js";
 import { gitlabCycles } from "./gitlab-cycles.js";
 import { gitlabPulls } from "./gitlab-pulls.js";
 import { gitlabQueue } from "./gitlab-queue.js";
+import { gitlabStacks } from "./gitlab-stack.js";
 import { platformCall } from "./http.js";
 import type { CodePlatform, PlatformRepo, TokenAnswer } from "./platform.js";
 
@@ -42,6 +43,7 @@ export function gitlab(client: GitlabClient, redirectUri: string): CodePlatform 
     actions: gitlabActions(client.url),
     queue: gitlabQueue(client.url),
     cycles: gitlabCycles(client.url),
+    stacks: gitlabStacks(client.url),
     async listRepos(token) {
       const repositories: PlatformRepo[] = [];
       for (let page = 1; page <= MAX_PAGES; page++) {

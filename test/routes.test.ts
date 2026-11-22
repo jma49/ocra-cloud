@@ -45,6 +45,8 @@ const ACCESS: Record<string, Access> = {
   "POST /api/pulls/enqueue": "web",
   "POST /api/pulls/dequeue": "web",
   "POST /api/pulls/apply-fix": "web",
+  "GET /api/pulls/stack": "web",
+  "POST /api/pulls/merge-stack": "web",
   "GET /api/notifications/channels": "web",
   "POST /api/notifications/channels": "web",
   "PATCH /api/notifications/channels/:id": "web",

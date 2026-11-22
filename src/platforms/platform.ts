@@ -6,6 +6,7 @@ import type { RepoContents } from "./contents.js";
 import type { PullCycles } from "./cycles.js";
 import type { PullListing } from "./pulls.js";
 import type { MergeQueue } from "./queue.js";
+import type { PullStacks } from "./stacks.js";
 
 // What the product layer needs from a code platform, whatever it is: GitHub,
 // gitlab.com or a self-hosted GitLab. Each one is reached as the signed-in
@@ -51,6 +52,7 @@ export interface CodePlatform {
   readonly actions: PullActions;
   readonly queue: MergeQueue;
   readonly cycles: PullCycles;
+  readonly stacks: PullStacks;
 }
 
 /**
