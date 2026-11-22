@@ -15,4 +15,5 @@ export * from "./notifications.js";
 export * from "./pull-page.js";
 export * from "./pulls.js";
 export * from "./sign-in.js";
+export * from "./stacks.js";
 export * from "./walkthrough.js";
