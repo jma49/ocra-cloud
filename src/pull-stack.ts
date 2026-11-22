@@ -15,7 +15,7 @@ import {
 import type { AppEnv } from "./types.js";
 
 // A pull request's stack, read live from the platform as the signed-in user,
-// and its merge from the bottom up to one of them (ADR-0051). Only the web
+// and its merge from the bottom up to one of them (ADR-0052). Only the web
 // session acts, as on the pull request's page.
 
 export const pullStack = new Hono<AppEnv>();

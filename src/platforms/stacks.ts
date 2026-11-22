@@ -2,7 +2,7 @@ import type { PullActionOutcome, StackedPull } from "../shared/index.js";
 
 // A stack is derived from the platform's open pull requests, never stored:
 // one whose base branch is another open one's head is stacked on it, so
-// stacks made by hand or by other tools show too (ADR-0051).
+// stacks made by hand or by other tools show too (ADR-0052).
 
 /** An open pull request whose head branch is in the repository itself. */
 export type OpenPull = Omit<StackedPull, "parent">;

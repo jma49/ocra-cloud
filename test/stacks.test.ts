@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { chainTo, MAX_STACK, type OpenPull, stackOf } from "../src/platforms/stacks.js";
 
-// A stack read from the open pull requests' branches alone (ADR-0051).
+// A stack read from the open pull requests' branches alone (ADR-0052).
 
 const pull = (number: number, head: string, base: string): OpenPull => ({
   number,
