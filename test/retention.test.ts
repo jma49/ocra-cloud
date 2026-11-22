@@ -232,6 +232,7 @@ describe("export and deletion", () => {
         "closedPulls",
         "mergeChecks",
         "mergeCheckRuns",
+        "generateJobs",
       ];
       if (later.includes(table)) continue;
       await d.insert(table as keyof typeof rows, row(`x-${table}`) as never);
@@ -248,7 +249,7 @@ describe("export and deletion", () => {
       ...rows.replyJobs("x-replyJobs"),
       reviewRepoId: "x-reviewRepos",
     });
-    for (const table of ["closedPulls", "mergeChecks", "mergeCheckRuns"] as const) {
+    for (const table of ["closedPulls", "mergeChecks", "mergeCheckRuns", "generateJobs"] as const) {
       await d.insert(table, {
         ...rows[table](`x-${table}`),
         reviewRepoId: "x-reviewRepos",

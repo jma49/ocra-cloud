@@ -9,7 +9,14 @@ export type BotCredential = {
   login?: string;
 };
 
+/** What the bot's token may do: comment on pull requests, or also push to their branches. */
+export type BotAccess = "review" | "commit";
+
 export type BotTokens = {
   /** null when this deployment has no bot for the platform, or it was refused. */
-  forRepo(platform: CodePlatformKind, fullName: string): Promise<BotCredential | null>;
+  forRepo(
+    platform: CodePlatformKind,
+    fullName: string,
+    access?: BotAccess,
+  ): Promise<BotCredential | null>;
 };

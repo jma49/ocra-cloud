@@ -6,7 +6,12 @@ import { join } from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { scoped } from "../src/db/scoped.js";
 import { appJwt, botTokens } from "../src/node/bot-tokens.js";
-import { type Exec, runNextReply, runNextReview } from "../src/node/review-runner.js";
+import {
+  type Exec,
+  runNextGeneration,
+  runNextReply,
+  runNextReview,
+} from "../src/node/review-runner.js";
 import type { BotTokens } from "../src/platforms/bot.js";
 import { github } from "../src/platforms/github.js";
 import { C1 } from "./graph-fakes.js";
@@ -56,6 +61,13 @@ describe("the ocra bot's GitHub token", () => {
       repositories: ["API"],
       permissions: { contents: "read", pull_requests: "write", metadata: "read", checks: "write" },
     });
+    await botTokens({ githubAppId: "123", githubAppPrivateKey: PEM }).forRepo(
+      "github",
+      "Octo/API",
+      "commit",
+    );
+    const pushing = asked.filter((a) => a.url.endsWith("/access_tokens")).at(-1);
+    expect(pushing?.body).toMatchObject({ permissions: { contents: "write" } });
     const jwt = minted?.auth?.replace("Bearer ", "") ?? "";
     const [head, body, signature] = jwt.split(".");
     const verify = createVerify("RSA-SHA256");
@@ -264,5 +276,52 @@ describe("a review job's run", () => {
     await runNextReply({ db: s.host.db, platforms, bots, publicUrl: ORIGIN, exec, cli: "x" });
     const [reply] = await scoped(s.host.db, accountId).list("replyJobs");
     expect(reply).toMatchObject({ state: "queued", error: "review_failed", attempts: 1 });
+  });
+
+  it("writes tests with `ocra generate` as a bot that may push, once per head", async () => {
+    const generations = scoped(s.host.db, accountId).generations;
+    expect(await generations.queue(repoId, 7, "a".repeat(40), "tests")).toBe(true);
+    expect(await generations.queue(repoId, 7, "a".repeat(40), "tests")).toBe(false);
+    const { exec, calls } = fakeExec(0, {});
+    const asked: (string | undefined)[] = [];
+    const committer: BotTokens = {
+      forRepo: async (_p, _n, access) => {
+        asked.push(access);
+        return { token: "ghs_bot", login: "ocra-review[bot]" };
+      },
+    };
+    const runner = {
+      db: s.host.db,
+      platforms,
+      bots: committer,
+      publicUrl: ORIGIN,
+      exec,
+      cli: "/c.js",
+    };
+    expect(await runNextGeneration(runner)).toBe(true);
+    expect(asked).toEqual(["commit"]);
+    expect(calls.at(-1)?.args).toEqual([
+      "/c.js",
+      "generate",
+      "tests",
+      "--pr",
+      "7",
+      "--repo",
+      "Octo/API",
+      "--config",
+      expect.stringMatching(/ocra\.json$/),
+    ]);
+    expect(await runNextGeneration(runner)).toBe(false);
+    const [job] = await generations.forPull(repoId, 7);
+    expect(job).toMatchObject({ state: "done", attempts: 1 });
+  });
+
+  it("does not retry edits the CLI could not commit", async () => {
+    const generations = scoped(s.host.db, accountId).generations;
+    await generations.queue(repoId, 7, "b".repeat(40), "docstrings");
+    const { exec } = fakeExec(3, {});
+    await runNextGeneration({ db: s.host.db, platforms, bots, publicUrl: ORIGIN, exec, cli: "x" });
+    const [job] = await generations.forPull(repoId, 7);
+    expect(job).toMatchObject({ state: "failed", error: "not_committed", attempts: 1 });
   });
 });

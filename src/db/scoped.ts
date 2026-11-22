@@ -26,6 +26,7 @@ import {
   uncountOne,
 } from "./counters.js";
 import { countWhere, jsonMembers, jsonNumber, jsonRecords, utcDayOf } from "./dialect.js";
+import { accountGenerateJobs } from "./generate-jobs.js";
 import { accountGraphs } from "./graphs.js";
 import {
   type Decision,
@@ -425,6 +426,7 @@ export function scoped(db: Db, accountId: string) {
     closedPulls: accountClosedPulls(db, accountId),
     replies: accountReplyJobs(db, accountId),
     chat: accountReviewChat(db, accountId),
+    generations: accountGenerateJobs(db, accountId),
     automations: accountAutomations(db, accountId),
     mergeChecks: accountMergeChecks(db, accountId),
     /** The findings of one of this account's reviews. */

@@ -14,6 +14,7 @@ import { PlatformMark } from "../platform-mark.js";
 import { ChecksBox } from "../pull/checks-box.js";
 import { splitPath } from "../pull/diff.js";
 import { FileDiff } from "../pull/file-diff.js";
+import { GenerateBox } from "../pull/generate-box.js";
 import { OUTCOME } from "../pull/outcome.js";
 import { QueueBox } from "../pull/queue-box.js";
 import { StackPanel } from "../pull/stack.js";
@@ -39,7 +40,13 @@ type Answer = { outcome: PullActionOutcome };
 const post = (path: string, body: unknown) =>
   api<Answer>(`/pulls/${path}`, { method: "POST", body: JSON.stringify(body) });
 
-export function PullPage(props: { platform: string; repo: string; number: string }) {
+export function PullPage(props: {
+  platform: string;
+  repo: string;
+  number: string;
+  /** Whether this server runs ocra itself, which writing tests and docstrings needs. */
+  runner?: boolean;
+}) {
   const platform = props.platform as CodePlatformKind;
   const number = Number(props.number);
   const ref = { platform, repo: props.repo, number };
@@ -120,6 +127,7 @@ export function PullPage(props: { platform: string; repo: string; number: string
           </nav>
           <ReviewBox data={data} pull={ref} pending={pending} onDone={(o) => done("Review", o)} />
           <ChecksBox pull={ref} head={data.head} />
+          {props.runner && <GenerateBox pull={ref} head={data.head} />}
           {queue.data?.enabled ? (
             <QueueBox
               view={queue.data}

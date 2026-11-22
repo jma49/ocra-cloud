@@ -52,7 +52,7 @@ async function github(path: string, init: RequestInit & { token: string }) {
 
 export function botTokens(settings: BotSettings): BotTokens {
   return {
-    async forRepo(platform, fullName) {
+    async forRepo(platform, fullName, access = "review") {
       if (platform === "gitlab") {
         return settings.gitlabBotToken ? { token: settings.gitlabBotToken } : null;
       }
@@ -73,7 +73,7 @@ export function botTokens(settings: BotSettings): BotTokens {
         body: JSON.stringify({
           repositories: [repo],
           permissions: {
-            contents: "read",
+            contents: access === "commit" ? "write" : "read",
             pull_requests: "write",
             metadata: "read",
             checks: "write",

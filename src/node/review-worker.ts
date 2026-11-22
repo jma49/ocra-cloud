@@ -6,7 +6,7 @@ import type { BotTokens } from "../platforms/bot.js";
 import { platformsOf } from "../platforms/registry.js";
 import type { AppBindings } from "../types.js";
 import { type BotSettings, botTokens } from "./bot-tokens.js";
-import { type Exec, runNextReply, runNextReview } from "./review-runner.js";
+import { type Exec, runNextGeneration, runNextReply, runNextReview } from "./review-runner.js";
 
 export type AutoReviewOptions = {
   bots: BotSettings;
@@ -41,7 +41,12 @@ export function startAutoReview(
   const loop = async () => {
     running++;
     try {
-      while (!stopped && ((await runNextReview(runner)) || (await runNextReply(runner))));
+      while (
+        !stopped &&
+        ((await runNextReview(runner)) ||
+          (await runNextReply(runner)) ||
+          (await runNextGeneration(runner)))
+      );
     } catch (e) {
       logError("review_worker_failed", { error: errorName(e) });
     } finally {

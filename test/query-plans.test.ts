@@ -70,6 +70,7 @@ const TABLE: Record<string, string> = {
   notifyChannels: "notify_channels",
   closedPulls: "closed_pulls",
   replyJobs: "reply_jobs",
+  generateJobs: "generate_jobs",
   reviewWalkthroughs: "review_walkthroughs",
   automationRules: "automation_rules",
   automationRuns: "automation_runs",
