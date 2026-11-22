@@ -171,6 +171,20 @@ describe("changes since the last review on GitHub", () => {
     expect(gone).toMatchObject({ since: SEEN, state: "unavailable", files: [] });
   });
 
+  it("says truncated when GitHub's comparison lists its 300 files", async () => {
+    const files = Array.from({ length: 300 }, (_, i) => ({ ...changedFile, filename: `f${i}.ts` }));
+    platform({
+      [`GET ${REPO}/pulls/7`]: () => Response.json(pull),
+      "POST https://api.github.com/graphql": reviewOf(REVIEWED),
+      [`GET ${REPO}/compare/${REVIEWED}...${HEAD}`]: () =>
+        Response.json({ status: "ahead", files }),
+    });
+    const a = await signInWithGithub();
+    const view = (await (await a.send(since())).json()) as PullSinceView;
+    expect(view).toMatchObject({ state: "changes", truncated: true });
+    expect(view.files).toHaveLength(300);
+  });
+
   it("refuses a since that is no sha, before asking the platform", async () => {
     const asked = platform({});
     const a = await signInWithGithub();
