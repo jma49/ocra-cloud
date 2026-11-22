@@ -1,6 +1,6 @@
 import Layers from "lucide-react/icons/layers";
 import type { MouseEvent } from "react";
-import { ago } from "../format.js";
+import { since } from "../format.js";
 import { pullPath } from "../pull/path.js";
 import { navigate } from "../router.js";
 import type { Row } from "./sections.js";
@@ -107,7 +107,7 @@ function PullLink(props: {
       )}
       <span className="pull-author">{r.author ?? ""}</span>
       <time className="pull-time" dateTime={when} title={r.mergedAt ? "Merged" : "Updated"}>
-        {ago(when).replace(" ago", "")}
+        {since(when)}
       </time>
     </a>
   );

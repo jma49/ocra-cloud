@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ago, count, period } from "./format.js";
+import { ago, count, period, since } from "./format.js";
 
 describe("how counts and times read", () => {
   it("puts a count's noun in the right number", () => {
@@ -14,6 +14,12 @@ describe("how counts and times read", () => {
       { value: 7, label: "7 days" },
       { value: 30, label: "30 days" },
     ]);
+  });
+
+  it("keeps a list's time column short", () => {
+    const daysAgo = (days: number) => new Date(Date.now() - days * 86400_000).toISOString();
+    expect(since(daysAgo(2))).toBe("2d");
+    expect(since(daysAgo(400))).toMatch(/^[A-Z][a-z]{2} \d{4}$/);
   });
 
   it("dates an old time by its month's name, not a numeric date", () => {

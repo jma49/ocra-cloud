@@ -20,6 +20,17 @@ export function bytes(n: number): string {
   if (n >= 1024) return `${(n / 1024).toFixed(1)} KB`;
   return `${n} B`;
 }
+/** How long ago, in a list's narrow column: "2m", "6h", "3d", then "Oct 4", or "Oct 2025" in another year. */
+export function since(iso: string): string {
+  const then = new Date(iso);
+  const s = (Date.now() - then.getTime()) / 1000;
+  if (s < 86400 * 30) return ago(iso).replace(" ago", "");
+  const sameYear = then.getFullYear() === new Date().getFullYear();
+  return then.toLocaleDateString(
+    undefined,
+    sameYear ? { month: "short", day: "numeric" } : { month: "short", year: "numeric" },
+  );
+}
 export function ago(iso: string | null): string {
   if (!iso) return "never";
   const s = (Date.now() - new Date(iso).getTime()) / 1000;

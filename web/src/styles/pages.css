@@ -712,7 +712,8 @@ td.finding-cell {
 }
 .pull-time {
   flex: none;
-  width: 36px;
+  min-width: 36px;
+  white-space: nowrap;
   text-align: right;
   color: var(--t3);
   font-variant-numeric: tabular-nums;
@@ -917,7 +918,15 @@ td.finding-cell {
 .pull-side {
   position: sticky;
   top: 72px;
+  /* Taller than the window, the merge and checks under the review would stay out of reach. */
+  max-height: calc(100vh - 88px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* Room for the cards' shadows and focus rings inside the scroll box. */
+  padding: 2px;
+  margin: -2px;
   display: grid;
+  align-content: start;
   /* A card's widest line must not widen the column over the diffs. */
   grid-template-columns: minmax(0, 1fr);
   gap: 12px;
@@ -929,6 +938,7 @@ td.finding-cell {
 }
 .file-list {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   padding: 6px;
   max-height: 40vh;
   overflow-y: auto;
@@ -1029,6 +1039,7 @@ td.finding-cell {
   font-size: var(--text-sm);
 }
 .diff-count {
+  flex: none;
   font-family: var(--mono);
   font-size: var(--text-sm);
   white-space: nowrap;
@@ -1133,6 +1144,8 @@ td.finding-cell {
   }
   .pull-side {
     position: static;
+    max-height: none;
+    overflow: visible;
   }
 }
 

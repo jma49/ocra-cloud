@@ -132,6 +132,9 @@ describe("a GitLab merge request's changes", () => {
     });
     const changes = await gitlabChanges(GITLAB).changes("glpat_1", "group/api", 9);
     expect(changes).toEqual({
+      title: null,
+      author: null,
+      url: null,
       base: C1,
       head: C2,
       updatedAt: null,
