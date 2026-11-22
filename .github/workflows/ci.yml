@@ -23,6 +23,8 @@ jobs:
           persist-credentials: false
       - id: setup
         uses: ./.github/actions/setup
+        with:
+          save: "true"
       - if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
         run: npm audit --omit=dev --audit-level=high
       - if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
