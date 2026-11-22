@@ -4,6 +4,9 @@ import type { ReviewSource } from "../../src/shared/index.js";
 
 const nf = new Intl.NumberFormat("en-US");
 export const num = (n: number) => nf.format(n);
+/** "1 review", "2 reviews": a count with its noun in the right number. */
+export const count = (n: number, one: string, many = `${one}s`) =>
+  `${num(n)} ${n === 1 ? one : many}`;
 /** Dollars to the cent. */
 export const usd = (n: number) => `$${n.toFixed(2)}`;
 export function compact(n: number): string {
@@ -24,8 +27,10 @@ export function ago(iso: string | null): string {
   if (s < 3600) return `${Math.floor(s / 60)}m ago`;
   if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
   if (s < 86400 * 30) return `${Math.floor(s / 86400)}d ago`;
-  return new Date(iso).toLocaleDateString();
+  return date(iso);
 }
+/** A time range picker's option, the same words on every page. */
+export const period = (days: number) => ({ value: days, label: `${days} days` });
 export const date = (iso: string) =>
   new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 export const time = (iso: string) =>

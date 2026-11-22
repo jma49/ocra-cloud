@@ -101,12 +101,15 @@ describe("the routes", () => {
     expect(paths(placeTabs("repositories", me("keep")))).toContain("/code-graphs");
     expect(paths(placeTabs("repositories", me("opt-in")))).toContain("/code-graphs");
     expect(paths(placeTabs("repositories", me("off")))).not.toContain("/code-graphs");
-    expect(matchRoute("/code-graphs")).toBeDefined();
+    expect(matchRoute("/code-graphs", me("keep"))).toBeDefined();
+    expect(matchRoute("/code-graphs", me("off"))).toBeUndefined();
   });
 
   it("show auto review only where the server reviews pull requests itself", () => {
     expect(paths(placeTabs("repositories", me("off", true)))).toContain("/auto-review");
     expect(paths(placeTabs("repositories", me("off")))).not.toContain("/auto-review");
+    expect(matchRoute("/auto-review", me("off", true))).toBeDefined();
+    expect(matchRoute("/auto-review", me("off"))).toBeUndefined();
   });
 
   it("start the keys a page shows with /me, not after it (audit C11)", () => {
