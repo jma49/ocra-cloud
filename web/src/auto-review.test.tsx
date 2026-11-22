@@ -12,6 +12,7 @@ const REPO = {
   platform: "gitlab",
   host: "gitlab.example.com",
   fullName: "pay/api",
+  profile: "balanced",
   latest: {
     number: 9,
     head: "a".repeat(40),
@@ -56,5 +57,27 @@ describe("the auto review page", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "Done" }));
     expect(screen.queryByLabelText("Secret token")).toBeNull();
+  });
+
+  it("sets a repository's review profile", async () => {
+    const sent: unknown[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (init?.method === "PUT") {
+          sent.push({ url, body: JSON.parse(String(init.body)) });
+          return Response.json({ profile: "quiet" });
+        }
+        return Response.json({ repos: [REPO] });
+      }),
+    );
+    render(<AutoReview />);
+    const select = (await screen.findByLabelText("Review profile of pay/api")) as HTMLSelectElement;
+    expect(select.value).toBe("balanced");
+    await act(async () => void fireEvent.change(select, { target: { value: "quiet" } }));
+    expect(sent).toEqual([
+      { url: "/api/auto-review/repos/rr1/profile", body: { profile: "quiet" } },
+    ]);
+    expect(select.value).toBe("quiet");
   });
 });

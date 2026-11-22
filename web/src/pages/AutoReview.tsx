@@ -4,6 +4,9 @@ import {
   type AutoReviewRepoView,
   CODE_PLATFORMS,
   type CodePlatformKind,
+  REVIEW_PROFILES,
+  type ReviewProfile,
+  type ReviewProfileView,
 } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
 import { ago } from "../format.js";
@@ -20,6 +23,12 @@ import { ActionError, LoadError, Loading, PageHead, useAction, useLoad } from ".
 type Repos = { repos: AutoReviewRepoView[] };
 type Added = { repo: AutoReviewRepoView; webhook: { url: string; secret?: string } };
 type Job = NonNullable<AutoReviewRepoView["latest"]>;
+
+const PROFILE: Record<ReviewProfile, string> = {
+  quiet: "Quiet: correctness and security, changed lines only",
+  balanced: "Balanced",
+  thorough: "Thorough: every reviewer, two samples (about 2x cost)",
+};
 
 const PLATFORM: Record<CodePlatformKind, string> = { github: "GitHub", gitlab: "GitLab" };
 const STATE: Record<Job["state"], { label: string; tone: string }> = {
@@ -70,6 +79,7 @@ export function AutoReview() {
               <thead>
                 <tr>
                   <th>Repository</th>
+                  <th>Profile</th>
                   <th>Last review</th>
                   <th />
                 </tr>
@@ -86,6 +96,9 @@ export function AutoReview() {
                         <div className="subtle small">
                           {PLATFORM[r.platform]} · {r.host}
                         </div>
+                      </td>
+                      <td>
+                        <ProfileSelect r={r} />
                       </td>
                       <td>
                         <LastJob r={r} />
@@ -113,7 +126,7 @@ export function AutoReview() {
                     </tr>
                     {checking === r.id && (
                       <tr className="checks-row">
-                        <td colSpan={3}>
+                        <td colSpan={4}>
                           <RepoChecks repoId={r.id} fullName={r.fullName} />
                         </td>
                       </tr>
@@ -126,6 +139,38 @@ export function AutoReview() {
         </div>
       )}
     </>
+  );
+}
+
+function ProfileSelect(props: { r: AutoReviewRepoView }) {
+  const [profile, setProfile] = useState(props.r.profile);
+  const save = useAction((next: ReviewProfile) =>
+    api<ReviewProfileView>(`/auto-review/repos/${encodeURIComponent(props.r.id)}/profile`, {
+      method: "PUT",
+      body: JSON.stringify({ profile: next }),
+    }),
+  );
+  const change = async (next: ReviewProfile) => {
+    const saved = await save.run(next);
+    if (saved) setProfile(saved.profile);
+  };
+  return (
+    <div className="stack-tight">
+      <select
+        className="input"
+        aria-label={`Review profile of ${props.r.fullName}`}
+        value={profile}
+        disabled={save.busy}
+        onChange={(e) => change(e.target.value as ReviewProfile)}
+      >
+        {REVIEW_PROFILES.map((p) => (
+          <option key={p} value={p}>
+            {PROFILE[p]}
+          </option>
+        ))}
+      </select>
+      {save.error !== null && <ActionError what="change the profile" error={save.error} />}
+    </div>
   );
 }
 
