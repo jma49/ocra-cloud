@@ -90,6 +90,13 @@ export const rows = {
     ciphertext: "c",
     last4: "abcd",
   }),
+  // The enrolled repository it belongs to is made in beforeEach (the foreign key needs one).
+  replyJobs: (id: string) => ({
+    id,
+    reviewRepoId: "review-repo-of-a",
+    number: 1,
+    commentId: `c-${id}`,
+  }),
   repositories: (id: string) => ({ id, repoHash: `h-${id}`, name: `octo/${id}` }),
   // One row per account, kind and day; the id names the day.
   usageCounters: (id: string) => ({ kind: "uploads" as const, day: id, n: 1 }),

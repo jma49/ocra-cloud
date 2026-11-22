@@ -8,10 +8,12 @@ import { apiError, jsonBody } from "../http.js";
 import { COMMIT_ID } from "../platforms/contents.js";
 import { gitlabClientOf } from "../platforms/registry.js";
 import type { AppEnv } from "../types.js";
+import { gitlabNote, queueGitlabNote } from "./replies.js";
 import type { AutoReviewService } from "./routes.js";
 
 // A pull request of an enrolled repository is queued for review when it
-// opens, reopens, leaves draft or gains commits (ADR-0046, 2). A draft is not.
+// opens, reopens, leaves draft or gains commits (ADR-0046, 2). A draft is
+// not. GitLab's note hook, on the same address, queues answers (./replies.ts).
 
 type Db = AppEnv["Variables"]["db"];
 
@@ -60,34 +62,35 @@ const gitlabQueues = (a: z.infer<typeof gitlabMergeRequest>["object_attributes"]
 /** GitLab's merge request hooks, each proven by the secret of the repository it names. */
 export function autoReviewWebhooks(service: AutoReviewService) {
   const hooks = new Hono<AppEnv>();
-  hooks.post(
-    "/gitlab",
-    jsonBody(z.union([gitlabMergeRequest, z.looseObject({})]), { max: MAX_HOOK_BODY }),
-    async (c) => {
-      const client = gitlabClientOf(c.env);
-      if (!client) return apiError(c, "not_found");
-      const token = c.req.header("x-gitlab-token");
-      if (!token) return apiError(c, "unauthenticated");
-      const body = c.req.valid("json");
-      if (c.req.header("x-gitlab-event") !== "Merge Request Hook" || !("project" in body)) {
-        return c.json({ queued: 0 }, 202);
-      }
-      const event = gitlabMergeRequest.parse(body);
-      const host = new URL(client.url).host;
-      const repo = await reviewRepoFor(c.var.db, "gitlab", host, String(event.project.id));
-      const hash = await sha256Hex(token);
-      if (!repo?.webhookSecretHash || !sameText(repo.webhookSecretHash, hash)) {
-        return apiError(c, "unauthenticated");
-      }
-      if (!gitlabQueues(event.object_attributes)) return c.json({ queued: 0 }, 202);
-      const queued = await queue(c.var.db, service, repo, {
-        fullName: event.project.path_with_namespace,
-        number: event.object_attributes.iid,
-        head: event.object_attributes.last_commit.id,
-      });
-      return c.json({ queued }, 202);
-    },
-  );
+  hooks.post("/gitlab", jsonBody(z.looseObject({}), { max: MAX_HOOK_BODY }), async (c) => {
+    const client = gitlabClientOf(c.env);
+    if (!client) return apiError(c, "not_found");
+    const token = c.req.header("x-gitlab-token");
+    if (!token) return apiError(c, "unauthenticated");
+    const kind = c.req.header("x-gitlab-event");
+    const body = c.req.valid("json");
+    const mr = kind === "Merge Request Hook" ? gitlabMergeRequest.safeParse(body) : undefined;
+    const note = kind === "Note Hook" ? gitlabNote.safeParse(body) : undefined;
+    const projectId = mr?.data?.project.id ?? note?.data?.project.id;
+    if (projectId === undefined) return c.json({ queued: 0 }, 202);
+    const host = new URL(client.url).host;
+    const repo = await reviewRepoFor(c.var.db, "gitlab", host, String(projectId));
+    const hash = await sha256Hex(token);
+    if (!repo?.webhookSecretHash || !sameText(repo.webhookSecretHash, hash)) {
+      return apiError(c, "unauthenticated");
+    }
+    if (note?.data) {
+      return c.json({ queued: await queueGitlabNote(c.var.db, service, repo, note.data) }, 202);
+    }
+    const event = mr?.data;
+    if (!event || !gitlabQueues(event.object_attributes)) return c.json({ queued: 0 }, 202);
+    const queued = await queue(c.var.db, service, repo, {
+      fullName: event.project.path_with_namespace,
+      number: event.object_attributes.iid,
+      head: event.object_attributes.last_commit.id,
+    });
+    return c.json({ queued }, 202);
+  });
   return hooks;
 }
 

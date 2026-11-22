@@ -4,7 +4,7 @@ import { errorName, logError } from "../log.js";
 import { platformsOf } from "../platforms/registry.js";
 import type { AppBindings } from "../types.js";
 import { type BotSettings, botTokens } from "./bot-tokens.js";
-import { type Exec, runNextReview } from "./review-runner.js";
+import { type Exec, runNextReply, runNextReview } from "./review-runner.js";
 
 export type AutoReviewOptions = {
   bots: BotSettings;
@@ -37,7 +37,7 @@ export function startAutoReview(
   const loop = async () => {
     running++;
     try {
-      while (!stopped && (await runNextReview(runner)));
+      while (!stopped && ((await runNextReview(runner)) || (await runNextReply(runner))));
     } catch (e) {
       logError("review_worker_failed", { error: errorName(e) });
     } finally {
