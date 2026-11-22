@@ -1,7 +1,8 @@
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ApiError, api, type KeyCheck, type ProviderInfo } from "../api.js";
-import { CloseGlyph, DoneGlyph } from "../glyphs.js";
+import { Drawer } from "../drawer.js";
+import { DoneGlyph } from "../glyphs.js";
 import { ActionError, ProviderLogo } from "../ui.js";
 
 // Adding or replacing a key: a drawer that starts with the common providers,
@@ -50,12 +51,6 @@ export function AddKeyDrawer(props: {
   const byName = new Map(props.providers.map((p) => [p.name, p]));
   const p = chosen ? byName.get(chosen) : undefined;
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && props.onClose();
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [props.onClose]);
-
   const save = async (e: FormEvent) => {
     e.preventDefault();
     if (!p) return;
@@ -82,148 +77,149 @@ export function AddKeyDrawer(props: {
   );
 
   return (
-    <>
-      <div className="scrim" onClick={props.onClose} aria-hidden="true" />
-      <aside className="drawer" role="dialog" aria-modal="true" aria-label="Add a provider key">
-        <div className="drawer-head">
-          <h2>
-            {p
-              ? `${props.configured.has(p.name) ? "Replace" : "Add"} ${p.label} key`
-              : "Add a provider key"}
-          </h2>
-          <button type="button" className="icon-btn" onClick={props.onClose} aria-label="Close">
-            <CloseGlyph />
-          </button>
-        </div>
-        {!p ? (
-          <div className="drawer-body">
-            <input
-              className="input provider-search"
-              placeholder={`Search ${props.providers.length} providers by name or domain`}
-              aria-label="Search providers"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              // biome-ignore lint/a11y/noAutofocus: the drawer opens to choose a provider
-              autoFocus
-            />
-            {q.trim() === "" ? (
+    <Drawer
+      title="Add a provider key"
+      heading={
+        p
+          ? `${props.configured.has(p.name) ? "Replace" : "Add"} ${p.label} key`
+          : "Add a provider key"
+      }
+      onClose={props.onClose}
+      {...(p
+        ? {
+            onSubmit: save,
+            foot: (
               <>
-                <div className="group-label">Popular</div>
-                <div className="tiles">
-                  {POPULAR.map((n) => byName.get(n))
-                    .filter((x): x is ProviderInfo => !!x)
-                    .map((x) => (
-                      <button
-                        key={x.name}
-                        type="button"
-                        className="tile"
-                        onClick={() => setChosen(x.name)}
-                      >
-                        <ProviderLogo label={x.label} size={30} />
-                        <span>
-                          <div className="t-name">{x.label}</div>
-                          <div className="t-sub">
-                            {props.configured.has(x.name) ? "Configured" : formats(x)}
-                          </div>
-                        </span>
-                      </button>
-                    ))}
-                </div>
-                {GROUPS.map((g) => {
-                  const items = props.providers.filter(
-                    (x) => x.group === g.id && !POPULAR.includes(x.name),
-                  );
-                  return items.length === 0 ? null : (
-                    <div key={g.id}>
-                      <div className="group-label">{g.label}</div>
-                      <PickList items={items} configured={props.configured} onPick={setChosen} />
-                    </div>
-                  );
-                })}
+                <Button type="button" variant="outline" onClick={props.onClose}>
+                  {result ? "Done" : "Cancel"}
+                </Button>
+                <Button type="submit" disabled={busy || value.trim().length < 8}>
+                  {busy ? "Checking…" : "Save and test"}
+                </Button>
               </>
-            ) : matches.length ? (
-              <>
-                <div className="group-label">{matches.length} found</div>
-                <PickList items={matches} configured={props.configured} onPick={setChosen} />
-              </>
-            ) : (
-              <div className="empty">No provider matches “{q}”.</div>
+            ),
+          }
+        : {})}
+    >
+      {!p ? (
+        <>
+          <input
+            className="input provider-search"
+            placeholder={`Search ${props.providers.length} providers by name or domain`}
+            aria-label="Search providers"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            // biome-ignore lint/a11y/noAutofocus: the drawer opens to choose a provider
+            autoFocus
+          />
+          {q.trim() === "" ? (
+            <>
+              <div className="group-label">Popular</div>
+              <div className="tiles">
+                {POPULAR.map((n) => byName.get(n))
+                  .filter((x): x is ProviderInfo => !!x)
+                  .map((x) => (
+                    <button
+                      key={x.name}
+                      type="button"
+                      className="tile"
+                      onClick={() => setChosen(x.name)}
+                    >
+                      <ProviderLogo label={x.label} size={30} />
+                      <span>
+                        <div className="t-name">{x.label}</div>
+                        <div className="t-sub">
+                          {props.configured.has(x.name) ? "Configured" : formats(x)}
+                        </div>
+                      </span>
+                    </button>
+                  ))}
+              </div>
+              {GROUPS.map((g) => {
+                const items = props.providers.filter(
+                  (x) => x.group === g.id && !POPULAR.includes(x.name),
+                );
+                return items.length === 0 ? null : (
+                  <div key={g.id}>
+                    <div className="group-label">{g.label}</div>
+                    <PickList items={items} configured={props.configured} onPick={setChosen} />
+                  </div>
+                );
+              })}
+            </>
+          ) : matches.length ? (
+            <>
+              <div className="group-label">{matches.length} found</div>
+              <PickList items={matches} configured={props.configured} onPick={setChosen} />
+            </>
+          ) : (
+            <div className="empty">No provider matches “{q}”.</div>
+          )}
+        </>
+      ) : (
+        <>
+          <div className="chosen">
+            <ProviderLogo label={p.label} size={36} />
+            <div className="grow">
+              <div className="semibold">{p.label}</div>
+              <div className="subtle small mono">{new URL(p.base).host}</div>
+            </div>
+            {!props.initial && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setChosen(null);
+                  setResult(null);
+                }}
+              >
+                Change
+              </Button>
             )}
           </div>
-        ) : (
-          <form className="drawer-body drawer-form" onSubmit={save}>
-            <div className="chosen">
-              <ProviderLogo label={p.label} size={36} />
-              <div className="grow">
-                <div className="semibold">{p.label}</div>
-                <div className="subtle small mono">{new URL(p.base).host}</div>
-              </div>
-              {!props.initial && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setChosen(null);
-                    setResult(null);
-                  }}
-                >
-                  Change
-                </Button>
-              )}
-            </div>
-            <div className="field">
-              <label htmlFor="key-input">API key</label>
-              <input
-                id="key-input"
-                className="input mono key-input"
-                type="password"
-                autoComplete="off"
-                spellCheck={false}
-                placeholder="Paste the key"
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-                // biome-ignore lint/a11y/noAutofocus: the provider is chosen, the key comes next
-                autoFocus
-              />
-              <span className="hint">
-                {props.configured.has(p.name) ? "Saving replaces the current key. " : ""}
-                We check it with a request that uses no tokens.
-              </span>
-            </div>
-            <div className="field">
-              <label htmlFor="key-endpoints">Endpoints you can call through ocra</label>
-              <div id="key-endpoints" className="pick-list">
-                {p.paths.map((path) => (
-                  <div key={path} className="pick static">
-                    <span className="mono small">
-                      {path.startsWith("^") ? "/v1beta/models/{model}:generateContent" : path}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <span className="hint">Formats: {formats(p)}.</span>
-            </div>
-            {result && <CheckNote check={result} label={p.label} />}
-            {error !== null &&
-              (error instanceof ApiError && error.code === "invalid_body" ? (
-                <div className="note err">That does not look like an API key.</div>
-              ) : (
-                <ActionError what="save the key" error={error} />
+          <div className="field">
+            <label htmlFor="key-input">API key</label>
+            <input
+              id="key-input"
+              className="input mono key-input"
+              type="password"
+              autoComplete="off"
+              spellCheck={false}
+              placeholder="Paste the key"
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              // biome-ignore lint/a11y/noAutofocus: the provider is chosen, the key comes next
+              autoFocus
+            />
+            <span className="hint">
+              {props.configured.has(p.name) ? "Saving replaces the current key. " : ""}
+              We check it with a request that uses no tokens.
+            </span>
+          </div>
+          <div className="field">
+            <label htmlFor="key-endpoints">Endpoints you can call through ocra</label>
+            <div id="key-endpoints" className="pick-list">
+              {p.paths.map((path) => (
+                <div key={path} className="pick static">
+                  <span className="mono small">
+                    {path.startsWith("^") ? "/v1beta/models/{model}:generateContent" : path}
+                  </span>
+                </div>
               ))}
-            <div className="grow" />
-            <div className="drawer-foot">
-              <Button type="button" variant="outline" onClick={props.onClose}>
-                {result ? "Done" : "Cancel"}
-              </Button>
-              <Button type="submit" disabled={busy || value.trim().length < 8}>
-                {busy ? "Checking…" : "Save and test"}
-              </Button>
             </div>
-          </form>
-        )}
-      </aside>
-    </>
+            <span className="hint">Formats: {formats(p)}.</span>
+          </div>
+          {result && <CheckNote check={result} label={p.label} />}
+          {error !== null &&
+            (error instanceof ApiError && error.code === "invalid_body" ? (
+              <div className="note err">That does not look like an API key.</div>
+            ) : (
+              <ActionError what="save the key" error={error} />
+            ))}
+        </>
+      )}
+    </Drawer>
   );
 }
 

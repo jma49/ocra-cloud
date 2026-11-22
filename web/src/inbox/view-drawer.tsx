@@ -1,8 +1,8 @@
-import { type FormEvent, type ReactNode, useEffect, useState } from "react";
+import { type FormEvent, type ReactNode, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { PullFilters } from "../../../src/shared/index.js";
 import { why } from "../api.js";
-import { CloseGlyph } from "../glyphs.js";
+import { Drawer } from "../drawer.js";
 import { shareLink, type ViewDraft } from "./views.js";
 
 type Choice<T extends string> = { value: T; label: string };
@@ -56,12 +56,6 @@ export function ViewDrawer(props: {
   const [error, setError] = useState<unknown>(null);
   const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
   const draft = (): ViewDraft => {
     const list = authors
       .split(",")
@@ -102,87 +96,81 @@ export function ViewDrawer(props: {
     ));
 
   return (
-    <>
-      <div className="scrim" onClick={onClose} aria-hidden="true" />
-      <aside className="drawer" role="dialog" aria-modal="true" aria-label="Section">
-        <form className="view-form" onSubmit={submit}>
-          <div className="drawer-head">
-            <h2>{props.editing ? "Edit section" : "New section"}</h2>
-            <button type="button" className="icon-btn" onClick={onClose} aria-label="Close">
-              <CloseGlyph />
-            </button>
-          </div>
-          <div className="drawer-body">
-            <label className="field">
-              Name
-              <input
-                className="input"
-                required
-                maxLength={60}
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </label>
-            <p className="muted small">
-              A pull shows here when it matches every group you set; within a group, any choice.
-            </p>
-            <Group legend="Who">{checks("roles", ROLES)}</Group>
-            <Group legend="State">{checks("states", STATES)}</Group>
-            <Group legend="Drafts">
-              <select
-                className="input"
-                value={filters.drafts ?? "include"}
-                onChange={(e) =>
-                  setFilters((f) => ({ ...f, drafts: e.target.value as PullFilters["drafts"] }))
-                }
-              >
-                <option value="include">Include drafts</option>
-                <option value="exclude">Leave out drafts</option>
-                <option value="only">Only drafts</option>
-              </select>
-            </Group>
-            <Group legend="Checks">{checks("checks", CHECKS)}</Group>
-            <Group legend="Review">{checks("reviews", REVIEWS)}</Group>
-            {props.repos.length > 0 && (
-              <Group legend="Repositories">
-                {checks(
-                  "repos",
-                  props.repos.map((r) => ({ value: r, label: r })),
-                )}
-              </Group>
-            )}
-            <label className="field">
-              Authors
-              <input
-                className="input"
-                placeholder="Logins, separated by commas"
-                value={authors}
-                onChange={(e) => setAuthors(e.target.value)}
-              />
-            </label>
-            {error ? (
-              <p className="error" role="alert">
-                Could not save it: {why(error)}.
-              </p>
-            ) : null}
-          </div>
-          <div className="drawer-foot">
-            {props.onDelete && (
-              <Button
-                type="button"
-                variant="destructive-outline"
-                onClick={() => props.onDelete && void run(props.onDelete)}
-              >
-                Delete
-              </Button>
-            )}
-            <Button type="button" variant="outline" onClick={share}>
-              {copied ? "Link copied" : "Copy link"}
+    <Drawer
+      title="Section"
+      heading={props.editing ? "Edit section" : "New section"}
+      onClose={onClose}
+      onSubmit={submit}
+      foot={
+        <>
+          {props.onDelete && (
+            <Button
+              type="button"
+              variant="destructive-outline"
+              onClick={() => props.onDelete && void run(props.onDelete)}
+            >
+              Delete
             </Button>
-            <Button type="submit">Save</Button>
-          </div>
-        </form>
-      </aside>
-    </>
+          )}
+          <Button type="button" variant="outline" onClick={share}>
+            {copied ? "Link copied" : "Copy link"}
+          </Button>
+          <Button type="submit">Save</Button>
+        </>
+      }
+    >
+      <label className="field">
+        Name
+        <input
+          className="input"
+          required
+          maxLength={60}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
+      </label>
+      <p className="muted small">
+        A pull shows here when it matches every group you set; within a group, any choice.
+      </p>
+      <Group legend="Who">{checks("roles", ROLES)}</Group>
+      <Group legend="State">{checks("states", STATES)}</Group>
+      <Group legend="Drafts">
+        <select
+          className="input"
+          value={filters.drafts ?? "include"}
+          onChange={(e) =>
+            setFilters((f) => ({ ...f, drafts: e.target.value as PullFilters["drafts"] }))
+          }
+        >
+          <option value="include">Include drafts</option>
+          <option value="exclude">Leave out drafts</option>
+          <option value="only">Only drafts</option>
+        </select>
+      </Group>
+      <Group legend="Checks">{checks("checks", CHECKS)}</Group>
+      <Group legend="Review">{checks("reviews", REVIEWS)}</Group>
+      {props.repos.length > 0 && (
+        <Group legend="Repositories">
+          {checks(
+            "repos",
+            props.repos.map((r) => ({ value: r, label: r })),
+          )}
+        </Group>
+      )}
+      <label className="field">
+        Authors
+        <input
+          className="input"
+          placeholder="Logins, separated by commas"
+          value={authors}
+          onChange={(e) => setAuthors(e.target.value)}
+        />
+      </label>
+      {error ? (
+        <p className="error" role="alert">
+          Could not save it: {why(error)}.
+        </p>
+      ) : null}
+    </Drawer>
   );
 }
