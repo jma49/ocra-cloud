@@ -9,6 +9,7 @@ import { gitlabLearnings } from "./gitlab-learnings.js";
 import { gitlabMergeStatus } from "./gitlab-merge-status.js";
 import { gitlabPulls } from "./gitlab-pulls.js";
 import { gitlabQueue } from "./gitlab-queue.js";
+import { gitlabReadiness } from "./gitlab-readiness.js";
 import { gitlabReviewers } from "./gitlab-reviewers.js";
 import { gitlabSearch } from "./gitlab-search.js";
 import { gitlabStacks } from "./gitlab-stack.js";
@@ -48,6 +49,7 @@ export async function gitlabUser(url: string, token: string): Promise<LinkedUser
 }
 
 export function gitlab(client: GitlabClient, redirectUri: string): CodePlatform {
+  const files = gitlabFiles(client.url);
   return {
     kind: "gitlab",
     host: new URL(client.url).host,
@@ -68,8 +70,9 @@ export function gitlab(client: GitlabClient, redirectUri: string): CodePlatform 
     cycles: gitlabCycles(client.url),
     stacks: gitlabStacks(client.url),
     learnings: gitlabLearnings(client.url),
-    files: gitlabFiles(client.url),
+    files,
     mergeStatus: gitlabMergeStatus(client.url),
+    readiness: gitlabReadiness(client.url, files),
     reviewers: gitlabReviewers(client.url),
     threads: gitlabThreads(client.url),
     issues: gitlabIssues(client.url),

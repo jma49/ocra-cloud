@@ -12,6 +12,7 @@ import type { RepoLearnings } from "./learnings.js";
 import type { PullMergeStatus } from "./merge-status.js";
 import type { ListedPull, PullListing, PullSearch } from "./pulls.js";
 import type { MergeQueue } from "./queue.js";
+import type { PullReadiness } from "./readiness.js";
 import type { PullReviewers } from "./reviewers.js";
 import type { PullStacks } from "./stacks.js";
 import type { PullThreads } from "./threads.js";
@@ -81,6 +82,7 @@ export interface CodePlatform {
   readonly learnings: RepoLearnings;
   readonly files: RepoFiles;
   readonly mergeStatus: PullMergeStatus;
+  readonly readiness: PullReadiness;
   readonly reviewers: PullReviewers;
   readonly threads: PullThreads;
   readonly issues: RepoIssues;

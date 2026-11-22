@@ -19,6 +19,7 @@ import { GenerateBox } from "../pull/generate-box.js";
 import { MergeWhenReadyBox } from "../pull/merge-when-ready-box.js";
 import { OUTCOME } from "../pull/outcome.js";
 import { QueueBox } from "../pull/queue-box.js";
+import { ReadinessBox } from "../pull/readiness-box.js";
 import { ReviewNowBox } from "../pull/review-now-box.js";
 import { ReviewersPanel } from "../pull/reviewers.js";
 import { StackPanel } from "../pull/stack.js";
@@ -163,6 +164,7 @@ export function PullPage(props: {
           <ReviewBox data={data} pull={ref} pending={pending} onDone={(o) => done("Review", o)} />
           <DescriptionBox pull={ref} onDone={(o) => done("Description", o)} />
           <ThreadsPanel pull={ref} onDone={(o) => done("Review threads", o)} />
+          <ReadinessBox pull={ref} head={data.head} />
           <ChecksBox pull={ref} head={data.head} />
           {props.runner && <ReviewNowBox pull={ref} head={data.head} />}
           {props.runner && <GenerateBox pull={ref} head={data.head} />}

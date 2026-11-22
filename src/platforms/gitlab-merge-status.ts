@@ -1,7 +1,12 @@
 import { lineCounts } from "./changes.js";
 import { gitlabHeaders, mergeRequestUrl } from "./gitlab-changes.js";
 import { platformCall, platformSend } from "./http.js";
-import { CHECK_NAME, type PostedStatus, type PullMergeStatus } from "./merge-status.js";
+import {
+  CHECK_NAME,
+  type PostedStatus,
+  type PullFacts,
+  type PullMergeStatus,
+} from "./merge-status.js";
 
 // GitLab lists no line counts on a merge request: its diffs are read, at
 // most MAX_PAGES pages of them. A commit status has no neutral state and
@@ -12,13 +17,48 @@ const MAX_PAGES = 10;
 /** GitLab's longest commit status description. */
 const MAX_DESCRIPTION = 255;
 
-type MergeRequest = {
+export type MergeRequest = {
   title: string;
   description: string | null;
   sha: string;
   changes_count: string | null;
 };
-type Diff = { diff: string };
+type Diff = { diff: string; new_path: string };
+type Diffs = { diffs: Diff[]; more: boolean };
+
+/** The merge request's diffs, at most MAX_PAGES pages of them; null when one page failed. */
+export async function readDiffs(base: string, init: RequestInit): Promise<Diffs | null> {
+  const diffs: Diff[] = [];
+  let more = true;
+  for (let page = 1; more && page <= MAX_PAGES; page++) {
+    const listed = await platformCall<Diff[]>(
+      `${base}/diffs?per_page=${PER_PAGE}&page=${page}`,
+      init,
+    );
+    if (!listed) return null;
+    diffs.push(...listed);
+    more = listed.length === PER_PAGE;
+  }
+  return { diffs, more };
+}
+
+export function factsOf(mr: MergeRequest, { diffs, more }: Diffs): PullFacts {
+  let lines = 0;
+  for (const d of diffs) {
+    const counted = lineCounts(d.diff);
+    lines += counted.additions + counted.deletions;
+  }
+  // "1000+" when GitLab stopped counting.
+  const listed = Number.parseInt(mr.changes_count ?? "", 10);
+  return {
+    title: mr.title,
+    description: mr.description ?? "",
+    head: mr.sha,
+    files: Math.max(diffs.length, Number.isNaN(listed) ? 0 : listed),
+    lines,
+    exact: !more && !(mr.changes_count ?? "").endsWith("+"),
+  };
+}
 
 /** A commit status has no neutral: a failing warning shows as success, with its title. */
 const STATE = {
@@ -35,32 +75,8 @@ export function gitlabMergeStatus(origin: string): PullMergeStatus {
       const headers = { headers: gitlabHeaders(token) };
       const mr = await platformCall<MergeRequest>(base, headers);
       if (!mr) return null;
-      let files = 0;
-      let lines = 0;
-      let more = true;
-      for (let page = 1; more && page <= MAX_PAGES; page++) {
-        const diffs = await platformCall<Diff[]>(
-          `${base}/diffs?per_page=${PER_PAGE}&page=${page}`,
-          headers,
-        );
-        if (!diffs) return null;
-        files += diffs.length;
-        for (const d of diffs) {
-          const counted = lineCounts(d.diff);
-          lines += counted.additions + counted.deletions;
-        }
-        more = diffs.length === PER_PAGE;
-      }
-      // "1000+" when GitLab stopped counting.
-      const listed = Number.parseInt(mr.changes_count ?? "", 10);
-      return {
-        title: mr.title,
-        description: mr.description ?? "",
-        head: mr.sha,
-        files: Math.max(files, Number.isNaN(listed) ? 0 : listed),
-        lines,
-        exact: !more && !(mr.changes_count ?? "").endsWith("+"),
-      };
+      const diffs = await readDiffs(base, headers);
+      return diffs ? factsOf(mr, diffs) : null;
     },
     async publish(token, fullName, head, status) {
       const posted = await platformSend<{ id?: unknown }>(
