@@ -33,6 +33,7 @@ const ACCESS: Record<string, Access> = {
   "GET /api/findings": "web",
   "GET /api/budget": "web",
   "GET /api/platforms/pulls": "web",
+  "GET /api/search": "web",
   "GET /api/pull-views": "web",
   "POST /api/pull-views": "web",
   "PUT /api/pull-views/:id": "web",

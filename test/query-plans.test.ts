@@ -188,6 +188,28 @@ describe("query plans", () => {
     );
   });
 
+  it("the search reads each table through its account index, newest first, without a sort", async () => {
+    const seen: Captured[] = [];
+    const d = scoped(drizzle(recording(seen)), "acct");
+    await d.search.reviews({ text: "octo/api" }, 5);
+    await d.search.reviews({ text: "12" }, 5);
+    await d.search.reviews({ repo: "octo/api", number: 12 }, 5);
+    await d.search.findings("refund", 5);
+    await d.search.repositories("octo", 5);
+    expect(seen).toHaveLength(6);
+    const plans = await Promise.all(seen.map(plan));
+    for (const p of plans.slice(0, 3)) {
+      expect(p).toMatch(/SEARCH r(eviews)? USING INDEX reviews_account_created/);
+      expect(p).toMatch(/USING (COVERING )?INDEX repositories_account_repo/);
+      expect(p).not.toMatch(/TEMP B-TREE/);
+    }
+    expect(plans[3]).toMatch(/SEARCH findings USING INDEX findings_account_status_created/);
+    expect(plans[3]).not.toMatch(/TEMP B-TREE/);
+    expect(plans[4]).toMatch(/SEARCH review_repos USING INDEX review_repos_account/);
+    expect(plans[5]).toMatch(/SEARCH graph_repos USING INDEX graph_repos_account_repo/);
+    for (const p of plans) expect(p).not.toMatch(/\bSCAN\b/);
+  });
+
   it("a review's findings are found by review_id, for the delete's cascade", async () => {
     const p = await plan({ sql: "SELECT id FROM findings WHERE review_id = ?", params: ["r"] });
     expect(p).toMatch(/SEARCH findings USING (COVERING )?INDEX findings_review/);
