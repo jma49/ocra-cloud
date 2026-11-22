@@ -52,3 +52,13 @@ export type PullActionOutcome =
   | "head_moved"
   | "not_mergeable"
   | "not_applicable";
+
+/** Where a pull request stands in its base branch's merge queue (GitLab: merge train). */
+export type QueueState = "waiting" | "checking" | "ready" | "merging" | "blocked";
+
+export type MergeQueueView = {
+  /** False when the base branch has no queue: the pull request is merged directly. */
+  enabled: boolean;
+  /** Null when the pull request is not in the queue. */
+  entry: { state: QueueState; position: number | null } | null;
+};
