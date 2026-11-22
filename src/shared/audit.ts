@@ -1,0 +1,93 @@
+// The account's audit log as the console reads it (GET /api/audit): what
+// changed and when, with the few fields each kind keeps, never a key, a
+// token, an address or a body.
+
+type Pull = { pull: string };
+type MergeEnded = Pull & { mode: string; method: string; head: string; reason: string | null };
+
+/** What each kind of event keeps, by kind. */
+export type AuditDetails = {
+  "session.signed_in": { client: "web" | "cli"; method: "github" | "oidc" | "device" };
+  "session.signed_out": { client: "web" | "cli" };
+  "session.revoked": { current: boolean };
+  "device.decided": { approved: boolean };
+  "platform.connected": { platform: string };
+  "settings.changed": { keys: string[]; version: number };
+  "sharing.changed": { shareFindings: boolean; deleted: number };
+  "budget.changed": { dailyCalls: number | null };
+  "key.saved": { provider: string; check: string };
+  "key.checked": { provider: string; check: string };
+  "key.deleted": { provider: string };
+  "channel.added": { channel: string; kind: string };
+  "channel.changed": { channel: string; keys: string[] };
+  "channel.removed": { channel: string };
+  "automation.added": { rule: string; trigger: string };
+  "automation.changed": { rule: string; trigger: string; enabled: boolean };
+  "automation.removed": { rule: string };
+  "auto_review.enrolled": { repo: string; platform: string };
+  "auto_review.profile_changed": { repo: string; profile: string };
+  "auto_review.unenrolled": { repo: string };
+  "live.link_changed": { run: string; role: string | null };
+  "live.person_added": { run: string; login: string; role: string };
+  "live.person_removed": { run: string };
+  "pull.reviewed": Pull & { verdict: string };
+  "pull.merged": Pull & { method: string };
+  "pull.fix_applied": Pull & { finding: string };
+  "merge_when_ready.armed": Pull & {
+    mode: string;
+    method: string;
+    head: string;
+    keepOnPush: boolean;
+  };
+  "merge_when_ready.cancelled": Pull & Partial<MergeEnded>;
+  "merge_when_ready.merged": MergeEnded;
+  "merge_when_ready.closed": MergeEnded;
+  "merge_when_ready.disarmed": MergeEnded;
+  "merge_when_ready.failed": MergeEnded;
+};
+export type AuditKind = keyof AuditDetails;
+
+/** The fields of each kind the API answers with; a field not listed is never sent. */
+export const AUDIT_FIELDS: { readonly [K in AuditKind]: readonly (keyof AuditDetails[K])[] } = {
+  "session.signed_in": ["client", "method"],
+  "session.signed_out": ["client"],
+  "session.revoked": ["current"],
+  "device.decided": ["approved"],
+  "platform.connected": ["platform"],
+  "settings.changed": ["keys", "version"],
+  "sharing.changed": ["shareFindings", "deleted"],
+  "budget.changed": ["dailyCalls"],
+  "key.saved": ["provider", "check"],
+  "key.checked": ["provider", "check"],
+  "key.deleted": ["provider"],
+  "channel.added": ["channel", "kind"],
+  "channel.changed": ["channel", "keys"],
+  "channel.removed": ["channel"],
+  "automation.added": ["rule", "trigger"],
+  "automation.changed": ["rule", "trigger", "enabled"],
+  "automation.removed": ["rule"],
+  "auto_review.enrolled": ["repo", "platform"],
+  "auto_review.profile_changed": ["repo", "profile"],
+  "auto_review.unenrolled": ["repo"],
+  "live.link_changed": ["run", "role"],
+  "live.person_added": ["run", "login", "role"],
+  "live.person_removed": ["run"],
+  "pull.reviewed": ["pull", "verdict"],
+  "pull.merged": ["pull", "method"],
+  "pull.fix_applied": ["pull", "finding"],
+  "merge_when_ready.armed": ["pull", "mode", "method", "head", "keepOnPush"],
+  "merge_when_ready.cancelled": ["pull", "mode", "method", "head", "reason"],
+  "merge_when_ready.merged": ["pull", "mode", "method", "head", "reason"],
+  "merge_when_ready.closed": ["pull", "mode", "method", "head", "reason"],
+  "merge_when_ready.disarmed": ["pull", "mode", "method", "head", "reason"],
+  "merge_when_ready.failed": ["pull", "mode", "method", "head", "reason"],
+};
+export const AUDIT_KINDS = Object.keys(AUDIT_FIELDS) as AuditKind[];
+
+/** One event; a field an older event did not keep is left out. */
+export type AuditEventView = {
+  [K in AuditKind]: { id: string; kind: K; createdAt: string; detail: Partial<AuditDetails[K]> };
+}[AuditKind];
+
+/** A page of events, newest first; `next` is the `after` of the page that follows. */
+export type AuditPage = { events: AuditEventView[]; next: string | null };

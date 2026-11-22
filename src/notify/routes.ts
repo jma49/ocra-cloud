@@ -1,5 +1,6 @@
 import { type Context, Hono } from "hono";
 import { z } from "zod";
+import { audit } from "../audit.js";
 import { newId, type Row } from "../db/scoped.js";
 import { apiError, jsonBody } from "../http.js";
 import { masterKeys } from "../keyring.js";
@@ -179,6 +180,7 @@ notifyRoute.post("/channels", perMinute("settings"), jsonBody(addBody), async (c
   const confirmationSent = email ? await sendConfirmation(c, id, address) : undefined;
   const stored = await c.var.data.get("notifyChannels", id);
   if (!stored) return apiError(c, "not_found");
+  await audit(c.var.data, "channel.added", { channel: id, kind: stored.kind });
   return c.json({
     channel: channelView(stored),
     ...(confirmationSent !== undefined ? { confirmationSent } : {}),
@@ -212,13 +214,17 @@ notifyRoute.patch("/channels/:id", perMinute("settings"), jsonBody(changeBody), 
   ]);
   const stored = await c.var.data.get("notifyChannels", id);
   if (!stored) return apiError(c, "not_found");
+  await audit(c.var.data, "channel.changed", { channel: id, keys: Object.keys(b).sort() });
   return c.json({ channel: channelView(stored) });
 });
 
 notifyRoute.delete("/channels/:id", async (c) => {
   const id = c.req.param("id");
   const removed = await c.var.data.remove("notifyChannels", id);
-  if (removed) await c.var.data.removeWhere("notifyHeld", { channelId: id });
+  if (removed) {
+    await c.var.data.removeWhere("notifyHeld", { channelId: id });
+    await audit(c.var.data, "channel.removed", { channel: id });
+  }
   return c.json({ removed });
 });
 

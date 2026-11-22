@@ -6,6 +6,7 @@ import {
 } from "@open-cr-agent/cloud-contract";
 import { type Context, Hono } from "hono";
 import { z } from "zod";
+import { audit } from "../audit.js";
 import { loginOf } from "../db/accounts.js";
 import { accountByLogin, type LiveDoor, liveAccess, sharedWithMe } from "../db/live-access.js";
 import { scoped } from "../db/scoped.js";
@@ -205,6 +206,7 @@ liveRoute.put(
     const { role, replace } = c.req.valid("json");
     const nonce = !replace && run.linkNonce ? run.linkNonce : newNonce();
     await c.var.data.live.setLink(id, { nonce, role });
+    await audit(c.var.data, "live.link_changed", { run: id, role });
     return c.json(await shareView(c, id));
   },
 );
@@ -212,6 +214,7 @@ liveRoute.put(
 liveRoute.delete("/:id/link", requireSession(), async (c) => {
   const id = c.req.param("id");
   if (!(await c.var.data.live.setLink(id, null))) return apiError(c, "not_found");
+  await audit(c.var.data, "live.link_changed", { run: id, role: null });
   return c.json(await shareView(c, id));
 });
 
@@ -237,13 +240,15 @@ liveRoute.post(
         issues: [{ path: [], message: `at most ${MAX_LIVE_PEOPLE} people` }],
       });
     }
+    await audit(c.var.data, "live.person_added", { run: id, login, role });
     return c.json(await shareView(c, id));
   },
 );
 
 liveRoute.delete("/:id/people/:grantId", requireSession(), async (c) => {
   const id = c.req.param("id");
-  await c.var.data.live.revoke(id, c.req.param("grantId"));
+  const revoked = await c.var.data.live.revoke(id, c.req.param("grantId"));
+  if (revoked) await audit(c.var.data, "live.person_removed", { run: id });
   const view = await shareView(c, id);
   return view ? c.json(view) : apiError(c, "not_found");
 });

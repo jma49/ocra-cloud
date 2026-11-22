@@ -7,6 +7,8 @@ import { hmacHex } from "../src/crypto.js";
 import { claimJob } from "../src/db/review-jobs.js";
 import * as schema from "../src/db/schema.js";
 import { GITHUB_COM } from "../src/platforms/github-host.js";
+import type { AuditPage } from "../src/shared/index.js";
+import { auditLines, lines } from "../test/audit-lines.js";
 import { C1, C2, C3, repoFake } from "./graph-fakes.js";
 import { graphServer, ORIGIN, SECRET, type Server } from "./graph-server.js";
 
@@ -128,8 +130,23 @@ describe("an enrolled repository's review profile", () => {
     });
     expect(theirs.status).toBe(404);
     expect((await s.call(path, { headers: second.auth })).status).toBe(404);
+
     const [row] = await s.host.db.select().from(schema.reviewRepos);
     expect(row?.reviewProfile).toBe("quiet");
+
+    const id = enrolled.repo.id;
+    await s.call(`/api/auto-review/repos/${id}`, { method: "DELETE", headers: second.auth });
+    await s.call(`/api/auto-review/repos/${id}`, { method: "DELETE", headers: first.auth });
+    const log = async (auth: Record<string, string>) =>
+      ((await (await s.call("/api/audit", { headers: auth })).json()) as AuditPage).events;
+    expect(auditLines(await log(first.auth))).toEqual(
+      lines(
+        ["auto_review.unenrolled", { repo: "Octo/API" }],
+        ["auto_review.profile_changed", { repo: "Octo/API", profile: "quiet" }],
+        ["auto_review.enrolled", { repo: "Octo/API", platform: "github" }],
+      ),
+    );
+    expect(await log(second.auth)).toEqual([]);
   });
 });
 

@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { audit } from "./audit.js";
 import { clearSessionCookie, requireSession, webSessionEnd } from "./session.js";
 import type { AppEnv } from "./types.js";
 
@@ -27,6 +28,8 @@ sessions.get("/", async (c) => {
 sessions.delete("/:id", async (c) => {
   const id = c.req.param("id");
   const removed = await c.var.data.remove("sessions", id);
-  if (removed && id === c.var.session.sessionId) clearSessionCookie(c);
+  const current = id === c.var.session.sessionId;
+  if (removed) await audit(c.var.data, "session.revoked", { current });
+  if (removed && current) clearSessionCookie(c);
   return c.json({ removed });
 });

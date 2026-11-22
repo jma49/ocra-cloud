@@ -306,7 +306,11 @@ export const auditEvents = sqliteTable(
     detail: text("detail", { mode: "json" }).$type<Record<string, unknown>>(),
     createdAt: createdAt(),
   },
-  (t) => [index("audit_events_account_created").on(t.accountId, t.createdAt)],
+  // Pages run newest first by (created_at, id), all kinds or one.
+  (t) => [
+    index("audit_events_account_created").on(t.accountId, t.createdAt, t.id),
+    index("audit_events_account_kind_created").on(t.accountId, t.kind, t.createdAt, t.id),
+  ],
 );
 
 // One model call through the gateway: the audit log of key use, and the

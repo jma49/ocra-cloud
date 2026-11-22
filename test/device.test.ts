@@ -4,10 +4,12 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { sha256Hex } from "../src/crypto.js";
 import { rotateSession, sessionByRefreshHash } from "../src/db/accounts.js";
 import * as schema from "../src/db/schema.js";
+import { scoped } from "../src/db/scoped.js";
 import { newUserCode, normalizeUserCode } from "../src/device.js";
 import { REFRESH_GRACE_MS } from "../src/session.js";
 import { safeNext } from "../src/sign-in-state.js";
 import { DAY } from "../src/time.js";
+import { auditLines, lines } from "./audit-lines.js";
 import { call, db, resetDb, signIn, signInCli } from "./helpers.js";
 
 beforeEach(async () => {
@@ -127,6 +129,13 @@ describe("ocra login (device flow)", () => {
 
     // Once its tokens are in use, the code gives nothing more.
     expect((await poll(code.device_code)).body).toEqual({ error: "invalid_grant" });
+    const log = await scoped(db, web.account.id).find("auditEvents", {});
+    expect(auditLines(log)).toEqual(
+      lines(
+        ["device.decided", { approved: true }],
+        ["session.signed_in", { client: "cli", method: "device" }],
+      ),
+    );
   });
 
   it("gives no second answer after the grace window", async () => {

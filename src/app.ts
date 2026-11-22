@@ -1,5 +1,6 @@
 import { type Context, Hono } from "hono";
 import { account } from "./account.js";
+import { auditLog } from "./audit-log.js";
 import { auth } from "./auth.js";
 import { reviewNow } from "./auto-review/review-now.js";
 import { type AutoReviewService, autoReviewRoute } from "./auto-review/routes.js";
@@ -123,6 +124,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
   app.route("/sessions", sessions);
   app.route("/export", exportRoute);
   app.route("/account", account);
+  app.route("/audit", auditLog);
   app.route("/reviews", reviews);
   app.route("/reviews", reviewChat);
   app.route("/live", liveRoute);

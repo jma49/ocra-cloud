@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { lineCounts, withinBudget } from "../src/platforms/changes.js";
-import type { PullFilesView } from "../src/shared/index.js";
+import type { AuditPage, PullFilesView } from "../src/shared/index.js";
+import { auditLines, lines } from "./audit-lines.js";
 import { resetDb } from "./helpers.js";
 import { connectGitlab, GITLAB, githubFake, signInWithGithub } from "./platform-fakes.js";
 
@@ -254,6 +255,13 @@ describe("acting on a GitHub pull request", () => {
     }
     expect(outcomes).toEqual(["done", "not_mergeable", "head_moved", "refused"]);
     expect(sent[0]?.body).toEqual({ merge_method: "squash", sha: HEAD });
+    const log = (await (await a.send("/api/audit")).json()) as AuditPage;
+    expect(auditLines(log.events)).toEqual(
+      lines(
+        ["pull.merged", { pull: "octo/api#7", method: "squash" }],
+        ["session.signed_in", { client: "web", method: "github" }],
+      ),
+    );
   });
 
   it("comments on the conversation, and answers a refusal as one", async () => {

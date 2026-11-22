@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { audit } from "./audit.js";
+import { audit, auditRow } from "./audit.js";
 import { catalogOf } from "./catalog.js";
 import { encryptSecret, keyBinding } from "./crypto.js";
 import { RETENTION_DAYS } from "./db/retention.js";
@@ -122,10 +122,7 @@ keys.put("/:provider", perMinute("keys"), jsonBody(keyRequest), async (c) => {
       },
       ["accountId", "provider"],
     ),
-    w.insert("auditEvents", {
-      kind: "key.saved",
-      detail: { provider, check: check.status },
-    }),
+    w.insert("auditEvents", auditRow("key.saved", { provider, check: check.status })),
   ]);
   return c.json({ provider, last4: key.slice(-4), check });
 });

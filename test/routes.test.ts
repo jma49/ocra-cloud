@@ -125,6 +125,7 @@ const ACCESS: Record<string, Access> = {
   "DELETE /api/account": "web",
   "GET /api/account/sharing": "web",
   "PUT /api/account/sharing": "web",
+  "GET /api/audit": "web",
   "GET /api/account/salt": "web+cli",
   "POST /api/reviews": "web+cli",
   "GET /api/reviews/:id": "web",

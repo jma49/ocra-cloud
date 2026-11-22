@@ -1,5 +1,6 @@
 import { type Context, Hono } from "hono";
 import { z } from "zod";
+import { audit } from "./audit.js";
 import { apiError, jsonBody } from "./http.js";
 import { fixMessage, repoFilePath } from "./platforms/fix.js";
 import { accessToken } from "./platforms/links.js";
@@ -227,7 +228,11 @@ pullPage.post(
     const { platform, token } = reached;
     if (!platform.actions.verdicts.includes(verdict)) return c.json({ outcome: "refused" });
     const review = { verdict, body, head, comments };
-    return answer(c, await platform.actions.review(token, repo, number, review));
+    const outcome = await platform.actions.review(token, repo, number, review);
+    if (outcome === "done") {
+      await audit(c.var.data, "pull.reviewed", { pull: `${repo}#${number}`, verdict });
+    }
+    return answer(c, outcome);
   },
 );
 
@@ -243,7 +248,12 @@ pullPage.post(
     const { platform, token } = reached;
     const allowed = await mergeMethodsOf(platform, token, body.repo);
     if (!allowed.includes(body.method)) return methodNotAllowed(c);
-    return answer(c, await mergeOne(platform, token, body, allowed));
+    const outcome = await mergeOne(platform, token, body, allowed);
+    if (outcome === "done") {
+      const pull = `${body.repo}#${body.number}`;
+      await audit(c.var.data, "pull.merged", { pull, method: body.method });
+    }
+    return answer(c, outcome);
   },
 );
 
@@ -326,7 +336,11 @@ pullPage.post(
       fixes: [fix],
       message: fixMessage(finding.title),
     });
-    if (outcome === "done") await data.findingOutcomes.markFixed([finding.id], "applied");
+    if (outcome === "done") {
+      await data.findingOutcomes.markFixed([finding.id], "applied");
+      const at = `${pull.repo}#${pull.number}`;
+      await audit(data, "pull.fix_applied", { pull: at, finding: finding.id });
+    }
     return answer(c, outcome);
   },
 );
