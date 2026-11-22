@@ -1,0 +1,1 @@
+ALTER TABLE "platform_links" ADD COLUMN "login" text;
