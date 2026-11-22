@@ -69,11 +69,16 @@ it("stays calm when the rest cannot be read, and names owner groups and stale ap
       { owners: ["@octo/ops"], files: 1, state: "unknown", approvedBy: [], required: null },
     ],
     staleApprovals: ["grace"],
-    otherRules: [],
+    otherRules: ["merge_queue", "required_signatures", "pull_request_title"],
   });
   render(<ReadinessBox pull={pull} head={HEAD} />);
   expect((await screen.findByText("Nothing in the way")).className).toBe("badge");
   expect(screen.getByText("approved by ada, 2 files")).toBeTruthy();
   expect(screen.getByText("cannot be read, 1 file")).toBeTruthy();
   expect(screen.getByText("Approved an earlier head: grace")).toBeTruthy();
+  expect(
+    screen.getByText(
+      "Also required by branch rules: a merge queue, signed commits, pull request title",
+    ),
+  ).toBeTruthy();
 });
