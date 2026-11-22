@@ -112,8 +112,9 @@ beforeAll(async () => {
       MASTER_KEY: Buffer.alloc(32, 3).toString("base64"),
       SESSION_SECRET: "e2e-session-secret",
       OIDC_ISSUER: gitlab.url,
-      OIDC_CLIENT_ID: "ocra-sso",
-      OIDC_CLIENT_SECRET: "sso-secret",
+      // One GitLab application signs people in and connects GitLab.
+      OIDC_CLIENT_ID: "ocra-app",
+      OIDC_CLIENT_SECRET: "app-secret",
       OIDC_NAME: "GitLab",
       GITLAB_URL: gitlab.url,
       GITLAB_CLIENT_ID: "ocra-app",
@@ -159,18 +160,20 @@ describe("ocra Cloud with a self-managed GitLab", () => {
   const visit = browser();
   let secret = "";
 
-  it("signs a person in with the instance's OpenID Connect and connects their GitLab", async () => {
+  it("signs a person in with the instance's OpenID Connect, which connects their GitLab too", async () => {
     const login = await visit("/api/auth/oidc/login");
-    expect(login.headers.get("location")).toMatch(`${gitlab.url}/oauth/authorize?`);
-    const back = new URL(await authorize(login.headers.get("location") ?? ""));
+    const to = new URL(login.headers.get("location") ?? "");
+    expect(to.toString()).toMatch(`${gitlab.url}/oauth/authorize?`);
+    expect(to.searchParams.get("scope")).toBe("openid profile email api");
+    const back = new URL(await authorize(to.toString()));
     expect((await visit(back.pathname + back.search)).status).toBe(302);
     expect(await (await visit("/api/me")).json()).toMatchObject({ login: PERSON.username });
-
-    const connect = await visit("/api/platforms/gitlab/connect");
-    const linked = new URL(await authorize(connect.headers.get("location") ?? ""));
-    expect((await visit(linked.pathname + linked.search)).headers.get("location")).toBe(
-      "/repositories",
-    );
+    const listed = (await (await visit("/api/platforms/repos")).json()) as {
+      platforms: { platform: string; linked: boolean }[];
+    };
+    expect(listed.platforms).toEqual([
+      expect.objectContaining({ platform: "gitlab", linked: true }),
+    ]);
   });
 
   it("enrolls the project for review and gives the hook's address and secret", async () => {

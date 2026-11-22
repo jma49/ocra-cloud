@@ -1,8 +1,13 @@
 import { Hono } from "hono";
 import { pkceChallenge, randomToken } from "./crypto.js";
 import { upsertAccount } from "./db/accounts.js";
+import { scoped } from "./db/scoped.js";
 import { apiError } from "./http.js";
+import { gitlab } from "./platforms/gitlab.js";
 import { platformCall } from "./platforms/http.js";
+import { saveToken } from "./platforms/links.js";
+import type { TokenAnswer } from "./platforms/platform.js";
+import { gitlabCallback, gitlabClientOf } from "./platforms/registry.js";
 import { signInBrowser } from "./session.js";
 import { finishSignIn, startSignIn } from "./sign-in-state.js";
 import type { AppBindings, AppEnv } from "./types.js";
@@ -59,6 +64,16 @@ async function endpointsOf(issuer: string): Promise<Endpoints | undefined> {
   return endpoints;
 }
 
+/**
+ * The deployment's GitLab, when people sign in with the same application
+ * of it that connects GitLab: then one consent does both, and the sign-in's
+ * token, with the api scope, is kept as the person's GitLab link.
+ */
+function gitlabSignIn(env: AppBindings, client: OidcClient) {
+  const lab = gitlabClientOf(env);
+  return lab && lab.id === client.id && lab.url === client.issuer ? lab : undefined;
+}
+
 /** Forgets the discovered endpoints (for tests). */
 export function forgetDiscovery(): void {
   discovered.clear();
@@ -90,7 +105,8 @@ oidc.get("/login", async (c) => {
   url.searchParams.set("response_type", "code");
   url.searchParams.set("client_id", client.id);
   url.searchParams.set("redirect_uri", callbackUrl(c.req.url));
-  url.searchParams.set("scope", "openid profile email");
+  const scope = gitlabSignIn(c.env, client) ? "openid profile email api" : "openid profile email";
+  url.searchParams.set("scope", scope);
   url.searchParams.set("state", state);
   url.searchParams.set("code_challenge", await pkceChallenge(verifier));
   url.searchParams.set("code_challenge_method", "S256");
@@ -105,7 +121,7 @@ oidc.get("/callback", async (c) => {
   if (!signIn?.verifier || !code) return apiError(c, "bad_state");
   const endpoints = await endpointsOf(client.issuer);
   if (!endpoints) return apiError(c, "upstream_unreachable");
-  const token = await platformCall<{ access_token?: unknown }>(endpoints.token, {
+  const token = await platformCall<TokenAnswer>(endpoints.token, {
     method: "POST",
     headers: {
       accept: "application/json",
@@ -129,6 +145,11 @@ oidc.get("/callback", async (c) => {
     { provider: "oidc", subject: info.sub },
     loginOf(info, info.sub),
   );
+  const lab = gitlabSignIn(c.env, client);
+  if (lab) {
+    const platform = gitlab(lab, gitlabCallback(c.req.url));
+    await saveToken(scoped(c.var.db, account.id), c.env, platform, token);
+  }
   await signInBrowser(c, account.id);
   return c.redirect(signIn.next, 302);
 });
