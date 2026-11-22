@@ -1,5 +1,5 @@
 import { loadKeys } from "../account-keys.js";
-import { api, type Usage } from "../api.js";
+import { api, type Reviews, type Session, type Usage } from "../api.js";
 import { useCached } from "../cache.js";
 import { compact, num } from "../format.js";
 import { Link } from "../router.js";
@@ -22,6 +22,13 @@ export function Overview(props: { login: string }) {
   const pct = usage ? Math.min(100, (usage.today / usage.dailyLimit) * 100) : 0;
   const keyCount = keys?.keys.length ?? 0;
   const anyCalls = (usage?.series ?? []).some((d) => d.calls > 0);
+  const { data: sessions } = useCached("/sessions", () =>
+    api<{ sessions: Session[] }>("/sessions"),
+  );
+  const { data: reviews } = useCached("/reviews?days=30", () => api<Reviews>("/reviews?days=30"));
+  const cli = sessions?.sessions.some((x) => x.kind === "cli") ?? false;
+  const reviewed = anyCalls || (reviews?.summary.reviews ?? 0) > 0;
+  const started = keyCount > 0 && cli && reviewed;
 
   return (
     <>
@@ -79,24 +86,26 @@ export function Overview(props: { login: string }) {
         </div>
       </div>
 
-      <div className="section">
-        <div className="section-title">Get started</div>
-        <div className="card steps">
-          <Step n={1} done={keyCount > 0} title="Add a provider key">
-            Bring your own key from {anyProvider(providers?.length)}.{" "}
-            <Link to="/keys">Add a key</Link>
-          </Step>
-          <Step n={2} title="Install the CLI">
-            <span className="cmd">npm install -g @open-cr-agent/cli</span>
-          </Step>
-          <Step n={3} title="Sign in from the terminal">
-            <span className="cmd">ocra login</span>
-          </Step>
-          <Step n={4} done={anyCalls} title="Review a change">
-            <span className="cmd">ocra review</span>
-          </Step>
+      {!started && (
+        <div className="section">
+          <div className="section-title">Get started</div>
+          <div className="card steps">
+            <Step n={1} done={keyCount > 0} title="Add a provider key">
+              Bring your own key from {anyProvider(providers?.length)}.{" "}
+              <Link to="/keys">Add a key</Link>
+            </Step>
+            <Step n={2} done={cli} title="Install the CLI">
+              <span className="cmd">npm install -g @open-cr-agent/cli</span>
+            </Step>
+            <Step n={3} done={cli} title="Sign in from the terminal">
+              <span className="cmd">ocra login</span>
+            </Step>
+            <Step n={4} done={reviewed} title="Review a change">
+              <span className="cmd">ocra review</span>
+            </Step>
+          </div>
         </div>
-      </div>
+      )}
     </>
   );
 }
