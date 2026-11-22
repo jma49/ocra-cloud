@@ -1239,3 +1239,21 @@ td.finding-cell {
   align-items: center;
   margin: 12px 0 0;
 }
+/* A review profile in its menu: the name over what it does, the tick beside the name. */
+.profile-menu {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+.profile-item > span:first-child:not(:last-child) {
+  align-self: start;
+  margin-top: 7px;
+}
+.profile-item > span:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 0;
+  max-width: 340px;
+}
