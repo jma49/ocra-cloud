@@ -6,16 +6,42 @@ The same API and web app as app.ocracloud.com, on Node with Postgres or a SQLite
 
 ## Run it
 
-With Docker Compose, on one machine: the server, and Caddy in front of it ending TLS (`selfhost/`).
+With Docker Compose on one machine: the server, Postgres, and Caddy in front of them ending TLS (`selfhost/`). A trial can leave Postgres out and keep its data in a SQLite file (Postgres, below).
 
-```sh
-cd selfhost
-cp .env.example .env            # OCRA_DOMAIN, OCRA_TLS
-cp ocra.env.example ocra.env    # the server's variables, below
-docker compose up -d
-```
+1. **Settings.** From `selfhost/`:
 
-`OCRA_TLS` says where the certificate comes from: `internal` (Caddy's own CA, for a trial), an email for a public name that Let's Encrypt can reach, or `/certs/<cert>.pem /certs/<key>.pem` with the company's certificate placed in `selfhost/certs/`. Compose sets `PUBLIC_URL` and `TRUSTED_PROXY_HOPS` for you. Data lives in the `ocra-data` volume.
+   ```sh
+   cp .env.example .env            # OCRA_DOMAIN, OCRA_TLS, COMPOSE_FILE
+   echo "OCRA_DB_PASSWORD=$(openssl rand -hex 24)" >> .env
+   cp ocra.env.example ocra.env    # the server's variables, below
+   ```
+
+   In `ocra.env`, set at least `MASTER_KEY` and `SESSION_SECRET` (`openssl rand -base64 32` each; keep a copy of the master key, without it the stored keys are lost), one way to sign in (`OIDC_ISSUER`, `OIDC_CLIENT_ID` and `OIDC_CLIENT_SECRET` for a client whose redirect URI is `https://<OCRA_DOMAIN>/api/auth/oidc/callback`, or a GitHub App), and the company's models: `MODEL_ENDPOINTS`, `BUILTIN_PROVIDERS=off` and `DEFAULT_MODELS` (Company models).
+
+2. **Start.**
+
+   ```sh
+   docker compose up -d --build
+   docker compose ps
+   ```
+
+   `COMPOSE_FILE` in `.env` names the Compose files, so every `docker compose` command in this folder runs the same services. A one-off `migrate` run applies the migrations, then the server starts, then Caddy, once the server answers its health check. A setting that is missing or malformed stops the server with a message naming it: `docker compose logs ocra`.
+
+3. **Sign in** at `https://<OCRA_DOMAIN>`. Each account starts with `DEFAULT_MODELS` until it saves its own on the Models page.
+
+4. **Connect the CLI.** Each developer points the `ocra` CLI at this server and signs in once, confirming a code in the browser:
+
+   ```sh
+   export OCRA_CLOUD_URL=https://ocra.example.com
+   ocra login
+   ocra review     # in a repository with changes
+   ```
+
+   The review's model calls go through this server's gateway, metered and capped per account; the CLI never holds the model's key. To connect GitLab and have a bot review every merge request, see [gitlab.md](gitlab.md).
+
+`OCRA_TLS` says where the certificate comes from: `internal` (Caddy's own CA, for a trial), an email for a public name that Let's Encrypt can reach, or `/certs/<cert>.pem /certs/<key>.pem` with the company's certificate placed in `selfhost/certs/`. With `internal`, browsers and the CLI trust the server only once they trust Caddy's root: export it with `docker compose cp caddy:/data/caddy/pki/authorities/local/root.crt ocra-root.crt`, add it to the machine's trust store, and give it to the CLI as `NODE_EXTRA_CA_CERTS=ocra-root.crt` (without it, `ocra login` fails with `fetch failed`). Compose sets `PUBLIC_URL` and `TRUSTED_PROXY_HOPS` for you. Data lives in the `postgres-data` volume, or `ocra-data` for the SQLite file.
+
+**Upgrade** with `git pull` and the same `docker compose up -d --build`: the image is rebuilt, and the `migrate` run applies new migrations before the server restarts. Without `--build`, Compose keeps running the image it built before. Back up first (Limits of this first version).
 
 Behind your own load balancer instead, run the image alone:
 
@@ -42,7 +68,7 @@ Without Docker: `npm ci && npm run build:web && npm run build:node`, then `node 
 | `PUBLIC_URL` | behind a TLS proxy | the address people open, such as `https://ocra.example.com` |
 | `TRUSTED_PROXY_HOPS` | behind a proxy | how many proxies in front append to `X-Forwarded-For` (1 for one TLS proxy); the login code limits count by the address read past them. 0, the socket's peer, when unset |
 | `MODEL_ENDPOINTS` | for company models | the company's own OpenAI-compatible model endpoints, as JSON (Company models below) |
-| `DEFAULT_MODELS` | no | the default models, as JSON (`{"top": ["ocra-corp/qwen3-coder"], "light": "ocra-corp/qwen3-8b"}`), that an account starts with until it saves its own; each must be one the gateway serves |
+| `DEFAULT_MODELS` | no | the default models, as JSON (`{"top": ["ocra-corp/qwen3-coder"], "light": "ocra-corp/qwen3-8b"}`), that an account starts with until it saves its own; each must be one the gateway serves. A tier left out (`top`, `standard`, `light`) takes the nearest named tier's models, stronger first, so one model is enough |
 | `BUILTIN_PROVIDERS` | no | `off` forwards to `MODEL_ENDPOINTS` only, never to the public providers; `on` when unset |
 | `GITHUB_WEBHOOK_SECRET` | for GitHub code graphs | your GitHub App's webhook secret; the App's webhook URL is `<PUBLIC_URL>/api/webhooks/github` (`/api/graphs/webhooks/github`, its earlier address, still answers), subscribed to push and pull request events. The App's webhooks are refused without it |
 | `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY` | for GitHub auto review | your GitHub App's id and private key (PEM; `\n` for line breaks on one line). Each review gets an installation token limited to its repository; the App needs Contents read, Pull requests read and write, Checks read and write (for pre-merge checks), and the pull request, pull request review, issue comment and pull request review comment webhook events |
@@ -92,24 +118,13 @@ With `DEFAULT_MODELS` naming them, a colleague who signs in for the first time r
 
 ## Postgres
 
-For a team, keep the data in Postgres (13 or later): `DATABASE_URL=postgres://…`. With Compose, `docker-compose.postgres.yml` runs Postgres 17 in a container beside the server, its data in the `postgres-data` volume:
-
-```sh
-echo "OCRA_DB_PASSWORD=$(openssl rand -hex 24)" >> .env
-docker compose -f docker-compose.yml -f docker-compose.postgres.yml up -d
-```
-
-A one-off `migrate` run applies `migrations-pg/` before the server starts. To use the company's own Postgres instead, leave that file out and set `DATABASE_URL` in `ocra.env`. The tables and values are those of the SQLite schema: times are milliseconds in `bigint` columns, JSON is text. Back up with `pg_dump`.
+For a team, keep the data in Postgres (13 or later): `DATABASE_URL=postgres://…`. Run it names `docker-compose.postgres.yml` in `COMPOSE_FILE`, which runs Postgres 17 in a container beside the server, its data in the `postgres-data` volume, and a one-off `migrate` run that applies `migrations-pg/` before the server starts. For a trial on a SQLite file instead, set `COMPOSE_FILE=docker-compose.yml` in `.env`. To use the company's own Postgres, leave that file out and set `DATABASE_URL` in `ocra.env`. The tables and values are those of the SQLite schema: times are milliseconds in `bigint` columns, JSON is text. Back up with `pg_dump`.
 
 ## Several processes
 
-`docker-compose.replicas.yml` runs several ocra processes on this machine against its database, behind the same Caddy:
+`docker-compose.replicas.yml` runs several ocra processes on this machine against its database, behind the same Caddy: add it to `COMPOSE_FILE` in `.env` (`docker-compose.yml:docker-compose.postgres.yml:docker-compose.replicas.yml`) and run `docker compose up -d --build`.
 
-```sh
-docker compose -f docker-compose.yml -f docker-compose.replicas.yml up -d
-```
-
-A one-off `migrate` run (`MIGRATE=only`) applies the migrations first; the replicas (`OCRA_REPLICAS` in `.env`, 2 by default) start after it with `MIGRATE=off` and `RATE_LIMITS=database`. Caddy sends requests to each in turn and skips one that fails its health check. The SQLite file runs in WAL mode, so readers do not wait for the writer. For processes on several machines, point `DATABASE_URL` at Postgres (add `-f docker-compose.postgres.yml` here) or a libSQL server, with the same two settings.
+A one-off `migrate` run (`MIGRATE=only`) applies the migrations first; the replicas (`OCRA_REPLICAS` in `.env`, 2 by default) start after it with `MIGRATE=off` and `RATE_LIMITS=database`. Caddy sends requests to each in turn and skips one that fails its health check. The SQLite file runs in WAL mode, so readers do not wait for the writer. For processes on several machines, point `DATABASE_URL` at Postgres or a libSQL server, with the same two settings.
 
 ## Code graphs
 

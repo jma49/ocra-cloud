@@ -1,8 +1,6 @@
 # ocra Cloud on Postgres instead of the SQLite file, in a container beside it
-# (docs/self-hosting.md, Postgres):
-#   docker compose -f docker-compose.yml -f docker-compose.postgres.yml up -d
-# One run applies the migrations before the server starts. Add
-# -f docker-compose.replicas.yml for several processes.
+# (docs/self-hosting.md, Postgres), named in COMPOSE_FILE in .env. One run
+# applies the migrations before the server starts.
 
 services:
   postgres:

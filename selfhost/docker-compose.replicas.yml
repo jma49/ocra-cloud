@@ -1,7 +1,6 @@
 # Several ocra processes on this machine, sharing its database, behind the
-# same Caddy (docs/self-hosting.md, Several processes):
-#   docker compose -f docker-compose.yml -f docker-compose.replicas.yml up -d
-# One run applies the migrations first; the replicas then count the rate
+# same Caddy (docs/self-hosting.md, Several processes), added to COMPOSE_FILE
+# in .env. One run applies the migrations first; the replicas then count the rate
 # limits in the database, so each limit holds for the whole deployment.
 
 services:

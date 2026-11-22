@@ -66,6 +66,17 @@ describe("the self-hosted server", () => {
     );
   });
 
+  it("refuses to start with a master key that is not 32 bytes of base64", () => {
+    for (const key of ["change-me", btoa("x".repeat(16))]) {
+      expect(() => bindingsFrom({ ...VARS, MASTER_KEY: key })).toThrow(
+        "MASTER_KEY must be base64 of 32 random bytes",
+      );
+      expect(() => bindingsFrom({ ...VARS, MASTER_KEY_PREVIOUS: key })).toThrow(
+        "MASTER_KEY_PREVIOUS must be base64 of 32 random bytes",
+      );
+    }
+  });
+
   it("starts with OpenID Connect as its only sign-in, and refuses to start with none", async () => {
     const { GITHUB_CLIENT_ID: _id, GITHUB_CLIENT_SECRET: _secret, ...rest } = VARS;
     const sso = {
