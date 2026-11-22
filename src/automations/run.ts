@@ -137,7 +137,7 @@ async function perform(
     const channel = await runner.data.get("notifyChannels", action.channelId);
     if (!channel) return "channel_gone";
     const platform = runner.platforms.find((p) => p.host === event.pull.host);
-    const pull = { ...event.pull, repo: event.pull.fullName, head: "" };
+    const pull = { repo: event.pull.fullName, number: event.pull.number };
     const message = ruleMessage({
       rule: rule.name,
       pull: {

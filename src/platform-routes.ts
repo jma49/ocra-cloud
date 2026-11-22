@@ -61,7 +61,7 @@ platformsRoute.get("/repos", requireSession(), async (c) => {
             fullName: r.fullName,
             url: r.url,
             private: r.private,
-            repoHash: salt ? await repoHashOf(salt, l.platform.host, r.fullName) : null,
+            repoHash: salt ? await repoHashOf(salt, l.platform, r.fullName) : null,
           })),
         ),
       })),
@@ -94,9 +94,9 @@ platformsRoute.post("/sync-names", requireSession(), perMinute("settings"), asyn
   const named = await c.var.data.nameRepos(
     await Promise.all(
       listed
-        .flatMap((l) => l.repositories.map((r) => ({ host: l.platform.host, name: r.fullName })))
+        .flatMap((l) => l.repositories.map((r) => ({ platform: l.platform, name: r.fullName })))
         .slice(0, MAX_NAMED)
-        .map(async (r) => ({ repoHash: await repoHashOf(salt, r.host, r.name), name: r.name })),
+        .map(async (r) => ({ repoHash: await repoHashOf(salt, r.platform, r.name), name: r.name })),
     ),
     MAX_NAMED,
   );

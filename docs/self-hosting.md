@@ -1,5 +1,7 @@
 # Self-hosting ocra Cloud
 
+A company GitLab with its own models, end to end: [gitlab.md](gitlab.md).
+
 The same API and web app as app.ocracloud.com, on Node with Postgres or a SQLite file instead of Cloudflare Workers and D1. `src/node/` is the only code that differs: it opens Postgres or libSQL, reads the client's address from the socket or a trusted proxy, keeps the rate limits in memory, runs the daily retention, and serves `web/dist`. `test-node/` runs the app this way in CI.
 
 ## Run it
@@ -35,7 +37,7 @@ Without Docker: `npm ci && npm run build:web && npm run build:node`, then `node 
 | `MASTER_KEY_PREVIOUS` | during a rotation | as on Workers (`docs/rotation.md`) |
 | `SESSION_SECRET` | yes | signs the sign-in state cookie |
 | `GITLAB_CLIENT_ID`, `GITLAB_CLIENT_SECRET` | to connect GitLab | a GitLab OAuth application (scope `api`: the console comments, approves and merges as the user); its redirect URI is `<PUBLIC_URL>/api/platforms/gitlab/callback` |
-| `GITLAB_URL` | for a self-hosted GitLab | the instance, such as `https://gitlab.example.com`; `https://gitlab.com` when unset |
+| `GITLAB_URL` | for a self-hosted GitLab | the instance, such as `https://gitlab.example.com`, or `https://example.com/gitlab` for one installed under a relative URL root; `https://gitlab.com` when unset |
 | `PUBLIC_URL` | behind a TLS proxy | the address people open, such as `https://ocra.example.com` |
 | `TRUSTED_PROXY_HOPS` | behind a proxy | how many proxies in front append to `X-Forwarded-For` (1 for one TLS proxy); the login code limits count by the address read past them. 0, the socket's peer, when unset |
 | `MODEL_ENDPOINTS` | for company models | the company's own OpenAI-compatible model endpoints, as JSON (Company models below) |
@@ -52,6 +54,8 @@ Without Docker: `npm ci && npm run build:web && npm run build:node`, then `node 
 | `MIGRATE` | with several processes | `on` (the default) applies the migrations at start, `off` leaves them, `only` applies them and exits |
 | `SMTP_URL` | for email notifications | the mail server, as `smtp://user:password@host:587` (STARTTLS when the server offers it) or `smtps://user:password@host:465`; without it email channels are refused |
 | `SMTP_FROM` | with `SMTP_URL` | the address email is sent from, such as `ocra@example.com` |
+| `NODE_EXTRA_CA_CERTS` | for a company certificate authority | its certificate (PEM), which the server and each review's CLI then trust; git reads the system's store or `GIT_SSL_CAINFO` (gitlab.md, Certificates and proxy) |
+| `HTTPS_PROXY`, `HTTP_PROXY`, `NO_PROXY` | behind a proxy | passed, with the certificate variables, to each review's git and CLI |
 | `PORT` | no | 8787 |
 | `GATEWAY_DAILY_CALLS`, `REVIEW_DAILY_UPLOADS`, `REVIEW_MAX_FINDINGS`, `DEVICE_DAILY_CODES`, `DEVICE_DAILY_CODES_PER_NETWORK` | no | the Worker's defaults (`wrangler.jsonc`) |
 
@@ -125,7 +129,7 @@ A pull request's impact (`/api/graphs/repos/<id>/impact?pull=<number>`) is compu
 
 With a bot's credentials and `PUBLIC_URL` set, the server reviews pull requests itself (ADR-0046 of the engine): an account enrolls a repository (`/api/auto-review/repos`; one account per repository, whose models, keys, budget and rules the reviews use), and a pull request is queued when it opens, reopens, leaves draft or gains commits. GitHub's events come through the App's webhook (`/api/webhooks/github`), GitLab's through a project hook to `/api/auto-review/webhooks/gitlab` with the secret the server answers when the repository is enrolled. A newer head supersedes a queued one, and one pull request is reviewed once at a time.
 
-Each review clones the repository into a new temporary directory and runs the installed `ocra` CLI there, as CI does: `ocra review --pr <n> --publish --no-repo-config` (`--mr` on GitLab), signed in to this server as the enrolling account through a session made for the run. Nothing from the pull request runs. It posts as the bot, and gets only the variables it needs, none of this server's secrets. The directory and the session are removed when the run ends, whatever its outcome; a failed run is retried twice, five and ten minutes later. The image includes git; a server run outside it needs git on its `PATH`.
+Each review clones the repository into a new temporary directory and runs the installed `ocra` CLI there, as CI does: `ocra review --pr <n> --publish --no-repo-config` (`--mr` on GitLab), signed in to this server as the enrolling account through a session made for the run. Nothing from the pull request runs. It posts as the bot, and gets only the variables it needs, none of this server's secrets: those of the certificate authorities and the proxy are passed on. The directory and the session are removed when the run ends, whatever its outcome; a failed run is retried twice, five and ten minutes later. The image includes git; a server run outside it needs git on its `PATH`.
 
 A comment that mentions `@ocra` on an enrolled repository's pull request, written by a person (never a bot), queues an answer, once per comment: `ocra reply --pr <n> --comment <id>` (`--inline` for a review comment, `--mr` on GitLab) runs the same way, and the CLI answers in the comment's thread or decides there is nothing to answer. GitHub sends these as the App's issue comment and pull request review comment events; on GitLab, tick Comments (note events) on the same project hook. A failed answer is retried like a review.
 
