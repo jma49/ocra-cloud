@@ -143,6 +143,19 @@ describe("query plans", () => {
     );
   });
 
+  it("the daily digest reads reviews and findings through their account indexes", async () => {
+    const seen: Captured[] = [];
+    const d = scoped(drizzle(recording(seen)), "acct");
+    await d.notify.digestOf(new Date(0), new Date(), true);
+    await d.notify.digesting();
+    await d.notify.listening(["every"]);
+    expect(seen).toHaveLength(4);
+    const [reviews, findings, ...channels] = await Promise.all(seen.map(plan));
+    expect(reviews).toMatch(/SEARCH reviews USING INDEX reviews_account_created/);
+    expect(findings).toMatch(/SEARCH findings USING INDEX findings_account_status_created/);
+    for (const p of [reviews, findings, ...channels]) expect(p).not.toMatch(/\bSCAN\b/);
+  });
+
   it("a review's findings are found by review_id, for the delete's cascade", async () => {
     const p = await plan({ sql: "SELECT id FROM findings WHERE review_id = ?", params: ["r"] });
     expect(p).toMatch(/SEARCH findings USING (COVERING )?INDEX findings_review/);

@@ -1,9 +1,7 @@
 import type { Context } from "hono";
-import type { MasterKeys } from "../crypto.js";
 import { newId, type Row, type Scoped } from "../db/scoped.js";
-import { masterKeys } from "../keyring.js";
-import { ruleMessageOf } from "../notify/channels.js";
-import { send } from "../notify/notify.js";
+import { ruleMessage } from "../notify/channels.js";
+import { type Outbox, outboxOf, send } from "../notify/notify.js";
 import type { BotCredential, BotTokens } from "../platforms/bot.js";
 import type { CodePlatform } from "../platforms/platform.js";
 import { platformsOf } from "../platforms/registry.js";
@@ -43,7 +41,7 @@ export type AutomationEvent = {
 
 type Runner = {
   data: Scoped;
-  keys: MasterKeys;
+  out: Outbox;
   bots: BotTokens | undefined;
   platforms: readonly CodePlatform[];
 };
@@ -70,7 +68,7 @@ export async function automate(
   const rules = await matchingRules(data, event.trigger, event.facts);
   const runner = {
     data,
-    keys: masterKeys(c.env),
+    out: outboxOf(c),
     bots: c.var.bots,
     platforms: platformsOf(c.env, c.req.url),
   };
@@ -140,7 +138,7 @@ async function perform(
     if (!channel) return "channel_gone";
     const platform = runner.platforms.find((p) => p.host === event.pull.host);
     const pull = { ...event.pull, repo: event.pull.fullName, head: "" };
-    const body = ruleMessageOf(channel.kind, {
+    const message = ruleMessage({
       rule: rule.name,
       pull: {
         label: `${event.pull.fullName}#${event.pull.number}`,
@@ -148,7 +146,7 @@ async function perform(
       },
       consoleUrl: event.consoleUrl,
     });
-    return (await send(runner.data, runner.keys, channel, body)) ? "done" : "unreached";
+    return (await send(runner.data, runner.out, channel, message)) ? "done" : "unreached";
   }
   if (!event.repo) return "not_enrolled";
   if (!runner.bots) return "needs_self_hosted";

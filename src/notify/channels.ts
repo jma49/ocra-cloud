@@ -6,8 +6,10 @@ import type { NotifyKind, NotifyWhen } from "../shared/index.js";
 // counts and links, and the titles of its most severe findings when the
 // account shares findings; titles are model text, so they are made plain.
 
+export type HookKind = Exclude<NotifyKind, "email">;
+
 /** Only the chat's own host: the server never posts to an address a user typed freely. */
-const HOOKS: Record<NotifyKind, (u: URL) => boolean> = {
+const HOOKS: Record<HookKind, (u: URL) => boolean> = {
   slack: (u) =>
     u.hostname === "hooks.slack.com" &&
     /^\/services\/[A-Za-z0-9]+\/[A-Za-z0-9]+\/[A-Za-z0-9]+$/.test(u.pathname),
@@ -19,7 +21,7 @@ const HOOKS: Record<NotifyKind, (u: URL) => boolean> = {
 };
 
 /** The webhook address as it will be called, or undefined when the kind does not take it. */
-export function hookUrl(kind: NotifyKind, address: string): string | undefined {
+export function hookUrl(kind: HookKind, address: string): string | undefined {
   let url: URL;
   try {
     url = new URL(address.trim());
@@ -55,7 +57,7 @@ export type ReviewNotice = {
 const MAX_TITLE = 120;
 
 /** One line of model text with nothing a chat reads as markup or a mention. */
-function plain(text: string): string {
+export function plain(text: string): string {
   const line = text.replace(/\s+/g, " ").trim();
   const safe = [...line]
     .filter((ch) => !/\p{Cc}/u.test(ch))
@@ -67,26 +69,22 @@ function plain(text: string): string {
   return chars.length > MAX_TITLE ? `${chars.slice(0, MAX_TITLE - 1).join("")}…` : safe;
 }
 
-function lines(n: ReviewNotice, link: (label: string, url: string) => string): string[] {
-  const what = n.pull ? link(n.pull.label, n.pull.url) : "a change";
+/** Text, or a link; a renderer turns each into its medium's form. */
+type Piece = string | { label: string; url: string };
+/** What a channel is told: the subject only an email shows, then its lines. */
+export type Message = { subject: string; lines: Piece[][] };
+
+export function reviewMessage(n: ReviewNotice): Message {
   const counts = `${n.critical} critical · ${n.warning} warning · ${n.suggestion} suggestion`;
   const verdict = n.verdict ? ` · ${n.verdict.replaceAll("_", " ")}` : "";
-  return [
-    `ocra reviewed ${what}`,
-    `${counts}${verdict}${n.complete ? "" : " · incomplete"}`,
-    ...n.titles.map((t) => `• ${plain(t.title)} (${plain(t.file)})`),
-    link("Open in ocra", n.consoleUrl),
-  ];
-}
-
-/** The body the chat's webhook takes. */
-export function messageOf(kind: NotifyKind, n: ReviewNotice): unknown {
-  if (kind === "slack") {
-    return { text: lines(n, (label, url) => `<${url}|${label}>`).join("\n") };
-  }
   return {
-    msgtype: "markdown",
-    markdown: { content: lines(n, (label, url) => `[${label}](${url})`).join("\n") },
+    subject: `ocra reviewed ${n.pull ? plain(n.pull.label) : "a change"}: ${counts}`,
+    lines: [
+      ["ocra reviewed ", n.pull ?? "a change"],
+      [`${counts}${verdict}${n.complete ? "" : " · incomplete"}`],
+      ...n.titles.map((t) => [`• ${plain(t.title)} (${plain(t.file)})`]),
+      [{ label: "Open in ocra", url: n.consoleUrl }],
+    ],
   };
 }
 
@@ -97,22 +95,40 @@ export type RuleNotice = {
   consoleUrl: string;
 };
 
-/** The body the chat's webhook takes, for an automation rule that ran. */
-export function ruleMessageOf(kind: NotifyKind, n: RuleNotice): unknown {
-  const text = (link: (label: string, url: string) => string) =>
-    [
-      `ocra automation "${plain(n.rule)}" ran on ${n.pull.url ? link(n.pull.label, n.pull.url) : plain(n.pull.label)}`,
-      link("Open in ocra", n.consoleUrl),
-    ].join("\n");
-  if (kind === "slack") return { text: text((label, url) => `<${url}|${label}>`) };
+/** The message of an automation rule that ran. */
+export function ruleMessage(n: RuleNotice): Message {
+  const pull: Piece = n.pull.url ? { label: n.pull.label, url: n.pull.url } : plain(n.pull.label);
   return {
-    msgtype: "markdown",
-    markdown: { content: text((label, url) => `[${label}](${url})`) },
+    subject: `ocra automation "${plain(n.rule)}" ran on ${plain(n.pull.label)}`,
+    lines: [
+      [`ocra automation "${plain(n.rule)}" ran on `, pull],
+      [{ label: "Open in ocra", url: n.consoleUrl }],
+    ],
   };
 }
 
+const render = (m: Message, link: (label: string, url: string) => string) =>
+  m.lines.map((line) =>
+    line.map((p) => (typeof p === "string" ? p : link(p.label, p.url))).join(""),
+  );
+
+/** The body the chat's webhook takes. */
+export function messageOf(kind: HookKind, m: Message): unknown {
+  if (kind === "slack") {
+    return { text: render(m, (label, url) => `<${url}|${label}>`).join("\n") };
+  }
+  return {
+    msgtype: "markdown",
+    markdown: { content: render(m, (label, url) => `[${label}](${url})`).join("\n") },
+  };
+}
+
+/** The message as plain text, each link after its label. */
+export const textOf = (m: Message): string =>
+  render(m, (label, url) => `${label}: ${url}`).join("\n");
+
 /** Whether the chat took the message. */
-export async function deliver(kind: NotifyKind, url: string, body: unknown): Promise<boolean> {
+export async function deliver(kind: HookKind, url: string, body: unknown): Promise<boolean> {
   const sent = await platformSend<{ errcode?: number }>(url, {
     method: "POST",
     headers: { "content-type": "application/json" },

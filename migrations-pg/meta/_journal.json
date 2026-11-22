@@ -64,6 +64,13 @@
       "when": 1795347936896,
       "tag": "0008_merge_checks",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1795348576498,
+      "tag": "0009_email_notifications",
+      "breakpoints": true
     }
   ]
 }

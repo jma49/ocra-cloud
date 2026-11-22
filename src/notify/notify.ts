@@ -1,22 +1,52 @@
+import type { Context } from "hono";
 import { decryptWithAny, encryptSecret, type MasterKeys } from "../crypto.js";
 import type { Row, Scoped } from "../db/scoped.js";
+import { masterKeys } from "../keyring.js";
 import type { CodePlatform } from "../platforms/platform.js";
 import { platformOfPull, pullOfReview, pullPageUrl } from "../review-pull.js";
+import type { AppEnv } from "../types.js";
+import {
+  deliver,
+  type Message,
+  messageOf,
+  type ReviewNotice,
+  reviewMessage,
+  whensFor,
+} from "./channels.js";
+import { type Mailer, mailOf, sendMail } from "./email.js";
+import { unsubscribeUrl } from "./links.js";
 
-import { deliver, messageOf, type ReviewNotice, whensFor } from "./channels.js";
+// Announcing a stored review in the account's chats and confirmed email
+// addresses: each channel whose setting takes it gets one message, and
+// keeps how that went. A channel whose address no longer decrypts counts as
+// failed; nothing is retried.
 
-// Announcing a stored review in the account's chats: each channel whose
-// setting takes it gets one message, and keeps how that went. A channel
-// whose address no longer decrypts counts as failed; nothing is retried.
+/** What sending needs from the host: the keys, its mailer if it has one, and its links. */
+export type Outbox = {
+  keys: MasterKeys;
+  mailer: Mailer | undefined;
+  /** Signs the unsubscribe links (SESSION_SECRET). */
+  linkSecret: string;
+  /** The console's origin, which the links point to. */
+  origin: string;
+};
+
+/** The outbox of a request: its links point to the origin it came to. */
+export const outboxOf = (c: Context<AppEnv>): Outbox => ({
+  keys: masterKeys(c.env),
+  mailer: c.var.mailer,
+  linkSecret: c.env.SESSION_SECRET,
+  origin: new URL(c.req.url).origin,
+});
 
 const binding = (accountId: string, channelId: string) =>
   `ocra-notify-channel:v1|${accountId}|${channelId}`;
 
-/** The webhook address sealed to its channel's row. */
+/** The webhook or email address sealed to its channel's row. */
 export const sealHook = (masterKey: string, accountId: string, channelId: string, url: string) =>
   encryptSecret(masterKey, url, binding(accountId, channelId));
 
-async function openHook(keys: MasterKeys, channel: Row<"notifyChannels">) {
+export async function openHook(keys: MasterKeys, channel: Row<"notifyChannels">) {
   try {
     return await decryptWithAny(keys, channel, binding(channel.accountId, channel.id));
   } catch {
@@ -24,15 +54,27 @@ async function openHook(keys: MasterKeys, channel: Row<"notifyChannels">) {
   }
 }
 
-/** Sends the message to the channel and records how it went; whether the chat took it. */
+async function deliverTo(
+  out: Outbox,
+  channel: Row<"notifyChannels">,
+  address: string,
+  m: Message,
+): Promise<boolean> {
+  if (channel.kind !== "email") return deliver(channel.kind, address, messageOf(channel.kind, m));
+  if (!out.mailer || !channel.confirmedAt) return false;
+  const unsubscribe = await unsubscribeUrl(out, channel.accountId, channel.id);
+  return sendMail(out.mailer, mailOf(m, address, unsubscribe));
+}
+
+/** Sends the message to the channel and records how it went; whether it was taken. */
 export async function send(
   data: Scoped,
-  keys: MasterKeys,
+  out: Outbox,
   channel: Row<"notifyChannels">,
-  body: unknown,
+  m: Message,
 ): Promise<boolean> {
-  const url = await openHook(keys, channel);
-  const ok = url !== undefined && (await deliver(channel.kind, url, body));
+  const address = await openHook(out.keys, channel);
+  const ok = address !== undefined && (await deliverTo(out, channel, address, m));
   await data.batch((w) => [
     w.update("notifyChannels", channel.id, {
       lastStatus: ok ? "ok" : "failed",
@@ -73,18 +115,16 @@ async function noticeOf(
   };
 }
 
-/** Announces the review in each of the account's channels that takes it. */
+/** Announces the review in each of the account's confirmed channels that takes it. */
 export async function notifyReview(
   data: Scoped,
-  keys: MasterKeys,
+  out: Outbox,
   review: Row<"reviews">,
   platforms: readonly CodePlatform[],
   consoleUrl: string,
 ): Promise<void> {
-  const channels = (
-    await Promise.all(whensFor(review).map((when) => data.find("notifyChannels", { when })))
-  ).flat();
+  const channels = await data.notify.listening(whensFor(review));
   if (channels.length === 0) return;
-  const notice = await noticeOf(data, review, platforms, consoleUrl);
-  await Promise.all(channels.map((ch) => send(data, keys, ch, messageOf(ch.kind, notice))));
+  const m = reviewMessage(await noticeOf(data, review, platforms, consoleUrl));
+  await Promise.all(channels.map((ch) => send(data, out, ch, m)));
 }

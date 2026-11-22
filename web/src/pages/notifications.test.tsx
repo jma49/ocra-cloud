@@ -14,6 +14,8 @@ const channel = {
   name: "#reviews",
   when: "blocking",
   last4: "Xy9Q",
+  confirmed: true,
+  digest: false,
   lastStatus: null,
   lastSentAt: null,
   createdAt: "2026-11-20T10:00:00Z",

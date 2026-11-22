@@ -65,6 +65,8 @@ export const accounts = sqliteTable("accounts", {
   // The repository-hash salt shared by the account's machines when sharing is on.
   salt: text("salt"),
   createdAt: createdAt(),
+  // The last UTC day whose digest was sent, so that it goes once (src/notify/digest.ts).
+  digestDay: text("digest_day"),
 });
 
 // Who signs in as an account: a sign-in provider's user, by the id it never
@@ -405,7 +407,9 @@ export const usageCounters = sqliteTable(
   "usage_counters",
   {
     accountId: accountId(),
-    kind: text("kind", { enum: ["uploads", "gateway_calls", "findings"] }).notNull(),
+    kind: text("kind", {
+      enum: ["uploads", "gateway_calls", "findings", "email_confirmations"],
+    }).notNull(),
     /** The UTC date, YYYY-MM-DD. */
     day: text("day").notNull(),
     n: integer("n").notNull().default(0),
@@ -550,8 +554,10 @@ export const reviewRepos = sqliteTable(
   ],
 );
 
-// A chat the account's reviews are announced in: its incoming webhook's
-// address, encrypted like a model key (it is the chat's credential).
+// A chat or an email address the account's reviews are announced in: the
+// webhook's address or the email address, encrypted like a model key (a
+// webhook is the chat's credential). An email address gets nothing until
+// the link sent to it is opened: only its token's hash is kept, until then.
 export const notifyChannels = sqliteTable(
   "notify_channels",
   {
@@ -566,6 +572,10 @@ export const notifyChannels = sqliteTable(
     lastStatus: text("last_status", { enum: ["ok", "failed"] }),
     lastSentAt: integer("last_sent_at", { mode: "timestamp_ms" }),
     createdAt: createdAt(),
+    confirmedAt: integer("confirmed_at", { mode: "timestamp_ms" }),
+    confirmTokenHash: text("confirm_token_hash"),
+    confirmExpiresAt: integer("confirm_expires_at", { mode: "timestamp_ms" }),
+    digest: integer("digest", { mode: "boolean" }).notNull().default(false),
   },
   (t) => [index("notify_channels_account").on(t.accountId)],
 );
