@@ -5,6 +5,7 @@ import {
 } from "cloudflare:test";
 
 import { env } from "cloudflare:workers";
+import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { accountSalt, setSharing } from "../src/db/accounts.js";
 import { enforceRetention } from "../src/db/retention.js";
@@ -377,6 +378,47 @@ describe("export and deletion", () => {
         timeZone: "Europe/Berlin",
       }),
     );
+  });
+
+  it("carries the account's digest and report schedule and each channel's settings", async () => {
+    const me = await signIn(1, "octo");
+    const sentFor = new Date(Date.UTC(2026, 10, 16, 9));
+    await db
+      .update(schema.accounts)
+      .set({ digestDay: "2026-11-21", reportWeekday: 3, reportHour: 17, reportSentFor: sentFor })
+      .where(eq(schema.accounts.id, me.account.id));
+    await scoped(db, me.account.id).insert("notifyChannels", {
+      ...rows.notifyChannels("x-channel"),
+      digest: true,
+      weekly: true,
+      events: ["review_requested", "checks_failed"],
+      reminderHours: 4,
+      quietStart: 22,
+      quietEnd: 7,
+    });
+
+    const body = (await (await call("/api/export", { auth: me.auth })).json()) as {
+      account: Record<string, unknown>;
+      notifyChannels: Record<string, unknown>[];
+    };
+    expect(body.account).toEqual(
+      expect.objectContaining({
+        digestDay: "2026-11-21",
+        reportWeekday: 3,
+        reportHour: 17,
+        reportSentFor: sentFor.toISOString(),
+      }),
+    );
+    expect(body.notifyChannels).toEqual([
+      expect.objectContaining({
+        digest: true,
+        weekly: true,
+        events: ["review_requested", "checks_failed"],
+        reminderHours: 4,
+        quietStart: 22,
+        quietEnd: 7,
+      }),
+    ]);
   });
 
   it("deletes one review of the caller's own", async () => {

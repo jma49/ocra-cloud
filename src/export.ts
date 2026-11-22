@@ -171,6 +171,10 @@ async function* exportChunks(
     salt: a.salt,
     inboxSince: a.inboxSince,
     timeZone: a.timeZone,
+    digestDay: a.digestDay,
+    reportWeekday: a.reportWeekday,
+    reportHour: a.reportHour,
+    reportSentFor: a.reportSentFor,
   })}`;
   const truncated: string[] = [];
   for (const [table, key] of Object.entries(EXPORTED) as [Table, string][]) {
