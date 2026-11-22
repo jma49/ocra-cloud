@@ -72,12 +72,18 @@ describe("the auto review page", () => {
       }),
     );
     render(<AutoReview />);
-    const select = (await screen.findByLabelText("Review profile of pay/api")) as HTMLSelectElement;
-    expect(select.value).toBe("balanced");
-    await act(async () => void fireEvent.change(select, { target: { value: "quiet" } }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Review profile of pay/api: Balanced" }),
+    );
+    const quiet = await screen.findByRole("menuitemradio", { name: /^Quiet/ });
+    expect(quiet.textContent).toContain("on the changed lines only");
+    expect(screen.getByRole("menuitemradio", { name: /^Thorough/ }).textContent).toContain(
+      "About twice the cost",
+    );
+    await act(async () => void fireEvent.click(quiet));
     expect(sent).toEqual([
       { url: "/api/auto-review/repos/rr1/profile", body: { profile: "quiet" } },
     ]);
-    expect(select.value).toBe("quiet");
+    expect(screen.getByRole("button", { name: "Review profile of pay/api: Quiet" })).toBeTruthy();
   });
 });
