@@ -70,9 +70,9 @@ export function PullPage(props: {
   }, [platform, repo, number, updatedAt, head]);
   const queue = useLoad(() => api<MergeQueueView>(`/pulls/queue?${query}`), [query.toString()]);
   // Ticks sent from this page, over what the page read; a new head reads them afresh.
-  const [ticked, setTicked] = useState<{ head: string; paths: Record<string, boolean> }>({
+  const [ticked, setTicked] = useState<{ head: string; paths: ReadonlyMap<string, boolean> }>({
     head: "",
-    paths: {},
+    paths: new Map(),
   });
   const [pending, setPending] = useState<LineComment[]>([]);
   const [said, setSaid] = useState<{ what: string; outcome: PullActionOutcome } | null>(null);
@@ -101,18 +101,23 @@ export function PullPage(props: {
     setSaid({ what, outcome });
     if (outcome === "done" && what === "Review") setPending([]);
   };
-  const sent = ticked.head === data.head ? ticked.paths : {};
-  const isViewed = (f: PullFilesView["files"][number]) => sent[f.path] ?? f.viewed === true;
+  const sent = ticked.head === data.head ? ticked.paths : new Map<string, boolean>();
+  const isViewed = (f: PullFilesView["files"][number]) => sent.get(f.path) ?? f.viewed === true;
   const viewedCount = data.files.filter(isViewed).length;
   const markViewed = async (path: string, viewed: boolean) => {
     const head = data.head;
-    setTicked((t) => ({ head, paths: { ...(t.head === head ? t.paths : {}), [path]: viewed } }));
+    // A path is a map key, never an object's: it may be any name, `__proto__` included.
+    const withTick = (keep: boolean) =>
+      setTicked((t) => {
+        const paths = new Map(t.head === head ? t.paths : []);
+        if (keep) paths.set(path, viewed);
+        else paths.delete(path);
+        return { head, paths };
+      });
+    withTick(true);
     const r = await post("viewed", { ...ref, head, paths: [path], viewed }).catch(() => undefined);
     if (r?.outcome === "done") return;
-    setTicked((t) => {
-      const { [path]: _, ...rest } = t.head === head ? t.paths : {};
-      return { head, paths: rest };
-    });
+    withTick(false);
     if (r) done("Viewed", r.outcome);
   };
   return (
