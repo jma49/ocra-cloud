@@ -19,6 +19,7 @@ import { learningsRoute } from "./learnings.js";
 import { errorName, logError } from "./log.js";
 import { meRoute } from "./me.js";
 import { memory } from "./memory.js";
+import { mergeChecksRoute, pullChecksRoute } from "./merge-checks/routes.js";
 import { notifyRoute } from "./notify/routes.js";
 import { oidc } from "./oidc.js";
 import { platformConnect } from "./platform-connect.js";
@@ -78,6 +79,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
     c.set("db", host.openDb(c.env as E));
     c.set("clientAddress", host.clientAddress(c) ?? "unknown");
     c.set("bots", host.bots);
+    if (host.autoReview) c.set("autoReview", host.autoReview);
     await next();
   });
 
@@ -109,9 +111,11 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
   app.route("/platforms", platformsRoute);
   app.route("/platforms", platformConnect);
   app.route("/pull-views", pullViewsRoute);
+  app.route("/pulls/checks", pullChecksRoute);
   app.route("/pulls", pullPage);
   app.route("/pulls", pullStack);
   app.route("/learnings", learningsRoute);
+  app.route("/merge-checks", mergeChecksRoute);
   app.route("/notifications", notifyRoute);
   app.route("/automations", automationsRoute);
   app.route("/insights/cycle", cycles);

@@ -1,3 +1,4 @@
+import type { AutoReviewService } from "./auto-review/routes.js";
 import type { SessionAccount } from "./db/accounts.js";
 import type { Db } from "./db/client.js";
 import type { Scoped } from "./db/scoped.js";
@@ -24,5 +25,7 @@ export type AppEnv = {
     /** Set by requireSession: the signed-in account and its scoped data. */
     session: SessionAccount;
     data: Scoped;
+    /** Where the host reviews pull requests itself (src/node/). */
+    autoReview?: AutoReviewService;
   };
 };

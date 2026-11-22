@@ -112,6 +112,8 @@ describe("deleting an account", () => {
           "graphBuilds",
           "reviewJobs",
           "replyJobs",
+          "mergeChecks",
+          "mergeCheckRuns",
         ].includes(table)
       )
         continue;
@@ -132,6 +134,14 @@ describe("deleting an account", () => {
     });
     await d.insert("replyJobs", {
       ...rows.replyJobs(id("replyJobs")),
+      reviewRepoId: id("reviewRepos"),
+    });
+    await d.insert("mergeChecks", {
+      ...rows.mergeChecks(id("mergeChecks")),
+      reviewRepoId: id("reviewRepos"),
+    });
+    await d.insert("mergeCheckRuns", {
+      ...rows.mergeCheckRuns(id("mergeCheckRuns")),
       reviewRepoId: id("reviewRepos"),
     });
     await db.insert(schema.deviceCodes).values({

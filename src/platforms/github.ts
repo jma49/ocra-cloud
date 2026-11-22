@@ -3,6 +3,7 @@ import { githubChanges } from "./github-changes.js";
 import { githubContents } from "./github-contents.js";
 import { githubCycles } from "./github-cycles.js";
 import { githubLearnings } from "./github-learnings.js";
+import { githubMergeStatus } from "./github-merge-status.js";
 import { githubPulls } from "./github-pulls.js";
 import { githubQueue } from "./github-queue.js";
 import { githubStacks } from "./github-stack.js";
@@ -65,6 +66,7 @@ export function github(client: { id: string; secret: string }): CodePlatform {
     cycles: githubCycles(post),
     stacks: githubStacks(post),
     learnings: githubLearnings(post),
+    mergeStatus: githubMergeStatus(),
     async listRepos(token) {
       const installs = await get<{ installations: Installation[] }>(
         token,

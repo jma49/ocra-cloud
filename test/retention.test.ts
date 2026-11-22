@@ -195,7 +195,15 @@ describe("export and deletion", () => {
     // The findings' review first (the foreign key needs it), then one row per table.
     await d.insert("reviews", rows.reviews("review-of-a"));
     for (const [table, row] of Object.entries(rows)) {
-      if (["reviews", "graphBuilds", "reviewJobs", "replyJobs"].includes(table)) continue;
+      const later = [
+        "reviews",
+        "graphBuilds",
+        "reviewJobs",
+        "replyJobs",
+        "mergeChecks",
+        "mergeCheckRuns",
+      ];
+      if (later.includes(table)) continue;
       await d.insert(table as keyof typeof rows, row(`x-${table}`) as never);
     }
     await d.insert("graphBuilds", {
@@ -210,6 +218,12 @@ describe("export and deletion", () => {
       ...rows.replyJobs("x-replyJobs"),
       reviewRepoId: "x-reviewRepos",
     });
+    for (const table of ["mergeChecks", "mergeCheckRuns"] as const) {
+      await d.insert(table, {
+        ...rows[table](`x-${table}`),
+        reviewRepoId: "x-reviewRepos",
+      } as never);
+    }
     await setSharing(db, me.account.id, true);
     const salt = await accountSalt(db, me.account.id);
 

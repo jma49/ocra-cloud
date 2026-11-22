@@ -45,6 +45,8 @@ export const EXPORTED = {
   reviewWalkthroughs: "walkthroughs",
   automationRules: "automationRules",
   automationRuns: "automationRuns",
+  mergeChecks: "mergeChecks",
+  mergeCheckRuns: "mergeCheckRuns",
 } as const satisfies Record<Table, string>;
 
 // How a table's row is shown; any other table's row loses only its account id.
