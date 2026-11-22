@@ -42,9 +42,8 @@ jobs:
         run: npx wrangler deploy --dry-run --outdir /tmp/bundle
 
   # The vitest projects (vitest.config.ts) in three jobs, the Worker's in
-  # two shards. Every job is billed in whole minutes on a private
-  # repository, so the jobs are few and each runs two vitest workers, one
-  # per core (vitest leaves one core idle by default).
+  # two shards, each job's vitest on every core (by default it leaves one
+  # idle). Few jobs, because the account runs at most 20 at once.
   test:
     runs-on: ubuntu-latest
     strategy:
@@ -69,7 +68,7 @@ jobs:
         run: |
           # The matrix value is a list of flags: word splitting is wanted.
           # shellcheck disable=SC2086
-          npx vitest run --maxWorkers=2 $ARGS
+          npx vitest run --maxWorkers=100% $ARGS
 
   # Conventional Commits and no AI attribution, with the engine's own checks
   # (AGENTS.md, Working with agents). Pinned by commit, so a push to the
