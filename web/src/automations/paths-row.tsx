@@ -28,7 +28,7 @@ export function PathsRow(props: { value: PathsDraft; onChange: (d: PathsDraft) =
       label="Changed files"
       desc="Globs as in .gitignore, comma-separated: src/payments/**, *.sql. Empty tests no files."
     >
-      <div className="stack">
+      <div className="stack grow">
         <input
           className="input mono"
           aria-label="Changed files to match"
