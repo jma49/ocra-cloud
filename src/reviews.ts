@@ -181,13 +181,14 @@ async function recheckPull(c: Context<AppEnv>, id: string) {
 reviews.get("/:id", requireSession(), async (c) => {
   const review = await c.var.data.get("reviews", c.req.param("id"));
   if (!review) return apiError(c, "not_found");
-  const [list, walkthrough] = await Promise.all([
+  const [list, walkthrough, issues] = await Promise.all([
     c.var.data.findingsOf(review.id),
     c.var.data.findOne("reviewWalkthroughs", { reviewId: review.id }),
+    c.var.data.findingIssues.ofReview(review.id),
   ]);
   return c.json({
     review: listedReview(review),
-    findings: list.map(findingDto),
+    findings: list.map((f) => ({ ...findingDto(f), issue: issues.get(f.id) ?? null })),
     walkthrough: walkthrough ? walkthroughDto(walkthrough) : null,
   });
 });

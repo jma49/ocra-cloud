@@ -1,11 +1,17 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import type { PullActionOutcome, Severity, Verification } from "../../../src/shared/index.js";
+import type {
+  FindingIssueView,
+  PullActionOutcome,
+  Severity,
+  Verification,
+} from "../../../src/shared/index.js";
 import { api } from "../api.js";
 import { symbolsOf } from "../impact/select.js";
 import type { Impact } from "../impact/use-impact.js";
 import { OUTCOME } from "../pull/outcome.js";
 import { Link } from "../router.js";
+import { FindingIssue } from "./finding-issue.js";
 
 // A finding as an event on the review's timeline: what it says, where, and
 // the code it quotes. Every text is plain text: findings quote untrusted code.
@@ -29,6 +35,8 @@ export type Finding = {
   status: "open" | "fixed" | "dismissed";
   /** The lines the fix replaces at the reviewed head, and what with; null without one. */
   fix: { startLine: number; endLine: number; replacement: string } | null;
+  /** The issue opened from it in the reviewed repository; null before one is. */
+  issue: FindingIssueView | null;
 };
 
 const SEV = {
@@ -133,6 +141,7 @@ export function FindingEvent(props: {
           {(f.status === "fixed" || fixed === "done") && (
             <span className="badge badge-ok">Fixed</span>
           )}
+          {props.canFix && <FindingIssue findingId={f.id} issue={f.issue} />}
         </div>
         {fixed && fixed !== "sending" && fixed !== "done" && (
           <p className="error small m-0" role="alert">

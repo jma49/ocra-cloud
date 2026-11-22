@@ -31,6 +31,7 @@ export const repositories = pg(sqlite.repositories);
 export const pullViews = pg(sqlite.pullViews);
 export const pullSeen = pg(sqlite.pullSeen);
 export const pullFileViews = pg(sqlite.pullFileViews);
+export const findingIssues = pg(sqlite.findingIssues);
 export const graphRepos = pg(sqlite.graphRepos);
 export const graphBuilds = pg(sqlite.graphBuilds);
 export const reviewRepos = pg(sqlite.reviewRepos);

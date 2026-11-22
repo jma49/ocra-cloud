@@ -11,6 +11,7 @@ import { cycles } from "./cycles.js";
 import type { Db } from "./db/client.js";
 import { device } from "./device.js";
 import { exportRoute } from "./export.js";
+import { findingIssues } from "./finding-issues.js";
 import { flow } from "./flow.js";
 import { gateway } from "./gateway.js";
 import { type GraphService, graphsRoute } from "./graph/routes.js";
@@ -121,6 +122,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
   app.route("/reviews", reviewChat);
   app.route("/live", liveRoute);
   app.route("/findings", inbox);
+  app.route("/findings", findingIssues);
   app.route("/repositories", repositoriesRoute);
   app.route("/budget", budget);
   app.route("/preferences", preferences);

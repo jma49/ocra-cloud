@@ -186,6 +186,25 @@ describe("retention", () => {
     expect((await d.list("reviewChatMessages")).map((m) => m.id)).toEqual(["m-new"]);
   });
 
+  it("deletes the record of an issue opened from an old review's finding with it", async () => {
+    const { account } = await signIn(1, "octo");
+    const d = scoped(db, account.id);
+    for (const [id, days] of [
+      ["old", 91],
+      ["new", 1],
+    ] as const) {
+      await d.insert("reviews", { ...rows.reviews(id), createdAt: ago(days) });
+      await d.insert("findings", { ...rows.findings(`f-${id}`), reviewId: id });
+      await d.insert("findingIssues", {
+        ...rows.findingIssues(`i-${id}`),
+        findingId: `f-${id}`,
+        reviewId: id,
+      });
+    }
+    await enforceRetention(db, now);
+    expect((await d.list("findingIssues")).map((i) => i.id)).toEqual(["i-new"]);
+  });
+
   it("runs every delete when one fails, logs only its own message, then throws", async () => {
     const { account } = await signIn(1, "octo");
     const d = scoped(db, account.id);
@@ -313,10 +332,15 @@ describe("export and deletion", () => {
         "liveEvents",
         "liveGrants",
         "liveComments",
+        "findingIssues",
       ];
       if (later.includes(table)) continue;
       await d.insert(table as keyof typeof rows, row(`x-${table}`) as never);
     }
+    await d.insert("findingIssues", {
+      ...rows.findingIssues("x-findingIssues"),
+      findingId: "x-findings",
+    });
     await d.insert("graphBuilds", {
       ...rows.graphBuilds("x-graphBuilds"),
       graphRepoId: "x-graphRepos",
