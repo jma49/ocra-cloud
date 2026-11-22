@@ -39,8 +39,8 @@ export function inline(text: string): string {
     .replace(/[\\`*_[\]()#|~!@:]/g, "\\$&");
 }
 
-/** A task's address for a link: https only, with nothing that would end the link early. */
-function taskUrl(url: string | undefined): string | null {
+/** An address for a Markdown link: https only, with nothing that would end the link early. */
+export function httpsLink(url: string | undefined): string | null {
   if (!url) return null;
   let u: URL;
   try {
@@ -84,7 +84,7 @@ export function draftSection(input: DraftInput): string {
   const tasks = (review.linkedTasks ?? []).filter((t): t is NonNullable<LinkedTaskView> => !!t);
   if (tasks.length > 0) {
     const lines = tasks.map((t) => {
-      const url = taskUrl(t.url);
+      const url = httpsLink(t.url);
       const key = url ? `[${inline(t.key)}](${url})` : inline(t.key);
       const title = input.sharing && t.title ? `: ${inline(t.title)}` : "";
       const state = t.state ? ` (${t.state})` : "";

@@ -26,6 +26,7 @@ import {
   uncountOne,
 } from "./counters.js";
 import { countWhere, jsonMembers, jsonNumber, jsonRecords, utcDayOf } from "./dialect.js";
+import { accountFindingIssues } from "./finding-issues.js";
 import { accountGenerateJobs } from "./generate-jobs.js";
 import { accountGraphs } from "./graphs.js";
 import {
@@ -432,6 +433,7 @@ export function scoped(db: Db, accountId: string) {
     pullViews: accountPullViews(db, accountId),
     pullSeen: accountPullSeen(db, accountId),
     pullFileViews: accountPullFileViews(db, accountId),
+    findingIssues: accountFindingIssues(db, accountId),
     graphs: accountGraphs(db, accountId),
     autoReview: accountReviewJobs(db, accountId),
     notify: accountNotify(db, accountId),

@@ -220,6 +220,15 @@ export const rows = {
     state: "armed" as const,
     armedBy: "octo",
   }),
+  // The finding it belongs to is made in beforeEach (the foreign key needs one).
+  findingIssues: (id: string) => ({
+    id,
+    findingId: "finding-of-a",
+    reviewId: "review-of-a",
+    number: 7,
+    url: "https://github.com/octo/api/issues/7",
+    claimedAt: new Date(),
+  }),
   // The review it belongs to is made in beforeEach (the foreign key needs one).
   reviewChatMessages: (id: string) => ({
     id,

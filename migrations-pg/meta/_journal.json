@@ -197,6 +197,13 @@
       "when": 1795371692018,
       "tag": "0027_review_request_logins",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1795374368099,
+      "tag": "0028_finding_issues",
+      "breakpoints": true
     }
   ]
 }

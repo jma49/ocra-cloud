@@ -110,6 +110,7 @@ describe("deleting an account", () => {
           "findings",
           "reviewWalkthroughs",
           "reviewChatMessages",
+          "findingIssues",
           "graphBuilds",
           "reviewJobs",
           "replyJobs",
@@ -136,6 +137,11 @@ describe("deleting an account", () => {
     });
     await d.insert("reviewChatMessages", {
       ...rows.reviewChatMessages(id("reviewChatMessages")),
+      reviewId: id("reviews"),
+    });
+    await d.insert("findingIssues", {
+      ...rows.findingIssues(id("findingIssues")),
+      findingId: id("findings"),
       reviewId: id("reviews"),
     });
     await d.insert("graphBuilds", {

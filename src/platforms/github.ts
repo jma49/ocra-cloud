@@ -4,6 +4,7 @@ import { githubChanges } from "./github-changes.js";
 import { githubContents } from "./github-contents.js";
 import { githubCycles } from "./github-cycles.js";
 import { githubFiles } from "./github-files.js";
+import { githubIssues } from "./github-issues.js";
 import { githubLearnings } from "./github-learnings.js";
 import { githubMergeStatus } from "./github-merge-status.js";
 import { githubPulls } from "./github-pulls.js";
@@ -80,6 +81,7 @@ export function github(client: { id: string; secret: string }): CodePlatform {
     mergeStatus: githubMergeStatus(),
     reviewers: githubReviewers(post),
     threads: githubThreads(post, actions),
+    issues: githubIssues(),
     viewed: githubViewed(post),
     async listRepos(token) {
       const installs = await get<{ installations: Installation[] }>(

@@ -49,6 +49,7 @@ const changes = {
   mergeCheckRuns: { conclusion: "failure" as const },
   mergeIntents: { state: "cancelled" as const },
   reviewChatMessages: { text: "changed" },
+  findingIssues: { url: "https://github.com/octo/api/issues/8" },
   liveRuns: { target: "changed" },
   liveEvents: { kind: "changed" },
   liveGrants: { role: "comment" as const },
@@ -142,10 +143,13 @@ const withIds = (Object.keys(rows) as (keyof typeof rows)[]).filter(
 describe.each(withIds)("%s", (name) => {
   beforeEach(async () => {
     // A finding needs a review to belong to (foreign key).
-    if (["findings", "reviewWalkthroughs", "reviewChatMessages"].includes(name)) {
+    if (["findings", "reviewWalkthroughs", "reviewChatMessages", "findingIssues"].includes(name)) {
       await db
         .insert(schema.reviews)
         .values({ id: "review-of-a", accountId: A, runId: "r", repoHash: "h", source: "local" });
+    }
+    if (name === "findingIssues") {
+      await db.insert(schema.findings).values({ ...rows.findings("finding-of-a"), accountId: A });
     }
     if (
       [

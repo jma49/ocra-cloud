@@ -73,9 +73,18 @@ describe("the CLI's real upload", () => {
       fixed: body.outcomes.fixed,
       dismissed: body.outcomes.dismissed,
     });
-    // The console's decision about each finding is the cloud's own, not uploaded.
+    // The console's decision about each finding, and its issue, are the cloud's own, not uploaded.
     const stored = detail.findings.map(
-      ({ id: _id, createdAt: _at, status: _s, reason: _r, note: _n, decidedAt: _d, ...f }) => f,
+      ({
+        id: _id,
+        createdAt: _at,
+        status: _s,
+        reason: _r,
+        note: _n,
+        decidedAt: _d,
+        issue: _i,
+        ...f
+      }) => f,
     );
     expect(stored).toEqual(
       body.findingList.map((f) => ({ redacted: false, truncated: false, fix: null, ...f })),

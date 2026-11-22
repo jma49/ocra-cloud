@@ -389,6 +389,32 @@ export const findings = sqliteTable(
   ],
 );
 
+// The issue the account opened from a finding, in the reviewed repository,
+// as the user (src/finding-issues.ts): one per finding, so a second click
+// answers the issue already opened. A row without a number is the claim of
+// a creation in flight; one older than ISSUE_CLAIM_MS is taken over.
+export const findingIssues = sqliteTable(
+  "finding_issues",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    findingId: text("finding_id")
+      .notNull()
+      .references(() => findings.id, { onDelete: "cascade" }),
+    // The finding's review, for its page; the finding's own cascade removes the row with it.
+    reviewId: text("review_id").notNull(),
+    number: integer("number"),
+    url: text("url"),
+    claimedAt: integer("claimed_at", { mode: "timestamp_ms" }).notNull(),
+    createdAt: createdAt(),
+  },
+  // finding_id first for the delete's cascade; the review page reads by (account_id, review_id).
+  (t) => [
+    uniqueIndex("finding_issues_finding").on(t.findingId, t.accountId, t.reviewId),
+    index("finding_issues_account_review").on(t.accountId, t.reviewId),
+  ],
+);
+
 // A review's walkthrough of the change (ADR-0047 of the engine), kept as
 // shared findings are: only while the account shares them, redacted again
 // on the server, and gone with its review.
@@ -1202,6 +1228,7 @@ export const accountTables = {
   mergeCheckRuns,
   mergeIntents,
   reviewChatMessages,
+  findingIssues,
   liveRuns,
   liveEvents,
   liveGrants,

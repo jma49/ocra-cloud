@@ -85,6 +85,7 @@ const TABLE: Record<string, string> = {
   mergeCheckRuns: "merge_check_runs",
   mergeIntents: "merge_intents",
   reviewChatMessages: "review_chat_messages",
+  findingIssues: "finding_issues",
   liveRuns: "live_runs",
   liveEvents: "live_events",
   liveGrants: "live_grants",
@@ -263,6 +264,26 @@ describe("query plans", () => {
     expect(plans[4]).toMatch(/SEARCH review_repos USING INDEX review_repos_account/);
     expect(plans[5]).toMatch(/SEARCH graph_repos USING INDEX graph_repos_account_repo/);
     for (const p of plans) expect(p).not.toMatch(/\bSCAN\b/);
+  });
+
+  it("a finding's issue is claimed and read by its unique index, a review's by (account_id, review_id)", async () => {
+    const seen: Captured[] = [];
+    const d = scoped(drizzle(recording(seen)), "acct");
+    await d.findingIssues.ofReview("r");
+    await d.findingIssues.of("f");
+    await d.findingIssues.record("f", new Date(), { number: 1, url: "https://x/1" });
+    await d.findingIssues.release("f", new Date());
+    const [review, ...byFinding] = await Promise.all(seen.map(plan));
+    expect(review).toMatch(/SEARCH finding_issues USING INDEX finding_issues_account_review/);
+    for (const p of byFinding) {
+      expect(p).toMatch(/SEARCH finding_issues USING (COVERING )?INDEX finding_issues_finding/);
+    }
+    for (const p of [review, ...byFinding]) expect(p).not.toMatch(/\bSCAN\b/);
+    const cascade = await plan({
+      sql: "SELECT id FROM finding_issues WHERE finding_id = ?",
+      params: ["f"],
+    });
+    expect(cascade).toMatch(/SEARCH finding_issues USING (COVERING )?INDEX finding_issues_finding/);
   });
 
   it("a review's findings are found by review_id, for the delete's cascade", async () => {
