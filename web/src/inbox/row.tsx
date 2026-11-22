@@ -2,9 +2,9 @@ import { ago } from "../format.js";
 import type { Row } from "./sections.js";
 
 const CHECKS = {
-  passing: { label: "Checks pass", cls: "badge-ok" },
-  failing: { label: "Checks fail", cls: "badge-warn" },
-  pending: { label: "Checks running", cls: "" },
+  passing: { label: "Checks pass", cls: "ok" },
+  failing: { label: "Checks fail", cls: "fail" },
+  pending: { label: "Checks running", cls: "wait" },
 } as const;
 const REVIEW = {
   approved: { label: "Approved", cls: "badge-ok" },
@@ -12,34 +12,46 @@ const REVIEW = {
   required: { label: "Review required", cls: "" },
 } as const;
 
+/** One pull request on one line: checks, number, title, repository, review, author, age. */
 export function PullRow(props: { r: Row; i: number; current: boolean }) {
   const { r } = props;
   const checks = r.checks && CHECKS[r.checks];
   const review = r.state === "open" && r.review ? REVIEW[r.review] : null;
-  const when = r.mergedAt ? `merged ${ago(r.mergedAt)}` : `updated ${ago(r.updatedAt)}`;
+  const when = r.mergedAt ?? r.updatedAt;
   return (
     <a
-      className={`list-row pull-row${props.current ? " current" : ""}`}
+      className={`pull-row${props.current ? " current" : ""}`}
       href={r.url}
       target="_blank"
       rel="noreferrer"
       data-row={props.i}
       aria-current={props.current ? "true" : undefined}
     >
-      <div className="grow">
-        <div className="pull-title">{r.title}</div>
-        <div className="mono subtle small">
-          {r.repo}#{r.number}
-          {r.author ? ` · ${r.author}` : ""} · {when}
-        </div>
-      </div>
-      {checks && <span className={`badge ${checks.cls}`}>{checks.label}</span>}
-      {review && <span className={`badge ${review.cls}`}>{review.label}</span>}
+      {checks ? (
+        <span
+          className={`chk ${checks.cls}`}
+          role="img"
+          aria-label={checks.label}
+          title={checks.label}
+        />
+      ) : (
+        <span className="chk" aria-hidden="true" />
+      )}
+      <span className="pull-num">#{r.number}</span>
+      <span className="pull-title">{r.title}</span>
+      <span className="pull-repo">{r.repo}</span>
+      <span className="pull-review">
+        {review && <span className={`badge ${review.cls}`}>{review.label}</span>}
+      </span>
       {r.additions !== null && r.deletions !== null && (
-        <span className="mono small subtle">
-          +{r.additions} −{r.deletions}
+        <span className="pull-diff mono">
+          <span className="add">+{r.additions}</span> <span className="del">−{r.deletions}</span>
         </span>
       )}
+      <span className="pull-author">{r.author ?? ""}</span>
+      <time className="pull-time" dateTime={when} title={r.mergedAt ? "Merged" : "Updated"}>
+        {ago(when).replace(" ago", "")}
+      </time>
     </a>
   );
 }

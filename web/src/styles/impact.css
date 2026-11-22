@@ -23,14 +23,14 @@
   overflow-y: auto;
 }
 .impact-rail h2 {
-  font-size: 15px;
+  font-size: 13px;
 }
 .impact-head {
   display: flex;
   gap: 10px;
   align-items: flex-start;
   padding: 14px 16px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 0.5px solid var(--hair2);
 }
 .impact-pad {
   margin: 0;
@@ -52,7 +52,7 @@
   background: color-mix(in srgb, var(--warning) 8%, transparent);
 }
 .impact-symbol {
-  border-bottom: 1px solid var(--border);
+  border-bottom: 0.5px solid var(--hair2);
 }
 .impact-symbol-head {
   display: flex;
@@ -85,7 +85,7 @@
   display: flex;
   gap: 10px;
   padding: 9px 16px;
-  border-top: 1px solid var(--border);
+  border-top: 0.5px solid var(--hair2);
   text-decoration: none;
 }
 .impact-use:hover {

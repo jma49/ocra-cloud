@@ -26,7 +26,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 16px 20px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 0.5px solid var(--hair2);
 }
 .drawer-head h2 {
   font-size: 16px;
@@ -39,7 +39,7 @@
 }
 .drawer-foot {
   padding: 14px 20px;
-  border-top: 1px solid var(--border);
+  border-top: 0.5px solid var(--hair2);
   display: flex;
   justify-content: flex-end;
   gap: 8px;
@@ -88,7 +88,7 @@
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
-  border: 1px solid var(--border);
+  border: 0.5px solid var(--hair2);
   border-radius: var(--r-ctl);
   background: transparent;
   cursor: pointer;
@@ -101,7 +101,7 @@
 }
 .tile .t-name {
   font-weight: 500;
-  font-size: 14px;
+  font-size: 13px;
 }
 .tile .t-sub {
   font-size: 12px;
@@ -116,7 +116,7 @@
   margin: 20px 0 8px;
 }
 .pick-list {
-  border: 1px solid var(--border);
+  border: 0.5px solid var(--hair2);
   border-radius: var(--r-chip);
   overflow: hidden;
 }
@@ -127,12 +127,12 @@
   width: 100%;
   padding: 9px 12px;
   border: 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 0.5px solid var(--hair2);
   background: transparent;
   cursor: pointer;
   text-align: left;
   color: var(--fg);
-  font-size: 14px;
+  font-size: 13px;
 }
 .pick:last-child {
   border-bottom: 0;
@@ -149,7 +149,7 @@
   align-items: center;
   gap: 12px;
   padding: 14px;
-  border: 1px solid var(--border);
+  border: 0.5px solid var(--hair2);
   border-radius: var(--r-chip);
   background: var(--bg-subtle);
 }

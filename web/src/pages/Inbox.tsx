@@ -156,7 +156,7 @@ export function Inbox() {
           </p>
         </div>
       ) : (
-        <div ref={list} className="inbox-sections">
+        <div ref={list} className="inbox-sections card">
           {sections.map((s) => (
             <Section
               key={s.key}
@@ -198,16 +198,17 @@ function Section(props: {
 }) {
   const { s } = props;
   return (
-    <section className={`section card${s.rows.length ? "" : " is-empty"}`} aria-label={s.title}>
-      <div className="section-head">
+    <section className={`inbox-group${s.rows.length ? "" : " is-empty"}`} aria-label={s.title}>
+      <div className="inbox-group-head">
         <button
           type="button"
-          className="card-head section-toggle"
+          className="section-toggle"
           aria-expanded={props.open}
           onClick={props.toggle}
         >
+          <span className="fold" aria-hidden="true" />
           <h3>{s.title}</h3>
-          <span className="subtle small">{s.rows.length}</span>
+          <span className="count">{s.rows.length}</span>
         </button>
         {props.edit && (
           <button
