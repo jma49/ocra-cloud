@@ -17,6 +17,20 @@ const SEVERITIES = [
   { key: "suggestion", label: "Suggestion", tone: "opened" },
 ] as const;
 
+type Via = NonNullable<ImpactCounts["actedOn"]>["fixedVia"];
+const VIA: [keyof Via, string][] = [
+  ["applied", "by committing ocra's fix"],
+  ["suggestion", "by a suggestion"],
+  ["manual", "by hand"],
+  ["rereview", "by a later review"],
+  ["unknown", "before this was recorded"],
+];
+/** " (3 by hand, 1 by a suggestion)", or nothing when none is fixed. */
+function how(via: Via): string {
+  const parts = VIA.flatMap(([k, label]) => (via[k] > 0 ? [`${num(via[k])} ${label}`] : []));
+  return parts.length > 0 ? ` (${parts.join(", ")})` : "";
+}
+
 const found = (c: ImpactCounts) => c.findings.critical + c.findings.warning + c.findings.suggestion;
 const share = (n: number, of: number) => (of ? `${Math.round((n / of) * 100)}%` : "–");
 
@@ -127,7 +141,7 @@ function ImpactBody(props: { data: Impact }) {
       </div>
       <p className="card-pad subtle small m-0">
         {t.actedOn
-          ? `In the console: ${num(t.actedOn.fixed)} marked fixed, ${num(t.actedOn.dismissed)} dismissed, ${num(t.actedOn.open)} open, ${count(t.actedOn.issueOpened, "issue")} opened from a finding.`
+          ? `In the console: ${num(t.actedOn.fixed)} marked fixed${how(t.actedOn.fixedVia)}, ${num(t.actedOn.dismissed)} dismissed, ${num(t.actedOn.open)} open, ${count(t.actedOn.issueOpened, "issue")} opened from a finding, ${count(t.actedOn.threadResolved, "thread")} resolved.`
           : "Share findings in Settings to count what was marked fixed or dismissed in the console."}
       </p>
       {data.repos.length > 1 && (
