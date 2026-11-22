@@ -1,7 +1,11 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { normaliseRemote } from "@open-cr-agent/cloud-contract";
+import {
+  graphRepoSchema,
+  graphReposAnswerSchema,
+  normaliseRemote,
+} from "@open-cr-agent/cloud-contract";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { hmacHex } from "../src/crypto.js";
 import { graphPolicy } from "../src/graph/policy.js";
@@ -76,6 +80,8 @@ describe("a repository added for a code graph", () => {
     expect(listed).toMatchObject({
       repos: [{ id: body.repo.id, latest: { commit: C1, state: "done", files: 2 } }],
     });
+    // The listing is the contract's, which the CLI reads.
+    for (const r of graphReposAnswerSchema.parse(listed).repos) graphRepoSchema.parse(r);
   });
 
   it("is refused when the account does not reach it, or names a path outside a repository", async () => {

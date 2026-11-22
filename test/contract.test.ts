@@ -1,9 +1,14 @@
-import { memoryEntrySchema, PROVIDER_IDS } from "@open-cr-agent/cloud-contract";
+import {
+  CODE_PLATFORMS as CONTRACT_PLATFORMS,
+  memoryEntrySchema,
+  PROVIDER_IDS,
+} from "@open-cr-agent/cloud-contract";
 import memory from "@open-cr-agent/cloud-contract/fixtures/memory.json";
 import preferences from "@open-cr-agent/cloud-contract/fixtures/preferences.json";
 import upload from "@open-cr-agent/cloud-contract/fixtures/upload.json";
 import { beforeEach, describe, expect, it } from "vitest";
 import { providers } from "../src/providers.js";
+import { CODE_PLATFORMS } from "../src/shared/index.js";
 import { call, resetDb, signIn, signInCli } from "./helpers.js";
 
 // The engine's contract fixtures (#25), shipped in @open-cr-agent/cloud-contract
@@ -132,5 +137,11 @@ describe("the account's memory", () => {
 describe("the gateway's providers", () => {
   it("are the contract's provider ids, no more and no fewer", () => {
     expect(Object.keys(providers).sort()).toEqual([...PROVIDER_IDS].sort());
+  });
+});
+
+describe("the code platforms", () => {
+  it("are the contract's, in the web's copy", () => {
+    expect([...CODE_PLATFORMS]).toEqual([...CONTRACT_PLATFORMS]);
   });
 });

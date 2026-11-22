@@ -22,6 +22,11 @@ export type {
   Verification,
 } from "@open-cr-agent/cloud-contract";
 
+import type { CodePlatform } from "@open-cr-agent/cloud-contract";
+
+export type { GraphBuildState } from "@open-cr-agent/cloud-contract";
+export type CodePlatformKind = CodePlatform;
+
 export type Rule = NonNullable<
   import("@open-cr-agent/cloud-contract").ReviewSettings["rules"]
 >[number];
@@ -54,10 +59,9 @@ export const DISMISS_REASONS = [
 ] as const;
 export type DismissReason = (typeof DISMISS_REASONS)[number];
 
-/** The code platforms an account can connect: GitHub and GitLab, hosted or self-hosted. */
-export const CODE_PLATFORMS = ["github", "gitlab"] as const;
-export type CodePlatformKind = (typeof CODE_PLATFORMS)[number];
-
-/** Where a code graph build is: waiting, running, kept, given up, or passed by a newer push. */
-export const GRAPH_BUILD_STATES = ["queued", "running", "done", "failed", "superseded"] as const;
-export type GraphBuildState = (typeof GRAPH_BUILD_STATES)[number];
+/**
+ * The code platforms an account can connect: GitHub and GitLab, hosted or
+ * self-hosted. The contract's list, copied for the web, which takes none of
+ * its values (test/contract.test.ts keeps the two equal).
+ */
+export const CODE_PLATFORMS = ["github", "gitlab"] as const satisfies readonly CodePlatform[];
