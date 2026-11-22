@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { Button } from "@/components/ui/button";
 import type { GenerateJobView, GenerateKind } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
 import { useAction, useLoad } from "../ui.js";
@@ -69,14 +70,14 @@ export function GenerateBox(props: { pull: Pull; head: string }) {
         const job = ofHead(kind);
         return (
           <div key={kind} className="stack">
-            <button
+            <Button
               type="button"
-              className="btn"
+              variant="outline"
               disabled={ask.busy || job !== undefined}
               onClick={() => send(kind)}
             >
               {KIND[kind].ask}
-            </button>
+            </Button>
             {job && (
               <span
                 className={job.state === "failed" ? "error small" : "subtle small"}
