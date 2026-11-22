@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { buttonVariants } from "@/components/ui/button";
 import type { ReviewSource, ReviewWalkthroughView, Verdict } from "../../../src/shared/index.js";
 import { ApiError, api } from "../api.js";
 import { useCached } from "../cache.js";
@@ -77,7 +78,7 @@ export function ReviewDetail(props: { id: string; graphs: boolean }) {
         <div className="card empty-hero">
           <h3>Review not found</h3>
           <p>It may have passed the 90-day retention, or been deleted.</p>
-          <Link to="/reviews" className="btn">
+          <Link to="/reviews" className={buttonVariants({ variant: "outline" })}>
             Back to reviews
           </Link>
         </div>
@@ -157,7 +158,7 @@ export function ReviewDetail(props: { id: string; graphs: boolean }) {
               Findings are kept only when you share them (Settings). Counts are always kept; turn
               sharing on to see findings of later reviews here.
             </p>
-            <Link to="/settings" className="btn">
+            <Link to="/settings" className={buttonVariants({ variant: "outline" })}>
               Open settings
             </Link>
           </div>
@@ -217,10 +218,14 @@ function Properties(props: { r: Review }) {
         <dd className="mono">{r.runId}</dd>
       </dl>
       <div className="prop-actions">
-        <Link to="/reviews" className="btn">
+        <Link to="/reviews" className={buttonVariants({ variant: "outline" })}>
           All reviews
         </Link>
-        <a className="btn" href={`/api/reviews/${r.id}/export`} download>
+        <a
+          className={buttonVariants({ variant: "outline" })}
+          href={`/api/reviews/${r.id}/export`}
+          download
+        >
           Download JSON
         </a>
       </div>

@@ -1,4 +1,5 @@
 import { type FormEvent, useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
   MERGE_CHECK_KINDS,
   type MergeCheckKind,
@@ -165,9 +166,9 @@ export function AddCheck(props: { repoId: string; onAdded: () => void }) {
             onChange={(e) => setA(e.target.value)}
           />
         )}
-        <button type="submit" className="btn btn-primary" disabled={add.busy || !ready}>
+        <Button type="submit" disabled={add.busy || !ready}>
           Add
-        </button>
+        </Button>
       </div>
       <span className="subtle small">{KIND_HINT[kind]}</span>
       {add.error !== null && (

@@ -1,4 +1,5 @@
 import { type FormEvent, useState } from "react";
+import { Button } from "@/components/ui/button";
 import type {
   AutomationAction,
   AutomationActionKind,
@@ -250,27 +251,30 @@ export function RuleForm(props: {
               ))}
             </select>
             <ActionValue draft={a} channels={props.channels} n={i + 1} edit={edit} />
-            <button
+            <Button
               type="button"
-              className="btn btn-sm btn-icon"
+              variant="outline"
+              size="icon-sm"
               aria-label={`Remove action ${i + 1}`}
               disabled={actions.length === 1}
               onClick={() => setActions((as) => as.filter((x) => x.key !== a.key))}
             >
               <CloseGlyph size={14} />
-            </button>
+            </Button>
           </div>
         ))}
         {actions.length < MAX_ACTIONS && (
-          <button
+          <Button
             type="button"
-            className="btn btn-sm add-action"
+            variant="outline"
+            size="sm"
+            className="add-action"
             onClick={() =>
               setActions((as) => [...as, { key: nextKey++, kind: "notify", text: "" }])
             }
           >
             <AddGlyph size={14} /> Add an action
-          </button>
+          </Button>
         )}
       </div>
       <div className="rule-foot">
@@ -279,12 +283,12 @@ export function RuleForm(props: {
             Could not save it: {why(save.error)}.
           </span>
         )}
-        <button type="button" className="btn" onClick={() => props.done(false)}>
+        <Button type="button" variant="outline" onClick={() => props.done(false)}>
           Cancel
-        </button>
-        <button type="submit" className="btn btn-primary" disabled={save.busy || !ready}>
+        </Button>
+        <Button type="submit" disabled={save.busy || !ready}>
           {r ? "Save rule" : "Add rule"}
-        </button>
+        </Button>
       </div>
     </form>
   );

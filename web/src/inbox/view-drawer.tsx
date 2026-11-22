@@ -1,4 +1,5 @@
 import { type FormEvent, type ReactNode, useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
 import type { PullFilters } from "../../../src/shared/index.js";
 import { why } from "../api.js";
 import { CloseGlyph } from "../glyphs.js";
@@ -167,20 +168,18 @@ export function ViewDrawer(props: {
           </div>
           <div className="drawer-foot">
             {props.onDelete && (
-              <button
+              <Button
                 type="button"
-                className="btn btn-danger"
+                variant="destructive-outline"
                 onClick={() => props.onDelete && void run(props.onDelete)}
               >
                 Delete
-              </button>
+              </Button>
             )}
-            <button type="button" className="btn" onClick={share}>
+            <Button type="button" variant="outline" onClick={share}>
               {copied ? "Link copied" : "Copy link"}
-            </button>
-            <button type="submit" className="btn btn-primary">
-              Save
-            </button>
+            </Button>
+            <Button type="submit">Save</Button>
           </div>
         </form>
       </aside>

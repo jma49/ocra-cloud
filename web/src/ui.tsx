@@ -1,4 +1,5 @@
 import { Component, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { Button, buttonVariants } from "@/components/ui/button";
 import type { SignInMethod } from "../../src/shared/index.js";
 import { api, type Day, needsSignIn, type ProviderInfo, why } from "./api.js";
 import { compact } from "./format.js";
@@ -166,9 +167,9 @@ export function LoadError(props: { what: string; error: unknown; retry: () => vo
     <div className="card empty-hero" role="alert">
       <h3>Could not load {props.what}</h3>
       <p>{capital(why(props.error))}.</p>
-      <button type="button" className="btn" onClick={props.retry}>
+      <Button type="button" variant="outline" onClick={props.retry}>
         Try again
-      </button>
+      </Button>
     </div>
   );
 }
@@ -183,7 +184,10 @@ export function ActionError(props: { what: string; error: unknown }) {
     <p className="error" role="alert">
       Could not {props.what}: {why(props.error)}.{" "}
       {needsSignIn(props.error) && method && (
-        <a className="btn btn-sm" href={signInHref(method, location.pathname)}>
+        <a
+          className={buttonVariants({ variant: "outline", size: "sm" })}
+          href={signInHref(method, location.pathname)}
+        >
           Sign in again
         </a>
       )}
@@ -200,7 +204,7 @@ export function NotFound() {
       <div className="card empty-hero">
         <h3>There is no page at this address</h3>
         <p>The link may be mistyped, or the page has moved.</p>
-        <Link to="/" className="btn">
+        <Link to="/" className={buttonVariants({ variant: "outline" })}>
           Back to overview
         </Link>
       </div>
@@ -222,9 +226,9 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { failed: 
         <div className="card empty-hero" role="alert">
           <h3>This page could not be shown</h3>
           <p>Reload to try again. The rest of the console still works.</p>
-          <button type="button" className="btn" onClick={() => location.reload()}>
+          <Button type="button" variant="outline" onClick={() => location.reload()}>
             Reload
-          </button>
+          </Button>
         </div>
       </>
     );

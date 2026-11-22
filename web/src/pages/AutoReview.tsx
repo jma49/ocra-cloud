@@ -1,4 +1,5 @@
 import { type FormEvent, Fragment, useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
   type AutoReviewRepoView,
   CODE_PLATFORMS,
@@ -90,22 +91,24 @@ export function AutoReview() {
                         <LastJob r={r} />
                       </td>
                       <td className="num nobreak">
-                        <button
+                        <Button
                           type="button"
-                          className="btn btn-sm"
+                          variant="outline"
+                          size="sm"
                           aria-expanded={checking === r.id}
                           onClick={() => setChecking(checking === r.id ? null : r.id)}
                         >
                           Checks
-                        </button>{" "}
-                        <button
+                        </Button>{" "}
+                        <Button
                           type="button"
-                          className="btn btn-sm btn-danger"
+                          variant="destructive-outline"
+                          size="sm"
                           disabled={remove.busy}
                           onClick={() => drop(r.id)}
                         >
                           Stop reviewing
-                        </button>
+                        </Button>
                       </td>
                     </tr>
                     {checking === r.id && (
@@ -171,9 +174,9 @@ function Hook(props: { added: Added; onDone: () => void }) {
         </label>
       )}
       <div>
-        <button type="button" className="btn" onClick={props.onDone}>
+        <Button type="button" variant="outline" onClick={props.onDone}>
           Done
-        </button>
+        </Button>
       </div>
     </section>
   );
@@ -219,13 +222,9 @@ function AddRepo(props: { full: boolean; onAdded: (a: Added) => void }) {
           value={fullName}
           onChange={(e) => setFullName(e.target.value)}
         />
-        <button
-          type="submit"
-          className="btn btn-primary"
-          disabled={add.busy || props.full || !fullName.trim()}
-        >
+        <Button type="submit" disabled={add.busy || props.full || !fullName.trim()}>
           Add
-        </button>
+        </Button>
       </div>
       {props.full && (
         <span className="subtle small">An account reviews at most 100 repositories.</span>

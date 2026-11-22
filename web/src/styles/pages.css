@@ -147,10 +147,6 @@
   flex: 1;
   min-width: 180px;
 }
-.chain-row .btn-danger {
-  background: transparent;
-  box-shadow: none;
-}
 
 /* Device sign-in */
 .device-card {

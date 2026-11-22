@@ -1,4 +1,5 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   type AgentRole,
   BUILT_IN_REVIEWERS,
@@ -79,7 +80,7 @@ export function Agents() {
             Agents run on your own keys. Add a key from a provider with an OpenAI-compatible
             endpoint.
           </p>
-          <Link to="/keys" className="btn btn-primary">
+          <Link to="/keys" className={buttonVariants()}>
             Add a key
           </Link>
         </div>
@@ -240,9 +241,10 @@ export function Agents() {
                           <span className="subtle">
                             {draft.models[a.tier]?.[0] ?? `${a.tier} tier (repository)`}
                           </span>{" "}
-                          <button
+                          <Button
                             type="button"
-                            className="btn btn-sm"
+                            variant="outline"
+                            size="sm"
                             onClick={() =>
                               update({
                                 models: [
@@ -252,7 +254,7 @@ export function Agents() {
                             }
                           >
                             Override
-                          </button>
+                          </Button>
                         </span>
                       )}
                     </td>
@@ -398,25 +400,27 @@ function ChainEditor(props: {
               value={model}
               onChange={(e) => setAt(i, formatModelId(provider, e.target.value))}
             />
-            <button
+            <Button
               type="button"
-              className="btn btn-sm btn-danger"
+              variant="destructive-outline"
+              size="sm"
               onClick={() => props.onChange(rows.filter((_, j) => j !== i))}
             >
               Remove
-            </button>
+            </Button>
           </div>
         );
       })}
       <div>
-        <button
+        <Button
           type="button"
-          className="btn btn-sm"
+          variant="outline"
+          size="sm"
           disabled={rows.length >= 4}
           onClick={() => props.onChange([...rows, formatModelId(props.usable[0]?.name ?? "")])}
         >
           + {rows.length ? "Fallback" : "Model"}
-        </button>
+        </Button>
       </div>
     </div>
   );
