@@ -36,13 +36,21 @@ export function FileDiff(props: {
   const lines = useMemo(() => (file.patch ? parsePatch(file.patch) : []), [file.patch]);
   const [open, setOpen] = useState<number | null>(null);
   const [draft, setDraft] = useState("");
+  // A suggestion replaces the commented new line; null while the comment carries none.
+  const [suggestion, setSuggestion] = useState<string | null>(null);
   const [folded, setFolded] = useState(file.status === "removed");
   const { dir, name } = splitPath(file.path);
   const add = (line: DiffLine) => {
     const a = anchorOf(line);
-    if (!a || !draft.trim()) return;
-    props.onComment({ path: file.path, ...a, body: draft.trim() });
+    if (!a || (!draft.trim() && suggestion === null)) return;
+    props.onComment({
+      path: file.path,
+      ...a,
+      body: draft.trim(),
+      ...(suggestion !== null && a.side === "new" ? { suggestion } : {}),
+    });
     setDraft("");
+    setSuggestion(null);
     setOpen(null);
   };
   return (
@@ -79,12 +87,25 @@ export function FileDiff(props: {
                   return (
                     // biome-ignore lint/suspicious/noArrayIndexKey: a diff's lines have no id; their order is fixed.
                     <Fragment key={i}>
-                      <Row line={line} onOpen={() => setOpen(open === i ? null : i)} />
+                      <Row
+                        line={line}
+                        onOpen={() => {
+                          setOpen(open === i ? null : i);
+                          setSuggestion(null);
+                        }}
+                      />
                       {here.map((c) => (
                         <tr key={props.pending.indexOf(c)} className="diff-note">
                           <td colSpan={3}>
                             <div className="diff-comment">
-                              <span className="pre-wrap">{c.body}</span>
+                              <span className="pre-wrap">
+                                {c.body}
+                                {c.suggestion !== undefined && (
+                                  <span className="mono subtle">
+                                    {"\n"}Suggested: {c.suggestion}
+                                  </span>
+                                )}
+                              </span>
                               <Button variant="outline" size="sm" onClick={() => props.onDrop(c)}>
                                 Remove
                               </Button>
@@ -103,10 +124,28 @@ export function FileDiff(props: {
                                 value={draft}
                                 onChange={(e) => setDraft(e.target.value)}
                               />
+                              {line.kind !== "del" &&
+                                (suggestion === null ? (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setSuggestion(line.text)}
+                                  >
+                                    Suggest a change
+                                  </Button>
+                                ) : (
+                                  <textarea
+                                    className="input mono"
+                                    aria-label={`Suggested text for ${lineName(line)}`}
+                                    rows={2}
+                                    value={suggestion}
+                                    onChange={(e) => setSuggestion(e.target.value)}
+                                  />
+                                ))}
                               <div className="row-gap">
                                 <Button
                                   size="sm"
-                                  disabled={!draft.trim()}
+                                  disabled={!draft.trim() && suggestion === null}
                                   onClick={() => add(line)}
                                 >
                                   Add to review

@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PullPage } from "./pages/PullPage.js";
 import { anchorOf, parsePatch } from "./pull/diff.js";
@@ -66,6 +66,46 @@ const files = {
 };
 
 const noReviewers = { suggestions: [], owners: [] };
+const suggestion = (id: string, applicable: boolean) => ({
+  id,
+  startLine: 11,
+  endLine: 11,
+  replacement: "if (amount > left) return;",
+  applicable,
+  applied: false,
+});
+const threads = {
+  head: HEAD,
+  truncated: false,
+  threads: [
+    {
+      id: "T1",
+      path: "src/refund.ts",
+      line: 11,
+      startLine: null,
+      side: "new",
+      resolved: false,
+      outdated: false,
+      canResolve: true,
+      comments: [
+        {
+          id: "C1",
+          author: "rev",
+          body: "Return early.",
+          createdAt: null,
+          suggestions: [suggestion("C1:0", true)],
+        },
+        {
+          id: "C2",
+          author: "rev",
+          body: "Or this.",
+          createdAt: null,
+          suggestions: [suggestion("C2:0", false)],
+        },
+      ],
+    },
+  ],
+};
 
 describe("a pull request's page", () => {
   const show = (queue: unknown = { enabled: false, entry: null }) => {
@@ -79,6 +119,7 @@ describe("a pull request's page", () => {
         }
         if (url.startsWith("/api/pulls/stack")) return Response.json({ trunk: "", pulls: [] });
         if (url.startsWith("/api/pulls/reviewers")) return Response.json(noReviewers);
+        if (url.startsWith("/api/pulls/threads")) return Response.json(threads);
         return Response.json(url.startsWith("/api/pulls/queue") ? queue : files);
       }),
     );
@@ -115,6 +156,60 @@ describe("a pull request's page", () => {
     expect(screen.queryByText("Why log?")).toBeNull();
   });
 
+  it("writes a suggestion on a new line into the review", async () => {
+    const sent = show();
+    fireEvent.click(await screen.findByRole("button", { name: "Comment on line 11" }));
+    fireEvent.click(screen.getByRole("button", { name: "Suggest a change" }));
+    fireEvent.change(screen.getByLabelText("Suggested text for line 11"), {
+      target: { value: "if (amount > left) return;" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add to review" }));
+    await act(
+      async () => void fireEvent.click(screen.getByRole("button", { name: "Submit review" })),
+    );
+    expect(sent[0]?.body).toMatchObject({
+      comments: [
+        {
+          path: "src/refund.ts",
+          line: 11,
+          side: "new",
+          body: "",
+          suggestion: "if (amount > left) return;",
+        },
+      ],
+    });
+  });
+
+  it("commits the picked suggestions against the head the threads were read at, and resolves", async () => {
+    const sent = show();
+    const panel = await screen.findByRole("region", { name: "Review threads" });
+    const [apply, outdated] = within(panel).getAllByRole("checkbox");
+    expect((outdated as HTMLInputElement).disabled).toBe(true);
+    fireEvent.click(apply as HTMLElement);
+    await act(
+      async () => void fireEvent.click(screen.getByRole("button", { name: "Commit suggestion" })),
+    );
+    await act(
+      async () => void fireEvent.click(within(panel).getByRole("button", { name: "Resolve" })),
+    );
+    expect(sent).toEqual([
+      {
+        url: "/api/pulls/apply-suggestions",
+        body: {
+          platform: "github",
+          repo: "octo/api",
+          number: 7,
+          head: HEAD,
+          suggestions: ["C1:0"],
+        },
+      },
+      {
+        url: "/api/pulls/resolve-thread",
+        body: { platform: "github", repo: "octo/api", number: 7, thread: "T1", resolved: true },
+      },
+    ]);
+  });
+
   it("merges only once confirmed, and says when the pull request moved", async () => {
     const sent = show();
     fireEvent.click(await screen.findByRole("button", { name: "Merge pull request" }));
@@ -148,6 +243,7 @@ describe("a pull request's page", () => {
         }
         if (url.startsWith("/api/pulls/stack")) return Response.json({ trunk: "", pulls: [] });
         if (url.startsWith("/api/pulls/reviewers")) return Response.json(noReviewers);
+        if (url.startsWith("/api/pulls/threads")) return Response.json(threads);
         return Response.json(files);
       }),
     );

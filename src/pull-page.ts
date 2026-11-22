@@ -1,11 +1,17 @@
-import { REDACTED } from "@open-cr-agent/cloud-contract";
 import { type Context, Hono } from "hono";
 import { z } from "zod";
 import { apiError, jsonBody } from "./http.js";
-import { fixMessage } from "./platforms/fix.js";
+import { fixMessage, repoFilePath } from "./platforms/fix.js";
 import { accessToken } from "./platforms/links.js";
 import type { CodePlatform } from "./platforms/platform.js";
 import { platformsOf } from "./platforms/registry.js";
+import {
+  MAX_SUGGESTION_CHARS,
+  MAX_SUGGESTION_LINES,
+  MAX_SUGGESTION_RANGE,
+  suggestionLineCount,
+  withSuggestion,
+} from "./platforms/suggestions.js";
 import { perMinute } from "./rate.js";
 import { pullOfReview, pullOnPlatform } from "./review-pull.js";
 import { fixOf } from "./reviews.js";
@@ -58,22 +64,40 @@ const text = z.string().max(MAX_BODY);
 
 const filesQuery = z.object(pullRef);
 const commentBody = z.object({ ...pullRef, body: text.min(1) });
+/** A line or range comment, which may carry a suggestion for the new lines it is on. */
+const lineComment = z
+  .object({
+    path: z.string().min(1).max(4096),
+    line: z.number().int().min(1),
+    side: z.enum(["old", "new"]),
+    body: text.default(""),
+    startLine: z.number().int().min(1).optional(),
+    suggestion: z
+      .string()
+      .max(MAX_SUGGESTION_CHARS)
+      .refine((t) => !t.includes("\0") && suggestionLineCount(t) <= MAX_SUGGESTION_LINES)
+      .optional(),
+  })
+  .refine((c) => c.body.trim() !== "" || c.suggestion !== undefined, "an empty comment")
+  .refine(
+    (c) =>
+      c.startLine === undefined ||
+      (c.startLine <= c.line && c.line - c.startLine <= MAX_SUGGESTION_RANGE),
+    "not a range",
+  )
+  .refine((c) => c.suggestion === undefined || c.side === "new", "a suggestion on removed lines")
+  .refine(
+    (c) =>
+      c.suggestion === undefined ||
+      withSuggestion("gitlab", c.body, c.suggestion, MAX_SUGGESTION_RANGE).length <= MAX_BODY,
+    "too long with its suggestion",
+  );
 const reviewBody = z.object({
   ...pullRef,
   verdict: z.enum(PULL_VERDICTS),
   body: text.default(""),
   head: sha,
-  comments: z
-    .array(
-      z.object({
-        path: z.string().min(1).max(4096),
-        line: z.number().int().min(1),
-        side: z.enum(["old", "new"]),
-        body: text.min(1),
-      }),
-    )
-    .max(MAX_LINE_COMMENTS)
-    .default([]),
+  comments: z.array(lineComment).max(MAX_LINE_COMMENTS).default([]),
 });
 const mergeBody = z.object({ ...pullRef, method: z.enum(MERGE_METHODS), head: sha });
 const queueBody = z.object({ ...pullRef, head: sha });
@@ -103,13 +127,6 @@ export async function reach(c: Context<AppEnv>, which: (p: CodePlatform) => bool
 }
 
 export const byKind = (ref: Ref) => (p: CodePlatform) => p.kind === ref.platform;
-
-/** A path inside the repository, by its parts; undefined for one that leaves it or was redacted. */
-function repoFilePath(file: string): string | undefined {
-  if (file.includes(REDACTED) || /\p{Cc}/u.test(file)) return undefined;
-  const parts = file.split("/");
-  return parts.every((p) => p !== "" && p !== "." && p !== "..") ? file : undefined;
-}
 
 const answer = (c: Context<AppEnv>, outcome: PullActionOutcome | null) =>
   outcome ? c.json({ outcome }) : apiError(c, "upstream_unreachable");
@@ -249,7 +266,7 @@ pullPage.post(
     const outcome = await platform.actions.applyFix(token, pull.repo, pull.number, {
       path,
       head: pull.head,
-      fix,
+      fixes: [fix],
       message: fixMessage(finding.title),
     });
     if (outcome === "done") {

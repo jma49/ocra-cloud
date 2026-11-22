@@ -11,6 +11,7 @@ import { gitlabQueue } from "./gitlab-queue.js";
 import { gitlabReviewers } from "./gitlab-reviewers.js";
 import { gitlabSearch } from "./gitlab-search.js";
 import { gitlabStacks } from "./gitlab-stack.js";
+import { gitlabThreads } from "./gitlab-threads.js";
 import { platformCall } from "./http.js";
 import type { CodePlatform, PlatformRepo, TokenAnswer } from "./platform.js";
 
@@ -65,6 +66,7 @@ export function gitlab(client: GitlabClient, redirectUri: string): CodePlatform 
     files: gitlabFiles(client.url),
     mergeStatus: gitlabMergeStatus(client.url),
     reviewers: gitlabReviewers(client.url),
+    threads: gitlabThreads(client.url),
     async listRepos(token) {
       const repositories: PlatformRepo[] = [];
       for (let page = 1; page <= MAX_PAGES; page++) {

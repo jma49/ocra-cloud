@@ -35,6 +35,7 @@ import { preferences } from "./preferences.js";
 import { pullPage } from "./pull-page.js";
 import { pullSeenRoute } from "./pull-seen.js";
 import { pullStack } from "./pull-stack.js";
+import { pullThreads } from "./pull-threads.js";
 import { pullViewsRoute } from "./pull-views.js";
 import { repoConfigRoute } from "./repo-config.js";
 import { repositoriesRoute } from "./repositories.js";
@@ -131,6 +132,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
   app.route("/pulls/merge-when-ready", mergeWhenReady);
   app.route("/pulls", pullPage);
   app.route("/pulls", pullStack);
+  app.route("/pulls", pullThreads);
   app.route("/pulls", reviewers);
   app.route("/pulls", reviewNow);
   app.route("/pulls", pullSeenRoute);
