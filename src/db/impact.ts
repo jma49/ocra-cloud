@@ -4,11 +4,12 @@ import type { Db } from "./client.js";
 import { jsonRecords, jsonTexts } from "./dialect.js";
 import { closedPulls, findingIssues, findings, pullFlows, reviews } from "./schema.js";
 
-// What ocra changed in an account's enrolled repositories (src/insights-impact.ts):
-// its reviews of their pull requests, named by the repository's identity as
-// the CLI writes it (lower case here), the webhooks' records of those pull
-// requests, and the console's decisions on the findings and issues opened
-// from them. Findings are grouped per review here; nothing else is read.
+// What ocra changed in an account's repositories (src/insights-impact.ts):
+// its reviews of pull requests, named by the repository's identity as the
+// CLI writes it (lower case here), the webhooks' records of the enrolled
+// repositories' pull requests, and the console's decisions on the findings
+// and issues opened from them. Findings are grouped per review here;
+// nothing else is read.
 
 const r = reviews;
 const count = sql<number>`count(*)`.mapWith(Number);
@@ -17,15 +18,31 @@ export function accountImpact(db: Db, accountId: string) {
   const ofRepos = (column: SQLiteColumn, repoIds: readonly string[] | null): SQL | undefined =>
     repoIds ? inArray(column, [...repoIds]) : undefined;
   const identity = sql<string>`lower(${r.prRepository})`;
-  const ofIdentities = (identities: readonly string[]) =>
-    sql`${identity} IN (${jsonTexts(db, JSON.stringify(identities))})`;
-  const reviewsOf = (since: Date, identities: readonly string[]) =>
-    and(eq(r.accountId, accountId), gte(r.createdAt, since), ofIdentities(identities));
+  // Null identities: every repository the account reviewed a pull request of.
+  const ofIdentities = (identities: readonly string[] | null) =>
+    identities ? sql`${identity} IN (${jsonTexts(db, JSON.stringify(identities))})` : undefined;
+  const reviewsOf = (since: Date, identities: readonly string[] | null) =>
+    and(
+      eq(r.accountId, accountId),
+      gte(r.createdAt, since),
+      isNotNull(r.prNumber),
+      ofIdentities(identities),
+    );
 
   return {
-    /** The account's reviews made since of these repositories' pull requests, newest first, up to cap. */
-    reviewsSince(since: Date, identities: readonly string[], cap: number) {
-      if (identities.length === 0) return Promise.resolve([]);
+    /** The repositories whose pull requests the account reviewed since, by identity, up to cap. */
+    reposSince(since: Date, cap: number) {
+      return db
+        .selectDistinct({ identity })
+        .from(r)
+        .where(reviewsOf(since, null))
+        .orderBy(identity)
+        .limit(cap);
+    },
+
+    /** The account's reviews made since of these repositories' pull requests (null: of any), newest first, up to cap. */
+    reviewsSince(since: Date, identities: readonly string[] | null, cap: number) {
+      if (identities?.length === 0) return Promise.resolve([]);
       return db
         .select({
           id: r.id,
@@ -39,7 +56,7 @@ export function accountImpact(db: Db, accountId: string) {
           dismissed: r.dismissed,
         })
         .from(r)
-        .where(and(reviewsOf(since, identities), isNotNull(r.prNumber)))
+        .where(reviewsOf(since, identities))
         .orderBy(desc(r.createdAt))
         .limit(cap);
     },
@@ -62,8 +79,8 @@ export function accountImpact(db: Db, accountId: string) {
     },
 
     /** Per review made since, its shared findings by status and how fixed, threads resolved, and issues opened. */
-    async findingsSince(since: Date, identities: readonly string[], cap: number) {
-      if (identities.length === 0) return { statuses: [], issues: [] };
+    async findingsSince(since: Date, identities: readonly string[] | null, cap: number) {
+      if (identities?.length === 0) return { statuses: [], issues: [] };
       const f = findings;
       const i = findingIssues;
       const [statuses, issues] = await Promise.all([
@@ -96,6 +113,7 @@ export function accountImpact(db: Db, accountId: string) {
 
     /** Pull requests opened since, newest first, up to cap. */
     openedSince(since: Date, repoIds: readonly string[] | null, cap: number) {
+      if (repoIds?.length === 0) return Promise.resolve([]);
       const t = pullFlows;
       return db
         .select({ reviewRepoId: t.reviewRepoId, number: t.number, openedAt: t.openedAt })
@@ -114,6 +132,7 @@ export function accountImpact(db: Db, accountId: string) {
 
     /** Merged since, with when each opened where known, newest first, up to cap. */
     mergedSince(since: Date, repoIds: readonly string[] | null, cap: number) {
+      if (repoIds?.length === 0) return Promise.resolve([]);
       const c = closedPulls;
       const t = pullFlows;
       return db

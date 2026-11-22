@@ -1,10 +1,10 @@
 import type { FixedVia } from "./domain.js";
 import type { FlowSpread } from "./flow.js";
 
-// What ocra changed in the account's enrolled repositories, for the Insights
-// page: from the reviews it uploaded of their pull requests, the webhooks'
-// records of those pull requests and what the console recorded of the
-// findings. Nothing is read from the platforms.
+// What ocra changed in the account's repositories, for the Insights page:
+// from the reviews it uploaded of pull requests, the webhooks' records of
+// the enrolled repositories' pull requests and what the console recorded
+// of the findings. Nothing is read from the platforms.
 
 type ImpactFindings = { critical: number; warning: number; suggestion: number };
 
@@ -27,11 +27,15 @@ type ImpactActedOn = {
 };
 
 export type ImpactCounts = {
-  /** Pull requests opened in the period, from the webhooks' records. */
+  /**
+   * Pull requests: in an enrolled repository, those opened in the period
+   * (the webhooks' records); in any other, those ocra reviewed in the
+   * period, counted in the week of its first review in it.
+   */
   pulls: number;
-  /** Of those, the ones ocra reviewed. */
+  /** Of those, the ones ocra reviewed: all of them in a repository not enrolled. */
   reviewedPulls: number;
-  /** ocra's reviews of the enrolled repositories' pull requests made in the period. */
+  /** ocra's reviews of pull requests made in the period, in any repository. */
   reviews: number;
   /** What those reviews found, by severity. */
   findings: ImpactFindings;
@@ -43,7 +47,7 @@ export type ImpactCounts = {
 };
 
 export type InsightsImpactView = {
-  /** The enrolled repository asked for, or null for all of them. */
+  /** The repository asked for, enrolled or reviewed in the period, or null for all of them. */
   repo: string | null;
   days: number;
   /** Whether the account shares findings, so that actedOn is counted. */
@@ -51,9 +55,16 @@ export type InsightsImpactView = {
   total: ImpactCounts;
   /** UTC weeks from Monday, oldest first, the first one cut at the window's start. */
   weeks: ({ start: string } & ImpactCounts)[];
-  /** Per enrolled repository with a pull request or review in the window, most reviews first. */
-  repos: ({ repo: string } & ImpactCounts)[];
-  /** Pull requests merged in the window. */
+  /**
+   * Per repository with a pull request or review in the window, most reviews
+   * first. `enrolled`: its pull requests are the webhooks' records (see
+   * ImpactCounts.pulls), and its merges are timed in toMerge.
+   */
+  repos: ({ repo: string; enrolled: boolean } & ImpactCounts)[];
+  /**
+   * Enrolled repositories' pull requests merged in the window; null when
+   * none is in scope, since only the webhooks record merges.
+   */
   toMerge: {
     /** From ocra's first review to the merge, of those it reviewed before. */
     fromReview: FlowSpread;
@@ -61,7 +72,7 @@ export type InsightsImpactView = {
     reviewed: FlowSpread;
     /** From opened to the merge, of those it did not. */
     unreviewed: FlowSpread;
-  };
+  } | null;
   /** True when the window held more than one reading counts: the newest are counted. */
   capped: boolean;
 };

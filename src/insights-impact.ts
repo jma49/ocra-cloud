@@ -9,11 +9,14 @@ import type { FlowSpread, ImpactCounts, InsightsImpactView } from "./shared/inde
 import { DAY } from "./time.js";
 import type { AppEnv } from "./types.js";
 
-// What ocra changed on the Insights page: of the enrolled repositories' pull
-// requests the webhooks recorded, how many ocra reviewed, what its reviews
-// found and what became of it, and how soon reviewed and unreviewed pull
-// requests merged. Only stored rows are read (src/db/impact.ts); a finding's
-// fate is counted only while the account shares findings, and never its text.
+// What ocra changed on the Insights page: in every repository the account
+// reviewed pull requests of, what its reviews found and what became of it;
+// of the enrolled repositories' pull requests the webhooks recorded, how
+// many ocra reviewed and how soon reviewed and unreviewed ones merged. A
+// repository not enrolled has no such records: its pull requests are the
+// ones reviewed, and its merges are not timed. Only stored rows are read
+// (src/db/impact.ts); a finding's fate is counted only while the account
+// shares findings, and never its text.
 
 export const impact = new Hono<AppEnv>();
 
@@ -45,6 +48,15 @@ const empty = (sharing: boolean): ImpactCounts => ({
 
 const pullKey = (identity: string, number: number) => `${identity}#${number}`;
 
+/** A repository's name from its identity, `https://host/owner/name`: owner/name. */
+function nameFromIdentity(identity: string): string {
+  try {
+    return new URL(identity).pathname.slice(1);
+  } catch {
+    return identity;
+  }
+}
+
 impact.get("/", requireSession(["web"]), async (c: Context<AppEnv>) => {
   const asked = c.req.query("repo");
   const repo = asked === undefined ? null : repoName.safeParse(asked);
@@ -54,12 +66,11 @@ impact.get("/", requireSession(["web"]), async (c: Context<AppEnv>) => {
   const since = new Date(now - days * DAY);
   const sharing = c.var.session.account.shareFindings;
   const data = c.var.data;
-  const enrolled = await data.find(
-    "reviewRepos",
-    repo?.success ? { fullName: repo.data } : {},
-    MAX_REPOS,
-  );
-  if (repo?.success && enrolled.length === 0) return apiError(c, "not_found");
+  const q = data.impact;
+  const [enrolled, reviewedRepos] = await Promise.all([
+    data.find("reviewRepos", repo?.success ? { fullName: repo.data } : {}, MAX_REPOS),
+    repo?.success ? q.reposSince(since, CAP) : [],
+  ]);
 
   // A review names its pull request's repository as the CLI does: its identity on the platform.
   const platforms = platformsOf(c.env, c.req.url);
@@ -74,9 +85,18 @@ impact.get("/", requireSession(["web"]), async (c: Context<AppEnv>) => {
       nameOf.set(identity, r.fullName);
     } catch {}
   }
-  const identities = [...nameOf.keys()];
+  const isEnrolled = new Set(nameOf.keys());
+  let identities: string[] | null = null;
+  if (repo?.success) {
+    const wanted = repo.data.toLowerCase();
+    const others = reviewedRepos
+      .map((r) => r.identity)
+      .filter((i) => !isEnrolled.has(i) && nameFromIdentity(i) === wanted);
+    identities = [...isEnrolled, ...others];
+    if (enrolled.length === 0 && identities.length === 0) return apiError(c, "not_found");
+  }
+  const named = (identity: string) => nameOf.get(identity) ?? nameFromIdentity(identity);
   const repoIds = repo?.success ? enrolled.map((r) => r.id) : null;
-  const q = data.impact;
   const [reviewed, opened, merged, decided] = await Promise.all([
     q.reviewsSince(since, identities, CAP),
     q.openedSince(since, repoIds, CAP),
@@ -101,12 +121,10 @@ impact.get("/", requireSession(["web"]), async (c: Context<AppEnv>) => {
   for (let w = weekStart(since.getTime()); w <= now; w += WEEK) weeks.set(w, empty(sharing));
   const repos = new Map<string, ImpactCounts>();
   const bucketsOf = (identity: string, at: number): ImpactCounts[] => {
-    const name = nameOf.get(identity);
-    if (name === undefined) return [];
-    let perRepo = repos.get(name);
+    let perRepo = repos.get(identity);
     if (!perRepo) {
       perRepo = empty(sharing);
-      repos.set(name, perRepo);
+      repos.set(identity, perRepo);
     }
     const week = weeks.get(weekStart(at));
     return week ? [total, week, perRepo] : [total, perRepo];
@@ -122,7 +140,15 @@ impact.get("/", requireSession(["web"]), async (c: Context<AppEnv>) => {
     }
   }
   const reviewBuckets = new Map<string, ImpactCounts[]>();
+  // Rows come newest first, so the last one seen of a pull request is its first review in the window.
+  const firstInWindow = new Map<string, { identity: string; at: number }>();
   for (const r of reviewed) {
+    if (!isEnrolled.has(r.repo) && r.number !== null) {
+      firstInWindow.set(pullKey(r.repo, r.number), {
+        identity: r.repo,
+        at: r.createdAt.getTime(),
+      });
+    }
     const buckets = bucketsOf(r.repo, r.createdAt.getTime());
     reviewBuckets.set(r.id, buckets);
     for (const b of buckets) {
@@ -132,6 +158,12 @@ impact.get("/", requireSession(["web"]), async (c: Context<AppEnv>) => {
       b.findings.suggestion += r.suggestion;
       b.fixedOnRereview += r.fixed;
       b.dismissedOnRereview += r.dismissed;
+    }
+  }
+  for (const p of firstInWindow.values()) {
+    for (const b of bucketsOf(p.identity, p.at)) {
+      b.pulls++;
+      b.reviewedPulls++;
     }
   }
   for (const s of decided?.statuses ?? []) {
@@ -172,15 +204,19 @@ impact.get("/", requireSession(["web"]), async (c: Context<AppEnv>) => {
       ...n,
     })),
     repos: [...repos]
-      .map(([name, n]) => ({ repo: name, ...n }))
+      .map(([identity, n]) => ({ repo: named(identity), enrolled: isEnrolled.has(identity), ...n }))
       .sort((a, b) => b.reviews - a.reviews || b.pulls - a.pulls || (a.repo < b.repo ? -1 : 1)),
-    toMerge: {
-      fromReview: counted(fromReview),
-      reviewed: counted(reviewedToMerge),
-      unreviewed: counted(unreviewedToMerge),
-    },
+    toMerge:
+      isEnrolled.size === 0
+        ? null
+        : {
+            fromReview: counted(fromReview),
+            reviewed: counted(reviewedToMerge),
+            unreviewed: counted(unreviewedToMerge),
+          },
     capped:
       reviewed.length >= CAP ||
+      reviewedRepos.length >= CAP ||
       opened.length >= CAP ||
       merged.length >= CAP ||
       (decided?.statuses.length ?? 0) >= CAP ||

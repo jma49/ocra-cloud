@@ -13,8 +13,8 @@ import { call, db, resetDb, signIn } from "./helpers.js";
 
 // "What ocra changed" on the Insights page, from fixed stored rows: of the
 // pull requests the webhooks recorded, those ocra reviewed; what its reviews
-// found and what became of it; and how soon reviewed and unreviewed pull
-// requests merged. Another account's rows never count.
+// found and what became of it, in any repository; and how soon reviewed and
+// unreviewed pull requests merged. Another account's rows never count.
 
 beforeEach(resetDb);
 afterEach(() => vi.useRealTimers());
@@ -157,10 +157,10 @@ async function fixture(a: Account) {
   // Merged before the window, and closed unmerged in it: neither is a merge counted.
   await closed(a, "api", 7, ago(300), ago(8 * 24));
   await closed(a, "api", 8, ago(30), ago(2), false);
-  // A local review and a review of a repository not enrolled.
+  // A local review, not counted, and a review of a repository not enrolled.
   await reviewed(a, "run-local", null, ago(2), { critical: 9 });
   await reviewed(a, "run-other", { repository: "https://github.com/other/x", number: 1 }, ago(2), {
-    critical: 9,
+    critical: 4,
   });
 }
 
@@ -209,10 +209,10 @@ describe("what ocra changed", () => {
     expect(body.sharesFindings).toBe(true);
     expect(body.total).toEqual(
       counts({
-        pulls: 4,
-        reviewedPulls: 2,
-        reviews: 3,
-        findings: { critical: 1, warning: 3, suggestion: 3 },
+        pulls: 5,
+        reviewedPulls: 3,
+        reviews: 4,
+        findings: { critical: 5, warning: 3, suggestion: 3 },
         fixedOnRereview: 2,
         dismissedOnRereview: 1,
         actedOn,
@@ -232,10 +232,10 @@ describe("what ocra changed", () => {
       {
         start: "2026-11-16",
         ...counts({
-          pulls: 2,
-          reviewedPulls: 2,
-          reviews: 2,
-          findings: { critical: 1, warning: 2, suggestion: 3 },
+          pulls: 3,
+          reviewedPulls: 3,
+          reviews: 3,
+          findings: { critical: 5, warning: 2, suggestion: 3 },
           actedOn,
         }),
       },
@@ -243,6 +243,7 @@ describe("what ocra changed", () => {
     expect(body.repos).toEqual([
       {
         repo: "mona/api",
+        enrolled: true,
         ...counts({
           pulls: 2,
           reviewedPulls: 1,
@@ -255,11 +256,22 @@ describe("what ocra changed", () => {
       },
       {
         repo: "mona/web",
+        enrolled: true,
         ...counts({
           pulls: 2,
           reviewedPulls: 1,
           reviews: 1,
           findings: { critical: 0, warning: 0, suggestion: 3 },
+        }),
+      },
+      {
+        repo: "other/x",
+        enrolled: false,
+        ...counts({
+          pulls: 1,
+          reviewedPulls: 1,
+          reviews: 1,
+          findings: { critical: 4, warning: 0, suggestion: 0 },
         }),
       },
     ]);
@@ -303,11 +315,10 @@ describe("what ocra changed", () => {
     expect(body.repos).toEqual([]);
     expect(body.weeks).toHaveLength(5);
     expect(body.weeks.every((w) => w.pulls === 0 && w.reviews === 0)).toBe(true);
-    const none = spreadOf([]);
-    expect(body.toMerge).toEqual({ fromReview: none, reviewed: none, unreviewed: none });
+    expect(body.toMerge).toBeNull();
   });
 
-  it("reads one enrolled repository when asked, and refuses one not enrolled", async () => {
+  it("reads one repository when asked, enrolled or reviewed, and refuses any other", async () => {
     vi.useFakeTimers({ now, toFake: ["Date"] });
     const a = await account(42, "mona", true);
     await fixture(a);
@@ -322,8 +333,21 @@ describe("what ocra changed", () => {
       }),
     );
     expect(body.repos.map((r) => r.repo)).toEqual(["mona/web"]);
-    expect(body.toMerge.fromReview.count + body.toMerge.unreviewed.count).toBe(0);
-    expect((await view(a.me.auth, "days=7&repo=other/x")).status).toBe(404);
+    expect((body.toMerge?.fromReview.count ?? 1) + (body.toMerge?.unreviewed.count ?? 1)).toBe(0);
+    const other = await view(a.me.auth, "days=7&repo=other/X");
+    expect(other.status).toBe(200);
+    expect(other.body.repos.map((r) => [r.repo, r.enrolled])).toEqual([["other/x", false]]);
+    expect(other.body.total).toEqual(
+      counts({
+        pulls: 1,
+        reviewedPulls: 1,
+        reviews: 1,
+        findings: { critical: 4, warning: 0, suggestion: 0 },
+      }),
+    );
+    expect(other.body.toMerge).toBeNull();
+    // Reviewed only before the window, or never: not a repository of this view.
+    expect((await view(a.me.auth, "days=7&repo=nobody/x")).status).toBe(404);
     expect((await view(a.me.auth, "days=7&repo=..")).status).toBe(404);
   });
 
@@ -337,13 +361,21 @@ describe("what ocra changed", () => {
       finding({ fingerprint: "fp-bob" }),
     ]);
     const { body } = await view(mona.me.auth);
-    expect(body.total.reviews).toBe(3);
-    expect(body.total.reviewedPulls).toBe(2);
-    expect(body.total.findings.critical).toBe(1);
-    expect(body.toMerge.unreviewed.count).toBe(1);
+    expect(body.total.reviews).toBe(4);
+    expect(body.total.reviewedPulls).toBe(3);
+    expect(body.total.findings.critical).toBe(5);
+    expect(body.toMerge?.unreviewed.count).toBe(1);
     const other = await view(bob.me.auth);
-    expect(other.body.total).toEqual(counts({}));
-    expect(other.body.repos).toEqual([]);
+    expect(other.body.total).toEqual(
+      counts({
+        pulls: 1,
+        reviewedPulls: 1,
+        reviews: 1,
+        findings: { critical: 4, warning: 0, suggestion: 0 },
+        actedOn: acted({ open: 1 }),
+      }),
+    );
+    expect(other.body.repos.map((r) => [r.repo, r.enrolled])).toEqual([["mona/api", false]]);
   });
 
   it("counts fixed findings by how they became fixed, once each, and older ones as unknown", async () => {
@@ -409,6 +441,53 @@ describe("what ocra changed", () => {
       decidedAt: null,
     });
     expect((await mona.data.get("findings", applied))?.fixedVia).toBeNull();
+  });
+
+  it("counts the reviews of an account with no repository enrolled, and does not time its merges", async () => {
+    vi.useFakeTimers({ now, toFake: ["Date"] });
+    const me = await signIn(44, "cli");
+    await db.update(accounts).set({ shareFindings: true }).where(eq(accounts.id, me.account.id));
+    const a: Account = { me, data: scoped(db, me.account.id), login: "cli" };
+    const cliPr = (repo: string, number: number) => ({
+      repository: `https://gitlab.example.com/team/${repo}`,
+      number,
+    });
+    // 1: reviewed before the window and twice in it, last week first; counted once, in that week.
+    await reviewed(a, "run-old", cliPr("api", 1), ago(200), { critical: 7 });
+    const first = await reviewed(a, "run-1", cliPr("api", 1), ago(100), { warning: 2 }, undefined, [
+      finding({ fingerprint: "fp-a" }),
+      finding({ fingerprint: "fp-b" }),
+    ]);
+    await reviewed(a, "run-2", cliPr("api", 1), ago(3), { warning: 1 }, { fixed: 1, dismissed: 0 });
+    // 2 in the same repository and 1 in another, this week.
+    await reviewed(a, "run-3", cliPr("api", 2), ago(5), { suggestion: 1 });
+    await reviewed(a, "run-4", cliPr("web", 1), ago(4), { critical: 1 });
+    await reviewed(a, "run-local", null, ago(2), { critical: 9 });
+    const [fixedId] = first.findings;
+    if (!fixedId) throw new Error("the findings were not kept");
+    await a.data.decide([fixedId], { status: "fixed", reason: null, note: null, decidedAt: now });
+
+    const { status, body } = await view(me.auth);
+    expect(status).toBe(200);
+    expect(body.total).toEqual(
+      counts({
+        pulls: 3,
+        reviewedPulls: 3,
+        reviews: 4,
+        findings: { critical: 1, warning: 3, suggestion: 1 },
+        fixedOnRereview: 1,
+        actedOn: acted({ fixed: 1, open: 1 }, { manual: 1 }),
+      }),
+    );
+    expect(body.weeks.map((w) => [w.start, w.pulls, w.reviewedPulls, w.reviews])).toEqual([
+      ["2026-11-09", 1, 1, 1],
+      ["2026-11-16", 2, 2, 3],
+    ]);
+    expect(body.repos.map((r) => [r.repo, r.enrolled, r.pulls, r.reviews])).toEqual([
+      ["team/api", false, 2, 3],
+      ["team/web", false, 1, 1],
+    ]);
+    expect(body.toMerge).toBeNull();
   });
 
   it("asks for a web session", async () => {
