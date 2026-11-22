@@ -79,6 +79,16 @@ export type Session = {
   current: boolean;
 };
 
+export type BodyIssue = { path: (string | number)[]; message: string };
+
+function issuesOf(body: { issues?: unknown }): BodyIssue[] {
+  if (!Array.isArray(body.issues)) return [];
+  return body.issues.flatMap((i: unknown) => {
+    const { path, message } = (i ?? {}) as { path?: unknown; message?: unknown };
+    return Array.isArray(path) && typeof message === "string" ? [{ path, message }] : [];
+  });
+}
+
 /** A refusal; `code` is undefined when the answer names no code this app knows (a proxy's page, say). */
 export class ApiError extends Error {
   constructor(
@@ -86,6 +96,8 @@ export class ApiError extends Error {
     readonly code: ErrorCode | undefined,
     /** What some refusals add to their code (RECENT_SIGN_IN). */
     readonly reason?: string,
+    /** Where an invalid_body did not fit: each path into the body, and why. */
+    readonly issues: readonly BodyIssue[] = [],
   ) {
     super(code ?? String(status));
   }
@@ -148,10 +160,14 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     ...init,
     headers: { "content-type": "application/json", ...init.headers },
   });
-  const body = (await res.json().catch(() => ({}))) as { error?: unknown; reason?: unknown };
+  const body = (await res.json().catch(() => ({}))) as {
+    error?: unknown;
+    reason?: unknown;
+    issues?: unknown;
+  };
   if (!res.ok) {
     const reason = typeof body.reason === "string" ? body.reason : undefined;
-    throw new ApiError(res.status, codeOf(body.error), reason);
+    throw new ApiError(res.status, codeOf(body.error), reason, issuesOf(body));
   }
   return body as T;
 }
