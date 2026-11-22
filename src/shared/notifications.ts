@@ -23,6 +23,9 @@ export type NotifyWhen = (typeof NOTIFY_WHEN)[number];
  * they wrote (pull_commented), @-mentioned their login in a pull request's
  * comment or review (mentioned), or replied in a review thread they started
  * (thread_replied; only threads started since ocra began keeping them).
+ * One is of the team: a pull request of an enrolled repository near or past
+ * a review target (pull_at_risk), sent by the hourly run once per pull
+ * request and target.
  */
 export const NOTIFY_EVENTS = [
   "review_requested",
@@ -36,6 +39,7 @@ export const NOTIFY_EVENTS = [
   "pull_commented",
   "mentioned",
   "thread_replied",
+  "pull_at_risk",
 ] as const;
 export type NotifyEvent = (typeof NOTIFY_EVENTS)[number];
 
@@ -47,6 +51,7 @@ export const QUIET_EVENTS = [
   "pull_commented",
   "mentioned",
   "thread_replied",
+  "pull_at_risk",
 ] as const satisfies NotifyEvent[];
 
 /** After how many hours of waiting a channel is reminded. */

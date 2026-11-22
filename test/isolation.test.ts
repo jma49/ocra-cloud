@@ -42,6 +42,7 @@ const changes = {
   pullReviews: { approved: false },
   pullPaths: { head: "d".repeat(40) },
   reviewRequests: { doneAt: new Date(0) },
+  reviewTargets: { mergeDays: 3 },
   replyJobs: { state: "done" as const },
   reviewWalkthroughs: { overview: "changed" },
   generateJobs: { state: "done" as const },

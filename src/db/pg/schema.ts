@@ -45,6 +45,7 @@ export const pullReviews = pg(sqlite.pullReviews);
 export const reviewThreads = pg(sqlite.reviewThreads);
 export const pullPaths = pg(sqlite.pullPaths);
 export const reviewRequests = pg(sqlite.reviewRequests);
+export const reviewTargets = pg(sqlite.reviewTargets);
 export const replyJobs = pg(sqlite.replyJobs);
 export const reviewWalkthroughs = pg(sqlite.reviewWalkthroughs);
 export const generateJobs = pg(sqlite.generateJobs);

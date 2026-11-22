@@ -2,6 +2,7 @@ import { drizzle } from "drizzle-orm/d1";
 import { createApp } from "./app.js";
 import { enforceRetention } from "./db/retention.js";
 import { masterKeys } from "./keyring.js";
+import { runAtRisk } from "./notify/at-risk.js";
 import { runDigests } from "./notify/digest.js";
 import { runHeld } from "./notify/held.js";
 import { runReminders } from "./notify/reminders.js";
@@ -10,8 +11,8 @@ import { githubHostOf } from "./platforms/registry.js";
 
 // The Cloudflare Worker: D1, its rate limiting bindings and its crons: the
 // daily one runs retention, the hourly one (HOURLY, in wrangler.jsonc) the
-// digests, weekly reports, review reminders and the notices held in quiet
-// hours, which the database lets go once. It has no mailer: no email API is
+// digests, weekly reports, review reminders, the notices held in quiet
+// hours and the pull requests at risk of a review target, which the database lets go once. It has no mailer: no email API is
 // configured for it, so they go to its chats only.
 const HOURLY = "47 * * * *";
 export const app = createApp({
@@ -36,6 +37,7 @@ export default {
       ctx.waitUntil(runReports(db, out));
       ctx.waitUntil(runReminders(db, out, githubHostOf(env).host));
       ctx.waitUntil(runHeld(db, out));
+      ctx.waitUntil(runAtRisk(db, out));
     }
   },
 } satisfies ExportedHandler<Env>;

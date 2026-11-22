@@ -32,6 +32,7 @@ export * from "./repo-config.js";
 export * from "./review-chat.js";
 export * from "./review-load.js";
 export * from "./review-profiles.js";
+export * from "./review-targets.js";
 export * from "./reviewers.js";
 export * from "./search.js";
 export * from "./sign-in.js";

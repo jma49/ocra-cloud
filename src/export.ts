@@ -51,6 +51,7 @@ export const EXPORTED = {
   reviewThreads: "reviewThreads",
   pullPaths: "pullPaths",
   reviewRequests: "reviewRequests",
+  reviewTargets: "reviewTargets",
   replyJobs: "replyJobs",
   reviewWalkthroughs: "walkthroughs",
   generateJobs: "generateJobs",

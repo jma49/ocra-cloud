@@ -50,6 +50,7 @@ import { repoConfigRoute } from "./repo-config.js";
 import { repositoriesRoute } from "./repositories.js";
 import { reviewChat } from "./review-chat.js";
 import { reviewLoad } from "./review-load.js";
+import { atRiskRoute, reviewTargetsRoute } from "./review-targets.js";
 import { reviewers } from "./reviewers.js";
 import { reviews } from "./reviews.js";
 import { searchRoute } from "./search.js";
@@ -171,6 +172,8 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
   app.route("/insights/flow", flow);
   app.route("/insights/impact", impact);
   app.route("/insights/reviewers", reviewLoad);
+  app.route("/insights/at-risk", atRiskRoute);
+  app.route("/review-targets", reviewTargetsRoute);
   const hook = githubWebhook(host);
   app.route("/webhooks/github", hook);
   // The address the App's webhook had when it carried only pushes.
