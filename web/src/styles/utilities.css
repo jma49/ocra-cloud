@@ -36,6 +36,9 @@
 .nobreak {
   white-space: nowrap;
 }
+.error-inline {
+  color: var(--critical);
+}
 .capitalize {
   text-transform: capitalize;
 }
@@ -47,4 +50,10 @@
 }
 .self-center {
   align-self: center;
+}
+/* A table column a phone leaves out, so the rest fits without scrolling sideways. */
+@media (max-width: 560px) {
+  .hide-narrow {
+    display: none;
+  }
 }

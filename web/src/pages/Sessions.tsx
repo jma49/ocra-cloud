@@ -49,9 +49,9 @@ export function Sessions() {
                 <tr>
                   <th>Type</th>
                   <th>Name</th>
-                  <th>Signed in</th>
+                  <th className="hide-narrow">Signed in</th>
                   <th>Last used</th>
-                  <th>Expires</th>
+                  <th className="hide-narrow">Expires</th>
                   <th />
                 </tr>
               </thead>
@@ -65,9 +65,9 @@ export function Sessions() {
                       {s.label ?? (s.kind === "web" ? "Web session" : "Terminal")}{" "}
                       {s.current && <span className="badge badge-ok">this session</span>}
                     </td>
-                    <td className="muted">{date(s.createdAt)}</td>
+                    <td className="muted hide-narrow">{date(s.createdAt)}</td>
                     <td className="muted">{ago(s.lastUsedAt)}</td>
-                    <td className="muted">{date(s.expiresAt)}</td>
+                    <td className="muted hide-narrow">{date(s.expiresAt)}</td>
                     <td className="num">
                       <button
                         type="button"

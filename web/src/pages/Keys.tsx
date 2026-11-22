@@ -77,9 +77,9 @@ export function Keys() {
                   <th>Provider</th>
                   <th>Key</th>
                   <th>Status</th>
-                  <th>Last used</th>
-                  <th className="num">Requests, 7d</th>
-                  <th>Added</th>
+                  <th className="hide-narrow">Last used</th>
+                  <th className="num hide-narrow">Requests, 7d</th>
+                  <th className="hide-narrow">Added</th>
                   <th />
                 </tr>
               </thead>
@@ -199,9 +199,9 @@ function KeyRow(props: {
       <td>
         <StatusBadge status={k.checkStatus} checkable={k.checkable} checkedAt={k.checkedAt} />
       </td>
-      <td className="muted">{ago(k.lastUsedAt)}</td>
-      <td className="num">{num(k.calls7d)}</td>
-      <td className="muted">{k.createdAt ? date(k.createdAt) : "–"}</td>
+      <td className="muted hide-narrow">{ago(k.lastUsedAt)}</td>
+      <td className="num hide-narrow">{num(k.calls7d)}</td>
+      <td className="muted hide-narrow">{k.createdAt ? date(k.createdAt) : "–"}</td>
       <td>
         <div className="row-actions">
           {confirm ? (

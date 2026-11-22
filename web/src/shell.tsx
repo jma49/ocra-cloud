@@ -1,4 +1,5 @@
 import {
+  Bell,
   Book,
   Brain,
   ChartBar,
@@ -45,6 +46,7 @@ const SETTINGS_ICONS: Record<string, KubaiIconComponent> = {
   "/keys": Key,
   "/budget": Coins,
   "/settings": User,
+  "/notifications": Bell,
   "/sessions": Terminal,
 };
 

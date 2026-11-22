@@ -10,6 +10,7 @@ import { Inbox } from "./pages/Inbox.js";
 import { Insights } from "./pages/Insights.js";
 import { Keys } from "./pages/Keys.js";
 import { Memory } from "./pages/Memory.js";
+import { Notifications } from "./pages/Notifications.js";
 import { Overview } from "./pages/Overview.js";
 import { Plugins } from "./pages/Plugins.js";
 import { Repositories } from "./pages/Repositories.js";
@@ -165,6 +166,13 @@ const ROUTES: readonly Route[] = [
     tab: "Account & privacy",
     group: "Account",
     page: (me) => <Settings me={me} />,
+  },
+  {
+    path: "/notifications",
+    place: "settings",
+    tab: "Notifications",
+    group: "Account",
+    page: () => <Notifications />,
   },
   {
     path: "/sessions",
