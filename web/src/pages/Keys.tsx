@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { forgetKeys, loadKeys } from "../account-keys.js";
 import { api, type CheckStatus, type Key, type ProviderInfo, why } from "../api.js";
 import { ago, date, num } from "../format.js";
+import { AddGlyph } from "../glyphs.js";
 import { anyProvider } from "../site.js";
 import { PageHead, ProviderLogo, useLoad, useProviders } from "../ui.js";
 import { AddKeyDrawer, formats, POPULAR } from "./KeyDrawer.js";
@@ -32,7 +33,8 @@ export function Keys() {
             className="btn btn-primary"
             onClick={() => setDrawer({ provider: null })}
           >
-            + Add key
+            <AddGlyph size={14} />
+            Add key
           </button>
         }
       />

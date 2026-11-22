@@ -146,9 +146,7 @@
   font: var(--text-sm) var(--mono);
 }
 
-.check {
-  color: var(--primary);
-  flex: none;
+.note > .glyph {
   margin-top: 2px;
 }
 

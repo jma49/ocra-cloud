@@ -1,5 +1,6 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { ApiError, api, type KeyCheck, type ProviderInfo } from "../api.js";
+import { CloseGlyph, DoneGlyph } from "../glyphs.js";
 import { ActionError, ProviderLogo } from "../ui.js";
 
 // Adding or replacing a key: a drawer that starts with the common providers,
@@ -90,7 +91,7 @@ export function AddKeyDrawer(props: {
               : "Add a provider key"}
           </h2>
           <button type="button" className="icon-btn" onClick={props.onClose} aria-label="Close">
-            ×
+            <CloseGlyph />
           </button>
         </div>
         {!p ? (
@@ -255,7 +256,7 @@ function CheckNote(props: { check: KeyCheck; label: string }) {
   if (status === "ok")
     return (
       <div className="note ok">
-        <span className="check">✓</span> Saved. {props.label} accepted the key.
+        <DoneGlyph /> Saved. {props.label} accepted the key.
       </div>
     );
   if (status === "invalid")

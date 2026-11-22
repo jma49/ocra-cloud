@@ -123,3 +123,6 @@
     animation: none;
   }
 }
+.glyph {
+  flex: none;
+}

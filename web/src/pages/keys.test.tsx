@@ -62,7 +62,7 @@ describe("the keys page", () => {
     if (!own) throw new Error("no row");
     expect(within(own).getByRole("button", { name: "Replace" })).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "+ Add key" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add key" }));
     const drawer = await screen.findByRole("dialog");
     expect(within(drawer).queryByText("Corp LLM")).toBeNull();
     expect(within(drawer).getByText("OpenAI")).toBeTruthy();

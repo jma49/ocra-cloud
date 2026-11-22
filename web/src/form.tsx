@@ -1,4 +1,5 @@
 import { type ReactNode, useEffect, useRef, useState } from "react";
+import { CloseGlyph } from "./glyphs.js";
 import { useResets } from "./prefs.js";
 
 // Settings rows: a label, what it does, its built-in default, and a control.
@@ -132,7 +133,7 @@ export function GlobList(props: {
                 aria-label={`Remove ${g}`}
                 onClick={() => props.onChange(props.value.filter((x) => x !== g))}
               >
-                ×
+                <CloseGlyph size={12} />
               </button>
             </span>
           ))}

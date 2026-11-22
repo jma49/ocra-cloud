@@ -378,9 +378,14 @@ select.input {
   background: none;
   cursor: pointer;
   color: var(--fg-subtle);
-  font-size: var(--text-base);
-  line-height: 1;
-  padding: 0 4px;
+  display: grid;
+  place-items: center;
+  padding: 2px;
+  border-radius: var(--r-tag);
+}
+.chip-x button:hover {
+  background: var(--tint);
+  color: var(--fg);
 }
 .default-tag {
   font-size: var(--text-sm);

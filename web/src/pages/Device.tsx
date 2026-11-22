@@ -1,6 +1,7 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { ApiError, api } from "../api.js";
 import { ago } from "../format.js";
+import { DoneGlyph } from "../glyphs.js";
 import { PageHead } from "../ui.js";
 
 type Info = { user_code: string; label: string | null; createdAt: string };
@@ -134,8 +135,7 @@ export function Device() {
         )}
         {state === "approved" && (
           <div className="note ok mt-0">
-            <span className="check">✓</span> Terminal signed in. You can return to it; it will
-            continue on its own.
+            <DoneGlyph /> Terminal signed in. You can return to it; it will continue on its own.
           </div>
         )}
         {state === "denied" && <div className="note">Denied. The terminal was not signed in.</div>}
