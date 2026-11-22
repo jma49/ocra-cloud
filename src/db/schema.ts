@@ -562,6 +562,35 @@ export const reviewJobs = sqliteTable(
   ],
 );
 
+// An answer to an @ocra comment on an enrolled repository's pull request,
+// one per comment: a webhook retried or delivered twice queues it once.
+export const replyJobs = sqliteTable(
+  "reply_jobs",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    reviewRepoId: text("review_repo_id")
+      .notNull()
+      .references(() => reviewRepos.id, { onDelete: "cascade" }),
+    number: integer("number").notNull(),
+    commentId: text("comment_id").notNull(),
+    // A review comment on a line (GitHub's pull_request_review_comment).
+    inline: integer("inline", { mode: "boolean" }).notNull().default(false),
+    state: text("state", { enum: REVIEW_JOB_STATES }).notNull().default("queued"),
+    attempts: integer("attempts").notNull().default(0),
+    notBefore: integer("not_before", { mode: "timestamp_ms" }),
+    leaseUntil: integer("lease_until", { mode: "timestamp_ms" }),
+    error: text("error"),
+    finishedAt: integer("finished_at", { mode: "timestamp_ms" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("reply_jobs_comment").on(t.reviewRepoId, t.commentId),
+    index("reply_jobs_state").on(t.state, t.createdAt),
+    index("reply_jobs_account_created").on(t.accountId, t.createdAt),
+  ],
+);
+
 /** The tables scoped by account, by the name scoped() uses. */
 export const accountTables = {
   sessions,
@@ -583,4 +612,5 @@ export const accountTables = {
   reviewRepos,
   reviewJobs,
   notifyChannels,
+  replyJobs,
 } as const;

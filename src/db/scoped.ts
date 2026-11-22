@@ -38,6 +38,7 @@ import {
 import { accountNotify } from "./notify.js";
 import { type PreferencesSave, savePreferences } from "./preferences.js";
 import { addPullView } from "./pull-views.js";
+import { accountReplyJobs } from "./reply-jobs.js";
 import { nameRepo, nameRepos, reviewedRepos } from "./repos.js";
 import { accountReviewJobs } from "./review-jobs.js";
 import { accountTables } from "./schema.js";
@@ -414,6 +415,7 @@ export function scoped(db: Db, accountId: string) {
     graphs: accountGraphs(db, accountId),
     autoReview: accountReviewJobs(db, accountId),
     notify: accountNotify(db, accountId),
+    replies: accountReplyJobs(db, accountId),
     /** The findings of one of this account's reviews. */
     findingsOf(reviewId: string): Promise<Row<"findings">[]> {
       const f = accountTables.findings;

@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { scoped } from "../src/db/scoped.js";
 import { appJwt, type BotTokens, botTokens } from "../src/node/bot-tokens.js";
-import { type Exec, runNextReview } from "../src/node/review-runner.js";
+import { type Exec, runNextReply, runNextReview } from "../src/node/review-runner.js";
 import { github } from "../src/platforms/github.js";
 import { C1 } from "./graph-fakes.js";
 import { graphServer, ORIGIN, type Server } from "./graph-server.js";
@@ -88,6 +88,7 @@ describe("the ocra bot's GitHub token", () => {
 describe("a review job's run", () => {
   let s: Server;
   let accountId: string;
+  let repoId: string;
   const bots: BotTokens = {
     forRepo: async () => ({ token: "ghs_bot", login: "ocra-review[bot]" }),
   };
@@ -102,7 +103,8 @@ describe("a review job's run", () => {
       { platform: "github", host: "github.com", platformRepoId: "11", fullName: "Octo/API" },
       100,
     );
-    await jobs.queue(repo ?? "", 7, C1, new Date());
+    repoId = repo ?? "";
+    await jobs.queue(repoId, 7, C1, new Date());
   });
   afterEach(() => s.host.close());
 
@@ -223,5 +225,36 @@ describe("a review job's run", () => {
     expect(calls).toEqual([]);
     const [job] = await scoped(s.host.db, accountId).autoReview.latestJobs();
     expect(job).toMatchObject({ state: "failed", error: "no_bot" });
+  });
+  it("answers an @ocra comment with `ocra reply` on it, after the review", async () => {
+    await scoped(s.host.db, accountId).replies.queue(repoId, 7, "502", true);
+    const { exec, calls } = fakeExec(0, {});
+    const runner = { db: s.host.db, platforms, bots, publicUrl: ORIGIN, exec, cli: "/c.js" };
+    expect(await runNextReply(runner)).toBe(true);
+    expect(calls.at(-1)?.args).toEqual([
+      "/c.js",
+      "reply",
+      "--pr",
+      "7",
+      "--repo",
+      "Octo/API",
+      "--comment",
+      "502",
+      "--inline",
+      "--config",
+      expect.stringMatching(/ocra\.json$/),
+    ]);
+    expect(calls.at(-1)?.env).toMatchObject({ GITHUB_TOKEN: "ghs_bot" });
+    expect(await runNextReply(runner)).toBe(false);
+    const [reply] = await scoped(s.host.db, accountId).list("replyJobs");
+    expect(reply).toMatchObject({ state: "done", attempts: 1 });
+  });
+
+  it("retries an answer the CLI failed", async () => {
+    await scoped(s.host.db, accountId).replies.queue(repoId, 7, "503", false);
+    const { exec } = fakeExec(3, {});
+    await runNextReply({ db: s.host.db, platforms, bots, publicUrl: ORIGIN, exec, cli: "x" });
+    const [reply] = await scoped(s.host.db, accountId).list("replyJobs");
+    expect(reply).toMatchObject({ state: "queued", error: "review_failed", attempts: 1 });
   });
 });

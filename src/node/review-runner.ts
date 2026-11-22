@@ -5,19 +5,21 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { loginOf } from "../db/accounts.js";
 import type { Db } from "../db/client.js";
-import { type ClaimedJob, claimJob } from "../db/review-jobs.js";
+import { claimReply } from "../db/reply-jobs.js";
+import { claimJob } from "../db/review-jobs.js";
 import { scoped } from "../db/scoped.js";
 import { errorName, logError } from "../log.js";
 import type { CodePlatform } from "../platforms/platform.js";
 import { startCliSession } from "../session.js";
 import type { BotCredential, BotTokens } from "./bot-tokens.js";
 
-// Runs the next queued review (ADR-0046, 4): clones the repository's
-// default branch into a new directory, runs the released CLI there on the
-// pull request with --no-repo-config, signed in to this server as the
-// enrolling account (its models, key, budget and rules, and the upload),
-// and posting as the ocra bot. The directory and the session it was given
-// are removed on every exit path. A failure is recorded on the job.
+// Runs the next queued review (ADR-0046, 4), or answer to an @ocra comment:
+// clones the repository's default branch into a new directory, runs the
+// released CLI there on the pull request (`ocra review … --no-repo-config`
+// or `ocra reply`), signed in to this server as the enrolling account (its
+// models, key, budget and rules, and the upload), and posting as the ocra
+// bot. The directory and the session it was given are removed on every
+// exit path. A failure is recorded on the job.
 
 type ExecResult = { code: number | null };
 /** Runs a command to its end; aborting the signal kills it with its children. */
@@ -49,10 +51,48 @@ const MAX_ATTEMPTS = 3;
 const RETRY_AFTER_MS = 5 * 60_000;
 /** The CLI's exit codes for a review it finished and posted: ok, blocking, incomplete. */
 const REVIEWED = new Set([0, 1, 3]);
+/** `ocra reply` answered, or found nothing to answer. */
+const REPLIED = new Set([0]);
+/** An answer is one model call or a few: far shorter than a review. */
+const REPLY_LEASE_MS = 10 * 60_000;
 
 class JobFailure extends Error {
   constructor(readonly reason: Failure) {
     super(reason);
+  }
+}
+
+type Job = {
+  id: string;
+  accountId: string;
+  reviewRepoId: string;
+  attempts: number;
+  leaseUntil: Date;
+};
+type Records = {
+  finish(id: string, attempts: number, now: Date): Promise<unknown>;
+  release(
+    id: string,
+    attempts: number,
+    error: string,
+    retryAt: Date | null,
+    now: Date,
+  ): Promise<unknown>;
+};
+
+/** Runs the job's CLI command and records how it went, retrying what may pass next time. */
+async function runJob(runner: ReviewRunner, job: Job, records: Records, command: Command) {
+  const now = runner.now ?? (() => new Date());
+  const signal = AbortSignal.timeout(Math.max(job.leaseUntil.getTime() - now().getTime(), 0));
+  try {
+    await inCheckout(runner, job, command, signal);
+    await records.finish(job.id, job.attempts, now());
+  } catch (e) {
+    const reason = e instanceof JobFailure ? e.reason : "review_failed";
+    const retry = RETRIED.has(reason) && job.attempts < MAX_ATTEMPTS;
+    logError("review_job_failed", { job: job.id, reason, error: errorName(e), retry });
+    const retryAt = retry ? new Date(now().getTime() + RETRY_AFTER_MS * job.attempts) : null;
+    await records.release(job.id, job.attempts, reason, retryAt, now());
   }
 }
 
@@ -62,21 +102,57 @@ export async function runNextReview(runner: ReviewRunner): Promise<boolean> {
   const job = await claimJob(runner.db, now(), runner.leaseMs ?? LEASE_MS);
   if (!job) return false;
   const jobs = scoped(runner.db, job.accountId).autoReview;
-  const signal = AbortSignal.timeout(Math.max(job.leaseUntil.getTime() - now().getTime(), 0));
-  try {
-    await review(runner, job, signal);
-    await jobs.finishJob(job.id, job.attempts, null, now());
-  } catch (e) {
-    const reason = e instanceof JobFailure ? e.reason : "review_failed";
-    const retry = RETRIED.has(reason) && job.attempts < MAX_ATTEMPTS;
-    logError("review_job_failed", { job: job.id, reason, error: errorName(e), retry });
-    const retryAt = retry ? new Date(now().getTime() + RETRY_AFTER_MS * job.attempts) : null;
-    await jobs.releaseJob(job.id, job.attempts, reason, retryAt, now());
-  }
+  await runJob(
+    runner,
+    job,
+    {
+      finish: (id, attempts, at) => jobs.finishJob(id, attempts, null, at),
+      release: (id, attempts, error, retryAt, at) =>
+        jobs.releaseJob(id, attempts, error, retryAt, at),
+    },
+    {
+      args: (platform, fullName, config) => [
+        "review",
+        ...pull(platform, fullName, job.number),
+        "--publish",
+        "--no-repo-config",
+        "--config",
+        config,
+      ],
+      ok: REVIEWED,
+    },
+  );
   return true;
 }
 
-async function review(runner: ReviewRunner, job: ClaimedJob, signal: AbortSignal) {
+/** Runs the next due answer to an @ocra comment; false when there was none. */
+export async function runNextReply(runner: ReviewRunner): Promise<boolean> {
+  const now = runner.now ?? (() => new Date());
+  const job = await claimReply(runner.db, now(), REPLY_LEASE_MS);
+  if (!job) return false;
+  await runJob(runner, job, scoped(runner.db, job.accountId).replies, {
+    args: (platform, fullName, config) => [
+      "reply",
+      ...pull(platform, fullName, job.number),
+      "--comment",
+      job.commentId,
+      ...(job.inline ? ["--inline"] : []),
+      "--config",
+      config,
+    ],
+    ok: REPLIED,
+  });
+  return true;
+}
+
+/** What to run in the checkout: the CLI's arguments, and its exit codes that mean done. */
+type Command = {
+  args: (platform: CodePlatform, fullName: string, config: string) => string[];
+  ok: ReadonlySet<number>;
+};
+
+/** Clones the job's repository and runs the command there, signed in and posting as the bot. */
+async function inCheckout(runner: ReviewRunner, job: Job, command: Command, signal: AbortSignal) {
   const data = scoped(runner.db, job.accountId);
   const repo = await data.get("reviewRepos", job.reviewRepoId);
   if (!repo) throw new JobFailure("repo_gone");
@@ -106,13 +182,13 @@ async function review(runner: ReviewRunner, job: ClaimedJob, signal: AbortSignal
     );
     const config = join(dir, "ocra.json");
     await writeFile(config, JSON.stringify(bot.login ? { github: { botLogin: bot.login } } : {}));
-    const args = ["review", ...target(platform, repo.fullName, job.number), "--config", config];
+    const args = command.args(platform, repo.fullName, config);
     const ran = await exec(process.execPath, [runner.cli ?? installedCli(), ...args], {
       cwd: checkout,
       env: { ...baseEnv(home), OCRA_CLOUD_URL: runner.publicUrl, ...botEnv(platform, bot) },
       signal,
     });
-    if (ran.code === null || !REVIEWED.has(ran.code)) throw new JobFailure("review_failed");
+    if (ran.code === null || !command.ok.has(ran.code)) throw new JobFailure("review_failed");
   } finally {
     await rm(dir, { recursive: true, force: true }).catch(() => {});
     await data.remove("sessions", sessionId).catch(() => {});
@@ -138,13 +214,10 @@ async function signIn(runner: ReviewRunner, accountId: string, sessionId: string
   );
 }
 
-const target = (platform: CodePlatform, fullName: string, number: number) => [
-  ...(platform.kind === "github"
+const pull = (platform: CodePlatform, fullName: string, number: number) =>
+  platform.kind === "github"
     ? ["--pr", String(number), "--repo", fullName]
-    : ["--mr", String(number), "--project", fullName]),
-  "--publish",
-  "--no-repo-config",
-];
+    : ["--mr", String(number), "--project", fullName];
 
 const repoUrl = (platform: CodePlatform, fullName: string) =>
   `https://${platform.host}/${fullName.split("/").map(encodeURIComponent).join("/")}.git`;

@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { z } from "zod";
+import { queueGithubComment } from "./auto-review/replies.js";
 import type { AutoReviewService } from "./auto-review/routes.js";
 import { queueGithubPull } from "./auto-review/webhooks.js";
 import { hmacHex, sameText } from "./crypto.js";
@@ -9,8 +10,9 @@ import { signedBody } from "./http.js";
 import type { AppEnv } from "./types.js";
 
 // The GitHub App's one webhook, proven by its signature: a push queues
-// graph builds, a pull request's change queues its review, where the host
-// does them. GitLab's hooks are per repository, with secrets of their own.
+// graph builds, a pull request's change queues its review and an @ocra
+// comment its answer, where the host does them. GitLab's hooks are per
+// repository, with secrets of their own.
 
 export type WebhookHost = {
   githubWebhookSecret?: string;
@@ -34,12 +36,15 @@ export function githubWebhook(host: WebhookHost) {
     async (c) => {
       const body = c.req.valid("json");
       const event = c.req.header("x-github-event");
+      const review = host.autoReview;
       const queued =
         event === "push" && host.graphs
           ? await queueGithubPush(c.var.db, host.graphs, body)
-          : event === "pull_request" && host.autoReview
-            ? await queueGithubPull(c.var.db, host.autoReview, body)
-            : 0;
+          : event === "pull_request" && review
+            ? await queueGithubPull(c.var.db, review, body)
+            : (event === "issue_comment" || event === "pull_request_review_comment") && review
+              ? await queueGithubComment(c.var.db, review, event, body)
+              : 0;
       return c.json({ queued }, 202);
     },
   );
