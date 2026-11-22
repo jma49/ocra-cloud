@@ -34,7 +34,6 @@ export function gitlabActions(origin: string): PullActions {
       return outcomeOf(await send(token, "POST", `${mr}/notes`, { body }));
     },
     async review(token, fullName, number, review) {
-      if (review.verdict === "request_changes") return "refused";
       const url = mergeRequestUrl(origin, fullName, number);
       const mr = await platformCall<MergeRequest>(url, { headers: gitlabHeaders(token) });
       if (!mr?.diff_refs) return null;
