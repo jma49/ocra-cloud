@@ -160,11 +160,23 @@ function judge<K extends MergeCheckKind>(
   return waiting("not evaluated: an unknown check");
 }
 
-/** The report of the enabled checks on the pull request's head, in the order given. */
+/** The checks only the head's review can judge. */
+const REVIEWED_KINDS: ReadonlySet<MergeCheckKind> = new Set([
+  "linked_issue",
+  "critical_findings",
+  "instruction",
+]);
+
+/**
+ * The report of the enabled checks on the pull request's head, in the order
+ * given. With `holdUnreviewed`, a blocking check that waits on a review the
+ * head does not have yet makes it pending rather than passed.
+ */
 export function evaluateChecks(
   checks: readonly CheckConfig[],
   facts: PullFacts,
   review: HeadReview,
+  holdUnreviewed = false,
 ): MergeChecksReportView {
   const results: MergeCheckResultView[] = [];
   for (const check of checks) {
@@ -175,11 +187,21 @@ export function evaluateChecks(
       : waiting("not evaluated: its settings are no longer valid");
     results.push({ id: check.id, kind: check.kind, mode: check.mode, ...judged });
   }
-  return { head: facts.head, conclusion: conclusionOf(results), results };
+  const held =
+    holdUnreviewed &&
+    review === null &&
+    results.some(
+      (r) => r.mode === "block" && r.outcome === "not_evaluated" && REVIEWED_KINDS.has(r.kind),
+    );
+  return { head: facts.head, conclusion: conclusionOf(results, held), results };
 }
 
-function conclusionOf(results: readonly MergeCheckResultView[]): MergeChecksConclusion {
+function conclusionOf(
+  results: readonly MergeCheckResultView[],
+  held: boolean,
+): MergeChecksConclusion {
   const failing = results.filter((r) => r.outcome === "failed");
   if (failing.some((r) => r.mode === "block")) return "failure";
+  if (held) return "pending";
   return failing.length > 0 ? "neutral" : "success";
 }

@@ -1,0 +1,1 @@
+ALTER TABLE `review_repos` ADD `hold_unreviewed` integer DEFAULT true NOT NULL;

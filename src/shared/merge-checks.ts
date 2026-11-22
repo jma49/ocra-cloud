@@ -63,14 +63,21 @@ export type MergeCheckResultView = {
   detail: string;
 };
 
-/** `failure` when a blocking check failed, `neutral` when only warnings did. */
-export type MergeChecksConclusion = "success" | "neutral" | "failure";
+/**
+ * `failure` when a blocking check failed, `pending` while a blocking check
+ * waits on the head's review (when the repository holds for it), `neutral`
+ * when only warnings failed.
+ */
+export type MergeChecksConclusion = "success" | "neutral" | "failure" | "pending";
 
 export type MergeChecksReportView = {
   head: string;
   conclusion: MergeChecksConclusion;
   results: MergeCheckResultView[];
 };
+
+/** An enrolled repository's checks, and whether they hold a head its review has not reached. */
+export type RepoChecksView = { checks: MergeCheckView[]; holdUnreviewed: boolean };
 
 /** A pull request's checks for the page: null when its repository is not enrolled or has none. */
 export type PullChecksView = {
