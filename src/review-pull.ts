@@ -12,9 +12,16 @@ export type ReviewPull = { host: string; repo: string; number: number; head: str
 export function pullOfReview(review: Row<"reviews">): ReviewPull | null {
   const { prRepository, prNumber, prHeadSha } = review;
   if (!prRepository || !prNumber || !prHeadSha) return null;
+  const at = repoOfIdentity(prRepository);
+  if (!at) return null;
+  return { ...at, number: prNumber, head: prHeadSha };
+}
+
+/** The host and path of a repository named `https://host/path`, checked part by part; null when it is not one. */
+export function repoOfIdentity(identity: string): { host: string; repo: string } | null {
   let url: URL;
   try {
-    url = new URL(prRepository);
+    url = new URL(identity);
   } catch {
     return null;
   }
@@ -22,7 +29,7 @@ export function pullOfReview(review: Row<"reviews">): ReviewPull | null {
   const parts = repo.split("/");
   if (url.protocol !== "https:" || url.port || parts.length < 2 || repo.length > 255) return null;
   if (!parts.every((p) => SEGMENT.test(p))) return null;
-  return { host: url.hostname, repo, number: prNumber, head: prHeadSha };
+  return { host: url.hostname, repo };
 }
 
 /** The configured platform the pull request is on; the CLI writes its host without a port. */

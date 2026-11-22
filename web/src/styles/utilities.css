@@ -61,3 +61,7 @@
     display: none;
   }
 }
+.platform-mark {
+  flex: none;
+  vertical-align: -3px;
+}

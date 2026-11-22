@@ -66,7 +66,7 @@ const files = {
 };
 
 describe("a pull request's page", () => {
-  const show = () => {
+  const show = (queue: unknown = { enabled: false, entry: null }) => {
     const sent: { url: string; body: unknown }[] = [];
     vi.stubGlobal(
       "fetch",
@@ -75,7 +75,7 @@ describe("a pull request's page", () => {
           sent.push({ url, body: JSON.parse(String(init.body)) });
           return Response.json({ outcome: url.endsWith("/merge") ? "head_moved" : "done" });
         }
-        return Response.json(files);
+        return Response.json(url.startsWith("/api/pulls/queue") ? queue : files);
       }),
     );
     render(<PullPage platform="github" repo="octo/api" number="7" />);
@@ -158,5 +158,32 @@ describe("a pull request's page", () => {
     expect(
       (screen.getByRole("button", { name: "Generate unit tests" }) as HTMLButtonElement).disabled,
     ).toBe(true);
+  });
+
+  it("queues the head it read in place of a merge on a branch with a queue", async () => {
+    const sent = show({ enabled: true, entry: null });
+    fireEvent.click(await screen.findByRole("button", { name: "Add to merge queue" }));
+    expect(screen.queryByRole("button", { name: "Merge pull request" })).toBeNull();
+    await act(
+      async () =>
+        void fireEvent.click(screen.getByRole("button", { name: "Confirm: add to queue" })),
+    );
+    expect(sent).toEqual([
+      {
+        url: "/api/pulls/enqueue",
+        body: { platform: "github", repo: "octo/api", number: 7, head: HEAD },
+      },
+    ]);
+  });
+
+  it("shows a queued pull request's place in line, and takes it out", async () => {
+    const sent = show({ enabled: true, entry: { state: "checking", position: 3 } });
+    expect(await screen.findByText(/#3 in line/)).toBeTruthy();
+    await act(
+      async () => void fireEvent.click(screen.getByRole("button", { name: "Remove from queue" })),
+    );
+    expect(sent).toEqual([
+      { url: "/api/pulls/dequeue", body: { platform: "github", repo: "octo/api", number: 7 } },
+    ]);
   });
 });

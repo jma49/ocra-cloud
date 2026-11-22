@@ -14,7 +14,7 @@
   color: var(--t1);
   cursor: pointer;
   text-decoration: none;
-  font-size: 13px;
+  font-size: var(--text-base);
   font-weight: 500;
   white-space: nowrap;
   transition:
@@ -54,12 +54,12 @@
 .btn-sm {
   height: 26px;
   padding: 0 8px;
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 .btn-lg {
   height: 40px;
   padding: 0 16px;
-  font-size: 13px;
+  font-size: var(--text-base);
 }
 .btn:disabled {
   opacity: 0.45;
@@ -74,7 +74,7 @@
   box-shadow: var(--shadow);
   color: var(--fg);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--text-base);
   min-width: 0;
 }
 /* A select draws its own chevron, in the text colour, so it matches the inputs. */
@@ -113,7 +113,7 @@ select.input {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: var(--text-base);
   color: var(--fg-muted);
 }
 .toolbar .input {
@@ -157,7 +157,7 @@ select.input {
   align-items: center;
   gap: 5px;
   height: 22px;
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-weight: 500;
   padding: 0 8px;
   border-radius: var(--r-tab);
@@ -217,10 +217,10 @@ select.input {
 }
 .field label {
   font-weight: 500;
-  font-size: 13px;
+  font-size: var(--text-base);
 }
 .field .hint {
-  font-size: 12.5px;
+  font-size: var(--text-sm);
   color: var(--fg-subtle);
 }
 
@@ -229,7 +229,7 @@ select.input {
   gap: 10px;
   padding: 12px 14px;
   border-radius: var(--r-chip);
-  font-size: 13.5px;
+  font-size: var(--text-md);
   border: 0.5px solid var(--hair2);
   background: var(--bg-subtle);
   color: var(--fg-muted);
@@ -254,7 +254,7 @@ select.input {
   text-align: center;
 }
 .empty-hero h3 {
-  font-size: 15px;
+  font-size: var(--text-lg);
   font-weight: 600;
 }
 .empty-hero p {
@@ -278,7 +278,7 @@ select.input {
   border-radius: var(--r-ctl);
   background: transparent;
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--text-base);
   color: var(--fg);
 }
 .chip:hover {
@@ -300,11 +300,11 @@ select.input {
 }
 .form-row .label {
   font-weight: 600;
-  font-size: 14.5px;
+  font-size: var(--text-md);
 }
 .form-row .desc {
   color: var(--fg-subtle);
-  font-size: 13px;
+  font-size: var(--text-base);
   margin-top: 2px;
 }
 .form-row .control {
@@ -371,26 +371,26 @@ select.input {
   border-radius: var(--r-chip);
   border: 0.5px solid var(--hair2);
   background: var(--bg-subtle);
-  font: 12.5px var(--mono);
+  font: var(--text-sm) var(--mono);
 }
 .chip-x button {
   border: 0;
   background: none;
   cursor: pointer;
   color: var(--fg-subtle);
-  font-size: 13px;
+  font-size: var(--text-base);
   line-height: 1;
   padding: 0 4px;
 }
 .default-tag {
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--fg-subtle);
 }
 .codeblock {
   margin: 0;
   padding: 16px 20px;
   background: var(--bg-subtle);
-  font: 12.5px / 1.6 var(--mono);
+  font: var(--text-sm) / 1.6 var(--mono);
   overflow-x: auto;
   white-space: pre;
   border-top: 0.5px solid var(--hair2);

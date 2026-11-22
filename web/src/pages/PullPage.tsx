@@ -3,6 +3,7 @@ import type {
   CodePlatformKind,
   LineComment,
   MergeMethod,
+  MergeQueueView,
   PullActionOutcome,
   PullFilesView,
   PullVerdict,
@@ -12,6 +13,7 @@ import { splitPath } from "../pull/diff.js";
 import { FileDiff } from "../pull/file-diff.js";
 import { GenerateBox } from "../pull/generate-box.js";
 import { OUTCOME } from "../pull/outcome.js";
+import { QueueBox } from "../pull/queue-box.js";
 import { LoadError, Loading, PageHead, Seg, useAction, useLoad } from "../ui.js";
 
 // A pull request in the console: its changed files read live from the
@@ -49,6 +51,7 @@ export function PullPage(props: {
     () => api<PullFilesView>(`/pulls/files?${query}`),
     [query.toString()],
   );
+  const queue = useLoad(() => api<MergeQueueView>(`/pulls/queue?${query}`), [query.toString()]);
   const [pending, setPending] = useState<LineComment[]>([]);
   const [said, setSaid] = useState<{ what: string; outcome: PullActionOutcome } | null>(null);
   const title = `${props.repo} #${props.number}`;
@@ -119,8 +122,19 @@ export function PullPage(props: {
           </nav>
           <ReviewBox data={data} pull={ref} pending={pending} onDone={(o) => done("Review", o)} />
           {props.runner && <GenerateBox pull={ref} head={data.head} />}
-          {data.mergeMethods.length > 0 && (
-            <MergeBox data={data} pull={ref} onDone={(o) => done("Merge", o)} />
+          {queue.data?.enabled ? (
+            <QueueBox
+              view={queue.data}
+              pull={ref}
+              head={data.head}
+              onDone={(o) => done("Merge queue", o)}
+              reload={queue.reload}
+            />
+          ) : (
+            !queue.loading &&
+            data.mergeMethods.length > 0 && (
+              <MergeBox data={data} pull={ref} onDone={(o) => done("Merge", o)} />
+            )
           )}
         </aside>
         <div className="pull-main">
