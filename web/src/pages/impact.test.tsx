@@ -17,6 +17,8 @@ const repo: GraphRepoView = {
   platform: "github",
   host: "github.com",
   fullName: "Acme/Payments",
+  url: "https://github.com/Acme/Payments",
+  identity: "https://github.com/acme/payments",
   branch: "main",
   latest: null,
 };
@@ -188,7 +190,7 @@ describe("the impact rail", () => {
 
 describe("the rail's rules", () => {
   it("find a pull request's graph by its normalised repository, whatever the case", () => {
-    expect(graphRepoOf([repo], "https://github.com/acme/payments")?.id).toBe("g1");
+    expect(graphRepoOf([repo], "https://github.com/Acme/Payments")?.id).toBe("g1");
     expect(graphRepoOf([repo], "https://gitlab.com/acme/payments")).toBeUndefined();
   });
 
@@ -206,11 +208,17 @@ describe("the rail's rules", () => {
   it("link a GitLab use to its blob at the graph's commit", () => {
     expect(
       lineUrl(
-        { ...repo, platform: "gitlab", host: "gitlab.example.com", fullName: "g/sub/api" },
+        {
+          ...repo,
+          platform: "gitlab",
+          host: "example.com:8443",
+          fullName: "g/sub/api",
+          url: "https://example.com:8443/gitlab/g/sub/api",
+        },
         BASE,
         "a b.ts",
         4,
       ),
-    ).toBe(`https://gitlab.example.com/g/sub/api/-/blob/${BASE}/a%20b.ts#L4`);
+    ).toBe(`https://example.com:8443/gitlab/g/sub/api/-/blob/${BASE}/a%20b.ts#L4`);
   });
 });

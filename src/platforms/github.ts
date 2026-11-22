@@ -47,6 +47,7 @@ export function github(client: { id: string; secret: string }): CodePlatform {
   return {
     kind: "github",
     host: "github.com",
+    url: "https://github.com",
     refresh: (refreshToken) =>
       platformCall<TokenAnswer>("https://github.com/login/oauth/access_token", {
         method: "POST",

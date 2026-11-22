@@ -178,6 +178,12 @@ describe("GitLab's merge request hook", () => {
     ).toEqual({
       queued: 0,
     });
+    // GitLab before 15.0 says work_in_progress instead.
+    expect(
+      await (
+        await hook({ action: "open", work_in_progress: true, last_commit: { id: C3 } })
+      ).json(),
+    ).toEqual({ queued: 0 });
     expect((await jobs()).map((j) => [j.number, j.head, j.state])).toEqual([
       [3, C1, "superseded"],
       [3, C2, "queued"],

@@ -29,15 +29,17 @@ type Listed = {
 const githubOf = (l: Listed) => l.platforms.find((p) => p.platform === "github");
 
 describe("a repository's identity", () => {
-  it("is the CLI's: https, no port, no .git, case-folded", () => {
-    // The engine's vectors (normaliseRemote in packages/cli/src/repository-id.test.ts).
-    expect(repoIdentity("github.com", "Org/Repo")).toBe("https://github.com/org/repo");
-    expect(repoIdentity("github.com", "org/repo.git")).toBe("https://github.com/org/repo");
-    expect(repoIdentity("gitlab.example.com:8443", "group/sub/project")).toBe(
+  it("is the CLI's for a clone: https, no port, no .git, case-folded, under the relative root", () => {
+    const at = (url: string) => ({ url });
+    expect(repoIdentity(at("https://github.com"), "Org/Repo")).toBe("https://github.com/org/repo");
+    expect(repoIdentity(at("https://github.com"), "org/repo.git")).toBe(
+      "https://github.com/org/repo",
+    );
+    expect(repoIdentity(at("https://gitlab.example.com:8443"), "group/sub/project")).toBe(
       "https://gitlab.example.com/group/sub/project",
     );
-    expect(repoIdentity("gitlab.com", "Group/Sub/Project")).toBe(
-      "https://gitlab.com/group/sub/project",
+    expect(repoIdentity(at("http://example.com/GitLab"), "Group/Project")).toBe(
+      "https://example.com/gitlab/group/project",
     );
   });
 });
@@ -73,7 +75,7 @@ describe("the GitHub link", () => {
     const after = (await (await a.send("/api/platforms/repos")).json()) as Listed;
     const hash = githubOf(after)?.repositories[0]?.repoHash;
     // What the CLI uploads for a clone of github.com/Octo/API, over any URL.
-    expect(hash).toBe(await repoHashOf(salt, "github.com", "octo/api"));
+    expect(hash).toBe(await repoHashOf(salt, { url: "https://github.com" }, "octo/api"));
 
     const synced = await a.send("/api/platforms/sync-names", { method: "POST" });
     expect(await synced.json()).toEqual({ named: 2, sharing: true });

@@ -16,7 +16,7 @@ import { accessToken } from "./platforms/links.js";
 import { platformsOf } from "./platforms/registry.js";
 import { applyAuth } from "./providers.js";
 import { perMinute, retryTomorrow } from "./rate.js";
-import { platformOfPull, pullOfReview } from "./review-pull.js";
+import { pullOfReview, pullOnPlatform } from "./review-pull.js";
 import { requireSession } from "./session.js";
 import {
   parseModelId,
@@ -97,9 +97,10 @@ async function liveChanges(
   c: Context<AppEnv>,
   review: Row<"reviews">,
 ): Promise<ChatContext["live"]> {
-  const pull = pullOfReview(review);
-  const platform = pull && platformOfPull(platformsOf(c.env, c.req.url), pull);
-  if (!pull || !platform) return null;
+  const reviewed = pullOfReview(review);
+  const on = reviewed && pullOnPlatform(platformsOf(c.env, c.req.url), reviewed);
+  if (!on) return null;
+  const { platform, pull } = on;
   try {
     const token = await accessToken(c.var.data, c.env, platform);
     if (!token) return null;

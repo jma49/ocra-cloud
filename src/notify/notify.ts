@@ -3,7 +3,7 @@ import { decryptWithAny, encryptSecret, type MasterKeys } from "../crypto.js";
 import type { Row, Scoped } from "../db/scoped.js";
 import { masterKeys } from "../keyring.js";
 import type { CodePlatform } from "../platforms/platform.js";
-import { platformOfPull, pullOfReview, pullPageUrl } from "../review-pull.js";
+import { pullOfReview, pullOnPlatform, pullPageUrl } from "../review-pull.js";
 import type { AppEnv } from "../types.js";
 import {
   deliver,
@@ -93,14 +93,13 @@ async function noticeOf(
   platforms: readonly CodePlatform[],
   consoleUrl: string,
 ): Promise<ReviewNotice> {
-  const pull = pullOfReview(review);
-  const platform = pull && platformOfPull(platforms, pull);
+  const reviewed = pullOfReview(review);
+  const on = reviewed && pullOnPlatform(platforms, reviewed);
   const findings = await data.findingsOf(review.id);
   return {
-    pull:
-      pull && platform
-        ? { label: `${pull.repo}#${pull.number}`, url: pullPageUrl(platform, pull) }
-        : null,
+    pull: on
+      ? { label: `${on.pull.repo}#${on.pull.number}`, url: pullPageUrl(on.platform, on.pull) }
+      : null,
     critical: review.critical,
     warning: review.warning,
     suggestion: review.suggestion,

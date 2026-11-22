@@ -20,6 +20,8 @@
     "@fontsource-variable/noto-sans-sc",
     "tailwindcss"
   ],
+  // The stand-in GitLab's certificates (test-node/gitlab-instance.ts), made as a company makes them.
+  "ignoreBinaries": ["openssl"],
   // The coss ui components are copied whole, so that a later copy diffs cleanly.
   "ignoreIssues": { "web/src/components/ui/*.tsx": ["exports", "types"] },
   "vite": { "config": ["web/vite.config.ts"] }

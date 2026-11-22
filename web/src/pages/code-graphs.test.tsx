@@ -15,6 +15,8 @@ const repo = (latest: Partial<NonNullable<GraphRepoView["latest"]>> | null): Gra
   platform: "github",
   host: "github.com",
   fullName: "octo/api",
+  url: "https://github.com/octo/api",
+  identity: "https://github.com/octo/api",
   branch: "main",
   latest: latest && {
     commit: "a".repeat(40),
