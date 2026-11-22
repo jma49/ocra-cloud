@@ -50,7 +50,7 @@ export type PullStackPlace = {
   id: string;
   /** From 1, the bottom; in a fork each branch follows its parent, lower numbers first. */
   position: number;
-  /** At least 2. */
+  /** How many listed pulls the stack holds, at least 2. */
   size: number;
 };
 
