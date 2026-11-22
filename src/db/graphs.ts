@@ -123,7 +123,13 @@ export function accountGraphs(db: Db, accountId: string) {
     /** The repository's graph of the commit, or its newest graph when commit is undefined. */
     newestGraph(graphRepoId: string, commit?: string) {
       return db
-        .select({ commit: b.commit, content: b.content, finishedAt: b.finishedAt })
+        .select({
+          commit: b.commit,
+          content: b.content,
+          files: b.files,
+          truncated: b.truncated,
+          finishedAt: b.finishedAt,
+        })
         .from(b)
         .where(
           and(

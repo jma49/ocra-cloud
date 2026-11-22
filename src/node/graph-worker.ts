@@ -1,5 +1,6 @@
 import type { Db } from "../db/client.js";
 import type { GraphBuilder } from "../graph/builder.js";
+import type { GraphParser } from "../graph/impact-route.js";
 import type { GraphService } from "../graph/routes.js";
 import { runNextBuild } from "../graph/runner.js";
 import { errorName, logError } from "../log.js";
@@ -22,6 +23,7 @@ type Options = {
 export type GraphOptions = {
   policy: GraphPolicy;
   builder: GraphBuilder;
+  parse: GraphParser;
   githubWebhookSecret?: string | undefined;
   workers?: number;
 };
@@ -45,7 +47,12 @@ export function startGraphs(
   });
   const secret = options.githubWebhookSecret;
   return {
-    service: { policy, kick: worker.kick, ...(secret ? { githubWebhookSecret: secret } : {}) },
+    service: {
+      policy,
+      kick: worker.kick,
+      parse: options.parse,
+      ...(secret ? { githubWebhookSecret: secret } : {}),
+    },
     worker,
   };
 }

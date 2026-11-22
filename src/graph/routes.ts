@@ -12,6 +12,7 @@ import { requireSession } from "../session.js";
 import { CODE_PLATFORMS, type GraphPolicy, type GraphRepoView } from "../shared/index.js";
 import type { AppEnv } from "../types.js";
 import { gunzip } from "./gzip.js";
+import { type GraphParser, impactRoute } from "./impact-route.js";
 import { graphWebhooks } from "./webhooks.js";
 
 /** What a host that builds graphs gives the API. */
@@ -21,6 +22,7 @@ export type GraphService = {
   githubWebhookSecret?: string;
   /** Wakes the build runner after a build is queued. */
   kick: () => void;
+  parse: GraphParser;
 };
 
 const MAX_GRAPH_REPOS = 100;
@@ -60,6 +62,7 @@ export function graphsRoute(service: GraphService) {
   const route = new Hono<AppEnv>();
 
   route.route("/webhooks", graphWebhooks(service));
+  route.route("/repos", impactRoute(service.parse));
 
   route.get("/repos", requireSession(["web", "cli"]), async (c) => {
     const graphs = c.var.data.graphs;

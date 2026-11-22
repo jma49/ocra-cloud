@@ -1,3 +1,4 @@
+import { gitlabChanges } from "./gitlab-changes.js";
 import { gitlabContents } from "./gitlab-contents.js";
 import { gitlabPulls } from "./gitlab-pulls.js";
 import { platformCall } from "./http.js";
@@ -34,6 +35,7 @@ export function gitlab(client: GitlabClient, redirectUri: string): CodePlatform 
       }),
     listPulls: (token) => gitlabPulls(client.url, token),
     contents: gitlabContents(client.url),
+    changes: gitlabChanges(client.url),
     async listRepos(token) {
       const repositories: PlatformRepo[] = [];
       for (let page = 1; page <= MAX_PAGES; page++) {

@@ -3,7 +3,7 @@ import { serve } from "@hono/node-server";
 import { pruneGraphBuilds } from "../db/graphs.js";
 import { enforceRetention } from "../db/retention.js";
 import { errorName, logError } from "../log.js";
-import { engineGraphBuilder } from "./engine-graph.js";
+import { engineGraphBuilder, engineGraphParser } from "./engine-graph.js";
 import { bindingsFrom, graphSettingsFrom, migrateMode, trustedProxyHops } from "./env.js";
 import { openHost } from "./host.js";
 import { rateLimitStore } from "./limits.js";
@@ -27,7 +27,9 @@ const host = await openHost({
   ...(process.env.PUBLIC_URL ? { publicUrl: process.env.PUBLIC_URL } : {}),
   trustedProxyHops: trustedProxyHops(process.env.TRUSTED_PROXY_HOPS),
   // A run that only migrates builds nothing.
-  ...(migrate === "only" ? {} : { graphs: { ...graphs, builder: engineGraphBuilder } }),
+  ...(migrate === "only"
+    ? {}
+    : { graphs: { ...graphs, builder: engineGraphBuilder, parse: engineGraphParser } }),
 });
 
 if (migrate === "only") {
