@@ -42,6 +42,8 @@ export const EXPORTED = {
   reviewJobs: "reviewJobs",
   notifyChannels: "notifyChannels",
   closedPulls: "closedPulls",
+  pullFlows: "pullFlows",
+  pullReviews: "pullReviews",
   replyJobs: "replyJobs",
   reviewWalkthroughs: "walkthroughs",
   generateJobs: "generateJobs",
@@ -50,6 +52,10 @@ export const EXPORTED = {
   mergeChecks: "mergeChecks",
   mergeCheckRuns: "mergeCheckRuns",
   reviewChatMessages: "reviewChat",
+  liveRuns: "liveRuns",
+  liveEvents: "liveEvents",
+  liveGrants: "liveGrants",
+  liveComments: "liveComments",
 } as const satisfies Record<Table, string>;
 
 // How a table's row is shown; any other table's row loses only its account id.
@@ -95,6 +101,8 @@ const SHAPES: Partial<Record<Table, (row: never) => unknown>> = {
     accountId: _account,
     ...n
   }: Record<string, unknown>) => n,
+  // Never the share link's nonce, which with the server's secret makes the link.
+  liveRuns: ({ linkNonce: _n, accountId: _account, ...r }: Record<string, unknown>) => r,
   // The graph itself is served by GET /api/graphs/repos/:id/graph.
   graphBuilds: ({ content: _content, accountId: _account, ...b }: Record<string, unknown>) => b,
   // Never the token hashes.

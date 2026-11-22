@@ -2,7 +2,12 @@ import Flag from "lucide-react/icons/flag";
 import SearchX from "lucide-react/icons/search-x";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import type { ReviewSource, ReviewWalkthroughView, Verdict } from "../../../src/shared/index.js";
+import type {
+  LinkedTaskView,
+  ReviewSource,
+  ReviewWalkthroughView,
+  Verdict,
+} from "../../../src/shared/index.js";
 import { ApiError, api } from "../api.js";
 import { useCached } from "../cache.js";
 import { ago, sourceLabel, time } from "../format.js";
@@ -13,6 +18,7 @@ import { ReviewChat } from "../review-chat/chat.js";
 import { Link } from "../router.js";
 import { EmptyState, LoadError, Loading, PageHead, Seg } from "../ui.js";
 import { type Finding, FindingEvent } from "./review-finding.js";
+import { LinkedTasks } from "./review-linked-tasks.js";
 import { Walkthrough } from "./review-walkthrough.js";
 
 // One review and, when the account shares findings, its findings (ADR-0028):
@@ -32,6 +38,7 @@ type Detail = {
     createdAt: string;
     prRepository: string | null;
     prNumber: number | null;
+    linkedTasks: LinkedTaskView[] | null;
     /** The ids of the learnings its reviewers were given; null where it did not say. */
     learnings: string[] | null;
   };
@@ -226,6 +233,7 @@ function Properties(props: { r: Review }) {
             </dd>
           </>
         )}
+        <LinkedTasks tasks={r.linkedTasks ?? null} />
         {r.learnings && r.learnings.length > 0 && (
           <>
             <dt>Learnings</dt>

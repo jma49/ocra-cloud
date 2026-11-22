@@ -72,6 +72,31 @@ describe("retention", () => {
     expect(ids).not.toContain("web-dead");
   });
 
+  it("deletes a pull request's flow 90 days after its last event, and reviews by when they were submitted", async () => {
+    const { account } = await signIn(1, "octo");
+    const d = scoped(db, account.id);
+    await d.insert("reviewRepos", rows.reviewRepos("repo"));
+    for (const [id, days] of [
+      ["old", 91],
+      ["new", 89],
+    ] as const) {
+      await d.insert("pullFlows", {
+        ...rows.pullFlows(id),
+        reviewRepoId: "repo",
+        number: days,
+        seenAt: ago(days),
+      });
+      await d.insert("pullReviews", {
+        ...rows.pullReviews(id),
+        reviewRepoId: "repo",
+        submittedAt: ago(days),
+      });
+    }
+    await enforceRetention(db, now);
+    expect((await d.list("pullFlows")).map((r) => r.id)).toEqual(["new"]);
+    expect((await d.list("pullReviews")).map((r) => r.id)).toEqual(["new"]);
+  });
+
   it("keeps only today's service counts, the per-network ones included", async () => {
     await db.insert(schema.serviceCounters).values([
       { name: "device_codes", day: utcDay(ago(1)), n: 5 },
@@ -230,9 +255,14 @@ describe("export and deletion", () => {
         "reviewJobs",
         "replyJobs",
         "closedPulls",
+        "pullFlows",
+        "pullReviews",
         "mergeChecks",
         "mergeCheckRuns",
         "generateJobs",
+        "liveEvents",
+        "liveGrants",
+        "liveComments",
       ];
       if (later.includes(table)) continue;
       await d.insert(table as keyof typeof rows, row(`x-${table}`) as never);
@@ -249,12 +279,27 @@ describe("export and deletion", () => {
       ...rows.replyJobs("x-replyJobs"),
       reviewRepoId: "x-reviewRepos",
     });
-    for (const table of ["closedPulls", "mergeChecks", "mergeCheckRuns", "generateJobs"] as const) {
+    for (const table of [
+      "closedPulls",
+      "pullFlows",
+      "pullReviews",
+      "mergeChecks",
+      "mergeCheckRuns",
+      "generateJobs",
+    ] as const) {
       await d.insert(table, {
         ...rows[table](`x-${table}`),
         reviewRepoId: "x-reviewRepos",
       } as never);
     }
+    const live = { liveRunId: "x-liveRuns" };
+    await d.insert("liveEvents", { ...rows.liveEvents("x-liveEvents"), ...live });
+    await d.insert("liveGrants", {
+      ...rows.liveGrants("x-liveGrants"),
+      ...live,
+      granteeId: me.account.id,
+    });
+    await d.insert("liveComments", { ...rows.liveComments("x-liveComments"), ...live });
     await setSharing(db, me.account.id, true);
     const salt = await accountSalt(db, me.account.id);
 

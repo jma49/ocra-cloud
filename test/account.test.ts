@@ -115,8 +115,13 @@ describe("deleting an account", () => {
           "replyJobs",
           "generateJobs",
           "closedPulls",
+          "pullFlows",
+          "pullReviews",
           "mergeChecks",
           "mergeCheckRuns",
+          "liveEvents",
+          "liveGrants",
+          "liveComments",
         ].includes(table)
       )
         continue;
@@ -147,10 +152,9 @@ describe("deleting an account", () => {
       ...rows.generateJobs(id("generateJobs")),
       reviewRepoId: id("reviewRepos"),
     });
-    await d.insert("closedPulls", {
-      ...rows.closedPulls(id("closedPulls")),
-      reviewRepoId: id("reviewRepos"),
-    });
+    for (const table of ["closedPulls", "pullFlows", "pullReviews"] as const) {
+      await d.insert(table, { ...rows[table](id(table)), reviewRepoId: id("reviewRepos") });
+    }
     await d.insert("mergeChecks", {
       ...rows.mergeChecks(id("mergeChecks")),
       reviewRepoId: id("reviewRepos"),
@@ -159,6 +163,14 @@ describe("deleting an account", () => {
       ...rows.mergeCheckRuns(id("mergeCheckRuns")),
       reviewRepoId: id("reviewRepos"),
     });
+    const live = { liveRunId: id("liveRuns") };
+    await d.insert("liveEvents", { ...rows.liveEvents(id("liveEvents")), ...live });
+    await d.insert("liveGrants", {
+      ...rows.liveGrants(id("liveGrants")),
+      ...live,
+      granteeId: accountId,
+    });
+    await d.insert("liveComments", { ...rows.liveComments(id("liveComments")), ...live });
     await db.insert(schema.deviceCodes).values({
       id: `dc-${accountId}`,
       deviceCodeHash: `dch-${accountId}`,

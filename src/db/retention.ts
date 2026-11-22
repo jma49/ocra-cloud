@@ -10,6 +10,9 @@ import {
   closedPulls,
   deviceCodes,
   gatewayCalls,
+  liveRuns,
+  pullFlows,
+  pullReviews,
   rateWindows,
   reviews,
   serviceCounters,
@@ -17,8 +20,8 @@ import {
   usageCounters,
 } from "./schema.js";
 
-// What the data policy (web /privacy) promises: review records, gateway call
-// records, merged and closed pull requests, the daily counts and the audit log are deleted after
+// What the data policy (web /privacy) promises: review records, live runs, gateway call
+// records, merged and closed pull requests and their review flow, the daily counts and the audit log are deleted after
 // RETENTION_DAYS; expired login codes and sessions go at once. Runs daily
 // from the cron trigger.
 
@@ -47,6 +50,14 @@ export async function enforceRetention(db: Db, now = new Date()): Promise<void> 
           .delete(reviews)
           .where(and(ofEachAccount(reviews.accountId), lt(reviews.createdAt, cutoff))),
     ],
+    // A live run's events, grants and comments go with it (cascade).
+    [
+      "live_runs",
+      () =>
+        db
+          .delete(liveRuns)
+          .where(and(ofEachAccount(liveRuns.accountId), lt(liveRuns.updatedAt, cutoff))),
+    ],
     [
       "gateway_calls",
       () =>
@@ -67,6 +78,20 @@ export async function enforceRetention(db: Db, now = new Date()): Promise<void> 
         db
           .delete(closedPulls)
           .where(and(ofEachAccount(closedPulls.accountId), lt(closedPulls.closedAt, cutoff))),
+    ],
+    [
+      "pull_flows",
+      () =>
+        db
+          .delete(pullFlows)
+          .where(and(ofEachAccount(pullFlows.accountId), lt(pullFlows.seenAt, cutoff))),
+    ],
+    [
+      "pull_reviews",
+      () =>
+        db
+          .delete(pullReviews)
+          .where(and(ofEachAccount(pullReviews.accountId), lt(pullReviews.submittedAt, cutoff))),
     ],
     [
       "automation_runs",

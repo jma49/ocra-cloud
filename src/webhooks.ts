@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { recordGithubClose } from "./auto-review/closes.js";
+import { recordGithubFlow } from "./auto-review/flows.js";
 import { queueGithubComment } from "./auto-review/replies.js";
 import type { AutoReviewService } from "./auto-review/routes.js";
 import { queueGithubPull } from "./auto-review/webhooks.js";
@@ -12,7 +13,7 @@ import type { AppEnv } from "./types.js";
 
 // The GitHub App's one webhook, proven by its signature: a push queues
 // graph builds, a pull request's change queues its review (its merge or
-// close is recorded) and an @ocra comment its answer, where the host does them. GitLab's hooks are per
+// close is recorded, as are its steps toward review) and an @ocra comment its answer, where the host does them. GitLab's hooks are per
 // repository, with secrets of their own.
 
 export type WebhookHost = {
@@ -40,6 +41,7 @@ export function githubWebhook(host: WebhookHost) {
       const review = host.autoReview;
       // A close is kept wherever the repository is enrolled, reviews or not.
       if (event === "pull_request") await recordGithubClose(c.var.db, body);
+      await recordGithubFlow(c.var.db, event, body);
       const queued =
         event === "push" && host.graphs
           ? await queueGithubPush(c.var.db, host.graphs, body)

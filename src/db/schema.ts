@@ -28,6 +28,8 @@ import {
   DISMISS_REASONS,
   FINDING_STATUSES,
   GRAPH_BUILD_STATES,
+  LIVE_ROLES,
+  LIVE_STATES,
   type LinkedTaskView,
   MERGE_CHECK_KINDS,
   MERGE_CHECK_MODES,
@@ -60,22 +62,26 @@ const accountId = () =>
     .notNull()
     .references(() => accounts.id, { onDelete: "cascade" });
 
-export const accounts = sqliteTable("accounts", {
-  id: text("id").primaryKey(),
-  login: text("login").notNull(),
-  // ADR-0028: findings and their quoted code are uploaded only when on.
-  shareFindings: integer("share_findings", { mode: "boolean" }).notNull().default(false),
-  // The repository-hash salt shared by the account's machines when sharing is on.
-  salt: text("salt"),
-  createdAt: createdAt(),
-  // The last UTC day whose digest was sent, so that it goes once (src/notify/digest.ts).
-  digestDay: text("digest_day"),
-  // The weekly report's slot (UTC weekday 0 = Sunday, hour) and the last
-  // slot sent, so that it goes once (src/notify/report.ts).
-  reportWeekday: integer("report_weekday").notNull().default(1),
-  reportHour: integer("report_hour").notNull().default(9),
-  reportSentFor: integer("report_sent_for", { mode: "timestamp_ms" }),
-});
+export const accounts = sqliteTable(
+  "accounts",
+  {
+    id: text("id").primaryKey(),
+    login: text("login").notNull(),
+    // ADR-0028: findings and their quoted code are uploaded only when on.
+    shareFindings: integer("share_findings", { mode: "boolean" }).notNull().default(false),
+    // The repository-hash salt shared by the account's machines when sharing is on.
+    salt: text("salt"),
+    createdAt: createdAt(),
+    // The last UTC day whose digest was sent, so that it goes once (src/notify/digest.ts).
+    digestDay: text("digest_day"),
+    // The weekly report's slot (UTC weekday 0 = Sunday, hour) and the last
+    // slot sent, so that it goes once (src/notify/report.ts).
+    reportWeekday: integer("report_weekday").notNull().default(1),
+    reportHour: integer("report_hour").notNull().default(9),
+    reportSentFor: integer("report_sent_for", { mode: "timestamp_ms" }),
+  },
+  (t) => [index("accounts_login").on(t.login)],
+);
 
 // Who signs in as an account: a sign-in provider's user, by the id it never
 // reuses (a GitHub user id, an OpenID Connect `sub`).
@@ -617,6 +623,63 @@ export const closedPulls = sqliteTable(
   ],
 );
 
+// How an enrolled repository's pull request moved before it ended, from
+// its platform's webhooks (src/auto-review/flows.ts): one row per pull
+// request. The first times keep the earliest delivered; title, author,
+// size and draft the latest. seen_at is the last event, for retention.
+export const pullFlows = sqliteTable(
+  "pull_flows",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    reviewRepoId: text("review_repo_id")
+      .notNull()
+      .references(() => reviewRepos.id, { onDelete: "cascade" }),
+    number: integer("number").notNull(),
+    title: text("title").notNull(),
+    author: text("author"),
+    draft: integer("draft", { mode: "boolean" }).notNull().default(false),
+    // Lines added plus deleted, where the platform says (GitHub).
+    size: integer("size"),
+    openedAt: integer("opened_at", { mode: "timestamp_ms" }),
+    readyAt: integer("ready_at", { mode: "timestamp_ms" }),
+    reopenedAt: integer("reopened_at", { mode: "timestamp_ms" }),
+    firstReviewRequestedAt: integer("first_review_requested_at", { mode: "timestamp_ms" }),
+    firstReviewAt: integer("first_review_at", { mode: "timestamp_ms" }),
+    firstApprovalAt: integer("first_approval_at", { mode: "timestamp_ms" }),
+    seenAt: integer("seen_at", { mode: "timestamp_ms" }).notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("pull_flows_pull").on(t.reviewRepoId, t.number),
+    index("pull_flows_account_seen").on(t.accountId, t.seenAt),
+  ],
+);
+
+// A review someone other than the author submitted on an enrolled
+// repository's pull request, once per platform review (an approval on
+// GitLab, once per approver), for reviewer load.
+export const pullReviews = sqliteTable(
+  "pull_reviews",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    reviewRepoId: text("review_repo_id")
+      .notNull()
+      .references(() => reviewRepos.id, { onDelete: "cascade" }),
+    number: integer("number").notNull(),
+    reviewKey: text("review_key").notNull(),
+    reviewer: text("reviewer").notNull(),
+    approved: integer("approved", { mode: "boolean" }).notNull(),
+    submittedAt: integer("submitted_at", { mode: "timestamp_ms" }).notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("pull_reviews_review").on(t.reviewRepoId, t.reviewKey),
+    index("pull_reviews_account_submitted").on(t.accountId, t.submittedAt),
+  ],
+);
+
 // One review of a pull request's head, from queued to done; a newer head
 // of the same pull request supersedes the queued ones.
 export const reviewJobs = sqliteTable(
@@ -819,6 +882,98 @@ export const reviewChatMessages = sqliteTable(
   ],
 );
 
+// A review relayed while it runs (ADR-0056), by the CLI's run id; its
+// events are kept by seq, first write wins. The share link, while it is on,
+// is an HMAC of linkNonce (src/live/link.ts); a new nonce replaces it.
+export const liveRuns = sqliteTable(
+  "live_runs",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    runId: text("run_id").notNull(),
+    repoHash: text("repo_hash").notNull(),
+    source: text("source", { enum: REVIEW_SOURCES }).notNull(),
+    prRepository: text("pr_repository"),
+    prNumber: integer("pr_number"),
+    target: text("target").notNull().default(""),
+    state: text("state", { enum: LIVE_STATES }).notNull().default("running"),
+    verdict: text("verdict", { enum: VERDICTS }),
+    events: integer("events").notNull().default(0),
+    costUsd: real("cost_usd").notNull().default(0),
+    linkNonce: text("link_nonce"),
+    linkRole: text("link_role", { enum: LIVE_ROLES }),
+    createdAt: createdAt(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (t) => [
+    uniqueIndex("live_runs_account_run").on(t.accountId, t.runId),
+    index("live_runs_account_updated").on(t.accountId, t.updatedAt),
+  ],
+);
+
+export const liveEvents = sqliteTable(
+  "live_events",
+  {
+    accountId: accountId(),
+    liveRunId: text("live_run_id")
+      .notNull()
+      .references(() => liveRuns.id, { onDelete: "cascade" }),
+    seq: integer("seq").notNull(),
+    kind: text("kind").notNull(),
+    data: text("data", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
+    at: text("at").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.liveRunId, t.seq] }),
+    index("live_events_account_run").on(t.accountId, t.liveRunId, t.seq),
+  ],
+);
+
+// Who else the owner lets see a run, and whether they may comment.
+export const liveGrants = sqliteTable(
+  "live_grants",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    liveRunId: text("live_run_id")
+      .notNull()
+      .references(() => liveRuns.id, { onDelete: "cascade" }),
+    granteeId: text("grantee_id")
+      .notNull()
+      .references(() => accounts.id, { onDelete: "cascade" }),
+    role: text("role", { enum: LIVE_ROLES }).notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("live_grants_run_grantee").on(t.liveRunId, t.granteeId),
+    index("live_grants_account_run").on(t.accountId, t.liveRunId, t.createdAt),
+    index("live_grants_grantee").on(t.granteeId, t.createdAt),
+  ],
+);
+
+// What the owner and the people they let comment wrote about the run; a
+// finding's comment names it by the run's finding id.
+export const liveComments = sqliteTable(
+  "live_comments",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    liveRunId: text("live_run_id")
+      .notNull()
+      .references(() => liveRuns.id, { onDelete: "cascade" }),
+    authorId: text("author_id").references(() => accounts.id, { onDelete: "set null" }),
+    authorLogin: text("author_login").notNull(),
+    findingId: text("finding_id"),
+    body: text("body").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("live_comments_run_created").on(t.liveRunId, t.createdAt),
+    index("live_comments_account_created").on(t.accountId, t.createdAt),
+  ],
+);
+
 /** The tables scoped by account, by the name scoped() uses. */
 export const accountTables = {
   sessions,
@@ -841,6 +996,8 @@ export const accountTables = {
   reviewJobs,
   notifyChannels,
   closedPulls,
+  pullFlows,
+  pullReviews,
   replyJobs,
   reviewWalkthroughs,
   generateJobs,
@@ -849,4 +1006,8 @@ export const accountTables = {
   mergeChecks,
   mergeCheckRuns,
   reviewChatMessages,
+  liveRuns,
+  liveEvents,
+  liveGrants,
+  liveComments,
 } as const;

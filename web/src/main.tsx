@@ -40,7 +40,7 @@ function App() {
       },
     );
   }, []);
-  const found = matchRoute(path);
+  const found = matchRoute(path, me ?? undefined);
   useEffect(() => {
     setPageTitle(me ? found?.route.tab : undefined);
   }, [found?.route, me]);

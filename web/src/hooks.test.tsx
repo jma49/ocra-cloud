@@ -73,7 +73,7 @@ describe("the routes", () => {
   it("give each place its tabs and the settings their groups, in order", () => {
     const m = me("off");
     expect(paths(placeTabs("inbox", m))).toEqual(["/"]);
-    expect(paths(placeTabs("reviews", m))).toEqual(["/reviews", "/activity"]);
+    expect(paths(placeTabs("reviews", m))).toEqual(["/reviews", "/activity", "/live"]);
     expect(paths(placeTabs("repositories", m))).toEqual(["/repositories", "/learnings", "/memory"]);
     expect(paths(placeTabs("insights", m))).toEqual(["/insights", "/usage"]);
     expect(settingsGroups(m).map((g) => [g.label, paths(g.routes)])).toEqual([
@@ -101,12 +101,15 @@ describe("the routes", () => {
     expect(paths(placeTabs("repositories", me("keep")))).toContain("/code-graphs");
     expect(paths(placeTabs("repositories", me("opt-in")))).toContain("/code-graphs");
     expect(paths(placeTabs("repositories", me("off")))).not.toContain("/code-graphs");
-    expect(matchRoute("/code-graphs")).toBeDefined();
+    expect(matchRoute("/code-graphs", me("keep"))).toBeDefined();
+    expect(matchRoute("/code-graphs", me("off"))).toBeUndefined();
   });
 
   it("show auto review only where the server reviews pull requests itself", () => {
     expect(paths(placeTabs("repositories", me("off", true)))).toContain("/auto-review");
     expect(paths(placeTabs("repositories", me("off")))).not.toContain("/auto-review");
+    expect(matchRoute("/auto-review", me("off", true))).toBeDefined();
+    expect(matchRoute("/auto-review", me("off"))).toBeUndefined();
   });
 
   it("start the keys a page shows with /me, not after it (audit C11)", () => {

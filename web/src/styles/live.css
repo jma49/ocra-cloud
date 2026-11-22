@@ -1,0 +1,210 @@
+/* A live run: progress on the left, findings in the middle, the discussion
+   on the right; the discussion goes under the findings at 1100 px, and the
+   progress above them at 900 px. */
+.live-frame {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr) 300px;
+  gap: 32px;
+  align-items: start;
+}
+.live-side,
+.live-talk {
+  position: sticky;
+  top: 72px;
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.live-talk h3 {
+  margin: 0;
+  font-size: var(--text-base);
+}
+.live-state {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.live-stages {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.live-stage {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--t3);
+  transition: color 160ms var(--e-std);
+}
+.live-stage.is-done {
+  color: var(--t2);
+}
+.live-stage.is-current {
+  color: var(--t1);
+  font-weight: 500;
+}
+.live-stage-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px var(--t4);
+  transition:
+    background-color 160ms var(--e-std),
+    box-shadow 160ms var(--e-std);
+}
+.live-stage.is-done .live-stage-dot {
+  background: var(--t3);
+  box-shadow: none;
+}
+.live-stage.is-current .live-stage-dot {
+  background: var(--blue);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--blue) 20%, transparent);
+}
+.live-finding-body {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--t2);
+}
+.live-thread {
+  display: grid;
+  gap: 8px;
+}
+.live-comments {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.live-comment {
+  padding: 8px 12px;
+  border-radius: var(--r-ctl);
+  background: var(--fill);
+}
+.live-comment-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+}
+.live-comment-meta > :last-child {
+  margin-left: auto;
+}
+.live-comment-body {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.live-comment-form {
+  display: grid;
+  gap: 6px;
+}
+.live-comment-form textarea {
+  resize: vertical;
+}
+.live-comment-foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.live-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.live-list .list-row {
+  color: inherit;
+  text-decoration: none;
+  transition: background-color 120ms var(--e-std);
+}
+.live-list .list-row:hover {
+  background: var(--fill);
+}
+.live-list li:last-child .list-row {
+  border-bottom: 0;
+}
+
+/* Sharing */
+.share-section {
+  display: grid;
+  gap: 10px;
+  padding-top: 16px;
+  box-shadow: inset 0 0.5px 0 var(--hair);
+}
+.share-section h3 {
+  margin: 0;
+  font-size: var(--text-base);
+}
+.share-add {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+}
+.share-people {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+.share-people li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+}
+.share-people .grow {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.share-link-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.share-link {
+  display: grid;
+  gap: 10px;
+}
+.share-link-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.share-link-row .input {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 1100px) {
+  .live-frame {
+    grid-template-columns: 280px minmax(0, 1fr);
+  }
+  .live-talk {
+    position: static;
+    grid-column: 2;
+  }
+}
+@media (max-width: 900px) {
+  .live-frame {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .live-side {
+    position: static;
+  }
+  .live-talk {
+    grid-column: auto;
+  }
+}
+@media (max-width: 560px) {
+  .share-add {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .share-add .input:first-child {
+    grid-column: 1 / -1;
+  }
+}

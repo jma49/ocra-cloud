@@ -1011,3 +1011,19 @@ td.finding-cell {
     gap: 6px;
   }
 }
+.linked-tasks {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.linked-tasks li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 6px;
+}
+.linked-task-title {
+  flex-basis: 100%;
+}

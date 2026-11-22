@@ -3,7 +3,7 @@ import { lazy, Suspense, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { api, type Reviews } from "../api.js";
 import { useCached } from "../cache.js";
-import { num, usd } from "../format.js";
+import { count, num, period, usd } from "../format.js";
 import { Cycle } from "../insights/cycle.js";
 import { daily, quantile } from "../insights/series.js";
 import { Link } from "../router.js";
@@ -102,16 +102,7 @@ export function Insights() {
         title="Insights"
         sub="What the reviews found, what they cost and how long they took; and, of the findings someone decided on in Findings, how often they were right."
         actions={
-          <Seg
-            label="Period"
-            value={days}
-            onChange={setDays}
-            options={[
-              { value: 7, label: "7 days" },
-              { value: 30, label: "30 days" },
-              { value: 90, label: "90 days" },
-            ]}
-          />
+          <Seg label="Period" value={days} onChange={setDays} options={[7, 30, 90].map(period)} />
         }
       />
       {error && !(data && runs.data) ? (
@@ -179,17 +170,17 @@ function Kpis(props: { runs: Reviews; quality: Insights }) {
       <div className="card stat">
         <div className="stat-label">Reviews</div>
         <div className="stat-value">{num(s.reviews)}</div>
-        <div className="stat-note">{num(s.repositories)} repositories</div>
+        <div className="stat-note">{count(s.repositories, "repository", "repositories")}</div>
       </div>
       <div className="card stat">
         <div className="stat-label">Findings</div>
         <div className="stat-value">{num(s.findings)}</div>
-        <div className="stat-note">{num(s.blocking)} blocking reviews</div>
+        <div className="stat-note">{count(s.blocking, "blocking review")}</div>
       </div>
       <div className="card stat">
         <div className="stat-label">Critical</div>
         <div className="stat-value">{num(s.critical)}</div>
-        <div className="stat-note">{num(s.fixed)} findings fixed</div>
+        <div className="stat-note">{count(s.fixed, "finding")} fixed</div>
       </div>
       <div className="card stat">
         <div className="stat-label">Accepted</div>

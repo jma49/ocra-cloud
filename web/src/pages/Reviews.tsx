@@ -1,16 +1,12 @@
 import { useState } from "react";
 import { api, type Review, type Reviews as ReviewsData, why } from "../api.js";
 import { useCached } from "../cache.js";
-import { compact, num, sourceLabel, time } from "../format.js";
+import { compact, count, num, period, sourceLabel, time } from "../format.js";
 import { CloseGlyph } from "../glyphs.js";
 import { Link } from "../router.js";
 import { Loading, PageHead, Seg, useAction } from "../ui.js";
 
-const RANGES = [
-  { value: 7, label: "1W" },
-  { value: 30, label: "1M" },
-  { value: 90, label: "3M" },
-];
+const RANGES = [7, 30, 90].map(period);
 
 function Verdict(props: { r: Review }) {
   const { verdict, complete } = props.r;
@@ -56,7 +52,9 @@ export function Reviews() {
         <div className="card stat">
           <div className="stat-label">Reviews</div>
           <div className="stat-value">{s ? num(s.reviews) : "–"}</div>
-          <div className="stat-note">{s ? `${num(s.repositories)} repositories` : " "}</div>
+          <div className="stat-note">
+            {s ? count(s.repositories, "repository", "repositories") : " "}
+          </div>
         </div>
         <div className="card stat">
           <div className="stat-label">Findings</div>
@@ -73,7 +71,7 @@ export function Reviews() {
         <div className="card stat">
           <div className="stat-label">Tokens</div>
           <div className="stat-value">{s ? compact(s.tokensIn + s.tokensOut) : "–"}</div>
-          <div className="stat-note">{s ? `${num(s.incomplete)} incomplete reviews` : " "}</div>
+          <div className="stat-note">{s ? count(s.incomplete, "incomplete review") : " "}</div>
         </div>
       </div>
       {data && Object.keys(data.reviewers).length > 0 && (
@@ -132,7 +130,7 @@ export function Reviews() {
         <div className="card-head">
           <h3>History</h3>
           <span className="subtle small">
-            repositories are shown by an anonymous hash until you name them under Repositories
+            Repositories are shown by an anonymous hash until you name them under Repositories
           </span>
         </div>
         {!data ? (
@@ -195,7 +193,8 @@ export function Reviews() {
           </div>
         ) : (
           <div className="empty">
-            No reviews yet. Sign in with <span className="mono">ocra login</span> and run{" "}
+            No reviews in the last {days} days. Sign in with{" "}
+            <span className="mono">ocra login</span> and run{" "}
             <span className="mono">ocra review</span>.
           </div>
         )}

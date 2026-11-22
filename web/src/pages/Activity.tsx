@@ -1,15 +1,10 @@
 import { useState } from "react";
 import { api, type Usage } from "../api.js";
 import { useCached } from "../cache.js";
-import { compact, num, time } from "../format.js";
+import { compact, num, period, time } from "../format.js";
 import { PageHead, Seg, StackedBars } from "../ui.js";
 
-const RANGES = [
-  { value: 7, label: "1W" },
-  { value: 14, label: "2W" },
-  { value: 30, label: "1M" },
-  { value: 90, label: "3M" },
-];
+const RANGES = [7, 14, 30, 90].map(period);
 
 export function Activity() {
   const [days, setDays] = useState(30);
