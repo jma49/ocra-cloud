@@ -256,16 +256,22 @@ describe("ocra Cloud with a self-managed GitLab", () => {
       expect(model.chats.length).toBeGreaterThan(0);
       expect(new Set(model.keys)).toEqual(new Set([`Bearer ${KEY}`]));
       // The upload names the merge request as the server names the project, so the
-      // pull request's page and its pre-merge checks find this review.
-      const listed = (await (await visit("/api/reviews")).json()) as {
-        reviews: { prRepository: string | null; prNumber: number | null }[];
-      };
-      expect(listed.reviews).toEqual([
-        expect.objectContaining({
-          prRepository: repoIdentity({ url: gitlab.url }, PROJECT.path),
-          prNumber: MR,
-        }),
-      ]);
+      // pull request's page and its pre-merge checks find this review. The CLI
+      // uploads after it posts, so the review may land a moment later.
+      await vi.waitFor(
+        async () => {
+          const listed = (await (await visit("/api/reviews")).json()) as {
+            reviews: { prRepository: string | null; prNumber: number | null }[];
+          };
+          expect(listed.reviews).toEqual([
+            expect.objectContaining({
+              prRepository: repoIdentity({ url: gitlab.url }, PROJECT.path),
+              prNumber: MR,
+            }),
+          ]);
+        },
+        { timeout: 15_000, interval: 250 },
+      );
       // The reviewers read the issue the merge request closes.
       expect(model.chats.some((c) => JSON.stringify(c.messages).includes(ISSUE.title))).toBe(true);
       // The bot cloned over HTTPS under the instance's path, with its own token.

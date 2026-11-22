@@ -181,6 +181,33 @@ export const rows = {
     text: `question ${id}`,
   }),
   repositories: (id: string) => ({ id, repoHash: `h-${id}`, name: `octo/${id}` }),
+  liveRuns: (id: string) => ({
+    id,
+    runId: `run-${id}`,
+    repoHash: "r",
+    source: "local" as const,
+    updatedAt: new Date(),
+  }),
+  // The run and the grantee they belong to are made in beforeEach.
+  liveEvents: (_id: string) => ({
+    liveRunId: "live-run-of-a",
+    seq: 1,
+    kind: "started",
+    data: {},
+    at: "2026-11-22T00:00:00.000Z",
+  }),
+  liveGrants: (id: string) => ({
+    id,
+    liveRunId: "live-run-of-a",
+    granteeId: "acct-b",
+    role: "watch" as const,
+  }),
+  liveComments: (id: string) => ({
+    id,
+    liveRunId: "live-run-of-a",
+    authorLogin: "a",
+    body: "b",
+  }),
   // One row per account, kind and day; the id names the day.
   usageCounters: (id: string) => ({ kind: "uploads" as const, day: id, n: 1 }),
 } satisfies { [N in keyof typeof schema.accountTables]: (id: string) => unknown };

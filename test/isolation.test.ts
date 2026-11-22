@@ -43,6 +43,10 @@ const changes = {
   mergeChecks: { mode: "block" as const },
   mergeCheckRuns: { conclusion: "failure" as const },
   reviewChatMessages: { text: "changed" },
+  liveRuns: { target: "changed" },
+  liveEvents: { kind: "changed" },
+  liveGrants: { role: "comment" as const },
+  liveComments: { body: "changed" },
 } satisfies { [N in keyof typeof rows]: Record<string, unknown> };
 
 // Storage persists across tests in a file; deleting the accounts cascades.
@@ -65,6 +69,14 @@ const unscoped: Record<string, string> = {
   // Signing in finds the account by its identity; only src/db/accounts.ts
   // reads it (test/identities.test.ts).
   identities: "found by provider and subject before the account is known",
+};
+
+// Columns of a scoped table that name an account other than its owner.
+const otherAccounts: Record<string, string[]> = {
+  // Whom the owner shares a live run with (src/db/live-access.ts reads it).
+  live_grants: ["grantee_id"],
+  // Who wrote a comment on the owner's live run.
+  live_comments: ["author_id"],
 };
 
 const schemaTables = (Object.values(schema) as unknown[]).filter((t): t is SQLiteTable =>
@@ -91,9 +103,11 @@ it("covers every table with a foreign key to accounts, whatever the column's nam
     }
     expect(scopedSet.has(t), `${name} references accounts but is not in accountTables`).toBe(true);
   }
-  // Each scoped table references accounts through account_id, the column scoped() filters by.
+  // Each scoped table references accounts through account_id, the column scoped() filters by,
+  // and names another account only where it says so.
   for (const t of scopedSet) {
-    expect(accountReferences(t), getTableName(t)).toEqual(["account_id"]);
+    const name = getTableName(t);
+    expect(accountReferences(t), name).toEqual(["account_id", ...(otherAccounts[name] ?? [])]);
   }
   for (const name of Object.keys(unscoped)) {
     expect(
@@ -107,8 +121,14 @@ it("covers every table with a foreign key to accounts, whatever the column's nam
 // Tables whose rows have their own id; preferences and budgets are one row
 // per account, platform links one per account, platform and host, and
 // usage counters one per account, kind and day.
-type Keyed = "preferences" | "budgets" | "platformLinks" | "usageCounters";
-const KEYED: readonly string[] = ["preferences", "budgets", "platformLinks", "usageCounters"];
+type Keyed = "preferences" | "budgets" | "platformLinks" | "usageCounters" | "liveEvents";
+const KEYED: readonly string[] = [
+  "preferences",
+  "budgets",
+  "platformLinks",
+  "usageCounters",
+  "liveEvents",
+];
 const withIds = (Object.keys(rows) as (keyof typeof rows)[]).filter(
   (n): n is Exclude<keyof typeof rows, Keyed> => !KEYED.includes(n),
 );
@@ -136,6 +156,9 @@ describe.each(withIds)("%s", (name) => {
       await db
         .insert(schema.reviewRepos)
         .values({ ...rows.reviewRepos("review-repo-of-a"), accountId: A });
+    }
+    if (["liveGrants", "liveComments"].includes(name)) {
+      await db.insert(schema.liveRuns).values({ ...rows.liveRuns("live-run-of-a"), accountId: A });
     }
     if (name === "graphBuilds") {
       await db
@@ -242,5 +265,22 @@ describe("usage counters, one row per account, kind and day", () => {
     await b.insert("usageCounters", { ...rows.usageCounters("2026-10-09"), accountId: A } as never);
     expect(await scoped(db, A).list("usageCounters")).toEqual([]);
     expect(await b.findOne("usageCounters", {})).toMatchObject({ accountId: B });
+  });
+});
+
+describe("live events, one row per run and seq", () => {
+  beforeEach(async () => {
+    await db.insert(schema.liveRuns).values({ ...rows.liveRuns("live-run-of-a"), accountId: A });
+  });
+
+  it("one account cannot read, count or delete another's", async () => {
+    const a = scoped(db, A);
+    const b = scoped(db, B);
+    await a.insert("liveEvents", rows.liveEvents("1"));
+    expect(await a.list("liveEvents")).toHaveLength(1);
+    expect(await b.list("liveEvents")).toEqual([]);
+    expect(await b.live.eventsAfter("live-run-of-a", 0, 10)).toEqual([]);
+    expect(await b.removeWhere("liveEvents", {})).toBe(0);
+    expect(await a.live.eventsAfter("live-run-of-a", 0, 10)).toHaveLength(1);
   });
 });

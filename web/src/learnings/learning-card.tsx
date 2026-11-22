@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { LearningView } from "../../../src/shared/index.js";
+import type { LearningUsageView, LearningView } from "../../../src/shared/index.js";
 import { ago } from "../format.js";
 
 // One learning as a reviewer gets it: title, where it applies, and its text.
@@ -13,7 +13,18 @@ const SOURCE: Record<NonNullable<LearningView["source"]>["kind"], string> = {
   manual: "Written by hand",
 };
 
-export function LearningCard(props: { learning: LearningView; actions?: ReactNode }) {
+function used(u: LearningUsageView, days: number) {
+  if (u.reviews === 0) return `not used in ${days} days`;
+  const last = u.lastUsedAt ? `, last ${ago(u.lastUsedAt)}` : "";
+  return `used in ${u.reviews} review${u.reviews === 1 ? "" : "s"}${last}`;
+}
+
+export function LearningCard(props: {
+  learning: LearningView;
+  /** The reviews given this learning over the last `days`; absent where nothing counts them. */
+  usage?: { of: LearningUsageView; days: number } | undefined;
+  actions?: ReactNode;
+}) {
   const l = props.learning;
   return (
     <details className="learning">
@@ -28,6 +39,7 @@ export function LearningCard(props: { learning: LearningView; actions?: ReactNod
             {l.paths.join(", ")}
             {l.source ? ` · ${SOURCE[l.source.kind]}` : ""}
             {l.lastCommit?.at ? ` · changed ${ago(l.lastCommit.at)}` : ""}
+            {props.usage ? ` · ${used(props.usage.of, props.usage.days)}` : ""}
           </div>
         </div>
         {props.actions}

@@ -260,6 +260,9 @@ describe("export and deletion", () => {
         "mergeChecks",
         "mergeCheckRuns",
         "generateJobs",
+        "liveEvents",
+        "liveGrants",
+        "liveComments",
       ];
       if (later.includes(table)) continue;
       await d.insert(table as keyof typeof rows, row(`x-${table}`) as never);
@@ -289,6 +292,14 @@ describe("export and deletion", () => {
         reviewRepoId: "x-reviewRepos",
       } as never);
     }
+    const live = { liveRunId: "x-liveRuns" };
+    await d.insert("liveEvents", { ...rows.liveEvents("x-liveEvents"), ...live });
+    await d.insert("liveGrants", {
+      ...rows.liveGrants("x-liveGrants"),
+      ...live,
+      granteeId: me.account.id,
+    });
+    await d.insert("liveComments", { ...rows.liveComments("x-liveComments"), ...live });
     await setSharing(db, me.account.id, true);
     const salt = await accountSalt(db, me.account.id);
 

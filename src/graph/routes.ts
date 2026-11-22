@@ -1,3 +1,4 @@
+import { GRAPH_COMMIT_HEADER, MAX_GRAPH_REPOS } from "@open-cr-agent/cloud-contract";
 import { Hono } from "hono";
 import { z } from "zod";
 import { randomToken, sha256Hex } from "../crypto.js";
@@ -23,8 +24,6 @@ export type GraphService = {
   kick: () => void;
   parse: GraphParser;
 };
-
-const MAX_GRAPH_REPOS = 100;
 
 const addSchema = z.object({
   platform: z.enum(CODE_PLATFORMS),
@@ -185,7 +184,7 @@ export function graphsRoute(service: GraphService) {
     const graph = await c.var.data.graphs.newestGraph(repo.id, commit);
     if (!graph?.content) return apiError(c, "not_found");
     const bytes = new Uint8Array(graph.content);
-    const headers = { "content-type": "application/json", "x-ocra-graph-commit": graph.commit };
+    const headers = { "content-type": "application/json", [GRAPH_COMMIT_HEADER]: graph.commit };
     if (/\bgzip\b/.test(c.req.header("accept-encoding") ?? "")) {
       return c.body(bytes, 200, { ...headers, "content-encoding": "gzip" });
     }

@@ -288,6 +288,13 @@ td.finding-cell {
   min-width: 0;
   overflow-wrap: anywhere;
 }
+.prop-items {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
 .sev-counts {
   display: flex;
   flex-wrap: wrap;
@@ -740,6 +747,58 @@ td.finding-cell {
   border-left: 0.5px solid var(--hair);
 }
 
+/* Insights, review flow: weeks and sizes as rows of bars. */
+.flow-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 24px;
+  padding: 12px 16px 16px;
+  border-bottom: 0.5px solid var(--hair);
+}
+.flow-rows {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr) minmax(0, 1fr);
+  gap: 6px 12px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+}
+.flow-rows.sizes {
+  grid-template-columns: max-content minmax(0, 1fr);
+}
+.flow-rows li {
+  display: contents;
+}
+.flow-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  align-items: center;
+  gap: 8px;
+}
+.flow-track {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--fill2);
+  overflow: hidden;
+}
+.flow-track i {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+}
+.flow-track .opened {
+  background: var(--t3);
+}
+.flow-track .merged {
+  background: var(--primary);
+}
+@media (max-width: 760px) {
+  .flow-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 /* A pull request's page: files, review and merge on the left, the diffs on the right. */
 .pull-frame {
   display: grid;
@@ -1003,4 +1062,20 @@ td.finding-cell {
     align-items: flex-start;
     gap: 6px;
   }
+}
+.linked-tasks {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.linked-tasks li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 6px;
+}
+.linked-task-title {
+  flex-basis: 100%;
 }

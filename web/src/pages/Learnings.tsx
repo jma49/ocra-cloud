@@ -46,6 +46,8 @@ function initialRepo(): Repo | null {
   return (platform === "github" || platform === "gitlab") && repo ? { platform, repo } : null;
 }
 
+const NEVER_USED = { reviews: 0, lastUsedAt: null };
+
 export function Learnings() {
   const listed = useLoad(() => api<Listed>("/platforms/repos"));
   const choices: Repo[] = (listed.data?.platforms ?? []).flatMap((p) =>
@@ -137,6 +139,7 @@ function RepoLearnings(props: { at: Repo }) {
     proposals.reload();
   };
   const branch = page.data?.branch ?? "the default branch";
+  const usage = page.data && { of: page.data.usage, days: page.data.usageDays };
   const form = (l?: LearningView) => (
     <LearningForm {...props.at} branch={branch} learning={l} done={done} />
   );
@@ -175,6 +178,7 @@ function RepoLearnings(props: { at: Repo }) {
               <LearningCard
                 key={l.id}
                 learning={l}
+                usage={usage && { of: usage.of[l.id] ?? NEVER_USED, days: usage.days }}
                 actions={
                   <span className="row-gap">
                     <Button type="button" variant="outline" size="sm" onClick={() => setEditing(l)}>

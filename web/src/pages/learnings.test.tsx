@@ -72,6 +72,8 @@ function serve(answer: { outcome: string; pull: unknown }) {
           },
         ],
         total: 2,
+        usage: { "refund-cap": { reviews: 4, lastUsedAt: new Date().toISOString() } },
+        usageDays: 90,
         next: null,
       });
     }),
@@ -84,6 +86,7 @@ describe("the Learnings page", () => {
     serve({ outcome: "done", pull: null });
     render(<Learnings />);
     expect(await screen.findByText("Refunds never exceed what was captured")).toBeTruthy();
+    expect(screen.getByText(/used in 4 reviews, last just now/)).toBeTruthy();
     expect(screen.getByText(/is skipped by reviews: its name is not a learning's/)).toBeTruthy();
     expect(await screen.findByText("#7 chore(ocra): propose learnings")).toBeTruthy();
     expect(screen.getByText("Post to the ledger last")).toBeTruthy();

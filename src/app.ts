@@ -1,6 +1,7 @@
 import { type Context, Hono } from "hono";
 import { account } from "./account.js";
 import { auth } from "./auth.js";
+import { reviewNow } from "./auto-review/review-now.js";
 import { type AutoReviewService, autoReviewRoute } from "./auto-review/routes.js";
 import { automationsRoute } from "./automations/routes.js";
 import { BodyTooLarge } from "./body.js";
@@ -17,6 +18,7 @@ import { apiError } from "./http.js";
 import { inbox } from "./inbox.js";
 import { keys } from "./keys.js";
 import { learningsRoute } from "./learnings.js";
+import { liveRoute } from "./live/routes.js";
 import { errorName, logError } from "./log.js";
 import { meRoute } from "./me.js";
 import { memory } from "./memory.js";
@@ -109,6 +111,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
   app.route("/account", account);
   app.route("/reviews", reviews);
   app.route("/reviews", reviewChat);
+  app.route("/live", liveRoute);
   app.route("/findings", inbox);
   app.route("/repositories", repositoriesRoute);
   app.route("/budget", budget);
@@ -122,6 +125,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
   app.route("/pulls/checks", pullChecksRoute);
   app.route("/pulls", pullPage);
   app.route("/pulls", pullStack);
+  app.route("/pulls", reviewNow);
   app.route("/learnings", learningsRoute);
   app.route("/merge-checks", mergeChecksRoute);
   app.route("/notifications", notifyRoute);

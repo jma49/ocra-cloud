@@ -8,7 +8,7 @@ import { call, resetDb, signIn, signInCli } from "./helpers.js";
 // guard answers an unauthenticated request with something other than 401
 // (usually a 500, reading a session that is not there) and fails the second.
 
-type Access = "public" | "web" | "web+cli";
+type Access = "public" | "web" | "cli" | "web+cli";
 
 const ACCESS: Record<string, Access> = {
   "GET /api/health": "public",
@@ -47,6 +47,8 @@ const ACCESS: Record<string, Access> = {
   "POST /api/pulls/apply-fix": "web",
   "GET /api/pulls/stack": "web",
   "POST /api/pulls/merge-stack": "web",
+  "GET /api/pulls/review-now": "web",
+  "POST /api/pulls/review-now": "web",
   "GET /api/learnings": "web",
   "GET /api/learnings/proposals": "web",
   "POST /api/learnings": "web",
@@ -112,6 +114,19 @@ const ACCESS: Record<string, Access> = {
   "GET /api/keys/:provider/models": "web",
   "DELETE /api/keys/:provider": "web",
   "POST /api/gateway/:provider/*": "web+cli",
+  "POST /api/live": "cli",
+  "GET /api/live": "web",
+  "GET /api/live/:id": "web",
+  "DELETE /api/live/:id": "web",
+  "GET /api/live/:id/events": "web",
+  "GET /api/live/:id/stream": "web",
+  "GET /api/live/:id/comments": "web",
+  "POST /api/live/:id/comments": "web",
+  "DELETE /api/live/:id/comments/:commentId": "web",
+  "PUT /api/live/:id/link": "web",
+  "DELETE /api/live/:id/link": "web",
+  "POST /api/live/:id/people": "web",
+  "DELETE /api/live/:id/people/:grantId": "web",
 };
 
 /** Every route with a handler, as "METHOD /path". */
@@ -155,7 +170,17 @@ describe("every route", () => {
     },
   );
 
-  it.each(routes.filter((r) => r.access === "web+cli"))(
+  it.each(routes.filter((r) => r.access === "cli"))(
+    "$route refuses a web session (403)",
+    async (r) => {
+      const { auth } = await signIn(1, "web-user");
+      const res = await call(r.url, { method: r.method, auth: auth });
+      expect(res.status).toBe(403);
+      expect(await res.json()).toEqual({ error: "forbidden_for_session" });
+    },
+  );
+
+  it.each(routes.filter((r) => r.access === "web+cli" || r.access === "cli"))(
     "$route lets a CLI token through",
     async (r) => {
       const { auth } = await signInCli(1, "cli-user");
@@ -165,10 +190,13 @@ describe("every route", () => {
     },
   );
 
-  it.each(guarded)("$route lets a web session through", async (r) => {
-    const { auth } = await signIn(1, "web-user");
-    const res = await call(r.url, { method: r.method, auth: auth });
-    expect([401, 403]).not.toContain(res.status);
-    expect(res.status).toBeLessThan(500);
-  });
+  it.each(guarded.filter((r) => r.access !== "cli"))(
+    "$route lets a web session through",
+    async (r) => {
+      const { auth } = await signIn(1, "web-user");
+      const res = await call(r.url, { method: r.method, auth: auth });
+      expect([401, 403]).not.toContain(res.status);
+      expect(res.status).toBeLessThan(500);
+    },
+  );
 });
