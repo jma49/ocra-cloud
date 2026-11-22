@@ -17,11 +17,12 @@ export const BUILT_IN_REVIEWERS: readonly AgentInfo[] = [
 
 // The contract's roles, checked by type (a value import would bring zod into
 // the web bundle): a role it adds or moves fails to type-check here.
-const ROLE_IDS: typeof AGENT_ROLES = ["verifier", "judge", "helper"];
+const ROLE_IDS: typeof AGENT_ROLES = ["verifier", "judge", "helper", "writer"];
 const ROLE_INFO: Record<AgentRole, Omit<AgentInfo, "id">> = {
   verifier: { tier: "standard", hint: "Checks each finding against the code" },
   judge: { tier: "top", hint: "Deduplicates and calibrates severity" },
   helper: { tier: "light", hint: "Groups files and relocates quotes" },
+  writer: { tier: "standard", hint: "Writes the walkthrough and answers @ocra" },
 };
 
 /** The agents that are not reviewers, in the contract's order. */
