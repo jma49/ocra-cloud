@@ -1,40 +1,29 @@
-import {
-  createContext,
-  type ReactNode,
-  useCallback,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { createContext, type ReactNode, useContext, useState } from "react";
+import { ToastProvider as CossToastProvider, ToastPrimitive } from "@/components/ui/toast";
 
-// A short note after something worked ("Settings saved"), for any page.
+// A short note after something happened ("Settings saved"), for any page.
 
 const SHOWN_MS = 2600;
-const ToastContext = createContext<(message: string) => void>(() => {});
 
+type Tone = "success" | "error";
+type Show = (message: string, tone?: Tone) => void;
+
+const ToastContext = createContext<Show>(() => {});
+
+/** Each provider keeps its own toasts, so one app (or test) never sees another's. */
 export function ToastProvider(props: { children: ReactNode }) {
-  const [message, setMessage] = useState("");
-  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const toast = useCallback((m: string) => {
-    clearTimeout(timer.current);
-    setMessage(m);
-    timer.current = setTimeout(() => setMessage(""), SHOWN_MS);
-  }, []);
-  useEffect(() => () => clearTimeout(timer.current), []);
+  const [manager] = useState(ToastPrimitive.createToastManager);
+  const [show] = useState<Show>(() => (message: string, tone?: Tone) => {
+    manager.add(tone ? { title: message, type: tone } : { title: message });
+  });
   return (
-    <ToastContext.Provider value={toast}>
-      {props.children}
-      {message && (
-        <div className="toast" role="status">
-          {message}
-        </div>
-      )}
-    </ToastContext.Provider>
+    <CossToastProvider toastManager={manager} timeout={SHOWN_MS}>
+      <ToastContext.Provider value={show}>{props.children}</ToastContext.Provider>
+    </CossToastProvider>
   );
 }
 
-/** Shows a message briefly; outside a ToastProvider, nothing. */
-export function useToast(): (message: string) => void {
+/** Shows a message briefly, marked as a success or an error when it is one; outside a ToastProvider, nothing. */
+export function useToast(): Show {
   return useContext(ToastContext);
 }

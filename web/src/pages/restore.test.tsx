@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { forgetKeys } from "../account-keys.js";
 import { PrefsProvider } from "../prefs.js";
@@ -40,7 +40,12 @@ async function restoreAnswered(status: number, error: string): Promise<string> {
     </ToastProvider>,
   );
   fireEvent.click(await screen.findByRole("button", { name: "Restore" }));
-  return (await screen.findByRole("status")).textContent ?? "";
+  const title = await waitFor(() => {
+    const shown = document.querySelector('[data-slot="toast-title"]');
+    expect(shown).not.toBeNull();
+    return shown;
+  });
+  return title?.textContent ?? "";
 }
 
 it("says a restore that lost to saves at the same moment can be tried again", async () => {

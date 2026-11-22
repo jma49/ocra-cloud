@@ -149,7 +149,7 @@ export function PrefsProvider(props: {
       });
       setSaved(next);
       setDraft(next);
-      toast("Settings saved");
+      toast("Settings saved", "success");
     } catch (e) {
       if (e instanceof ApiError && e.code === "stale") setStale(true);
       else setError(saveError(e));

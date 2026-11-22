@@ -74,6 +74,9 @@
   --input: var(--hair2);
   --ring: var(--focus);
   --radius: var(--r-ctl);
+  /* Read raw (var(--color-black)) in some coss classes, which Tailwind leaves unresolved. */
+  --color-black: var(--black);
+  --color-white: var(--white);
   /* Chart series, most used first. */
   --c1: var(--ink);
   --c2: var(--blue);
