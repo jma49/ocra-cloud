@@ -57,31 +57,37 @@ export type PullStackPlace = {
 /** An open pull request with its branch names, its head in the repository itself. */
 export type StackBranches = { repo: string; number: number; head: string; base: string };
 
+/** A pull's branches; `repo` keeps pulls of other repositories that share branch names apart. */
+type Branches = { repo?: string; number: number; head: string; base: string };
+
+export type StackNode<T> = { pull: T; parent: T | null };
+
 /**
- * Each pull's place in the stacks these pulls make, in input order; none for
- * a pull with nothing stacked on or under it. A pull is stacked on the one,
- * in the same repository, whose head branch is its base, as the stack page
- * reads it: of two with one head branch the lower number is the parent, and
- * a cycle of branches is cut above its lowest number, which becomes the bottom.
+ * The stacks these pulls make, every pull in exactly one, each bottom first
+ * with every pull after its parent. A pull is stacked on the one, in the same
+ * repository, whose head branch is its base: of two with one head branch the
+ * lower number is the parent, a fork is walked depth first with lower numbers
+ * first, and a cycle of branches is cut above its lowest number, which
+ * becomes the bottom.
  */
-export function stackPlaces(pulls: readonly StackBranches[]): (PullStackPlace | undefined)[] {
-  const key = (p: StackBranches) => `${p.repo}#${p.number}`;
-  const byHead = new Map<string, StackBranches>();
+export function pullStacks<T extends Branches>(pulls: readonly T[]): StackNode<T>[][] {
+  const key = (p: Branches) => JSON.stringify([p.repo ?? "", p.number]);
+  const byHead = new Map<string, T>();
   for (const p of [...pulls].sort((a, b) => a.number - b.number)) {
-    const at = JSON.stringify([p.repo, p.head]);
+    const at = JSON.stringify([p.repo ?? "", p.head]);
     if (!byHead.has(at)) byHead.set(at, p);
   }
-  const parentOf = new Map<string, StackBranches>();
-  const children = new Map<string, StackBranches[]>();
+  const parentOf = new Map<string, T>();
+  const children = new Map<string, T[]>();
   for (const p of pulls) {
-    const parent = byHead.get(JSON.stringify([p.repo, p.base]));
+    const parent = byHead.get(JSON.stringify([p.repo ?? "", p.base]));
     if (!parent || key(parent) === key(p) || parentOf.has(key(p))) continue;
     parentOf.set(key(p), parent);
     children.set(key(parent), [...(children.get(key(parent)) ?? []), p]);
   }
-  const bottomOf = (p: StackBranches) => {
-    const path: StackBranches[] = [];
-    let at: StackBranches | undefined = p;
+  const bottomOf = (p: T) => {
+    const path: T[] = [];
+    let at: T | undefined = p;
     while (at && !path.includes(at)) {
       path.push(at);
       at = parentOf.get(key(at));
@@ -90,21 +96,37 @@ export function stackPlaces(pulls: readonly StackBranches[]): (PullStackPlace | 
     const cycle = path.slice(path.indexOf(at));
     return cycle.reduce((low, c) => (c.number < low.number ? c : low));
   };
-  const places = new Map<string, PullStackPlace>();
+  const placed = new Set<string>();
+  const stacks: StackNode<T>[][] = [];
   for (const p of pulls) {
-    if (places.has(key(p))) continue;
+    if (placed.has(key(p))) continue;
     const bottom = bottomOf(p);
-    const order: StackBranches[] = [];
-    const visit = (at: StackBranches) => {
-      if (order.includes(at)) return;
-      order.push(at);
+    const stack: StackNode<T>[] = [];
+    const visit = (at: T, parent: T | null) => {
+      if (placed.has(key(at))) return;
+      placed.add(key(at));
+      stack.push({ pull: at, parent });
       const above = (children.get(key(at)) ?? []).filter((c) => c !== bottom);
-      for (const c of above.sort((a, b) => a.number - b.number)) visit(c);
+      for (const c of above.sort((a, b) => a.number - b.number)) visit(c, at);
     };
-    visit(bottom);
-    if (order.length < 2) continue;
-    for (const [i, at] of order.entries()) {
-      places.set(key(at), { id: key(bottom), position: i + 1, size: order.length });
+    visit(bottom, null);
+    stacks.push(stack);
+  }
+  return stacks;
+}
+
+/**
+ * Each pull's place in the stacks these pulls make (`pullStacks`), in input
+ * order; none for a pull with nothing stacked on or under it.
+ */
+export function stackPlaces(pulls: readonly StackBranches[]): (PullStackPlace | undefined)[] {
+  const key = (p: StackBranches) => `${p.repo}#${p.number}`;
+  const places = new Map<string, PullStackPlace>();
+  for (const stack of pullStacks(pulls)) {
+    const bottom = stack[0]?.pull;
+    if (!bottom || stack.length < 2) continue;
+    for (const [i, { pull }] of stack.entries()) {
+      places.set(key(pull), { id: key(bottom), position: i + 1, size: stack.length });
     }
   }
   return pulls.map((p) => places.get(key(p)));
