@@ -127,7 +127,7 @@ function RepoLearnings(props: { at: Repo }) {
       {change && <ChangeOutcome change={change} branch={branch} />}
       {remove.error !== null && <ActionError what="delete the learning" error={remove.error} />}
       {proposals.data && <Proposals data={proposals.data} />}
-      {editing === "new" && form()}
+      {editing !== null && form(editing === "new" ? undefined : editing)}
       {page.error && !page.data ? (
         <LoadError what="the learnings" error={page.error} retry={page.reload} />
       ) : !page.data ? (
@@ -141,11 +141,9 @@ function RepoLearnings(props: { at: Repo }) {
                 {page.data.total} · <span className="mono">{page.data.commit.slice(0, 7)}</span>
               </span>
             </h3>
-            {editing === null && (
-              <Button type="button" variant="outline" size="sm" onClick={() => setEditing("new")}>
-                <AddGlyph size={14} /> New learning
-              </Button>
-            )}
+            <Button type="button" variant="outline" size="sm" onClick={() => setEditing("new")}>
+              <AddGlyph size={14} /> New learning
+            </Button>
           </div>
           {page.data.learnings.length === 0 && page.data.invalid.length === 0 ? (
             <p className="subtle small card-pad m-0">
@@ -154,37 +152,28 @@ function RepoLearnings(props: { at: Repo }) {
               fix commits.
             </p>
           ) : (
-            page.data.learnings.map((l) =>
-              editing !== "new" && editing?.id === l.id ? (
-                <div key={l.id}>{form(l)}</div>
-              ) : (
-                <LearningCard
-                  key={l.id}
-                  learning={l}
-                  actions={
-                    <span className="row-gap">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setEditing(l)}
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="destructive-outline"
-                        size="sm"
-                        disabled={remove.busy}
-                        onClick={async () => done((await remove.run(l)) ?? null)}
-                      >
-                        Delete
-                      </Button>
-                    </span>
-                  }
-                />
-              ),
-            )
+            page.data.learnings.map((l) => (
+              <LearningCard
+                key={l.id}
+                learning={l}
+                actions={
+                  <span className="row-gap">
+                    <Button type="button" variant="outline" size="sm" onClick={() => setEditing(l)}>
+                      Edit
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="destructive-outline"
+                      size="sm"
+                      disabled={remove.busy}
+                      onClick={async () => done((await remove.run(l)) ?? null)}
+                    >
+                      Delete
+                    </Button>
+                  </span>
+                }
+              />
+            ))
           )}
           {page.data.invalid.map((f) => (
             <div className="learning invalid small" key={f.path}>

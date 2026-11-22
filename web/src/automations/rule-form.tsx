@@ -9,6 +9,7 @@ import type {
   Verdict,
 } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
+import { Drawer } from "../drawer.js";
 import { listOf, Row } from "../form.js";
 import { AddGlyph, CloseGlyph } from "../glyphs.js";
 import { Seg, useAction } from "../ui.js";
@@ -130,14 +131,27 @@ export function RuleForm(props: {
     actions.every((a) => a.kind === "skip_review" || a.text.trim() !== "");
 
   return (
-    <form
-      className="card rule-form"
+    <Drawer
+      title={r ? `Edit ${r.name}` : "New rule"}
+      heading={r ? `Edit “${r.name}”` : "New rule"}
+      onClose={() => props.done(false)}
       onSubmit={submit}
-      aria-label={r ? `Edit ${r.name}` : "New rule"}
+      foot={
+        <>
+          {save.error !== null && (
+            <span className="error small grow" role="alert">
+              Could not save it: {why(save.error)}.
+            </span>
+          )}
+          <Button type="button" variant="outline" onClick={() => props.done(false)}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={save.busy || !ready}>
+            {r ? "Save rule" : "Add rule"}
+          </Button>
+        </>
+      }
     >
-      <div className="card-head">
-        <h3>{r ? `Edit “${r.name}”` : "New rule"}</h3>
-      </div>
       <Row label="Name" desc="How the rule shows here and in its runs.">
         <input
           className="input"
@@ -277,20 +291,7 @@ export function RuleForm(props: {
           </Button>
         )}
       </div>
-      <div className="rule-foot">
-        {save.error !== null && (
-          <span className="error small grow" role="alert">
-            Could not save it: {why(save.error)}.
-          </span>
-        )}
-        <Button type="button" variant="outline" onClick={() => props.done(false)}>
-          Cancel
-        </Button>
-        <Button type="submit" disabled={save.busy || !ready}>
-          {r ? "Save rule" : "Add rule"}
-        </Button>
-      </div>
-    </form>
+    </Drawer>
   );
 }
 

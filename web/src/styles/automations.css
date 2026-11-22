@@ -6,20 +6,6 @@
 .rule-off {
   opacity: 0.6;
 }
-.rule-form {
-  margin-bottom: 16px;
-}
-.rule-list .rule-form {
-  margin: 0;
-  box-shadow: none;
-  border-radius: 0;
-}
-.rule-form .form-row .control {
-  justify-content: flex-start;
-}
-.rule-form .form-row {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 320px);
-}
 .check-list {
   display: grid;
   gap: 6px;
@@ -34,8 +20,7 @@
 .rule-actions {
   display: grid;
   gap: 8px;
-  padding: 14px 20px;
-  border-bottom: 0.5px solid var(--hair2);
+  padding: 14px 0 0;
 }
 .rule-actions .label {
   font-weight: 600;
@@ -61,13 +46,6 @@
   align-items: center;
   gap: 6px;
 }
-.rule-foot {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 8px;
-  padding: 14px 20px;
-}
 .run-actions {
   margin: 0;
   padding: 0;
@@ -78,10 +56,7 @@
   margin: 0;
   padding-left: 18px;
 }
-@media (max-width: 640px) {
-  .rule-form .form-row {
-    grid-template-columns: minmax(0, 1fr);
-  }
+@media (max-width: 560px) {
   .rule-action {
     flex-wrap: wrap;
   }
