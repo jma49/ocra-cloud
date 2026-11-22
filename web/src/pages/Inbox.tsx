@@ -14,7 +14,8 @@ import {
 } from "../inbox/sections.js";
 import { ViewDrawer } from "../inbox/view-drawer.js";
 import { forgetSharedView, sharedView, usePullViews, type ViewDraft } from "../inbox/views.js";
-import { Link } from "../router.js";
+import { pullPath } from "../pull/path.js";
+import { Link, navigate } from "../router.js";
 import { useTitleCount } from "../title.js";
 import { LoadError, Loading, PageHead } from "../ui.js";
 
@@ -57,6 +58,10 @@ export function Inbox() {
       }),
     open: () => {
       const r = visible[current];
+      if (r) navigate(pullPath(r.platform, r.repo, r.number));
+    },
+    openOnPlatform: () => {
+      const r = visible[current];
       if (r) window.open(r.url, "_blank", "noopener,noreferrer");
     },
     find: () => finder.current?.focus(),
@@ -78,7 +83,7 @@ export function Inbox() {
     <>
       <PageHead
         title="Pull requests"
-        sub="What waits on you across every connected platform, read live. j and k move, Enter opens, / finds, r refreshes."
+        sub="What waits on you across every connected platform, read live. j and k move, Enter opens, o opens on the platform, / finds, r refreshes."
         actions={
           <button type="button" className="btn" onClick={() => setEditing({ draft: BLANK })}>
             New section

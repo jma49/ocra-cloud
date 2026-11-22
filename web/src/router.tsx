@@ -5,7 +5,7 @@ import { type MouseEvent, type ReactNode, useEffect, useState } from "react";
 
 const listeners = new Set<() => void>();
 
-function navigate(to: string): void {
+export function navigate(to: string): void {
   if (to === location.pathname) return;
   history.pushState(null, "", to);
   for (const l of listeners) l();

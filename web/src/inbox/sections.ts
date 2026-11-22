@@ -14,7 +14,7 @@ type PlatformPulls = {
   pulls: PullItem[];
 };
 export type InboxAnswer = { platforms: PlatformPulls[] };
-export type Row = PullItem & { host: string };
+export type Row = PullItem & { host: string; platform: CodePlatformKind };
 
 export type SectionId = "review" | "approved" | "returned" | "merged" | "drafts" | "waiting";
 type Section = { id: SectionId; title: string };
@@ -51,7 +51,9 @@ const matches = (r: Row, f: Filters) => {
 };
 
 export const rowsOf = (answer: InboxAnswer): Row[] =>
-  answer.platforms.flatMap((p) => p.pulls.map((pull) => ({ ...pull, host: p.host })));
+  answer.platforms.flatMap((p) =>
+    p.pulls.map((pull) => ({ ...pull, host: p.host, platform: p.platform })),
+  );
 
 export type ShownSection = {
   key: string;

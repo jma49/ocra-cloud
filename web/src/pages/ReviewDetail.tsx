@@ -5,6 +5,7 @@ import { useCached } from "../cache.js";
 import { ago, sourceLabel, time } from "../format.js";
 import { type FocusedFinding, ImpactRail } from "../impact/rail.js";
 import { useImpact } from "../impact/use-impact.js";
+import { pullPath } from "../pull/path.js";
 import { Link } from "../router.js";
 import { LoadError, Loading, PageHead, Seg } from "../ui.js";
 import { type Finding, FindingEvent } from "./review-finding.js";
@@ -42,6 +43,7 @@ export function ReviewDetail(props: { id: string; graphs: boolean }) {
     pr?.prRepository && pr.prNumber ? { repository: pr.prRepository, number: pr.prNumber } : null,
     props.graphs,
   );
+  const pull = pr ? pullOf(pr) : null;
   const [focused, setFocused] = useState<FocusedFinding | null>(null);
   useEffect(() => {
     if (!focused) return;
@@ -141,6 +143,7 @@ export function ReviewDetail(props: { id: string; graphs: boolean }) {
               impact={impact}
               focused={focused?.id === f.id}
               onImpact={() => setFocused(focused?.id === f.id ? null : f)}
+              canFix={pull !== null}
             />
           ))}
         </ol>
@@ -161,8 +164,20 @@ export function ReviewDetail(props: { id: string; graphs: boolean }) {
   );
 }
 
+/** The pull request a review names, on a platform the console reaches; null for a local review. */
+function pullOf(r: Review) {
+  if (r.source === "local" || !r.prRepository || !r.prNumber) return null;
+  try {
+    const repo = new URL(r.prRepository).pathname.slice(1);
+    return repo.includes("/") ? { platform: r.source, repo, number: r.prNumber } : null;
+  } catch {
+    return null;
+  }
+}
+
 function Properties(props: { r: Review }) {
   const { r } = props;
+  const pull = pullOf(r);
   const verdict = !r.complete ? "Incomplete" : (r.verdict ?? "–").replaceAll("_", " ");
   return (
     <div className="props">
@@ -181,7 +196,13 @@ function Properties(props: { r: Review }) {
           <>
             <dt>Pull request</dt>
             <dd className="mono">
-              {r.prRepository}#{r.prNumber}
+              {pull ? (
+                <Link to={pullPath(pull.platform, pull.repo, pull.number)}>
+                  {pull.repo}#{pull.number}
+                </Link>
+              ) : (
+                `${r.prRepository}#${r.prNumber}`
+              )}
             </dd>
           </>
         )}
