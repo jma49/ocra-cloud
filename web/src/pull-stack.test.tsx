@@ -21,14 +21,15 @@ const stacked = (number: number, parent: number | null) => ({
   review: null,
 });
 
-function show(pulls: unknown[], steps: unknown[] = []) {
+function show(pulls: unknown[], steps: unknown[] = [], restacked: unknown[] = []) {
   const sent: { url: string; body: unknown }[] = [];
+  const onMerged = vi.fn();
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
       if (init?.method === "POST") {
         sent.push({ url, body: JSON.parse(String(init.body)) });
-        return Response.json({ steps });
+        return Response.json({ steps, restacked });
       }
       return Response.json({
         platform: "github",
@@ -43,9 +44,10 @@ function show(pulls: unknown[], steps: unknown[] = []) {
     <StackPanel
       pull={{ platform: "github", repo: "octo/api", number: 2 }}
       mergeMethods={["squash", "merge"]}
+      onMerged={onMerged}
     />,
   );
-  return sent;
+  return { sent, onMerged };
 }
 
 describe("a pull request's stack", () => {
@@ -74,7 +76,7 @@ describe("a pull request's stack", () => {
   });
 
   it("merges up to this one only once confirmed, with the heads it read, and says how each went", async () => {
-    const sent = show(
+    const { sent, onMerged } = show(
       [stacked(1, null), stacked(2, 1), stacked(3, 2)],
       [
         { number: 1, outcome: "done" },
@@ -102,7 +104,40 @@ describe("a pull request's stack", () => {
       },
     ]);
     const status = await screen.findByRole("status");
-    expect(status.textContent).toContain("#1 Done.");
+    expect(status.textContent).toContain("#1 Merged.");
     expect(status.textContent).toContain("#2 The platform says it cannot be merged");
+    expect(onMerged).toHaveBeenCalledOnce();
+  });
+
+  it("says which pull requests above the merged ones now sit on the trunk", async () => {
+    const { onMerged } = show(
+      [stacked(1, null), stacked(2, 1), stacked(3, 2)],
+      [
+        { number: 1, outcome: "done" },
+        { number: 2, outcome: "done" },
+      ],
+      [{ number: 3, outcome: "done" }],
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Merge stack up to here" }));
+    await act(
+      async () => void fireEvent.click(screen.getByRole("button", { name: "Confirm: merge 2" })),
+    );
+    const status = await screen.findByRole("status");
+    expect(status.textContent).toContain("#3 Now onto main.");
+    expect(screen.queryByRole("button", { name: "Merge stack up to here" })).toBeNull();
+    expect(onMerged).toHaveBeenCalledOnce();
+  });
+
+  it("leaves the page as it is when nothing merged", async () => {
+    const { onMerged } = show(
+      [stacked(1, null), stacked(2, 1)],
+      [{ number: 1, outcome: "refused" }],
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Merge stack up to here" }));
+    await act(
+      async () => void fireEvent.click(screen.getByRole("button", { name: "Confirm: merge 2" })),
+    );
+    expect((await screen.findByRole("status")).textContent).toContain("#1 The platform refused");
+    expect(onMerged).not.toHaveBeenCalled();
   });
 });

@@ -51,10 +51,21 @@ const chainTo = (pulls: StackedPull[], number: number) => {
   return chain;
 };
 
-export function StackPanel(props: { pull: Ref; mergeMethods: MergeMethod[] }) {
+export function StackPanel(props: {
+  pull: Ref;
+  mergeMethods: MergeMethod[];
+  /** After a stack merge that landed any pull request: what the page shows is out of date. */
+  onMerged: () => void;
+}) {
   const { platform, repo, number } = props.pull;
   const query = new URLSearchParams({ platform, repo, number: String(number) }).toString();
   const { data } = useLoad(() => api<PullStackView>(`/pulls/stack?${query}`), [query]);
+  const [result, setResult] = useState<StackMergeView | null>(null);
+  const merged = (r: StackMergeView) => {
+    setResult(r);
+    if (r.steps.some((s) => s.outcome === "done")) props.onMerged();
+  };
+  if (result) return <MergedStack trunk={data?.trunk ?? ""} result={result} />;
   if (!data || data.pulls.length < 2) return null;
   const chain = chainTo(data.pulls, number);
   return (
@@ -88,16 +99,25 @@ export function StackPanel(props: { pull: Ref; mergeMethods: MergeMethod[] }) {
         })}
       </ol>
       {chain.length > 1 && props.mergeMethods.length > 0 && (
-        <MergeStack pull={props.pull} chain={chain} methods={props.mergeMethods} />
+        <MergeStack
+          pull={props.pull}
+          chain={chain}
+          methods={props.mergeMethods}
+          onMerged={merged}
+        />
       )}
     </section>
   );
 }
 
-function MergeStack(props: { pull: Ref; chain: StackedPull[]; methods: MergeMethod[] }) {
+function MergeStack(props: {
+  pull: Ref;
+  chain: StackedPull[];
+  methods: MergeMethod[];
+  onMerged: (r: StackMergeView) => void;
+}) {
   const [asking, setAsking] = useState(false);
   const [method, setMethod] = useState<MergeMethod>(props.methods[0] ?? "merge");
-  const [steps, setSteps] = useState<StackMergeView["steps"] | null>(null);
   const merge = useAction(() =>
     api<StackMergeView>("/pulls/merge-stack", {
       method: "POST",
@@ -111,7 +131,7 @@ function MergeStack(props: { pull: Ref; chain: StackedPull[]; methods: MergeMeth
   const confirm = async () => {
     const r = await merge.run();
     setAsking(false);
-    if (r) setSteps(r.steps);
+    if (r) props.onMerged(r);
   };
   const n = props.chain.length;
   return (
@@ -149,23 +169,41 @@ function MergeStack(props: { pull: Ref; chain: StackedPull[]; methods: MergeMeth
           Merge stack up to here
         </Button>
       )}
-      {steps && (
-        <ul className="pull-stack-steps small" role="status">
-          {props.chain.map((p) => {
-            const step = steps.find((s) => s.number === p.number);
-            return (
-              <li key={p.number} className={step && step.outcome !== "done" ? "error" : undefined}>
-                <span className="mono">#{p.number}</span> {step ? STEP[step.outcome] : "Not tried."}
-              </li>
-            );
-          })}
-        </ul>
-      )}
       {merge.error !== null && (
         <p className="error" role="alert">
           Could not merge the stack: {why(merge.error)}.
         </p>
       )}
     </>
+  );
+}
+
+/** What a stack merge did: each pull request it tried, then the ones above moved onto the trunk. */
+function MergedStack(props: { trunk: string; result: StackMergeView }) {
+  const { steps, restacked } = props.result;
+  return (
+    <section className="card card-pad stack" aria-label="Stack">
+      <div className="strong">Stack merge</div>
+      <ul className="pull-stack-steps small" role="status">
+        {steps.map((s) => (
+          <li key={s.number} className={s.outcome === "done" ? undefined : "error"}>
+            <span className="mono">#{s.number}</span>{" "}
+            {s.outcome === "done" ? "Merged." : STEP[s.outcome]}
+          </li>
+        ))}
+        {restacked.map((s) => (
+          <li key={s.number} className={s.outcome === "done" ? undefined : "error"}>
+            <span className="mono">#{s.number}</span>{" "}
+            {s.outcome === "done" ? (
+              <>
+                Now onto <span className="mono">{props.trunk}</span>.
+              </>
+            ) : (
+              <>Still on a merged branch: {STEP[s.outcome]}</>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

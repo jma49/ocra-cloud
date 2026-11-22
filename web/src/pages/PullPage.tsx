@@ -11,6 +11,7 @@ import type {
 } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
 import { useFixes } from "../fixes/use-fixes.js";
+import { count } from "../format.js";
 import { PlatformMark } from "../platform-mark.js";
 import { ChecksBox } from "../pull/checks-box.js";
 import { DescriptionBox } from "../pull/description-box.js";
@@ -109,8 +110,8 @@ export function PullPage(props: {
   const done = (what: string, outcome: PullActionOutcome) => {
     setSaid({ what, outcome });
     if (outcome === "done" && what === "Review") setPending([]);
-    // A committed fix moved the head: the diff, and the fixes of the new head, are read again.
-    if (outcome === "done" && what === "Fix") reload();
+    // A committed fix moved the head, and a merge settled the pull request: what the page read is out of date.
+    if (outcome === "done" && (what === "Fix" || what === "Merge")) reload();
   };
   const settled = data.state === "merged" || data.state === "closed";
   const sent = ticked.head === data.head ? ticked.paths : new Map<string, boolean>();
@@ -145,7 +146,7 @@ export function PullPage(props: {
             ) : (
               where
             )}
-            {data.author && <> · {data.author}</>} · {data.files.length} files ·{" "}
+            {data.author && <> · {data.author}</>} · {count(data.files.length, "file")} ·{" "}
             <span className="add-n">+{total.add}</span> <span className="del-n">−{total.del}</span>{" "}
             · head <span className="mono">{data.head.slice(0, 7)}</span>
           </>
@@ -169,7 +170,7 @@ export function PullPage(props: {
       )}
       <div className="pull-frame">
         <aside className="pull-side">
-          <StackPanel pull={ref} mergeMethods={data.mergeMethods} />
+          <StackPanel pull={ref} mergeMethods={data.mergeMethods} onMerged={reload} />
           <ReviewersPanel pull={ref} />
           <FileList files={data.files} isViewed={isViewed} />
           <ReviewBox data={data} pull={ref} pending={pending} onDone={(o) => done("Review", o)} />
