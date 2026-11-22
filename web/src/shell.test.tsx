@@ -59,7 +59,7 @@ describe("command menu", () => {
     );
     expect(screen.queryByRole("dialog")).toBeNull();
     fireEvent.keyDown(document, { key: "k", ctrlKey: true });
-    const input = await screen.findByPlaceholderText("Go to…");
+    const input = await screen.findByPlaceholderText("Search or go to…");
     fireEvent.change(input, { target: { value: "insights" } });
     const usage = await screen.findByRole("option", { name: "Usage" });
     expect(screen.queryByRole("option", { name: "Inbox" })).toBeNull();

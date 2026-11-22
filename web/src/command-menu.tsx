@@ -15,27 +15,42 @@ import {
 } from "@/components/ui/command";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { navigate } from "./router.js";
+import { resultSections, unanswered } from "./search/sections.js";
+import { useSearch } from "./search/use-search.js";
 
 /** `within` names its section for the search too: "insights" finds every Insights tab. */
-export type CommandEntry = { label: string; to: string; within: string; external?: boolean };
+export type CommandEntry = {
+  label: string;
+  to: string;
+  within: string;
+  /** Said beside the label: a pull request's reference, a finding's file. */
+  hint?: string;
+  external?: boolean;
+};
 export type CommandSection = { value: string; items: CommandEntry[] };
 
 function isToggle(e: KeyboardEvent): boolean {
   return e.key.toLowerCase() === "k" && (e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey;
 }
 
-// coss's Command drops the primitive's item type, so its items come back unknown.
-function searchText(item: unknown): string {
-  const entry = item as CommandEntry;
-  return `${entry.label} ${entry.within}`;
+function pagesMatching(sections: CommandSection[], query: string): CommandSection[] {
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  const found = (e: CommandEntry) => {
+    const text = `${e.label} ${e.within}`.toLowerCase();
+    return words.every((w) => text.includes(w));
+  };
+  return sections
+    .map((s) => ({ ...s, items: s.items.filter(found) }))
+    .filter((s) => s.items.length > 0);
 }
 
 function go(entry: CommandEntry): void {
   if (entry.external) window.open(entry.to, "_blank", "noreferrer");
-  else navigate(entry.to);
+  // A result's path is the server's: only one of this console's is followed.
+  else if (entry.to.startsWith("/") && !entry.to.startsWith("//")) navigate(entry.to);
 }
 
-/** ⌘K (Ctrl+K): jump to any page the console shows its user. */
+/** ⌘K (Ctrl+K): jump to a page of the console, or to what the server finds for the words typed. */
 export function CommandMenu(props: { sections: CommandSection[] }) {
   const [open, setOpen] = useState(false);
   useEffect(() => {
@@ -47,25 +62,50 @@ export function CommandMenu(props: { sections: CommandSection[] }) {
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, []);
+  const [query, setQuery] = useState("");
+  const { results, searching } = useSearch(open ? query : "");
   const pick = (entry: CommandEntry) => {
     setOpen(false);
     go(entry);
   };
+  const [reference, ...found] = results ? resultSections(results) : [];
+  const jump = reference?.value === "Pull request" ? [reference] : [];
+  const shown = [
+    ...jump,
+    ...pagesMatching(props.sections, query),
+    ...(reference && jump.length === 0 ? [reference] : []),
+    ...found,
+  ];
+  const silent = results ? unanswered(results) : [];
+  const onOpenChange = (next: boolean) => {
+    setOpen(next);
+    if (!next) setQuery("");
+  };
   return (
-    <CommandDialog open={open} onOpenChange={setOpen}>
+    <CommandDialog open={open} onOpenChange={onOpenChange}>
       <CommandDialogPopup aria-label="Go to">
-        <Command items={props.sections} itemToStringValue={searchText}>
-          <CommandInput placeholder="Go to…" />
+        <Command items={shown} filteredItems={shown} value={query} onValueChange={setQuery}>
+          <CommandInput placeholder="Search or go to…" />
           <CommandPanel>
-            <CommandEmpty>Nothing matches.</CommandEmpty>
+            <CommandEmpty>{searching ? "Searching…" : "Nothing matches."}</CommandEmpty>
+            {silent.length > 0 && (
+              <p role="status" className="command-note">
+                No answer from {silent.join(" and ")}, so no pull requests from there.
+              </p>
+            )}
             <CommandList>
               {(section: CommandSection) => (
                 <CommandGroup key={section.value} items={section.items}>
                   <CommandGroupLabel>{section.value}</CommandGroupLabel>
                   <CommandCollection>
                     {(entry: CommandEntry) => (
-                      <CommandItem key={entry.to} value={entry} onClick={() => pick(entry)}>
-                        {entry.label}
+                      <CommandItem
+                        key={`${entry.to} ${entry.label}`}
+                        value={entry}
+                        onClick={() => pick(entry)}
+                      >
+                        <span className="command-label">{entry.label}</span>
+                        {entry.hint && <span className="command-hint">{entry.hint}</span>}
                       </CommandItem>
                     )}
                   </CommandCollection>

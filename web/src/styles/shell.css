@@ -468,3 +468,26 @@
     animation: none;
   }
 }
+.command-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.command-hint {
+  flex: none;
+  max-width: 45%;
+  margin-left: auto;
+  padding-left: 12px;
+  overflow: hidden;
+  color: var(--fg-muted);
+  font: 400 var(--text-xs) var(--mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.command-note {
+  margin: 0;
+  padding: 8px 20px 0;
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+}
