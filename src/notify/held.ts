@@ -11,7 +11,8 @@ import { hourIn, isQuiet } from "./reminders.js";
 // from the hourly run once they end: one message per channel, newest first.
 // A run claims the notices before their message goes and deletes them after,
 // so two runs, or two processes, send each once; a message that fails is
-// not sent again. A notice held longer than HELD_FOR is dropped.
+// not sent again. A notice held longer than HELD_FOR, or of an event the
+// channel no longer hears about, is dropped.
 
 /** Notices one message takes; the rest go in the next run's. */
 const CLAIMED = 100;
@@ -52,7 +53,11 @@ async function flushAccount(db: Db, out: Outbox, accountId: string, now: Date) {
   const told: string[] = [];
   for (const ch of channels) {
     if (isQuiet(ch, hour)) continue;
-    const held = await data.notify.claimHeld(ch.id, since, CLAIMED, now);
+    const claimed = await data.notify.claimHeld(ch.id, since, CLAIMED, now);
+    const held = claimed.filter((n) => ch.events.includes(n.event));
+    if (held.length < claimed.length) {
+      await data.notify.dropHeld(claimed.filter((n) => !held.includes(n)).map((n) => n.id));
+    }
     if (held.length === 0) continue;
     told.push(ch.id);
     await send(data, out, ch, heldMessage(held, out.origin));

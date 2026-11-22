@@ -235,6 +235,41 @@ describe("notices held in quiet hours", () => {
     expect(await data.count("notifyHeld")).toBe(0);
   });
 
+  it("drop the notices of an event the channel stopped hearing about", async () => {
+    const posted = chats();
+    const { me, data, repo, channel } = await setUp();
+    await tellPullEvent(db, data, out, repo, eventsOf(repo.id, "LGTM", 1), night);
+    await tellPullEvent(db, data, out, repo, eventsOf(repo.id, "@mona see", 2, 6), night);
+    expect(await data.count("notifyHeld")).toBe(2);
+    const res = await call(`/api/notifications/channels/${channel.id}`, {
+      method: "PATCH",
+      auth: me.auth,
+      json: { events: ["mentioned"] },
+    });
+    expect(res.status).toBe(200);
+
+    await runHeld(db, out, afterEnd);
+    expect(posted).toHaveLength(1);
+    expect(posted[0]).toContain("1 notice");
+    expect(posted[0]).toContain("hubot mentioned you");
+    expect(posted[0]).not.toContain("commented on your pull request");
+    expect(await data.count("notifyHeld")).toBe(0);
+  });
+
+  it("send nothing to a channel that hears about none of its held events now", async () => {
+    const posted = chats();
+    const { me, data, repo, channel } = await setUp();
+    await tellPullEvent(db, data, out, repo, eventsOf(repo.id, "LGTM", 1), night);
+    await call(`/api/notifications/channels/${channel.id}`, {
+      method: "PATCH",
+      auth: me.auth,
+      json: { events: ["review_requested"] },
+    });
+    await runHeld(db, out, afterEnd);
+    expect(posted).toEqual([]);
+    expect(await data.count("notifyHeld")).toBe(0);
+  });
+
   it("go with their channel when it is removed", async () => {
     const { me, data, repo, channel } = await setUp();
     chats();
