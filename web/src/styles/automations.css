@@ -1,0 +1,97 @@
+/* Automations: the rules list, a rule's form and its runs. */
+.rule-list .list-row {
+  align-items: center;
+  gap: 12px;
+}
+.rule-off {
+  opacity: 0.6;
+}
+.rule-form {
+  margin-bottom: 16px;
+}
+.rule-list .rule-form {
+  margin: 0;
+  box-shadow: none;
+  border-radius: 0;
+}
+.rule-form .form-row .control {
+  justify-content: flex-start;
+}
+.rule-form .form-row {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 320px);
+}
+.check-list {
+  display: grid;
+  gap: 6px;
+}
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-base);
+  cursor: pointer;
+}
+.rule-actions {
+  display: grid;
+  gap: 8px;
+  padding: 14px 20px;
+  border-bottom: 0.5px solid var(--hair2);
+}
+.rule-actions .label {
+  font-weight: 600;
+  font-size: var(--text-md);
+}
+.rule-action {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.rule-action > select {
+  flex: none;
+  width: 180px;
+}
+.rule-action textarea {
+  height: auto;
+  padding: 8px 10px;
+  resize: vertical;
+}
+.add-action {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.btn-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  padding: 0;
+}
+.rule-foot {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 20px;
+}
+.run-actions {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+}
+.dry-matches {
+  margin: 0;
+  padding-left: 18px;
+}
+@media (max-width: 640px) {
+  .rule-form .form-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .rule-action {
+    flex-wrap: wrap;
+  }
+  .rule-action > select {
+    width: 100%;
+  }
+}
