@@ -10,6 +10,7 @@ import { matchRoute } from "./routes.js";
 import { Frame } from "./shell.js";
 import { rememberSignedIn, wasSignedIn } from "./signed-in.js";
 import { SignIn } from "./signin.js";
+import { reloadOnStaleBuild } from "./stale-build.js";
 import { setPageTitle } from "./title.js";
 import { ToastProvider } from "./toast.js";
 import { ErrorBoundary, Loading, NotFound } from "./ui.js";
@@ -80,6 +81,7 @@ function App() {
   );
 }
 
+reloadOnStaleBuild();
 const root = document.getElementById("root");
 if (root) {
   createRoot(root).render(
