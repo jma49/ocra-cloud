@@ -62,6 +62,11 @@ describe("a pull request's stack", () => {
     expect(screen.getByRole("region", { name: "Stack" })).toBeTruthy();
   });
 
+  it("says a check failed, since one failing check is enough to set the state", async () => {
+    show([{ ...stacked(1, null), checks: "failing" }, stacked(2, 1)]);
+    expect(await screen.findByRole("img", { name: "A check failed" })).toBeTruthy();
+  });
+
   it("shows nothing for a pull request that is not stacked", async () => {
     show([stacked(2, null)]);
     await act(async () => {});
