@@ -124,6 +124,38 @@
   cursor: default;
 }
 
+/* Code graphs */
+.graph-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.graph-add .input {
+  height: 32px;
+}
+.graph-add .input.grow {
+  min-width: 200px;
+}
+.graph-consent {
+  flex-basis: 100%;
+  color: var(--fg-muted);
+}
+.graph-hook {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 4px 16px;
+  margin: 12px 0;
+}
+.graph-hook dt {
+  color: var(--fg-muted);
+}
+.graph-hook dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
 /* Defaults */
 .import-form {
   display: grid;

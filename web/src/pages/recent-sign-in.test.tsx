@@ -10,7 +10,13 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const me = { login: "ada", githubId: 1, session: "web" as const, since: "2026-10-01T00:00:00Z" };
+const me = {
+  login: "ada",
+  githubId: 1,
+  session: "web" as const,
+  since: "2026-10-01T00:00:00Z",
+  codeGraphs: "off" as const,
+};
 
 it("offers a fresh sign-in when deleting the account needs one", async () => {
   vi.stubGlobal(
