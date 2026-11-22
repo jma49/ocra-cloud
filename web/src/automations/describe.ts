@@ -91,12 +91,3 @@ export function ruleSummary(r: AutomationRuleView, names: Names): string {
     .map((a) => actionText(a, names))
     .join(", ")}`;
 }
-
-/** A comma-separated field as a list; undefined when it names nothing. */
-export function listOf(text: string): string[] | undefined {
-  const items = text
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-  return items.length ? items : undefined;
-}

@@ -8,10 +8,10 @@ import type {
   Verdict,
 } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
-import { Row } from "../form.js";
+import { listOf, Row } from "../form.js";
 import { AddGlyph, CloseGlyph } from "../glyphs.js";
 import { Seg, useAction } from "../ui.js";
-import { ACTION_LABEL, actionsFor, listOf, VERDICT_LABEL, VERDICT_LIST } from "./describe.js";
+import { ACTION_LABEL, actionsFor, VERDICT_LABEL, VERDICT_LIST } from "./describe.js";
 
 // One rule, new or changed: its trigger, the conditions that trigger may
 // test, and up to five actions it may take. The form offers only what the
