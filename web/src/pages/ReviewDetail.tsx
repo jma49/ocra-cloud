@@ -10,7 +10,7 @@ import type {
 } from "../../../src/shared/index.js";
 import { ApiError, api } from "../api.js";
 import { useCached } from "../cache.js";
-import { ago, sourceLabel, time } from "../format.js";
+import { ago, count, sourceLabel, time } from "../format.js";
 import { type FocusedFinding, ImpactRail } from "../impact/rail.js";
 import { useImpact } from "../impact/use-impact.js";
 import { pullPath } from "../pull/path.js";
@@ -214,8 +214,8 @@ function Properties(props: { r: Review }) {
         <dt>Findings</dt>
         <dd className="sev-counts">
           <span className="badge badge-err">{r.critical} critical</span>
-          <span className="badge badge-warn">{r.warning} warning</span>
-          <span className="badge">{r.suggestion} suggestion</span>
+          <span className="badge badge-warn">{count(r.warning, "warning")}</span>
+          <span className="badge">{count(r.suggestion, "suggestion")}</span>
         </dd>
         <dt>Repository</dt>
         <dd className="mono">{r.repo}</dd>
