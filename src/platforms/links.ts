@@ -2,7 +2,7 @@ import { decryptWithAny, encryptSecret, type MasterKeys } from "../crypto.js";
 import type { Scoped } from "../db/scoped.js";
 import { masterKeys } from "../keyring.js";
 import type { AppBindings } from "../types.js";
-import type { CodePlatform, TokenAnswer } from "./platform.js";
+import type { CodePlatform, LinkedUser, TokenAnswer } from "./platform.js";
 
 // The account's token on each code platform: stored when the user connects
 // it (for GitHub, at sign-in), refreshed when it expires, dropped when it no
@@ -21,8 +21,8 @@ const MARGIN_MS = 60_000;
 
 /**
  * Stores the platform's answer, replacing the account's previous token
- * there, with the id of the user it is of when the caller read it (a
- * refresh keeps the one stored).
+ * there, with the id and login of the user it is of when the caller read
+ * them (a refresh keeps the ones stored).
  */
 export async function saveToken(
   data: Scoped,
@@ -30,7 +30,7 @@ export async function saveToken(
   platform: CodePlatform,
   answer: TokenAnswer,
   now = Date.now(),
-  userId?: string,
+  user?: LinkedUser,
 ): Promise<void> {
   if (!answer.access_token) return;
   const tokens: Tokens = {
@@ -48,7 +48,7 @@ export async function saveToken(
     ...sealed,
     accessExpiresAt: after(now, answer.expires_in),
     refreshExpiresAt: after(now, answer.refresh_token_expires_in),
-    ...(userId !== undefined ? { userId } : {}),
+    ...(user !== undefined ? { userId: user.id, login: user.login } : {}),
   };
   await data.batch((w) => [w.upsert("platformLinks", row, ["accountId", "platform", "host"])]);
 }

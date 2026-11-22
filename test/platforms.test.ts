@@ -131,6 +131,9 @@ describe("connecting GitLab", () => {
       ["gitlab", "gitlab.example.com:8443"],
     ]);
     expect(JSON.stringify(links)).not.toContain("glpat_first");
+    // Who the link is of, by id and the login a mention names.
+    const link = links.find((l) => l.platform === "gitlab");
+    expect([link?.userId, link?.login]).toEqual(["77", "Lab.User"]);
 
     await a.send("/api/account/sharing", {
       method: "PUT",

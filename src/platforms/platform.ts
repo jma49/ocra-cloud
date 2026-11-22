@@ -38,6 +38,9 @@ type RepoListing = {
   more: boolean;
 };
 
+/** The platform's user a token is of: its id, and its login when the platform gave a usable one. */
+export type LinkedUser = { id: string; login: string | null };
+
 /** What a code exchange or refresh answers, in OAuth 2's words. */
 export type TokenAnswer = {
   access_token?: string;

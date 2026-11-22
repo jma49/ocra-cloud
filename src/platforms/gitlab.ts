@@ -14,7 +14,8 @@ import { gitlabSearch } from "./gitlab-search.js";
 import { gitlabStacks } from "./gitlab-stack.js";
 import { gitlabThreads } from "./gitlab-threads.js";
 import { platformCall } from "./http.js";
-import type { CodePlatform, PlatformRepo, TokenAnswer } from "./platform.js";
+import type { CodePlatform, LinkedUser, PlatformRepo, TokenAnswer } from "./platform.js";
+import { LOGIN } from "./reviewers.js";
 
 // GitLab, gitlab.com or a self-hosted instance, through an OAuth
 // application of this deployment: the user's token (2 hours, with a
@@ -36,11 +37,14 @@ export const gitlabToken = (client: GitlabClient, grant: Record<string, string>)
   });
 
 /** The id of the user the token is of; null when GitLab does not say. */
-export async function gitlabUserId(url: string, token: string): Promise<string | null> {
-  const user = await platformCall<{ id?: unknown }>(`${url}/api/v4/user`, {
+export async function gitlabUser(url: string, token: string): Promise<LinkedUser | null> {
+  const user = await platformCall<{ id?: unknown; username?: unknown }>(`${url}/api/v4/user`, {
     headers: { authorization: `Bearer ${token}`, accept: "application/json" },
   });
-  return typeof user?.id === "number" && Number.isSafeInteger(user.id) ? String(user.id) : null;
+  if (typeof user?.id !== "number" || !Number.isSafeInteger(user.id)) return null;
+  const login =
+    typeof user.username === "string" && LOGIN.test(user.username) ? user.username : null;
+  return { id: String(user.id), login };
 }
 
 export function gitlab(client: GitlabClient, redirectUri: string): CodePlatform {
