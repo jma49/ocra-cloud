@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { forgetKeys } from "../account-keys.js";
 import { PrefsProvider } from "../prefs.js";
@@ -82,5 +82,31 @@ describe("the Agents page", () => {
     for (const input of container.querySelectorAll("input[list]")) {
       expect(ids).toContain(input.getAttribute("list"));
     }
+  });
+
+  it("turns an agent off with its switch, and back on", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string) => {
+        const path = String(input).replace(/^\/api/, "");
+        if (path === "/providers") return Response.json({ providers: PROVIDERS });
+        if (path === "/preferences") return Response.json(prefs);
+        if (path === "/keys")
+          return Response.json({ keys: PROVIDERS.map((p) => ({ provider: p.name })) });
+        return Response.json({ models: [] });
+      }),
+    );
+    render(
+      <PrefsProvider>
+        <Agents />
+      </PrefsProvider>,
+    );
+    const on = await screen.findByRole("switch", { name: "security on" });
+    expect(on.getAttribute("aria-checked")).toBe("true");
+    fireEvent.click(on);
+    expect(on.getAttribute("aria-checked")).toBe("false");
+    expect(on.closest("tr")?.className).toBe("agent-off");
+    fireEvent.click(on);
+    expect(on.getAttribute("aria-checked")).toBe("true");
   });
 });

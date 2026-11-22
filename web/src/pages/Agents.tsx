@@ -218,13 +218,13 @@ export function Agents() {
                       {a.role ? (
                         <span className="subtle small">always</span>
                       ) : (
-                        <input
-                          type="checkbox"
+                        <button
+                          type="button"
+                          role="switch"
+                          className="switch"
                           aria-label={`${a.id} on`}
-                          checked={enabled}
-                          onChange={(e) =>
-                            update({ enabled: e.target.checked ? undefined : false })
-                          }
+                          aria-checked={enabled}
+                          onClick={() => update({ enabled: enabled ? false : undefined })}
                         />
                       )}
                     </td>
