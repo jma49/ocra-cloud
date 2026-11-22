@@ -20,6 +20,8 @@ import { errorName, logError } from "./log.js";
 import { meRoute } from "./me.js";
 import { memory } from "./memory.js";
 import { mergeChecksRoute, pullChecksRoute } from "./merge-checks/routes.js";
+import type { Mailer } from "./notify/email.js";
+import { emailLinks } from "./notify/links.js";
 import { notifyRoute } from "./notify/routes.js";
 import { oidc } from "./oidc.js";
 import { platformConnect } from "./platform-connect.js";
@@ -65,6 +67,8 @@ export type Host<E extends AppBindings> = {
   githubWebhookSecret?: string;
   /** The ocra bot, which automation rules write on pull requests as; only self-hosted. */
   bots?: BotTokens;
+  /** Email, where the host sends it (SMTP on Node); without it email channels are refused. */
+  mailer?: Mailer;
 };
 
 export function createApp<E extends AppBindings>(host: Host<E>) {
@@ -80,6 +84,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
     c.set("clientAddress", host.clientAddress(c) ?? "unknown");
     c.set("bots", host.bots);
     if (host.autoReview) c.set("autoReview", host.autoReview);
+    c.set("mailer", host.mailer);
     await next();
   });
 
@@ -118,6 +123,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
   app.route("/merge-checks", mergeChecksRoute);
   app.route("/notifications", notifyRoute);
   app.route("/automations", automationsRoute);
+  app.route("/email", emailLinks);
   app.route("/insights/cycle", cycles);
   const hook = githubWebhook(host);
   app.route("/webhooks/github", hook);

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { hookUrl, messageOf, whensFor } from "../src/notify/channels.js";
+import { hookUrl, messageOf, reviewMessage, whensFor } from "../src/notify/channels.js";
 import { upload } from "./finding-uploads.js";
 import { call, resetDb, signIn, signInCli } from "./helpers.js";
 
@@ -62,7 +62,7 @@ describe("a review's message", () => {
   };
 
   it("links the pull request and the console, and makes model text plain", () => {
-    const slack = (messageOf("slack", notice) as { text: string }).text;
+    const slack = (messageOf("slack", reviewMessage(notice)) as { text: string }).text;
     expect(slack).toContain("<https://github.com/octo/api/pull/7|octo/api#7>");
     expect(slack).toContain(
       "1 critical · 0 warning · 2 suggestion · significant concerns · incomplete",
@@ -71,7 +71,7 @@ describe("a review's message", () => {
     expect(slack).not.toContain("<!channel>");
     expect(slack).not.toContain("@all");
     expect(slack).not.toContain("](https://evil.test)");
-    const wecom = messageOf("wecom", notice) as { markdown: { content: string } };
+    const wecom = messageOf("wecom", reviewMessage(notice)) as { markdown: { content: string } };
     expect(wecom.markdown.content).toContain("[octo/api#7](https://github.com/octo/api/pull/7)");
     expect(wecom.markdown.content).not.toContain("@all");
     expect(wecom.markdown.content.split("\n")).toHaveLength(4);
@@ -132,7 +132,7 @@ describe("the channels", () => {
     });
     expect(rename.status).toBe(404);
     const theirs = await call("/api/notifications/channels", { auth: b.auth });
-    expect(await theirs.json()).toEqual({ channels: [] });
+    expect(await theirs.json()).toEqual({ channels: [], email: false });
     const test = await call(`/api/notifications/channels/${channel.id}/test`, {
       method: "POST",
       auth: b.auth,

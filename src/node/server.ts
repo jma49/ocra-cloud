@@ -13,19 +13,22 @@ import {
 } from "./env.js";
 import { openHost } from "./host.js";
 import { rateLimitStore } from "./limits.js";
+import { smtpMailer } from "./mailer.js";
 
 // The self-hosted server: `node --import tsx src/node/server.ts`, or the
 // Docker image. DATABASE_URL defaults to a SQLite file in the working
 // directory; PORT to 8787, as `wrangler dev`. docs/self-hosting.md lists
 // every variable.
 
-const DAY_MS = 24 * 60 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
 const graphs = graphSettingsFrom(process.env);
 const autoReview = autoReviewSettingsFrom(process.env);
 if (autoReview && !process.env.PUBLIC_URL) {
   throw new Error("auto review needs PUBLIC_URL, the address its reviews sign in to");
 }
 
+const mailer = smtpMailer(process.env.SMTP_URL, process.env.SMTP_FROM);
 const migrate = migrateMode(process.env.MIGRATE);
 const host = await openHost({
   databaseUrl: process.env.DATABASE_URL || "file:ocra-cloud.db",
@@ -45,6 +48,7 @@ const host = await openHost({
     : {
         graphs: { ...graphs, builder: engineGraphBuilder, parse: engineGraphParser },
         ...(autoReview ? { autoReview } : {}),
+        ...(mailer ? { mailer } : {}),
       }),
 });
 
@@ -65,6 +69,13 @@ const retention = () =>
   ]);
 setInterval(retention, DAY_MS).unref();
 void retention();
+
+// Hourly, so a digest goes soon after midnight UTC whenever the server
+// started; the database lets each account's go once a day.
+const digests = () =>
+  host.digests().catch((err) => logError("digest_failed", { error: errorName(err) }));
+setInterval(digests, HOUR_MS).unref();
+void digests();
 
 const port = Number(process.env.PORT || 8787);
 const server = serve({ fetch: host.fetch, port });

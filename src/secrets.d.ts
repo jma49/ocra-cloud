@@ -25,4 +25,6 @@ interface __BaseEnv_Env {
   BUILTIN_PROVIDERS?: string;
   /** The default models, as JSON, that an account starts with until it saves its own. */
   DEFAULT_MODELS?: string;
+  /** The address people open: the daily digest's links, sent from the cron with no request to read it from. */
+  PUBLIC_URL?: string;
 }

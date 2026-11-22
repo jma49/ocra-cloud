@@ -253,6 +253,13 @@
       "when": 1795347936149,
       "tag": "0035_merge_checks",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "6",
+      "when": 1795348575740,
+      "tag": "0036_email_notifications",
+      "breakpoints": true
     }
   ]
 }

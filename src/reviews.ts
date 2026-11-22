@@ -8,8 +8,7 @@ import type { Row, Scoped } from "./db/scoped.js";
 import { defer } from "./defer.js";
 import { parseFindings } from "./findings.js";
 import { apiError, jsonBody, queryDays } from "./http.js";
-import { masterKeys } from "./keyring.js";
-import { notifyReview } from "./notify/notify.js";
+import { notifyReview, outboxOf } from "./notify/notify.js";
 import { platformsOf } from "./platforms/registry.js";
 import { perMinute, retryTomorrow } from "./rate.js";
 import { repoNames } from "./repositories.js";
@@ -122,7 +121,7 @@ async function announce(c: Context<AppEnv>, id: string) {
   if (!review) return;
   const consoleUrl = new URL(`/reviews/${encodeURIComponent(id)}`, c.req.url).toString();
   const platforms = platformsOf(c.env, c.req.url);
-  await notifyReview(c.var.data, masterKeys(c.env), review, platforms, consoleUrl);
+  await notifyReview(c.var.data, outboxOf(c), review, platforms, consoleUrl);
   const event = await reviewedEvent(c.var.data, review, platforms, consoleUrl);
   if (event) await (await automate(c, c.var.data, event)).run;
 }

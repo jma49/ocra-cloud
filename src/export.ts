@@ -84,10 +84,11 @@ const SHAPES: Partial<Record<Table, (row: never) => unknown>> = {
     r,
   reviewRepos: ({ webhookSecretHash: _hash, accountId: _account, ...r }: Record<string, unknown>) =>
     r,
-  // Never the webhook address, which posts to the chat.
+  // Never the webhook or email address, nor a confirmation token's hash.
   notifyChannels: ({
     wrappedKey: _w,
     ciphertext: _c,
+    confirmTokenHash: _t,
     accountId: _account,
     ...n
   }: Record<string, unknown>) => n,
