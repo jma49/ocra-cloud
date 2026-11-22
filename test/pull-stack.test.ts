@@ -5,7 +5,7 @@ import { connectGitlab, GITLAB, githubFake, signInWithGithub } from "./platform-
 
 // A pull request's stack read from the platform as the user, and its merge
 // from the bottom up, retargeting each to the trunk and stopping at the
-// first refusal (ADR-0051).
+// first refusal (ADR-0052).
 
 beforeEach(resetDb);
 afterEach(() => vi.restoreAllMocks());

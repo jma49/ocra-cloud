@@ -13,7 +13,7 @@ import { useAction, useLoad } from "../ui.js";
 import { OUTCOME } from "./outcome.js";
 import { pullPath } from "./path.js";
 
-// The pull request's stack, read from the platform's branches (ADR-0051):
+// The pull request's stack, read from the platform's branches (ADR-0052):
 // each one links to its page, and the stack merges from the bottom up to
 // this one, each with the head this page read.
 

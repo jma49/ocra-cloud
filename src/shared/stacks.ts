@@ -3,7 +3,7 @@ import type { PullActionOutcome } from "./pull-page.js";
 import type { PullChecks, PullReview } from "./pulls.js";
 
 // A stack of pull requests, read from the platform: one whose base branch is
-// another open one's head is stacked on it (ADR-0051).
+// another open one's head is stacked on it (ADR-0052).
 
 export type StackedPull = {
   number: number;
