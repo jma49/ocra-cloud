@@ -11,6 +11,12 @@ afterEach(() => {
 const HEAD = "a".repeat(40);
 const pull = { platform: "github", repo: "octo/api", number: 7 };
 
+const serve = (answer: PullReadinessView) =>
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => Response.json(answer)),
+  );
+
 it("lists each requirement with its state, and hides when the pull request is closed", async () => {
   const view: PullReadinessView = {
     ...pull,
@@ -35,6 +41,7 @@ it("lists each requirement with its state, and hides when the pull request is cl
   expect(screen.getByText("1 of 2 required approvals")).toBeTruthy();
   expect(screen.getByRole("img", { name: "Not met" })).toBeTruthy();
   expect(screen.getByRole("img", { name: "Unknown" })).toBeTruthy();
+  expect(screen.getByText("1 of 3 met, 1 not readable with your sign-in")).toBeTruthy();
   cleanup();
   vi.stubGlobal(
     "fetch",
@@ -43,4 +50,28 @@ it("lists each requirement with its state, and hides when the pull request is cl
   const { container } = render(<ReadinessBox pull={pull} head={HEAD} />);
   await new Promise((r) => setTimeout(r, 20));
   expect(container.textContent).toBe("");
+});
+
+it("stays calm when the rest cannot be read, and names owner groups and stale approvals", async () => {
+  serve({
+    ...pull,
+    platform: "github",
+    state: "open",
+    head: HEAD,
+    ready: "unknown",
+    items: [
+      { kind: "approvals", state: "met", detail: "Approved" },
+      { kind: "code_owners", state: "unknown", detail: "Owners cannot all be read" },
+    ],
+    codeOwners: [
+      { owners: ["@octo/core"], files: 2, state: "met", approvedBy: ["ada"], required: true },
+      { owners: ["@octo/ops"], files: 1, state: "unknown", approvedBy: [], required: null },
+    ],
+    staleApprovals: ["grace"],
+  });
+  render(<ReadinessBox pull={pull} head={HEAD} />);
+  expect((await screen.findByText("Nothing in the way")).className).toBe("badge");
+  expect(screen.getByText("approved by ada, 2 files")).toBeTruthy();
+  expect(screen.getByText("cannot be read, 1 file")).toBeTruthy();
+  expect(screen.getByText("Approved an earlier head: grace")).toBeTruthy();
 });
