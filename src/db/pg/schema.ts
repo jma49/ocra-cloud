@@ -33,3 +33,4 @@ export const graphRepos = pg(sqlite.graphRepos);
 export const graphBuilds = pg(sqlite.graphBuilds);
 export const reviewRepos = pg(sqlite.reviewRepos);
 export const reviewJobs = pg(sqlite.reviewJobs);
+export const notifyChannels = pg(sqlite.notifyChannels);

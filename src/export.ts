@@ -40,6 +40,7 @@ export const EXPORTED = {
   graphBuilds: "graphBuilds",
   reviewRepos: "reviewRepos",
   reviewJobs: "reviewJobs",
+  notifyChannels: "notifyChannels",
 } as const satisfies Record<Table, string>;
 
 // How a table's row is shown; any other table's row loses only its account id.
@@ -77,6 +78,13 @@ const SHAPES: Partial<Record<Table, (row: never) => unknown>> = {
     r,
   reviewRepos: ({ webhookSecretHash: _hash, accountId: _account, ...r }: Record<string, unknown>) =>
     r,
+  // Never the webhook address, which posts to the chat.
+  notifyChannels: ({
+    wrappedKey: _w,
+    ciphertext: _c,
+    accountId: _account,
+    ...n
+  }: Record<string, unknown>) => n,
   // The graph itself is served by GET /api/graphs/repos/:id/graph.
   graphBuilds: ({ content: _content, accountId: _account, ...b }: Record<string, unknown>) => b,
   // Never the token hashes.

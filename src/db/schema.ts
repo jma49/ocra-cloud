@@ -24,6 +24,8 @@ import {
   FINDING_STATUSES,
   GRAPH_BUILD_STATES,
   type ModelChains,
+  NOTIFY_KINDS,
+  NOTIFY_WHEN,
   type PullFilters,
   REVIEW_JOB_STATES,
   type ReviewerCounts,
@@ -512,6 +514,26 @@ export const reviewRepos = sqliteTable(
   ],
 );
 
+// A chat the account's reviews are announced in: its incoming webhook's
+// address, encrypted like a model key (it is the chat's credential).
+export const notifyChannels = sqliteTable(
+  "notify_channels",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    kind: text("kind", { enum: NOTIFY_KINDS }).notNull(),
+    name: text("name").notNull(),
+    when: text("when", { enum: NOTIFY_WHEN }).notNull(),
+    wrappedKey: text("wrapped_key").notNull(),
+    ciphertext: text("ciphertext").notNull(),
+    last4: text("last4").notNull(),
+    lastStatus: text("last_status", { enum: ["ok", "failed"] }),
+    lastSentAt: integer("last_sent_at", { mode: "timestamp_ms" }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("notify_channels_account").on(t.accountId)],
+);
+
 // One review of a pull request's head, from queued to done; a newer head
 // of the same pull request supersedes the queued ones.
 export const reviewJobs = sqliteTable(
@@ -560,4 +582,5 @@ export const accountTables = {
   graphBuilds,
   reviewRepos,
   reviewJobs,
+  notifyChannels,
 } as const;
