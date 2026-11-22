@@ -6,7 +6,7 @@ import { Drawer } from "../drawer.js";
 import { shareLink, type ViewDraft } from "./views.js";
 
 type Choice<T extends string> = { value: T; label: string };
-type ListKey = "roles" | "states" | "checks" | "reviews" | "repos";
+type ListKey = "roles" | "states" | "checks" | "reviews" | "verdicts" | "repos";
 
 const ROLES: Choice<"reviewer" | "author">[] = [
   { value: "reviewer", label: "Asks my review" },
@@ -21,11 +21,26 @@ const CHECKS: Choice<"passing" | "failing" | "pending">[] = [
   { value: "pending", label: "Running" },
   { value: "passing", label: "Passing" },
 ];
-const REVIEWS: Choice<"approved" | "changes_requested" | "required">[] = [
+const REVIEWS: Choice<"approved" | "changes_requested" | "required" | "none">[] = [
   { value: "required", label: "Review required" },
   { value: "changes_requested", label: "Changes requested" },
   { value: "approved", label: "Approved" },
+  { value: "none", label: "No decision yet" },
 ];
+const VERDICTS: Choice<"blocking" | "not_blocking" | "unreviewed">[] = [
+  { value: "blocking", label: "Blocking" },
+  { value: "not_blocking", label: "Not blocking" },
+  { value: "unreviewed", label: "Not reviewed yet" },
+];
+const WITHIN_DAYS = [1, 7, 30];
+
+const listed = (text: string) => {
+  const list = text
+    .split(",")
+    .map((a) => a.trim())
+    .filter(Boolean);
+  return list.length ? list : undefined;
+};
 
 function toggled(list: string[] | undefined, value: string): string[] | undefined {
   const next = list?.includes(value) ? list.filter((v) => v !== value) : [...(list ?? []), value];
@@ -53,15 +68,15 @@ export function ViewDrawer(props: {
   const [name, setName] = useState(props.initial.name);
   const [filters, setFilters] = useState<PullFilters>(props.initial.filters);
   const [authors, setAuthors] = useState((props.initial.filters.authors ?? []).join(", "));
+  const [labels, setLabels] = useState((props.initial.filters.labels ?? []).join(", "));
   const [error, setError] = useState<unknown>(null);
   const [copied, setCopied] = useState(false);
 
   const draft = (): ViewDraft => {
-    const list = authors
-      .split(",")
-      .map((a) => a.trim())
-      .filter(Boolean);
-    return { name: name.trim(), filters: { ...filters, authors: list.length ? list : undefined } };
+    return {
+      name: name.trim(),
+      filters: { ...filters, authors: listed(authors), labels: listed(labels) },
+    };
   };
   const run = async (act: () => Promise<unknown>) => {
     setError(null);
@@ -81,6 +96,8 @@ export function ViewDrawer(props: {
     setCopied(true);
   };
 
+  // A view made elsewhere may hold a span the list does not offer: it stays choosable.
+  const within = props.initial.filters.updatedWithinDays;
   const checks = <T extends string>(key: ListKey, choices: Choice<T>[]) =>
     choices.map((c) => (
       <label key={c.value}>
@@ -133,6 +150,23 @@ export function ViewDrawer(props: {
         A pull shows here when it matches every group you set; within a group, any choice.
       </p>
       <Group legend="Who">{checks("roles", ROLES)}</Group>
+      <Group legend="Opened by">
+        <select
+          className="input"
+          aria-label="Opened by"
+          value={filters.authoredBy ?? ""}
+          onChange={(e) =>
+            setFilters((f) => ({
+              ...f,
+              authoredBy: (e.target.value || undefined) as PullFilters["authoredBy"],
+            }))
+          }
+        >
+          <option value="">Anyone</option>
+          <option value="me">Me</option>
+          <option value="others">Someone else</option>
+        </select>
+      </Group>
       <Group legend="State">{checks("states", STATES)}</Group>
       <Group legend="Drafts">
         <select
@@ -149,6 +183,29 @@ export function ViewDrawer(props: {
       </Group>
       <Group legend="Checks">{checks("checks", CHECKS)}</Group>
       <Group legend="Review">{checks("reviews", REVIEWS)}</Group>
+      <Group legend="ocra's review">{checks("verdicts", VERDICTS)}</Group>
+      <Group legend="Updated">
+        <select
+          className="input"
+          aria-label="Updated"
+          value={filters.updatedWithinDays ?? ""}
+          onChange={(e) =>
+            setFilters((f) => ({
+              ...f,
+              updatedWithinDays: e.target.value ? Number(e.target.value) : undefined,
+            }))
+          }
+        >
+          <option value="">Any time</option>
+          {[...new Set([...WITHIN_DAYS, ...(within ? [within] : [])])]
+            .sort((a, b) => a - b)
+            .map((days) => (
+              <option key={days} value={days}>
+                {days === 1 ? "In the last day" : `In the last ${days} days`}
+              </option>
+            ))}
+        </select>
+      </Group>
       {props.repos.length > 0 && (
         <Group legend="Repositories">
           {checks(
@@ -164,6 +221,15 @@ export function ViewDrawer(props: {
           placeholder="Logins, separated by commas"
           value={authors}
           onChange={(e) => setAuthors(e.target.value)}
+        />
+      </label>
+      <label className="field">
+        Labels
+        <input
+          className="input"
+          placeholder="Any of these, separated by commas"
+          value={labels}
+          onChange={(e) => setLabels(e.target.value)}
         />
       </label>
       {error ? (
