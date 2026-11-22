@@ -19,3 +19,16 @@ export type AutoReviewRepoView = {
     finishedAt: string | null;
   } | null;
 };
+
+/** What the bot writes on a pull request's branch when asked: new test files, or docstrings. */
+export const GENERATE_KINDS = ["tests", "docstrings"] as const;
+export type GenerateKind = (typeof GENERATE_KINDS)[number];
+
+/** One request to generate, on the head it was asked for. */
+export type GenerateJobView = {
+  kind: GenerateKind;
+  head: string;
+  state: ReviewJobState;
+  error: string | null;
+  finishedAt: string | null;
+};

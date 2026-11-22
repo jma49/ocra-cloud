@@ -10,6 +10,7 @@ import { perMinute } from "../rate.js";
 import { requireSession } from "../session.js";
 import { type AutoReviewRepoView, CODE_PLATFORMS } from "../shared/index.js";
 import type { AppEnv } from "../types.js";
+import { generateRoute } from "./generate.js";
 import { autoReviewWebhooks } from "./webhooks.js";
 
 /** What a host that runs reviews itself gives the API (ADR-0046). */
@@ -51,6 +52,7 @@ export function autoReviewRoute(service: AutoReviewService) {
   const route = new Hono<AppEnv>();
 
   route.route("/webhooks", autoReviewWebhooks(service));
+  route.route("/generate", generateRoute(service));
 
   route.get("/repos", requireSession(), async (c) => {
     const [repos, latest] = await Promise.all([

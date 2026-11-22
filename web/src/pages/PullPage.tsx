@@ -10,6 +10,7 @@ import type {
 import { api, why } from "../api.js";
 import { splitPath } from "../pull/diff.js";
 import { FileDiff } from "../pull/file-diff.js";
+import { GenerateBox } from "../pull/generate-box.js";
 import { OUTCOME } from "../pull/outcome.js";
 import { LoadError, Loading, PageHead, Seg, useAction, useLoad } from "../ui.js";
 
@@ -33,7 +34,13 @@ type Answer = { outcome: PullActionOutcome };
 const post = (path: string, body: unknown) =>
   api<Answer>(`/pulls/${path}`, { method: "POST", body: JSON.stringify(body) });
 
-export function PullPage(props: { platform: string; repo: string; number: string }) {
+export function PullPage(props: {
+  platform: string;
+  repo: string;
+  number: string;
+  /** Whether this server runs ocra itself, which writing tests and docstrings needs. */
+  runner?: boolean;
+}) {
   const platform = props.platform as CodePlatformKind;
   const number = Number(props.number);
   const ref = { platform, repo: props.repo, number };
@@ -111,6 +118,7 @@ export function PullPage(props: { platform: string; repo: string; number: string
             })}
           </nav>
           <ReviewBox data={data} pull={ref} pending={pending} onDone={(o) => done("Review", o)} />
+          {props.runner && <GenerateBox pull={ref} head={data.head} />}
           {data.mergeMethods.length > 0 && (
             <MergeBox data={data} pull={ref} onDone={(o) => done("Merge", o)} />
           )}

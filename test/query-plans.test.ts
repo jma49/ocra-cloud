@@ -69,6 +69,7 @@ const TABLE: Record<string, string> = {
   reviewJobs: "review_jobs",
   notifyChannels: "notify_channels",
   replyJobs: "reply_jobs",
+  generateJobs: "generate_jobs",
   reviewWalkthroughs: "review_walkthroughs",
 };
 

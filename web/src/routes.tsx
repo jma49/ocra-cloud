@@ -79,8 +79,13 @@ const ROUTES: readonly Route[] = [
   {
     path: "/pull/:platform/:repo/:number",
     place: "inbox",
-    page: (_me, [platform, repo, number]) => (
-      <PullPage platform={platform ?? ""} repo={repo ?? ""} number={number ?? ""} />
+    page: (me, [platform, repo, number]) => (
+      <PullPage
+        platform={platform ?? ""}
+        repo={repo ?? ""}
+        number={number ?? ""}
+        runner={me.autoReview}
+      />
     ),
   },
   { path: "/findings", place: "findings", tab: "Findings", page: () => <Findings /> },

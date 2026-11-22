@@ -5,18 +5,19 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { loginOf } from "../db/accounts.js";
 import type { Db } from "../db/client.js";
+import { claimGenerate } from "../db/generate-jobs.js";
 import { claimReply } from "../db/reply-jobs.js";
 import { claimJob } from "../db/review-jobs.js";
 import { scoped } from "../db/scoped.js";
 import { errorName, logError } from "../log.js";
 import type { CodePlatform } from "../platforms/platform.js";
 import { startCliSession } from "../session.js";
-import type { BotCredential, BotTokens } from "./bot-tokens.js";
+import type { BotAccess, BotCredential, BotTokens } from "./bot-tokens.js";
 
-// Runs the next queued review (ADR-0046, 4), or answer to an @ocra comment:
-// clones the repository's default branch into a new directory, runs the
-// released CLI there on the pull request (`ocra review … --no-repo-config`
-// or `ocra reply`), signed in to this server as the enrolling account (its
+// Runs the next queued review (ADR-0046, 4), answer to an @ocra comment, or
+// request for tests or docstrings: clones the repository's default branch
+// into a new directory, runs the released CLI there on the pull request
+// (`ocra review … --no-repo-config`, `ocra reply` or `ocra generate`), signed in to this server as the enrolling account (its
 // models, key, budget and rules, and the upload), and posting as the ocra
 // bot. The directory and the session it was given are removed on every
 // exit path. A failure is recorded on the job.
@@ -55,6 +56,10 @@ const REVIEWED = new Set([0, 1, 3]);
 const REPLIED = new Set([0]);
 /** An answer is one model call or a few: far shorter than a review. */
 const REPLY_LEASE_MS = 10 * 60_000;
+/** `ocra generate` committed, or found nothing to write. */
+const GENERATED = new Set([0]);
+/** A few model calls, one per file it writes for, and one commit. */
+const GENERATE_LEASE_MS = 20 * 60_000;
 
 class JobFailure extends Error {
   constructor(readonly reason: Failure) {
@@ -145,10 +150,30 @@ export async function runNextReply(runner: ReviewRunner): Promise<boolean> {
   return true;
 }
 
-/** What to run in the checkout: the CLI's arguments, and its exit codes that mean done. */
+/** Runs the next due request for tests or docstrings; false when there was none. */
+export async function runNextGeneration(runner: ReviewRunner): Promise<boolean> {
+  const now = runner.now ?? (() => new Date());
+  const job = await claimGenerate(runner.db, now(), GENERATE_LEASE_MS);
+  if (!job) return false;
+  await runJob(runner, job, scoped(runner.db, job.accountId).generations, {
+    args: (platform, fullName, config) => [
+      "generate",
+      job.kind,
+      ...pull(platform, fullName, job.number),
+      "--config",
+      config,
+    ],
+    ok: GENERATED,
+    access: "commit",
+  });
+  return true;
+}
+
+/** What to run in the checkout: the CLI's arguments, its exit codes that mean done, and the bot's access. */
 type Command = {
   args: (platform: CodePlatform, fullName: string, config: string) => string[];
   ok: ReadonlySet<number>;
+  access?: BotAccess;
 };
 
 /** Clones the job's repository and runs the command there, signed in and posting as the bot. */
@@ -158,7 +183,7 @@ async function inCheckout(runner: ReviewRunner, job: Job, command: Command, sign
   if (!repo) throw new JobFailure("repo_gone");
   const platform = runner.platforms.find((p) => p.kind === repo.platform && p.host === repo.host);
   if (!platform) throw new JobFailure("platform_gone");
-  const bot = await runner.bots.forRepo(repo.platform, repo.fullName);
+  const bot = await runner.bots.forRepo(repo.platform, repo.fullName, command.access);
   if (!bot) throw new JobFailure("no_bot");
   const exec = runner.exec ?? spawnExec;
   const dir = await mkdtemp(join(tmpdir(), "ocra-review-"));

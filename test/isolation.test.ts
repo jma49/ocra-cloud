@@ -34,6 +34,7 @@ const changes = {
   notifyChannels: { name: "renamed" },
   replyJobs: { state: "done" as const },
   reviewWalkthroughs: { overview: "changed" },
+  generateJobs: { state: "done" as const },
 } satisfies { [N in keyof typeof rows]: Record<string, unknown> };
 
 // Storage persists across tests in a file; deleting the accounts cascades.
@@ -112,7 +113,7 @@ describe.each(withIds)("%s", (name) => {
         .insert(schema.reviews)
         .values({ id: "review-of-a", accountId: A, runId: "r", repoHash: "h", source: "local" });
     }
-    if (name === "reviewJobs" || name === "replyJobs") {
+    if (name === "reviewJobs" || name === "replyJobs" || name === "generateJobs") {
       await db
         .insert(schema.reviewRepos)
         .values({ ...rows.reviewRepos("review-repo-of-a"), accountId: A });

@@ -239,6 +239,13 @@
       "when": 1795339672976,
       "tag": "0033_review_walkthroughs",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "6",
+      "when": 1795345596088,
+      "tag": "0034_generate_jobs",
+      "breakpoints": true
     }
   ]
 }

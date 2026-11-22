@@ -127,4 +127,36 @@ describe("a pull request's page", () => {
     ]);
     expect(await screen.findByText(/gained commits since this page loaded/)).toBeTruthy();
   });
+
+  it("asks the server's runner for tests on the head it read, once", async () => {
+    const sent: { url: string; body: unknown }[] = [];
+    let jobs: unknown[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (init?.method === "POST") {
+          sent.push({ url, body: JSON.parse(String(init.body)) });
+          jobs = [{ kind: "tests", head: HEAD, state: "queued", error: null, finishedAt: null }];
+          return Response.json({ queued: true });
+        }
+        if (url.startsWith("/api/auto-review/generate")) {
+          return Response.json({ enrolled: true, jobs });
+        }
+        return Response.json(files);
+      }),
+    );
+    render(<PullPage platform="github" repo="octo/api" number="7" runner />);
+    const generate = await screen.findByRole("button", { name: "Generate unit tests" });
+    await act(async () => void fireEvent.click(generate));
+    expect(sent).toEqual([
+      {
+        url: "/api/auto-review/generate",
+        body: { platform: "github", repo: "octo/api", number: 7, head: HEAD, kind: "tests" },
+      },
+    ]);
+    expect(await screen.findByText("Tests for this head: queued.")).toBeTruthy();
+    expect(
+      (screen.getByRole("button", { name: "Generate unit tests" }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+  });
 });

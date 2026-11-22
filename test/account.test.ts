@@ -112,6 +112,7 @@ describe("deleting an account", () => {
           "graphBuilds",
           "reviewJobs",
           "replyJobs",
+          "generateJobs",
         ].includes(table)
       )
         continue;
@@ -132,6 +133,10 @@ describe("deleting an account", () => {
     });
     await d.insert("replyJobs", {
       ...rows.replyJobs(id("replyJobs")),
+      reviewRepoId: id("reviewRepos"),
+    });
+    await d.insert("generateJobs", {
+      ...rows.generateJobs(id("generateJobs")),
       reviewRepoId: id("reviewRepos"),
     });
     await db.insert(schema.deviceCodes).values({

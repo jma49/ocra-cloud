@@ -43,6 +43,7 @@ export const EXPORTED = {
   notifyChannels: "notifyChannels",
   replyJobs: "replyJobs",
   reviewWalkthroughs: "walkthroughs",
+  generateJobs: "generateJobs",
 } as const satisfies Record<Table, string>;
 
 // How a table's row is shown; any other table's row loses only its account id.

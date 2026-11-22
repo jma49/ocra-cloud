@@ -24,6 +24,7 @@ import {
   uncountOne,
 } from "./counters.js";
 import { countWhere, jsonMembers, jsonNumber, jsonRecords, utcDayOf } from "./dialect.js";
+import { accountGenerateJobs } from "./generate-jobs.js";
 import { accountGraphs } from "./graphs.js";
 import {
   type Decision,
@@ -416,6 +417,7 @@ export function scoped(db: Db, accountId: string) {
     autoReview: accountReviewJobs(db, accountId),
     notify: accountNotify(db, accountId),
     replies: accountReplyJobs(db, accountId),
+    generations: accountGenerateJobs(db, accountId),
     /** The findings of one of this account's reviews. */
     findingsOf(reviewId: string): Promise<Row<"findings">[]> {
       const f = accountTables.findings;

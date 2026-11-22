@@ -16,9 +16,16 @@ export type BotCredential = {
   login?: string;
 };
 
+/** What the bot's token may do: comment on pull requests, or also push to their branches. */
+export type BotAccess = "review" | "commit";
+
 export type BotTokens = {
   /** null when this deployment has no bot for the platform, or it was refused. */
-  forRepo(platform: CodePlatformKind, fullName: string): Promise<BotCredential | null>;
+  forRepo(
+    platform: CodePlatformKind,
+    fullName: string,
+    access?: BotAccess,
+  ): Promise<BotCredential | null>;
 };
 
 export type BotSettings = {
@@ -63,7 +70,7 @@ async function github(path: string, init: RequestInit & { token: string }) {
 
 export function botTokens(settings: BotSettings): BotTokens {
   return {
-    async forRepo(platform, fullName) {
+    async forRepo(platform, fullName, access = "review") {
       if (platform === "gitlab") {
         return settings.gitlabBotToken ? { token: settings.gitlabBotToken } : null;
       }
@@ -83,7 +90,11 @@ export function botTokens(settings: BotSettings): BotTokens {
         method: "POST",
         body: JSON.stringify({
           repositories: [repo],
-          permissions: { contents: "read", pull_requests: "write", metadata: "read" },
+          permissions: {
+            contents: access === "commit" ? "write" : "read",
+            pull_requests: "write",
+            metadata: "read",
+          },
         }),
       });
       if (typeof minted?.token !== "string") return null;
