@@ -22,6 +22,7 @@ describe("Insights", () => {
     show(false);
     expect(await screen.findByRole("region", { name: "Pull request cycle" })).toBeTruthy();
     expect(screen.queryByRole("region", { name: "Review flow" })).toBeNull();
+    expect(screen.getByRole("region", { name: "What ocra changed" })).toBeTruthy();
   });
 
   it("shows them where it does", async () => {

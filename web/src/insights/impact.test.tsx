@@ -111,6 +111,33 @@ describe("what ocra changed on Insights", () => {
     expect(screen.getByText(/Share findings in Settings/)).toBeTruthy();
   });
 
+  it("counts reviewed pull requests alone where no repository is enrolled", async () => {
+    const cli = counts({ pulls: 5, reviewedPulls: 5, reviews: 8 });
+    serve(
+      impact({
+        total: cli,
+        weeks: [{ start: "2026-11-16T00:00:00.000Z", ...cli }],
+        repos: [
+          { repo: "acme/cli", enrolled: false, ...counts({ pulls: 3, reviewedPulls: 3 }) },
+          { repo: "acme/docs", enrolled: false, ...counts({ pulls: 2, reviewedPulls: 2 }) },
+        ],
+        toMerge: null,
+      }),
+    );
+    render(<ImpactSection days={30} />);
+    const section = await screen.findByRole("region", { name: "What ocra changed" });
+    expect(await within(section).findByText("8 reviews")).toBeTruthy();
+    expect(within(section).queryByText(/of 5 opened/)).toBeNull();
+    expect(within(section).getByText("Reviewed, by week")).toBeTruthy();
+    expect(within(section).queryByText("opened")).toBeNull();
+    const row = within(section).getByText("acme/cli").closest("tr") as HTMLElement;
+    expect(
+      within(row)
+        .getAllByRole("cell")
+        .map((c) => c.textContent),
+    ).toEqual(["acme/cli", "–", "3", "0", "0"]);
+  });
+
   it("says what it counts when nothing was recorded", async () => {
     serve(impact());
     render(<ImpactSection days={7} />);
