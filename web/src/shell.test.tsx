@@ -68,3 +68,20 @@ describe("command menu", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 });
+
+describe("rail", () => {
+  it("names an icon-only place beside it on keyboard focus", async () => {
+    history.replaceState(null, "", "/");
+    render(
+      <Frame me={me} route={matchRoute("/")?.route} path="/">
+        <p>page</p>
+      </Frame>,
+    );
+    const insights = screen.getByRole("link", { name: "Insights" });
+    expect(insights.getAttribute("title")).toBeNull();
+    fireEvent.focus(insights);
+    expect(
+      (await screen.findByText("Insights")).closest("[data-slot=tooltip-popup]"),
+    ).not.toBeNull();
+  });
+});

@@ -16,7 +16,8 @@ import Settings from "lucide-react/icons/settings";
 import SlidersHorizontal from "lucide-react/icons/sliders-horizontal";
 import Terminal from "lucide-react/icons/terminal";
 import UserRound from "lucide-react/icons/user-round";
-import { type ReactNode, useEffect, useRef } from "react";
+import { type ReactElement, type ReactNode, useEffect, useRef, useSyncExternalStore } from "react";
+import { Tooltip, TooltipPopup, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Me } from "./api.js";
 import { AccountMenu } from "./chrome.js";
 import { CommandMenu, type CommandSection } from "./command-menu.js";
@@ -54,53 +55,85 @@ function NavIcon(props: { icon: LucideIcon; size: number }) {
   return <Icon className="nav-icon" size={props.size} strokeWidth={1.75} aria-hidden="true" />;
 }
 
+// Below this width the rail is a row across the top (shell.css).
+const RAIL_ROW = "(max-width: 760px)";
+
+function useRailRow(): boolean {
+  return useSyncExternalStore(
+    (changed) => {
+      const query = matchMedia(RAIL_ROW);
+      query.addEventListener("change", changed);
+      return () => query.removeEventListener("change", changed);
+    },
+    () => matchMedia(RAIL_ROW).matches,
+  );
+}
+
+/** Names an icon-only rail control beside it, on hover and on keyboard focus. */
+function RailTip(props: { label: string; children: ReactElement }) {
+  const row = useRailRow();
+  return (
+    <Tooltip>
+      <TooltipTrigger render={props.children} />
+      <TooltipPopup side={row ? "bottom" : "right"} sideOffset={8}>
+        {props.label}
+      </TooltipPopup>
+    </Tooltip>
+  );
+}
+
 function RailLink(props: { to: string; label: string; on: boolean; icon: LucideIcon }) {
   return (
-    <Link
-      to={props.to}
-      className={`rail-link${props.on ? " on" : ""}`}
-      current={props.on}
-      label={props.label}
-    >
-      <NavIcon icon={props.icon} size={20} />
-    </Link>
+    <RailTip label={props.label}>
+      <Link
+        to={props.to}
+        className={`rail-link${props.on ? " on" : ""}`}
+        current={props.on}
+        label={props.label}
+      >
+        <NavIcon icon={props.icon} size={20} />
+      </Link>
+    </RailTip>
   );
 }
 
 function Rail(props: { me: Me; place: Place | undefined }) {
   return (
-    <nav className="rail" aria-label="Console">
-      <Link to="/" className="rail-brand" label="ocra">
-        <EyesMark size={22} />
-      </Link>
-      {PLACES.map((p) => (
+    <TooltipProvider delay={300}>
+      <nav className="rail" aria-label="Console">
+        <Link to="/" className="rail-brand" label="ocra">
+          <EyesMark size={22} />
+        </Link>
+        {PLACES.map((p) => (
+          <RailLink
+            key={p.id}
+            to={placeHome(p.id)}
+            label={p.label}
+            on={props.place === p.id}
+            icon={p.icon}
+          />
+        ))}
+        <span className="rail-gap" />
+        <RailTip label="Documentation">
+          <a
+            className="rail-link"
+            href={DOCS}
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Documentation"
+          >
+            <NavIcon icon={BookOpen} size={20} />
+          </a>
+        </RailTip>
         <RailLink
-          key={p.id}
-          to={placeHome(p.id)}
-          label={p.label}
-          on={props.place === p.id}
-          icon={p.icon}
+          to={placeHome("settings")}
+          label="Settings"
+          on={props.place === "settings"}
+          icon={Settings}
         />
-      ))}
-      <span className="rail-gap" />
-      <a
-        className="rail-link"
-        href={DOCS}
-        target="_blank"
-        rel="noreferrer"
-        aria-label="Documentation"
-        title="Documentation"
-      >
-        <NavIcon icon={BookOpen} size={20} />
-      </a>
-      <RailLink
-        to={placeHome("settings")}
-        label="Settings"
-        on={props.place === "settings"}
-        icon={Settings}
-      />
-      <AccountMenu me={props.me} compact />
-    </nav>
+        <AccountMenu me={props.me} compact />
+      </nav>
+    </TooltipProvider>
   );
 }
 
