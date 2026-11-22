@@ -87,15 +87,13 @@ export function Automations(props: { me: Me }) {
             : "Rules for your reviews: when one is uploaded and matches, ocra notifies a chat. Labels, reviewer requests and comments need a self-hosted server."
         }
         actions={
-          editing === null && (
-            <Button
-              type="button"
-              disabled={list.length >= MAX_RULES}
-              onClick={() => setEditing("new")}
-            >
-              <AddGlyph size={14} /> New rule
-            </Button>
-          )
+          <Button
+            type="button"
+            disabled={list.length >= MAX_RULES}
+            onClick={() => setEditing("new")}
+          >
+            <AddGlyph size={14} /> New rule
+          </Button>
         }
       />
       {toggle.error !== null && <ActionError what="change the rule" error={toggle.error} />}
@@ -106,12 +104,12 @@ export function Automations(props: { me: Me }) {
           self-hosted server has. Here those actions are skipped and their runs say so.
         </p>
       )}
-      {editing === "new" && form()}
+      {editing !== null && form(list.find((r) => r.id === editing))}
       {rules.error && !rules.data ? (
         <LoadError what="your rules" error={rules.error} retry={rules.reload} />
       ) : !rules.data ? (
         <Loading what="rules" />
-      ) : list.length === 0 && editing === null ? (
+      ) : list.length === 0 ? (
         <div className="card empty-hero">
           <h3>No rules yet</h3>
           <p>
@@ -122,42 +120,33 @@ export function Automations(props: { me: Me }) {
       ) : (
         list.length > 0 && (
           <div className="card rule-list">
-            {list.map((r) =>
-              editing === r.id ? (
-                <div key={r.id}>{form(r)}</div>
-              ) : (
-                <div className="list-row" key={r.id}>
-                  <Switch
-                    aria-label={`${r.name} on`}
-                    checked={r.enabled}
-                    disabled={toggle.busy}
-                    onCheckedChange={() => after(toggle.run(r))}
-                  />
-                  <div className={r.enabled ? "grow" : "grow rule-off"}>
-                    <div className="strong">{r.name}</div>
-                    <div className="subtle small">{ruleSummary(r, names)}</div>
-                  </div>
-                  {!r.runsHere && <span className="badge hide-narrow">Self-hosted actions</span>}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setEditing(r.id)}
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="destructive-outline"
-                    size="sm"
-                    disabled={remove.busy}
-                    onClick={() => after(remove.run(r.id))}
-                  >
-                    Remove
-                  </Button>
+            {list.map((r) => (
+              <div className="list-row" key={r.id}>
+                <Switch
+                  aria-label={`${r.name} on`}
+                  checked={r.enabled}
+                  disabled={toggle.busy}
+                  onCheckedChange={() => after(toggle.run(r))}
+                />
+                <div className={r.enabled ? "grow" : "grow rule-off"}>
+                  <div className="strong">{r.name}</div>
+                  <div className="subtle small">{ruleSummary(r, names)}</div>
                 </div>
-              ),
-            )}
+                {!r.runsHere && <span className="badge hide-narrow">Self-hosted actions</span>}
+                <Button type="button" variant="outline" size="sm" onClick={() => setEditing(r.id)}>
+                  Edit
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive-outline"
+                  size="sm"
+                  disabled={remove.busy}
+                  onClick={() => after(remove.run(r.id))}
+                >
+                  Remove
+                </Button>
+              </div>
+            ))}
           </div>
         )
       )}

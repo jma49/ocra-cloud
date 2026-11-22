@@ -40,21 +40,10 @@
 .proposal .learning > summary {
   padding-left: 36px;
 }
-.learning-form {
-  margin: 0 0 16px;
-}
-.card .learning-form {
-  margin: 0;
-  box-shadow: none;
-  border-radius: 0;
-}
-.learning-form .form-row {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 360px);
-}
 .learning-body {
   display: grid;
   gap: 6px;
-  padding: 14px 20px;
+  padding: 14px 0;
   border-bottom: 0.5px solid var(--hair2);
 }
 .learning-body .label {
@@ -66,14 +55,8 @@
   padding: 8px 10px;
   resize: vertical;
 }
-@media (max-width: 640px) {
-  .learning-form .form-row {
-    grid-template-columns: minmax(0, 1fr);
-  }
+@media (max-width: 560px) {
   .learning > summary {
-    flex-wrap: wrap;
-  }
-  .rule-foot {
     flex-wrap: wrap;
   }
 }

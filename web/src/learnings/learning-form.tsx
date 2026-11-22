@@ -7,6 +7,7 @@ import type {
   LearningView,
 } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
+import { Drawer } from "../drawer.js";
 import { listOf, Row } from "../form.js";
 import { useAction } from "../ui.js";
 
@@ -75,14 +76,27 @@ export function LearningForm(props: {
   const ready = title.trim() !== "" && ID.test(fileId) && listOf(paths) && body.trim() !== "";
 
   return (
-    <form
-      className="card learning-form"
+    <Drawer
+      title={l ? `Edit ${l.title}` : "New learning"}
+      heading={l ? `Edit “${l.title}”` : "New learning"}
+      onClose={() => props.done(null)}
       onSubmit={submit}
-      aria-label={l ? `Edit ${l.title}` : "New learning"}
+      foot={
+        <>
+          {save.error !== null && (
+            <span className="error small grow" role="alert">
+              Could not send it: {why(save.error)}.
+            </span>
+          )}
+          <Button type="button" variant="outline" onClick={() => props.done(null)}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={save.busy || !ready}>
+            {direct ? "Commit" : "Open pull request"}
+          </Button>
+        </>
+      }
     >
-      <div className="card-head">
-        <h3>{l ? `Edit “${l.title}”` : "New learning"}</h3>
-      </div>
       <Row label="Title" desc="One line a reviewer reads first.">
         <input
           className="input"
@@ -155,23 +169,10 @@ export function LearningForm(props: {
           Markdown, up to {MAX_BODY.toLocaleString()} characters ({body.length} now).
         </span>
       </div>
-      <div className="rule-foot">
-        {save.error !== null && (
-          <span className="error small grow" role="alert">
-            Could not send it: {why(save.error)}.
-          </span>
-        )}
-        <label className="check small">
-          <input type="checkbox" checked={direct} onChange={(e) => setDirect(e.target.checked)} />
-          Commit to {props.branch} instead of opening a pull request
-        </label>
-        <Button type="button" variant="outline" onClick={() => props.done(null)}>
-          Cancel
-        </Button>
-        <Button type="submit" disabled={save.busy || !ready}>
-          {direct ? "Commit" : "Open pull request"}
-        </Button>
-      </div>
-    </form>
+      <label className="check small drawer-option">
+        <input type="checkbox" checked={direct} onChange={(e) => setDirect(e.target.checked)} />
+        Commit to {props.branch} instead of opening a pull request
+      </label>
+    </Drawer>
   );
 }

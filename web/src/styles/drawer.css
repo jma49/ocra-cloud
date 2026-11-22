@@ -44,6 +44,32 @@
   justify-content: flex-end;
   gap: 8px;
 }
+/* A drawer that is one form: its body scrolls between the head and the foot.
+   Settings rows inside stack, label over control, and lose their side padding. */
+.drawer-frame {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.drawer-body .form-row {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  padding: 14px 0;
+}
+.drawer-body .form-row:first-child {
+  padding-top: 0;
+}
+.drawer-body .form-row .control {
+  justify-content: flex-start;
+}
+.drawer-foot {
+  align-items: center;
+  flex-wrap: wrap;
+}
+.drawer-option {
+  margin-top: 14px;
+}
 .icon-btn {
   width: 30px;
   height: 30px;
@@ -153,7 +179,7 @@
   background: var(--bg-subtle);
 }
 
-@media (max-width: 600px) {
+@media (max-width: 560px) {
   .tiles {
     grid-template-columns: 1fr;
   }
