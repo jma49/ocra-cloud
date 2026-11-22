@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
-import type { Severity, Verdict, Verification } from "../../../src/shared/index.js";
+import type { ReviewSource, Severity, Verdict, Verification } from "../../../src/shared/index.js";
 import { ApiError, api } from "../api.js";
 import { useCached } from "../cache.js";
-import { time } from "../format.js";
+import { sourceLabel, time } from "../format.js";
 import { Link } from "../router.js";
 import { LoadError, Loading, PageHead, Seg } from "../ui.js";
 
@@ -31,7 +31,7 @@ type Detail = {
     id: string;
     runId: string;
     repo: string;
-    source: string;
+    source: ReviewSource;
     verdict: Verdict | null;
     complete: boolean;
     critical: number;
@@ -92,7 +92,7 @@ export function ReviewDetail(props: { id: string }) {
     <>
       <PageHead
         title={`Review of ${r.repo}`}
-        sub={`${time(r.createdAt)} · ${r.source} · run ${r.runId}`}
+        sub={`${time(r.createdAt)} · ${sourceLabel(r.source)} · run ${r.runId}`}
         actions={
           <span className="row-gap">
             <Link to="/reviews" className="btn">
