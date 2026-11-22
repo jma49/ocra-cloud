@@ -35,6 +35,8 @@ const changes = {
   replyJobs: { state: "done" as const },
   reviewWalkthroughs: { overview: "changed" },
   generateJobs: { state: "done" as const },
+  automationRules: { name: "renamed" },
+  automationRuns: { outcome: "failed" as const },
 } satisfies { [N in keyof typeof rows]: Record<string, unknown> };
 
 // Storage persists across tests in a file; deleting the accounts cascades.

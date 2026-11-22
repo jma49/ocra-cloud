@@ -243,8 +243,15 @@
     {
       "idx": 34,
       "version": "6",
-      "when": 1795345596088,
-      "tag": "0034_generate_jobs",
+      "when": 1795345281240,
+      "tag": "0034_automations",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "6",
+      "when": 1795347828325,
+      "tag": "0035_generate_jobs",
       "breakpoints": true
     }
   ]

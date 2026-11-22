@@ -39,6 +39,20 @@ export interface PullActions {
     number: number,
     merge: MergeRequest,
   ): Promise<PullActionOutcome | null>;
+  /** Adds the labels to those it has, as the ocra bot for an automation. */
+  addLabels(
+    token: string,
+    fullName: string,
+    number: number,
+    labels: readonly string[],
+  ): Promise<PullActionOutcome | null>;
+  /** Asks the users, by login, for a review, besides those it asked already. */
+  requestReviewers(
+    token: string,
+    fullName: string,
+    number: number,
+    logins: readonly string[],
+  ): Promise<PullActionOutcome | null>;
   /** `not_applicable` when the file at head is not text the fix's lines are in. */
   applyFix(
     token: string,

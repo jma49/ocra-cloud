@@ -1,6 +1,7 @@
 import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 import type { PullFilters } from "../../../src/shared/index.js";
 import { why } from "../api.js";
+import { CloseGlyph } from "../glyphs.js";
 import { shareLink, type ViewDraft } from "./views.js";
 
 type Choice<T extends string> = { value: T; label: string };
@@ -107,7 +108,7 @@ export function ViewDrawer(props: {
           <div className="drawer-head">
             <h2>{props.editing ? "Edit section" : "New section"}</h2>
             <button type="button" className="icon-btn" onClick={onClose} aria-label="Close">
-              ×
+              <CloseGlyph />
             </button>
           </div>
           <div className="drawer-body">

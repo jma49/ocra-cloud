@@ -6,6 +6,7 @@ import type { Db } from "./client.js";
 import {
   accounts,
   auditEvents,
+  automationRuns,
   deviceCodes,
   gatewayCalls,
   rateWindows,
@@ -21,6 +22,8 @@ import {
 // from the cron trigger.
 
 export const RETENTION_DAYS = 90;
+/** An automation's run is kept for a month: enough to see why a rule acted. */
+export const AUTOMATION_RUN_DAYS = 30;
 
 /**
  * Runs every delete, each on its own: one that fails is logged and the rest
@@ -56,6 +59,18 @@ export async function enforceRetention(db: Db, now = new Date()): Promise<void> 
         db
           .delete(auditEvents)
           .where(and(ofEachAccount(auditEvents.accountId), lt(auditEvents.createdAt, cutoff))),
+    ],
+    [
+      "automation_runs",
+      () =>
+        db
+          .delete(automationRuns)
+          .where(
+            and(
+              ofEachAccount(automationRuns.accountId),
+              lt(automationRuns.createdAt, new Date(now.getTime() - AUTOMATION_RUN_DAYS * DAY)),
+            ),
+          ),
     ],
     // DEVICE_DAILY_CODES a day at most, so they are read whole.
     ["device_codes", () => db.delete(deviceCodes).where(lt(deviceCodes.expiresAt, now))],

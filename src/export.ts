@@ -44,6 +44,8 @@ export const EXPORTED = {
   replyJobs: "replyJobs",
   reviewWalkthroughs: "walkthroughs",
   generateJobs: "generateJobs",
+  automationRules: "automationRules",
+  automationRuns: "automationRuns",
 } as const satisfies Record<Table, string>;
 
 // How a table's row is shown; any other table's row loses only its account id.

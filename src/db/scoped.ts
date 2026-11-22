@@ -14,6 +14,7 @@ import {
 } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 import { getTableConfig, type SQLiteColumn } from "drizzle-orm/sqlite-core";
+import { accountAutomations } from "./automations.js";
 import { changedRows, type Db, first } from "./client.js";
 import {
   countCall,
@@ -419,6 +420,7 @@ export function scoped(db: Db, accountId: string) {
     notify: accountNotify(db, accountId),
     replies: accountReplyJobs(db, accountId),
     generations: accountGenerateJobs(db, accountId),
+    automations: accountAutomations(db, accountId),
     /** The findings of one of this account's reviews. */
     findingsOf(reviewId: string): Promise<Row<"findings">[]> {
       const f = accountTables.findings;

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { api, type Review, type Reviews as ReviewsData, why } from "../api.js";
 import { useCached } from "../cache.js";
 import { compact, num, sourceLabel, time } from "../format.js";
+import { CloseGlyph } from "../glyphs.js";
 import { Link } from "../router.js";
 import { Loading, PageHead, Seg, useAction } from "../ui.js";
 
@@ -184,7 +185,7 @@ export function Reviews() {
                         title="Delete this record"
                         onClick={() => remove(r.id)}
                       >
-                        ×
+                        <CloseGlyph size={14} />
                       </button>
                     </td>
                   </tr>
