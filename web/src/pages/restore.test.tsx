@@ -61,3 +61,29 @@ it("says a version today's rules refuse cannot be restored", async () => {
 it("says why any other restore failed", async () => {
   expect(await restoreAnswered(429, "slow_down")).toMatch(/too many requests/);
 });
+
+it("shows the account's fixes and linked-tasks switches in the defaults file", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string) => {
+      const path = String(input).replace(/^\/api/, "");
+      if (path === "/preferences")
+        return Response.json({ ...prefs, settings: { fixes: true, linkedTasks: false } });
+      if (path === "/preferences/versions") return Response.json({ versions });
+      return Response.json({ keys: [] });
+    }),
+  );
+  render(
+    <ToastProvider>
+      <PrefsProvider>
+        <Defaults />
+      </PrefsProvider>
+    </ToastProvider>,
+  );
+  const file = await waitFor(() => {
+    const shown = document.querySelector("pre.codeblock")?.textContent ?? "";
+    expect(shown).toContain('"fixes"');
+    return JSON.parse(shown) as Record<string, unknown>;
+  });
+  expect(file).toMatchObject({ fixes: true, linkedTasks: false });
+});
