@@ -143,3 +143,15 @@
   font-family: var(--mono);
   font-size: var(--text-sm);
 }
+/* The description draft fills the drawer: it is read and edited as a whole. */
+.drawer-body .description-text {
+  width: 100%;
+  height: auto;
+  min-height: 60vh;
+  margin-top: 12px;
+  padding: 10px 12px;
+  resize: vertical;
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+  line-height: 18px;
+}
