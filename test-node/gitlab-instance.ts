@@ -3,7 +3,13 @@ import { createServer, type Server } from "node:https";
 import type { AddressInfo } from "node:net";
 import { mergeRequestApi } from "./gitlab-merge-requests.js";
 import { BOT, ISSUE, type Json, MR, PERSON, PROJECT, type Recorded } from "./gitlab-project.js";
-import { type BareRepository, bareRepository, gitHttp, readBody } from "./gitlab-repository.js";
+import {
+  type BareRepository,
+  bareRepository,
+  gitHttp,
+  hungUp,
+  readBody,
+} from "./gitlab-repository.js";
 
 export { BOT, ISSUE, MR, PERSON, PROJECT, STACKED } from "./gitlab-project.js";
 export { companyCa } from "./gitlab-repository.js";
@@ -170,7 +176,18 @@ export async function gitlabInstance(dir: string, tls: { key: Buffer; cert: Buff
     },
   });
 
-  const server: Server = createServer(tls, async (req, res) => {
+  // Requests still being answered, so that `close` returns only once none is
+  // left writing to the repository the test then removes.
+  const inFlight = new Set<Promise<unknown>>();
+  const server: Server = createServer(tls, (req, res) => {
+    const handled = handle(req, res).catch((error) => {
+      if (!hungUp(error)) throw error;
+    });
+    inFlight.add(handled);
+    const settle = () => inFlight.delete(handled);
+    handled.then(settle, settle);
+  });
+  const handle = async (req: IncomingMessage, res: ServerResponse) => {
     const body = await readBody(req);
     const full = new URL(req.url ?? "/", "https://instance");
     const text = body.toString();
@@ -204,10 +221,11 @@ export async function gitlabInstance(dir: string, tls: { key: Buffer; cert: Buff
       }
       return oauth(req, res, path, body);
     } catch (error) {
+      if (hungUp(error) || res.headersSent) throw error;
       res.writeHead(500);
       res.end(String(error));
     }
-  });
+  };
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   url = `https://127.0.0.1:${(server.address() as AddressInfo).port}${ROOT}`;
 
@@ -223,11 +241,11 @@ export async function gitlabInstance(dir: string, tls: { key: Buffer; cert: Buff
     commits: mergeRequests.commits,
     train: mergeRequests.train,
     comment: mergeRequests.comment,
-    close: () =>
-      new Promise<void>((resolve) => {
-        server.close(() => resolve());
-        server.closeAllConnections();
-      }),
+    close: async () => {
+      const closed = new Promise<void>((resolve) => server.close(() => resolve()));
+      server.closeAllConnections();
+      await Promise.all([closed, ...inFlight]);
+    },
   };
 }
 
