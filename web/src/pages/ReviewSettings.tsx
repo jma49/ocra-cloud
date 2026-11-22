@@ -106,7 +106,7 @@ export function ReviewSettings() {
         </Row>
         <Row
           label="Propose fixes"
-          desc="Suggest a fix for findings a local edit fixes, kept only if it applies and still parses."
+          desc="Suggest an edit for a finding that a small change in one place fixes. A suggestion is kept only if it applies and the file still parses. Adds model calls."
         >
           <TriSwitch
             label="Propose fixes"
