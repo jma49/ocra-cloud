@@ -32,6 +32,9 @@ export const NOTIFY_EVENTS = [
 ] as const;
 export type NotifyEvent = (typeof NOTIFY_EVENTS)[number];
 
+/** The events that are reminders, which go only with reminderHours set. */
+export const REMINDER_EVENTS = ["review_waiting", "pull_waiting"] as const satisfies NotifyEvent[];
+
 /** After how many hours of waiting a channel is reminded. */
 export const REMINDER_HOURS = [4, 8, 24, 48] as const;
 export type ReminderHours = (typeof REMINDER_HOURS)[number];

@@ -88,6 +88,8 @@ const ACCESS: Record<string, Access> = {
   "POST /api/notifications/channels/:id/confirm": "web",
   "GET /api/notifications/report": "web",
   "PUT /api/notifications/report": "web",
+  "GET /api/notifications/time-zone": "web",
+  "PUT /api/notifications/time-zone": "web",
   "GET /api/email/confirm": "public",
   "POST /api/email/confirm": "public",
   "GET /api/email/unsubscribe": "public",

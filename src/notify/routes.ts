@@ -12,7 +12,9 @@ import {
   type NotifyChannelsView,
   type NotifyChannelView,
   type NotifyTimeZoneView,
+  type QuietHours,
   REMINDER_HOURS,
+  type ReminderHours,
   type ReportScheduleView,
 } from "../shared/index.js";
 import type { AppEnv } from "../types.js";
@@ -74,7 +76,7 @@ const changeBody = z
 const scheduleBody = z.object({ weekday: z.number().int().min(0).max(6), hour });
 const timeZoneBody = z.object({ timeZone: z.string().trim().min(1).max(64) });
 
-const quietOf = (q: { start: number; end: number } | null | undefined) =>
+const quietOf = (q: QuietHours | null | undefined) =>
   q === undefined ? {} : { quietStart: q?.start ?? null, quietEnd: q?.end ?? null };
 
 const channelView = (r: Row<"notifyChannels">) =>
@@ -89,7 +91,7 @@ const channelView = (r: Row<"notifyChannels">) =>
     weekly: r.weekly,
     events: r.events,
     reminderHours: (REMINDER_HOURS as readonly number[]).includes(r.reminderHours ?? -1)
-      ? (r.reminderHours as (typeof REMINDER_HOURS)[number])
+      ? (r.reminderHours as ReminderHours)
       : null,
     quietHours:
       r.quietStart !== null && r.quietEnd !== null
