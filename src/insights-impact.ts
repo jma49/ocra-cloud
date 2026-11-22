@@ -93,7 +93,7 @@ impact.get("/", requireSession(["web"]), async (c: Context<AppEnv>) => {
       .map((r) => r.identity)
       .filter((i) => !isEnrolled.has(i) && nameFromIdentity(i) === wanted);
     identities = [...isEnrolled, ...others];
-    if (enrolled.length === 0 && identities.length === 0) return apiError(c, "not_found");
+    if (identities.length === 0 && enrolled.length === 0) return apiError(c, "not_found");
   }
   const named = (identity: string) => nameOf.get(identity) ?? nameFromIdentity(identity);
   const repoIds = repo?.success ? enrolled.map((r) => r.id) : null;
