@@ -47,7 +47,7 @@ const answer = {
       pulls: [
         pull(1, { roles: ["reviewer"], author: "ada", unread: true, unreadReason: "commits" }),
         pull(2, { roles: ["reviewer"], author: "ada" }),
-        pull(3, { unread: true, unreadReason: "ocra_review" }),
+        pull(3, { unread: true, unreadReason: "replies", repliesWaiting: 2 }),
       ],
     },
   ],
@@ -101,6 +101,16 @@ describe("the inbox's unread marks", () => {
         ],
       },
     ]);
+  });
+
+  it("count the replies waiting on a row until it is marked read", async () => {
+    await show();
+    expect(screen.getAllByTitle("2 replies waiting for you")[0]?.textContent).toBe("2");
+    expect(screen.getAllByRole("button", { name: "Mark #3 read" })[0]?.title).toBe(
+      "Replies waiting for you. Mark read",
+    );
+    await click("Mark #3 read");
+    expect(screen.queryByTitle("2 replies waiting for you")).toBeNull();
   });
 
   it("mark the current row unread and read again with u", async () => {
