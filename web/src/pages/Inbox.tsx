@@ -1,3 +1,5 @@
+import InboxIcon from "lucide-react/icons/inbox";
+import Plug from "lucide-react/icons/plug";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { api, why } from "../api.js";
@@ -18,7 +20,7 @@ import { forgetSharedView, sharedView, usePullViews, type ViewDraft } from "../i
 import { pullPath } from "../pull/path.js";
 import { Link, navigate } from "../router.js";
 import { useTitleCount } from "../title.js";
-import { LoadError, Loading, PageHead } from "../ui.js";
+import { EmptyState, LoadError, Loading, PageHead } from "../ui.js";
 
 type Editing = { draft: ViewDraft; id?: string };
 const BLANK: ViewDraft = { name: "", filters: { roles: ["author"], states: ["open"] } };
@@ -146,21 +148,29 @@ export function Inbox() {
       ) : !data ? (
         <Loading what="pull requests" />
       ) : !data.platforms.some((p) => p.linked) ? (
-        <div className="section card empty-hero">
-          <h3>Connect a platform</h3>
-          <p>Link GitHub or GitLab to see the pull requests that wait on you.</p>
-          <Button variant="outline" render={<Link to="/repositories" />}>
-            Connect under Repositories
-          </Button>
+        <div className="section card">
+          <EmptyState
+            icon={Plug}
+            title="Connect a platform"
+            action={
+              <Button variant="outline" render={<Link to="/repositories" />}>
+                Connect under Repositories
+              </Button>
+            }
+          >
+            Link GitHub or GitLab to see the pull requests that wait on you.
+          </EmptyState>
         </div>
       ) : sections.every((s) => s.rows.length === 0) ? (
-        <div className="section card empty-hero">
-          <h3>{filtering ? "No pull request matches" : "Nothing waits on you"}</h3>
-          <p>
+        <div className="section card">
+          <EmptyState
+            icon={InboxIcon}
+            title={<>{filtering ? "No pull request matches" : "Nothing waits on you"}</>}
+          >
             {filtering
               ? "Clear the search or the repository to see every section."
               : "Pull requests asking your review, and your own open ones, appear here."}
-          </p>
+          </EmptyState>
         </div>
       ) : (
         <div ref={list} className="inbox-sections card">

@@ -1,3 +1,4 @@
+import KeyRound from "lucide-react/icons/key-round";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -13,7 +14,7 @@ import { loadKeys } from "../account-keys.js";
 import { api, type ProviderInfo } from "../api.js";
 import { type AgentPrefs, type Effort, type Prefs, type Tier, usePrefs } from "../prefs.js";
 import { Link } from "../router.js";
-import { PageHead, Seg, useLoad, useProviders } from "../ui.js";
+import { EmptyState, PageHead, Seg, useLoad, useProviders } from "../ui.js";
 
 // The runtime, the tier defaults and each agent's model and reasoning effort
 // (ADR-0025). The CLI layers these under a repository's own configuration.
@@ -75,13 +76,15 @@ export function Agents() {
     return (
       <>
         <PageHead title="Agents" />
-        <div className="card empty-hero">
-          <h3>Add a provider key first</h3>
-          <p>
+        <div className="card">
+          <EmptyState
+            icon={KeyRound}
+            title="Add a provider key first"
+            action={<Button render={<Link to="/keys" />}>Add a key</Button>}
+          >
             Agents run on your own keys. Add a key from a provider with an OpenAI-compatible
             endpoint.
-          </p>
-          <Button render={<Link to="/keys" />}>Add a key</Button>
+          </EmptyState>
         </div>
       </>
     );

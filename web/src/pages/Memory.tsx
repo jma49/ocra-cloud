@@ -1,7 +1,9 @@
+import Brain from "lucide-react/icons/brain";
 import { Button } from "@/components/ui/button";
 import { api, why } from "../api.js";
 import { ago } from "../format.js";
-import { LoadError, Loading, PageHead, useAction, useLoad } from "../ui.js";
+import { Link } from "../router.js";
+import { EmptyState, LoadError, Loading, PageHead, useAction, useLoad } from "../ui.js";
 
 // What the account remembers (ADR-0028, 4): applied with a repository's own
 // .ocra/memory.json, which wins on a conflict.
@@ -43,12 +45,19 @@ export function Memory() {
       ) : !data ? (
         <Loading what="memory" />
       ) : data.entries.length === 0 ? (
-        <div className="card empty-hero">
-          <h3>Nothing remembered yet</h3>
-          <p>
+        <div className="card">
+          <EmptyState
+            icon={Brain}
+            title="Nothing remembered yet"
+            action={
+              <Button variant="outline" render={<Link to="/reviews" />}>
+                Open reviews
+              </Button>
+            }
+          >
             Open a review with findings and choose Remember on one. A repository's own
             .ocra/memory.json keeps working too.
-          </p>
+          </EmptyState>
         </div>
       ) : (
         <div className="card">

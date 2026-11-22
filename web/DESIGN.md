@@ -69,6 +69,7 @@ Shared controls are coss ui (Base UI + Tailwind), copied into `web/src/component
 | Several independent options in a form | `.check` checkboxes |
 | A status word in a row | `.badge` (`-ok`, `-warn`, `-run`, `-err`) |
 | A sentence of status or help | `.note` (`.ok`, `.err`) |
+| An empty list, a failed load, a missing page | `EmptyState` (coss Empty): icon, what appears here, one action |
 | Text entry | `input.input`, `textarea.input` |
 | Name of an icon-only control | `Tooltip` (the rail's `RailTip`); `aria-label` always |
 | A few actions behind a button | `Menu` |

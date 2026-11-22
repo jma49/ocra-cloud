@@ -1,3 +1,4 @@
+import Network from "lucide-react/icons/network";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { CodePlatformKind, GraphPolicy, GraphRepoView } from "../../../src/shared/index.js";
@@ -5,7 +6,7 @@ import { api, why } from "../api.js";
 import { useCached } from "../cache.js";
 import { ago, bytes, num } from "../format.js";
 import { useToast } from "../toast.js";
-import { ActionError, LoadError, Loading, PageHead, useAction } from "../ui.js";
+import { ActionError, EmptyState, LoadError, Loading, PageHead, useAction } from "../ui.js";
 
 type Repos = { repos: GraphRepoView[] };
 type Added = { repo: GraphRepoView; webhook: { url: string; secret?: string } };
@@ -35,12 +36,11 @@ export function CodeGraphs(props: { policy: GraphPolicy }) {
         sub="A map of each repository's symbols and where they are used, kept for its default branch and updated on every push. Reviews read it to follow a change to its callers. Names and line numbers only, never code."
       />
       {props.policy === "off" ? (
-        <div className="section card empty-hero">
-          <h3>This server keeps no code graphs</h3>
-          <p>
+        <div className="section card">
+          <EmptyState icon={Network} title="This server keeps no code graphs">
             Its administrator turned them off (CODE_GRAPH=off). Reviews still run, reading only the
             changed files.
-          </p>
+          </EmptyState>
         </div>
       ) : (
         <GraphRepos policy={props.policy} />
@@ -83,9 +83,10 @@ function GraphRepos(props: { policy: Exclude<GraphPolicy, "off"> }) {
       ) : !data ? (
         <Loading what="code graphs" />
       ) : data.repos.length === 0 ? (
-        <div className="section card empty-hero">
-          <h3>No code graphs yet</h3>
-          <p>Add a repository above. Its first graph builds from the default branch's head.</p>
+        <div className="section card">
+          <EmptyState icon={Network} title="No code graphs yet">
+            Add a repository above. Its first graph builds from the default branch's head.
+          </EmptyState>
         </div>
       ) : (
         <div className="section card">
