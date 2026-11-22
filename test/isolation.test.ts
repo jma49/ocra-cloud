@@ -29,6 +29,8 @@ const changes = {
   pullViews: { name: "changed" },
   graphRepos: { branch: "trunk" },
   graphBuilds: { state: "done" as const },
+  reviewRepos: { fullName: "octo/renamed" },
+  reviewJobs: { state: "done" as const },
 } satisfies { [N in keyof typeof rows]: Record<string, unknown> };
 
 // Storage persists across tests in a file; deleting the accounts cascades.
@@ -106,6 +108,11 @@ describe.each(withIds)("%s", (name) => {
       await db
         .insert(schema.reviews)
         .values({ id: "review-of-a", accountId: A, runId: "r", repoHash: "h", source: "local" });
+    }
+    if (name === "reviewJobs") {
+      await db
+        .insert(schema.reviewRepos)
+        .values({ ...rows.reviewRepos("review-repo-of-a"), accountId: A });
     }
     if (name === "graphBuilds") {
       await db

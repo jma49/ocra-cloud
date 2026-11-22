@@ -12,6 +12,7 @@ type Access = "public" | "web" | "web+cli";
 
 const ACCESS: Record<string, Access> = {
   "GET /api/health": "public",
+  "POST /api/webhooks/github": "public",
   "GET /api/providers": "public",
   "GET /api/auth/github/login": "public",
   "GET /api/auth/github/callback": "public",

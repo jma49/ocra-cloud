@@ -1,9 +1,9 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { hmacHex, sameText, sha256Hex } from "../crypto.js";
+import { sameText, sha256Hex } from "../crypto.js";
 import { reposForPush } from "../db/graphs.js";
 import { scoped } from "../db/scoped.js";
-import { apiError, jsonBody, signedBody } from "../http.js";
+import { apiError, jsonBody } from "../http.js";
 import { COMMIT_ID } from "../platforms/contents.js";
 import { gitlabClientOf } from "../platforms/registry.js";
 import type { AppEnv } from "../types.js";
@@ -14,7 +14,7 @@ import type { GraphService } from "./routes.js";
 // revisions are built (ADR-0041, 5): never a pull request's head.
 
 /** A push hook's body: GitHub caps a push's listed commits at 20. */
-const MAX_HOOK_BODY = 2 * 1024 * 1024;
+export const MAX_HOOK_BODY = 2 * 1024 * 1024;
 
 type Push = {
   platformRepoId: string;
@@ -29,7 +29,6 @@ const githubPush = z.object({
   after: z.string(),
   repository: z.object({ id: z.number(), full_name: z.string(), default_branch: z.string() }),
 });
-const githubHook = z.union([githubPush, z.looseObject({})]);
 
 const gitlabPush = z.object({
   ref: z.string(),
@@ -41,42 +40,28 @@ const gitlabPush = z.object({
   }),
 });
 
+/** A GitHub App webhook's push (src/webhooks.ts verified it): queues the graph builds it calls for. */
+export async function queueGithubPush(
+  db: AppEnv["Variables"]["db"],
+  service: GraphService,
+  body: unknown,
+): Promise<number> {
+  const parsed = githubPush.safeParse(body);
+  if (!parsed.success) return 0;
+  const push = parsed.data;
+  const repos = await reposForPush(db, "github", "github.com", String(push.repository.id));
+  return queue(db, repos, service, {
+    platformRepoId: String(push.repository.id),
+    fullName: push.repository.full_name,
+    ref: push.ref,
+    defaultBranch: push.repository.default_branch,
+    commit: push.after,
+  });
+}
+
+/** GitLab's project hooks, each proven by the secret of the repository it names. */
 export function graphWebhooks(service: GraphService) {
   const hooks = new Hono<AppEnv>();
-
-  hooks.post(
-    "/github",
-    signedBody(
-      githubHook,
-      async (c, raw) => {
-        const secret = service.githubWebhookSecret;
-        const signature = c.req.header("x-hub-signature-256") ?? "";
-        return !!secret && sameText(signature, `sha256=${await hmacHex(secret, raw)}`);
-      },
-      MAX_HOOK_BODY,
-    ),
-    async (c) => {
-      const body = c.req.valid("json");
-      if (c.req.header("x-github-event") !== "push" || !("after" in body)) {
-        return c.json({ queued: 0 }, 202);
-      }
-      const push = githubPush.parse(body);
-      const repos = await reposForPush(
-        c.var.db,
-        "github",
-        "github.com",
-        String(push.repository.id),
-      );
-      const queued = await queue(c.var.db, repos, service, {
-        platformRepoId: String(push.repository.id),
-        fullName: push.repository.full_name,
-        ref: push.ref,
-        defaultBranch: push.repository.default_branch,
-        commit: push.after,
-      });
-      return c.json({ queued }, 202);
-    },
-  );
 
   hooks.post(
     "/gitlab",

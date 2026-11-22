@@ -38,6 +38,7 @@ import {
 import { type PreferencesSave, savePreferences } from "./preferences.js";
 import { addPullView } from "./pull-views.js";
 import { nameRepo, nameRepos, reviewedRepos } from "./repos.js";
+import { accountReviewJobs } from "./review-jobs.js";
 import { accountTables } from "./schema.js";
 
 type Tables = typeof accountTables;
@@ -406,6 +407,7 @@ export function scoped(db: Db, accountId: string) {
     addPullView: (view: Parameters<typeof addPullView>[2], cap: number) =>
       addPullView(db, accountId, view, cap),
     graphs: accountGraphs(db, accountId),
+    autoReview: accountReviewJobs(db, accountId),
     /** The findings of one of this account's reviews. */
     findingsOf(reviewId: string): Promise<Row<"findings">[]> {
       const f = accountTables.findings;

@@ -18,8 +18,6 @@ import { graphWebhooks } from "./webhooks.js";
 /** What a host that builds graphs gives the API. */
 export type GraphService = {
   policy: Exclude<GraphPolicy, "off">;
-  /** The GitHub App's webhook secret; without it GitHub pushes are not taken. */
-  githubWebhookSecret?: string;
   /** Wakes the build runner after a build is queued. */
   kick: () => void;
   parse: GraphParser;
@@ -119,7 +117,10 @@ export function graphsRoute(service: GraphService) {
         latest.find((b) => b.graphRepoId === id),
       ),
       webhook: {
-        url: new URL(`/api/graphs/webhooks/${platform.kind}`, c.req.url).toString(),
+        url: new URL(
+          platform.kind === "gitlab" ? "/api/graphs/webhooks/gitlab" : "/api/webhooks/github",
+          c.req.url,
+        ).toString(),
         ...(secret ? { secret } : {}),
       },
     });

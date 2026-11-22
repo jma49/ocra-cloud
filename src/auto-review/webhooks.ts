@@ -1,0 +1,108 @@
+import { Hono } from "hono";
+import { z } from "zod";
+import { sameText, sha256Hex } from "../crypto.js";
+import { reviewRepoFor } from "../db/review-jobs.js";
+import { scoped } from "../db/scoped.js";
+import { MAX_HOOK_BODY } from "../graph/webhooks.js";
+import { apiError, jsonBody } from "../http.js";
+import { COMMIT_ID } from "../platforms/contents.js";
+import { gitlabClientOf } from "../platforms/registry.js";
+import type { AppEnv } from "../types.js";
+import type { AutoReviewService } from "./routes.js";
+
+// A pull request of an enrolled repository is queued for review when it
+// opens, reopens, leaves draft or gains commits (ADR-0046, 2). A draft is not.
+
+type Db = AppEnv["Variables"]["db"];
+
+type PullChange = { fullName: string; number: number; head: string };
+
+const GITHUB_ACTIONS = new Set(["opened", "reopened", "synchronize", "ready_for_review"]);
+
+const githubPull = z.object({
+  action: z.string(),
+  number: z.number().int().min(1),
+  pull_request: z.object({ draft: z.boolean().optional(), head: z.object({ sha: z.string() }) }),
+  repository: z.object({ id: z.number(), full_name: z.string() }),
+});
+
+/** A GitHub App webhook's pull request event (src/webhooks.ts verified it). */
+export async function queueGithubPull(
+  db: Db,
+  service: AutoReviewService,
+  body: unknown,
+): Promise<number> {
+  const parsed = githubPull.safeParse(body);
+  if (!parsed.success) return 0;
+  const { action, number, pull_request: pull, repository } = parsed.data;
+  if (!GITHUB_ACTIONS.has(action) || pull.draft) return 0;
+  const repo = await reviewRepoFor(db, "github", "github.com", String(repository.id));
+  if (!repo) return 0;
+  return queue(db, service, repo, { fullName: repository.full_name, number, head: pull.head.sha });
+}
+
+// GitLab says an update gained commits by naming the head it had before.
+const gitlabMergeRequest = z.object({
+  object_attributes: z.object({
+    iid: z.number().int().min(1),
+    action: z.string().optional(),
+    draft: z.boolean().optional(),
+    oldrev: z.string().optional(),
+    last_commit: z.object({ id: z.string() }),
+  }),
+  project: z.object({ id: z.number(), path_with_namespace: z.string() }),
+});
+
+const gitlabQueues = (a: z.infer<typeof gitlabMergeRequest>["object_attributes"]) =>
+  !a.draft &&
+  (a.action === "open" || a.action === "reopen" || (a.action === "update" && !!a.oldrev));
+
+/** GitLab's merge request hooks, each proven by the secret of the repository it names. */
+export function autoReviewWebhooks(service: AutoReviewService) {
+  const hooks = new Hono<AppEnv>();
+  hooks.post(
+    "/gitlab",
+    jsonBody(z.union([gitlabMergeRequest, z.looseObject({})]), { max: MAX_HOOK_BODY }),
+    async (c) => {
+      const client = gitlabClientOf(c.env);
+      if (!client) return apiError(c, "not_found");
+      const token = c.req.header("x-gitlab-token");
+      if (!token) return apiError(c, "unauthenticated");
+      const body = c.req.valid("json");
+      if (c.req.header("x-gitlab-event") !== "Merge Request Hook" || !("project" in body)) {
+        return c.json({ queued: 0 }, 202);
+      }
+      const event = gitlabMergeRequest.parse(body);
+      const host = new URL(client.url).host;
+      const repo = await reviewRepoFor(c.var.db, "gitlab", host, String(event.project.id));
+      const hash = await sha256Hex(token);
+      if (!repo?.webhookSecretHash || !sameText(repo.webhookSecretHash, hash)) {
+        return apiError(c, "unauthenticated");
+      }
+      if (!gitlabQueues(event.object_attributes)) return c.json({ queued: 0 }, 202);
+      const queued = await queue(c.var.db, service, repo, {
+        fullName: event.project.path_with_namespace,
+        number: event.object_attributes.iid,
+        head: event.object_attributes.last_commit.id,
+      });
+      return c.json({ queued }, 202);
+    },
+  );
+  return hooks;
+}
+
+async function queue(
+  db: Db,
+  service: AutoReviewService,
+  repo: NonNullable<Awaited<ReturnType<typeof reviewRepoFor>>>,
+  change: PullChange,
+): Promise<number> {
+  if (!COMMIT_ID.test(change.head)) return 0;
+  const data = scoped(db, repo.accountId);
+  if (repo.fullName !== change.fullName) {
+    await data.update("reviewRepos", repo.id, { fullName: change.fullName });
+  }
+  const queued = await data.autoReview.queue(repo.id, change.number, change.head, new Date());
+  if (queued) service.kick();
+  return queued ? 1 : 0;
+}

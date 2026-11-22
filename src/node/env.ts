@@ -84,7 +84,7 @@ export function migrateMode(value: string | undefined): "on" | "off" | "only" {
   throw new Error(`MIGRATE must be on, off or only, not ${value}`);
 }
 
-/** CODE_GRAPH, GITHUB_WEBHOOK_SECRET and GRAPH_WORKERS (builds at once, 1 when unset). */
+/** CODE_GRAPH and GRAPH_WORKERS (builds at once, 1 when unset). */
 export function graphSettingsFrom(vars: Record<string, string | undefined>) {
   const workers = vars.GRAPH_WORKERS || "1";
   if (!/^[1-9]\d*$/.test(workers)) {
@@ -92,7 +92,6 @@ export function graphSettingsFrom(vars: Record<string, string | undefined>) {
   }
   return {
     policy: graphPolicy(vars.CODE_GRAPH),
-    githubWebhookSecret: vars.GITHUB_WEBHOOK_SECRET || undefined,
     workers: Number(workers),
   };
 }

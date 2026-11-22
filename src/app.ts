@@ -1,6 +1,7 @@
 import { type Context, Hono } from "hono";
 import { account } from "./account.js";
 import { auth } from "./auth.js";
+import { type AutoReviewService, autoReviewRoute } from "./auto-review/routes.js";
 import { BodyTooLarge } from "./body.js";
 import { budget } from "./budget.js";
 import { providersRoute } from "./catalog.js";
@@ -26,6 +27,7 @@ import { reviews } from "./reviews.js";
 import { sessions } from "./sessions.js";
 import type { AppBindings, AppEnv } from "./types.js";
 import { usage } from "./usage.js";
+import { githubWebhook } from "./webhooks.js";
 
 /**
  * On every API answer, errors included: never read as another type, never
@@ -50,6 +52,10 @@ export type Host<E extends AppBindings> = {
   clientAddress: (c: Context) => string | undefined;
   /** Code graphs, where the host builds them (src/node/). */
   graphs?: GraphService;
+  /** Pull requests reviewed by the host itself (ADR-0046), where it runs them. */
+  autoReview?: AutoReviewService;
+  /** The GitHub App's webhook secret; without it the App's webhooks are refused. */
+  githubWebhookSecret?: string;
 };
 
 export function createApp<E extends AppBindings>(host: Host<E>) {
@@ -95,7 +101,12 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
   app.route("/platforms", platformConnect);
   app.route("/pull-views", pullViewsRoute);
   app.route("/pulls", pullPage);
+  const hook = githubWebhook(host);
+  app.route("/webhooks/github", hook);
+  // The address the App's webhook had when it carried only pushes.
+  if (host.graphs) app.route("/graphs/webhooks/github", hook);
   if (host.graphs) app.route("/graphs", graphsRoute(host.graphs));
+  if (host.autoReview) app.route("/auto-review", autoReviewRoute(host.autoReview));
 
   app.notFound((c) => apiError(c, "not_found"));
   app.onError((err, c) => {
