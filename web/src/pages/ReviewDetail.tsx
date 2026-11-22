@@ -32,6 +32,8 @@ type Detail = {
     createdAt: string;
     prRepository: string | null;
     prNumber: number | null;
+    /** The ids of the learnings its reviewers were given; null where it did not say. */
+    learnings: string[] | null;
   };
   findings: Finding[];
   walkthrough: ReviewWalkthroughView | null;
@@ -221,6 +223,18 @@ function Properties(props: { r: Review }) {
               ) : (
                 `${r.prRepository}#${r.prNumber}`
               )}
+            </dd>
+          </>
+        )}
+        {r.learnings && r.learnings.length > 0 && (
+          <>
+            <dt>Learnings</dt>
+            <dd>
+              <ul className="prop-items mono small">
+                {r.learnings.map((id) => (
+                  <li key={id}>{id}</li>
+                ))}
+              </ul>
             </dd>
           </>
         )}
