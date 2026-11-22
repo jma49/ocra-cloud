@@ -1,5 +1,6 @@
 import {
   type AgentPrefs,
+  MODEL_TIERS,
   type ModelChains,
   preferencesUpdateSchema,
   type ReviewSettings,
@@ -72,7 +73,9 @@ export const preferencesBody = (catalog: Catalog) =>
  * DEFAULT_MODELS: the models an account starts with until it saves its own,
  * as a self-hosted server sets them for everyone (a company's own models).
  * Checked as a save is; throws naming what is wrong, so a server with a
- * broken setting does not start.
+ * broken setting does not start. A review fails on a tier it has no model
+ * for, so a tier left out takes the next stronger named tier's models, else
+ * the next weaker's.
  */
 export function startingModels(env: AppBindings): ModelChains {
   const raw = env.DEFAULT_MODELS;
@@ -88,7 +91,21 @@ export function startingModels(env: AppBindings): ModelChains {
     const where = parsed.error.issues.map((i) => `${i.path.slice(1).join(".")}: ${i.message}`);
     throw new Error(`DEFAULT_MODELS cannot be served (${where.join("; ")})`);
   }
-  return parsed.data.models ?? {};
+  return everyTier(parsed.data.models ?? {});
+}
+
+function everyTier(chains: ModelChains): ModelChains {
+  const filled: ModelChains = {};
+  for (const [index, tier] of MODEL_TIERS.entries()) {
+    const nearest = [
+      tier,
+      ...MODEL_TIERS.slice(0, index).reverse(),
+      ...MODEL_TIERS.slice(index + 1),
+    ];
+    const chain = nearest.map((named) => chains[named]).find((models) => models?.length);
+    if (chain) filled[tier] = chain;
+  }
+  return filled;
 }
 
 // Everything the CLI layers under a repository's configuration.

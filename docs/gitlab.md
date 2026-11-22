@@ -26,7 +26,7 @@ USER node
 ENV NODE_EXTRA_CA_CERTS=/usr/local/share/ca-certificates/company-ca.crt
 ```
 
-`update-ca-certificates` is what git reads; `NODE_EXTRA_CA_CERTS` is what the server and the review CLI read. Outside this image, set `NODE_EXTRA_CA_CERTS` and `GIT_SSL_CAINFO` (a bundle that includes the company's authority) instead. Behind a proxy, set `HTTPS_PROXY`, `HTTP_PROXY` and `NO_PROXY` (with the GitLab and model hosts in `NO_PROXY` when they are inside). The server passes these variables, and nothing else of its environment, to git and the CLI of each review.
+`update-ca-certificates` is what git reads; `NODE_EXTRA_CA_CERTS` is what the server and the review CLI read. With Compose, placing the certificate in `selfhost/certs/` (mounted at `/certs`) and setting `NODE_EXTRA_CA_CERTS` and `GIT_SSL_CAINFO` to `/certs/company-ca.pem` in `ocra.env` does the same without a new image; git then trusts that file alone, enough for the company's GitLab. Outside this image, set `NODE_EXTRA_CA_CERTS` and `GIT_SSL_CAINFO` (a bundle that includes the company's authority) instead. Behind a proxy, set `HTTPS_PROXY`, `HTTP_PROXY` and `NO_PROXY` (with the GitLab and model hosts in `NO_PROXY` when they are inside). The server passes these variables, and nothing else of its environment, to git and the CLI of each review.
 
 ## 4. Start and enroll
 

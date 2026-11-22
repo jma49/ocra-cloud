@@ -5,6 +5,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 import { githubIdentity, upsertAccount } from "../src/db/accounts.js";
 import { bindingsFrom } from "../src/node/env.js";
 import { openHost } from "../src/node/host.js";
+import { startingModels } from "../src/preferences.js";
 import { startCliSession, startWebSession } from "../src/session.js";
 
 // A company's own model endpoint on a self-hosted server: declared by the
@@ -150,6 +151,7 @@ describe("the server's default models", () => {
       ).models;
     expect(await models()).toEqual({
       top: ["ocra-corp/qwen3-coder"],
+      standard: ["ocra-corp/qwen3-coder"],
       light: ["ocra-corp/qwen3-8b"],
     });
     const saved = await call("/api/preferences", {
@@ -159,6 +161,25 @@ describe("the server's default models", () => {
     });
     expect(saved.status).toBe(200);
     expect(await models()).toEqual({ top: ["ocra-lab/glm-4.6"] });
+  });
+
+  it("give every tier a model, so a review never lacks one", () => {
+    const starting = (models: unknown) =>
+      startingModels(bindingsFrom({ ...VARS, DEFAULT_MODELS: JSON.stringify(models) }));
+    expect(starting({ top: ["ocra-corp/a"] })).toEqual({
+      top: ["ocra-corp/a"],
+      standard: ["ocra-corp/a"],
+      light: ["ocra-corp/a"],
+    });
+    expect(starting({ light: "ocra-corp/c" })).toEqual({
+      top: ["ocra-corp/c"],
+      standard: ["ocra-corp/c"],
+      light: ["ocra-corp/c"],
+    });
+    expect(starting({ top: ["ocra-corp/a"], standard: ["ocra-corp/b"] })).toMatchObject({
+      light: ["ocra-corp/b"],
+    });
+    expect(starting({})).toEqual({});
   });
 
   it("stop a server from starting when they name a provider it does not have", () => {

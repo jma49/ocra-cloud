@@ -1,6 +1,6 @@
 # ocra Cloud on one machine: the server and Caddy in front of it, ending TLS
-# (docs/self-hosting.md). From this folder: cp ocra.env.example ocra.env,
-# fill it in, then docker compose up -d.
+# (docs/self-hosting.md). From this folder: cp .env.example .env and
+# cp ocra.env.example ocra.env, fill them in, then docker compose up -d --build.
 
 name: ocra-cloud
 
@@ -15,6 +15,7 @@ services:
       TRUSTED_PROXY_HOPS: "1"
     volumes:
       - ocra-data:/data
+      - ./certs:/certs:ro
     expose:
       - "8787"
 
@@ -34,7 +35,9 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - ./certs:/certs:ro
       - caddy-data:/data
+      - caddy-config:/config
 
 volumes:
   ocra-data:
   caddy-data:
+  caddy-config:

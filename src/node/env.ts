@@ -45,6 +45,12 @@ const DEFAULTS = {
 export function bindingsFrom(vars: Record<string, string | undefined>): AppBindings {
   const missing = SECRETS.filter((name) => !vars[name]);
   if (missing.length > 0) throw new Error(`missing environment variables: ${missing.join(", ")}`);
+  for (const name of ["MASTER_KEY", "MASTER_KEY_PREVIOUS"] as const) {
+    const value = vars[name];
+    if (value !== undefined && value !== "" && !isAesKey(value)) {
+      throw new Error(`${name} must be base64 of 32 random bytes (openssl rand -base64 32)`);
+    }
+  }
   const ways = Object.values(SIGN_IN);
   if (!ways.some((names) => names.every((name) => vars[name]))) {
     const sets = Object.entries(SIGN_IN).map(([way, names]) => `${way} (${names.join(", ")})`);
@@ -69,6 +75,12 @@ export function bindingsFrom(vars: Record<string, string | undefined>): AppBindi
   // DEFAULT_MODELS stops the server at start, not at a request.
   startingModels(bindings);
   return bindings;
+}
+
+// Checked at start: a malformed key would otherwise surface only when the
+// first provider key is stored or opened.
+function isAesKey(value: string): boolean {
+  return /^[A-Za-z0-9+/]{43}=?$/.test(value) && Buffer.from(value, "base64").length === 32;
 }
 
 /** TRUSTED_PROXY_HOPS: a whole number of proxies, 0 when unset; throws on anything else. */
