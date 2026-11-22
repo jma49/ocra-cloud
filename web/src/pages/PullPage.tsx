@@ -10,6 +10,7 @@ import type {
 } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
 import { PlatformMark } from "../platform-mark.js";
+import { ChecksBox } from "../pull/checks-box.js";
 import { splitPath } from "../pull/diff.js";
 import { FileDiff } from "../pull/file-diff.js";
 import { OUTCOME } from "../pull/outcome.js";
@@ -117,6 +118,7 @@ export function PullPage(props: { platform: string; repo: string; number: string
             })}
           </nav>
           <ReviewBox data={data} pull={ref} pending={pending} onDone={(o) => done("Review", o)} />
+          <ChecksBox pull={ref} head={data.head} />
           {queue.data?.enabled ? (
             <QueueBox
               view={queue.data}
