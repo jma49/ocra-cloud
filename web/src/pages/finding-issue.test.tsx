@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { FindingIssueAnswer, FindingIssueDraftView } from "../../../src/shared/index.js";
 import { FindingIssue } from "./finding-issue.js";
@@ -33,6 +33,8 @@ const draft: FindingIssueDraftView = {
   issue: null,
 };
 
+const inDrawer = () => within(screen.getByRole("dialog", { name: "New issue" }));
+
 describe("opening an issue from a finding", () => {
   it("drafts on a click, opens the edited issue, then links it", async () => {
     const sent = serve(draft, { outcome: "done", issue, created: true });
@@ -42,7 +44,9 @@ describe("opening an issue from a finding", () => {
     expect(title.value).toBe(draft.title);
     expect(screen.getByText("New issue in octo/api")).toBeTruthy();
     fireEvent.change(title, { target: { value: "Edited" } });
-    await act(async () => void fireEvent.click(screen.getByRole("button", { name: "Open issue" })));
+    await act(
+      async () => void fireEvent.click(inDrawer().getByRole("button", { name: "Open issue" })),
+    );
     expect(sent).toEqual([
       { url: "/api/findings/f1/issue", body: { title: "Edited", body: "Found by ocra." } },
     ]);
@@ -62,7 +66,21 @@ describe("opening an issue from a finding", () => {
     render(<FindingIssue findingId="f1" issue={null} />);
     await act(async () => void fireEvent.click(screen.getByText("Open issue")));
     await screen.findByLabelText("Issue title");
-    await act(async () => void fireEvent.click(screen.getByRole("button", { name: "Open issue" })));
+    await act(
+      async () => void fireEvent.click(inDrawer().getByRole("button", { name: "Open issue" })),
+    );
     expect(screen.getByText("The platform refused to open the issue.")).toBeTruthy();
+  });
+
+  it("keeps the edited draft when the drawer closes, without drafting again", async () => {
+    serve(draft, { outcome: "refused" });
+    render(<FindingIssue findingId="f1" issue={null} />);
+    await act(async () => void fireEvent.click(screen.getByText("Open issue")));
+    fireEvent.change(await screen.findByLabelText("Issue title"), { target: { value: "Mine" } });
+    fireEvent.click(inDrawer().getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    fireEvent.click(screen.getByText("Open issue"));
+    expect((screen.getByLabelText("Issue title") as HTMLInputElement).value).toBe("Mine");
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 });
