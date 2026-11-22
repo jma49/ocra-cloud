@@ -95,7 +95,7 @@ export function issueDraft(
   pull: ReviewPull,
   f: Row<"findings">,
 ): FindingIssueRequest {
-  const where = `${inline(f.file)}${lines(f)}`;
+  const where = `${quiet(inline(f.file))}${lines(f)}`;
   const pullLabel = quiet(inline(`${pull.repo}#${pull.number}`));
   const meta = [
     `**${SEVERITY[f.severity]}**`,
