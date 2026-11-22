@@ -33,6 +33,7 @@ export function gitlab(client: GitlabClient, redirectUri: string): CodePlatform 
   return {
     kind: "gitlab",
     host: new URL(client.url).host,
+    url: client.url,
     refresh: (refreshToken) =>
       gitlabToken(client, {
         grant_type: "refresh_token",

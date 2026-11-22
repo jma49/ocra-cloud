@@ -12,7 +12,7 @@ import { notifyReview, outboxOf } from "./notify/notify.js";
 import { platformsOf } from "./platforms/registry.js";
 import { perMinute, retryTomorrow } from "./rate.js";
 import { repoNames } from "./repositories.js";
-import { platformOfPull, pullOfReview } from "./review-pull.js";
+import { pullOfReview, pullOnPlatform } from "./review-pull.js";
 import { requireSession } from "./session.js";
 import type { ReviewerCounts, ReviewWalkthroughView } from "./shared/index.js";
 import { DAY } from "./time.js";
@@ -134,9 +134,10 @@ async function announce(c: Context<AppEnv>, id: string) {
 async function recheckPull(c: Context<AppEnv>, id: string) {
   const service = c.var.autoReview;
   const review = service?.checkPull && (await c.var.data.get("reviews", id));
-  const pull = review && pullOfReview(review);
-  const platform = pull && platformOfPull(platformsOf(c.env, c.req.url), pull);
-  if (!service?.checkPull || !pull || !platform) return;
+  const reviewed = review && pullOfReview(review);
+  const on = reviewed && pullOnPlatform(platformsOf(c.env, c.req.url), reviewed);
+  if (!service?.checkPull || !on) return;
+  const { platform, pull } = on;
   const repo = await c.var.data.mergeChecks.enrolledRepo(platform.kind, platform.host, pull.repo);
   if (repo) service.checkPull(c.var.data.accountId, repo.id, pull.number);
 }

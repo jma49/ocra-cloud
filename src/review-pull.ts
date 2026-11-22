@@ -32,13 +32,29 @@ export function repoOfIdentity(identity: string): { host: string; repo: string }
   return { host: url.hostname, repo };
 }
 
-/** The configured platform the pull request is on; the CLI writes its host without a port. */
-export const platformOfPull = (platforms: readonly CodePlatform[], pull: ReviewPull) =>
-  platforms.find((p) => p.host.replace(/:\d+$/, "").toLowerCase() === pull.host);
+/**
+ * The configured platform the pull request is on, and the pull request with
+ * its repository's path there: the CLI writes the host without a port, and
+ * the path under the relative root of an instance installed under one.
+ */
+export function pullOnPlatform(
+  platforms: readonly CodePlatform[],
+  pull: ReviewPull,
+): { platform: CodePlatform; pull: ReviewPull } | undefined {
+  for (const platform of platforms) {
+    if (platform.host.replace(/:\d+$/, "").toLowerCase() !== pull.host) continue;
+    const root = new URL(platform.url).pathname.replace(/^\/+|\/+$/g, "").toLowerCase();
+    if (!root) return { platform, pull };
+    if (pull.repo.toLowerCase().startsWith(`${root}/`)) {
+      return { platform, pull: { ...pull, repo: pull.repo.slice(root.length + 1) } };
+    }
+  }
+  return undefined;
+}
 
 /** The pull request's page on its platform. */
-export function pullPageUrl(platform: CodePlatform, pull: ReviewPull): string {
-  const base = `https://${platform.host}/${pull.repo}`;
+export function pullPageUrl(platform: CodePlatform, pull: Pick<ReviewPull, "repo" | "number">) {
+  const base = `${platform.url}/${pull.repo}`;
   return platform.kind === "gitlab"
     ? `${base}/-/merge_requests/${pull.number}`
     : `${base}/pull/${pull.number}`;

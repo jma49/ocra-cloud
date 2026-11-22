@@ -42,7 +42,7 @@ async function headReview(
   head: string,
 ): Promise<HeadReview> {
   const [review] = await data.listNewest("reviews", 1, {
-    prRepository: repoIdentity(platform.host, repo.fullName),
+    prRepository: repoIdentity(platform, repo.fullName),
     prNumber: number,
     prHeadSha: head,
   });

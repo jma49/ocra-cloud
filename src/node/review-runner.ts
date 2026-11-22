@@ -214,7 +214,7 @@ async function inCheckout(runner: ReviewRunner, job: Job, command: Command, sign
     // ocra fetches the pull request's commits with the checkout's credentials, as in CI.
     await appendFile(
       join(checkout, ".git", "config"),
-      `[http "https://${platform.host}/"]\n\textraHeader = ${auth}\n`,
+      `[http "${platform.url}/"]\n\textraHeader = ${auth}\n`,
     );
     const config = join(dir, "ocra.json");
     await writeFile(config, JSON.stringify(bot.login ? { github: { botLogin: bot.login } } : {}));
@@ -257,7 +257,7 @@ const pull = (platform: CodePlatform, fullName: string, number: number) =>
     : ["--mr", String(number), "--project", fullName];
 
 const repoUrl = (platform: CodePlatform, fullName: string) =>
-  `https://${platform.host}/${fullName.split("/").map(encodeURIComponent).join("/")}.git`;
+  `${platform.url}/${fullName.split("/").map(encodeURIComponent).join("/")}.git`;
 
 /** HTTP basic auth as each platform names a token's user. */
 const gitAuth = (platform: CodePlatform, bot: BotCredential) =>
@@ -268,17 +268,45 @@ const gitAuth = (platform: CodePlatform, bot: BotCredential) =>
 // Given in the environment, not the command line, where any process could read it.
 const gitConfigEnv = (platform: CodePlatform, auth: string) => ({
   GIT_CONFIG_COUNT: "1",
-  GIT_CONFIG_KEY_0: `http.https://${platform.host}/.extraHeader`,
+  GIT_CONFIG_KEY_0: `http.${platform.url}/.extraHeader`,
   GIT_CONFIG_VALUE_0: auth,
 });
 
 const botEnv = (platform: CodePlatform, bot: BotCredential): Record<string, string> =>
   platform.kind === "github"
     ? { GITHUB_TOKEN: bot.token }
-    : { GITLAB_TOKEN: bot.token, CI_API_V4_URL: `https://${platform.host}/api/v4` };
+    : { GITLAB_TOKEN: bot.token, CI_API_V4_URL: `${platform.url}/api/v4` };
+
+/**
+ * How this host reaches the company's network, which git and the CLI need
+ * too: its certificate authorities and its proxy.
+ */
+const NETWORK = [
+  "NODE_EXTRA_CA_CERTS",
+  "NODE_USE_SYSTEM_CA",
+  "SSL_CERT_FILE",
+  "SSL_CERT_DIR",
+  "GIT_SSL_CAINFO",
+  "GIT_SSL_CAPATH",
+  "HTTPS_PROXY",
+  "HTTP_PROXY",
+  "NO_PROXY",
+  "https_proxy",
+  "http_proxy",
+  "no_proxy",
+] as const;
+
+const networkEnv = (): Record<string, string> =>
+  Object.fromEntries(
+    NETWORK.flatMap((name) => {
+      const value = (process.env as Record<string, string | undefined>)[name];
+      return value ? [[name, value]] : [];
+    }),
+  );
 
 /** Only what git and the CLI need: no secret of this server reaches the child. */
 const baseEnv = (home: string): Record<string, string> => ({
+  ...networkEnv(),
   PATH: process.env.PATH ?? "/usr/bin:/bin",
   HOME: home,
   XDG_CONFIG_HOME: join(home, ".config"),
