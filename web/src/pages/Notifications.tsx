@@ -35,6 +35,7 @@ const json = (method: string, body?: unknown): RequestInit => ({
 export function Notifications() {
   const { data, error, reload } = useLoad(() => api<NotifyChannelsView>("/notifications/channels"));
   const [tested, setTested] = useState<{ id: string; delivered: boolean } | null>(null);
+  const [linkSent, setLinkSent] = useState<string | null>(null);
   const change = useAction((id: string, body: { when?: NotifyWhen; digest?: boolean }) =>
     api(`/notifications/channels/${id}`, json("PATCH", body)),
   );
@@ -58,10 +59,22 @@ export function Notifications() {
     <>
       <PageHead
         title="Notifications"
-        sub="Tell a Slack or WeCom chat, or an email address, when a review lands, and send a daily digest of yesterday's reviews. ocra keeps each address encrypted and never shows it again; an email address first gets a link to confirm it."
+        sub={
+          data?.email
+            ? "Tell a Slack or WeCom chat, or an email address, when a review lands, and send a daily digest of yesterday's reviews. Each address is kept encrypted and never shown again; an email address first gets a link to confirm it."
+            : "Tell a Slack or WeCom chat when a review lands, and send a daily digest of yesterday's reviews. Each address is kept encrypted and never shown again."
+        }
       />
+      {linkSent && (
+        <p className="note ok" role="status">
+          A link to confirm {linkSent} is on its way. Nothing is sent there until it is opened.
+        </p>
+      )}
       <AddChannel
-        onAdded={reload}
+        onAdded={(confirming) => {
+          setLinkSent(confirming);
+          reload();
+        }}
         full={(data?.channels.length ?? 0) >= 10}
         email={data?.email ?? false}
       />
@@ -115,19 +128,21 @@ export function Notifications() {
                       </select>
                     </td>
                     <td>
-                      <input
-                        type="checkbox"
+                      <button
+                        type="button"
+                        role="switch"
+                        className="switch"
                         aria-label={`Daily digest to ${c.name}`}
-                        checked={c.digest}
+                        aria-checked={c.digest}
                         disabled={change.busy}
-                        onChange={(e) => after(change.run(c.id, { digest: e.target.checked }))}
+                        onClick={() => after(change.run(c.id, { digest: !c.digest }))}
                       />
                     </td>
                     <td>
                       {c.confirmed ? (
                         <LastSent c={c} tested={tested?.id === c.id ? tested.delivered : null} />
                       ) : (
-                        <span className="subtle">Waiting for the address to be confirmed</span>
+                        <span className="badge badge-warn">Awaiting confirmation</span>
                       )}
                     </td>
                     <td className="num nobreak">
@@ -145,7 +160,11 @@ export function Notifications() {
                           type="button"
                           className="btn btn-sm"
                           disabled={resend.busy}
-                          onClick={() => after(resend.run(c.id))}
+                          onClick={async () => {
+                            if ((await resend.run(c.id)) === undefined) return;
+                            setLinkSent(c.name);
+                            reload();
+                          }}
                         >
                           Send link again
                         </button>
@@ -182,28 +201,36 @@ function LastSent(props: { c: NotifyChannelView; tested: boolean | null }) {
   );
 }
 
-function AddChannel(props: { onAdded: () => void; full: boolean; email: boolean }) {
+function AddChannel(props: {
+  /** Called with the channel's name when a confirmation link went to it. */
+  onAdded: (confirming: string | null) => void;
+  full: boolean;
+  email: boolean;
+}) {
   const [kind, setKind] = useState<NotifyKind>("slack");
   const [name, setName] = useState("");
   const [when, setWhen] = useState<NotifyWhen>("blocking");
   const [url, setUrl] = useState("");
+  const [digest, setDigest] = useState(false);
   const add = useAction(() =>
-    api(
+    api<{ confirmationSent?: boolean }>(
       "/notifications/channels",
       json("POST", {
         kind,
         name: name.trim(),
         when,
+        digest,
         ...(kind === "email" ? { address: url.trim() } : { url }),
       }),
     ),
   );
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if ((await add.run()) === undefined) return;
+    const added = await add.run();
+    if (added === undefined) return;
     setName("");
     setUrl("");
-    props.onAdded();
+    props.onAdded(added.confirmationSent ? name.trim() : null);
   };
   return (
     <form className="card card-pad stack add-form" onSubmit={submit}>
@@ -211,7 +238,7 @@ function AddChannel(props: { onAdded: () => void; full: boolean; email: boolean 
       <div className="add-fields">
         <select
           className="input"
-          aria-label="Chat"
+          aria-label="Where"
           value={kind}
           onChange={(e) => setKind(e.target.value as NotifyKind)}
         >
@@ -257,6 +284,15 @@ function AddChannel(props: { onAdded: () => void; full: boolean; email: boolean 
           Add
         </button>
       </div>
+      <label className="check small">
+        <input type="checkbox" checked={digest} onChange={(e) => setDigest(e.target.checked)} />
+        Also send a daily digest of yesterday's reviews
+      </label>
+      {kind === "email" && (
+        <span className="subtle small">
+          The address gets a link to confirm it first; nothing else is sent until it is opened.
+        </span>
+      )}
       {props.full && <span className="subtle small">An account has at most 10 channels.</span>}
       {add.error !== null && (
         <p className="error" role="alert">
