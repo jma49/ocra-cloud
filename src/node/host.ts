@@ -6,11 +6,13 @@ import { drizzle } from "drizzle-orm/libsql";
 import { migrate } from "drizzle-orm/libsql/migrator";
 import { Hono } from "hono";
 import { createApp } from "../app.js";
+import { retryAutomations } from "../automations/retry.js";
 import type { Db } from "../db/client.js";
 import { masterKeys } from "../keyring.js";
 import { runDigests } from "../notify/digest.js";
 import type { Mailer } from "../notify/email.js";
 import { runReports } from "../notify/report.js";
+import { platformsOf } from "../platforms/registry.js";
 import type { AppBindings } from "../types.js";
 import { botTokens } from "./bot-tokens.js";
 import { clientAddress } from "./client-address.js";
@@ -82,15 +84,16 @@ export async function openHost(options: HostOptions) {
     options.autoReview && options.publicUrl
       ? startAutoReview(options.autoReview, shared, bindings, options.publicUrl)
       : undefined;
+  const bots = options.autoReview
+    ? (options.autoReview.tokens ?? botTokens(options.autoReview.bots))
+    : undefined;
   const api = createApp({
     openDb: () => shared,
     clientAddress: (c) => addresses.get(c.req.raw),
     ...(graphs ? { graphs: graphs.service } : {}),
     ...(options.githubWebhookSecret ? { githubWebhookSecret: options.githubWebhookSecret } : {}),
     ...(reviews ? { autoReview: reviews.service } : {}),
-    ...(options.autoReview
-      ? { bots: options.autoReview.tokens ?? botTokens(options.autoReview.bots) }
-      : {}),
+    ...(bots ? { bots } : {}),
     ...(options.mailer ? { mailer: options.mailer } : {}),
   });
 
@@ -141,6 +144,12 @@ export async function openHost(options: HostOptions) {
         origin,
       };
       await Promise.all([runDigests(shared, out), runReports(shared, out)]);
+    },
+    /** Tries again the automations' writes the platform did not answer; only with a bot. */
+    automationRetries: async () => {
+      if (!bots || !options.publicUrl) return 0;
+      const platforms = platformsOf(bindings, options.publicUrl);
+      return retryAutomations({ db: shared, bots, platforms });
     },
     /** The graph build worker, when graphs are on. */
     graphWorker: graphs?.worker,

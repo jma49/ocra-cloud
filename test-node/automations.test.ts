@@ -23,7 +23,13 @@ const MR = `${GITLAB}/api/v4/projects/group%2Fapi/merge_requests/3`;
 
 let s: Server;
 let sent: Sent[];
+/** The merge request's changed files, as GitLab lists its diffs. */
+let changed: string[];
+/** How many notes GitLab answers with a 502 before it takes one. */
+let failNotes: number;
 beforeEach(async () => {
+  changed = [];
+  failNotes = 0;
   s = await graphServer(dir, `automations-${n++}.db`, "off", undefined, {
     bots: { gitlabBotToken: "glbot" },
     workers: 0,
@@ -40,9 +46,26 @@ beforeEach(async () => {
         auth: req.headers.get("authorization"),
         body: req.method === "GET" ? null : await req.clone().json(),
       });
+    if (req.url.startsWith(`${MR}/diffs?`)) {
+      return Response.json(
+        changed.map((path) => ({
+          old_path: path,
+          new_path: path,
+          new_file: false,
+          deleted_file: false,
+          renamed_file: false,
+          diff: "@@ -1 +1 @@\n-a\n+b\n",
+        })),
+      );
+    }
     if (req.url === MR || req.url === `${MR}/notes`) {
       await record();
-      return Response.json(req.method === "GET" ? { reviewers: [{ id: 5 }] } : {});
+      if (req.method === "POST" && failNotes-- > 0) return new Response("busy", { status: 502 });
+      return Response.json(
+        req.method === "GET"
+          ? { reviewers: [{ id: 5 }], diff_refs: { base_sha: C2, head_sha: C1, start_sha: C2 } }
+          : {},
+      );
     }
     if (req.url === `${GITLAB}/api/v4/users?username=alice`) return Response.json([{ id: 9 }]);
     if (req.url === `${GITLAB}/api/v4/users?username=nobody`) return Response.json([]);
@@ -90,7 +113,7 @@ async function enrolled() {
   const runs = async () =>
     (
       (await (await s.call("/api/automations/runs", { headers: auth })).json()) as {
-        runs: { outcome: string; actions: unknown[] }[];
+        runs: { outcome: string; actions: unknown[]; attempts: number; retryAt: string | null }[];
       }
     ).runs;
   return { repo, addRule, hook, runs };
@@ -152,5 +175,56 @@ describe("a merge request queued for review", () => {
     await vi.waitFor(async () => expect(await runs()).toHaveLength(2));
     expect(await hook({ action: "open", last_commit: { id: "c".repeat(40) } })).toBe(1);
     expect(await jobs()).toHaveLength(1);
+  });
+});
+
+describe("a rule on paths", () => {
+  it("skips the review of a merge request that changes only what it names", async () => {
+    const { addRule, hook, runs } = await enrolled();
+    await addRule({
+      name: "docs only",
+      trigger: "queued",
+      conditions: { paths: { include: ["docs/", "*.md"], every: true } },
+      actions: [{ kind: "skip_review" }],
+    });
+    changed = ["docs/intro.md", "README.md"];
+    expect(await hook({ action: "open" })).toBe(0);
+    changed = ["docs/intro.md", "src/a.ts"];
+    expect(await hook({ action: "update", oldrev: C1, last_commit: { id: C2 } })).toBe(1);
+    await vi.waitFor(async () => expect(await runs()).toHaveLength(1));
+    expect(await jobs()).toHaveLength(1);
+  });
+});
+
+describe("a write the platform did not answer", () => {
+  it("is tried again, once per attempt, until it is taken", async () => {
+    const { addRule, hook, runs } = await enrolled();
+    await addRule({
+      name: "thanks",
+      trigger: "queued",
+      conditions: {},
+      actions: [{ kind: "comment", body: "Thanks" }],
+    });
+    failNotes = 1;
+    expect(await hook({ action: "open" })).toBe(1);
+    await vi.waitFor(async () => expect((await runs())[0]?.outcome).toBe("failed"));
+    expect((await runs())[0]).toMatchObject({
+      attempts: 1,
+      actions: [{ kind: "comment", outcome: "unreached" }],
+      retryAt: expect.any(String),
+    });
+    // Not due yet: nothing is sent.
+    expect(await s.host.automationRetries()).toBe(0);
+    await s.host.db.update(schema.automationRuns).set({ retryAt: new Date(0) });
+    expect(await s.host.automationRetries()).toBe(1);
+    expect((await runs())[0]).toMatchObject({
+      outcome: "done",
+      attempts: 2,
+      actions: [{ kind: "comment", outcome: "done" }],
+      retryAt: null,
+    });
+    expect(await s.host.automationRetries()).toBe(0);
+    const notes = sent.filter((x) => x.method === "POST" && x.url === `${MR}/notes`);
+    expect(notes).toHaveLength(2);
   });
 });

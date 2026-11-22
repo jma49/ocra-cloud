@@ -62,7 +62,7 @@ export interface PullActions {
   ): Promise<PullActionOutcome | null>;
 }
 
-/** A write's status as an outcome: a refusal for 4xx, unreached for the rest. */
+/** A write's status as an outcome: a refusal for 4xx but 429 (try later), unreached for the rest. */
 export function outcomeOf(
   sent: { status: number } | null,
   special: Partial<Record<number, PullActionOutcome>> = {},
@@ -71,6 +71,6 @@ export function outcomeOf(
   const named = special[sent.status];
   if (named) return named;
   if (sent.status >= 200 && sent.status < 300) return "done";
-  if (sent.status >= 400 && sent.status < 500) return "refused";
+  if (sent.status >= 400 && sent.status < 500 && sent.status !== 429) return "refused";
   return null;
 }

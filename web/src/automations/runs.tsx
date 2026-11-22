@@ -1,6 +1,6 @@
 import type { AutomationActionOutcome, AutomationRunView } from "../../../src/shared/index.js";
 import { ago } from "../format.js";
-import { ACTION_LABEL, OUTCOME_LABEL, RUN_LABEL } from "./describe.js";
+import { ACTION_LABEL, OUTCOME_LABEL, RUN_LABEL, SKIP_LABEL } from "./describe.js";
 
 // The rules' recent runs, newest first: which pull request, and how each
 // action went.
@@ -13,6 +13,7 @@ const RUN_TONE: Record<AutomationRunView["outcome"], string> = {
   done: "badge badge-ok",
   partial: "badge badge-warn",
   failed: "badge badge-err",
+  skipped: "badge",
 };
 
 export function Runs(props: { runs: AutomationRunView[] }) {
@@ -38,6 +39,8 @@ export function Runs(props: { runs: AutomationRunView[] }) {
               </td>
               <td className="mono">{r.pull}</td>
               <td className="text">
+                {r.reason && <span className="muted">{SKIP_LABEL[r.reason]}</span>}
+                {r.retryAt && <span className="muted">Will retry</span>}
                 <ul className="run-actions">
                   {r.actions.map((a, i) => (
                     // biome-ignore lint/suspicious/noArrayIndexKey: a run's actions are stored once, in the rule's order.

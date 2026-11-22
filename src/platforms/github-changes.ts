@@ -43,11 +43,11 @@ export const githubHeaders = (token: string) => ({
 export const githubRepoPath = (fullName: string) =>
   fullName.split("/").map(encodeURIComponent).join("/");
 
-async function listFiles(token: string, fullName: string, number: number) {
+async function listFiles(token: string, fullName: string, number: number, max = MAX_CHANGED_FILES) {
   const base = `${API}/repos/${githubRepoPath(fullName)}/pulls/${number}`;
   const pull = await platformCall<Pull>(base, { headers: githubHeaders(token) });
   if (!pull) return null;
-  const wanted = Math.min(pull.changed_files, MAX_CHANGED_FILES);
+  const wanted = Math.min(pull.changed_files, max);
   const files: File[] = [];
   for (let page = 1; files.length < wanted; page++) {
     const listed = await platformCall<File[]>(`${base}/files?per_page=${PER_PAGE}&page=${page}`, {
@@ -60,8 +60,8 @@ async function listFiles(token: string, fullName: string, number: number) {
   return {
     base: pull.base.sha,
     head: pull.head.sha,
-    files: files.slice(0, MAX_CHANGED_FILES),
-    truncated: pull.changed_files > files.length,
+    files: files.slice(0, max),
+    truncated: pull.changed_files > Math.min(files.length, max),
   };
 }
 
@@ -73,8 +73,8 @@ const where = (f: File) => ({
 
 export function githubChanges(): PullDiffs {
   return {
-    async changes(token, fullName, number) {
-      const listed = await listFiles(token, fullName, number);
+    async changes(token, fullName, number, maxFiles) {
+      const listed = await listFiles(token, fullName, number, maxFiles);
       if (!listed) return null;
       return {
         ...listed,

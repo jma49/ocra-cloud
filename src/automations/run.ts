@@ -1,25 +1,37 @@
 import type { Context } from "hono";
+import type { RunResult } from "../db/automations.js";
 import { newId, type Row, type Scoped } from "../db/scoped.js";
 import { ruleMessage } from "../notify/channels.js";
 import { type Outbox, outboxOf, send } from "../notify/notify.js";
 import type { BotCredential, BotTokens } from "../platforms/bot.js";
+import { accessToken } from "../platforms/links.js";
 import type { CodePlatform } from "../platforms/platform.js";
 import { platformsOf } from "../platforms/registry.js";
 import { pullPageUrl } from "../review-pull.js";
-import type {
-  AutomationAction,
-  AutomationActionOutcome,
-  AutomationPullFacts,
-  AutomationRunView,
-  AutomationTrigger,
+import {
+  type AutomationAction,
+  type AutomationActionOutcome,
+  type AutomationPullFacts,
+  type AutomationRetry,
+  type AutomationRunView,
+  type AutomationSkipReason,
+  type AutomationTrigger,
+  BOT_ACTIONS,
+  MAX_AUTOMATION_PATHS,
 } from "../shared/index.js";
 import type { AppEnv } from "../types.js";
+import { type ChangedPaths, pathsHold } from "./paths.js";
 import { conditionsHold } from "./rules.js";
 
 // Running an account's rules on one event: the rules that match are read
 // at once (a skip must be known before the review is queued), their
 // actions run after the answer, each rule once per event (the run claims
 // its event key first), and every action's outcome is kept in the run log.
+// A rule on paths reads the changed files once per event, as the bot or
+// else the account's link, at most MAX_AUTOMATION_PATHS of them: what the
+// platform lists is current, where an upload names no files. A rule they
+// cannot decide is logged as skipped. A write the platform did not answer
+// (a timeout, 5xx or 429) is tried again by retryAutomations (./retry.ts).
 
 export const MAX_RULES = 50;
 
@@ -44,16 +56,40 @@ type Runner = {
   out: Outbox;
   bots: BotTokens | undefined;
   platforms: readonly CodePlatform[];
+  env: Parameters<typeof accessToken>[1];
 };
 
-/** The account's enabled rules on the trigger whose conditions hold for the pull request. */
+/** A transient failure is tried this many times in all, the first attempt included. */
+export const MAX_ATTEMPTS = 3;
+/** How long after a failed attempt (the first, the second) the next one is due. */
+const RETRY_DELAYS_MS = [60_000, 5 * 60_000];
+
+type Rule = Row<"automationRules">;
+export type Matched = { rules: Rule[]; skipped: { rule: Rule; reason: AutomationSkipReason }[] };
+
+/**
+ * The account's enabled rules on the trigger whose conditions hold for the
+ * pull request, and those its changed files, read only when a rule asks,
+ * did not decide. With acts false only rules that skip the review are tried.
+ */
 export async function matchingRules(
   data: Scoped,
   trigger: AutomationTrigger,
   facts: AutomationPullFacts,
-): Promise<Row<"automationRules">[]> {
+  changed: () => Promise<ChangedPaths | null>,
+  acts = true,
+): Promise<Matched> {
   const rules = await data.find("automationRules", { trigger, enabled: true }, MAX_RULES);
-  return rules.filter((r) => conditionsHold(r.conditions, facts));
+  const matched: Matched = { rules: [], skipped: [] };
+  for (const rule of rules) {
+    if (!acts && !rule.actions.some((a) => a.kind === "skip_review")) continue;
+    if (!conditionsHold(rule.conditions, facts)) continue;
+    const paths = rule.conditions.paths;
+    const held = paths ? pathsHold(paths, await changed()) : true;
+    if (held === true) matched.rules.push(rule);
+    else if (held !== false) matched.skipped.push({ rule, reason: held });
+  }
+  return matched;
 }
 
 /**
@@ -65,24 +101,68 @@ export async function automate(
   data: Scoped,
   event: AutomationEvent,
 ): Promise<{ skipped: boolean; run: Promise<void> }> {
-  const rules = await matchingRules(data, event.trigger, event.facts);
-  const runner = {
+  const runner: Runner = {
     data,
     out: outboxOf(c),
     bots: c.var.bots,
     platforms: platformsOf(c.env, c.req.url),
+    env: c.env,
   };
+  const bot = botOf(runner, event.repo);
+  let read: Promise<ChangedPaths | null> | undefined;
+  const changed = () => {
+    read ??= changedPaths(runner, event, bot);
+    return read;
+  };
+  const matched = await matchingRules(data, event.trigger, event.facts, changed, event.acts);
   return {
     skipped:
       event.trigger === "queued" &&
-      rules.some((r) => r.actions.some((a) => a.kind === "skip_review")),
-    run: rules.length > 0 ? runRules(runner, event, rules) : Promise.resolve(),
+      matched.rules.some((r) => r.actions.some((a) => a.kind === "skip_review")),
+    run:
+      matched.rules.length + matched.skipped.length > 0
+        ? runRules(runner, event, matched, bot)
+        : Promise.resolve(),
   };
 }
 
-async function runRules(runner: Runner, event: AutomationEvent, rules: Row<"automationRules">[]) {
-  const bot = botOf(runner, event.repo);
-  for (const rule of rules) {
+async function changedPaths(
+  runner: Runner,
+  event: AutomationEvent,
+  bot: Bot,
+): Promise<ChangedPaths | null> {
+  const platform = runner.platforms.find((p) =>
+    event.repo
+      ? p.kind === event.repo.platform && p.host === event.repo.host
+      : p.host === event.pull.host,
+  );
+  if (!platform) return null;
+  const token =
+    (await bot())?.credential.token ?? (await accessToken(runner.data, runner.env, platform));
+  if (!token) return null;
+  const { fullName, number } = event.pull;
+  const listed = await platform.changes.changes(token, fullName, number, MAX_AUTOMATION_PATHS);
+  if (!listed) return null;
+  const paths = new Set(listed.files.flatMap((f) => [f.path, f.oldPath]));
+  return { paths: [...paths], truncated: listed.truncated };
+}
+
+async function runRules(runner: Runner, event: AutomationEvent, matched: Matched, bot: Bot) {
+  const pull = `${event.pull.fullName}#${event.pull.number}`;
+  for (const { rule, reason } of matched.skipped) {
+    await runner.data.automations.claim({
+      id: newId(),
+      ruleId: rule.id,
+      ruleName: rule.name,
+      trigger: event.trigger,
+      pull,
+      eventKey: event.eventKey,
+      outcome: "skipped",
+      reason,
+      actions: [],
+    });
+  }
+  for (const rule of matched.rules) {
     const actions = rule.actions.filter((a) => event.acts || a.kind === "skip_review");
     if (actions.length === 0) continue;
     const id = newId();
@@ -91,7 +171,7 @@ async function runRules(runner: Runner, event: AutomationEvent, rules: Row<"auto
       ruleId: rule.id,
       ruleName: rule.name,
       trigger: event.trigger,
-      pull: `${event.pull.fullName}#${event.pull.number}`,
+      pull,
       eventKey: event.eventKey,
       actions: [],
     });
@@ -100,16 +180,57 @@ async function runRules(runner: Runner, event: AutomationEvent, rules: Row<"auto
     for (const action of actions) {
       done.push({ kind: action.kind, outcome: await perform(runner, event, rule, action, bot) });
     }
-    const ok = done.filter((d) => d.outcome === "done").length;
-    const outcome = ok === done.length ? "done" : ok === 0 ? "failed" : "partial";
-    await runner.data.update("automationRuns", id, { outcome, actions: done });
+    const retry = event.repo
+      ? retryOf(
+          event.repo.id,
+          event.pull.number,
+          actions.map((action, index) => ({ index, action })),
+          done,
+        )
+      : null;
+    await runner.data.automations.finish(id, 1, resultOf(done, retry, 1, new Date()));
   }
 }
 
-type Bot = () => Promise<{ platform: CodePlatform; credential: BotCredential } | null>;
+/** The bot's writes the platform did not answer, to try again; null when there are none. */
+export function retryOf(
+  reviewRepoId: string,
+  number: number,
+  tried: AutomationRetry["actions"],
+  done: AutomationRunView["actions"],
+): AutomationRetry | null {
+  const actions = tried.filter(
+    (t) => BOT_ACTIONS.includes(t.action.kind) && done[t.index]?.outcome === "unreached",
+  );
+  return actions.length > 0 ? { reviewRepoId, number, actions } : null;
+}
 
-/** The bot's credential for the enrolled repository, minted once per event when an action needs it. */
-function botOf(runner: Runner, repo: Row<"reviewRepos"> | null): Bot {
+/** The attempt's result: its retry due after its backoff, unless it was the last. */
+export function resultOf(
+  actions: AutomationRunView["actions"],
+  retry: AutomationRetry | null,
+  attempts: number,
+  now: Date,
+): RunResult {
+  const ok = actions.filter((d) => d.outcome === "done").length;
+  const delay = RETRY_DELAYS_MS[attempts - 1];
+  const again = retry && attempts < MAX_ATTEMPTS && delay !== undefined ? retry : null;
+  return {
+    outcome: ok === actions.length ? "done" : ok === 0 ? "failed" : "partial",
+    actions,
+    retry: again,
+    retryAt: again && delay !== undefined ? new Date(now.getTime() + delay) : null,
+  };
+}
+
+type Writer = { platform: CodePlatform; credential: BotCredential };
+export type Bot = () => Promise<Writer | null>;
+
+/** The bot's credential for the enrolled repository, minted once when an action needs it. */
+export function botOf(
+  runner: Pick<Runner, "bots" | "platforms">,
+  repo: Row<"reviewRepos"> | null,
+): Bot {
   let minted: ReturnType<Bot> | undefined;
   return () => {
     minted ??= (async () => {
@@ -125,10 +246,30 @@ function botOf(runner: Runner, repo: Row<"reviewRepos"> | null): Bot {
   };
 }
 
+/** A write on the pull request as the bot. */
+export async function botWrite(
+  bot: Bot,
+  fullName: string,
+  n: number,
+  action: Extract<AutomationAction, { kind: "add_labels" | "request_reviewers" | "comment" }>,
+): Promise<AutomationActionOutcome> {
+  const writer = await bot();
+  if (!writer) return "refused";
+  const { platform, credential } = writer;
+  const sent =
+    action.kind === "add_labels"
+      ? await platform.actions.addLabels(credential.token, fullName, n, action.labels)
+      : action.kind === "request_reviewers"
+        ? await platform.actions.requestReviewers(credential.token, fullName, n, action.reviewers)
+        : await platform.actions.comment(credential.token, fullName, n, action.body);
+  if (sent === null) return "unreached";
+  return sent === "done" ? "done" : "refused";
+}
+
 async function perform(
   runner: Runner,
   event: AutomationEvent,
-  rule: Row<"automationRules">,
+  rule: Rule,
   action: AutomationAction,
   bot: Bot,
 ): Promise<AutomationActionOutcome> {
@@ -150,17 +291,5 @@ async function perform(
   }
   if (!event.repo) return "not_enrolled";
   if (!runner.bots) return "needs_self_hosted";
-  const writer = await bot();
-  if (!writer) return "refused";
-  const { platform, credential } = writer;
-  const { fullName } = event.repo;
-  const n = event.pull.number;
-  const sent =
-    action.kind === "add_labels"
-      ? await platform.actions.addLabels(credential.token, fullName, n, action.labels)
-      : action.kind === "request_reviewers"
-        ? await platform.actions.requestReviewers(credential.token, fullName, n, action.reviewers)
-        : await platform.actions.comment(credential.token, fullName, n, action.body);
-  if (sent === null) return "unreached";
-  return sent === "done" ? "done" : "refused";
+  return botWrite(bot, event.repo.fullName, event.pull.number, action);
 }

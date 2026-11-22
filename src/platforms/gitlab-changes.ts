@@ -32,13 +32,19 @@ export const gitlabHeaders = (token: string) => ({
 export const mergeRequestUrl = (origin: string, fullName: string, number: number) =>
   `${origin}/api/v4/projects/${encodeURIComponent(fullName)}/merge_requests/${number}`;
 
-async function listDiffs(origin: string, token: string, fullName: string, number: number) {
+async function listDiffs(
+  origin: string,
+  token: string,
+  fullName: string,
+  number: number,
+  max = MAX_CHANGED_FILES,
+) {
   const base = mergeRequestUrl(origin, fullName, number);
   const mr = await platformCall<MergeRequest>(base, { headers: gitlabHeaders(token) });
   if (!mr?.diff_refs) return null;
   const diffs: Diff[] = [];
   let more = true;
-  for (let page = 1; more && diffs.length < MAX_CHANGED_FILES; page++) {
+  for (let page = 1; more && diffs.length < max; page++) {
     const listed = await platformCall<Diff[]>(`${base}/diffs?per_page=${PER_PAGE}&page=${page}`, {
       headers: gitlabHeaders(token),
     });
@@ -49,8 +55,8 @@ async function listDiffs(origin: string, token: string, fullName: string, number
   return {
     base: mr.diff_refs.base_sha,
     head: mr.diff_refs.head_sha,
-    diffs: diffs.slice(0, MAX_CHANGED_FILES),
-    truncated: more,
+    diffs: diffs.slice(0, max),
+    truncated: more || diffs.length > max,
   };
 }
 
@@ -58,8 +64,8 @@ const where = (d: Diff) => ({ path: d.new_path, oldPath: d.old_path, status: sta
 
 export function gitlabChanges(origin: string): PullDiffs {
   return {
-    async changes(token, fullName, number) {
-      const listed = await listDiffs(origin, token, fullName, number);
+    async changes(token, fullName, number, maxFiles) {
+      const listed = await listDiffs(origin, token, fullName, number, maxFiles);
       if (!listed) return null;
       const { diffs, ...rest } = listed;
       return {
