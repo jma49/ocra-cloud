@@ -73,4 +73,23 @@ describe("the AI review card on a pull request", () => {
     await act(async () => {});
     expect(container.textContent).toBe("");
   });
+
+  it("stops asking while the tab is hidden, and asks again once it shows", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    try {
+      serve(job({ state: "running" }));
+      const reads = () => vi.mocked(fetch).mock.calls.length;
+      render(<ReviewNowBox pull={pull} head={HEAD} />);
+      expect(await screen.findByText(/ocra is reviewing this head/)).toBeTruthy();
+      const hidden = vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
+      const before = reads();
+      await act(async () => void vi.advanceTimersByTime(60_000));
+      expect(reads()).toBe(before);
+      hidden.mockReturnValue("visible");
+      await act(async () => void document.dispatchEvent(new Event("visibilitychange")));
+      expect(reads()).toBe(before + 1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

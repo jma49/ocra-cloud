@@ -1,8 +1,7 @@
-import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import type { GenerateJobView, GenerateKind } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
-import { useAction, useLoad } from "../ui.js";
+import { useAction, useLoad, usePoll } from "../ui.js";
 
 // Tests or docstrings for the head the page read, written by the server's
 // runner and committed to the pull request's branch as the ocra bot. Shown
@@ -50,11 +49,7 @@ export function GenerateBox(props: { pull: Pull; head: string }) {
     const state = ofHead(k)?.state;
     return state === "queued" || state === "running";
   });
-  useEffect(() => {
-    if (!active) return;
-    const timer = setInterval(reload, POLL_MS);
-    return () => clearInterval(timer);
-  }, [active, reload]);
+  usePoll(active, reload, POLL_MS);
   if (!data?.enrolled) return null;
   const send = async (kind: GenerateKind) => {
     if (await ask.run(kind)) reload();
