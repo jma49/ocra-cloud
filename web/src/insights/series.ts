@@ -1,0 +1,50 @@
+import type { Review } from "../api.js";
+
+// Daily series for the insights charts, from the listed reviews: findings by
+// severity, spend, and review time. Pure, so the charts' numbers are tested
+// without the chart library.
+
+export type Point = { start: Date; end: Date; value: number };
+export type Daily = {
+  critical: Point[];
+  warning: Point[];
+  suggestion: Point[];
+  spend: Point[];
+  p50: Point[];
+  p95: Point[];
+};
+
+const DAY = 86_400_000;
+
+/** The value at quantile q (0..1) of sorted numbers, nearest rank. */
+export function quantile(sorted: number[], q: number): number | null {
+  if (sorted.length === 0) return null;
+  return sorted[Math.min(sorted.length - 1, Math.ceil(q * sorted.length) - 1)] ?? null;
+}
+
+/** One point per UTC day of the last `days` days, ending today; review time in seconds, only on days with reviews. */
+export function daily(reviews: Review[], days: number, now = Date.now()): Daily {
+  const today = Math.floor(now / DAY) * DAY;
+  const first = today - (days - 1) * DAY;
+  const buckets = Array.from({ length: days }, () => [] as Review[]);
+  for (const r of reviews) {
+    const i = Math.floor((Date.parse(r.createdAt) - first) / DAY);
+    if (i >= 0 && i < days) buckets[i]?.push(r);
+  }
+  const out: Daily = { critical: [], warning: [], suggestion: [], spend: [], p50: [], p95: [] };
+  buckets.forEach((day, i) => {
+    const start = new Date(first + i * DAY);
+    const end = new Date(first + (i + 1) * DAY);
+    const sum = (f: (r: Review) => number) => day.reduce((n, r) => n + f(r), 0);
+    out.critical.push({ start, end, value: sum((r) => r.critical) });
+    out.warning.push({ start, end, value: sum((r) => r.warning) });
+    out.suggestion.push({ start, end, value: sum((r) => r.suggestion) });
+    out.spend.push({ start, end, value: Math.round(sum((r) => r.costUsd) * 100) / 100 });
+    const times = day.map((r) => r.durationMs / 1000).sort((a, b) => a - b);
+    const p50 = quantile(times, 0.5);
+    const p95 = quantile(times, 0.95);
+    if (p50 !== null) out.p50.push({ start, end, value: Math.round(p50) });
+    if (p95 !== null) out.p95.push({ start, end, value: Math.round(p95) });
+  });
+  return out;
+}

@@ -107,12 +107,43 @@
   }
 }
 
+/* The charts' library names its fonts in these tokens; set to the console's
+   own, its fonts are never fetched from its makers' servers. */
+:root {
+  --dt-typography-code-base-default-family: var(--mono);
+  --dt-typography-code-base-emphasized-family: var(--mono);
+  --dt-typography-code-small-default-family: var(--mono);
+  --dt-typography-code-small-emphasized-family: var(--mono);
+  --dt-typography-display-level-1-family: var(--font);
+  --dt-typography-display-level-2-family: var(--font);
+  --dt-typography-display-level-3-family: var(--font);
+  --dt-typography-heading-level-1-family: var(--font);
+  --dt-typography-heading-level-2-family: var(--font);
+  --dt-typography-heading-level-3-family: var(--font);
+  --dt-typography-heading-level-4-family: var(--font);
+  --dt-typography-heading-level-5-family: var(--font);
+  --dt-typography-heading-level-6-family: var(--font);
+  --dt-typography-subtitle-display-level-1-family: var(--font);
+  --dt-typography-subtitle-display-level-2-family: var(--font);
+  --dt-typography-subtitle-display-level-3-family: var(--font);
+  --dt-typography-subtitle-heading-level-1-family: var(--font);
+  --dt-typography-subtitle-heading-level-2-family: var(--font);
+  --dt-typography-subtitle-heading-level-3-family: var(--font);
+  --dt-typography-text-base-default-family: var(--font);
+  --dt-typography-text-base-emphasized-family: var(--font);
+  --dt-typography-text-small-default-family: var(--font);
+  --dt-typography-text-small-emphasized-family: var(--font);
+}
+
 * {
   box-sizing: border-box;
 }
 html,
 body {
   margin: 0;
+}
+html {
+  background: var(--ground);
 }
 body {
   min-height: 100vh;

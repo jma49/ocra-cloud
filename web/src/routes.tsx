@@ -86,7 +86,7 @@ const ROUTES: readonly Route[] = [
     page: (me) => <CodeGraphs policy={me.codeGraphs} />,
   },
   { path: "/memory", place: "repositories", tab: "Memory", page: () => <Memory /> },
-  { path: "/insights", place: "insights", tab: "Review quality", page: () => <Insights /> },
+  { path: "/insights", place: "insights", tab: "Overview", page: () => <Insights /> },
   {
     path: "/usage",
     place: "insights",
