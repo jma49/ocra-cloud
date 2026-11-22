@@ -2,7 +2,6 @@ import { type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import {
-  NOTIFY_EVENTS,
   NOTIFY_KINDS,
   NOTIFY_WHEN,
   type NotifyChannelsView,
@@ -13,6 +12,7 @@ import {
 } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
 import { ago } from "../format.js";
+import { EventsMenu } from "../notifications/events-menu.js";
 import { ReportSlot } from "../notifications/report-slot.js";
 import { ActionError, LoadError, Loading, PageHead, useAction, useLoad } from "../ui.js";
 
@@ -20,7 +20,7 @@ import { ActionError, LoadError, Loading, PageHead, useAction, useLoad } from ".
 // incoming webhook, or an address confirmed by the link mailed to it, each
 // with which reviews it hears about and whether it gets the daily digest and
 // the weekly report, whose UTC day and hour the account picks, and whether
-// it hears about the events of the user's own pull requests (all of them).
+// which events of the user's own pull requests it hears about.
 // The address is sent once and never shown again.
 
 const KIND_LABEL: Record<NotifyKind, string> = { slack: "Slack", wecom: "WeCom", email: "Email" };
@@ -165,17 +165,11 @@ export function Notifications() {
                       <span className="cell-name" aria-hidden="true">
                         My pull requests
                       </span>
-                      <Switch
-                        aria-label={`My pull requests' events to ${c.name}`}
-                        checked={c.events.length > 0}
+                      <EventsMenu
+                        channel={c.name}
+                        events={c.events}
                         disabled={change.busy}
-                        onCheckedChange={() =>
-                          after(
-                            change.run(c.id, {
-                              events: c.events.length > 0 ? [] : [...NOTIFY_EVENTS],
-                            }),
-                          )
-                        }
+                        change={(events) => after(change.run(c.id, { events }))}
                       />
                     </td>
                     <td>
@@ -226,6 +220,13 @@ export function Notifications() {
               </tbody>
             </table>
           </div>
+          {data.channels.some((c) => c.events.length > 0) && (
+            <p className="subtle small card-pad m-0">
+              A channel that hears of ocra's critical findings in your pull requests gets that
+              message in place of the review's announcement. If GitLab's events do not arrive,
+              connect GitLab again under Repositories: an older connection does not say who you are.
+            </p>
+          )}
         </div>
       )}
       <ReportSlot />
