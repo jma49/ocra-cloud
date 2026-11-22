@@ -135,6 +135,7 @@ describe("a GitLab merge request's changes", () => {
       title: null,
       author: null,
       url: null,
+      state: null,
       base: C1,
       head: C2,
       updatedAt: null,

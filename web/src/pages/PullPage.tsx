@@ -108,6 +108,7 @@ export function PullPage(props: {
     setSaid({ what, outcome });
     if (outcome === "done" && what === "Review") setPending([]);
   };
+  const settled = data.state === "merged" || data.state === "closed";
   const sent = ticked.head === data.head ? ticked.paths : new Map<string, boolean>();
   const isViewed = (f: PullFilesView["files"][number]) => sent.get(f.path) ?? f.viewed === true;
   const markViewed = async (path: string, viewed: boolean) => {
@@ -151,6 +152,12 @@ export function PullPage(props: {
           {said.what}: {OUTCOME[said.outcome]}
         </p>
       )}
+      {settled && (
+        <p className="muted small">
+          This pull request is {data.state}: you can still comment on it, but not approve or merge
+          it.
+        </p>
+      )}
       {data.truncated && (
         <p className="muted small">
           This pull request has more changes than one page reads; the rest are on the platform.
@@ -162,13 +169,13 @@ export function PullPage(props: {
           <ReviewersPanel pull={ref} />
           <FileList files={data.files} isViewed={isViewed} />
           <ReviewBox data={data} pull={ref} pending={pending} onDone={(o) => done("Review", o)} />
-          <DescriptionBox pull={ref} onDone={(o) => done("Description", o)} />
+          {!settled && <DescriptionBox pull={ref} onDone={(o) => done("Description", o)} />}
           <ThreadsPanel pull={ref} onDone={(o) => done("Review threads", o)} />
           <ReadinessBox pull={ref} head={data.head} />
           <ChecksBox pull={ref} head={data.head} />
-          {props.runner && <ReviewNowBox pull={ref} head={data.head} />}
-          {props.runner && <GenerateBox pull={ref} head={data.head} />}
-          {queue.data?.enabled ? (
+          {props.runner && !settled && <ReviewNowBox pull={ref} head={data.head} />}
+          {props.runner && !settled && <GenerateBox pull={ref} head={data.head} />}
+          {settled ? null : queue.data?.enabled ? (
             <QueueBox
               view={queue.data}
               pull={ref}
@@ -240,16 +247,20 @@ function ReviewBox(props: {
   return (
     <section className="card card-pad stack" aria-label="Your review">
       <div className="strong">Your review</div>
-      <Seg
-        label="Verdict"
-        value={verdict}
-        onChange={setVerdict}
-        options={verdicts.map((v) => ({ value: v, label: VERDICT[v] }))}
-      />
+      {verdicts.length > 1 && (
+        <Seg
+          label="Verdict"
+          value={verdict}
+          onChange={setVerdict}
+          options={verdicts.map((v) => ({ value: v, label: VERDICT[v] }))}
+        />
+      )}
       <textarea
         className="input"
         aria-label="Review note"
-        placeholder="Leave a note (optional for an approval)"
+        placeholder={
+          verdicts.includes("approve") ? "Leave a note (optional for an approval)" : "Leave a note"
+        }
         rows={4}
         value={body}
         onChange={(e) => setBody(e.target.value)}
