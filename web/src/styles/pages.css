@@ -810,6 +810,8 @@ td.finding-cell {
   position: sticky;
   top: 72px;
   display: grid;
+  /* A card's widest line must not widen the column over the diffs. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
 }
 .pull-main {
