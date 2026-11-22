@@ -57,11 +57,15 @@ const messageDto = (m: ChatMessageRow) =>
     createdAt: m.createdAt.toISOString(),
   }) satisfies ReviewChatMessageView;
 
-/** The account's standard model, else its top or light one; null with none set. */
-function defaultModel(prefs: Row<"preferences"> | undefined): string | null {
+/** The models of the account's tiers, the standard tier's first, without repeats. */
+function tierModels(prefs: Row<"preferences"> | undefined): string[] {
   const m = prefs?.models;
-  return m?.standard?.[0] ?? m?.top?.[0] ?? m?.light?.[0] ?? null;
+  return [...new Set([...(m?.standard ?? []), ...(m?.top ?? []), ...(m?.light ?? [])])];
 }
+
+/** The account's standard model, else its top or light one; null with none set. */
+const defaultModel = (prefs: Row<"preferences"> | undefined): string | null =>
+  tierModels(prefs)[0] ?? null;
 
 reviewChat.get("/:id/chat", requireSession(), async (c) => {
   const data = c.var.data;
@@ -75,6 +79,7 @@ reviewChat.get("/:id/chat", requireSession(), async (c) => {
     messages: messages.map(messageDto),
     sharing: c.var.session.account.shareFindings,
     model: defaultModel(prefs),
+    models: tierModels(prefs),
     limit: MAX_CHAT_MESSAGES,
   } satisfies ReviewChatView);
 });

@@ -18,6 +18,8 @@ export type ReviewChatView = {
   sharing: boolean;
   /** The model a question goes to unless it names one: the account's standard tier; null with none set. */
   model: string | null;
+  /** The models a question may name: the account's tiers, the default first. */
+  models: string[];
   /** The most messages a review's conversation keeps; clear it to ask more. */
   limit: number;
 };
