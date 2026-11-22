@@ -330,6 +330,13 @@
       "when": 1795361452346,
       "tag": "0046_pull_event_notifications",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "6",
+      "when": 1795362346087,
+      "tag": "0047_pull_view_names_hidden",
+      "breakpoints": true
     }
   ]
 }

@@ -261,6 +261,8 @@ export const reviews = sqliteTable(
   (t) => [
     uniqueIndex("reviews_account_run").on(t.accountId, t.runId),
     index("reviews_account_created").on(t.accountId, t.createdAt),
+    // The inbox's verdict of each listed pull request: its newest review.
+    index("reviews_account_pull").on(t.accountId, t.prNumber, t.createdAt),
   ],
 );
 
@@ -486,7 +488,7 @@ export const repositories = sqliteTable(
   (t) => [uniqueIndex("repositories_account_repo").on(t.accountId, t.repoHash)],
 );
 
-// The account's own inbox sections, after the fixed ones, in position order.
+// The account's own inbox sections, in position order, one name once.
 export const pullViews = sqliteTable(
   "pull_views",
   {
@@ -495,9 +497,13 @@ export const pullViews = sqliteTable(
     name: text("name").notNull(),
     filters: text("filters", { mode: "json" }).$type<PullFilters>().notNull(),
     position: integer("position").notNull(),
+    hidden: integer("hidden", { mode: "boolean" }).notNull().default(false),
     createdAt: createdAt(),
   },
-  (t) => [index("pull_views_account_position").on(t.accountId, t.position)],
+  (t) => [
+    index("pull_views_account_position").on(t.accountId, t.position),
+    uniqueIndex("pull_views_account_name").on(t.accountId, t.name),
+  ],
 );
 
 // A repository whose default branch the account has the server keep a code
