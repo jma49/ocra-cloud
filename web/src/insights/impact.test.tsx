@@ -47,7 +47,14 @@ const busy = counts({
   findings: { critical: 2, warning: 9, suggestion: 14 },
   fixedOnRereview: 11,
   dismissedOnRereview: 3,
-  actedOn: { fixed: 6, dismissed: 4, open: 15, issueOpened: 1 },
+  actedOn: {
+    fixed: 6,
+    fixedVia: { applied: 2, suggestion: 1, manual: 2, rereview: 0, unknown: 1 },
+    dismissed: 4,
+    open: 15,
+    issueOpened: 1,
+    threadResolved: 3,
+  },
 });
 
 describe("what ocra changed on Insights", () => {
