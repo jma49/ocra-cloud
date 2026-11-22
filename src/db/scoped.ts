@@ -38,6 +38,7 @@ import {
   inbox,
   rememberFindings,
 } from "./inbox.js";
+import { learningUsage } from "./learning-usage.js";
 import { accountMergeChecks } from "./merge-checks.js";
 import { accountNotify } from "./notify.js";
 import { type PreferencesSave, savePreferences } from "./preferences.js";
@@ -413,6 +414,8 @@ export function scoped(db: Db, accountId: string) {
     /** The repositories reviewed since a time, summed (./repos.ts). */
     reviewedRepos: (since: Date) => reviewedRepos(db, accountId, since),
     pulledRepos: () => pulledRepos(db, accountId),
+    learningUsage: (repoHash: string, ids: readonly string[], since: Date) =>
+      learningUsage(db, accountId, repoHash, ids, since),
     nameRepo: (repoHash: string, name: string, cap: number) =>
       nameRepo(db, accountId, repoHash, name, cap),
     nameRepos: (list: readonly { repoHash: string; name: string }[], cap: number) =>

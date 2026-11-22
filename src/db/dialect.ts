@@ -44,6 +44,13 @@ export function jsonRecords(
   return sql`(SELECT ${sql.join(picked, sql`, `)} FROM json_each(${array})) AS je`;
 }
 
+/** A JSON array's elements as text, as a table `je` of `value` (null for a JSON null). */
+export function jsonElements(db: Db, array: SQL): SQL {
+  return isPostgres(db)
+    ? sql`jsonb_array_elements_text(${array}::jsonb) AS je(value)`
+    : sql`json_each(${array}) AS je`;
+}
+
 /** A JSON object's members, as a table `je` of `key` and `value`. */
 export function jsonMembers(db: Db, object: SQL): SQL {
   return isPostgres(db)

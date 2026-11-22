@@ -27,6 +27,25 @@ export const reviews = new Hono<AppEnv>();
 const MAX_UPLOAD = 600_000;
 type Upload = z.output<typeof reviewUploadSchema>;
 
+type ReviewRow = Omit<ReturnType<typeof reviewRow>, "reviewersDropped">;
+
+/**
+ * The row without what goes only with shared findings (ADR-0028): the
+ * linked tasks' titles and labels, the checks' reasons, and the learnings
+ * of a review that names no pull request.
+ */
+export function withoutSharedText(row: ReviewRow): ReviewRow {
+  return {
+    ...row,
+    linkedTasks:
+      row.linkedTasks?.map(
+        (t) => t && { tracker: t.tracker, key: t.key, url: t.url, state: t.state },
+      ) ?? null,
+    mergeChecks: row.mergeChecks?.map((m) => m && { id: m.id, outcome: m.outcome }) ?? null,
+    learnings: row.prRepository === null ? null : row.learnings,
+  };
+}
+
 /** The review's row from a checked upload, and how many reviewers' counts it left out. */
 export function reviewRow(u: Upload) {
   const byReviewer = Object.fromEntries(
@@ -62,6 +81,10 @@ export function reviewRow(u: Upload) {
     prRepository: u.pullRequest?.repository ?? null,
     prNumber: u.pullRequest?.number ?? null,
     prHeadSha: u.pullRequest?.headSha ?? null,
+    // Absent stays null (not looked up, not said); an empty list stays empty.
+    linkedTasks: u.linkedTasks ?? null,
+    learnings: u.learnings ?? null,
+    mergeChecks: u.mergeChecks ?? null,
     // How many reviewers' counts were left out, for the answer's `dropped`.
     reviewersDropped: Object.keys(u.reviewers ?? {}).length - Object.keys(byReviewer).length,
   };
@@ -73,10 +96,11 @@ const uploadBody = jsonBody(reviewUploadSchema, { max: MAX_UPLOAD });
 
 reviews.post("/", requireSession(["web", "cli"]), perMinute("upload"), uploadBody, async (c) => {
   const upload = c.req.valid("json");
-  const { reviewersDropped, ...row } = reviewRow(upload);
+  const { reviewersDropped, ...counts } = reviewRow(upload);
   // Findings are kept only while the account shares them, whatever the CLI sent.
   const list = upload.findingList;
   const sharing = c.var.session.account.shareFindings;
+  const row = sharing ? counts : withoutSharedText(counts);
   const parsed =
     sharing && list !== undefined
       ? parseFindings(list)
@@ -202,6 +226,8 @@ function reviewDto(r: Row<"reviews">) {
     prNumber: r.prNumber,
     prHeadSha: r.prHeadSha,
     linkedTasks: r.linkedTasks,
+    learnings: r.learnings,
+    mergeChecks: r.mergeChecks,
     byReviewer: r.byReviewer,
     verification: r.verification,
     fixed: r.fixed,

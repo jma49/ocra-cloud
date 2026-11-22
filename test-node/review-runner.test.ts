@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { scoped } from "../src/db/scoped.js";
+import { instructionCheckId } from "../src/merge-checks/instruction.js";
 import { appJwt, botTokens } from "../src/node/bot-tokens.js";
 import {
   type Exec,
@@ -246,6 +247,42 @@ describe("a review job's run", () => {
     const [job] = await scoped(s.host.db, accountId).autoReview.latestJobs();
     expect(job).toMatchObject({ state: "failed", error: "no_bot" });
   });
+  it("gives the review the repository's enabled plain-language checks, by their current ids", async () => {
+    const checks = scoped(s.host.db, accountId).mergeChecks;
+    const on = await checks.add(
+      repoId,
+      { kind: "instruction", mode: "block", settings: { text: "No new globals" } },
+      20,
+    );
+    await checks.add(repoId, { kind: "instruction", mode: "off", settings: { text: "Off" } }, 20);
+    await checks.add(
+      repoId,
+      { kind: "title", mode: "block", settings: { prefixes: ["feat"] } },
+      20,
+    );
+    const configs: unknown[] = [];
+    const exec: Exec = async (command, args) => {
+      if (command === "git") {
+        await mkdir(join(args.at(-1) ?? "", ".git"), { recursive: true });
+        return { code: 0 };
+      }
+      configs.push(JSON.parse(await readFile(args.at(-1) ?? "", "utf8")));
+      return { code: 0 };
+    };
+    expect(await run(exec)).toBe(true);
+    expect(configs).toEqual([
+      {
+        github: { botLogin: "ocra-review[bot]" },
+        mergeChecks: [
+          {
+            id: await instructionCheckId(on ?? "", "No new globals"),
+            instruction: "No new globals",
+          },
+        ],
+      },
+    ]);
+  });
+
   it("answers an @ocra comment with `ocra reply` on it, after the review", async () => {
     await scoped(s.host.db, accountId).replies.queue(repoId, 7, "502", true);
     const { exec, calls } = fakeExec(0, {});

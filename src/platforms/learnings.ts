@@ -65,10 +65,6 @@ export interface RepoLearnings {
   ): Promise<LearningChangeResult | null>;
 }
 
-/** The engine's proposal branches (`ocra learn --propose`, ADR-0040) start with it. */
-// Deliberate copy of the CLI's PROPOSAL_BRANCH until cloud-contract exports it.
-export const PROPOSAL_BRANCH = "ocra/learnings-";
-
 /** Proposals read per request: each costs a few platform calls. */
 export const MAX_PROPOSALS = 10;
 

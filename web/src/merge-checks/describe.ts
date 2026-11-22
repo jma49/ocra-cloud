@@ -17,7 +17,7 @@ export const KIND_HINT: Record<MergeCheckKind, string> = {
   description: "The description is not empty and has the headings named.",
   size: "The change stays under a number of files or lines.",
   critical_findings: "The latest review of its head found nothing critical.",
-  instruction: "A rule in plain words, for ocra to judge. Not evaluated yet.",
+  instruction: "A rule in plain words, which ocra judges when it reviews the pull request.",
 };
 
 export function settingsText(c: MergeCheckView): string {

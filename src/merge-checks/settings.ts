@@ -1,3 +1,4 @@
+import { MAX_MERGE_CHECK_INSTRUCTION } from "@open-cr-agent/cloud-contract";
 import { z } from "zod";
 import {
   MERGE_CHECK_KINDS,
@@ -37,7 +38,7 @@ const SETTINGS = {
     })
     .refine((s) => s.maxFiles !== undefined || s.maxLines !== undefined, "a file or line limit"),
   critical_findings: z.strictObject({}),
-  instruction: z.strictObject({ text: phrase(500) }),
+  instruction: z.strictObject({ text: phrase(MAX_MERGE_CHECK_INSTRUCTION) }),
 } satisfies { [K in MergeCheckKind]: z.ZodType<MergeCheckSettings[K]> };
 
 const mode = z.enum(MERGE_CHECK_MODES);

@@ -10,6 +10,8 @@ import { claimReply } from "../db/reply-jobs.js";
 import { claimJob } from "../db/review-jobs.js";
 import { scoped } from "../db/scoped.js";
 import { errorName, logError } from "../log.js";
+import { engineMergeChecks } from "../merge-checks/instruction.js";
+import { checksOf } from "../merge-checks/run.js";
 import type { BotAccess, BotCredential, BotTokens } from "../platforms/bot.js";
 import type { CodePlatform } from "../platforms/platform.js";
 import { startCliSession } from "../session.js";
@@ -133,6 +135,7 @@ export async function runNextReview(runner: ReviewRunner): Promise<boolean> {
         config,
       ],
       ok: REVIEWED,
+      mergeChecks: true,
     },
   );
   return true;
@@ -178,13 +181,18 @@ export async function runNextGeneration(runner: ReviewRunner): Promise<boolean> 
   return true;
 }
 
-/** What to run in the checkout: the CLI's arguments, its exit codes that mean done, and the bot's access. */
+/**
+ * What to run in the checkout: the CLI's arguments, its exit codes that
+ * mean done, the bot's access, and whether it judges the repository's
+ * plain-language checks.
+ */
 type Command = {
   args: (platform: CodePlatform, fullName: string, config: string) => string[];
   ok: ReadonlySet<number>;
   /** Exit codes that end the job without a retry: running it again would not change them. */
   settled?: ReadonlySet<number>;
   access?: BotAccess;
+  mergeChecks?: true;
 };
 
 /** Clones the job's repository and runs the command there, signed in and posting as the bot. */
@@ -217,7 +225,16 @@ async function inCheckout(runner: ReviewRunner, job: Job, command: Command, sign
       `[http "${platform.url}/"]\n\textraHeader = ${auth}\n`,
     );
     const config = join(dir, "ocra.json");
-    await writeFile(config, JSON.stringify(bot.login ? { github: { botLogin: bot.login } } : {}));
+    const mergeChecks = command.mergeChecks
+      ? await engineMergeChecks(await checksOf(data, repo.id))
+      : [];
+    await writeFile(
+      config,
+      JSON.stringify({
+        ...(bot.login ? { github: { botLogin: bot.login } } : {}),
+        ...(mergeChecks.length > 0 ? { mergeChecks } : {}),
+      }),
+    );
     const args = command.args(platform, repo.fullName, config);
     const ran = await exec(process.execPath, [runner.cli ?? installedCli(), ...args], {
       cwd: checkout,

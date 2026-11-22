@@ -28,6 +28,9 @@ export type LearningView = {
   lastCommit: LastCommit | null;
 };
 
+/** How many of the repository's uploaded reviews were given a learning, and the newest's time. */
+export type LearningUsageView = { reviews: number; lastUsedAt: string | null };
+
 /** A file under the learnings directory that a review would skip, and why. */
 export type InvalidLearningView = { path: string; blobId: string; reason: string };
 
@@ -40,6 +43,9 @@ export type LearningsView = {
   invalid: InvalidLearningView[];
   /** The files in the directory, this page's and the others'. */
   total: number;
+  /** Per learning of this page: the repository's reviews given it in the last usageDays. */
+  usage: Record<string, LearningUsageView>;
+  usageDays: number;
   /** The `after` of the next page; null on the last. */
   next: string | null;
 };

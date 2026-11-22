@@ -6,7 +6,9 @@ import type {
   MergeCheckSettings,
   MergeChecksConclusion,
   MergeChecksReportView,
+  MergeCheckVerdictView,
 } from "../shared/index.js";
+import { judgeInstruction } from "./instruction.js";
 import { judgeLinkedTasks } from "./linked-tasks.js";
 import { settingsOf } from "./settings.js";
 
@@ -19,15 +21,20 @@ export type CheckConfig = {
   kind: MergeCheckKind;
   mode: "off" | "warn" | "block";
   settings: unknown;
+  /** A plain-language check's id in the review's configuration (withEngineIds). */
+  engineId?: string | undefined;
 };
 
 /**
- * The stored review of the head: its unresolved critical findings and the
- * tasks it found linked (undefined when it did not look); null when there is none.
+ * The stored review of the head: its unresolved critical findings, the
+ * tasks it found linked (undefined when it did not look) and its
+ * plain-language checks' verdicts (undefined when it was given none);
+ * null when there is none.
  */
 export type HeadReview = {
   unresolvedCritical: number;
   linkedTasks?: readonly LinkedTaskView[] | undefined;
+  mergeChecks?: readonly MergeCheckVerdictView[] | undefined;
 } | null;
 
 type Judged = Pick<MergeCheckResultView, "outcome" | "detail">;
@@ -94,18 +101,16 @@ function headingsOf(text: string): Set<string> {
 const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
 
 function judge<K extends MergeCheckKind>(
-  kind: K,
+  check: CheckConfig & { kind: K },
   s: MergeCheckSettings[K],
   facts: PullFacts,
   review: HeadReview,
 ): Judged {
-  switch (kind) {
+  switch (check.kind) {
     case "linked_issue":
       return judgeLinkedTasks(s as MergeCheckSettings["linked_issue"], review?.linkedTasks);
     case "instruction":
-      return waiting(
-        "not evaluated yet: plain-language checks need an ocra release that judges them",
-      );
+      return judgeInstruction(check.engineId, review?.mergeChecks);
     case "title": {
       const t = s as MergeCheckSettings["title"];
       const byPrefix = t.prefixes?.some((p) => facts.title.startsWith(p)) ?? false;
@@ -166,7 +171,7 @@ export function evaluateChecks(
     if (check.mode === "off") continue;
     const settings = settingsOf(check.kind, check.settings);
     const judged = settings
-      ? judge(check.kind, settings, facts, review)
+      ? judge(check, settings, facts, review)
       : waiting("not evaluated: its settings are no longer valid");
     results.push({ id: check.id, kind: check.kind, mode: check.mode, ...judged });
   }

@@ -1,4 +1,8 @@
-import { LEARNINGS_DIR, MAX_LEARNING_BYTES } from "@open-cr-agent/cloud-contract";
+import {
+  LEARNING_PROPOSAL_BRANCH,
+  LEARNINGS_DIR,
+  MAX_LEARNING_BYTES,
+} from "@open-cr-agent/cloud-contract";
 import { fromBase64, toBase64 } from "./fix.js";
 import { gitlabHeaders } from "./gitlab-changes.js";
 import { platformCall, platformSend } from "./http.js";
@@ -8,7 +12,6 @@ import {
   type LearningChangeResult,
   type LearningEntry,
   MAX_PROPOSALS,
-  PROPOSAL_BRANCH,
   type RepoLearnings,
 } from "./learnings.js";
 
@@ -102,7 +105,7 @@ export function gitlabLearnings(origin: string): RepoLearnings {
       // Only the project's own branches: a fork may name a branch anything.
       const own = mrs.filter(
         (m) =>
-          m.source_branch.startsWith(PROPOSAL_BRANCH) &&
+          m.source_branch.startsWith(LEARNING_PROPOSAL_BRANCH) &&
           String(m.source_project_id) === repo.platformRepoId,
       );
       return {

@@ -1,3 +1,5 @@
+import type { SharedLinkedTask, SharedMergeCheck } from "@open-cr-agent/cloud-contract";
+
 // Pre-merge checks: what an account asks of an enrolled repository's pull
 // requests before they merge, each check off, a warning or blocking, and
 // how a pull request's head fared, posted as one check run or commit status.
@@ -22,7 +24,7 @@ export type MergeCheckSettings = {
   description: { headings?: string[] | undefined };
   size: { maxFiles?: number | undefined; maxLines?: number | undefined };
   critical_findings: Record<string, never>;
-  /** A rule in plain words, which the engine is to judge; not evaluated yet. */
+  /** A rule in plain words, which the review of the pull request judges. */
   instruction: { text: string };
 };
 
@@ -37,18 +39,18 @@ export type MergeCheckView = {
 }[MergeCheckKind];
 
 /**
- * A task the pull request links, as the review uploads it (the contract's
- * linked tasks): title and labels only when the account shares findings;
- * null for an entry that did not fit.
+ * A task the pull request links, as the review uploads it: title and
+ * labels only when the account shares findings; null for an entry that
+ * did not fit.
  */
-export type LinkedTaskView = {
-  tracker: "github" | "gitlab" | "jira" | "tapd";
-  key: string;
-  url?: string | undefined;
-  state: "open" | "closed" | null;
-  title?: string | undefined;
-  labels?: string[] | undefined;
-} | null;
+export type LinkedTaskView = SharedLinkedTask | null;
+
+/**
+ * A plain-language check's outcome, as the head's review uploads it: its
+ * reason only when the account shares findings; null for an entry that
+ * did not fit. Its id is the one the server gave the review (instructionCheckId).
+ */
+export type MergeCheckVerdictView = SharedMergeCheck | null;
 
 /** `not_evaluated` never fails the pull request: the detail says what it waits for. */
 type MergeCheckOutcome = "passed" | "failed" | "not_evaluated";
