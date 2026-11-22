@@ -2,7 +2,15 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { apiError, jsonBody } from "./http.js";
 import { chainTo, MAX_STACK, stackOf } from "./platforms/stacks.js";
-import { byKind, mergeOne, pullRef, reach, sha } from "./pull-page.js";
+import {
+  byKind,
+  mergeMethodsOf,
+  mergeOne,
+  methodNotAllowed,
+  pullRef,
+  reach,
+  sha,
+} from "./pull-page.js";
 import { perMinute } from "./rate.js";
 import { requireSession } from "./session.js";
 import {
@@ -72,6 +80,8 @@ pullStack.post(
     const reached = await reach(c, byKind(c.req.valid("json")));
     if ("refusal" in reached) return reached.refusal;
     const { platform, token } = reached;
+    const allowed = await mergeMethodsOf(platform, token, repo);
+    if (!allowed.includes(method)) return methodNotAllowed(c);
     const open = await platform.stacks.open(token, repo);
     if (!open) return apiError(c, "upstream_unreachable");
     const stack = stackOf(open, number);
@@ -90,7 +100,12 @@ pullStack.post(
         if (moved !== "done") return stop({ number: pull.number, outcome: moved ?? "unreached" });
       }
       const head = heads[i]?.head ?? "";
-      const merged = await mergeOne(platform, token, { repo, number: pull.number, method, head });
+      const merged = await mergeOne(
+        platform,
+        token,
+        { repo, number: pull.number, method, head },
+        allowed,
+      );
       if (merged !== "done") return stop({ number: pull.number, outcome: merged ?? "unreached" });
       steps.push({ number: pull.number, outcome: "done" });
     }

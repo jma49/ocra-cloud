@@ -23,7 +23,10 @@ type PullDescription = { head: string; body: string };
 
 export interface PullActions {
   readonly verdicts: readonly PullVerdict[];
+  /** What the console offers where the repository's own merge settings are not readable. */
   readonly mergeMethods: readonly MergeMethod[];
+  /** The methods the repository allows, its default first; null when its settings are not readable. */
+  allowedMergeMethods(token: string, fullName: string): Promise<MergeMethod[] | null>;
   comment(
     token: string,
     fullName: string,

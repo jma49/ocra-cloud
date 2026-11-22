@@ -1,4 +1,4 @@
-import type { LineSide, PullVerdict } from "../shared/index.js";
+import type { LineSide, MergeMethod, PullVerdict } from "../shared/index.js";
 import { outcomeOf, type PullActions } from "./actions.js";
 import { fixedFile, fromBase64, MAX_FIX_FILE_BYTES, toBase64 } from "./fix.js";
 import { githubHeaders, githubRepoPath } from "./github-changes.js";
@@ -15,6 +15,14 @@ const EVENT = {
 
 const SIDE = { old: "LEFT", new: "RIGHT" } as const satisfies Record<LineSide, string>;
 
+/** GitHub has no default method: they are listed in the order its own merge button lists them. */
+const ALLOWS = [
+  ["merge", "allow_merge_commit"],
+  ["squash", "allow_squash_merge"],
+  ["rebase", "allow_rebase_merge"],
+] as const satisfies readonly (readonly [MergeMethod, string])[];
+
+type RepoSettings = Partial<Record<(typeof ALLOWS)[number][1], boolean>>;
 type Pull = { head: { sha: string; ref: string; repo: { full_name: string } | null } };
 type PullBody = { head: { sha: string }; body: string | null };
 type File = { type: string; sha: string; size: number; encoding?: string; content?: string };
@@ -79,6 +87,14 @@ export function githubActions(): PullActions {
           reviewers: logins,
         }),
       );
+    },
+    async allowedMergeMethods(token, fullName) {
+      const settings = await platformCall<RepoSettings>(repo(fullName), {
+        headers: githubHeaders(token),
+      });
+      // A setting GitHub left out of its answer is not known.
+      if (!settings || ALLOWS.some(([, key]) => typeof settings[key] !== "boolean")) return null;
+      return ALLOWS.flatMap(([method, key]) => (settings[key] ? [method] : []));
     },
     async merge(token, fullName, number, merge) {
       return outcomeOf(

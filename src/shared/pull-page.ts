@@ -42,6 +42,12 @@ export type PullFilesView = {
   truncated: boolean;
   /** What this platform lets the console do on the pull request. */
   verdicts: PullVerdict[];
+  /**
+   * The methods the repository allows, its default first (GitHub has none:
+   * merge, squash, rebase, as its own merge button lists them); the
+   * platform's own list where the repository's settings are not readable.
+   * A merge of any other is refused with invalid_body before it is sent.
+   */
   mergeMethods: MergeMethod[];
 };
 

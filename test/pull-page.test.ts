@@ -270,6 +270,38 @@ describe("acting on a GitHub pull request", () => {
     expect(sent[0]?.body).toEqual({ body: "Thanks!" });
   });
 
+  it("offers and merges only the methods the repository allows", async () => {
+    const sent = platform({
+      "GET https://api.github.com/repos/octo/api": () =>
+        Response.json({
+          allow_merge_commit: false,
+          allow_squash_merge: false,
+          allow_rebase_merge: true,
+        }),
+      [`GET ${PULL}`]: () =>
+        Response.json({
+          state: "open",
+          base: { sha: BASE },
+          head: { sha: HEAD },
+          changed_files: 0,
+        }),
+      [`PUT ${PULL}/merge`]: () => Response.json({ merged: true }),
+    });
+    const a = await signInWithGithub();
+    const page = await a.send("/api/pulls/files?platform=github&repo=octo/api&number=7");
+    expect(((await page.json()) as PullFilesView).mergeMethods).toEqual(["rebase"]);
+    const merge = await post(a.send, "/api/pulls/merge", { ...ref, method: "merge", head: HEAD });
+    expect(merge.status).toBe(400);
+    expect(await merge.json()).toEqual({
+      error: "invalid_body",
+      issues: [{ path: ["method"], message: "not a merge method this repository allows" }],
+    });
+    expect(sent).toEqual([]);
+    const rebase = await post(a.send, "/api/pulls/merge", { ...ref, method: "rebase", head: HEAD });
+    expect(await rebase.json()).toEqual({ outcome: "done" });
+    expect(sent.map((s) => s.body)).toEqual([{ merge_method: "rebase", sha: HEAD }]);
+  });
+
   it("says the platform was not reached when it does not answer", async () => {
     githubFake({
       extra: (req) => {
@@ -332,16 +364,47 @@ describe("acting on a GitLab merge request", () => {
     expect(sent).toEqual([]);
   });
 
-  it("squashes on merge, and refuses a rebase GitLab does not merge with", async () => {
+  const PROJECT = `${GITLAB}/api/v4/projects/${encodeURIComponent("Group/Sub/Project")}`;
+  const notAllowed = {
+    error: "invalid_body",
+    issues: [{ path: ["method"], message: expect.any(String) }],
+  };
+
+  it("squashes on merge, and refuses a rebase where the project's settings are not readable", async () => {
     const sent = platform({ [`PUT ${MR}/merge`]: () => Response.json({ state: "merged" }) });
     const a = await signInWithGithub();
     await (await connectGitlab(a))("code=c&state=STATE");
     const squash = await post(a.send, "/api/pulls/merge", { ...lab, method: "squash", head: HEAD });
     const rebase = await post(a.send, "/api/pulls/merge", { ...lab, method: "rebase", head: HEAD });
     expect(await squash.json()).toEqual({ outcome: "done" });
-    expect(await rebase.json()).toEqual({ outcome: "refused" });
+    expect(rebase.status).toBe(400);
+    expect(await rebase.json()).toEqual(notAllowed);
     expect(sent).toEqual([
       { method: "PUT", url: `${MR}/merge`, body: { sha: HEAD, squash: true } },
     ]);
+  });
+
+  it("takes a fast-forward project's merge as a rebase, and refuses a merge commit unsent", async () => {
+    const settings = [
+      { merge_method: "ff", squash_option: "default_on" },
+      { merge_method: "rebase_merge", squash_option: "never" },
+    ];
+    const sent = platform({
+      [`GET ${PROJECT}`]: () => Response.json(settings[0]),
+      [`PUT ${MR}/merge`]: () => Response.json({ state: "merged" }),
+    });
+    const a = await signInWithGithub();
+    await (await connectGitlab(a))("code=c&state=STATE");
+    const merge = await post(a.send, "/api/pulls/merge", { ...lab, method: "merge", head: HEAD });
+    const rebase = await post(a.send, "/api/pulls/merge", { ...lab, method: "rebase", head: HEAD });
+    expect(await merge.json()).toEqual(notAllowed);
+    expect(await rebase.json()).toEqual({ outcome: "done" });
+    expect(sent).toEqual([
+      { method: "PUT", url: `${MR}/merge`, body: { sha: HEAD, squash: false } },
+    ]);
+    settings.shift();
+    const squash = await post(a.send, "/api/pulls/merge", { ...lab, method: "squash", head: HEAD });
+    expect(await squash.json()).toEqual(notAllowed);
+    expect(sent).toHaveLength(1);
   });
 });

@@ -158,4 +158,37 @@ describe("on a host that moves no intents", () => {
     const read = await a.send("/api/pulls/merge-when-ready?platform=github&repo=octo/api&number=7");
     expect(await read.json()).toEqual({ intent: null, server: false });
   });
+
+  it("arms no method the repository does not allow, and asks the platform nothing", async () => {
+    await resetDb();
+    const asked: string[] = [];
+    githubFake({
+      extra: (req) => {
+        if (req.url === "https://api.github.com/repos/octo/api") {
+          return Response.json({
+            allow_merge_commit: false,
+            allow_squash_merge: false,
+            allow_rebase_merge: true,
+          });
+        }
+        if (req.url === "https://api.github.com/graphql") asked.push(req.url);
+        return undefined;
+      },
+    });
+    const a = await signInWithGithub();
+    const res = await a.send("/api/pulls/merge-when-ready", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        platform: "github",
+        repo: "octo/api",
+        number: 7,
+        method: "squash",
+        head: HEAD,
+      }),
+    });
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { error: string }).error).toBe("invalid_body");
+    expect(asked).toEqual([]);
+  });
 });

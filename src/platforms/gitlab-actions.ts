@@ -1,4 +1,4 @@
-import type { LineComment } from "../shared/index.js";
+import type { LineComment, MergeMethod } from "../shared/index.js";
 import { outcomeOf, type PullActions } from "./actions.js";
 import { fixedFile, fromBase64, MAX_FIX_FILE_BYTES, toBase64 } from "./fix.js";
 import { type DiffRefs, gitlabHeaders, mergeRequestUrl } from "./gitlab-changes.js";
@@ -15,6 +15,31 @@ type MergeRequest = {
   source_branch: string;
   source_project_id: number;
 };
+type ProjectSettings = { merge_method?: string; squash_option?: string };
+
+/** A fast-forward project merges without a merge commit, as a rebase does. */
+const UNSQUASHED = new Map<string, MergeMethod>([
+  ["merge", "merge"],
+  ["rebase_merge", "merge"],
+  ["ff", "rebase"],
+]);
+
+/** The project's merge methods, its default first: squash_option says whether, and when, it squashes. */
+function methodsOf(settings: ProjectSettings): MergeMethod[] | null {
+  const plain = UNSQUASHED.get(settings.merge_method ?? "");
+  if (!plain) return null;
+  switch (settings.squash_option) {
+    case "never":
+      return [plain];
+    case "always":
+      return ["squash"];
+    case "default_on":
+      return ["squash", plain];
+    default:
+      return [plain, "squash"];
+  }
+}
+
 type Described = { sha: string; description: string | null };
 type File = { size: number; encoding: string; content: string; last_commit_id: string };
 
@@ -99,7 +124,15 @@ export function gitlabActions(origin: string): PullActions {
         await send(token, "PUT", url, { reviewer_ids: [...new Set([...kept, ...ids])] }),
       );
     },
+    async allowedMergeMethods(token, fullName) {
+      const project = await platformCall<ProjectSettings>(
+        `${origin}/api/v4/projects/${encodeURIComponent(fullName)}`,
+        { headers: gitlabHeaders(token) },
+      );
+      return project && methodsOf(project);
+    },
     async merge(token, fullName, number, merge) {
+      // A merge and a rebase are both sent unsquashed: the project's merge_method decides which it is.
       const url = mergeRequestUrl(origin, fullName, number);
       return outcomeOf(
         await send(token, "PUT", `${url}/merge`, {
