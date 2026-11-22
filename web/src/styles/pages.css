@@ -901,15 +901,15 @@ td.finding-cell {
   gap: 8px;
   max-width: 640px;
 }
-.diff-comment-box textarea,
 .pull-side .seg {
   display: flex;
+  flex-wrap: wrap;
 }
 .pull-side .seg button {
   flex: 1 1 auto;
-  padding: 0 6px;
   white-space: nowrap;
 }
+.diff-comment-box textarea,
 .pull-side textarea {
   height: auto;
   padding: 8px 10px;
@@ -922,9 +922,11 @@ td.finding-cell {
   .pull-side {
     position: static;
   }
+}
+
 /* A review's walkthrough, above its findings. */
 .walkthrough {
-  margin-bottom: 16px;
+  margin: 16px 0;
 }
 .walkthrough-head {
   display: flex;
