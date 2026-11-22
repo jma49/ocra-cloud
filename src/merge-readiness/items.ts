@@ -29,6 +29,21 @@ const named = (names: readonly string[], max = 3) =>
     ? names.join(", ")
     : `${names.slice(0, max).join(", ")} and ${names.length - max} more`;
 
+/** Why a requirement the branch rule sets is not known; null when the rule says nothing of it. */
+function ruleGap(facts: ReadinessFacts): string | null {
+  if (facts.branchRule === "unreadable") return "branch rule not readable";
+  if (facts.branchRule === "unavailable")
+    return "branch rules not available on this repository's plan";
+  return null;
+}
+
+const ownersGap = (facts: ReadinessFacts) => {
+  const gap = ruleGap(facts);
+  return gap
+    ? `whether the rest must approve is not known (${gap})`
+    : "whether the rest must approve is not readable";
+};
+
 /** Approvals that still count: one of an earlier head only when the platform keeps those. */
 const countingApprovals = (facts: ReadinessFacts) =>
   facts.reviews.approvals.filter((a) => a.atHead || facts.reviews.dismissesStale !== true);
@@ -54,7 +69,7 @@ function approvalsItem(facts: ReadinessFacts): ReadinessItem {
   const stale = facts.reviews.approvals.filter((a) => !a.atHead).length;
   const given =
     required === null
-      ? `${plural(counting, "approval")}; the token cannot read how many are required`
+      ? `${plural(counting, "approval")}; ${ruleGap(facts) ?? "required count not readable"}`
       : required === 0
         ? `No approval is required (${counting} given)`
         : `${counting} of ${required} required approvals`;
@@ -65,6 +80,10 @@ function approvalsItem(facts: ReadinessFacts): ReadinessItem {
   const detail = given + staleNote;
   if (decision === "changes_requested") {
     return { kind: "approvals", state: "unmet", detail: `Changes requested; ${detail}` };
+  }
+  // Without the rule's count, only the platform's own decision says approvals are missing.
+  if (decision === "review_required" && required === null) {
+    return { kind: "approvals", state: "unmet", detail: `Review required; ${detail}` };
   }
   const state: ReadinessState =
     decision === "approved" || decision === "none_required"
@@ -139,7 +158,7 @@ function codeOwnersItem(facts: ReadinessFacts, flavor: CodePlatformKind): Owners
     }));
   } else {
     const file = facts.codeowners;
-    if (file === "unreadable") return none("unknown", "The token could not read CODEOWNERS");
+    if (file === "unreadable") return none("unknown", "CODEOWNERS not readable");
     if (file === null) return none("met", "No CODEOWNERS file");
     if (file.text === null) return none("unknown", `${file.path} is too large or not text`);
     if (!facts.changed) return none("unknown", "The changed files could not be read");
@@ -159,7 +178,7 @@ function codeOwnersItem(facts: ReadinessFacts, flavor: CodePlatformKind): Owners
     state === "unmet" && waiting.length > 0
       ? `${summary}; waiting on ${named(waiting.map((g) => g.owners.join(" or ")))}`
       : states.length > 0 && state === "unknown"
-        ? `${summary}; the token cannot read whether the rest must approve`
+        ? `${summary}; ${ownersGap(facts)}`
         : approved < groups.length && states.length === 0
           ? `${summary}; the rest are not required`
           : summary;
@@ -173,7 +192,7 @@ function checksItem(facts: ReadinessFacts): ReadinessItem {
     detail,
   });
   const checks = facts.checks;
-  if (!checks) return item("unknown", "The token cannot read the head's checks");
+  if (!checks) return item("unknown", "The head's checks are not readable");
   const names = new Set([
     ...(checks.required ?? []),
     ...checks.runs.filter((r) => r.required === true).map((r) => r.name),
@@ -193,11 +212,12 @@ function checksItem(facts: ReadinessFacts): ReadinessItem {
   if (checks.truncated) return item("unknown", "More checks than one reading lists");
   if (names.size > 0) return item("met", `${plural(names.size, "required check")} passed`);
   if (checks.required !== null) return item("met", "No check is required");
+  const gap = ruleGap(facts) ?? "required checks not readable";
   return item(
     "unknown",
     checks.runs.length > 0
-      ? `None of the head's ${plural(checks.runs.length, "check")} is marked required; the token cannot read the branch rule`
-      : "The token cannot read which checks are required",
+      ? `None of the head's ${plural(checks.runs.length, "check")} is marked required; ${gap}`
+      : `No check reported; ${gap}`,
   );
 }
 

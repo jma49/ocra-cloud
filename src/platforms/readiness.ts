@@ -9,6 +9,13 @@ export const MAX_READINESS_THREADS = 100;
 export const MAX_READINESS_FILES = 100;
 export const MAX_READINESS_CHECKS = 100;
 
+/**
+ * What the platform said of the base branch's protection rule: read, none
+ * (it said the branch is not protected), unreadable (refused or not
+ * answered) or unavailable (it said the repository's plan has none).
+ */
+export type BranchRuleRead = "read" | "none" | "unreadable" | "unavailable";
+
 export type ReviewDecision = "approved" | "review_required" | "changes_requested" | "none_required";
 
 /** A reviewer's newest approval; GitHub names the teams it was given for. */
@@ -33,6 +40,8 @@ export type ReadinessFacts = {
   draft: boolean;
   /** null while the platform is still working it out. */
   conflicts: boolean | null;
+  /** GitHub's branch protection rule; null where approvals are read without one (GitLab). */
+  branchRule: BranchRuleRead | null;
   /** The platform's own word that nothing blocks the merge; null when it gave none. */
   mergeable: boolean | null;
   reviews: {
