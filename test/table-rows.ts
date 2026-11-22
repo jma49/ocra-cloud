@@ -97,6 +97,13 @@ export const rows = {
     number: 1,
     commentId: `c-${id}`,
   }),
+  // The review it belongs to is made in beforeEach (the foreign key needs one).
+  reviewWalkthroughs: (id: string) => ({
+    id,
+    reviewId: "review-of-a",
+    overview: "o",
+    groups: [{ title: "g", files: ["a.ts"], note: "n" }],
+  }),
   repositories: (id: string) => ({ id, repoHash: `h-${id}`, name: `octo/${id}` }),
   // One row per account, kind and day; the id names the day.
   usageCounters: (id: string) => ({ kind: "uploads" as const, day: id, n: 1 }),
