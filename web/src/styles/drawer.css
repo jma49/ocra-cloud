@@ -3,7 +3,7 @@
 .scrim {
   position: fixed;
   inset: 0;
-  background: color-mix(in srgb, var(--umbra) 45%, transparent);
+  background: var(--scrim);
   z-index: 40;
   animation: fade 120ms ease-out;
 }
@@ -14,15 +14,11 @@
   bottom: 0;
   width: min(520px, 100vw);
   color: var(--fg);
-  background:
-    linear-gradient(170deg, var(--sheet-lit), transparent 28%),
-    url(/tex/paper-tooth.webp) 0 0 / 256px 256px,
-    var(--sheet-bg);
-  background-blend-mode: normal, multiply, normal;
+  background: var(--panel);
   z-index: 41;
   display: flex;
   flex-direction: column;
-  box-shadow: -14px 0 50px -10px color-mix(in srgb, var(--umbra) 60%, transparent);
+  box-shadow: var(--float);
   animation: slide 160ms ease-out;
 }
 .drawer-head {
@@ -33,9 +29,8 @@
   border-bottom: 1px solid var(--border);
 }
 .drawer-head h2 {
-  font-size: 22px;
-  font-weight: 560;
-  font-stretch: 86%;
+  font-size: 16px;
+  font-weight: 600;
 }
 .drawer-body {
   flex: 1;

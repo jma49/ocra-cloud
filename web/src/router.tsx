@@ -26,14 +26,29 @@ export function usePath(): string {
   return path;
 }
 
-export function Link(props: { to: string; className?: string; children: ReactNode }) {
+export function Link(props: {
+  to: string;
+  className?: string;
+  /** The open page: announced as such. */
+  current?: boolean;
+  /** The accessible name and tooltip, for a link that shows only an icon. */
+  label?: string;
+  children: ReactNode;
+}) {
   const onClick = (e: MouseEvent) => {
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
     e.preventDefault();
     navigate(props.to);
   };
   return (
-    <a href={props.to} className={props.className} onClick={onClick}>
+    <a
+      href={props.to}
+      className={props.className}
+      onClick={onClick}
+      aria-current={props.current ? "page" : undefined}
+      aria-label={props.label}
+      title={props.label}
+    >
       {props.children}
     </a>
   );

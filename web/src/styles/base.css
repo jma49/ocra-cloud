@@ -1,123 +1,108 @@
 /* Base: fonts, colour tokens (light and dark), element defaults, text tones. Imported first.
-   The console is the landing page's desk (ocra-site DESIGN.md and app/docs.css,
-   "the manual on the desk"): the chrome sits on the ink-teal desk, each page
-   is a printed sheet lying on it. The desk and print values are copies of
-   ocra-site's app/tokens.css: the two apps share no package, so a change to
-   them goes into both. The pen (cinnabar) marks only critical findings,
+   The console is a frame: hairline panels on a pale ground, alpha-black
+   text in four tones, one ink for actions. Red marks only critical findings,
    errors and what cannot be undone; never navigation, links or states. */
-@import "@fontsource-variable/archivo/wdth.css";
-@import "@fontsource/maple-mono/400.css";
-@import "@fontsource/maple-mono/500.css";
+@import "@fontsource-variable/inter/opsz.css";
+@import "@fontsource-variable/jetbrains-mono/wght.css";
 
 :root {
-  /* The desk, as on the landing page. */
-  --desk: #17272c;
-  --desk-hi: #24393f;
-  --desk-lo: #0c1618;
-  --desk-eve: #0f1b1e;
-  --desk-eve-lo: #060c0e;
-  --lamp: #ffdeb6;
-  --umbra: #020b0d;
-  --on-desk: #eef2f0;
-  --on-desk-2: color-mix(in srgb, var(--on-desk) 70%, transparent);
-  --on-desk-3: color-mix(in srgb, var(--on-desk) 50%, transparent);
-  --line-desk: color-mix(in srgb, var(--on-desk) 14%, transparent);
-  --print-paper: #faf8f2;
-  --print-paper-2: #f0ece3;
-  --print-ink: #1c2226;
-  --print-ink-2: #545c5f;
-  --print-ink-3: #697173;
-  --print-teal: #2d6870;
-  --card-stock: #fdfcf8;
-  --card-rule: #d6463c;
   --white: #ffffff;
   --black: #000000;
-  --pen: #bd2718;
-  --amber: #935508;
+  --ground: #f3f3f4;
+  --panel: #fcfcfc;
+  --raised: var(--white);
+  --t1: rgb(0 0 0 / 0.875);
+  --t2: rgb(0 0 0 / 0.608);
+  --t3: rgb(0 0 0 / 0.447);
+  --t4: rgb(0 0 0 / 0.267);
+  --hair: rgb(0 0 0 / 0.063);
+  --hair2: rgb(0 0 0 / 0.09);
+  --fill: rgb(0 0 0 / 0.04);
+  --fill2: rgb(0 0 0 / 0.063);
+  --ink: #1d1d1f;
+  --red: #d93a26;
+  --amber: #b26a00;
+  --green: #1f8a4c;
+  --blue: #3f6fe8;
+  --teal: #2f9e8f;
+  --violet: #8a6cf0;
+  --shadow:
+    0 0 0 0.5px rgb(0 0 0 / 0.08), 0 1px 2px rgb(0 0 0 / 0.04), 0 4px 12px -4px rgb(0 0 0 / 0.06);
 
-  /* The ground the chrome sits on, and the sheet's own palette. */
-  --ground: var(--desk);
-  --ground-hi: var(--desk-hi);
-  --ground-lo: var(--desk-lo);
-  --lamp-glow: color-mix(in srgb, var(--lamp) 9%, transparent);
-  --sheet-bg: var(--print-paper);
-  --sheet-bg-2: var(--print-paper-2);
-  --sheet-lit: color-mix(in srgb, var(--white) 45%, transparent);
-  --stock: var(--card-stock);
-
-  /* What the components name: the sheet's print. */
-  --bg: var(--sheet-bg);
-  --page: var(--sheet-bg);
-  --bg-subtle: color-mix(in srgb, var(--print-ink) 3.5%, var(--sheet-bg));
-  --muted: var(--sheet-bg-2);
-  --fg: var(--print-ink);
-  --fg-muted: var(--print-ink-2);
-  --fg-subtle: var(--print-ink-3);
-  --border: color-mix(in srgb, var(--print-ink) 14%, transparent);
-  --border-strong: color-mix(in srgb, var(--print-ink) 26%, transparent);
-  --tint: color-mix(in srgb, var(--print-ink) 6%, transparent);
-  --primary: var(--print-ink);
-  --primary-soft: var(--tint);
-  --on-primary: var(--sheet-bg);
-  --button: var(--print-ink);
-  --on-button: var(--sheet-bg);
-  --critical: var(--pen);
-  --critical-soft: color-mix(in srgb, var(--pen) 8%, var(--sheet-bg));
+  /* What the components name. */
+  --bg: var(--panel);
+  --page: var(--panel);
+  --stock: var(--raised);
+  --bg-subtle: color-mix(in srgb, var(--black) 2.5%, var(--panel));
+  --muted: var(--ground);
+  --fg: var(--t1);
+  --fg-muted: var(--t2);
+  --fg-subtle: var(--t3);
+  --border: var(--hair2);
+  --border-strong: rgb(0 0 0 / 0.16);
+  --tint: var(--fill2);
+  --primary: var(--ink);
+  --primary-soft: var(--fill2);
+  --on-primary: var(--white);
+  --button: var(--ink);
+  --on-button: var(--white);
+  --critical: var(--red);
+  --critical-soft: color-mix(in srgb, var(--red) 9%, var(--panel));
   --warning: var(--amber);
-  /* Chart series: print tones, darkest for the most used model. */
-  --c1: var(--print-ink);
-  --c2: var(--print-teal);
-  --c3: color-mix(in srgb, var(--print-ink) 55%, var(--sheet-bg));
-  --c4: color-mix(in srgb, var(--print-teal) 45%, var(--sheet-bg));
-  --c5: color-mix(in srgb, var(--print-ink) 30%, var(--sheet-bg));
-  --c6: color-mix(in srgb, var(--print-ink) 14%, var(--sheet-bg));
+  --accent: var(--blue);
+  /* Chart series, most used first. */
+  --c1: var(--ink);
+  --c2: var(--blue);
+  --c3: var(--teal);
+  --c4: var(--violet);
+  --c5: color-mix(in srgb, var(--ink) 35%, var(--panel));
+  --c6: color-mix(in srgb, var(--ink) 15%, var(--panel));
 
   --float:
-    0 0.5px 1px color-mix(in srgb, var(--umbra) 45%, transparent),
-    6px 30px 46px -20px color-mix(in srgb, var(--umbra) 50%, transparent),
-    2px 10px 18px -10px color-mix(in srgb, var(--umbra) 25%, transparent);
+    0 0 0 0.5px rgb(0 0 0 / 0.08), 0 8px 24px -6px rgb(0 0 0 / 0.16), 0 2px 6px rgb(0 0 0 / 0.05);
+  --scrim: rgb(0 0 0 / 0.28);
   --e-std: cubic-bezier(0.4, 0, 0.2, 1);
   --e-enter: cubic-bezier(0.22, 1, 0.36, 1);
   --e-settle: cubic-bezier(0.2, 0.75, 0.15, 1);
-  --r-tag: 5px;
+  --r-tag: 4px;
   --r-chip: 6px;
-  --r-tab: 7px;
-  --r-ctl: 10px;
-  --r-sheet: 14px;
+  --r-tab: 6px;
+  --r-ctl: 8px;
+  --r-sheet: 10px;
 
-  --font: "Archivo Variable", ui-sans-serif, system-ui, sans-serif;
-  --display: "Archivo Variable", ui-sans-serif, system-ui, sans-serif;
-  --mono: "Maple Mono", ui-monospace, monospace;
+  --font: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --display: var(--font);
+  --mono: "JetBrains Mono Variable", ui-monospace, monospace;
   color-scheme: light;
 }
 
-/* Evening: the room light is down and the sheet is charcoal stock under the
-   lamp, lighter than the desk around it (app/docs.css). */
 @media (prefers-color-scheme: dark) {
   :root {
-    --ground: var(--desk-eve);
-    --ground-hi: color-mix(in srgb, var(--desk-hi) 72%, var(--desk-eve));
-    --ground-lo: var(--desk-eve-lo);
-    --lamp-glow: color-mix(in srgb, var(--lamp) 13%, transparent);
-    --charcoal: color-mix(in oklab, var(--white) 23%, var(--black));
-    --sheet-bg: color-mix(in oklab, var(--lamp) 7%, var(--charcoal));
-    --sheet-bg-2: color-mix(in oklab, var(--sheet-bg) 86%, var(--desk-eve-lo));
-    --sheet-lit: color-mix(in srgb, var(--print-paper) 3%, transparent);
-    --stock: color-mix(
-      in oklab,
-      var(--lamp) 7%,
-      color-mix(in oklab, var(--white) 27%, var(--black))
-    );
-    --print-ink: color-mix(in oklab, var(--print-paper) 90%, var(--sheet-bg));
-    --print-ink-2: color-mix(in oklab, var(--print-paper) 69%, var(--sheet-bg));
-    --print-ink-3: color-mix(in oklab, var(--print-paper) 55%, var(--sheet-bg));
-    --print-teal: #8cc4c2;
-    --border: color-mix(in srgb, var(--print-paper) 12%, transparent);
-    --border-strong: color-mix(in srgb, var(--print-paper) 24%, transparent);
-    --bg-subtle: color-mix(in srgb, var(--print-paper) 4%, var(--sheet-bg));
-    --tint: color-mix(in srgb, var(--print-paper) 7%, transparent);
-    --pen: #fd545f;
-    --amber: #efad48;
+    --ground: #0d0d0e;
+    --panel: #141415;
+    --raised: #1b1b1d;
+    --t1: rgb(255 255 255 / 0.92);
+    --t2: rgb(255 255 255 / 0.64);
+    --t3: rgb(255 255 255 / 0.5);
+    --t4: rgb(255 255 255 / 0.32);
+    --hair: rgb(255 255 255 / 0.08);
+    --hair2: rgb(255 255 255 / 0.12);
+    --fill: rgb(255 255 255 / 0.05);
+    --fill2: rgb(255 255 255 / 0.08);
+    --ink: #ededee;
+    --red: #ff6b57;
+    --amber: #f0b24a;
+    --green: #5cc98a;
+    --blue: #7c9cf5;
+    --teal: #5cc2b3;
+    --violet: #b79bff;
+    --shadow: 0 0 0 0.5px rgb(255 255 255 / 0.08), 0 8px 24px -8px rgb(0 0 0 / 0.6);
+    --float: 0 0 0 0.5px rgb(255 255 255 / 0.1), 0 12px 32px -8px rgb(0 0 0 / 0.7);
+    --scrim: rgb(0 0 0 / 0.5);
+    --bg-subtle: color-mix(in srgb, var(--white) 3%, var(--panel));
+    --border-strong: rgb(255 255 255 / 0.2);
+    --on-primary: #111112;
+    --on-button: #111112;
     color-scheme: dark;
   }
 }
@@ -132,30 +117,11 @@ body {
 body {
   min-height: 100vh;
   background: var(--ground);
-  color: var(--on-desk);
-  font: 400 14.5px / 1.6 var(--font);
+  color: var(--fg);
+  font: 400 13px / 20px var(--font);
+  font-feature-settings: "cv11", "ss01";
   font-kerning: normal;
   -webkit-font-smoothing: antialiased;
-}
-/* The desk under everything: grain, the lit middle, the lamp's warmth and
-   the falloff, fixed to the viewport so scrolling moves only the paper. */
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background:
-    radial-gradient(
-      120% 100% at 50% 20%,
-      transparent 46%,
-      color-mix(in srgb, var(--ground-lo) 72%, transparent) 100%
-    ),
-    url(/tex/desk-grain.webp) 0 0 / 128px 128px,
-    radial-gradient(44% 40% at 54% 6%, var(--lamp-glow), transparent 74%),
-    radial-gradient(72% 64% at 50% 18%, var(--ground-hi), transparent 74%),
-    var(--ground);
-  background-blend-mode: normal, overlay, normal, normal, normal;
 }
 #root {
   isolation: isolate;
@@ -166,14 +132,13 @@ a {
 code,
 .mono {
   font-family: var(--mono);
-  font-size: 13px;
+  font-size: 12px;
 }
 h1,
 h2,
 h3 {
   margin: 0;
   font-family: var(--display);
-  font-stretch: 92%;
   font-weight: 600;
   letter-spacing: -0.01em;
   text-wrap: balance;
@@ -193,7 +158,7 @@ input {
   outline-offset: 2px;
 }
 ::selection {
-  background: color-mix(in srgb, var(--print-teal) 26%, transparent);
+  background: color-mix(in srgb, var(--blue) 24%, transparent);
 }
 
 .muted {
@@ -203,5 +168,13 @@ input {
   color: var(--fg-subtle);
 }
 .small {
-  font-size: 13px;
+  font-size: 12px;
+}
+.caps {
+  font-size: 10px;
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--t3);
 }

@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { loadKeys } from "./account-keys.js";
 import type { Me } from "./api.js";
 import { PrefsProvider } from "./prefs.js";
-import { matchRoute, navGroups } from "./routes.js";
+import { matchRoute, placeHome, placeTabs, settingsGroups } from "./routes.js";
 import { useLoad } from "./ui.js";
 
 afterEach(() => {
@@ -67,45 +67,41 @@ describe("the routes", () => {
     since: "2026-11-01T00:00:00Z",
     codeGraphs,
   });
-  const consolePages = (m: Me) => navGroups(m)[0]?.routes.map((r) => r.path);
+  const paths = (routes: { path: string }[]) => routes.map((r) => r.path);
 
-  it("drive the sidebar in its order, and old and detail paths", () => {
-    expect(navGroups(me("off")).map((g) => [g.label, g.routes.map((r) => r.path)])).toEqual([
-      [
-        "Console",
-        ["/", "/pulls", "/activity", "/reviews", "/findings", "/insights", "/repositories"],
-      ],
-      [
-        "Configure",
-        [
-          "/keys",
-          "/agents",
-          "/review-settings",
-          "/rules",
-          "/plugins",
-          "/memory",
-          "/budget",
-          "/defaults",
-        ],
-      ],
-      ["Account", ["/sessions", "/settings"]],
+  it("give each place its tabs and the settings their groups, in order", () => {
+    const m = me("off");
+    expect(paths(placeTabs("inbox", m))).toEqual(["/"]);
+    expect(paths(placeTabs("reviews", m))).toEqual(["/reviews", "/activity"]);
+    expect(paths(placeTabs("repositories", m))).toEqual(["/repositories", "/memory"]);
+    expect(paths(placeTabs("insights", m))).toEqual(["/insights", "/usage"]);
+    expect(settingsGroups(m).map((g) => [g.label, paths(g.routes)])).toEqual([
+      ["Review", ["/agents", "/review-settings", "/rules", "/plugins", "/defaults"]],
+      ["Models & spend", ["/keys", "/budget"]],
+      ["Account", ["/settings", "/sessions"]],
     ]);
+    expect(placeHome("settings")).toBe("/agents");
+  });
+
+  it("keep old and detail paths", () => {
+    expect(matchRoute("/pulls")?.route.place).toBe("inbox");
     expect(matchRoute("/models")?.route.prefs).toBe(true);
     expect(matchRoute("/reviews/r%2F1")?.params).toEqual(["r/1"]);
+    expect(matchRoute("/reviews/r%2F1")?.route.place).toBe("reviews");
     expect(matchRoute("/reviews/%E0")).toBeUndefined();
     expect(matchRoute("/keys")?.route.prefs).toBeUndefined();
     expect(matchRoute("/nope")).toBeUndefined();
   });
 
   it("show code graphs only where the server keeps them", () => {
-    expect(consolePages(me("keep"))).toContain("/code-graphs");
-    expect(consolePages(me("opt-in"))).toContain("/code-graphs");
-    expect(consolePages(me("off"))).not.toContain("/code-graphs");
+    expect(paths(placeTabs("repositories", me("keep")))).toContain("/code-graphs");
+    expect(paths(placeTabs("repositories", me("opt-in")))).toContain("/code-graphs");
+    expect(paths(placeTabs("repositories", me("off")))).not.toContain("/code-graphs");
     expect(matchRoute("/code-graphs")).toBeDefined();
   });
 
   it("start the keys a page shows with /me, not after it (audit C11)", () => {
-    for (const path of ["/", "/keys", "/agents", "/models", "/defaults"]) {
+    for (const path of ["/usage", "/keys", "/agents", "/models", "/defaults"]) {
       expect(matchRoute(path)?.route.loads, path).toContain(loadKeys);
     }
     // Nothing for a page that does not show them: the read costs the server.

@@ -15,8 +15,8 @@
     // cloudflare:test and cloudflare:workers are runtime modules, not packages.
     "cloudflare",
     // Imported from CSS, which knip does not read.
-    "@fontsource-variable/archivo",
-    "@fontsource/maple-mono"
+    "@fontsource-variable/inter",
+    "@fontsource-variable/jetbrains-mono"
   ],
   "vite": { "config": ["web/vite.config.ts"] }
 }

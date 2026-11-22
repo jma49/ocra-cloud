@@ -1,6 +1,5 @@
-/* The signed-out screen, in the landing page's look (ocra-site DESIGN.md):
-   the headline set on the desk, the one action on a printed sheet beside it.
-   The desk itself is the body's (styles/base.css). */
+/* The signed-out screen: the headline on the ground, the one action on a
+   panel beside it. */
 .si {
   width: min(100% - 40px, 1180px);
   min-height: calc(100vh - 60px - 82px);
@@ -14,17 +13,16 @@
 
 .si-mark {
   margin-bottom: 36px;
-  color: var(--on-desk);
+  color: var(--t1);
 }
 
 .si-title {
   margin: 0;
-  color: var(--on-desk);
-  font-weight: 520;
-  font-stretch: 70%;
-  font-size: clamp(2.75rem, 5.4vw, 5.25rem);
-  line-height: 0.98;
-  letter-spacing: -0.012em;
+  color: var(--t1);
+  font-weight: 600;
+  font-size: clamp(2rem, 4vw, 3.5rem);
+  line-height: 1.05;
+  letter-spacing: -0.025em;
 }
 
 /* One block per line, as the landing page sets its headings. */
@@ -40,19 +38,10 @@
 
 .si-sheet {
   padding: 26px 36px 30px;
-  border-radius: 2px;
+  border-radius: var(--r-sheet);
   color: var(--fg);
-  background:
-    linear-gradient(170deg, var(--sheet-lit), transparent 28%),
-    url(/tex/paper-tooth.webp) 0 0 / 256px 256px,
-    var(--sheet-bg);
-  background-blend-mode: normal, multiply, normal;
-  box-shadow:
-    inset 1px 1px 0 var(--sheet-lit),
-    0 0.5px 1px color-mix(in srgb, var(--umbra) 55%, transparent),
-    1px 3px 8px color-mix(in srgb, var(--umbra) 30%, transparent),
-    10px 34px 60px -18px color-mix(in srgb, var(--umbra) 70%, transparent);
-  rotate: 0.6deg;
+  background: var(--panel);
+  box-shadow: var(--float);
 }
 
 .si-sheet-head {
@@ -61,14 +50,14 @@
   gap: 12px;
   padding-bottom: 10px;
   margin-bottom: 24px;
-  border-bottom: 1px solid var(--border-strong);
-  font: 400 13px var(--mono);
+  border-bottom: 0.5px solid var(--hair2);
+  font: 400 12px var(--mono);
   color: var(--fg-muted);
 }
 
 .si-lead {
   margin: 0 0 22px;
-  font-size: 17px;
+  font-size: 15px;
   line-height: 1.55;
   color: var(--fg);
 }
@@ -182,10 +171,6 @@
 
   .si-mark {
     margin-bottom: 24px;
-  }
-
-  .si-sheet {
-    rotate: 0deg;
   }
 }
 

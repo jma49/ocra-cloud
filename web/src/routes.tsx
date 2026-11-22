@@ -18,7 +18,7 @@ import { Reviews } from "./pages/Reviews.js";
 import { Rules } from "./pages/Rules.js";
 import { Sessions } from "./pages/Sessions.js";
 import { Settings } from "./pages/Settings.js";
-import { type icons, loadProviders, NotFound } from "./ui.js";
+import { loadProviders, NotFound } from "./ui.js";
 
 // Pages few visits open load on demand, so the sign-in screen and the
 // console's first page do not wait for them (audit C11).
@@ -28,18 +28,23 @@ const ReviewDetail = lazy(() =>
   import("./pages/ReviewDetail.js").then((m) => ({ default: m.ReviewDetail })),
 );
 
-// The signed-in pages, in the sidebar's order: one table drives the
-// sidebar, the page title and which page a path shows. An unknown path is
-// a 404, not the overview.
+// The signed-in pages: one table drives the rail's places, each place's
+// tabs, the settings list, the page title and which page a path shows. An
+// unknown path is a 404, not the inbox.
 
-export type NavGroup = "Console" | "Configure" | "Account";
+export type Place = "inbox" | "reviews" | "findings" | "repositories" | "insights" | "settings";
+export type SettingsGroup = "Review" | "Models & spend" | "Account";
 
 export type Route = {
   /** The path, with `:param` for a segment the page takes. */
   path: string;
-  /** In the sidebar, under group, and the page title; absent: reached by link only. */
-  nav?: { label: string; icon: keyof typeof icons; group: NavGroup };
-  /** In the sidebar only for whom it holds; absent: for everyone. */
+  /** The rail's place the page belongs to; absent: no place is lit. */
+  place?: Place;
+  /** Its name in the place's tabs (or the settings list) and the page title; absent: reached by link only. */
+  tab?: string;
+  /** Where a settings page sits in the settings list. */
+  group?: SettingsGroup;
+  /** Shown only for whom it holds; absent: for everyone. */
   shown?: (me: Me) => boolean;
   /** Edits the account's preferences: the save bar and its draft apply. */
   prefs?: true;
@@ -53,125 +58,146 @@ export type Route = {
 };
 
 const keysAndProviders = [loadKeys, loadProviders] as const;
+const graphsKept = (me: Me) => me.codeGraphs !== "off";
 
 const ROUTES: readonly Route[] = [
-  {
-    path: "/",
-    nav: { label: "Overview", icon: "home", group: "Console" },
-    loads: keysAndProviders,
-    page: (me) => <Overview login={me.login} />,
-  },
-  {
-    path: "/pulls",
-    nav: { label: "Pull requests", icon: "layers", group: "Console" },
-    page: () => <Inbox />,
-  },
-  {
-    path: "/activity",
-    nav: { label: "Activity", icon: "activity", group: "Console" },
-    page: () => <Activity />,
-  },
-  {
-    path: "/reviews",
-    nav: { label: "Reviews", icon: "check", group: "Console" },
-    page: () => <Reviews />,
-  },
+  { path: "/", place: "inbox", tab: "Inbox", page: () => <Inbox /> },
+  // The inbox's address before it was the console's first page.
+  { path: "/pulls", place: "inbox", page: () => <Inbox /> },
+  { path: "/reviews", place: "reviews", tab: "Reviews", page: () => <Reviews /> },
+  { path: "/activity", place: "reviews", tab: "Activity", page: () => <Activity /> },
   {
     path: "/reviews/:id",
-    page: (me, [id]) => <ReviewDetail id={id ?? ""} graphs={me.codeGraphs !== "off"} />,
+    place: "reviews",
+    page: (me, [id]) => <ReviewDetail id={id ?? ""} graphs={graphsKept(me)} />,
   },
-  {
-    path: "/findings",
-    nav: { label: "Findings", icon: "list", group: "Console" },
-    page: () => <Findings />,
-  },
-  {
-    path: "/insights",
-    nav: { label: "Review quality", icon: "activity", group: "Console" },
-    page: () => <Insights />,
-  },
+  { path: "/findings", place: "findings", tab: "Findings", page: () => <Findings /> },
   {
     path: "/repositories",
-    nav: { label: "Repositories", icon: "layers", group: "Console" },
+    place: "repositories",
+    tab: "Repositories",
     page: () => <Repositories />,
   },
   {
     path: "/code-graphs",
-    nav: { label: "Code graphs", icon: "graph", group: "Console" },
-    shown: (me) => me.codeGraphs !== "off",
+    place: "repositories",
+    tab: "Code graphs",
+    shown: graphsKept,
     page: (me) => <CodeGraphs policy={me.codeGraphs} />,
   },
+  { path: "/memory", place: "repositories", tab: "Memory", page: () => <Memory /> },
+  { path: "/insights", place: "insights", tab: "Review quality", page: () => <Insights /> },
   {
-    path: "/keys",
-    nav: { label: "Provider keys", icon: "key", group: "Configure" },
+    path: "/usage",
+    place: "insights",
+    tab: "Usage",
     loads: keysAndProviders,
-    page: () => <Keys />,
+    page: (me) => <Overview login={me.login} />,
   },
   {
     path: "/agents",
-    nav: { label: "Agents", icon: "layers", group: "Configure" },
+    place: "settings",
+    tab: "Agents & models",
+    group: "Review",
     prefs: true,
     loads: keysAndProviders,
     page: () => <Agents />,
   },
   // The page's name before per-agent settings; old links still work.
-  { path: "/models", prefs: true, loads: keysAndProviders, page: () => <Agents /> },
+  {
+    path: "/models",
+    place: "settings",
+    prefs: true,
+    loads: keysAndProviders,
+    page: () => <Agents />,
+  },
   {
     path: "/review-settings",
-    nav: { label: "Review settings", icon: "sliders", group: "Configure" },
+    place: "settings",
+    tab: "Review settings",
+    group: "Review",
     prefs: true,
     page: () => <ReviewSettings />,
   },
   {
     path: "/rules",
-    nav: { label: "Rules", icon: "list", group: "Configure" },
+    place: "settings",
+    tab: "Rules",
+    group: "Review",
     prefs: true,
     page: () => <Rules />,
   },
   {
     path: "/plugins",
-    nav: { label: "Plugins", icon: "puzzle", group: "Configure" },
+    place: "settings",
+    tab: "Plugins",
+    group: "Review",
     prefs: true,
     page: () => <Plugins />,
   },
   {
-    path: "/memory",
-    nav: { label: "Memory", icon: "check", group: "Configure" },
-    page: () => <Memory />,
-  },
-  {
-    path: "/budget",
-    nav: { label: "Budget", icon: "sliders", group: "Configure" },
-    page: () => <BudgetPage />,
-  },
-  {
     path: "/defaults",
-    nav: { label: "Defaults & history", icon: "file", group: "Configure" },
+    place: "settings",
+    tab: "Defaults & history",
+    group: "Review",
     prefs: true,
     loads: keysAndProviders,
     page: () => <Defaults />,
   },
   {
-    path: "/sessions",
-    nav: { label: "CLI & sessions", icon: "terminal", group: "Account" },
-    page: () => <Sessions />,
+    path: "/keys",
+    place: "settings",
+    tab: "Provider keys",
+    group: "Models & spend",
+    loads: keysAndProviders,
+    page: () => <Keys />,
+  },
+  {
+    path: "/budget",
+    place: "settings",
+    tab: "Budget",
+    group: "Models & spend",
+    page: () => <BudgetPage />,
   },
   {
     path: "/settings",
-    nav: { label: "Settings", icon: "settings", group: "Account" },
+    place: "settings",
+    tab: "Account & privacy",
+    group: "Account",
     page: (me) => <Settings me={me} />,
+  },
+  {
+    path: "/sessions",
+    place: "settings",
+    tab: "CLI & sessions",
+    group: "Account",
+    page: () => <Sessions />,
   },
   { path: "/device", page: () => <Device /> },
 ];
 
-/** The sidebar for whoever is signed in: each group's routes, in the table's order. */
-export function navGroups(me: Me): { label: NavGroup; routes: (Route & { nav: object })[] }[] {
-  return (["Console", "Configure", "Account"] as const).map((label) => ({
+type Tabbed = Route & { tab: string };
+const visible =
+  (me: Me) =>
+  (r: Route): r is Tabbed =>
+    r.tab !== undefined && (r.shown?.(me) ?? true);
+
+/** A place's tabs for whoever is signed in, in the table's order. */
+export function placeTabs(place: Place, me: Me): Tabbed[] {
+  return ROUTES.filter((r) => r.place === place).filter(visible(me));
+}
+
+/** The settings list: each group's pages, in the table's order. */
+export function settingsGroups(me: Me): { label: SettingsGroup; routes: Tabbed[] }[] {
+  return (["Review", "Models & spend", "Account"] as const).map((label) => ({
     label,
-    routes: ROUTES.filter(
-      (r): r is Route & { nav: object } => r.nav?.group === label && (r.shown?.(me) ?? true),
-    ),
+    routes: ROUTES.filter((r) => r.group === label).filter(visible(me)),
   }));
+}
+
+/** Where a place opens: its first tab. */
+export function placeHome(place: Place): string {
+  return ROUTES.find((r) => r.place === place && r.tab)?.path ?? "/";
 }
 
 /** A path segment, or null when it is not valid percent-encoding. */
