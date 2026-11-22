@@ -1,70 +1,5 @@
-/* Controls and forms: buttons, inputs, segmented controls, badges, notes, chips, settings rows, switches. */
+/* Controls and forms: inputs, segmented controls, badges, notes, chips, settings rows, switches. */
 /* Controls */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  height: 30px;
-  padding: 0 10px;
-  border-radius: var(--r-tab);
-  border: 0;
-  background: var(--raised);
-  box-shadow: var(--shadow);
-  color: var(--t1);
-  cursor: pointer;
-  text-decoration: none;
-  font-size: var(--text-base);
-  font-weight: 500;
-  white-space: nowrap;
-  transition:
-    background-color 150ms var(--e-std),
-    box-shadow 150ms var(--e-std),
-    transform 200ms var(--e-std);
-}
-/* Pressed, a button gives a little. */
-.btn:active:not(:disabled) {
-  transform: scale(0.98);
-}
-@media (hover: hover) {
-  .btn:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--raised) 94%, var(--black));
-  }
-}
-.btn-primary,
-.btn-primary:hover:not(:disabled) {
-  background: var(--button);
-  color: var(--on-button);
-  box-shadow: none;
-}
-@media (hover: hover) {
-  .btn-primary:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--button) 86%, var(--on-button));
-  }
-}
-.btn-danger {
-  color: var(--critical);
-}
-.btn-danger-solid,
-.btn-danger-solid:hover:not(:disabled) {
-  background: var(--critical);
-  box-shadow: none;
-  color: var(--white);
-}
-.btn-sm {
-  height: 26px;
-  padding: 0 8px;
-  font-size: var(--text-sm);
-}
-.btn-lg {
-  height: 40px;
-  padding: 0 16px;
-  font-size: var(--text-base);
-}
-.btn:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
 .input {
   height: 30px;
   padding: 0 10px;
@@ -93,8 +28,7 @@ select.input {
 .input::placeholder {
   color: var(--t4);
 }
-.input:focus,
-.btn:focus-visible {
+.input:focus {
   outline: 2px solid var(--focus);
   outline-offset: 1px;
 }
