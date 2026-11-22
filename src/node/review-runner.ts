@@ -43,7 +43,13 @@ export type ReviewRunner = {
   now?: () => Date;
 };
 
-type Failure = "repo_gone" | "platform_gone" | "no_bot" | "clone_failed" | "review_failed";
+type Failure =
+  | "repo_gone"
+  | "platform_gone"
+  | "no_bot"
+  | "clone_failed"
+  | "review_failed"
+  | "not_committed";
 const RETRIED: ReadonlySet<Failure> = new Set(["clone_failed", "review_failed"]);
 
 /** A review's run, clone included; the CLI's own run timeout is shorter. */
@@ -58,6 +64,8 @@ const REPLIED = new Set([0]);
 const REPLY_LEASE_MS = 10 * 60_000;
 /** `ocra generate` committed, or found nothing to write. */
 const GENERATED = new Set([0]);
+/** `ocra generate` wrote edits it could not commit: the branch moved, or the bot cannot push to it. */
+const NOT_COMMITTED = new Set([3]);
 /** A few model calls, one per file it writes for, and one commit. */
 const GENERATE_LEASE_MS = 20 * 60_000;
 
@@ -164,6 +172,7 @@ export async function runNextGeneration(runner: ReviewRunner): Promise<boolean> 
       config,
     ],
     ok: GENERATED,
+    settled: NOT_COMMITTED,
     access: "commit",
   });
   return true;
@@ -173,6 +182,8 @@ export async function runNextGeneration(runner: ReviewRunner): Promise<boolean> 
 type Command = {
   args: (platform: CodePlatform, fullName: string, config: string) => string[];
   ok: ReadonlySet<number>;
+  /** Exit codes that end the job without a retry: running it again would not change them. */
+  settled?: ReadonlySet<number>;
   access?: BotAccess;
 };
 
@@ -213,6 +224,7 @@ async function inCheckout(runner: ReviewRunner, job: Job, command: Command, sign
       env: { ...baseEnv(home), OCRA_CLOUD_URL: runner.publicUrl, ...botEnv(platform, bot) },
       signal,
     });
+    if (ran.code !== null && command.settled?.has(ran.code)) throw new JobFailure("not_committed");
     if (ran.code === null || !command.ok.has(ran.code)) throw new JobFailure("review_failed");
   } finally {
     await rm(dir, { recursive: true, force: true }).catch(() => {});

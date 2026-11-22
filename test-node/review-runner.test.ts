@@ -314,4 +314,13 @@ describe("a review job's run", () => {
     const [job] = await generations.forPull(repoId, 7);
     expect(job).toMatchObject({ state: "done", attempts: 1 });
   });
+
+  it("does not retry edits the CLI could not commit", async () => {
+    const generations = scoped(s.host.db, accountId).generations;
+    await generations.queue(repoId, 7, "b".repeat(40), "docstrings");
+    const { exec } = fakeExec(3, {});
+    await runNextGeneration({ db: s.host.db, platforms, bots, publicUrl: ORIGIN, exec, cli: "x" });
+    const [job] = await generations.forPull(repoId, 7);
+    expect(job).toMatchObject({ state: "failed", error: "not_committed", attempts: 1 });
+  });
 });

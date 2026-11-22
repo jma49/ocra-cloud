@@ -16,7 +16,7 @@ const KINDS = Object.keys(KIND) as GenerateKind[];
 const STATE: Record<GenerateJobView["state"], string> = {
   queued: "queued",
   running: "being written",
-  done: "committed to the branch, or nothing to add",
+  done: "committed to the branch, or nothing needed adding",
   failed: "could not be written",
   superseded: "replaced by a newer request",
 };
@@ -82,7 +82,8 @@ export function GenerateBox(props: { pull: Pull; head: string }) {
                 className={job.state === "failed" ? "error small" : "subtle small"}
                 role="status"
               >
-                {KIND[kind].noun} for this head: {STATE[job.state]}.
+                {KIND[kind].noun} for this head: {STATE[job.state]}
+                {job.error === "not_committed" && " (the branch moved, or ocra cannot push to it)"}.
               </span>
             )}
           </div>
