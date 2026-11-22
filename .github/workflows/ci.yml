@@ -13,22 +13,60 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
+  # Every check but the tests, each step run even when an earlier one fails,
+  # so one run lists every failure.
   verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - id: setup
+        uses: ./.github/actions/setup
+      - if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: npm audit --omit=dev --audit-level=high
+      - if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: npm run check
+      - if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: npm run knip
+      - if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: npm run typecheck
+      - id: build
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: npm run build:web && npm run build:node
+      # Builds the Worker bundle as a deploy would, without uploading it (no
+      # token needed); web/dist is its assets directory.
+      - if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: npx wrangler deploy --dry-run --outdir /tmp/bundle
+
+  # The vitest projects (vitest.config.ts) side by side; the Worker's, the
+  # longest, in two shards.
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: worker 1/2
+            args: --project worker --shard=1/2
+          - name: worker 2/2
+            args: --project worker --shard=2/2
+          - name: postgres
+            args: --project postgres
+          - name: node, web
+            args: --project node --project web
+    name: test (${{ matrix.name }})
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci
-      - run: npm audit --omit=dev --audit-level=high
-      - run: npm run verify
-      # Builds the Worker bundle as a deploy would, without uploading it (no token
-      # needed). After verify, which builds web/dist (the assets directory).
-      - run: npx wrangler deploy --dry-run --outdir /tmp/bundle
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - env:
+          ARGS: ${{ matrix.args }}
+        run: |
+          # The matrix value is a list of flags: word splitting is wanted.
+          # shellcheck disable=SC2086
+          npx vitest run $ARGS
 
   # Conventional Commits and no AI attribution, with the engine's own checks
   # (AGENTS.md, Working with agents). Pinned by commit, so a push to the
