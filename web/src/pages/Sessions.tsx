@@ -43,7 +43,7 @@ export function Sessions() {
         <Loading what="sessions" />
       ) : (
         <div className="card">
-          <div className="table-wrap">
+          <div className="table-wrap stack">
             <table>
               <thead>
                 <tr>
