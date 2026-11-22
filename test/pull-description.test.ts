@@ -91,6 +91,12 @@ async function seed(
           title: "Refund @team",
         },
         { tracker: "github", key: "#3", url: "javascript:alert(1)", state: null },
+        {
+          tracker: "tapd",
+          key: "T-9",
+          url: "https://user:pass@tapd.example.com/9",
+          state: "closed",
+        },
       ],
     }),
   );
@@ -155,6 +161,9 @@ describe("a draft description on GitHub", () => {
     // Only an https address is a link.
     expect(draft).toContain("- \\#3\n");
     expect(draft).not.toContain("javascript:");
+    // Nor is one that carries credentials.
+    expect(draft).toContain("- T-9 (closed)");
+    expect(draft).not.toContain("pass@");
     expect(draft).toContain("- 1 critical\n  - SQL \\*\\*built\\*\\* &lt;img");
     expect(draft).toContain(
       "_Drafted by ocra from its review of `aaaaaaaaaaaa`, the current head._",
