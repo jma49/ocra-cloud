@@ -1,8 +1,10 @@
-import { Hono } from "hono";
+import { type Context, Hono } from "hono";
 import { z } from "zod";
+import { automate } from "../automations/run.js";
 import { sameText, sha256Hex } from "../crypto.js";
 import { reviewRepoFor } from "../db/review-jobs.js";
 import { scoped } from "../db/scoped.js";
+import { defer } from "../defer.js";
 import { MAX_HOOK_BODY } from "../graph/webhooks.js";
 import { apiError, jsonBody } from "../http.js";
 import { COMMIT_ID } from "../platforms/contents.js";
@@ -15,22 +17,34 @@ import type { AutoReviewService } from "./routes.js";
 // opens, reopens, leaves draft or gains commits (ADR-0046, 2). A draft is
 // not. GitLab's note hook, on the same address, queues answers (./replies.ts).
 
-type Db = AppEnv["Variables"]["db"];
-
-type PullChange = { fullName: string; number: number; head: string };
+type PullChange = {
+  fullName: string;
+  number: number;
+  head: string;
+  /** Opened, reopened or out of draft, rather than given commits. */
+  opened: boolean;
+  facts: { author?: string; baseBranch?: string; title?: string; labels?: string[] };
+};
 
 const GITHUB_ACTIONS = new Set(["opened", "reopened", "synchronize", "ready_for_review"]);
 
 const githubPull = z.object({
   action: z.string(),
   number: z.number().int().min(1),
-  pull_request: z.object({ draft: z.boolean().optional(), head: z.object({ sha: z.string() }) }),
+  pull_request: z.object({
+    draft: z.boolean().optional(),
+    head: z.object({ sha: z.string() }),
+    title: z.string().optional(),
+    user: z.object({ login: z.string() }).optional(),
+    base: z.object({ ref: z.string() }).optional(),
+    labels: z.array(z.object({ name: z.string() })).optional(),
+  }),
   repository: z.object({ id: z.number(), full_name: z.string() }),
 });
 
 /** A GitHub App webhook's pull request event (src/webhooks.ts verified it). */
 export async function queueGithubPull(
-  db: Db,
+  c: Context<AppEnv>,
   service: AutoReviewService,
   body: unknown,
 ): Promise<number> {
@@ -38,9 +52,20 @@ export async function queueGithubPull(
   if (!parsed.success) return 0;
   const { action, number, pull_request: pull, repository } = parsed.data;
   if (!GITHUB_ACTIONS.has(action) || pull.draft) return 0;
-  const repo = await reviewRepoFor(db, "github", "github.com", String(repository.id));
+  const repo = await reviewRepoFor(c.var.db, "github", "github.com", String(repository.id));
   if (!repo) return 0;
-  return queue(db, service, repo, { fullName: repository.full_name, number, head: pull.head.sha });
+  return queue(c, service, repo, {
+    fullName: repository.full_name,
+    number,
+    head: pull.head.sha,
+    opened: action !== "synchronize",
+    facts: {
+      ...(pull.user ? { author: pull.user.login } : {}),
+      ...(pull.base ? { baseBranch: pull.base.ref } : {}),
+      ...(pull.title !== undefined ? { title: pull.title } : {}),
+      ...(pull.labels ? { labels: pull.labels.map((l) => l.name) } : {}),
+    },
+  });
 }
 
 // GitLab says an update gained commits by naming the head it had before.
@@ -51,8 +76,13 @@ const gitlabMergeRequest = z.object({
     draft: z.boolean().optional(),
     oldrev: z.string().optional(),
     last_commit: z.object({ id: z.string() }),
+    title: z.string().optional(),
+    target_branch: z.string().optional(),
   }),
   project: z.object({ id: z.number(), path_with_namespace: z.string() }),
+  // Who caused the event: the author only when the merge request opens.
+  user: z.object({ username: z.string() }).optional(),
+  labels: z.array(z.object({ title: z.string() })).optional(),
 });
 
 const gitlabQueues = (a: z.infer<typeof gitlabMergeRequest>["object_attributes"]) =>
@@ -84,10 +114,18 @@ export function autoReviewWebhooks(service: AutoReviewService) {
     }
     const event = mr?.data;
     if (!event || !gitlabQueues(event.object_attributes)) return c.json({ queued: 0 }, 202);
-    const queued = await queue(c.var.db, service, repo, {
+    const a = event.object_attributes;
+    const queued = await queue(c, service, repo, {
       fullName: event.project.path_with_namespace,
-      number: event.object_attributes.iid,
-      head: event.object_attributes.last_commit.id,
+      number: a.iid,
+      head: a.last_commit.id,
+      opened: a.action !== "update",
+      facts: {
+        ...(a.action === "open" && event.user ? { author: event.user.username } : {}),
+        ...(a.target_branch !== undefined ? { baseBranch: a.target_branch } : {}),
+        ...(a.title !== undefined ? { title: a.title } : {}),
+        ...(event.labels ? { labels: event.labels.map((l) => l.title) } : {}),
+      },
     });
     return c.json({ queued }, 202);
   });
@@ -95,16 +133,27 @@ export function autoReviewWebhooks(service: AutoReviewService) {
 }
 
 async function queue(
-  db: Db,
+  c: Context<AppEnv>,
   service: AutoReviewService,
   repo: NonNullable<Awaited<ReturnType<typeof reviewRepoFor>>>,
   change: PullChange,
 ): Promise<number> {
   if (!COMMIT_ID.test(change.head)) return 0;
-  const data = scoped(db, repo.accountId);
+  const data = scoped(c.var.db, repo.accountId);
   if (repo.fullName !== change.fullName) {
     await data.update("reviewRepos", repo.id, { fullName: change.fullName });
   }
+  const { skipped, run } = await automate(c, data, {
+    trigger: "queued",
+    eventKey: `${repo.id}#${change.number}@${change.head}`,
+    repo: { ...repo, fullName: change.fullName },
+    pull: { host: repo.host, fullName: change.fullName, number: change.number },
+    facts: { repoId: repo.id, ...change.facts },
+    acts: change.opened,
+    consoleUrl: new URL("/settings", c.req.url).toString(),
+  });
+  defer(c, run);
+  if (skipped) return 0;
   const queued = await data.autoReview.queue(repo.id, change.number, change.head, new Date());
   if (queued) service.kick();
   return queued ? 1 : 0;

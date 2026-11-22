@@ -1,5 +1,5 @@
 import { createPrivateKey, createSign } from "node:crypto";
-import type { CodePlatformKind } from "../shared/index.js";
+import type { BotTokens } from "../platforms/bot.js";
 
 // The ocra bot's credential for one review (ADR-0046, 5): on GitHub an
 // installation token of the deployment's App, minted per job and limited
@@ -9,17 +9,6 @@ import type { CodePlatformKind } from "../shared/index.js";
 const API = "https://api.github.com";
 /** GitHub takes an App's JWT for at most ten minutes; a minute of clock skew is allowed for. */
 const JWT_SECONDS = 9 * 60;
-
-export type BotCredential = {
-  token: string;
-  /** The login the bot posts as, which ocra trusts to have written its own summary. */
-  login?: string;
-};
-
-export type BotTokens = {
-  /** null when this deployment has no bot for the platform, or it was refused. */
-  forRepo(platform: CodePlatformKind, fullName: string): Promise<BotCredential | null>;
-};
 
 export type BotSettings = {
   githubAppId?: string | undefined;

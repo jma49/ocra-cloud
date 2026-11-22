@@ -1,6 +1,8 @@
 import { MAX_REVIEWERS, REVIEWER_ID, reviewUploadSchema } from "@open-cr-agent/cloud-contract";
 import { type Context, Hono } from "hono";
 import type { z } from "zod";
+import { reviewedEvent } from "./automations/reviewed.js";
+import { automate } from "./automations/run.js";
 import { config } from "./config.js";
 import type { Row, Scoped } from "./db/scoped.js";
 import { defer } from "./defer.js";
@@ -117,13 +119,10 @@ async function announce(c: Context<AppEnv>, id: string) {
   const review = await c.var.data.get("reviews", id);
   if (!review) return;
   const consoleUrl = new URL(`/reviews/${encodeURIComponent(id)}`, c.req.url).toString();
-  await notifyReview(
-    c.var.data,
-    masterKeys(c.env),
-    review,
-    platformsOf(c.env, c.req.url),
-    consoleUrl,
-  );
+  const platforms = platformsOf(c.env, c.req.url);
+  await notifyReview(c.var.data, masterKeys(c.env), review, platforms, consoleUrl);
+  const event = await reviewedEvent(c.var.data, review, platforms, consoleUrl);
+  if (event) await (await automate(c, c.var.data, event)).run;
 }
 
 // One review with its findings, for the web's detail page.

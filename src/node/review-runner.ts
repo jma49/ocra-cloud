@@ -9,9 +9,9 @@ import { claimReply } from "../db/reply-jobs.js";
 import { claimJob } from "../db/review-jobs.js";
 import { scoped } from "../db/scoped.js";
 import { errorName, logError } from "../log.js";
+import type { BotCredential, BotTokens } from "../platforms/bot.js";
 import type { CodePlatform } from "../platforms/platform.js";
 import { startCliSession } from "../session.js";
-import type { BotCredential, BotTokens } from "./bot-tokens.js";
 
 // Runs the next queued review (ADR-0046, 4), or answer to an @ocra comment:
 // clones the repository's default branch into a new directory, runs the

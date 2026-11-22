@@ -19,6 +19,10 @@ import {
 } from "drizzle-orm/sqlite-core";
 import {
   type AgentPrefs,
+  AUTOMATION_TRIGGERS,
+  type AutomationAction,
+  type AutomationConditions,
+  type AutomationRunView,
   CODE_PLATFORMS,
   DISMISS_REASONS,
   FINDING_STATUSES,
@@ -616,6 +620,48 @@ export const replyJobs = sqliteTable(
   ],
 );
 
+// A rule the account set for its pull requests (src/automations/).
+export const automationRules = sqliteTable(
+  "automation_rules",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    name: text("name").notNull(),
+    enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+    trigger: text("trigger", { enum: AUTOMATION_TRIGGERS }).notNull(),
+    conditions: text("conditions", { mode: "json" }).$type<AutomationConditions>().notNull(),
+    actions: text("actions", { mode: "json" }).$type<AutomationAction[]>().notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("automation_rules_account_trigger").on(t.accountId, t.trigger)],
+);
+
+// One run of a rule on one event: a webhook delivered twice, or an upload
+// retried, finds its event key taken and runs nothing. Kept after its rule
+// is deleted, until retention.
+export const automationRuns = sqliteTable(
+  "automation_runs",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    ruleId: text("rule_id").notNull(),
+    ruleName: text("rule_name").notNull(),
+    trigger: text("trigger", { enum: AUTOMATION_TRIGGERS }).notNull(),
+    pull: text("pull").notNull(),
+    eventKey: text("event_key").notNull(),
+    outcome: text("outcome", { enum: ["running", "done", "partial", "failed"] })
+      .notNull()
+      .default("running"),
+    actions: text("actions", { mode: "json" }).$type<AutomationRunView["actions"]>().notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("automation_runs_rule_event").on(t.ruleId, t.eventKey),
+    index("automation_runs_account_created").on(t.accountId, t.createdAt),
+  ],
+);
+
 /** The tables scoped by account, by the name scoped() uses. */
 export const accountTables = {
   sessions,
@@ -639,4 +685,6 @@ export const accountTables = {
   notifyChannels,
   replyJobs,
   reviewWalkthroughs,
+  automationRules,
+  automationRuns,
 } as const;

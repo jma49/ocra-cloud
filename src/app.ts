@@ -2,6 +2,7 @@ import { type Context, Hono } from "hono";
 import { account } from "./account.js";
 import { auth } from "./auth.js";
 import { type AutoReviewService, autoReviewRoute } from "./auto-review/routes.js";
+import { automationsRoute } from "./automations/routes.js";
 import { BodyTooLarge } from "./body.js";
 import { budget } from "./budget.js";
 import { providersRoute } from "./catalog.js";
@@ -21,6 +22,7 @@ import { notifyRoute } from "./notify/routes.js";
 import { oidc } from "./oidc.js";
 import { platformConnect } from "./platform-connect.js";
 import { platformsRoute } from "./platform-routes.js";
+import type { BotTokens } from "./platforms/bot.js";
 import { preferences } from "./preferences.js";
 import { pullPage } from "./pull-page.js";
 import { pullStack } from "./pull-stack.js";
@@ -59,6 +61,8 @@ export type Host<E extends AppBindings> = {
   autoReview?: AutoReviewService;
   /** The GitHub App's webhook secret; without it the App's webhooks are refused. */
   githubWebhookSecret?: string;
+  /** The ocra bot, which automation rules write on pull requests as; only self-hosted. */
+  bots?: BotTokens;
 };
 
 export function createApp<E extends AppBindings>(host: Host<E>) {
@@ -72,6 +76,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
   app.use(async (c, next) => {
     c.set("db", host.openDb(c.env as E));
     c.set("clientAddress", host.clientAddress(c) ?? "unknown");
+    c.set("bots", host.bots);
     await next();
   });
 
@@ -106,6 +111,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
   app.route("/pulls", pullPage);
   app.route("/pulls", pullStack);
   app.route("/notifications", notifyRoute);
+  app.route("/automations", automationsRoute);
   app.route("/insights/cycle", cycles);
   const hook = githubWebhook(host);
   app.route("/webhooks/github", hook);

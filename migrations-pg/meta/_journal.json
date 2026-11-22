@@ -50,6 +50,13 @@
       "when": 1795339673705,
       "tag": "0006_review_walkthroughs",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795345282004,
+      "tag": "0007_automations",
+      "breakpoints": true
     }
   ]
 }

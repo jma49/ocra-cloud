@@ -41,7 +41,7 @@ export function githubWebhook(host: WebhookHost) {
         event === "push" && host.graphs
           ? await queueGithubPush(c.var.db, host.graphs, body)
           : event === "pull_request" && review
-            ? await queueGithubPull(c.var.db, review, body)
+            ? await queueGithubPull(c, review, body)
             : (event === "issue_comment" || event === "pull_request_review_comment") && review
               ? await queueGithubComment(c.var.db, review, event, body)
               : 0;

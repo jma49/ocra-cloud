@@ -63,6 +63,31 @@ export function gitlabActions(origin: string): PullActions {
         409: "head_moved",
       });
     },
+    async addLabels(token, fullName, number, labels) {
+      const mr = mergeRequestUrl(origin, fullName, number);
+      return outcomeOf(await send(token, "PUT", mr, { add_labels: labels.join(",") }));
+    },
+    async requestReviewers(token, fullName, number, logins) {
+      const headers = { headers: gitlabHeaders(token) };
+      const url = mergeRequestUrl(origin, fullName, number);
+      const mr = await platformCall<{ reviewers?: { id: number }[] }>(url, headers);
+      if (!mr) return null;
+      // GitLab names reviewers by id, and sets them all at once: the ones it has are kept.
+      const found = await Promise.all(
+        logins.map((login) =>
+          platformCall<{ id: number }[]>(
+            `${origin}/api/v4/users?username=${encodeURIComponent(login)}`,
+            headers,
+          ),
+        ),
+      );
+      const ids = found.flatMap((users) => users?.[0]?.id ?? []);
+      if (ids.length === 0) return "refused";
+      const kept = (mr.reviewers ?? []).map((r) => r.id);
+      return outcomeOf(
+        await send(token, "PUT", url, { reviewer_ids: [...new Set([...kept, ...ids])] }),
+      );
+    },
     async merge(token, fullName, number, merge) {
       const url = mergeRequestUrl(origin, fullName, number);
       return outcomeOf(
