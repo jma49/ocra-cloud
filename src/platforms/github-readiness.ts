@@ -1,9 +1,7 @@
 import { CODEOWNERS_PATHS, MAX_CODEOWNERS_BYTES } from "../codeowners.js";
-import { githubHeaders, githubRepoPath } from "./github-changes.js";
-import { platformSend } from "./http.js";
+import { type GithubRule, protectionOf, rulesetsOf, strictest } from "./github-rulesets.js";
 import {
   type Approval,
-  type BranchRuleRead,
   type CheckRun,
   MAX_READINESS_CHECKS,
   MAX_READINESS_FILES,
@@ -18,30 +16,15 @@ import {
 // and the reviews' teams are a second listing of the same reviews. A null
 // rule says neither "none" nor "refused", so the REST rule is asked once:
 // its answer tells an unprotected branch from a refusal and from a plan
-// without branch protection.
+// without branch protection. The branch's rulesets are one more REST call,
+// folded in where the strictest wins; while either is not fully read, what
+// the read part requires is a floor, not the answer.
 
 type Post = (token: string) => <T>(path: string, body: unknown) => Promise<T | null>;
 
 const OWNER_FILES = CODEOWNERS_PATHS.github;
 
 type Blob = { byteSize: number; isBinary: boolean | null; text: string | null } | null;
-type Rule = {
-  requiresApprovingReviews: boolean;
-  requiredApprovingReviewCount: number | null;
-  requiresCodeOwnerReviews: boolean;
-  dismissesStaleReviews: boolean;
-  requiresStatusChecks: boolean;
-  requiredStatusCheckContexts: (string | null)[] | null;
-};
-type Protection = {
-  message?: string;
-  required_pull_request_reviews?: {
-    dismiss_stale_reviews?: boolean;
-    require_code_owner_reviews?: boolean;
-    required_approving_review_count?: number;
-  };
-  required_status_checks?: { contexts?: string[]; checks?: { context: string }[] };
-};
 type Context =
   | {
       __typename: "CheckRun";
@@ -65,7 +48,7 @@ type Pull = {
   additions: number;
   deletions: number;
   baseRef: {
-    branchProtectionRule: Rule | null;
+    branchProtectionRule: GithubRule | null;
     target: Record<string, { object: Blob } | null> | null;
   } | null;
   reviews: {
@@ -113,6 +96,7 @@ const READINESS = `query($owner: String!, $name: String!, $number: Int!) {
         branchProtectionRule {
           requiresApprovingReviews requiredApprovingReviewCount requiresCodeOwnerReviews
           dismissesStaleReviews requiresStatusChecks requiredStatusCheckContexts
+          requiresConversationResolution
         }
         target {
           ... on Commit {
@@ -186,43 +170,6 @@ function codeownersOf(target: Record<string, { object: Blob } | null> | null | u
   return null;
 }
 
-const API = "https://api.github.com";
-const NOT_PROTECTED = /branch not protected/i;
-const PLAN_WITHOUT_RULES = /upgrade to github pro|make this repository public/i;
-
-function ruleOfProtection(p: Protection): Rule {
-  const reviews = p.required_pull_request_reviews;
-  const checks = p.required_status_checks;
-  return {
-    requiresApprovingReviews: reviews !== undefined,
-    requiredApprovingReviewCount: reviews?.required_approving_review_count ?? 0,
-    requiresCodeOwnerReviews: reviews?.require_code_owner_reviews === true,
-    dismissesStaleReviews: reviews?.dismiss_stale_reviews === true,
-    requiresStatusChecks: checks !== undefined,
-    requiredStatusCheckContexts: [
-      ...new Set([...(checks?.contexts ?? []), ...(checks?.checks ?? []).map((c) => c.context)]),
-    ],
-  };
-}
-
-async function protectionOf(
-  token: string,
-  fullName: string,
-  branch: string,
-): Promise<{ read: BranchRuleRead; rule: Rule | null }> {
-  const sent = await platformSend<Protection>(
-    `${API}/repos/${githubRepoPath(fullName)}/branches/${githubRepoPath(branch)}/protection`,
-    { headers: githubHeaders(token) },
-  );
-  if (sent?.status === 200 && sent.body) return { read: "read", rule: ruleOfProtection(sent.body) };
-  const message = sent?.body?.message ?? "";
-  if (sent?.status === 404 && NOT_PROTECTED.test(message)) return { read: "none", rule: null };
-  if (sent?.status === 403 && PLAN_WITHOUT_RULES.test(message)) {
-    return { read: "unavailable", rule: null };
-  }
-  return { read: "unreadable", rule: null };
-}
-
 export function githubReadiness(post: Post): PullReadiness {
   return {
     async read(token, fullName, number) {
@@ -240,12 +187,20 @@ export function githubReadiness(post: Post): PullReadiness {
       const graphRule = refused("branchProtectionRule")
         ? null
         : (pull.baseRef?.branchProtectionRule ?? null);
-      const { read: branchRule, rule } = graphRule
-        ? { read: "read" as const, rule: graphRule }
-        : pull.baseRef
-          ? await protectionOf(token, fullName, pull.baseRefName)
-          : { read: "unreadable" as const, rule: null };
-      const ruleRead = branchRule === "read" || branchRule === "none";
+      const [classic, rulesets] = await Promise.all([
+        graphRule
+          ? { read: "read" as const, rule: graphRule }
+          : pull.baseRef
+            ? protectionOf(token, fullName, pull.baseRefName)
+            : { read: "unreadable" as const, rule: null },
+        rulesetsOf(token, fullName, pull.baseRefName),
+      ]);
+      const branchRule = classic.read;
+      const merged = strictest(classic.rule, rulesets.rule);
+      const ruleRead =
+        (branchRule === "read" || branchRule === "none") && rulesets.read !== "partial";
+      const rule = ruleRead ? merged : null;
+      const floor = ruleRead ? null : merged;
       const decision = pull.reviewDecision ? DECISION[pull.reviewDecision] : null;
       const teamsRead = pull.teams !== null && !refused("onBehalfOf");
       const teamsOf = new Map(
@@ -276,6 +231,13 @@ export function githubReadiness(post: Post): PullReadiness {
         draft: pull.isDraft,
         conflicts: pull.mergeable === "UNKNOWN" ? null : pull.mergeable === "CONFLICTING",
         branchRule,
+        rulesets: rulesets.read,
+        otherRules: rulesets.unjudged,
+        resolveThreads: rule
+          ? rule.requiresConversationResolution === true
+          : floor?.requiresConversationResolution
+            ? true
+            : null,
         mergeable: null,
         reviews: {
           required: rule
@@ -285,9 +247,24 @@ export function githubReadiness(post: Post): PullReadiness {
             : ruleRead && decision === null
               ? 0
               : null,
+          requiredAtLeast: floor?.requiresApprovingReviews
+            ? (floor.requiredApprovingReviewCount ?? 0)
+            : 0,
           decision: decision ?? (ruleRead && !rule ? "none_required" : null),
-          dismissesStale: rule ? rule.dismissesStaleReviews : ruleRead ? false : null,
-          requiresCodeOwners: rule ? rule.requiresCodeOwnerReviews : ruleRead ? false : null,
+          dismissesStale: rule
+            ? rule.dismissesStaleReviews
+            : ruleRead
+              ? false
+              : floor?.dismissesStaleReviews
+                ? true
+                : null,
+          requiresCodeOwners: rule
+            ? rule.requiresCodeOwnerReviews
+            : ruleRead
+              ? false
+              : floor?.requiresCodeOwnerReviews
+                ? true
+                : null,
           approvals,
         },
         checks: refused("statusCheckRollup")
@@ -300,6 +277,9 @@ export function githubReadiness(post: Post): PullReadiness {
                 : ruleRead
                   ? []
                   : null,
+              requiredAtLeast: (floor?.requiredStatusCheckContexts ?? []).flatMap((n) =>
+                n ? [n] : [],
+              ),
               runs: contextNodes.flatMap((n) => (n ? [runOf(n)] : [])),
               truncated:
                 (contexts?.pageInfo.hasNextPage ?? false) || contextNodes.some((n) => n === null),

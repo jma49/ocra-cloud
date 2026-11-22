@@ -16,6 +16,12 @@ export const MAX_READINESS_CHECKS = 100;
  */
 export type BranchRuleRead = "read" | "none" | "unreadable" | "unavailable";
 
+/**
+ * GitHub's rulesets on the base branch: read, partial (more rules than one
+ * page lists) or unreadable (refused or not answered, read as none).
+ */
+export type RulesetsRead = "read" | "partial" | "unreadable";
+
 export type ReviewDecision = "approved" | "review_required" | "changes_requested" | "none_required";
 
 /** A reviewer's newest approval; GitHub names the teams it was given for. */
@@ -42,10 +48,18 @@ export type ReadinessFacts = {
   conflicts: boolean | null;
   /** GitHub's branch protection rule; null where approvals are read without one (GitLab). */
   branchRule: BranchRuleRead | null;
+  /** GitHub's rulesets; null on GitLab. */
+  rulesets: RulesetsRead | null;
+  /** Rule types that can block the merge which no item judges (GitHub ruleset types). */
+  otherRules: string[];
+  /** Whether the rules require every thread resolved; null when not read. */
+  resolveThreads: boolean | null;
   /** The platform's own word that nothing blocks the merge; null when it gave none. */
   mergeable: boolean | null;
   reviews: {
     required: number | null;
+    /** Approvals a rule read is known to require while `required` is not known. */
+    requiredAtLeast: number;
     decision: ReviewDecision | null;
     dismissesStale: boolean | null;
     requiresCodeOwners: boolean | null;
@@ -54,6 +68,8 @@ export type ReadinessFacts = {
   checks: {
     /** Names the branch rule requires; null when unreadable. */
     required: string[] | null;
+    /** Names a rule read is known to require while `required` is not known. */
+    requiredAtLeast: string[];
     runs: CheckRun[];
     truncated: boolean;
   } | null;

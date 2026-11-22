@@ -34,6 +34,7 @@ function ruleGap(facts: ReadinessFacts): string | null {
   if (facts.branchRule === "unreadable") return "branch rule not readable";
   if (facts.branchRule === "unavailable")
     return "branch rules not available on this repository's plan";
+  if (facts.rulesets === "partial") return "more rulesets than one reading lists";
   return null;
 }
 
@@ -64,12 +65,12 @@ function conflictsItem(facts: ReadinessFacts): ReadinessItem {
 }
 
 function approvalsItem(facts: ReadinessFacts): ReadinessItem {
-  const { required, decision, dismissesStale } = facts.reviews;
+  const { required, requiredAtLeast, decision, dismissesStale } = facts.reviews;
   const counting = countingApprovals(facts).length;
   const stale = facts.reviews.approvals.filter((a) => !a.atHead).length;
   const given =
     required === null
-      ? `${plural(counting, "approval")}; ${ruleGap(facts) ?? "required count not readable"}`
+      ? `${requiredAtLeast > 0 ? `${counting} of at least ${requiredAtLeast} required approvals` : plural(counting, "approval")}; ${ruleGap(facts) ?? "required count not readable"}`
       : required === 0
         ? `No approval is required (${counting} given)`
         : `${counting} of ${required} required approvals`;
@@ -91,7 +92,9 @@ function approvalsItem(facts: ReadinessFacts): ReadinessItem {
       : decision === "review_required"
         ? "unmet"
         : required === null
-          ? "unknown"
+          ? counting < requiredAtLeast
+            ? "unmet"
+            : "unknown"
           : counting >= required
             ? "met"
             : "unmet";
@@ -195,6 +198,7 @@ function checksItem(facts: ReadinessFacts): ReadinessItem {
   if (!checks) return item("unknown", "The head's checks are not readable");
   const names = new Set([
     ...(checks.required ?? []),
+    ...checks.requiredAtLeast,
     ...checks.runs.filter((r) => r.required === true).map((r) => r.name),
   ]);
   const runs = checks.runs.filter((r) => names.has(r.name));
@@ -226,7 +230,12 @@ function threadsItem(facts: ReadinessFacts): ReadinessItem {
   if (!t) return { kind: "threads", state: "unknown", detail: "The threads could not be read" };
   if (t.unresolved > 0) {
     const count = plural(t.unresolved, "unresolved thread");
-    return { kind: "threads", state: "unmet", detail: t.truncated ? `At least ${count}` : count };
+    const rule = facts.resolveThreads ? "; the branch rules require resolving them" : "";
+    return {
+      kind: "threads",
+      state: "unmet",
+      detail: `${t.truncated ? `At least ${count}` : count}${rule}`,
+    };
   }
   return t.truncated
     ? { kind: "threads", state: "unknown", detail: "More threads than one reading lists" }

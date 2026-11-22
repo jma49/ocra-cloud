@@ -3,7 +3,8 @@ import type { PullReadinessView, ReadinessItem } from "../src/shared/index.js";
 import { githubFake } from "./platform-fakes.js";
 
 // GitHub's answers to a merge readiness reading: the one GraphQL query, and
-// the REST branch rule it is followed by when the query gives none.
+// the REST branch rule it is followed by when the query gives none, and the
+// rulesets on the base branch, read alongside.
 
 export const HEAD = "c".repeat(40);
 export const OLD = "d".repeat(40);
@@ -21,6 +22,8 @@ export type GithubPull = {
   ruleRefused?: boolean;
   /** GitHub's REST answer for the branch rule, asked when GraphQL gives none. */
   protection?: { status: number; body: Record<string, unknown> };
+  /** GitHub's REST answer for the rules on the base branch; none by default. */
+  rulesets?: { status: number; body: unknown };
   decision?: string | null;
   draft?: boolean;
   mergeable?: string;
@@ -38,6 +41,19 @@ export const PLAN = {
   status: 403,
   body: { message: "Upgrade to GitHub Pro or make this repository public to enable this feature." },
 };
+
+export const PROTECTION = "GET https://api.github.com/repos/octo/api/branches/main/protection";
+const RULESETS = "https://api.github.com/repos/octo/api/rules/branches/main?per_page=100";
+export const RULESETS_CALL = `GET ${RULESETS}`;
+
+/** A ruleset rule as GitHub lists it for a branch. */
+export const ruleOf = (type: string, parameters: Record<string, unknown> = {}) => ({
+  type,
+  ruleset_source_type: "Repository",
+  ruleset_source: "octo/api",
+  ruleset_id: 1,
+  parameters,
+});
 
 const RULE = {
   requiresApprovingReviews: true,
@@ -59,6 +75,10 @@ export function githubPull(p: GithubPull = {}) {
       calls.push(`${req.method} ${req.url}`);
       if (req.url === "https://api.github.com/repos/octo/api/branches/main/protection") {
         const answer = p.protection ?? REFUSED;
+        return Response.json(answer.body, { status: answer.status });
+      }
+      if (req.url === RULESETS) {
+        const answer = p.rulesets ?? { status: 200, body: [] };
         return Response.json(answer.body, { status: answer.status });
       }
       if (req.method !== "POST" || !req.url.endsWith("/graphql")) return undefined;

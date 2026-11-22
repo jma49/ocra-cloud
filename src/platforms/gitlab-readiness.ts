@@ -121,10 +121,14 @@ export function gitlabReadiness(origin: string, files: RepoFiles): PullReadiness
         draft: mr.draft ?? mr.work_in_progress ?? false,
         conflicts: mr.has_conflicts ? true : checking ? null : false,
         branchRule: null,
+        rulesets: null,
+        otherRules: [],
+        resolveThreads: null,
         mergeable: status === "mergeable" ? true : checking ? null : false,
         reviews: {
           required:
             typeof approvals?.approvals_required === "number" ? approvals.approvals_required : null,
+          requiredAtLeast: 0,
           decision: decisionOf(approvals),
           dismissesStale: null,
           requiresCodeOwners: ownerRules ? ownerRules.some((r) => r.required) : null,
@@ -134,6 +138,7 @@ export function gitlabReadiness(origin: string, files: RepoFiles): PullReadiness
         },
         checks: {
           required: pipelineRequired === null ? null : pipelineRequired ? ["pipeline"] : [],
+          requiredAtLeast: [],
           runs: pipeline
             ? [
                 {

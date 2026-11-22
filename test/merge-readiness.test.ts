@@ -12,7 +12,9 @@ import {
   NOT_PROTECTED,
   OLD,
   PLAN,
+  PROTECTION,
   REFUSED,
+  RULESETS_CALL,
   readiness,
   run,
 } from "./readiness-fakes.js";
@@ -55,7 +57,7 @@ describe("merge readiness on GitHub", () => {
     });
     const a = await signInWithGithub();
     const view = await readiness(a.send, "platform=github&repo=octo/api&number=7");
-    expect(calls).toEqual(["POST https://api.github.com/graphql"]);
+    expect(calls).toEqual(["POST https://api.github.com/graphql", RULESETS_CALL]);
     expect(view).toMatchObject({ state: "open", head: HEAD, ready: "unmet" });
     expect(byKind(view)).toEqual({
       draft: ["met", "Ready for review"],
@@ -150,13 +152,8 @@ describe("merge readiness on GitHub", () => {
     const second = await readiness(a.send, "platform=github&repo=octo/api&number=7");
     expect(byKind(second).premerge_checks).toEqual(["unmet", "1 blocking check failed"]);
     expect(second.ready).toBe("unmet");
-    const rule = "GET https://api.github.com/repos/octo/api/branches/main/protection";
-    expect(calls).toEqual([
-      "POST https://api.github.com/graphql",
-      rule,
-      "POST https://api.github.com/graphql",
-      rule,
-    ]);
+    const graphql = "POST https://api.github.com/graphql";
+    expect(calls).toEqual([graphql, PROTECTION, RULESETS_CALL, graphql, PROTECTION, RULESETS_CALL]);
   });
 
   it("never takes a rule GraphQL leaves out for no rule: the REST rule says which it is", async () => {
