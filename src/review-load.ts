@@ -62,8 +62,8 @@ export function overDay(w: Wait, now: number): [number, number] | null {
 }
 
 reviewLoad.get("/", requireSession(["web"]), async (c: Context<AppEnv>) => {
-  const asked = c.req.query("repo");
-  const repo = asked === undefined ? null : repoName.safeParse(asked);
+  const repoQuery = c.req.query("repo");
+  const repo = repoQuery === undefined ? null : repoName.safeParse(repoQuery);
   if (repo && !repo.success) return apiError(c, "not_found");
   const days = queryDays(c, 30, MAX_DAYS);
   const now = Date.now();
