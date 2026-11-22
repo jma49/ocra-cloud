@@ -142,6 +142,7 @@ describe("the pull request inbox", () => {
       created_at: "2026-11-19T08:00:00Z",
       updated_at: `2026-11-1${iid}T08:00:00Z`,
       author: { username: author },
+      sha: String(iid).repeat(40),
       references: { full: `Group/Sub/Project!${iid}` },
     });
     githubFake({
@@ -177,6 +178,11 @@ describe("the pull request inbox", () => {
     const lab = listed.platforms.find((p) => p.platform === "gitlab");
     expect(lab).toMatchObject({ linked: true, failed: false });
     expect(lab?.pulls.find((p) => p.number === 6)?.state).toBe("merged");
+    expect(lab?.pulls.find((p) => p.number === 4)).toMatchObject({
+      head: "4".repeat(40),
+      unread: true,
+      unreadReason: "new",
+    });
     expect(lab?.pulls.map((p) => [p.number, p.repo, p.draft, p.roles])).toEqual([
       [6, "Group/Sub/Project", false, ["author"]],
       [5, "Group/Sub/Project", true, ["reviewer", "author"]],
