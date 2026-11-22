@@ -154,6 +154,7 @@ pullPage.get("/files", requireSession(["web"]), perMinute("platform"), async (c)
   ]);
   if (!patches) return apiError(c, "not_found");
   const viewed = await viewedOf(c.var.data, platform, ref.data, patches, kept);
+  const settled = patches.state === "merged" || patches.state === "closed";
   return c.json({
     platform: platform.kind,
     repo: ref.data.repo,
@@ -161,6 +162,7 @@ pullPage.get("/files", requireSession(["web"]), perMinute("platform"), async (c)
     title: patches.title,
     author: patches.author,
     url: patches.url,
+    state: patches.state,
     base: patches.base,
     head: patches.head,
     updatedAt: patches.updatedAt,
@@ -174,8 +176,11 @@ pullPage.get("/files", requireSession(["web"]), perMinute("platform"), async (c)
       viewed: viewed.get(f.path) ?? null,
     })),
     truncated: patches.truncated,
-    verdicts: [...platform.actions.verdicts],
-    mergeMethods: [...platform.actions.mergeMethods],
+    // A merged or closed pull request takes a comment, not a verdict or a merge.
+    verdicts: settled
+      ? platform.actions.verdicts.filter((v) => v === "comment")
+      : [...platform.actions.verdicts],
+    mergeMethods: settled ? [] : [...platform.actions.mergeMethods],
   } satisfies PullFilesView);
 });
 

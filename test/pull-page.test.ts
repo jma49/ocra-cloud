@@ -108,6 +108,39 @@ describe("a pull request's files", () => {
     expect(view.mergeMethods).toEqual(["merge", "squash", "rebase"]);
   });
 
+  it("offers only a comment on a merged or closed pull request", async () => {
+    const answers = [
+      { state: "closed", merged: true },
+      { state: "closed", merged: false },
+      { state: "open", merged: false },
+    ];
+    platform({
+      [`GET ${PULL}`]: () =>
+        Response.json({
+          ...answers.shift(),
+          base: { sha: BASE },
+          head: { sha: HEAD },
+          changed_files: 0,
+        }),
+    });
+    const a = await signInWithGithub();
+    const views = [];
+    for (let i = 0; i < 3; i++) {
+      const res = await a.send("/api/pulls/files?platform=github&repo=octo/api&number=7");
+      const { state, verdicts, mergeMethods } = (await res.json()) as PullFilesView;
+      views.push({ state, verdicts, mergeMethods });
+    }
+    expect(views).toEqual([
+      { state: "merged", verdicts: ["comment"], mergeMethods: [] },
+      { state: "closed", verdicts: ["comment"], mergeMethods: [] },
+      {
+        state: "open",
+        verdicts: ["approve", "request_changes", "comment"],
+        mergeMethods: ["merge", "squash", "rebase"],
+      },
+    ]);
+  });
+
   it("refuses a repository path that is not one", async () => {
     platform({});
     const a = await signInWithGithub();
@@ -133,6 +166,7 @@ describe("a pull request's files", () => {
         title: null,
         author: null,
         url: null,
+        state: null,
         base: BASE,
         head: HEAD,
         updatedAt: null,

@@ -16,6 +16,8 @@ type Pull = {
   title?: string;
   user?: { login: string } | null;
   html_url?: string;
+  state?: "open" | "closed";
+  merged?: boolean;
   base: { sha: string };
   head: { sha: string };
   changed_files: number;
@@ -70,6 +72,7 @@ async function listFiles(token: string, fullName: string, number: number, max = 
     title: pull.title ?? null,
     author: pull.user?.login ?? null,
     url: pull.html_url ?? null,
+    state: pull.merged ? ("merged" as const) : (pull.state ?? null),
     base: pull.base.sha,
     head: pull.head.sha,
     updatedAt: pull.updated_at ?? null,

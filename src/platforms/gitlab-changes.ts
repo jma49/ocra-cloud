@@ -16,6 +16,8 @@ type MergeRequest = {
   title?: string;
   author?: { username: string } | null;
   web_url?: string;
+  /** "locked" is GitLab's state while it merges: still open. */
+  state?: "opened" | "closed" | "locked" | "merged";
   diff_refs: DiffRefs | null;
   updated_at?: string;
 };
@@ -28,6 +30,13 @@ type Diff = {
   renamed_file: boolean;
   diff: string;
 };
+
+const GITLAB_STATE = {
+  opened: "open",
+  locked: "open",
+  closed: "closed",
+  merged: "merged",
+} as const satisfies Record<NonNullable<MergeRequest["state"]>, string>;
 
 const statusOf = (d: Diff): ChangedFile["status"] =>
   d.new_file ? "added" : d.deleted_file ? "removed" : d.renamed_file ? "renamed" : "modified";
@@ -64,6 +73,7 @@ async function listDiffs(
     title: mr.title ?? null,
     author: mr.author?.username ?? null,
     url: mr.web_url ?? null,
+    state: mr.state ? GITLAB_STATE[mr.state] : null,
     base: mr.diff_refs.base_sha,
     head: mr.diff_refs.head_sha,
     updatedAt: mr.updated_at ?? null,

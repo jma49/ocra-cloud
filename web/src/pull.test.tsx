@@ -220,6 +220,15 @@ describe("a pull request's page", () => {
     expect(link.querySelector(".file-name bdi[dir=ltr]")?.textContent).toBe(".changeset/refund.md");
   });
 
+  it("offers a merged pull request a comment, and no verdict or merge", async () => {
+    show(undefined, { ...files, state: "merged", verdicts: ["comment"], mergeMethods: [] });
+    expect(await screen.findByText(/This pull request is merged/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Submit review" })).toBeTruthy();
+    expect(screen.queryByRole("group", { name: "Verdict" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Merge pull request" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Write the PR description" })).toBeNull();
+  });
+
   it("writes a suggestion on a new line into the review", async () => {
     const sent = show();
     fireEvent.click(await screen.findByRole("button", { name: "Comment on line 11" }));

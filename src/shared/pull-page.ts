@@ -20,6 +20,9 @@ type PullFileView = {
   viewed: boolean | null;
 };
 
+/** Where a pull request stands: merged and closed ones take comments only. */
+export type PullState = "open" | "merged" | "closed";
+
 export type PullFilesView = {
   platform: CodePlatformKind;
   repo: string;
@@ -28,6 +31,8 @@ export type PullFilesView = {
   author: string | null;
   /** Its page on the platform. */
   url: string | null;
+  /** null where the platform did not say; the console treats it as open. */
+  state: PullState | null;
   base: string;
   head: string;
   /** The platform's updated_at, which POST /api/pulls/seen takes back to mark it read. */

@@ -2,6 +2,8 @@
 // changed (hunk ranges, for the impact graph), or the diff itself, for the
 // pull request's page. Read as the account for one request; nothing read is kept.
 
+import type { PullState } from "../shared/index.js";
+
 /** One `@@ -oldStart,oldLines +newStart,newLines @@` header. */
 export type Hunk = { oldStart: number; oldLines: number; newStart: number; newLines: number };
 
@@ -20,6 +22,7 @@ export type PullChanges = {
   author: string | null;
   /** Its page on the platform. */
   url: string | null;
+  state: PullState | null;
   base: string;
   head: string;
   /** The platform's updated_at of the pull request, where it said. */
