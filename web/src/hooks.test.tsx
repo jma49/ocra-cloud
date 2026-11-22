@@ -100,6 +100,14 @@ describe("the routes", () => {
     expect(matchRoute("/reviews/%E0")).toBeUndefined();
     expect(matchRoute("/keys")?.route.prefs).toBeUndefined();
     expect(matchRoute("/nope")).toBeUndefined();
+    expect(matchRoute("/pull/github/octo%2Fapi/7")?.params).toEqual(["github", "octo/api", "7"]);
+    expect(matchRoute("/pull/github/octo/api/7")?.params).toEqual(["github", "octo/api", "7"]);
+    expect(matchRoute("/pull/gitlab/group/sub/project/3")?.params).toEqual([
+      "gitlab",
+      "group/sub/project",
+      "3",
+    ]);
+    expect(matchRoute("/pull/github/7")).toBeUndefined();
   });
 
   it("show code graphs only where the server keeps them", () => {
