@@ -7,7 +7,7 @@ import { DESCRIPTION_END, DESCRIPTION_START, type LinkedTaskView } from "./share
 // wrote it from the reviewed change, so it may be hostile) goes through
 // `inline`: one line, no HTML (& < > as entities, so it can neither add a
 // tag nor fake a marker), and Markdown's inline syntax escaped, so a title
-// reads as the text it is and mentions no one.
+// reads as the text it is; and every @ broken, so it mentions no one.
 
 /** What a list in the section shows of each group's files, and of each severity's findings. */
 const MAX_LISTED = 10;
@@ -27,16 +27,24 @@ const VERDICT: Record<NonNullable<Row<"reviews">["verdict"]>, string> = {
   significant_concerns: "ocra found significant concerns",
 };
 
+/**
+ * The text with every @ followed by a zero-width space, so it mentions no
+ * one: `\@` renders as @ and may still mention on some platforms.
+ */
+export const unmentioned = (text: string) => text.replace(/@/g, "@\u200B");
+
 /** One line of the review's text, safe to embed anywhere in a Markdown line. */
 export function inline(text: string): string {
-  return text
-    .replace(/[\p{Cc}\u2028\u2029]+/gu, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/[\\`*_[\]()#|~!@:]/g, "\\$&");
+  return unmentioned(
+    text
+      .replace(/[\p{Cc}\u2028\u2029]+/gu, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/[\\`*_[\]()#|~!@:]/g, "\\$&"),
+  );
 }
 
 /** An address for a Markdown link: https only, with nothing that would end the link early. */
