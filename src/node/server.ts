@@ -22,14 +22,15 @@ import { smtpMailer } from "./mailer.js";
 
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
+const migrate = migrateMode(process.env.MIGRATE);
 const graphs = graphSettingsFrom(process.env);
 const autoReview = autoReviewSettingsFrom(process.env);
-if (autoReview && !process.env.PUBLIC_URL) {
+// A run that only migrates reviews nothing, so it needs no address.
+if (autoReview && !process.env.PUBLIC_URL && migrate !== "only") {
   throw new Error("auto review needs PUBLIC_URL, the address its reviews sign in to");
 }
 
 const mailer = smtpMailer(process.env.SMTP_URL, process.env.SMTP_FROM);
-const migrate = migrateMode(process.env.MIGRATE);
 const host = await openHost({
   databaseUrl: process.env.DATABASE_URL || "file:ocra-cloud.db",
   migrate: migrate !== "off",
