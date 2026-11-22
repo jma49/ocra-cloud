@@ -13,17 +13,19 @@ import { byKind, pullRef, reach, sha } from "./pull-page.js";
 import { perMinute } from "./rate.js";
 import { identityOf } from "./review-pull.js";
 import { requireSession } from "./session.js";
-import type {
-  PullActionOutcome,
-  PullThreadsView,
-  ReviewThreadView,
-  ThreadComment,
-  ThreadSuggestion,
+import {
+  MAX_THREAD_REPLY_CHARS,
+  type PullActionOutcome,
+  type PullThreadsView,
+  type ReviewThreadView,
+  type ThreadComment,
+  type ThreadReplyRequest,
+  type ThreadSuggestion,
 } from "./shared/index.js";
 import type { AppEnv } from "./types.js";
 
 // A pull request's review threads, read live as the signed-in user, and
-// their suggestions applied and threads resolved as them. Only the web
+// their suggestions applied, threads resolved and replied to as them. Only the web
 // session acts, as on the rest of the pull request's page.
 
 export const pullThreads = new Hono<AppEnv>();
@@ -42,6 +44,14 @@ const applyBody = z.object({
     .refine((ids) => new Set(ids).size === ids.length, "a suggestion twice"),
 });
 const resolveBody = z.object({ ...pullRef, thread: platformId, resolved: z.boolean() });
+const replyBody = z.object({
+  ...pullRef,
+  thread: platformId,
+  body: z
+    .string()
+    .max(MAX_THREAD_REPLY_CHARS)
+    .refine((b) => b.trim() !== "", "an empty reply"),
+});
 
 const suggestionDto = (s: Suggestion) =>
   ({
@@ -152,5 +162,28 @@ pullThreads.post(
       body.resolved,
     );
     return c.json(answer(action.outcome));
+  },
+);
+
+pullThreads.post(
+  "/reply-thread",
+  requireSession(["web"]),
+  perMinute("platform"),
+  // A character is at most 6 bytes in JSON (\u escapes), with room for the rest of the request.
+  jsonBody(replyBody, { max: MAX_THREAD_REPLY_CHARS * 6 + 4096 }),
+  async (c) => {
+    const reply: ThreadReplyRequest = c.req.valid("json");
+    const reached = await reach(c, byKind(reply));
+    if ("refusal" in reached) return reached.refusal;
+    const { platform, token } = reached;
+    const outcome = await platform.threads.reply(
+      token,
+      reply.repo,
+      reply.number,
+      reply.thread,
+      reply.body,
+    );
+    if (!outcome) return apiError(c, "upstream_unreachable");
+    return c.json(answer(outcome));
   },
 );

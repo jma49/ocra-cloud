@@ -158,5 +158,16 @@ export function gitlabThreads(origin: string): PullThreads {
         : [];
       return actionOf(outcomeOf(sent), findingsOfThread({ comments }));
     },
+    async reply(token, fullName, number, thread, body) {
+      // The discussion is named under its merge request: one of another answers 404, a refusal.
+      const url = mergeRequestUrl(origin, fullName, number);
+      return outcomeOf(
+        await platformSend(`${url}/discussions/${encodeURIComponent(thread)}/notes`, {
+          method: "POST",
+          headers: { ...gitlabHeaders(token), "content-type": "application/json" },
+          body: JSON.stringify({ body }),
+        }),
+      );
+    },
   };
 }
