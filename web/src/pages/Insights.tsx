@@ -6,6 +6,7 @@ import { useCached } from "../cache.js";
 import { count, num, period, usd } from "../format.js";
 import { Cycle } from "../insights/cycle.js";
 import { FlowSection } from "../insights/flow.js";
+import { ReviewLoadSection } from "../insights/reviewers.js";
 import { daily, quantile } from "../insights/series.js";
 import { Link } from "../router.js";
 import { EmptyState, LoadError, Loading, PageHead, Seg } from "../ui.js";
@@ -157,6 +158,7 @@ export function Insights() {
         </>
       )}
       <FlowSection days={days} />
+      <ReviewLoadSection days={days} />
       <Cycle days={days} />
     </>
   );
