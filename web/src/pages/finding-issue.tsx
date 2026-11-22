@@ -1,4 +1,5 @@
-import { useState } from "react";
+import CircleDot from "lucide-react/icons/circle-dot";
+import { type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   type FindingIssueAnswer,
@@ -8,6 +9,8 @@ import {
   MAX_ISSUE_TITLE_CHARS,
 } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
+import { Drawer } from "../drawer.js";
+import { num } from "../format.js";
 import { useAction } from "../ui.js";
 
 // "Open issue" on a finding: a draft from the finding, edited here and
@@ -16,19 +19,30 @@ import { useAction } from "../ui.js";
 const https = (url: string) => url.startsWith("https://");
 
 function IssueLink({ issue }: { issue: FindingIssueView }) {
-  const label = `Issue #${issue.number}`;
+  const label = (
+    <>
+      <CircleDot aria-hidden="true" />
+      Issue #{issue.number}
+    </>
+  );
   return https(issue.url) ? (
-    <a className="small" href={issue.url} target="_blank" rel="noreferrer noopener">
+    <a className="issue-link" href={issue.url} target="_blank" rel="noreferrer noopener">
       {label}
     </a>
   ) : (
-    <span className="small">{label}</span>
+    <span className="issue-link">{label}</span>
   );
 }
+
+const REFUSED: Record<"refused" | "pending", string> = {
+  refused: "The platform refused to open the issue.",
+  pending: "The issue is being opened; try again in a moment.",
+};
 
 export function FindingIssue(props: { findingId: string; issue: FindingIssueView | null }) {
   const [issue, setIssue] = useState(props.issue);
   const [draft, setDraft] = useState<FindingIssueDraftView | null>(null);
+  const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [note, setNote] = useState("");
@@ -39,6 +53,7 @@ export function FindingIssue(props: { findingId: string; issue: FindingIssueView
     setDraft(view);
     setTitle(view.title);
     setBody(view.body);
+    setOpen(true);
   });
   const send = useAction(() =>
     api<FindingIssueAnswer>(`${path}/issue`, {
@@ -46,80 +61,90 @@ export function FindingIssue(props: { findingId: string; issue: FindingIssueView
       body: JSON.stringify({ title, body }),
     }),
   );
-  const submit = async () => {
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    setNote("");
     const r = await send.run();
     if (!r) return;
-    if (r.outcome === "done") {
-      setIssue(r.issue);
-      setDraft(null);
-    } else {
-      setNote(
-        r.outcome === "pending"
-          ? "The issue is being opened; try again in a moment."
-          : "The platform refused to open the issue.",
-      );
-    }
+    if (r.outcome !== "done") return setNote(REFUSED[r.outcome]);
+    setIssue(r.issue);
+    setOpen(false);
   };
   if (issue) return <IssueLink issue={issue} />;
-  if (!draft) {
-    return (
-      <>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={load.busy}
-          onClick={() => load.run()}
-        >
-          Open issue
-        </Button>
-        {load.error !== null && (
-          <span className="error small" role="alert">
-            Could not draft the issue: {why(load.error)}.
-          </span>
-        )}
-      </>
-    );
-  }
-  const fits =
-    title.trim() !== "" &&
-    title.length <= MAX_ISSUE_TITLE_CHARS &&
-    body.length <= MAX_ISSUE_BODY_CHARS;
+  const tooLong = body.length > MAX_ISSUE_BODY_CHARS;
+  const fits = title.trim() !== "" && title.length <= MAX_ISSUE_TITLE_CHARS && !tooLong;
   return (
-    <div className="stack">
-      <span className="subtle small">New issue in {draft.repo}</span>
-      <input
-        className="input"
-        aria-label="Issue title"
-        maxLength={MAX_ISSUE_TITLE_CHARS}
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-      />
-      <textarea
-        className="input"
-        aria-label="Issue body"
-        rows={10}
-        value={body}
-        onChange={(e) => setBody(e.target.value)}
-      />
-      <div className="event-actions">
-        <Button size="sm" disabled={send.busy || !fits} onClick={submit}>
-          Open issue
-        </Button>
-        <Button type="button" variant="outline" size="sm" onClick={() => setDraft(null)}>
-          Cancel
-        </Button>
-      </div>
-      {note && (
-        <p className="note small m-0" role="status">
-          {note}
-        </p>
+    <>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        loading={load.busy}
+        onClick={() => (draft ? setOpen(true) : load.run())}
+      >
+        Open issue
+      </Button>
+      {load.error !== null && (
+        <span className="error small" role="alert">
+          Could not draft the issue: {why(load.error)}.
+        </span>
       )}
-      {send.error !== null && (
-        <p className="error small m-0" role="alert">
-          Could not open the issue: {why(send.error)}.
-        </p>
+      {draft && open && (
+        <Drawer
+          title="New issue"
+          heading={`New issue in ${draft.repo}`}
+          onClose={() => setOpen(false)}
+          onSubmit={submit}
+          foot={
+            <>
+              <span className={`small grow ${tooLong ? "error-inline" : "subtle"}`}>
+                {num(body.length)} of {num(MAX_ISSUE_BODY_CHARS)} characters
+              </span>
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" loading={send.busy} disabled={!fits}>
+                Open issue
+              </Button>
+            </>
+          }
+        >
+          <p className="muted small m-0">
+            Drafted from the finding. It is opened in the repository as you, once: this finding then
+            links to it.
+          </p>
+          <label className="field">
+            Title
+            <input
+              className="input"
+              aria-label="Issue title"
+              maxLength={MAX_ISSUE_TITLE_CHARS}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+          </label>
+          <label className="field">
+            Body
+            <textarea
+              className="input mono issue-text"
+              aria-label="Issue body"
+              spellCheck={false}
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+            />
+          </label>
+          {note && (
+            <p className="note small m-0" role="status">
+              {note}
+            </p>
+          )}
+          {send.error !== null && (
+            <p className="error" role="alert">
+              Could not open the issue: {why(send.error)}.
+            </p>
+          )}
+        </Drawer>
       )}
-    </div>
+    </>
   );
 }
