@@ -21,7 +21,7 @@ export function Diagram(props: { source: string }) {
         securityLevel: "strict",
         htmlLabels: false,
         theme: dark ? "dark" : "neutral",
-        fontFamily: "Inter Variable, ui-sans-serif, system-ui, sans-serif",
+        fontFamily: getComputedStyle(document.documentElement).getPropertyValue("--font"),
       });
       const { svg } = await mermaid.render(`ocra-diagram-${++ids}`, props.source);
       const lifted = liftStyles(svg);
