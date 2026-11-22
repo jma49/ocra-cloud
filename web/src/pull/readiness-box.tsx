@@ -33,8 +33,8 @@ const SUMMARY: Record<ReadinessState, { text: string; tone: string }> = {
 const MARK: Record<ReadinessState, { label: string; cls: string }> = {
   met: { label: "Met", cls: "ok" },
   unmet: { label: "Not met", cls: "err" },
-  pending: { label: "Pending", cls: "wait" },
-  unknown: { label: "Unknown", cls: "muted" },
+  pending: { label: "Waiting", cls: "wait" },
+  unknown: { label: "Cannot be read", cls: "muted" },
 };
 
 function Mark(props: { state: ReadinessState }) {
