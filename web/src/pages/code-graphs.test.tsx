@@ -63,6 +63,8 @@ describe("the code graphs page", () => {
       expect.objectContaining({ method: "POST" }),
     );
     expect(screen.getByRole("button", { name: "Rebuild" }).hasAttribute("disabled")).toBe(true);
+    // A purge leaves a running build to finish, so the row would not be empty.
+    expect(screen.getByRole("button", { name: "Purge" }).hasAttribute("disabled")).toBe(true);
   });
 
   it("purges a graph only after a second click, and puts it back when the server refuses", async () => {
