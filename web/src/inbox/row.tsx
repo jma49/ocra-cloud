@@ -1,4 +1,5 @@
 import Layers from "lucide-react/icons/layers";
+import MessageSquare from "lucide-react/icons/message-square";
 import type { MouseEvent } from "react";
 import { ago } from "../format.js";
 import { pullPath } from "../pull/path.js";
@@ -94,6 +95,15 @@ function PullLink(props: {
         >
           <Layers size={12} aria-hidden="true" />
           {r.stack.position}/{r.stack.size}
+        </span>
+      )}
+      {r.repliesWaiting > 0 && (
+        <span
+          className="pull-replies"
+          title={`${r.repliesWaiting} ${r.repliesWaiting === 1 ? "reply" : "replies"} waiting for you`}
+        >
+          <MessageSquare size={12} aria-hidden="true" />
+          {r.repliesWaiting}
         </span>
       )}
       <span className="pull-repo">{r.repo}</span>

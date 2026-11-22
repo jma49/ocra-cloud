@@ -628,7 +628,8 @@ td.finding-cell {
   bottom: 10px;
   border-radius: 0 0 1px 1px;
 }
-.pull-stack {
+.pull-stack,
+.pull-replies {
   flex: none;
   display: inline-flex;
   align-items: center;
@@ -636,6 +637,10 @@ td.finding-cell {
   color: var(--t3);
   font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;
+}
+/* Replies to threads the user started: the one count on a row that asks for an answer. */
+.pull-replies {
+  color: var(--blue);
 }
 .pull-row:hover {
   background: var(--fill);
