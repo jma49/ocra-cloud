@@ -1,9 +1,12 @@
-import type { AutomationRunView } from "../../../src/shared/index.js";
+import type { AutomationActionOutcome, AutomationRunView } from "../../../src/shared/index.js";
 import { ago } from "../format.js";
 import { ACTION_LABEL, OUTCOME_LABEL, RUN_LABEL } from "./describe.js";
 
 // The rules' recent runs, newest first: which pull request, and how each
 // action went.
+
+// Skips this server is expected to make, which the page explains, are not errors.
+const QUIET = new Set<AutomationActionOutcome>(["done", "needs_self_hosted", "not_enrolled"]);
 
 const RUN_TONE: Record<AutomationRunView["outcome"], string> = {
   running: "badge",
@@ -41,7 +44,7 @@ export function Runs(props: { runs: AutomationRunView[] }) {
                     <li key={`${a.kind}-${i}`}>
                       {ACTION_LABEL[a.kind]}
                       {": "}
-                      <span className={a.outcome === "done" ? "muted" : "error-inline"}>
+                      <span className={QUIET.has(a.outcome) ? "muted" : "error-inline"}>
                         {OUTCOME_LABEL[a.outcome]}
                       </span>
                     </li>

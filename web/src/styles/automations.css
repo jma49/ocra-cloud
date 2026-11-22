@@ -3,6 +3,18 @@
   align-items: center;
   gap: 12px;
 }
+/* On a phone the rule's text keeps the row's width; its buttons wrap below it. */
+@media (max-width: 560px) {
+  .rule-list .list-row {
+    flex-wrap: wrap;
+  }
+  .rule-list .list-row > .grow {
+    flex-basis: calc(100% - 56px);
+  }
+  .rule-list .list-row > button:first-of-type {
+    margin-left: 48px;
+  }
+}
 .rule-off {
   opacity: 0.6;
 }
