@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { api, type Me } from "../api.js";
 import { date, num } from "../format.js";
 import { ActionError, LoadError, Loading, PageHead, useLoad } from "../ui.js";
@@ -149,14 +150,11 @@ function Sharing({ load }: { load: SharingLoad }) {
     <div className="section card">
       <div className="card-head">
         {title}
-        <button
-          type="button"
-          role="switch"
-          className="switch"
+        <Switch
           aria-label="Send findings and the code they quote"
-          aria-checked={data.shareFindings}
+          checked={data.shareFindings}
           disabled={busy}
-          onClick={() => (data.shareFindings ? setAsking(true) : put(true))}
+          onCheckedChange={() => (data.shareFindings ? setAsking(true) : put(true))}
         />
       </div>
       <div className="card-pad small muted stack">

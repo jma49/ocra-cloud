@@ -1,5 +1,6 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import {
   type AgentRole,
   BUILT_IN_REVIEWERS,
@@ -217,13 +218,10 @@ export function Agents() {
                       {a.role ? (
                         <span className="subtle small">always</span>
                       ) : (
-                        <button
-                          type="button"
-                          role="switch"
-                          className="switch"
+                        <Switch
                           aria-label={`${a.id} on`}
-                          aria-checked={enabled}
-                          onClick={() => update({ enabled: enabled ? false : undefined })}
+                          checked={enabled}
+                          onCheckedChange={() => update({ enabled: enabled ? false : undefined })}
                         />
                       )}
                     </td>

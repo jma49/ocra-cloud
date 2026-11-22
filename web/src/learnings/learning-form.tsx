@@ -1,5 +1,6 @@
 import { type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import type {
   CodePlatformKind,
   LearningChangeView,
@@ -132,13 +133,10 @@ export function LearningForm(props: {
         />
       </Row>
       <Row label="Critical" desc="Always given to a change it applies to, whatever the budget.">
-        <button
-          type="button"
-          role="switch"
-          className="switch"
+        <Switch
           aria-label="Critical"
-          aria-checked={critical}
-          onClick={() => setCritical(!critical)}
+          checked={critical}
+          onCheckedChange={() => setCritical(!critical)}
         />
       </Row>
       <div className="learning-body">
