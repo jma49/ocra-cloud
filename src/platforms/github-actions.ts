@@ -55,6 +55,18 @@ export function githubActions(): PullActions {
         }),
       );
     },
+    async addLabels(token, fullName, number, labels) {
+      return outcomeOf(
+        await send(token, "POST", `${repo(fullName)}/issues/${number}/labels`, { labels }),
+      );
+    },
+    async requestReviewers(token, fullName, number, logins) {
+      return outcomeOf(
+        await send(token, "POST", `${repo(fullName)}/pulls/${number}/requested_reviewers`, {
+          reviewers: logins,
+        }),
+      );
+    },
     async merge(token, fullName, number, merge) {
       return outcomeOf(
         await send(token, "PUT", `${repo(fullName)}/pulls/${number}/merge`, {

@@ -36,3 +36,5 @@ export const reviewJobs = pg(sqlite.reviewJobs);
 export const notifyChannels = pg(sqlite.notifyChannels);
 export const replyJobs = pg(sqlite.replyJobs);
 export const reviewWalkthroughs = pg(sqlite.reviewWalkthroughs);
+export const automationRules = pg(sqlite.automationRules);
+export const automationRuns = pg(sqlite.automationRuns);

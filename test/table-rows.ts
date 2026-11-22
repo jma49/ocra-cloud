@@ -104,6 +104,23 @@ export const rows = {
     overview: "o",
     groups: [{ title: "g", files: ["a.ts"], note: "n" }],
   }),
+  automationRules: (id: string) => ({
+    id,
+    name: `rule ${id}`,
+    trigger: "reviewed" as const,
+    conditions: { critical: true },
+    actions: [{ kind: "skip_review" as const }],
+    updatedAt: new Date(),
+  }),
+  automationRuns: (id: string) => ({
+    id,
+    ruleId: `rule-${id}`,
+    ruleName: "rule",
+    trigger: "reviewed" as const,
+    pull: "octo/api#7",
+    eventKey: `review:${id}`,
+    actions: [],
+  }),
   repositories: (id: string) => ({ id, repoHash: `h-${id}`, name: `octo/${id}` }),
   // One row per account, kind and day; the id names the day.
   usageCounters: (id: string) => ({ kind: "uploads" as const, day: id, n: 1 }),

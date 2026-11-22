@@ -34,6 +34,8 @@ const changes = {
   notifyChannels: { name: "renamed" },
   replyJobs: { state: "done" as const },
   reviewWalkthroughs: { overview: "changed" },
+  automationRules: { name: "renamed" },
+  automationRuns: { outcome: "failed" as const },
 } satisfies { [N in keyof typeof rows]: Record<string, unknown> };
 
 // Storage persists across tests in a file; deleting the accounts cascades.

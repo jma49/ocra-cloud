@@ -70,6 +70,8 @@ const TABLE: Record<string, string> = {
   notifyChannels: "notify_channels",
   replyJobs: "reply_jobs",
   reviewWalkthroughs: "review_walkthroughs",
+  automationRules: "automation_rules",
+  automationRuns: "automation_runs",
 };
 
 describe("query plans", () => {
@@ -229,6 +231,7 @@ describe("retention", () => {
     }
     expect([...plans.keys()].sort()).toEqual([
       "audit_events",
+      "automation_runs",
       "device_codes",
       "gateway_calls",
       "rate_windows",

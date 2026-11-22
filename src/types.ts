@@ -1,6 +1,7 @@
 import type { SessionAccount } from "./db/accounts.js";
 import type { Db } from "./db/client.js";
 import type { Scoped } from "./db/scoped.js";
+import type { BotTokens } from "./platforms/bot.js";
 
 /**
  * What the app reads from its host: settings, secrets and rate limiters,
@@ -18,6 +19,8 @@ export type AppEnv = {
   Variables: {
     db: Db;
     clientAddress: string;
+    /** The ocra bot, on a self-hosted server that has one. */
+    bots: BotTokens | undefined;
     /** Set by requireSession: the signed-in account and its scoped data. */
     session: SessionAccount;
     data: Scoped;

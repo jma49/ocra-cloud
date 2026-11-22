@@ -90,6 +90,27 @@ export function messageOf(kind: NotifyKind, n: ReviewNotice): unknown {
   };
 }
 
+/** A rule's notice: which rule ran on which pull request. Its name is the account's text, made plain too. */
+export type RuleNotice = {
+  rule: string;
+  pull: { label: string; url: string | null };
+  consoleUrl: string;
+};
+
+/** The body the chat's webhook takes, for an automation rule that ran. */
+export function ruleMessageOf(kind: NotifyKind, n: RuleNotice): unknown {
+  const text = (link: (label: string, url: string) => string) =>
+    [
+      `ocra automation "${plain(n.rule)}" ran on ${n.pull.url ? link(n.pull.label, n.pull.url) : plain(n.pull.label)}`,
+      link("Open in ocra", n.consoleUrl),
+    ].join("\n");
+  if (kind === "slack") return { text: text((label, url) => `<${url}|${label}>`) };
+  return {
+    msgtype: "markdown",
+    markdown: { content: text((label, url) => `[${label}](${url})`) },
+  };
+}
+
 /** Whether the chat took the message. */
 export async function deliver(kind: NotifyKind, url: string, body: unknown): Promise<boolean> {
   const sent = await platformSend<{ errcode?: number }>(url, {

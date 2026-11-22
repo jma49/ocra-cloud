@@ -8,6 +8,7 @@ import { Hono } from "hono";
 import { createApp } from "../app.js";
 import type { Db } from "../db/client.js";
 import type { AppBindings } from "../types.js";
+import { botTokens } from "./bot-tokens.js";
 import { clientAddress } from "./client-address.js";
 import { type GraphOptions, startGraphs } from "./graph-worker.js";
 import { type RateLimitStore, rateLimits } from "./limits.js";
@@ -81,6 +82,7 @@ export async function openHost(options: HostOptions) {
     ...(graphs ? { graphs: graphs.service } : {}),
     ...(options.githubWebhookSecret ? { githubWebhookSecret: options.githubWebhookSecret } : {}),
     ...(reviews ? { autoReview: reviews.service } : {}),
+    ...(options.autoReview ? { bots: botTokens(options.autoReview.bots) } : {}),
   });
 
   const origin = options.publicUrl ? new URL(options.publicUrl).origin : undefined;
