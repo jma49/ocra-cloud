@@ -7,6 +7,8 @@ import { scoped } from "../db/scoped.js";
 import { defer } from "../defer.js";
 import { MAX_HOOK_BODY } from "../graph/webhooks.js";
 import { apiError, jsonBody } from "../http.js";
+import { gitlabSignal, moveIntents } from "../merge-when-ready/hooks.js";
+import { runnerOf } from "../merge-when-ready/routes.js";
 import { publicOutbox } from "../notify/notify.js";
 import { tellGitlabHook } from "../notify/pull-hooks.js";
 import { COMMIT_ID } from "../platforms/contents.js";
@@ -21,7 +23,8 @@ import type { AutoReviewService } from "./routes.js";
 // opens, reopens, leaves draft or gains commits (ADR-0046, 2). A draft is
 // not. Its pre-merge checks are evaluated then, and again when its title or
 // description is edited. GitLab's note hook, on the same address, queues
-// answers (./replies.ts).
+// answers (./replies.ts); its merge request and pipeline hooks also move
+// the intents armed to merge when ready (src/merge-when-ready/).
 
 type PullChange = {
   fullName: string;
@@ -98,6 +101,8 @@ const gitlabMergeRequest = z.object({
   labels: z.array(z.object({ title: z.string() })).optional(),
 });
 
+const gitlabProject = z.object({ project: z.object({ id: z.number() }) });
+
 type MergeRequestChange = z.infer<typeof gitlabMergeRequest>["object_attributes"];
 
 const isDraft = (a: MergeRequestChange) => a.draft ?? a.work_in_progress ?? false;
@@ -121,7 +126,8 @@ export function autoReviewWebhooks(service: AutoReviewService) {
     const body = c.req.valid("json");
     const mr = kind === "Merge Request Hook" ? gitlabMergeRequest.safeParse(body) : undefined;
     const note = kind === "Note Hook" ? gitlabNote.safeParse(body) : undefined;
-    const projectId = mr?.data?.project.id ?? note?.data?.project.id;
+    const pipeline = kind === "Pipeline Hook" ? gitlabProject.safeParse(body) : undefined;
+    const projectId = mr?.data?.project.id ?? note?.data?.project.id ?? pipeline?.data?.project.id;
     if (projectId === undefined) return c.json({ queued: 0 }, 202);
     const host = new URL(client.url).host;
     const repo = await reviewRepoFor(c.var.db, "gitlab", host, String(projectId));
@@ -129,6 +135,8 @@ export function autoReviewWebhooks(service: AutoReviewService) {
     if (!repo?.webhookSecretHash || !sameText(repo.webhookSecretHash, hash)) {
       return apiError(c, "unauthenticated");
     }
+    const signal = gitlabSignal(kind, body);
+    if (signal) defer(c, moveIntents(runnerOf(c), repo, signal.fullName, signal.signal));
     if (note?.data) {
       return c.json({ queued: await queueGitlabNote(c.var.db, service, repo, note.data) }, 202);
     }

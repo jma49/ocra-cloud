@@ -10,6 +10,8 @@ import { defer } from "./defer.js";
 import type { GraphService } from "./graph/routes.js";
 import { MAX_HOOK_BODY, queueGithubPush } from "./graph/webhooks.js";
 import { signedBody } from "./http.js";
+import { moveGithubIntents } from "./merge-when-ready/hooks.js";
+import { runnerOf } from "./merge-when-ready/routes.js";
 import { publicOutbox } from "./notify/notify.js";
 import { tellGithubHook } from "./notify/pull-hooks.js";
 import type { AppEnv } from "./types.js";
@@ -17,7 +19,9 @@ import type { AppEnv } from "./types.js";
 // The GitHub App's one webhook, proven by its signature: a push queues
 // graph builds, a pull request's change queues its review (its merge or
 // close is recorded, as are its steps toward review, and its user told of
-// what concerns them) and an @ocra comment its answer, where the host does them. GitLab's hooks are per
+// what concerns them) and an @ocra comment its answer, where the host does
+// them. A pull request's change, review, check or status also moves the
+// intents armed to merge it when ready. GitLab's hooks are per
 // repository, with secrets of their own.
 
 export type WebhookHost = {
@@ -47,6 +51,7 @@ export function githubWebhook(host: WebhookHost) {
       if (event === "pull_request") await recordGithubClose(c.var.db, body);
       await recordGithubFlow(c.var.db, event, body);
       defer(c, tellGithubHook(c.var.db, publicOutbox(c), event, body));
+      defer(c, moveGithubIntents(runnerOf(c), event, body));
       const queued =
         event === "push" && host.graphs
           ? await queueGithubPush(c.var.db, host.graphs, body)

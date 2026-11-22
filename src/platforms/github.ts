@@ -1,4 +1,5 @@
 import { githubActions } from "./github-actions.js";
+import { githubAutoMerge } from "./github-auto-merge.js";
 import { githubChanges } from "./github-changes.js";
 import { githubContents } from "./github-contents.js";
 import { githubCycles } from "./github-cycles.js";
@@ -68,6 +69,7 @@ export function github(client: { id: string; secret: string }): CodePlatform {
     changes: githubChanges(),
     actions: githubActions(),
     queue: githubQueue(),
+    autoMerge: githubAutoMerge(),
     cycles: githubCycles(post),
     stacks: githubStacks(post),
     learnings: githubLearnings(),

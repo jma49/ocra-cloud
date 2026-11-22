@@ -14,7 +14,8 @@ export type NotifyWhen = (typeof NOTIFY_WHEN)[number];
  * Events of an enrolled repository's pull requests that concern the
  * account's own platform user: a review asked of them; on a pull request
  * they wrote, a reviewer's review, its merge or close, failed pre-merge
- * checks, or ocra's review with a critical finding.
+ * checks, or ocra's review with a critical finding; on one they set to
+ * merge when ready, its merge or why it stopped.
  */
 export const NOTIFY_EVENTS = [
   "review_requested",
@@ -22,6 +23,7 @@ export const NOTIFY_EVENTS = [
   "pull_closed",
   "checks_failed",
   "review_blocking",
+  "merge_when_ready",
 ] as const;
 export type NotifyEvent = (typeof NOTIFY_EVENTS)[number];
 

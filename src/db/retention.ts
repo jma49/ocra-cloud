@@ -1,4 +1,4 @@
-import { and, inArray, lt, sql } from "drizzle-orm";
+import { and, inArray, lt, notInArray, or, sql } from "drizzle-orm";
 import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
 import { errorName, logError } from "../log.js";
 import { DAY, utcDay } from "../time.js";
@@ -11,6 +11,7 @@ import {
   deviceCodes,
   gatewayCalls,
   liveRuns,
+  mergeIntents,
   notifySends,
   pullFlows,
   pullReviews,
@@ -29,6 +30,8 @@ import {
 export const RETENTION_DAYS = 90;
 /** An automation's run is kept for a month: enough to see why a rule acted. */
 export const AUTOMATION_RUN_DAYS = 30;
+/** A merge-when-ready intent that ended, kept to show how it ended. */
+const MERGE_INTENT_DAYS = 30;
 /** A pull request event's claim, long past any webhook's redelivery. */
 const NOTIFY_SEND_DAYS = 30;
 
@@ -117,6 +120,24 @@ export async function enforceRetention(db: Db, now = new Date()): Promise<void> 
             and(
               ofEachAccount(notifySends.accountId),
               lt(notifySends.createdAt, new Date(now.getTime() - NOTIFY_SEND_DAYS * DAY)),
+            ),
+          ),
+    ],
+    // An armed intent untouched since the retention window goes too (it is
+    // older than the month as well, which the index on updated_at finds).
+    [
+      "merge_intents",
+      () =>
+        db
+          .delete(mergeIntents)
+          .where(
+            and(
+              ofEachAccount(mergeIntents.accountId),
+              lt(mergeIntents.updatedAt, new Date(now.getTime() - MERGE_INTENT_DAYS * DAY)),
+              or(
+                notInArray(mergeIntents.state, ["armed", "merging"]),
+                lt(mergeIntents.updatedAt, cutoff),
+              ),
             ),
           ),
     ],

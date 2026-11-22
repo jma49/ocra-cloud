@@ -174,6 +174,18 @@ export const rows = {
     results: [],
     digest: "d",
   }),
+  mergeIntents: (id: string) => ({
+    id,
+    platform: "github" as const,
+    host: "github.com",
+    fullName: `octo/${id}`,
+    number: 1,
+    method: "squash" as const,
+    mode: "server" as const,
+    head: "a".repeat(40),
+    state: "armed" as const,
+    armedBy: "octo",
+  }),
   // The review it belongs to is made in beforeEach (the foreign key needs one).
   reviewChatMessages: (id: string) => ({
     id,

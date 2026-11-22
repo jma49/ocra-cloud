@@ -36,6 +36,10 @@ import {
   type LinkedTaskView,
   MERGE_CHECK_KINDS,
   MERGE_CHECK_MODES,
+  MERGE_INTENT_MODES,
+  MERGE_INTENT_REASONS,
+  MERGE_INTENT_STATES,
+  MERGE_METHODS,
   type MergeCheckResultView,
   type MergeChecksConclusion,
   type MergeCheckVerdictView,
@@ -902,6 +906,40 @@ export const mergeCheckRuns = sqliteTable(
   ],
 );
 
+// A pull request the account set to merge when ready (src/merge-when-ready/):
+// one row per pull request, re-armed in place. The repository's path is
+// kept lowercased, as its webhooks are matched to it. claimed_at is the
+// compare-and-set of the one runner that merges it.
+export const mergeIntents = sqliteTable(
+  "merge_intents",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    platform: text("platform", { enum: CODE_PLATFORMS }).notNull(),
+    host: text("host").notNull(),
+    fullName: text("full_name").notNull(),
+    number: integer("number").notNull(),
+    method: text("method", { enum: MERGE_METHODS }).notNull(),
+    mode: text("mode", { enum: MERGE_INTENT_MODES }).notNull(),
+    head: text("head").notNull(),
+    keepOnPush: integer("keep_on_push", { mode: "boolean" }).notNull().default(false),
+    state: text("state", { enum: MERGE_INTENT_STATES }).notNull(),
+    reason: text("reason", { enum: MERGE_INTENT_REASONS }),
+    armedBy: text("armed_by").notNull(),
+    claimedAt: integer("claimed_at", { mode: "timestamp_ms" }),
+    finishedAt: integer("finished_at", { mode: "timestamp_ms" }),
+    createdAt: createdAt(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch('subsec') * 1000)`),
+  },
+  (t) => [
+    uniqueIndex("merge_intents_pull").on(t.accountId, t.platform, t.host, t.fullName, t.number),
+    index("merge_intents_head").on(t.accountId, t.platform, t.host, t.fullName, t.head),
+    index("merge_intents_account_updated").on(t.accountId, t.updatedAt),
+  ],
+);
+
 // "Ask ocra" about a review: the account's questions and the answers, kept
 // as long as the review (deleted with it, by the user or retention) and at
 // most MAX_CHAT_MESSAGES of them (./review-chat.ts).
@@ -1049,6 +1087,7 @@ export const accountTables = {
   automationRuns,
   mergeChecks,
   mergeCheckRuns,
+  mergeIntents,
   reviewChatMessages,
   liveRuns,
   liveEvents,

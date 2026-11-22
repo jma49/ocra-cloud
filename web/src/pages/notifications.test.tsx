@@ -172,7 +172,7 @@ describe("my pull requests' events", () => {
     );
     render(<Notifications />);
     fireEvent.click(
-      await screen.findByRole("button", { name: "My pull requests' events to #reviews: 2 of 5" }),
+      await screen.findByRole("button", { name: "My pull requests' events to #reviews: 2 of 6" }),
     );
     const merged = await screen.findByRole("menuitemcheckbox", {
       name: "My pull request is merged or closed",

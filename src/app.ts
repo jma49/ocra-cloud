@@ -23,6 +23,7 @@ import { errorName, logError } from "./log.js";
 import { meRoute } from "./me.js";
 import { memory } from "./memory.js";
 import { mergeChecksRoute, pullChecksRoute } from "./merge-checks/routes.js";
+import { mergeWhenReady } from "./merge-when-ready/routes.js";
 import type { Mailer } from "./notify/email.js";
 import { emailLinks } from "./notify/links.js";
 import { notifyRoute } from "./notify/routes.js";
@@ -126,6 +127,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
   app.route("/platforms", platformConnect);
   app.route("/pull-views", pullViewsRoute);
   app.route("/pulls/checks", pullChecksRoute);
+  app.route("/pulls/merge-when-ready", mergeWhenReady);
   app.route("/pulls", pullPage);
   app.route("/pulls", pullStack);
   app.route("/pulls", reviewers);

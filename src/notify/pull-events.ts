@@ -165,3 +165,17 @@ export async function tellReviewBlocking(
     },
   ]);
 }
+
+/** Tells the account's own user of an event of theirs, such as how a merge they armed ended. */
+export async function tellOwnPullEvent(
+  db: Db,
+  data: Scoped,
+  out: Outbox,
+  repo: EventRepo,
+  event: Omit<PullEvent, "concerns" | "by">,
+): Promise<string[]> {
+  if ((await data.notify.subscribed(event.kind)).length === 0) return [];
+  const me = await ownUserId(db, data, repo);
+  if (me === null) return [];
+  return tellPullEvent(db, data, out, repo, [{ ...event, concerns: me }]);
+}
