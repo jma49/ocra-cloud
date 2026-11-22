@@ -48,9 +48,34 @@ export function inboxSections(rows: Row[], f: Filters, views: PullView[]): Shown
     .map((view) => ({
       key: `view:${view.id}`,
       title: view.name,
-      rows: rows.filter((r) => matchesView(r, view.filters) && matches(r, f)),
+      rows: stacksTogether(rows.filter((r) => matchesView(r, view.filters) && matches(r, f))),
       view,
     }));
+}
+
+const stackKey = (r: Row) => (r.stack ? `${r.host}:${r.stack.id}` : null);
+
+/** The rows with each stack's pulls side by side, bottom first, where its first one stood. */
+export function stacksTogether(rows: Row[]): Row[] {
+  const placed = new Set<string>();
+  return rows.flatMap((r) => {
+    const key = stackKey(r);
+    if (key === null) return [r];
+    if (placed.has(key)) return [];
+    placed.add(key);
+    return rows
+      .filter((other) => stackKey(other) === key)
+      .sort((x, y) => (x.stack?.position ?? 0) - (y.stack?.position ?? 0));
+  });
+}
+
+/** Whether a row opens, continues or closes a run of its stack's rows; null outside a run. */
+export function stackRun(rows: Row[], i: number): { first: boolean; last: boolean } | null {
+  const key = rows[i] && stackKey(rows[i]);
+  if (!key) return null;
+  const before = rows[i - 1] !== undefined && stackKey(rows[i - 1] as Row) === key;
+  const after = rows[i + 1] !== undefined && stackKey(rows[i + 1] as Row) === key;
+  return before || after ? { first: !before, last: !after } : null;
 }
 
 /** Every repository with a pull in the inbox, by its platform host. */

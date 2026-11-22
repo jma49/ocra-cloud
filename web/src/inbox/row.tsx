@@ -1,3 +1,4 @@
+import Layers from "lucide-react/icons/layers";
 import type { MouseEvent } from "react";
 import { ago } from "../format.js";
 import { pullPath } from "../pull/path.js";
@@ -16,11 +17,16 @@ const REVIEW = {
   required: { label: "Review required", cls: "" },
 } as const;
 
+const runClass = (run: { first: boolean; last: boolean } | null) =>
+  run ? ` in-stack${run.first ? " stack-first" : ""}${run.last ? " stack-last" : ""}` : "";
+
 /** One pull request on one line: unread mark, checks, number, title, repository, review, author, age. */
 export function PullRow(props: {
   r: Row;
   i: number;
   current: boolean;
+  /** Set when the rows beside it are of its stack: the rail that joins them. */
+  run: { first: boolean; last: boolean } | null;
   onOpen: () => void;
   onMark: (read: boolean) => void;
 }) {
@@ -37,7 +43,7 @@ export function PullRow(props: {
   };
   const why = r.unread && r.unreadReason ? UNREAD_REASON[r.unreadReason] : null;
   return (
-    <div className={`pull-line${r.unread ? " unread" : ""}`}>
+    <div className={`pull-line${r.unread ? " unread" : ""}${runClass(props.run)}`}>
       <button
         type="button"
         className="unread-mark"
@@ -81,6 +87,15 @@ function PullLink(props: {
       )}
       <span className="pull-num">#{r.number}</span>
       <span className="pull-title">{r.title}</span>
+      {r.stack && (
+        <span
+          className="pull-stack"
+          title={`${r.stack.position} of ${r.stack.size} in its stack, from the bottom`}
+        >
+          <Layers size={12} aria-hidden="true" />
+          {r.stack.position}/{r.stack.size}
+        </span>
+      )}
       <span className="pull-repo">{r.repo}</span>
       <span className="pull-review">
         {review && <span className={`badge ${review.cls}`}>{review.label}</span>}
