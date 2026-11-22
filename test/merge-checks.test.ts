@@ -330,6 +330,14 @@ describe("the linked issue check", () => {
       outcome: "passed",
       detail: "links #12",
     });
+    const elsewhere = [
+      task({ tracker: "jira", key: "PAY-7", url: "https://acme.atlassian.net/browse/PAY-7" }),
+      task({ tracker: "tapd", key: "1001234", state: "closed" }),
+    ];
+    expect(judgeLinkedTasks({ open: true }, elsewhere)).toEqual({
+      outcome: "passed",
+      detail: "links PAY-7",
+    });
   });
 
   it("wants an open one when asked, an unknown state not counting", () => {

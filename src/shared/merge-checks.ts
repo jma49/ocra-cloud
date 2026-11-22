@@ -42,7 +42,7 @@ export type MergeCheckView = {
  * null for an entry that did not fit.
  */
 export type LinkedTaskView = {
-  tracker: "github" | "gitlab";
+  tracker: "github" | "gitlab" | "jira" | "tapd";
   key: string;
   url?: string | undefined;
   state: "open" | "closed" | null;
