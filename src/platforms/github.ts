@@ -11,6 +11,7 @@ import { githubQueue } from "./github-queue.js";
 import { githubReviewers } from "./github-reviewers.js";
 import { githubSearch } from "./github-search.js";
 import { githubStacks } from "./github-stack.js";
+import { githubThreads } from "./github-threads.js";
 import { platformCall } from "./http.js";
 import type { CodePlatform, PlatformRepo, TokenAnswer } from "./platform.js";
 
@@ -48,6 +49,7 @@ export function github(client: { id: string; secret: string }): CodePlatform {
         },
         body: JSON.stringify(body),
       });
+  const actions = githubActions();
   return {
     kind: "github",
     host: "github.com",
@@ -67,7 +69,7 @@ export function github(client: { id: string; secret: string }): CodePlatform {
     searchPulls: (token, search, limit) => githubSearch(post(token), search, limit),
     contents: githubContents(),
     changes: githubChanges(),
-    actions: githubActions(),
+    actions,
     queue: githubQueue(),
     autoMerge: githubAutoMerge(),
     cycles: githubCycles(post),
@@ -76,6 +78,7 @@ export function github(client: { id: string; secret: string }): CodePlatform {
     files: githubFiles(post),
     mergeStatus: githubMergeStatus(),
     reviewers: githubReviewers(post),
+    threads: githubThreads(post, actions),
     async listRepos(token) {
       const installs = await get<{ installations: Installation[] }>(
         token,

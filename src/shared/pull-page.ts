@@ -39,8 +39,18 @@ export type MergeMethod = (typeof MERGE_METHODS)[number];
 
 export type LineSide = "old" | "new";
 
-/** A comment on one line of the diff. */
-export type LineComment = { path: string; line: number; side: LineSide; body: string };
+/**
+ * A comment on one line of the diff, or on the lines startLine to line, which
+ * may carry a suggestion: the text those new lines should be instead.
+ */
+export type LineComment = {
+  path: string;
+  line: number;
+  side: LineSide;
+  body: string;
+  startLine?: number | undefined;
+  suggestion?: string | undefined;
+};
 
 /**
  * What a write on the pull request came to: `refused` when the platform

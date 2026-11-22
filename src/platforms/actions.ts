@@ -15,8 +15,8 @@ type ReviewRequest = {
 
 type MergeRequest = { method: MergeMethod; head: string };
 
-/** A fix of the file at `path` as it is at `head`, committed on the pull request's branch. */
-type FixCommit = { path: string; head: string; fix: LineFix; message: string };
+/** Fixes of the file at `path` as it is at `head`, committed together on the pull request's branch. */
+type FixCommit = { path: string; head: string; fixes: LineFix[]; message: string };
 
 export interface PullActions {
   readonly verdicts: readonly PullVerdict[];
@@ -53,7 +53,7 @@ export interface PullActions {
     number: number,
     logins: readonly string[],
   ): Promise<PullActionOutcome | null>;
-  /** `not_applicable` when the file at head is not text the fix's lines are in. */
+  /** `not_applicable` when the file at head is not text the fixes' lines are in, as they expect them. */
   applyFix(
     token: string,
     fullName: string,

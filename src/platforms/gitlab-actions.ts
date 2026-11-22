@@ -3,6 +3,7 @@ import { outcomeOf, type PullActions } from "./actions.js";
 import { fixedFile, fromBase64, MAX_FIX_FILE_BYTES, toBase64 } from "./fix.js";
 import { type DiffRefs, gitlabHeaders, mergeRequestUrl } from "./gitlab-changes.js";
 import { platformCall, platformSend } from "./http.js";
+import { withSuggestion } from "./suggestions.js";
 
 // GitLab has no "request changes" a client can set: its verdicts here are
 // approve and comment. A review is several calls (each line comment is a
@@ -48,7 +49,11 @@ export function gitlabActions(origin: string): PullActions {
       for (const c of review.comments) {
         const posted = outcomeOf(
           await send(token, "POST", `${url}/discussions`, {
-            body: c.body,
+            // A range is anchored on its last line; a suggestion reaches up to its start.
+            body:
+              c.suggestion === undefined
+                ? c.body
+                : withSuggestion("gitlab", c.body, c.suggestion, c.line - (c.startLine ?? c.line)),
             position: positionOf(mr.diff_refs, c),
           }),
         );
@@ -111,7 +116,7 @@ export function gitlabActions(origin: string): PullActions {
       if (!read) return null;
       if (read.encoding !== "base64" || read.size > MAX_FIX_FILE_BYTES) return "not_applicable";
       const bytes = fromBase64(read.content);
-      const fixed = bytes && fixedFile(bytes, commit.fix);
+      const fixed = bytes && fixedFile(bytes, commit.fixes);
       if (!fixed) return "not_applicable";
       // last_commit_id: GitLab refuses the commit when the file changed since it was read.
       return outcomeOf(

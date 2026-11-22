@@ -1,8 +1,17 @@
+import { REDACTED } from "@open-cr-agent/cloud-contract";
+
 // A finding's fix applied to the file it is in, as the console commits it to
 // the pull request: the file at the reviewed head, its lines startLine to
 // endLine replaced. Only text the fix can be applied to exactly is changed.
+// Review suggestions go the same way, several to a file in one commit.
 
-export type LineFix = { startLine: number; endLine: number; replacement: string };
+export type LineFix = {
+  startLine: number;
+  endLine: number;
+  replacement: string;
+  /** The lines as they were when the fix was written; a file where they changed is not fixed. */
+  expected?: readonly string[];
+};
 
 /** The platforms' content APIs take files up to 1 MB. */
 export const MAX_FIX_FILE_BYTES = 1024 * 1024;
@@ -11,10 +20,13 @@ const decoder = new TextDecoder("utf-8", { fatal: true, ignoreBOM: false });
 const BOM = [0xef, 0xbb, 0xbf];
 
 /**
- * The file with the fix in its own line endings, or undefined when it is not
- * UTF-8 text, is too large, or has no such lines.
+ * The file with the fixes in its own line endings, or undefined when it is not
+ * UTF-8 text, is too large, has no such lines, or the fixes overlap.
  */
-export function fixedFile(bytes: Uint8Array, fix: LineFix): Uint8Array | undefined {
+export function fixedFile(
+  bytes: Uint8Array,
+  fixes: LineFix | readonly LineFix[],
+): Uint8Array | undefined {
   if (bytes.byteLength > MAX_FIX_FILE_BYTES) return undefined;
   // Kept by hand: not every runtime's decoder honours ignoreBOM.
   const bom = BOM.every((b, i) => bytes[i] === b);
@@ -28,16 +40,36 @@ export function fixedFile(bytes: Uint8Array, fix: LineFix): Uint8Array | undefin
   const lines = text.split(eol);
   const endsWithEol = lines.at(-1) === "";
   const count = endsWithEol ? lines.length - 1 : lines.length;
-  if (fix.startLine < 1 || fix.endLine < fix.startLine || fix.endLine > count) return undefined;
-  const replacement = fix.replacement.replace(/\r\n/g, "\n").replace(/\n$/, "");
-  const added = fix.replacement === "" ? [] : replacement.split("\n");
-  lines.splice(fix.startLine - 1, fix.endLine - fix.startLine + 1, ...added);
+  // From the bottom up, so each fix's line numbers still hold when it is applied.
+  const ordered = [fixes].flat().sort((a, b) => b.startLine - a.startLine);
+  let floor = count + 1;
+  for (const fix of ordered) {
+    if (fix.startLine < 1 || fix.endLine < fix.startLine || fix.endLine >= floor) return undefined;
+    floor = fix.startLine;
+    const found = lines.slice(fix.startLine - 1, fix.endLine);
+    if (fix.expected && !sameLines(found, fix.expected)) return undefined;
+    const replacement = fix.replacement.replace(/\r\n/g, "\n").replace(/\n$/, "");
+    const added = fix.replacement === "" ? [] : replacement.split("\n");
+    lines.splice(fix.startLine - 1, fix.endLine - fix.startLine + 1, ...added);
+  }
   const body = new TextEncoder().encode(lines.join(eol));
   if (!bom) return body;
   const out = new Uint8Array(BOM.length + body.byteLength);
   out.set(BOM);
   out.set(body, BOM.length);
   return out;
+}
+
+// A diff shows a CRLF file's lines with their CR; the file is split on CRLF.
+const sameLines = (a: readonly string[], b: readonly string[]) =>
+  a.length === b.length &&
+  a.every((line, i) => line.replace(/\r$/, "") === b[i]?.replace(/\r$/, ""));
+
+/** A path inside the repository, by its parts; undefined for one that leaves it or was redacted. */
+export function repoFilePath(file: string): string | undefined {
+  if (file.includes(REDACTED) || /\p{Cc}/u.test(file)) return undefined;
+  const parts = file.split("/");
+  return parts.every((p) => p !== "" && p !== "." && p !== "..") ? file : undefined;
 }
 
 /** A commit's one-line message for the fix of the finding titled `title`. */

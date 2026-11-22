@@ -3,6 +3,7 @@ import { outcomeOf, type PullActions } from "./actions.js";
 import { fixedFile, fromBase64, MAX_FIX_FILE_BYTES, toBase64 } from "./fix.js";
 import { githubHeaders, githubRepoPath } from "./github-changes.js";
 import { platformCall, platformSend } from "./http.js";
+import { withSuggestion } from "./suggestions.js";
 
 const API = "https://api.github.com";
 
@@ -50,7 +51,13 @@ export function githubActions(): PullActions {
             path: c.path,
             line: c.line,
             side: SIDE[c.side],
-            body: c.body,
+            ...(c.startLine !== undefined && c.startLine < c.line
+              ? { start_line: c.startLine, start_side: SIDE[c.side] }
+              : {}),
+            body:
+              c.suggestion === undefined
+                ? c.body
+                : withSuggestion("github", c.body, c.suggestion, 0),
           })),
         }),
       );
@@ -90,7 +97,7 @@ export function githubActions(): PullActions {
         return "not_applicable";
       }
       const bytes = fromBase64(read.content ?? "");
-      const fixed = bytes && fixedFile(bytes, commit.fix);
+      const fixed = bytes && fixedFile(bytes, commit.fixes);
       if (!fixed) return "not_applicable";
       // sha: the file as it was read; one changed since is a conflict, not overwritten.
       return outcomeOf(

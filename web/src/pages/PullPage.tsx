@@ -21,6 +21,7 @@ import { QueueBox } from "../pull/queue-box.js";
 import { ReviewNowBox } from "../pull/review-now-box.js";
 import { ReviewersPanel } from "../pull/reviewers.js";
 import { StackPanel } from "../pull/stack.js";
+import { ThreadsPanel } from "../pull/threads.js";
 import { LoadError, Loading, PageHead, Seg, useAction, useLoad } from "../ui.js";
 
 // A pull request in the console: its changed files read live from the
@@ -139,6 +140,7 @@ export function PullPage(props: {
             })}
           </nav>
           <ReviewBox data={data} pull={ref} pending={pending} onDone={(o) => done("Review", o)} />
+          <ThreadsPanel pull={ref} onDone={(o) => done("Review threads", o)} />
           <ChecksBox pull={ref} head={data.head} />
           {props.runner && <ReviewNowBox pull={ref} head={data.head} />}
           {props.runner && <GenerateBox pull={ref} head={data.head} />}
