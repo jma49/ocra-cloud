@@ -1,5 +1,6 @@
 import { githubIdOf, loginOf } from "../db/accounts.js";
 import type { Db } from "../db/client.js";
+import { loginShared } from "../db/logins.js";
 import type { Row, Scoped } from "../db/scoped.js";
 import { consolePullUrl } from "../merge-checks/run.js";
 import type { CodePlatform } from "../platforms/platform.js";
@@ -61,6 +62,24 @@ export async function ownUser(
   return link?.userId ? { id: link.userId, login: link.login } : null;
 }
 
+/**
+ * The user, with no login when a mention of it may name someone else: a
+ * login another platform user is on record with. Read only when an event
+ * mentions it.
+ */
+async function mentionable(
+  db: Db,
+  repo: Pick<EventRepo, "platform" | "host">,
+  me: OwnUser | null,
+  events: readonly PullEvent[],
+): Promise<OwnUser | null> {
+  if (me?.login == null) return me;
+  const login = me.login.toLowerCase();
+  if (!events.some((e) => e.mentions?.includes(login))) return me;
+  const shared = await loginShared(db, repo.platform, repo.host, { id: me.id, login });
+  return shared ? { ...me, login: null } : me;
+}
+
 function concernsMe(e: PullEvent, me: OwnUser): boolean {
   if (e.by === me.id) return false;
   if (e.concerns !== undefined) return e.concerns === me.id;
@@ -115,7 +134,7 @@ export async function tellPullEvent(
     if (channels.length > 0) heard.set(kind, channels);
   }
   if (heard.size === 0) return [];
-  const me = await ownUser(db, data, repo);
+  const me = await mentionable(db, repo, await ownUser(db, data, repo), events);
   if (me === null) return [];
   const told: string[] = [];
   const reached = new Set<string>();
