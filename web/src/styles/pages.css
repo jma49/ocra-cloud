@@ -581,6 +581,36 @@ td.finding-cell {
   text-decoration: none;
   box-shadow: inset 0 -0.5px 0 var(--hair);
 }
+.pull-line {
+  position: relative;
+}
+.pull-line .pull-row {
+  padding-left: 28px;
+}
+.unread-mark {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 28px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.unread-mark::before {
+  content: "";
+  display: block;
+  width: 6px;
+  height: 6px;
+  margin: auto;
+  border-radius: 50%;
+}
+.pull-line.unread .unread-mark::before {
+  background: var(--blue);
+}
+.unread-mark:hover::before,
+.unread-mark:focus-visible::before {
+  box-shadow: 0 0 0 1.5px var(--t3);
+}
 .pull-row:hover {
   background: var(--fill);
 }
@@ -615,6 +645,9 @@ td.finding-cell {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.pull-line.unread .pull-title {
+  font-weight: 600;
 }
 .pull-repo {
   flex: none;

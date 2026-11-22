@@ -18,6 +18,7 @@ import {
   rowsOf,
   type ShownSection,
 } from "../inbox/sections.js";
+import { useUnreadMarks } from "../inbox/unread.js";
 import { ViewDrawer } from "../inbox/view-drawer.js";
 import { forgetSharedView, sharedView, usePullViews, type ViewDraft } from "../inbox/views.js";
 import { pullPath } from "../pull/path.js";
@@ -29,10 +30,11 @@ type Editing = { draft: ViewDraft; view?: PullView };
 const BLANK: ViewDraft = { name: "", filters: { roles: ["author"], states: ["open"] } };
 
 export function Inbox() {
-  const { data, error, reload, stale } = useCached("/platforms/pulls", () =>
+  const { data, error, reload, stale, change } = useCached("/platforms/pulls", () =>
     api<InboxAnswer>("/platforms/pulls"),
   );
   const views = usePullViews();
+  const marks = useUnreadMarks(change);
   const [filters, setFilters] = useState<Filters>({ text: "", repo: "" });
   const [at, setAt] = useState(0);
   const [editing, setEditing] = useState<Editing | null>(null);
@@ -51,6 +53,7 @@ export function Inbox() {
   const current = Math.min(at, Math.max(visible.length - 1, 0));
   useTitleCount(useMemo(() => reviewAsked(rows), [rows]));
   const hidden = views.views.filter((v) => v.hidden);
+  const unread = useMemo(() => rows.filter((r) => r.unread), [rows]);
   const arrange = (change: Promise<unknown>) => {
     setFailed(null);
     change.catch(setFailed);
@@ -70,7 +73,9 @@ export function Inbox() {
       }),
     open: () => {
       const r = visible[current];
-      if (r) navigate(pullPath(r.platform, r.repo, r.number));
+      if (!r) return;
+      marks.opened(r);
+      navigate(pullPath(r.platform, r.repo, r.number));
     },
     openOnPlatform: () => {
       const r = visible[current];
@@ -78,6 +83,10 @@ export function Inbox() {
     },
     find: () => finder.current?.focus(),
     refresh: reload,
+    toggleRead: () => {
+      const r = visible[current];
+      if (r) marks.mark([r], r.unread);
+    },
   });
 
   const filter = (change: Partial<Filters>) => {
@@ -95,7 +104,7 @@ export function Inbox() {
     <>
       <PageHead
         title="Pull requests"
-        sub="What waits on you across every connected platform, read live. j and k move, Enter opens, o opens on the platform, / finds, r refreshes."
+        sub="What waits on you across every connected platform, read live. j and k move, Enter opens, o opens on the platform, u marks read or unread, / finds, r refreshes."
         actions={
           <Button type="button" variant="outline" onClick={() => setEditing({ draft: BLANK })}>
             New section
@@ -147,9 +156,19 @@ export function Inbox() {
             ))}
           </select>
         </label>
-        <span className="muted small" role="status">
+        <span className="muted small grow" role="status">
           {data && stale ? "Refreshing…" : ""}
         </span>
+        {unread.length > 0 && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => marks.mark(unread, true)}
+          >
+            Mark all read
+          </Button>
+        )}
       </div>
       <PlatformNotes data={data} retry={reload} />
       {error && !data ? (
@@ -198,13 +217,25 @@ export function Inbox() {
                     place < sections.length - 1 ? () => arrange(views.move(s.view, 1)) : undefined
                   }
                   hide={() => arrange(views.setHidden(s.view, true))}
+                  markRead={
+                    s.rows.some((r) => r.unread) ? () => marks.mark(s.rows, true) : undefined
+                  }
                 />
               }
             >
               {!collapsed.has(s.key) &&
                 s.rows.map((r) => {
                   const i = index++;
-                  return <PullRow key={`${r.host}:${r.id}`} r={r} i={i} current={i === current} />;
+                  return (
+                    <PullRow
+                      key={`${r.host}:${r.id}`}
+                      r={r}
+                      i={i}
+                      current={i === current}
+                      onOpen={() => marks.opened(r)}
+                      onMark={(read) => marks.mark([r], read)}
+                    />
+                  );
                 })}
             </Section>
           ))}
@@ -230,6 +261,11 @@ export function Inbox() {
       {failed !== null && (
         <p className="error" role="alert">
           Could not change the sections: {why(failed)}.
+        </p>
+      )}
+      {marks.failed !== null && (
+        <p className="error" role="alert">
+          Could not mark the pull requests: {why(marks.failed)}.
         </p>
       )}
       {error && data ? <p className="error">Could not refresh: {why(error)}.</p> : null}

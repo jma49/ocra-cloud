@@ -7,6 +7,7 @@ export function SectionMenu(props: {
   up: (() => void) | undefined;
   down: (() => void) | undefined;
   hide: () => void;
+  markRead: (() => void) | undefined;
 }) {
   return (
     <Menu>
@@ -14,6 +15,10 @@ export function SectionMenu(props: {
         ⋯
       </MenuTrigger>
       <MenuPopup align="end">
+        <MenuItem disabled={!props.markRead} onClick={props.markRead}>
+          Mark all read
+        </MenuItem>
+        <MenuSeparator />
         <MenuItem onClick={props.edit}>Edit</MenuItem>
         <MenuItem disabled={!props.up} onClick={props.up}>
           Move up
