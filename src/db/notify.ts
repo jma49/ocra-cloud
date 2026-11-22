@@ -39,7 +39,8 @@ export function accountNotify(db: Db, accountId: string) {
           ${row.wrappedKey}, ${row.ciphertext}, ${row.last4}, NULL, NULL, ${Date.now()},
           ${row.confirmedAt?.getTime() ?? null}, ${row.confirmTokenHash ?? null},
           ${row.confirmExpiresAt?.getTime() ?? null}, ${row.digest ? 1 : 0}, ${row.weekly ? 1 : 0},
-          ${JSON.stringify(row.events ?? [])}
+          ${JSON.stringify(row.events ?? [])}, ${row.reminderHours ?? null},
+          ${row.quietStart ?? null}, ${row.quietEnd ?? null}
         WHERE (SELECT count(*) FROM ${t} WHERE ${own}) < ${cap}`);
       return changedRows(inserted) > 0;
     },
@@ -73,6 +74,28 @@ export function accountNotify(db: Db, accountId: string) {
         .values({ id: crypto.randomUUID(), accountId, channelId, eventKey })
         .onConflictDoNothing({ target: [notifySends.channelId, notifySends.eventKey] });
       return changedRows(res) > 0;
+    },
+
+    /** The confirmed channels with reminders. */
+    reminding() {
+      return db
+        .select()
+        .from(t)
+        .where(and(own, isNotNull(t.reminderHours), isNotNull(t.confirmedAt)));
+    },
+
+    async timeZone(): Promise<string> {
+      const row = await db
+        .select({ timeZone: accounts.timeZone })
+        .from(accounts)
+        .where(eq(accounts.id, accountId))
+        .limit(1)
+        .then(first);
+      return row?.timeZone ?? "UTC";
+    },
+
+    async setTimeZone(timeZone: string): Promise<void> {
+      await db.update(accounts).set({ timeZone }).where(eq(accounts.id, accountId));
     },
 
     /** The confirmed channels that get the digest. */
@@ -187,5 +210,15 @@ export async function digestAccounts(db: Db): Promise<string[]> {
     .selectDistinct({ accountId: t.accountId })
     .from(t)
     .where(and(eq(t.digest, true), isNotNull(t.confirmedAt)));
+  return rows.map((r) => r.accountId);
+}
+
+/** The accounts with a channel that has reminders, read across accounts by the hourly run. */
+export async function reminderAccounts(db: Db): Promise<string[]> {
+  const t = notifyChannels;
+  const rows = await db
+    .selectDistinct({ accountId: t.accountId })
+    .from(t)
+    .where(and(isNotNull(t.reminderHours), isNotNull(t.confirmedAt)));
   return rows.map((r) => r.accountId);
 }

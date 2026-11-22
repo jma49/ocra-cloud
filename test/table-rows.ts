@@ -136,6 +136,14 @@ export const rows = {
     seenAt: new Date(),
   }),
   // The enrolled repository it belongs to is made in beforeEach (the foreign key needs one).
+  reviewRequests: (id: string) => ({
+    id,
+    reviewRepoId: "review-repo-of-a",
+    number: 1,
+    reviewerId: `reviewer-${id}`,
+    requestedAt: new Date(),
+  }),
+  // The enrolled repository it belongs to is made in beforeEach (the foreign key needs one).
   replyJobs: (id: string) => ({
     id,
     reviewRepoId: "review-repo-of-a",

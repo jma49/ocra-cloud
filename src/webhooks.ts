@@ -4,6 +4,7 @@ import { recordGithubClose } from "./auto-review/closes.js";
 import { recordGithubFlow } from "./auto-review/flows.js";
 import { keepReviewedPaths, pathReaderOf } from "./auto-review/paths.js";
 import { queueGithubComment } from "./auto-review/replies.js";
+import { recordGithubRequest } from "./auto-review/requests.js";
 import type { AutoReviewService } from "./auto-review/routes.js";
 import { queueGithubPull } from "./auto-review/webhooks.js";
 import { hmacHex, sameText } from "./crypto.js";
@@ -52,6 +53,7 @@ export function githubWebhook(host: WebhookHost) {
       if (event === "pull_request") await recordGithubClose(c.var.db, body);
       const reviewed = await recordGithubFlow(c.var.db, event, body);
       if (reviewed) defer(c, keepReviewedPaths(pathReaderOf(c), reviewed));
+      await recordGithubRequest(c.var.db, event, body);
       defer(c, tellGithubHook(c.var.db, publicOutbox(c), event, body));
       defer(c, moveGithubIntents(runnerOf(c), event, body));
       const queued =

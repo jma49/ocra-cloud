@@ -18,6 +18,8 @@ const channel = {
   digest: false,
   weekly: false,
   events: [],
+  reminderHours: null,
+  quietHours: null,
   lastStatus: null,
   lastSentAt: null,
   createdAt: "2026-11-20T10:00:00Z",

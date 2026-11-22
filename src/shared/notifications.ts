@@ -15,7 +15,10 @@ export type NotifyWhen = (typeof NOTIFY_WHEN)[number];
  * account's own platform user: a review asked of them; on a pull request
  * they wrote, a reviewer's review, its merge or close, failed pre-merge
  * checks, or ocra's review with a critical finding; on one they set to
- * merge when ready, its merge or why it stopped.
+ * merge when ready, its merge or why it stopped. Two are reminders, sent
+ * by the hourly run once a pull request has waited the channel's
+ * reminderHours: a review asked of them still not given (review_waiting),
+ * and a pull request they wrote that no one has reviewed (pull_waiting).
  */
 export const NOTIFY_EVENTS = [
   "review_requested",
@@ -24,8 +27,17 @@ export const NOTIFY_EVENTS = [
   "checks_failed",
   "review_blocking",
   "merge_when_ready",
+  "review_waiting",
+  "pull_waiting",
 ] as const;
 export type NotifyEvent = (typeof NOTIFY_EVENTS)[number];
+
+/** After how many hours of waiting a channel is reminded. */
+export const REMINDER_HOURS = [4, 8, 24, 48] as const;
+export type ReminderHours = (typeof REMINDER_HOURS)[number];
+
+/** Hours of the day (0-23, in the account's time zone) no reminder goes: from start up to end, over midnight when end is earlier. */
+export type QuietHours = { start: number; end: number };
 
 export type NotifyChannelView = {
   id: string;
@@ -42,6 +54,10 @@ export type NotifyChannelView = {
   weekly: boolean;
   /** The events of the account's own pull requests it hears about; none unless set. */
   events: NotifyEvent[];
+  /** After how many hours its reminders go; null: none go. */
+  reminderHours: ReminderHours | null;
+  /** When its reminders wait for; null: any hour. */
+  quietHours: QuietHours | null;
   /** How the last message went; null before the first. */
   lastStatus: "ok" | "failed" | null;
   lastSentAt: string | null;
@@ -67,3 +83,6 @@ export type ReportScheduleView = {
   /** The next slot, ISO 8601; the report covers the seven days before it. */
   next: string;
 };
+
+/** The account's IANA time zone, which quiet hours are read in. */
+export type NotifyTimeZoneView = { timeZone: string };

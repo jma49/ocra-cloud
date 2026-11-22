@@ -47,6 +47,7 @@ export const EXPORTED = {
   pullFlows: "pullFlows",
   pullReviews: "pullReviews",
   pullPaths: "pullPaths",
+  reviewRequests: "reviewRequests",
   replyJobs: "replyJobs",
   reviewWalkthroughs: "walkthroughs",
   generateJobs: "generateJobs",

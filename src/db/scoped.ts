@@ -53,6 +53,7 @@ import { accountReports } from "./reports.js";
 import { nameRepo, nameRepos, pulledRepos, reviewedRepos } from "./repos.js";
 import { accountReviewChat } from "./review-chat.js";
 import { accountReviewJobs } from "./review-jobs.js";
+import { accountReviewRequests } from "./review-requests.js";
 import { accountTables } from "./schema.js";
 import { accountSearch } from "./search.js";
 
@@ -435,6 +436,7 @@ export function scoped(db: Db, accountId: string) {
     closedPulls: accountClosedPulls(db, accountId),
     pullFlows: accountPullFlows(db, accountId),
     pullPaths: accountPullPaths(db, accountId),
+    reviewRequests: accountReviewRequests(db, accountId),
     replies: accountReplyJobs(db, accountId),
     chat: accountReviewChat(db, accountId),
     generations: accountGenerateJobs(db, accountId),

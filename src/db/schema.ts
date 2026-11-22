@@ -90,6 +90,8 @@ export const accounts = sqliteTable(
     // When the inbox was first listed: a pull request with no read mark
     // updated before it reads as read (src/db/pull-seen.ts). Set once.
     inboxSince: integer("inbox_since", { mode: "timestamp_ms" }),
+    // The IANA time zone a channel's quiet hours are read in (src/notify/reminders.ts).
+    timeZone: text("time_zone").notNull().default("UTC"),
   },
   (t) => [index("accounts_login").on(t.login)],
 );
@@ -642,6 +644,11 @@ export const notifyChannels = sqliteTable(
     digest: integer("digest", { mode: "boolean" }).notNull().default(false),
     weekly: integer("weekly", { mode: "boolean" }).notNull().default(false),
     events: text("events", { mode: "json" }).$type<NotifyEvent[]>().notNull().default([]),
+    // After how many hours a waiting pull request is a reminder; none when null.
+    reminderHours: integer("reminder_hours"),
+    // The hours, in the account's time zone, no reminder goes: from start up to end.
+    quietStart: integer("quiet_start"),
+    quietEnd: integer("quiet_end"),
   },
   (t) => [index("notify_channels_account").on(t.accountId)],
 );
@@ -768,6 +775,31 @@ export const pullPaths = sqliteTable(
   (t) => [
     uniqueIndex("pull_paths_prefix").on(t.reviewRepoId, t.number, t.prefix),
     index("pull_paths_account_seen").on(t.accountId, t.seenAt),
+  ],
+);
+
+// A review asked of a user on an enrolled repository's pull request, from
+// its platform's webhooks (src/auto-review/requests.ts): one row per pull
+// request and reviewer, by the platform's id of the reviewer. A later ask
+// moves requested_at, the reviewer's review or the ask's removal done_at;
+// the ask still waits while done_at is before requested_at. For reminders.
+export const reviewRequests = sqliteTable(
+  "review_requests",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    reviewRepoId: text("review_repo_id")
+      .notNull()
+      .references(() => reviewRepos.id, { onDelete: "cascade" }),
+    number: integer("number").notNull(),
+    reviewerId: text("reviewer_id").notNull(),
+    requestedAt: integer("requested_at", { mode: "timestamp_ms" }).notNull(),
+    doneAt: integer("done_at", { mode: "timestamp_ms" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("review_requests_pull_reviewer").on(t.reviewRepoId, t.number, t.reviewerId),
+    index("review_requests_account_requested").on(t.accountId, t.requestedAt),
   ],
 );
 
@@ -1133,6 +1165,7 @@ export const accountTables = {
   pullFlows,
   pullReviews,
   pullPaths,
+  reviewRequests,
   replyJobs,
   reviewWalkthroughs,
   generateJobs,
