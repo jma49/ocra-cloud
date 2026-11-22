@@ -4,6 +4,7 @@ import {
   hunksOf,
   lineCounts,
   MAX_CHANGED_FILES,
+  type PatchedFile,
   type PullDiffs,
   withinBudget,
 } from "./changes.js";
@@ -21,7 +22,7 @@ type MergeRequest = {
   diff_refs: DiffRefs | null;
   updated_at?: string;
 };
-type Diff = {
+export type GitlabDiff = {
   old_path: string;
   new_path: string;
   b_mode?: string;
@@ -38,7 +39,7 @@ const GITLAB_STATE = {
   merged: "merged",
 } as const satisfies Record<NonNullable<MergeRequest["state"]>, string>;
 
-const statusOf = (d: Diff): ChangedFile["status"] =>
+const statusOf = (d: GitlabDiff): ChangedFile["status"] =>
   d.new_file ? "added" : d.deleted_file ? "removed" : d.renamed_file ? "renamed" : "modified";
 
 export const gitlabHeaders = (token: string) => ({
@@ -59,12 +60,15 @@ async function listDiffs(
   const base = mergeRequestUrl(origin, fullName, number);
   const mr = await platformCall<MergeRequest>(base, { headers: gitlabHeaders(token) });
   if (!mr?.diff_refs) return null;
-  const diffs: Diff[] = [];
+  const diffs: GitlabDiff[] = [];
   let more = true;
   for (let page = 1; more && diffs.length < max; page++) {
-    const listed = await platformCall<Diff[]>(`${base}/diffs?per_page=${PER_PAGE}&page=${page}`, {
-      headers: gitlabHeaders(token),
-    });
+    const listed = await platformCall<GitlabDiff[]>(
+      `${base}/diffs?per_page=${PER_PAGE}&page=${page}`,
+      {
+        headers: gitlabHeaders(token),
+      },
+    );
     if (!listed) return null;
     diffs.push(...listed);
     more = listed.length === PER_PAGE;
@@ -87,10 +91,17 @@ async function listDiffs(
  * changes with the file at a later head (or a new base under it). A diff
  * GitLab did not send (too large, collapsed) changes with every head.
  */
-const versionOf = (d: Diff, head: string) =>
+const versionOf = (d: GitlabDiff, head: string) =>
   sha256Hex(d.diff ? `diff\0${d.b_mode ?? ""}\0${d.diff}` : `head\0${head}`);
 
-const where = (d: Diff) => ({ path: d.new_path, oldPath: d.old_path, status: statusOf(d) });
+const where = (d: GitlabDiff) => ({ path: d.new_path, oldPath: d.old_path, status: statusOf(d) });
+
+export const patchedDiff = async (d: GitlabDiff, head: string): Promise<PatchedFile> => ({
+  ...where(d),
+  ...lineCounts(d.diff),
+  patch: d.diff || null,
+  version: await versionOf(d, head),
+});
 
 export function gitlabChanges(origin: string): PullDiffs {
   return {
@@ -112,14 +123,7 @@ export function gitlabChanges(origin: string): PullDiffs {
       const listed = await listDiffs(origin, token, fullName, number);
       if (!listed) return null;
       const { diffs, ...rest } = listed;
-      const files = await Promise.all(
-        diffs.map(async (d) => ({
-          ...where(d),
-          ...lineCounts(d.diff),
-          patch: d.diff || null,
-          version: await versionOf(d, rest.head),
-        })),
-      );
+      const files = await Promise.all(diffs.map((d) => patchedDiff(d, rest.head)));
       return withinBudget({ ...rest, files });
     },
   };

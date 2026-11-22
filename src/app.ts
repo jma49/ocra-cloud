@@ -40,6 +40,7 @@ import { pullEdits } from "./pull-edits.js";
 import { pullFixes } from "./pull-fixes.js";
 import { pullPage } from "./pull-page.js";
 import { pullSeenRoute } from "./pull-seen.js";
+import { pullSince } from "./pull-since.js";
 import { pullStack } from "./pull-stack.js";
 import { pullThreads } from "./pull-threads.js";
 import { pullViewsRoute } from "./pull-views.js";
@@ -148,6 +149,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
   app.route("/pulls", pullReadiness);
   app.route("/pulls", reviewNow);
   app.route("/pulls", pullSeenRoute);
+  app.route("/pulls", pullSince);
   app.route("/learnings", learningsRoute);
   app.route("/repo-config", repoConfigRoute);
   app.route("/merge-checks", mergeChecksRoute);

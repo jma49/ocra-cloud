@@ -15,6 +15,7 @@ import type { ListedPull, PullListing, PullSearch } from "./pulls.js";
 import type { MergeQueue } from "./queue.js";
 import type { PullReadiness } from "./readiness.js";
 import type { PullReviewers } from "./reviewers.js";
+import type { PullSince } from "./since.js";
 import type { PullStacks } from "./stacks.js";
 import type { PullThreads } from "./threads.js";
 import type { PullFileViewed } from "./viewed.js";
@@ -75,6 +76,7 @@ export interface CodePlatform {
   searchPulls(accessToken: string, search: PullSearch, limit: number): Promise<ListedPull[] | null>;
   readonly contents: RepoContents;
   readonly changes: PullDiffs;
+  readonly since: PullSince;
   readonly actions: PullActions;
   readonly queue: MergeQueue;
   readonly autoMerge: PullAutoMerge;

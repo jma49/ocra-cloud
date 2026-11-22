@@ -23,7 +23,7 @@ type Pull = {
   changed_files: number;
   updated_at?: string;
 };
-type File = {
+export type GithubFile = {
   filename: string;
   previous_filename?: string;
   status: "added" | "removed" | "modified" | "renamed" | "copied" | "changed" | "unchanged";
@@ -42,7 +42,7 @@ const STATUS = {
   modified: "modified",
   changed: "modified",
   unchanged: "modified",
-} as const satisfies Record<File["status"], ChangedFile["status"]>;
+} as const satisfies Record<GithubFile["status"], ChangedFile["status"]>;
 
 export const githubHeaders = (token: string) => ({
   authorization: `Bearer ${token}`,
@@ -65,11 +65,14 @@ async function listFiles(
   const pull = await platformCall<Pull>(base, { headers: githubHeaders(token) });
   if (!pull) return null;
   const wanted = Math.min(pull.changed_files, max);
-  const files: File[] = [];
+  const files: GithubFile[] = [];
   for (let page = 1; files.length < wanted; page++) {
-    const listed = await platformCall<File[]>(`${base}/files?per_page=${PER_PAGE}&page=${page}`, {
-      headers: githubHeaders(token),
-    });
+    const listed = await platformCall<GithubFile[]>(
+      `${base}/files?per_page=${PER_PAGE}&page=${page}`,
+      {
+        headers: githubHeaders(token),
+      },
+    );
     if (!listed) return null;
     files.push(...listed);
     if (listed.length < PER_PAGE) break;
@@ -87,10 +90,18 @@ async function listFiles(
   };
 }
 
-const where = (f: File) => ({
+const where = (f: GithubFile) => ({
   path: f.filename,
   oldPath: f.previous_filename ?? f.filename,
   status: STATUS[f.status],
+});
+
+export const patchedFile = (f: GithubFile): PatchedFile => ({
+  ...where(f),
+  additions: f.additions,
+  deletions: f.deletions,
+  patch: f.patch ?? null,
+  version: f.sha ?? null,
 });
 
 export function githubChanges(host: GithubHost): PullDiffs {
@@ -109,15 +120,7 @@ export function githubChanges(host: GithubHost): PullDiffs {
     async patches(token, fullName, number) {
       const listed = await listFiles(host, token, fullName, number);
       if (!listed) return null;
-      const files = listed.files.map(
-        (f): PatchedFile => ({
-          ...where(f),
-          additions: f.additions,
-          deletions: f.deletions,
-          patch: f.patch ?? null,
-          version: f.sha ?? null,
-        }),
-      );
+      const files = listed.files.map(patchedFile);
       return withinBudget({ ...listed, files } satisfies PullPatches);
     },
   };
