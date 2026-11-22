@@ -1,10 +1,14 @@
 import { MAX_REVIEWERS, REVIEWER_ID, reviewUploadSchema } from "@open-cr-agent/cloud-contract";
-import { Hono } from "hono";
+import { type Context, Hono } from "hono";
 import type { z } from "zod";
 import { config } from "./config.js";
 import type { Row, Scoped } from "./db/scoped.js";
+import { defer } from "./defer.js";
 import { parseFindings } from "./findings.js";
 import { apiError, jsonBody, queryDays } from "./http.js";
+import { masterKeys } from "./keyring.js";
+import { notifyReview } from "./notify/notify.js";
+import { platformsOf } from "./platforms/registry.js";
 import { perMinute, retryTomorrow } from "./rate.js";
 import { repoNames } from "./repositories.js";
 import { requireSession } from "./session.js";
@@ -93,6 +97,7 @@ reviews.post("/", requireSession(["web", "cli"]), perMinute("upload"), uploadBod
     return apiError(c, "daily_limit", { limit });
   }
   const { id, findingsSkipped } = stored;
+  defer(c, announce(c, id));
   return c.json({
     id,
     findings: findingsSkipped ? 0 : parsed.rows.length,
@@ -101,6 +106,20 @@ reviews.post("/", requireSession(["web", "cli"]), perMinute("upload"), uploadBod
     ...(findingsSkipped ? { findingsSkipped: "account_limit" } : {}),
   });
 });
+
+/** Tells the account's chats about the stored review, after the answer. */
+async function announce(c: Context<AppEnv>, id: string) {
+  const review = await c.var.data.get("reviews", id);
+  if (!review) return;
+  const consoleUrl = new URL(`/reviews/${encodeURIComponent(id)}`, c.req.url).toString();
+  await notifyReview(
+    c.var.data,
+    masterKeys(c.env),
+    review,
+    platformsOf(c.env, c.req.url),
+    consoleUrl,
+  );
+}
 
 // One review with its findings, for the web's detail page.
 reviews.get("/:id", requireSession(), async (c) => {
@@ -119,7 +138,8 @@ reviews.get("/:id", requireSession(), async (c) => {
 // in `evidence`, which in the report is a list of strings; v2 is a new
 // version because that field changed. A field the report makes optional
 // is left out when unknown, never null. The report's inDiff, status,
-// evidence, fix and provenance were never uploaded, so they are absent.
+// evidence and provenance were never uploaded, so they are absent; fix is
+// there when the CLI sent one.
 // Two fields are ocra Cloud's own: `redacted` (the server or the CLI
 // replaced a secret-looking string with [redacted]) and `truncated` (a
 // long field was cut).

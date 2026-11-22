@@ -67,6 +67,7 @@ const TABLE: Record<string, string> = {
   graphBuilds: "graph_builds",
   reviewRepos: "review_repos",
   reviewJobs: "review_jobs",
+  notifyChannels: "notify_channels",
 };
 
 describe("query plans", () => {

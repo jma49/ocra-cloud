@@ -31,6 +31,7 @@ const changes = {
   graphBuilds: { state: "done" as const },
   reviewRepos: { fullName: "octo/renamed" },
   reviewJobs: { state: "done" as const },
+  notifyChannels: { name: "renamed" },
 } satisfies { [N in keyof typeof rows]: Record<string, unknown> };
 
 // Storage persists across tests in a file; deleting the accounts cascades.

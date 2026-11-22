@@ -16,6 +16,7 @@ import { keys } from "./keys.js";
 import { errorName, logError } from "./log.js";
 import { meRoute } from "./me.js";
 import { memory } from "./memory.js";
+import { notifyRoute } from "./notify/routes.js";
 import { oidc } from "./oidc.js";
 import { platformConnect } from "./platform-connect.js";
 import { platformsRoute } from "./platform-routes.js";
@@ -101,6 +102,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
   app.route("/platforms", platformConnect);
   app.route("/pull-views", pullViewsRoute);
   app.route("/pulls", pullPage);
+  app.route("/notifications", notifyRoute);
   const hook = githubWebhook(host);
   app.route("/webhooks/github", hook);
   // The address the App's webhook had when it carried only pushes.

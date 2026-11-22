@@ -81,6 +81,15 @@ export const rows = {
     number: 1,
     head: `h-${id}`,
   }),
+  notifyChannels: (id: string) => ({
+    id,
+    kind: "slack" as const,
+    name: `chat ${id}`,
+    when: "every" as const,
+    wrappedKey: "w",
+    ciphertext: "c",
+    last4: "abcd",
+  }),
   repositories: (id: string) => ({ id, repoHash: `h-${id}`, name: `octo/${id}` }),
   // One row per account, kind and day; the id names the day.
   usageCounters: (id: string) => ({ kind: "uploads" as const, day: id, n: 1 }),

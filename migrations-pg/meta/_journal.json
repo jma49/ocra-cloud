@@ -29,6 +29,13 @@
       "when": 1795328813502,
       "tag": "0003_finding_fix",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1795329959628,
+      "tag": "0004_notify_channels",
+      "breakpoints": true
     }
   ]
 }
