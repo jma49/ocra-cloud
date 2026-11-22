@@ -1,4 +1,17 @@
-import { and, desc, eq, getTableColumns, inArray, isNull, lt, lte, ne, or, sql } from "drizzle-orm";
+import {
+  and,
+  desc,
+  eq,
+  getTableColumns,
+  inArray,
+  isNull,
+  lt,
+  lte,
+  ne,
+  notInArray,
+  or,
+  sql,
+} from "drizzle-orm";
 import { DAY } from "../time.js";
 import { changedRows, type Db, first } from "./client.js";
 import { graphBuilds, graphRepos } from "./schema.js";
@@ -66,6 +79,38 @@ export function accountGraphs(db: Db, accountId: string) {
         .insert(b)
         .values({ id: crypto.randomUUID(), accountId, graphRepoId, commit })
         .onConflictDoNothing({ target: [b.graphRepoId, b.commit] });
+      return changedRows(result) > 0;
+    },
+
+    /**
+     * Queues the commit's build again when it finished, failed or was passed
+     * by a newer push; returns whether it did. A build still queued or
+     * running is left alone, and a finished one's graph is dropped.
+     */
+    async rebuild(graphRepoId: string, commit: string, now: Date): Promise<boolean> {
+      const result = await db
+        .insert(b)
+        .values({ id: crypto.randomUUID(), accountId, graphRepoId, commit, createdAt: now })
+        .onConflictDoUpdate({
+          target: [b.graphRepoId, b.commit],
+          set: {
+            state: "queued",
+            attempts: 0,
+            notBefore: null,
+            leaseUntil: null,
+            error: null,
+            content: null,
+            bytes: null,
+            files: null,
+            parsed: null,
+            reused: null,
+            skipped: null,
+            truncated: false,
+            finishedAt: null,
+            createdAt: now,
+          },
+          setWhere: sql`${own} AND ${notInArray(b.state, ["queued", "running"])}`,
+        });
       return changedRows(result) > 0;
     },
 

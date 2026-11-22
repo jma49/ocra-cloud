@@ -1,41 +1,24 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
-import { eq } from "drizzle-orm";
+import { join } from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { hmacHex } from "../src/crypto.js";
-import { githubIdentity, upsertAccount } from "../src/db/accounts.js";
-import * as schema from "../src/db/schema.js";
-import { scoped } from "../src/db/scoped.js";
 import { graphPolicy } from "../src/graph/policy.js";
-import { bindingsFrom } from "../src/node/env.js";
-import { openHost } from "../src/node/host.js";
-import { github } from "../src/platforms/github.js";
-import { gitlab } from "../src/platforms/gitlab.js";
-import { saveToken } from "../src/platforms/links.js";
-import { githubClientOf, gitlabCallback, gitlabClientOf } from "../src/platforms/registry.js";
-import { startWebSession } from "../src/session.js";
-import { C1, C2, C3, fakeBuilder, GITLAB, repoFake } from "./graph-fakes.js";
+import type { GraphPolicy } from "../src/shared/index.js";
+import { C1, C2, C3, fakeBuilder, repoFake } from "./graph-fakes.js";
+import {
+  addRepo,
+  githubPush,
+  graphServer,
+  ORIGIN,
+  pushToGithub,
+  SECRET,
+  type Server,
+} from "./graph-server.js";
 
 // Code graphs on the self-hosted server: a repository added by an account,
 // built on pushes to its default branch, served to the CLI, pruned and
 // purged, under each of the deployment's policies.
-
-const ORIGIN = "http://ocra.test";
-const SECRET = "hook-secret";
-const VARS = {
-  GITHUB_CLIENT_ID: "self-hosted-app",
-  GITHUB_CLIENT_SECRET: "test-client-secret",
-  MASTER_KEY: btoa(String.fromCharCode(...new Uint8Array(32).fill(7))),
-  SESSION_SECRET: "test-session-secret",
-  GITLAB_CLIENT_ID: "lab-app",
-  GITLAB_CLIENT_SECRET: "lab-secret",
-  GITLAB_URL: GITLAB,
-};
-const bindings = bindingsFrom(VARS);
-const githubClient = githubClientOf(bindings);
-if (!githubClient) throw new Error("the test bindings configure GitHub");
-const githubPlatform = github(githubClient);
 
 let dir: string;
 let n = 0;
@@ -45,79 +28,8 @@ beforeAll(async () => {
 afterAll(() => rm(dir, { recursive: true, force: true }));
 afterEach(() => vi.restoreAllMocks());
 
-async function serverWith(
-  policy: "keep" | "opt-in" | "off",
-  builder = fakeBuilder(),
-  file = `graphs-${n++}.db`,
-) {
-  const host = await openHost({
-    databaseUrl: `file:${join(dir, file)}`,
-    bindings,
-    migrations: resolve("migrations"),
-    publicUrl: ORIGIN,
-    graphs: { policy, builder: builder.builder, githubWebhookSecret: SECRET },
-  });
-  const call = (path: string, init: RequestInit & { json?: unknown } = {}) => {
-    const { json, ...rest } = init;
-    const headers = new Headers(rest.headers);
-    if (json !== undefined) headers.set("content-type", "application/json");
-    return host.fetch(
-      new Request(ORIGIN + path, {
-        ...rest,
-        headers,
-        ...(json !== undefined ? { body: JSON.stringify(json) } : {}),
-      }),
-    );
-  };
-  const signIn = async (githubId: number) => {
-    const account = await upsertAccount(host.db, githubIdentity(githubId), `user-${githubId}`);
-    const data = scoped(host.db, account.id);
-    await saveToken(data, bindings, githubPlatform, { access_token: `ghu_${githubId}` });
-    const lab = gitlabClientOf(bindings);
-    if (lab) {
-      await saveToken(data, bindings, gitlab(lab, gitlabCallback(ORIGIN)), {
-        access_token: `glpat_${githubId}`,
-      });
-    }
-    return {
-      account,
-      data,
-      auth: { authorization: `Bearer ${await startWebSession(host.db, account.id)}` },
-    };
-  };
-  const settled = () => vi.waitFor(() => expect(host.graphWorker?.busy() ?? false).toBe(false));
-  const builds = (accountId: string) =>
-    host.db
-      .select()
-      .from(schema.graphBuilds)
-      .where(eq(schema.graphBuilds.accountId, accountId))
-      .orderBy(schema.graphBuilds.createdAt);
-  return { host, call, signIn, settled, builds, builder };
-}
-
-type Server = Awaited<ReturnType<typeof serverWith>>;
-
-const githubPush = (ref: string, after: string, fullName = "Octo/API") =>
-  JSON.stringify({
-    ref,
-    after,
-    repository: { id: 11, full_name: fullName, default_branch: "main" },
-  });
-
-async function pushToGithub(s: Server, body: string, signature?: string) {
-  return s.call("/api/graphs/webhooks/github", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-github-event": "push",
-      "x-hub-signature-256": signature ?? `sha256=${await hmacHex(SECRET, body)}`,
-    },
-    body,
-  });
-}
-
-const addRepo = (s: Server, auth: Record<string, string>, json: Record<string, unknown>) =>
-  s.call("/api/graphs/repos", { method: "POST", headers: auth, json });
+const serverWith = (policy: GraphPolicy, builder = fakeBuilder(), file = `graphs-${n++}.db`) =>
+  graphServer(dir, file, policy, builder);
 
 describe("CODE_GRAPH", () => {
   it("keeps graphs when unset, and takes only its three values", () => {

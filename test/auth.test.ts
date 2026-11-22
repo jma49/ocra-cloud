@@ -71,7 +71,12 @@ describe("GitHub sign-in", () => {
     expect(String(exchange?.[1]?.body)).toContain("test-client-secret");
 
     const me = await call("/api/me", { headers: { cookie: `${SESSION}=${session}` } });
-    expect(await me.json()).toMatchObject({ login: "octo", githubId: 42, session: "web" });
+    expect(await me.json()).toMatchObject({
+      login: "octo",
+      githubId: 42,
+      session: "web",
+      codeGraphs: "off",
+    });
   });
 
   it("ends the browser session that signing in again replaces, and no other", async () => {
