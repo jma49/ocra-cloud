@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import type { CodePlatformKind } from "../../../src/shared/index.js";
 import { api, type Me, why } from "../api.js";
 import { useCached } from "../cache.js";
-import { ago, num } from "../format.js";
+import { ago, count, num } from "../format.js";
 import { PlatformMark } from "../platform-mark.js";
 import { LoadError, Loading, PageHead, useAction, useLoad } from "../ui.js";
 
@@ -213,7 +213,8 @@ function PlatformState(props: { p: PlatformRepos["platforms"][number] }) {
   return (
     <details className="small">
       <summary className="muted">
-        {p.repositories.length} repositories{p.more ? " (the first ones)" : ""}
+        {count(p.repositories.length, "repository", "repositories")}
+        {p.more ? " (the first ones)" : ""}
       </summary>
       <ul className="mono repo-list">
         {p.repositories.map((r) => (

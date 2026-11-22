@@ -274,7 +274,7 @@ function AddChannel(props: {
         <input
           className="input"
           aria-label="Name"
-          placeholder="Name, e.g. #payments-reviews"
+          placeholder="Name, e.g. #reviews"
           maxLength={64}
           value={name}
           onChange={(e) => setName(e.target.value)}

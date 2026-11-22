@@ -57,7 +57,7 @@ export function ReportSlot() {
       </div>
       <span className="subtle small">
         Next on {time(data.next)}, your time. It covers the seven days before and goes to the
-        channels with Weekly on; a week without reviews or merges sends nothing.
+        channels with Weekly report ticked; a week without reviews or merges sends nothing.
       </span>
       {save.error !== null && <ActionError what="change the report day" error={save.error} />}
     </div>

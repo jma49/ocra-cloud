@@ -254,8 +254,12 @@ function decode(segment: string): string | null {
   }
 }
 
-/** The route a path shows, with its params; undefined is a 404. */
-export function matchRoute(path: string): { route: Route; params: string[] } | undefined {
+/**
+ * The route a path shows, with its params; undefined is a 404, as is a page
+ * not shown for whoever is signed in (`me`), so its address does not render
+ * a page whose server side is absent.
+ */
+export function matchRoute(path: string, me?: Me): { route: Route; params: string[] } | undefined {
   const parts = path.split("/");
   for (const route of ROUTES) {
     const pattern = route.path.split("/");
@@ -269,12 +273,12 @@ export function matchRoute(path: string): { route: Route; params: string[] } | u
       params.push(value);
       return true;
     });
-    if (fits) return { route, params };
+    if (fits) return me && route.shown && !route.shown(me) ? undefined : { route, params };
   }
   return undefined;
 }
 
 export function pageFor(path: string, me: Me): ReactNode {
-  const found = matchRoute(path);
+  const found = matchRoute(path, me);
   return found ? found.route.page(me, found.params) : <NotFound />;
 }
