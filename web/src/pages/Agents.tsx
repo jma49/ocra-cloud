@@ -316,11 +316,7 @@ function EffortSelect(props: {
       ? [...props.levels, props.value]
       : props.levels;
   if (levels.length === 0) {
-    return (
-      <span className="subtle small" title="This model has no known effort levels">
-        —
-      </span>
-    );
+    return <span className="subtle small">No effort levels</span>;
   }
   return (
     <select
