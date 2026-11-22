@@ -15,3 +15,4 @@ export * from "./notifications.js";
 export * from "./pull-page.js";
 export * from "./pulls.js";
 export * from "./sign-in.js";
+export * from "./walkthrough.js";

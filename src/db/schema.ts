@@ -30,6 +30,7 @@ import {
   REVIEW_JOB_STATES,
   type ReviewerCounts,
   type ReviewSettings,
+  type ReviewWalkthroughView,
   SIGN_IN_PROVIDERS,
 } from "../shared/index.js";
 
@@ -342,6 +343,30 @@ export const findings = sqliteTable(
   ],
 );
 
+// A review's walkthrough of the change (ADR-0047 of the engine), kept as
+// shared findings are: only while the account shares them, redacted again
+// on the server, and gone with its review.
+export const reviewWalkthroughs = sqliteTable(
+  "review_walkthroughs",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    reviewId: text("review_id")
+      .notNull()
+      .references(() => reviews.id, { onDelete: "cascade" }),
+    overview: text("overview").notNull(),
+    groups: text("groups", { mode: "json" }).$type<ReviewWalkthroughView["groups"]>().notNull(),
+    diagram: text("diagram"),
+    redacted: integer("redacted", { mode: "boolean" }).notNull().default(false),
+    truncated: integer("truncated", { mode: "boolean" }).notNull().default(false),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("review_walkthroughs_review").on(t.reviewId),
+    index("review_walkthroughs_account_created").on(t.accountId, t.createdAt),
+  ],
+);
+
 // Findings the account remembers (ADR-0028, 4), applied with a repository's
 // .ocra/memory.json. Kept until deleted; at most 500 per repository.
 export const accountMemory = sqliteTable(
@@ -613,4 +638,5 @@ export const accountTables = {
   reviewJobs,
   notifyChannels,
   replyJobs,
+  reviewWalkthroughs,
 } as const;
