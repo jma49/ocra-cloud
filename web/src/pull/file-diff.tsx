@@ -2,6 +2,7 @@ import { Fragment, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { LineComment, PullFilesView } from "../../../src/shared/index.js";
 import { anchorOf, type DiffLine, parsePatch, splitPath } from "./diff.js";
+import { SuggestionText } from "./suggestion.js";
 
 // One changed file of a pull request: its header and its diff, where a
 // line's number opens a comment box. Comments wait in the page's review
@@ -98,14 +99,12 @@ export function FileDiff(props: {
                         <tr key={props.pending.indexOf(c)} className="diff-note">
                           <td colSpan={3}>
                             <div className="diff-comment">
-                              <span className="pre-wrap">
-                                {c.body}
+                              <div className="stack grow">
+                                {c.body && <span className="pre-wrap">{c.body}</span>}
                                 {c.suggestion !== undefined && (
-                                  <span className="mono subtle">
-                                    {"\n"}Suggested: {c.suggestion}
-                                  </span>
+                                  <SuggestionText text={c.suggestion} />
                                 )}
-                              </span>
+                              </div>
                               <Button variant="outline" size="sm" onClick={() => props.onDrop(c)}>
                                 Remove
                               </Button>
@@ -120,6 +119,7 @@ export function FileDiff(props: {
                               <textarea
                                 className="input"
                                 aria-label={`Your comment on ${lineName(line)}`}
+                                placeholder="Leave a comment"
                                 rows={3}
                                 value={draft}
                                 onChange={(e) => setDraft(e.target.value)}
@@ -134,13 +134,28 @@ export function FileDiff(props: {
                                     Suggest a change
                                   </Button>
                                 ) : (
-                                  <textarea
-                                    className="input mono"
-                                    aria-label={`Suggested text for ${lineName(line)}`}
-                                    rows={2}
-                                    value={suggestion}
-                                    onChange={(e) => setSuggestion(e.target.value)}
-                                  />
+                                  <div className="stack-tight">
+                                    <div className="row-gap suggest-head">
+                                      <span className="subtle small grow">
+                                        Replaces {lineName(line)} when committed
+                                      </span>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setSuggestion(null)}
+                                      >
+                                        Remove suggestion
+                                      </Button>
+                                    </div>
+                                    <textarea
+                                      className="input mono suggest-input"
+                                      aria-label={`Suggested text for ${lineName(line)}`}
+                                      rows={Math.max(2, suggestion.split("\n").length)}
+                                      spellCheck={false}
+                                      value={suggestion}
+                                      onChange={(e) => setSuggestion(e.target.value)}
+                                    />
+                                  </div>
                                 ))}
                               <div className="row-gap">
                                 <Button
