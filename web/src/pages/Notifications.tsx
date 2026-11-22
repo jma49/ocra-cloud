@@ -177,6 +177,7 @@ export function Notifications() {
                       <EventsMenu
                         channel={c.name}
                         events={c.events}
+                        quietHours={c.quietHours}
                         disabled={change.busy}
                         change={(events) => after(change.run(c.id, { events }))}
                       />

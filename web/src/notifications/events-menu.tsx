@@ -1,6 +1,21 @@
 import { Button } from "@/components/ui/button";
-import { Menu, MenuCheckboxItem, MenuPopup, MenuTrigger } from "@/components/ui/menu";
-import { NOTIFY_EVENTS, type NotifyEvent, REMINDER_EVENTS } from "../../../src/shared/index.js";
+import {
+  Menu,
+  MenuCheckboxItem,
+  MenuGroup,
+  MenuGroupLabel,
+  MenuPopup,
+  MenuSeparator,
+  MenuTrigger,
+} from "@/components/ui/menu";
+import {
+  NOTIFY_EVENTS,
+  type NotifyEvent,
+  QUIET_EVENTS,
+  type QuietHours,
+  REMINDER_EVENTS,
+} from "../../../src/shared/index.js";
+import { clock } from "./reminders-drawer.js";
 
 // Reminders also need their hours, which this menu does not set.
 type MenuEvent = Exclude<NotifyEvent, (typeof REMINDER_EVENTS)[number]>;
@@ -19,6 +34,10 @@ const EVENT_LABEL: Record<MenuEvent, string> = {
   mentioned: "Someone mentions me in a pull request",
 };
 
+const isQuiet = (e: MenuEvent) => (QUIET_EVENTS as readonly NotifyEvent[]).includes(e);
+const ALWAYS = MENU_EVENTS.filter((e) => !isQuiet(e));
+const QUIET = MENU_EVENTS.filter(isQuiet);
+
 function summary(all: NotifyEvent[]): string {
   const events = MENU_EVENTS.filter((e) => all.includes(e));
   if (events.length === 0) return "Off";
@@ -31,12 +50,25 @@ function summary(all: NotifyEvent[]): string {
 export function EventsMenu(props: {
   channel: string;
   events: NotifyEvent[];
+  /** The channel's quiet hours, in which comments and mentions are not sent. */
+  quietHours: QuietHours | null;
   disabled: boolean;
   change: (events: NotifyEvent[]) => void;
 }) {
   const on = new Set(props.events);
   const toggled = (event: NotifyEvent) =>
     NOTIFY_EVENTS.filter((e) => (e === event ? !on.has(e) : on.has(e)));
+  const item = (event: MenuEvent) => (
+    <MenuCheckboxItem
+      key={event}
+      checked={on.has(event)}
+      disabled={props.disabled}
+      closeOnClick={false}
+      onCheckedChange={() => props.change(toggled(event))}
+    >
+      {EVENT_LABEL[event]}
+    </MenuCheckboxItem>
+  );
   return (
     <Menu>
       <MenuTrigger
@@ -46,17 +78,16 @@ export function EventsMenu(props: {
         {summary(props.events)}
       </MenuTrigger>
       <MenuPopup align="start">
-        {MENU_EVENTS.map((event) => (
-          <MenuCheckboxItem
-            key={event}
-            checked={on.has(event)}
-            disabled={props.disabled}
-            closeOnClick={false}
-            onCheckedChange={() => props.change(toggled(event))}
-          >
-            {EVENT_LABEL[event]}
-          </MenuCheckboxItem>
-        ))}
+        {ALWAYS.map(item)}
+        <MenuSeparator />
+        <MenuGroup>
+          <MenuGroupLabel>
+            {props.quietHours
+              ? `Not sent from ${clock(props.quietHours.start)} to ${clock(props.quietHours.end)}`
+              : "Sent at any hour: no quiet hours set"}
+          </MenuGroupLabel>
+          {QUIET.map(item)}
+        </MenuGroup>
       </MenuPopup>
     </Menu>
   );
