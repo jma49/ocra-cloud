@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNotNull, lt, ne, or } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, lt, or, sql } from "drizzle-orm";
 import type { MergeIntentReason, MergeIntentState } from "../shared/index.js";
 import { changedRows, type Db, first } from "./client.js";
 import { mergeIntents } from "./schema.js";
@@ -56,7 +56,8 @@ export function accountMergeIntents(db: Db, accountId: string) {
 
     /**
      * Arms the pull request, replacing an earlier intent of it unless a
-     * merge of it is under way; the row as it now stands.
+     * merge of it is under way (and its claim has not lapsed); the row as it
+     * now stands.
      */
     async arm(intent: Arming, now: Date): Promise<MergeIntent | undefined> {
       const fields = {
@@ -87,7 +88,8 @@ export function accountMergeIntents(db: Db, accountId: string) {
           target: [t.accountId, t.platform, t.host, t.fullName, t.number],
           set: fields,
           // The conflict is on a key that starts with the account: the row is its own.
-          setWhere: ne(t.state, "merging"),
+          // A merge whose claim lapsed (its runner died) is armed again.
+          setWhere: sql`(${t.state} <> 'merging' OR ${t.claimedAt} < ${now.getTime() - MERGE_LEASE_MS})`,
         });
       return this.of(intent, intent.number);
     },
