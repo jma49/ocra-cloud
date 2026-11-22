@@ -1,10 +1,13 @@
+import { fileURLToPath } from "node:url";
+import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
 export default defineConfig({
   // Paths are from the repository root, where the npm scripts run.
   root: "web",
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
+  resolve: { alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) } },
   // Nothing inlined as a data: URL: the CSP allows fonts and images from
   // 'self' only (public/_headers), so an inlined font is blocked.
   build: { outDir: "dist", emptyOutDir: true, assetsInlineLimit: 0 },

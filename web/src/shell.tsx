@@ -21,6 +21,7 @@ import {
 import { type ReactNode, useEffect, useRef } from "react";
 import type { Me } from "./api.js";
 import { AccountMenu } from "./chrome.js";
+import { CommandMenu, type CommandSection } from "./command-menu.js";
 import { EyesMark } from "./eyes.js";
 import { Link } from "./router.js";
 import { type Place, placeHome, placeTabs, type Route, settingsGroups } from "./routes.js";
@@ -171,6 +172,22 @@ function PageBar(props: { me: Me; route: Route | undefined; path: string }) {
   );
 }
 
+function commandSections(me: Me): CommandSection[] {
+  const entries = (within: string, routes: { path: string; tab: string }[]) =>
+    routes.map((r) => ({ label: r.tab, to: r.path, within }));
+  return [
+    ...PLACES.map((p) => ({ value: p.label, items: entries(p.label, placeTabs(p.id, me)) })),
+    ...settingsGroups(me).map((g) => ({
+      value: `Settings: ${g.label}`,
+      items: entries("Settings", g.routes),
+    })),
+    {
+      value: "Help",
+      items: [{ label: "Documentation", to: DOCS, within: "Help", external: true }],
+    },
+  ];
+}
+
 export function Frame(props: {
   me: Me;
   route: Route | undefined;
@@ -188,6 +205,7 @@ export function Frame(props: {
           <main className="content">{props.children}</main>
         </div>
       </div>
+      <CommandMenu sections={commandSections(props.me)} />
     </div>
   );
 }
