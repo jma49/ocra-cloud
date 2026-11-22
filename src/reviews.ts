@@ -12,9 +12,10 @@ import { platformsOf } from "./platforms/registry.js";
 import { perMinute, retryTomorrow } from "./rate.js";
 import { repoNames } from "./repositories.js";
 import { requireSession } from "./session.js";
-import type { ReviewerCounts } from "./shared/index.js";
+import type { ReviewerCounts, ReviewWalkthroughView } from "./shared/index.js";
 import { DAY } from "./time.js";
 import type { AppEnv } from "./types.js";
+import { parseWalkthrough } from "./walkthrough.js";
 
 // Review metadata: the CLI uploads counts after a review, the web lists them.
 
@@ -73,10 +74,12 @@ reviews.post("/", requireSession(["web", "cli"]), perMinute("upload"), uploadBod
   const { reviewersDropped, ...row } = reviewRow(upload);
   // Findings are kept only while the account shares them, whatever the CLI sent.
   const list = upload.findingList;
+  const sharing = c.var.session.account.shareFindings;
   const parsed =
-    c.var.session.account.shareFindings && list !== undefined
+    sharing && list !== undefined
       ? parseFindings(list)
       : { rows: [], truncated: false, dropped: 0 };
+  const walkthrough = sharing ? parseWalkthrough(upload.walkthrough) : undefined;
   // What was left out is reported, never silently lost (audit K-models).
   const dropped = {
     ...(parsed.dropped > 0 ? { findings: parsed.dropped } : {}),
@@ -97,6 +100,8 @@ reviews.post("/", requireSession(["web", "cli"]), perMinute("upload"), uploadBod
     return apiError(c, "daily_limit", { limit });
   }
   const { id, findingsSkipped } = stored;
+  // A retry of the run answers duplicate above, so this runs once per review.
+  if (walkthrough) await c.var.data.insert("reviewWalkthroughs", { ...walkthrough, reviewId: id });
   defer(c, announce(c, id));
   return c.json({
     id,
@@ -125,8 +130,15 @@ async function announce(c: Context<AppEnv>, id: string) {
 reviews.get("/:id", requireSession(), async (c) => {
   const review = await c.var.data.get("reviews", c.req.param("id"));
   if (!review) return apiError(c, "not_found");
-  const list = await c.var.data.findingsOf(review.id);
-  return c.json({ review: listedReview(review), findings: list.map(findingDto) });
+  const [list, walkthrough] = await Promise.all([
+    c.var.data.findingsOf(review.id),
+    c.var.data.findOne("reviewWalkthroughs", { reviewId: review.id }),
+  ]);
+  return c.json({
+    review: listedReview(review),
+    findings: list.map(findingDto),
+    walkthrough: walkthrough ? walkthroughDto(walkthrough) : null,
+  });
 });
 
 // ocra-cloud/review-export: the uploaded counts and findings. Not a report:
@@ -139,7 +151,7 @@ reviews.get("/:id", requireSession(), async (c) => {
 // version because that field changed. A field the report makes optional
 // is left out when unknown, never null. The report's inDiff, status,
 // evidence and provenance were never uploaded, so they are absent; fix is
-// there when the CLI sent one.
+// there when the CLI sent one, and the walkthrough beside the findings.
 // Two fields are ocra Cloud's own: `redacted` (the server or the CLI
 // replaced a secret-looking string with [redacted]) and `truncated` (a
 // long field was cut).
@@ -179,6 +191,17 @@ function reviewDto(r: Row<"reviews">) {
     dismissed: r.dismissed,
     createdAt: r.createdAt,
   } satisfies Omit<Row<"reviews">, "accountId">;
+}
+
+/** The change's walkthrough beside a review's findings. */
+function walkthroughDto(w: Row<"reviewWalkthroughs">) {
+  return {
+    overview: w.overview,
+    groups: w.groups,
+    diagram: w.diagram,
+    redacted: w.redacted,
+    truncated: w.truncated,
+  } satisfies ReviewWalkthroughView;
 }
 
 /** In the web's lists, with the repository's short hash. */
@@ -248,13 +271,17 @@ export function exportFinding(f: FindingRow) {
 reviews.get("/:id/export", requireSession(), async (c) => {
   const review = await c.var.data.get("reviews", c.req.param("id"));
   if (!review) return apiError(c, "not_found");
-  const list = await c.var.data.findingsOf(review.id);
+  const [list, walkthrough] = await Promise.all([
+    c.var.data.findingsOf(review.id),
+    c.var.data.findOne("reviewWalkthroughs", { reviewId: review.id }),
+  ]);
   c.header("content-disposition", `attachment; filename="ocra-review-${review.runId}.json"`);
   return c.json({
     format: "ocra-cloud/review-export",
     version: EXPORT_VERSION,
     review: reviewDto(review),
     findings: list.map(exportFinding),
+    ...(walkthrough ? { walkthrough: walkthroughDto(walkthrough) } : {}),
   });
 });
 

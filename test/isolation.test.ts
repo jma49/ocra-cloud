@@ -33,6 +33,7 @@ const changes = {
   reviewJobs: { state: "done" as const },
   notifyChannels: { name: "renamed" },
   replyJobs: { state: "done" as const },
+  reviewWalkthroughs: { overview: "changed" },
 } satisfies { [N in keyof typeof rows]: Record<string, unknown> };
 
 // Storage persists across tests in a file; deleting the accounts cascades.
@@ -106,7 +107,7 @@ const withIds = (Object.keys(rows) as (keyof typeof rows)[]).filter(
 describe.each(withIds)("%s", (name) => {
   beforeEach(async () => {
     // A finding needs a review to belong to (foreign key).
-    if (name === "findings") {
+    if (name === "findings" || name === "reviewWalkthroughs") {
       await db
         .insert(schema.reviews)
         .values({ id: "review-of-a", accountId: A, runId: "r", repoHash: "h", source: "local" });

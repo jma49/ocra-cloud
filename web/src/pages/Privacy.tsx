@@ -43,16 +43,17 @@ export function Privacy() {
         </li>
         <li>
           <b>Findings, only if you turn on "Send findings and the code they quote"</b> in Settings
-          (off by default): each finding's file path, line range, title, description, suggestion and
-          the code it quotes. Secret-looking tokens are replaced with [redacted] on your machine and
-          again on the server; this catches common patterns, not every secret. While this is on,
-          your machines share one repository salt held by your account, so that the same repository
-          has the same hash on each of them; with a server-held salt we could test a guessed
-          repository address against it. The account's salt stays when you turn sending off, so a
-          repository keeps its hash and memory if you turn it on again; reviews sent while it is off
-          use your machine's salt. Deleting your account deletes it. The findings you can send in
-          any 90 days are capped (Settings shows how many), and deleting findings does not give that
-          room back.
+          (off by default): each finding's file path, line range, title, description, suggestion,
+          the code it quotes and its proposed fix, and the review's walkthrough of the change (an
+          overview, the changed files' paths in groups, and a diagram). Secret-looking tokens are
+          replaced with [redacted] on your machine and again on the server; this catches common
+          patterns, not every secret. While this is on, your machines share one repository salt held
+          by your account, so that the same repository has the same hash on each of them; with a
+          server-held salt we could test a guessed repository address against it. The account's salt
+          stays when you turn sending off, so a repository keeps its hash and memory if you turn it
+          on again; reviews sent while it is off use your machine's salt. Deleting your account
+          deletes it. The findings you can send in any 90 days are capped (Settings shows how many),
+          and deleting findings does not give that room back.
         </li>
         <li>
           <b>Daily counts</b> of your review uploads, model calls and findings sent, which the daily
