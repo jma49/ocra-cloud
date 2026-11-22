@@ -229,6 +229,18 @@ describe("a pull request's labels", () => {
     });
   });
 
+  it("says a full page of repository labels may not be all of them", async () => {
+    platform({
+      [`GET ${REPO}/issues/7/labels?per_page=100`]: () => Response.json([]),
+      [`GET ${REPO}/labels?per_page=100`]: () =>
+        Response.json(Array.from({ length: 100 }, (_, i) => ({ name: `l${i}` }))),
+    });
+    const a = await signInWithGithub();
+    const view = (await (await a.send(`/api/pulls/labels?${query(hub)}`)).json()) as PullLabelsView;
+    expect(view).toMatchObject({ applied: [], truncated: true });
+    expect(view.available).toHaveLength(100);
+  });
+
   it("adds through GitHub's issue labels and removes only labels it has", async () => {
     const sent = platform({
       [`GET ${REPO}/issues/7/labels?per_page=100`]: () =>
