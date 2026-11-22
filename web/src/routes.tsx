@@ -130,7 +130,12 @@ const ROUTES: readonly Route[] = [
     page: () => <RepoConfig />,
   },
   { path: "/memory", place: "repositories", tab: "Memory", page: () => <Memory /> },
-  { path: "/insights", place: "insights", tab: "Overview", page: () => <Insights /> },
+  {
+    path: "/insights",
+    place: "insights",
+    tab: "Overview",
+    page: (me) => <Insights runner={me.autoReview} />,
+  },
   {
     path: "/usage",
     place: "insights",
