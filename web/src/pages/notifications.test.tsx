@@ -58,6 +58,7 @@ describe("the Notifications page", () => {
         name: "#reviews",
         when: "blocking",
         digest: false,
+        weekly: false,
         url: "https://hooks.slack.com/services/T/B/x",
       },
     });
@@ -90,13 +91,15 @@ describe("an email channel", () => {
     fireEvent.change(screen.getByLabelText("Email address"), {
       target: { value: "ada@example.com" },
     });
-    fireEvent.click(screen.getByLabelText("Also send a daily digest of yesterday's reviews"));
+    fireEvent.click(screen.getByLabelText("Daily digest of yesterday's reviews"));
+    fireEvent.click(screen.getByLabelText("Weekly report"));
     await act(async () => void fireEvent.click(screen.getByRole("button", { name: "Add" })));
     expect(sent[0]?.body).toEqual({
       kind: "email",
       name: "Ada",
       when: "blocking",
       digest: true,
+      weekly: true,
       address: "ada@example.com",
     });
     expect(await screen.findByText(/A link to confirm Ada is on its way/)).toBeTruthy();
