@@ -11,7 +11,7 @@ updates:
     open-pull-requests-limit: 5
     ignore:
       # Vitest's major is the one @cloudflare/vitest-pool-workers supports
-      # (0.22 takes Vitest 4): it moves with a pool release, never alone.
+      # (0.23 takes Vitest 4): it moves with a pool release, never alone.
       - dependency-name: vitest
         update-types: ["version-update:semver-major"]
       # The wire contract with the engine: a major is a breaking change of
