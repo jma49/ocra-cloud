@@ -65,3 +65,8 @@
   flex: none;
   vertical-align: -3px;
 }
+.with-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
