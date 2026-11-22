@@ -288,7 +288,7 @@ function GraphRow(props: { repo: GraphRepoView; put: (r: GraphRepoView) => void;
               <button
                 type="button"
                 className="btn btn-sm btn-danger"
-                disabled={busy || !latest}
+                disabled={busy || !latest || building(repo)}
                 onClick={() => setConfirm("purge")}
               >
                 Purge
