@@ -15,6 +15,7 @@ const me = (autoReview: boolean): Me => ({
   since: "",
   codeGraphs: "off",
   autoReview,
+  platforms: ["github", "gitlab"],
 });
 const rule = {
   id: "r1",
@@ -82,6 +83,14 @@ describe("the Automations page", () => {
       method: "PUT",
       body: { enabled: false, trigger: "queued", actions: rule.actions },
     });
+  });
+
+  it("opens a new rule from the empty list", async () => {
+    serve([]);
+    render(<Automations me={me(true)} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Write your first rule" }));
+    expect(screen.getByRole("form", { name: "New rule" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Write your first rule" })).toBeNull();
   });
 
   it("offers only what a rule on an uploaded review may test and do, where nothing is queued", async () => {

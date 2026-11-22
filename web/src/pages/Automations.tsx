@@ -120,7 +120,17 @@ export function Automations(props: { me: Me }) {
         <Loading what="rules" />
       ) : list.length === 0 ? (
         <div className="card">
-          <EmptyState icon={Zap} title="No rules yet">
+          <EmptyState
+            icon={Zap}
+            title="No rules yet"
+            action={
+              editing === null && (
+                <Button variant="outline" onClick={() => setEditing("new")}>
+                  Write your first rule
+                </Button>
+              )
+            }
+          >
             A rule checks each pull request against its conditions and acts when they all hold, for
             example notifying #payments when a review finds something critical.
           </EmptyState>
