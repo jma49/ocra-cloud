@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { Db } from "../db/client.js";
+import { refreshGithubLogin, refreshGitlabLogin } from "../db/logins.js";
 import { reviewRepoFor } from "../db/review-jobs.js";
 import { scoped } from "../db/scoped.js";
 import { plain } from "./channels.js";
@@ -203,6 +204,13 @@ export async function tellGithubHook(
   if (!repoId.success) return 0;
   const repo = await reviewRepoFor(db, "github", "github.com", id(repoId.data.repository.id));
   if (!repo) return 0;
+  const sender = z.object({ sender: user }).safeParse(body);
+  if (sender.success) {
+    await refreshGithubLogin(db, {
+      id: id(sender.data.sender.id),
+      login: sender.data.sender.login,
+    });
+  }
   const data = scoped(db, repo.accountId);
   const events = bySpecificity([
     ...githubPullEvents(event, body, repo.id),
@@ -213,6 +221,14 @@ export async function tellGithubHook(
   return (await tellPullEvent(db, data, out, repo, events)).length;
 }
 
+/** Keeps the login on record of the GitLab user the hook shows acting. */
+async function refreshGitlabActor(db: Db, host: string, body: unknown) {
+  const actor = z.object({ user: gitlabUser }).safeParse(body);
+  if (!actor.success) return;
+  const { id: userId, username } = actor.data.user;
+  await refreshGitlabLogin(db, host, { id: id(userId), login: username });
+}
+
 /** Tells the account of a GitLab merge request hook's events that are its own. */
 export async function tellGitlabHook(
   db: Db,
@@ -220,6 +236,7 @@ export async function tellGitlabHook(
   repo: EventRepo & { accountId: string },
   body: unknown,
 ): Promise<number> {
+  await refreshGitlabActor(db, repo.host, body);
   const events = gitlabPullEvents(body, repo.id);
   if (events.length === 0) return 0;
   return (await tellPullEvent(db, scoped(db, repo.accountId), out, repo, events)).length;
@@ -233,6 +250,7 @@ export async function tellGitlabNote(
   body: unknown,
   startOf?: StartOf,
 ): Promise<number> {
+  await refreshGitlabActor(db, repo.host, body);
   const data = scoped(db, repo.accountId);
   const events = bySpecificity([
     ...gitlabCommentEvents(body, repo.id),
