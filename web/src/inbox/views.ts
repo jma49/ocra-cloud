@@ -65,7 +65,10 @@ export function usePullViews() {
     add: (draft: ViewDraft) =>
       attempt(
         change((d) => ({
-          views: [...d.views, { id: `new-${d.views.length}`, position: d.views.length, ...draft }],
+          views: [
+            ...d.views,
+            { id: `new-${d.views.length}`, position: d.views.length, hidden: false, ...draft },
+          ],
         })),
         () => api<PullView>("/pull-views", { method: "POST", ...json(draft) }),
       ),

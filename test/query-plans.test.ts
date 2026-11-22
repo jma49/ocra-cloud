@@ -153,6 +153,16 @@ describe("query plans", () => {
     );
   });
 
+  it("the inbox reads each listed pull's newest verdict through (account_id, pr_number, created_at)", async () => {
+    const seen: Captured[] = [];
+    const d = scoped(drizzle(recording(seen)), "acct");
+    await d.pullViews.verdicts([{ repo: "https://github.com/octo/api", number: 7 }]);
+    expect(seen).toHaveLength(1);
+    const p = await plan(seen[0] as Captured);
+    expect(p).toMatch(/SEARCH reviews USING INDEX reviews_account_pull/);
+    expect(p).not.toMatch(/SCAN reviews|TEMP B-TREE/);
+  });
+
   it("the daily digest reads reviews and findings through their account indexes", async () => {
     const seen: Captured[] = [];
     const d = scoped(drizzle(recording(seen)), "acct");
@@ -199,8 +209,10 @@ describe("query plans", () => {
     await d.search.repositories("octo", 5);
     expect(seen).toHaveLength(6);
     const plans = await Promise.all(seen.map(plan));
-    for (const p of plans.slice(0, 3)) {
-      expect(p).toMatch(/SEARCH r(eviews)? USING INDEX reviews_account_created/);
+    for (const [i, p] of plans.slice(0, 3).entries()) {
+      // A number in one repository goes straight to (account_id, pr_number, created_at).
+      const index = i === 2 ? "reviews_account_pull" : "reviews_account_created";
+      expect(p).toMatch(new RegExp(`SEARCH r(eviews)? USING INDEX ${index}`));
       expect(p).toMatch(/USING (COVERING )?INDEX repositories_account_repo/);
       expect(p).not.toMatch(/TEMP B-TREE/);
     }

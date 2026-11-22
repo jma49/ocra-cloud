@@ -1,8 +1,9 @@
-import type {
-  CodePlatformKind,
-  PullFilters,
-  PullItem,
-  PullView,
+import {
+  type CodePlatformKind,
+  matchesPullFilters,
+  type PullFilters,
+  type PullItem,
+  type PullView,
 } from "../../../src/shared/index.js";
 
 type PlatformPulls = {
@@ -75,12 +76,14 @@ export function inboxSections(rows: Row[], f: Filters, views: PullView[] = []): 
       title: s.title,
       rows: by.get(s.id) ?? [],
     })),
-    ...views.map((view) => ({
-      key: `view:${view.id}`,
-      title: view.name,
-      rows: rows.filter((r) => matchesView(r, view.filters) && matches(r, f)),
-      view,
-    })),
+    ...views
+      .filter((view) => !view.hidden)
+      .map((view) => ({
+        key: `view:${view.id}`,
+        title: view.name,
+        rows: rows.filter((r) => matchesView(r, view.filters) && matches(r, f)),
+        view,
+      })),
   ];
 }
 
@@ -88,19 +91,6 @@ export function inboxSections(rows: Row[], f: Filters, views: PullView[] = []): 
 export const reposOf = (rows: Row[]) =>
   [...new Set(rows.map((r) => `${r.host}/${r.repo}`))].sort((a, b) => a.localeCompare(b));
 
-const any = <T>(allowed: T[] | undefined, value: T) => !allowed || allowed.includes(value);
-
-/** Whether a pull belongs in an account's own section. */
-export function matchesView(r: Row, f: PullFilters): boolean {
-  const drafts = f.drafts ?? "include";
-  if (drafts === "exclude" && r.draft) return false;
-  if (drafts === "only" && !r.draft) return false;
-  return (
-    (!f.roles || r.roles.some((role) => f.roles?.includes(role))) &&
-    any(f.states, r.state) &&
-    any(f.repos, `${r.host}/${r.repo}`) &&
-    (!f.authors || (r.author !== null && f.authors.includes(r.author))) &&
-    (!f.checks || (r.checks !== null && f.checks.includes(r.checks))) &&
-    (!f.reviews || (r.review !== null && f.reviews.includes(r.review)))
-  );
-}
+/** Whether a pull belongs in an account's own section: the server's rule (src/shared/pulls.ts). */
+export const matchesView = (r: Row, f: PullFilters): boolean =>
+  matchesPullFilters(r, f, Date.now());

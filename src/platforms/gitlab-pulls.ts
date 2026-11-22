@@ -1,6 +1,7 @@
 import { platformCall } from "./http.js";
 import {
   type ListedPull,
+  labelsOf,
   MERGED_PER_LIST,
   mergedSince,
   OPEN_PER_LIST,
@@ -21,6 +22,7 @@ export type MergeRequest = {
   updated_at: string;
   merged_at?: string | null;
   author: { username: string } | null;
+  labels?: string[];
   references?: { full?: string };
 };
 
@@ -46,6 +48,7 @@ export const mergeRequestItem = (mr: MergeRequest): ListedPull => ({
   // The listing has no pipeline, approvals or line counts; one call per MR would.
   checks: null,
   review: null,
+  labels: labelsOf(mr.labels ?? []),
   additions: null,
   deletions: null,
 });

@@ -44,7 +44,7 @@ import { accountMergeChecks } from "./merge-checks.js";
 import { accountNotify } from "./notify.js";
 import { type PreferencesSave, savePreferences } from "./preferences.js";
 import { accountPullFlows } from "./pull-flows.js";
-import { addPullView } from "./pull-views.js";
+import { accountPullViews } from "./pull-views.js";
 import { accountReplyJobs } from "./reply-jobs.js";
 import { accountReports } from "./reports.js";
 import { nameRepo, nameRepos, pulledRepos, reviewedRepos } from "./repos.js";
@@ -423,8 +423,7 @@ export function scoped(db: Db, accountId: string) {
       nameRepo(db, accountId, repoHash, name, cap),
     nameRepos: (list: readonly { repoHash: string; name: string }[], cap: number) =>
       nameRepos(db, accountId, list, cap),
-    addPullView: (view: Parameters<typeof addPullView>[2], cap: number) =>
-      addPullView(db, accountId, view, cap),
+    pullViews: accountPullViews(db, accountId),
     graphs: accountGraphs(db, accountId),
     autoReview: accountReviewJobs(db, accountId),
     notify: accountNotify(db, accountId),
