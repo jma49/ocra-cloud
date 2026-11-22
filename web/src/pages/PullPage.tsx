@@ -17,6 +17,7 @@ import { FileDiff } from "../pull/file-diff.js";
 import { GenerateBox } from "../pull/generate-box.js";
 import { OUTCOME } from "../pull/outcome.js";
 import { QueueBox } from "../pull/queue-box.js";
+import { ReviewNowBox } from "../pull/review-now-box.js";
 import { StackPanel } from "../pull/stack.js";
 import { LoadError, Loading, PageHead, Seg, useAction, useLoad } from "../ui.js";
 
@@ -127,6 +128,7 @@ export function PullPage(props: {
           </nav>
           <ReviewBox data={data} pull={ref} pending={pending} onDone={(o) => done("Review", o)} />
           <ChecksBox pull={ref} head={data.head} />
+          {props.runner && <ReviewNowBox pull={ref} head={data.head} />}
           {props.runner && <GenerateBox pull={ref} head={data.head} />}
           {queue.data?.enabled ? (
             <QueueBox
