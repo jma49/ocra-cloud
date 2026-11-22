@@ -42,6 +42,8 @@ export const EXPORTED = {
   reviewJobs: "reviewJobs",
   notifyChannels: "notifyChannels",
   closedPulls: "closedPulls",
+  pullFlows: "pullFlows",
+  pullReviews: "pullReviews",
   replyJobs: "replyJobs",
   reviewWalkthroughs: "walkthroughs",
   generateJobs: "generateJobs",

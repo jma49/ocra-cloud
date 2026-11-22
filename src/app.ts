@@ -10,6 +10,7 @@ import { cycles } from "./cycles.js";
 import type { Db } from "./db/client.js";
 import { device } from "./device.js";
 import { exportRoute } from "./export.js";
+import { flow } from "./flow.js";
 import { gateway } from "./gateway.js";
 import { type GraphService, graphsRoute } from "./graph/routes.js";
 import { apiError } from "./http.js";
@@ -127,6 +128,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
   app.route("/automations", automationsRoute);
   app.route("/email", emailLinks);
   app.route("/insights/cycle", cycles);
+  app.route("/insights/flow", flow);
   const hook = githubWebhook(host);
   app.route("/webhooks/github", hook);
   // The address the App's webhook had when it carried only pushes.

@@ -10,6 +10,8 @@ import {
   closedPulls,
   deviceCodes,
   gatewayCalls,
+  pullFlows,
+  pullReviews,
   rateWindows,
   reviews,
   serviceCounters,
@@ -18,7 +20,7 @@ import {
 } from "./schema.js";
 
 // What the data policy (web /privacy) promises: review records, gateway call
-// records, merged and closed pull requests, the daily counts and the audit log are deleted after
+// records, merged and closed pull requests and their review flow, the daily counts and the audit log are deleted after
 // RETENTION_DAYS; expired login codes and sessions go at once. Runs daily
 // from the cron trigger.
 
@@ -67,6 +69,20 @@ export async function enforceRetention(db: Db, now = new Date()): Promise<void> 
         db
           .delete(closedPulls)
           .where(and(ofEachAccount(closedPulls.accountId), lt(closedPulls.closedAt, cutoff))),
+    ],
+    [
+      "pull_flows",
+      () =>
+        db
+          .delete(pullFlows)
+          .where(and(ofEachAccount(pullFlows.accountId), lt(pullFlows.seenAt, cutoff))),
+    ],
+    [
+      "pull_reviews",
+      () =>
+        db
+          .delete(pullReviews)
+          .where(and(ofEachAccount(pullReviews.accountId), lt(pullReviews.submittedAt, cutoff))),
     ],
     [
       "automation_runs",

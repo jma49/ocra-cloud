@@ -11,6 +11,7 @@ import { COMMIT_ID } from "../platforms/contents.js";
 import { gitlabClientOf } from "../platforms/registry.js";
 import type { AppEnv } from "../types.js";
 import { recordGitlabClose } from "./closes.js";
+import { recordGitlabFlow } from "./flows.js";
 import { gitlabNote, queueGitlabNote } from "./replies.js";
 import type { AutoReviewService } from "./routes.js";
 
@@ -129,6 +130,7 @@ export function autoReviewWebhooks(service: AutoReviewService) {
     if (note?.data) {
       return c.json({ queued: await queueGitlabNote(c.var.db, service, repo, note.data) }, 202);
     }
+    if (mr) await recordGitlabFlow(c.var.db, repo, body);
     if (mr && (await recordGitlabClose(c.var.db, repo, body))) return c.json({ queued: 0 }, 202);
     const event = mr?.data;
     if (event && gitlabEdited(event.object_attributes)) {
