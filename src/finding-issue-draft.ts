@@ -1,5 +1,5 @@
 import type { Row } from "./db/scoped.js";
-import { httpsLink, inline } from "./description-draft.js";
+import { httpsLink, inline, unmentioned } from "./description-draft.js";
 import { repoFilePath } from "./platforms/fix.js";
 import type { CodePlatform } from "./platforms/platform.js";
 import { pullPageUrl, type ReviewPull } from "./review-pull.js";
@@ -25,14 +25,11 @@ const SEVERITY: Record<Severity, string> = {
 const SHA = /^[0-9a-f]{40}([0-9a-f]{24})?$/;
 const CUT = "…";
 
-/** `\@` renders as @ and may still mention on some platforms; a zero-width space after it never does. */
-const quiet = (text: string) => text.replace(/\\@/g, "\\@\u200B");
-
 /** Lines of the finding's text, each as `inline` writes it, with its paragraphs kept. */
 function paragraphs(text: string): string {
   return text
     .split(/\r\n|[\r\n\u2028\u2029]/)
-    .map((line) => quiet(inline(line)))
+    .map((line) => inline(line))
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
@@ -40,11 +37,12 @@ function paragraphs(text: string): string {
 
 /** The issue's title: one line of plain text, no control characters, at most MAX_ISSUE_TITLE_CHARS. */
 function issueTitle(finding: Pick<Row<"findings">, "severity" | "title">): string {
-  const line = `${SEVERITY[finding.severity]}: ${finding.title}`
-    .replace(/[\p{Cc}\u2028\u2029]+/gu, " ")
-    .replace(/\s+/g, " ")
-    .replace(/@/g, "@\u200B")
-    .trim();
+  const line = unmentioned(
+    `${SEVERITY[finding.severity]}: ${finding.title}`
+      .replace(/[\p{Cc}\u2028\u2029]+/gu, " ")
+      .replace(/\s+/g, " ")
+      .trim(),
+  );
   const chars = [...line];
   return chars.length > MAX_ISSUE_TITLE_CHARS
     ? `${chars.slice(0, MAX_ISSUE_TITLE_CHARS - 1).join("")}${CUT}`
@@ -95,11 +93,11 @@ export function issueDraft(
   pull: ReviewPull,
   f: Row<"findings">,
 ): FindingIssueRequest {
-  const where = `${quiet(inline(f.file))}${lines(f)}`;
-  const pullLabel = quiet(inline(`${pull.repo}#${pull.number}`));
+  const where = `${inline(f.file)}${lines(f)}`;
+  const pullLabel = inline(`${pull.repo}#${pull.number}`);
   const meta = [
     `**${SEVERITY[f.severity]}**`,
-    ...(f.category ? [quiet(inline(f.category))] : []),
+    ...(f.category ? [inline(f.category)] : []),
     ...(f.verification ? [f.verification] : []),
   ].join(" · ");
   const head = `Found by ocra in its review of ${link(pullLabel, httpsLink(pullPageUrl(platform, pull)))} at \`${pull.head.slice(0, 12)}\`, in ${link(where, fileLink(platform, pull, f))}.`;

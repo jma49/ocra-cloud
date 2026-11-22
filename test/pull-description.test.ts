@@ -156,7 +156,7 @@ describe("a draft description on GitHub", () => {
     expect(draft).toContain("ocra found minor issues.");
     expect(draft).toContain("- **Client**: Retries on 503 (src/client.ts, src/my\\_retry.ts)");
     expect(draft).toContain(
-      "- [PAY-12](https://jira.example.com/browse/PAY-12): Refund \\@team (open)",
+      "- [PAY-12](https://jira.example.com/browse/PAY-12): Refund \\@\u200Bteam (open)",
     );
     // Only an https address is a link.
     expect(draft).toContain("- \\#3\n");
@@ -346,7 +346,7 @@ describe("the description's template", () => {
 
   it("writes the review's text as one line of plain text", () => {
     expect(inline("a\n<!-- x -->\n**b** [c](d) `e` @f #1 &amp;")).toBe(
-      "a &lt;\\!-- x --&gt; \\*\\*b\\*\\* \\[c\\]\\(d\\) \\`e\\` \\@f \\#1 &amp;amp;",
+      "a &lt;\\!-- x --&gt; \\*\\*b\\*\\* \\[c\\]\\(d\\) \\`e\\` \\@\u200Bf \\#1 &amp;amp;",
     );
   });
 });
