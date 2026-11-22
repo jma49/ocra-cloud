@@ -153,4 +153,21 @@ describe("cycle time on GitLab", () => {
       toFirstReviewMs: 6 * HOUR,
     });
   });
+
+  it("lists the user's own merge requests without a repository", async () => {
+    const asked: string[] = [];
+    githubFake({
+      extra: (req) => {
+        const url = new URL(req.url);
+        if (url.origin !== GITLAB || url.pathname !== "/api/v4/merge_requests") return undefined;
+        asked.push(url.searchParams.get("scope") ?? "");
+        return Response.json([]);
+      },
+    });
+    const a = await signInWithGithub();
+    await (await connectGitlab(a))("code=c&state=STATE");
+    const view = (await (await a.send("/api/insights/cycle?platform=gitlab")).json()) as CycleView;
+    expect(asked).toEqual(["created_by_me"]);
+    expect(view).toMatchObject({ pulls: [], toMerge: { median: null, p90: null } });
+  });
 });
