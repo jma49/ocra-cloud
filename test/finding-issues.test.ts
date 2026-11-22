@@ -293,4 +293,18 @@ describe("opening the issue on GitLab", () => {
       },
     ]);
   });
+
+  it("mentions no one from the finding's file path there either", async () => {
+    platform({});
+    const a = await signInWithGithub();
+    await (await connectGitlab(a))("code=c&state=STATE");
+    const { id } = await seed(
+      await accountOf("42"),
+      { repository: "https://gitlab.example.com/group/sub/project", number: 3 },
+      { file: "src/@admin/db.ts" },
+    );
+    const view = (await (await draftOf(a, id)).json()) as FindingIssueDraftView;
+    expect(view.platform).toBe("gitlab");
+    expect(view.body).not.toMatch(/@\w/);
+  });
 });
