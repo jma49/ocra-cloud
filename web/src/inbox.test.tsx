@@ -2,7 +2,15 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_PULL_VIEWS, type PullItem, type PullView } from "../../src/shared/index.js";
 import { clearCache } from "./cache.js";
-import { inboxSections, matchesView, type Row, reviewAsked, rowsOf } from "./inbox/sections.js";
+import {
+  inboxSections,
+  matchesView,
+  type Row,
+  reviewAsked,
+  rowsOf,
+  stackRun,
+  stacksTogether,
+} from "./inbox/sections.js";
 import { sharedView, shareLink } from "./inbox/views.js";
 import { Inbox } from "./pages/Inbox.js";
 
@@ -109,6 +117,29 @@ describe("the inbox's sections", () => {
         }),
       ),
     ).toBe(0);
+  });
+
+  it("keep a stack's pulls side by side, bottom first, where its first one stood", () => {
+    const place = (position: number) => ({ stack: { id: "octo/api#10", position, size: 3 } });
+    const listed = rowsOf({
+      platforms: [
+        {
+          ...answer.platforms[0],
+          pulls: [pull(12, place(3)), pull(20), pull(10, place(1)), pull(21), pull(11, place(2))],
+        },
+      ] as typeof answer.platforms,
+    });
+    const together = stacksTogether(listed);
+    expect(together.map((r) => r.number)).toEqual([10, 11, 12, 20, 21]);
+    expect(together.map((_, i) => stackRun(together, i))).toEqual([
+      { first: true, last: false },
+      { first: false, last: false },
+      { first: false, last: true },
+      null,
+      null,
+    ]);
+    // One pull of a stack alone in a section is no run.
+    expect(stackRun(listed.slice(0, 2), 0)).toBeNull();
   });
 
   it("filter by text and by repository", () => {
