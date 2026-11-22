@@ -20,6 +20,7 @@ import { FileDiff } from "../pull/file-diff.js";
 import { FileList } from "../pull/file-list.js";
 import { GenerateBox } from "../pull/generate-box.js";
 import { LabelsBox } from "../pull/labels-box.js";
+import { methodLabels } from "../pull/merge-method.js";
 import { MergeWhenReadyBox } from "../pull/merge-when-ready-box.js";
 import { OUTCOME } from "../pull/outcome.js";
 import { QueueBox } from "../pull/queue-box.js";
@@ -40,11 +41,6 @@ const VERDICT: Record<PullVerdict, string> = {
   comment: "Comment",
   approve: "Approve",
   request_changes: "Request changes",
-};
-const METHOD: Record<MergeMethod, string> = {
-  merge: "Merge commit",
-  squash: "Squash and merge",
-  rebase: "Rebase and merge",
 };
 
 type Answer = { outcome: PullActionOutcome };
@@ -201,7 +197,7 @@ export function PullPage(props: {
                   pull={ref}
                   head={data.head}
                   methods={data.mergeMethods}
-                  label={METHOD}
+                  label={methodLabels(ref.platform)}
                 />
               </>
             )
@@ -301,6 +297,7 @@ function MergeBox(props: {
   onDone: (o: PullActionOutcome) => void;
 }) {
   const methods = props.data.mergeMethods;
+  const label = methodLabels(props.pull.platform);
   const [method, setMethod] = useState<MergeMethod>(methods[0] ?? "merge");
   const [asking, setAsking] = useState(false);
   const merge = useAction(() => post("merge", { ...props.pull, method, head: props.data.head }));
@@ -320,14 +317,14 @@ function MergeBox(props: {
       >
         {methods.map((m) => (
           <option key={m} value={m}>
-            {METHOD[m]}
+            {label[m]}
           </option>
         ))}
       </select>
       {asking ? (
         <div className="row-gap">
           <Button className="grow" disabled={merge.busy} onClick={confirm}>
-            Confirm: {METHOD[method].toLowerCase()}
+            Confirm: {label[method].toLowerCase()}
           </Button>
           <Button variant="outline" onClick={() => setAsking(false)}>
             Cancel
