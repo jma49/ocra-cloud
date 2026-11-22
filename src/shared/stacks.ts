@@ -36,7 +36,11 @@ export type StackStepOutcome = PullActionOutcome | "unreached";
 
 export type StackMergeStep = { number: number; outcome: StackStepOutcome };
 
-export type StackMergeView = { steps: StackMergeStep[] };
+export type StackMergeView = {
+  steps: StackMergeStep[];
+  /** Open pull requests that were stacked on a merged one, each retargeted to the trunk. */
+  restacked: StackMergeStep[];
+};
 
 /**
  * A listed pull request's place in a stack of the pulls listed with it.

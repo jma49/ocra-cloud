@@ -97,10 +97,11 @@ describe("a GitHub pull request's stack", () => {
     expect(view.pulls[2]).toMatchObject({ review: "approved" });
   });
 
-  it("merges from the bottom, retargeting each one above to the trunk first", async () => {
+  it("merges from the bottom, retargeting each one above to the trunk first, and the rest of the stack after", async () => {
     const sent = platform({
       ...githubOpen(),
       [`PATCH ${REPO}/pulls/2`]: () => Response.json({}),
+      [`PATCH ${REPO}/pulls/3`]: () => Response.json({}),
       [`PUT ${REPO}/pulls/1/merge`]: () => Response.json({ merged: true }),
       [`PUT ${REPO}/pulls/2/merge`]: () => Response.json({ merged: true }),
     });
@@ -111,10 +112,12 @@ describe("a GitHub pull request's stack", () => {
       method: "squash",
       heads: heads(1, 2),
     });
-    expect(((await res.json()) as StackMergeView).steps).toEqual([
+    const view = (await res.json()) as StackMergeView;
+    expect(view.steps).toEqual([
       { number: 1, outcome: "done" },
       { number: 2, outcome: "done" },
     ]);
+    expect(view.restacked).toEqual([{ number: 3, outcome: "done" }]);
     expect(sent).toEqual([
       {
         method: "PUT",
@@ -127,6 +130,7 @@ describe("a GitHub pull request's stack", () => {
         url: `${REPO}/pulls/2/merge`,
         body: { merge_method: "squash", sha: sha(2) },
       },
+      { method: "PATCH", url: `${REPO}/pulls/3`, body: { base: "main" } },
     ]);
   });
 
@@ -144,10 +148,12 @@ describe("a GitHub pull request's stack", () => {
       method: "merge",
       heads: heads(1, 2, 3),
     });
-    expect(((await res.json()) as StackMergeView).steps).toEqual([
+    const view = (await res.json()) as StackMergeView;
+    expect(view.steps).toEqual([
       { number: 1, outcome: "done" },
       { number: 2, outcome: "not_mergeable" },
     ]);
+    expect(view.restacked).toEqual([]);
     expect(sent.map((s) => `${s.method} ${s.url}`)).not.toContain(`PUT ${REPO}/pulls/3/merge`);
   });
 

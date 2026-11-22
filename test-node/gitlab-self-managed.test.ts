@@ -446,6 +446,7 @@ describe("ocra Cloud with a self-managed GitLab", () => {
         { number: MR, outcome: "done" },
         { number: STACKED, outcome: "done" },
       ],
+      restacked: [],
     });
     // The upper one was moved onto main before its merge, and both landed there.
     expect(gitlab.pulls.get(STACKED)).toMatchObject({ target_branch: "main", state: "merged" });

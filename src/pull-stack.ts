@@ -87,28 +87,40 @@ pullStack.post(
     const stack = stackOf(open, number);
     if (!stack) return apiError(c, "not_found");
     const chain = chainTo(stack.pulls, number);
-    const steps: StackMergeStep[] = [];
-    const stop = (step: StackMergeStep) =>
-      c.json({ steps: [...steps, step] } satisfies StackMergeView);
     // A stack that changed since the page read it is not merged on the page's word.
     const same =
       chain.length === heads.length && chain.every((p, i) => p.number === heads[i]?.number);
-    if (!same) return stop({ number, outcome: "head_moved" });
-    for (const [i, pull] of chain.entries()) {
-      if (i > 0 && pull.base !== stack.trunk) {
-        const moved = await platform.stacks.retarget(token, repo, pull.number, stack.trunk);
-        if (moved !== "done") return stop({ number: pull.number, outcome: moved ?? "unreached" });
-      }
-      const head = heads[i]?.head ?? "";
-      const merged = await mergeOne(
-        platform,
-        token,
-        { repo, number: pull.number, method, head },
-        allowed,
-      );
-      if (merged !== "done") return stop({ number: pull.number, outcome: merged ?? "unreached" });
-      steps.push({ number: pull.number, outcome: "done" });
+    if (!same) {
+      return c.json({
+        steps: [{ number, outcome: "head_moved" }],
+        restacked: [],
+      } satisfies StackMergeView);
     }
-    return c.json({ steps } satisfies StackMergeView);
+    const steps: StackMergeStep[] = [];
+    for (const [i, pull] of chain.entries()) {
+      const head = heads[i]?.head ?? "";
+      const moved =
+        i > 0 && pull.base !== stack.trunk
+          ? await platform.stacks.retarget(token, repo, pull.number, stack.trunk)
+          : "done";
+      const outcome =
+        moved === "done"
+          ? await mergeOne(platform, token, { repo, number: pull.number, method, head }, allowed)
+          : moved;
+      steps.push({ number: pull.number, outcome: outcome ?? "unreached" });
+      if (outcome !== "done") break;
+    }
+    // One stacked on a merged pull would otherwise merge into a branch that already landed.
+    const landed = chain.filter((p) =>
+      steps.some((s) => s.number === p.number && s.outcome === "done"),
+    );
+    const restacked: StackMergeStep[] = [];
+    for (const pull of open) {
+      const inChain = chain.some((p) => p.number === pull.number);
+      if (inChain || !landed.some((p) => p.head === pull.base)) continue;
+      const moved = await platform.stacks.retarget(token, repo, pull.number, stack.trunk);
+      restacked.push({ number: pull.number, outcome: moved ?? "unreached" });
+    }
+    return c.json({ steps, restacked } satisfies StackMergeView);
   },
 );
