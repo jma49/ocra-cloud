@@ -111,6 +111,16 @@ const threads = {
   ],
 };
 
+const labels = {
+  applied: ["bug"],
+  available: [
+    { name: "bug", color: "#d73a4a", description: "Something is wrong" },
+    { name: "docs", color: null, description: null },
+  ],
+  truncated: false,
+};
+const draft = { draft: true, state: "open" };
+
 describe("a pull request's page", () => {
   const show = (queue: unknown = { enabled: false, entry: null }, listed: unknown = files) => {
     const sent: { url: string; body: unknown }[] = [];
@@ -124,6 +134,8 @@ describe("a pull request's page", () => {
         if (url.startsWith("/api/pulls/stack")) return Response.json({ trunk: "", pulls: [] });
         if (url.startsWith("/api/pulls/reviewers")) return Response.json(noReviewers);
         if (url.startsWith("/api/pulls/threads")) return Response.json(threads);
+        if (url.startsWith("/api/pulls/labels")) return Response.json(labels);
+        if (url.startsWith("/api/pulls/draft")) return Response.json(draft);
         return Response.json(url.startsWith("/api/pulls/queue") ? queue : listed);
       }),
     );
@@ -283,6 +295,63 @@ describe("a pull request's page", () => {
     ]);
   });
 
+  it("replies in a thread as the user, and closes the box once it is sent", async () => {
+    const sent = show();
+    const panel = await screen.findByRole("region", { name: "Review threads" });
+    fireEvent.click(within(panel).getByRole("button", { name: "Reply" }));
+    const send = within(panel).getByRole("button", { name: "Send reply" });
+    expect((send as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(within(panel).getByLabelText("Reply"), {
+      target: { value: " Done in abc. " },
+    });
+    await act(async () => void fireEvent.click(send));
+    expect(sent).toEqual([
+      {
+        url: "/api/pulls/reply-thread",
+        body: {
+          platform: "github",
+          repo: "octo/api",
+          number: 7,
+          thread: "T1",
+          body: "Done in abc.",
+        },
+      },
+    ]);
+    await waitFor(() => expect(within(panel).queryByLabelText("Reply")).toBeNull());
+  });
+
+  it("marks a draft ready for review from the page's head", async () => {
+    const sent = show();
+    const ready = await screen.findByRole("button", { name: "Mark ready for review" });
+    expect(screen.getByText("Draft")).toBeTruthy();
+    await act(async () => void fireEvent.click(ready));
+    expect(sent).toEqual([
+      {
+        url: "/api/pulls/draft",
+        body: { platform: "github", repo: "octo/api", number: 7, draft: false },
+      },
+    ]);
+  });
+
+  it("shows the labels on it, and adds one of the repository's from the menu", async () => {
+    const sent = show();
+    const box = await screen.findByRole("region", { name: "Labels" });
+    expect(within(box).getByText("bug")).toBeTruthy();
+    expect(within(box).queryByText("docs")).toBeNull();
+    fireEvent.click(within(box).getByRole("button", { name: "Edit" }));
+    const docs = await screen.findByRole("menuitemcheckbox", { name: "docs" });
+    expect(screen.getByRole("menuitemcheckbox", { name: "bug" }).getAttribute("aria-checked")).toBe(
+      "true",
+    );
+    await act(async () => void fireEvent.click(docs));
+    expect(sent).toEqual([
+      {
+        url: "/api/pulls/labels",
+        body: { platform: "github", repo: "octo/api", number: 7, add: ["docs"], remove: [] },
+      },
+    ]);
+  });
+
   it("merges only once confirmed, and says when the pull request moved", async () => {
     const sent = show();
     fireEvent.click(await screen.findByRole("button", { name: "Merge pull request" }));
@@ -317,6 +386,8 @@ describe("a pull request's page", () => {
         if (url.startsWith("/api/pulls/stack")) return Response.json({ trunk: "", pulls: [] });
         if (url.startsWith("/api/pulls/reviewers")) return Response.json(noReviewers);
         if (url.startsWith("/api/pulls/threads")) return Response.json(threads);
+        if (url.startsWith("/api/pulls/labels")) return Response.json(labels);
+        if (url.startsWith("/api/pulls/draft")) return Response.json(draft);
         return Response.json(files);
       }),
     );
