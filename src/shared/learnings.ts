@@ -72,14 +72,14 @@ export type LearningProposalsView = {
 };
 
 /**
- * What a change came to: `conflict` when the file is not as the console
- * read it (changed, deleted, or added since), `refused` when the platform
- * said no (no permission, a protected branch).
+ * What a change to a repository's file came to: `conflict` when the file is
+ * not as the console read it (changed, deleted, or added since), `refused`
+ * when the platform said no (no permission, a protected branch).
  */
-export type LearningChangeOutcome = "done" | "refused" | "conflict";
+export type FileChangeOutcome = "done" | "refused" | "conflict";
 
 export type LearningChangeView = {
-  outcome: LearningChangeOutcome;
+  outcome: FileChangeOutcome;
   path: string;
   /** The pull request the change was opened as; null when committed to the default branch, or not done. */
   pull: { number: number; url: string } | null;
