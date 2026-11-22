@@ -25,7 +25,7 @@ const HOURS_LABEL: Record<ReminderHours, string> = {
   48: "2 days",
 };
 const HOURS = Array.from({ length: 24 }, (_, h) => h);
-const clock = (h: number) => `${String(h).padStart(2, "0")}:00`;
+export const clock = (h: number) => `${String(h).padStart(2, "0")}:00`;
 const DEFAULT_QUIET: QuietHours = { start: 22, end: 8 };
 
 const isReminder = (e: NotifyEvent): e is ReminderEvent =>
@@ -144,7 +144,7 @@ export function RemindersDrawer(props: {
             checked={quiet !== null}
             onChange={() => setQuiet(quiet ? null : DEFAULT_QUIET)}
           />{" "}
-          Hold reminders during these hours
+          Send no reminder, comment or mention during these hours
         </label>
         {quiet && (
           <div className="quiet-hours">
