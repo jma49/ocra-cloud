@@ -325,6 +325,11 @@ export const findings = sqliteTable(
     decidedAt: integer("decided_at", { mode: "timestamp_ms" }),
     // Where the finding was in the upload: the report's order, kept on any database.
     position: integer("position").notNull().default(0),
+    // Its fix as the CLI sent it, unredacted and whole (the contract's
+    // sharedFixSchema): lines of the reviewed head and their replacement.
+    fixStartLine: integer("fix_start_line"),
+    fixEndLine: integer("fix_end_line"),
+    fixReplacement: text("fix_replacement"),
   },
   // review_id: a review's delete cascades here (by the user or retention).
   // findings_account_status_created leads with account_id, so it also

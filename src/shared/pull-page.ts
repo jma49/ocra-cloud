@@ -43,6 +43,12 @@ export type LineComment = { path: string; line: number; side: LineSide; body: st
 /**
  * What a write on the pull request came to: `refused` when the platform
  * said no (no permission, closed, a line outside the diff), `head_moved`
- * when the pull request gained commits since the page was read.
+ * when the pull request gained commits since the page was read (or, for a
+ * fix, since the review), `not_applicable` when a fix's lines are not in the file.
  */
-export type PullActionOutcome = "done" | "refused" | "head_moved" | "not_mergeable";
+export type PullActionOutcome =
+  | "done"
+  | "refused"
+  | "head_moved"
+  | "not_mergeable"
+  | "not_applicable";

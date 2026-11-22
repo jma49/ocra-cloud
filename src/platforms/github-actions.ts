@@ -1,5 +1,6 @@
 import type { LineSide, PullVerdict } from "../shared/index.js";
 import { outcomeOf, type PullActions } from "./actions.js";
+import { fixedFile, fromBase64, MAX_FIX_FILE_BYTES, toBase64 } from "./fix.js";
 import { githubHeaders, githubRepoPath } from "./github-changes.js";
 import { platformCall, platformSend } from "./http.js";
 
@@ -12,6 +13,9 @@ const EVENT = {
 } as const satisfies Record<PullVerdict, string>;
 
 const SIDE = { old: "LEFT", new: "RIGHT" } as const satisfies Record<LineSide, string>;
+
+type Pull = { head: { sha: string; ref: string; repo: { full_name: string } | null } };
+type File = { type: string; sha: string; size: number; encoding?: string; content?: string };
 
 export function githubActions(): PullActions {
   const send = (token: string, method: string, url: string, body: unknown) =>
@@ -58,6 +62,33 @@ export function githubActions(): PullActions {
           sha: merge.head,
         }),
         { 405: "not_mergeable", 409: "head_moved" },
+      );
+    },
+    async applyFix(token, fullName, number, commit) {
+      const headers = { headers: githubHeaders(token) };
+      const pull = await platformCall<Pull>(`${repo(fullName)}/pulls/${number}`, headers);
+      if (!pull) return null;
+      if (pull.head.sha !== commit.head) return "head_moved";
+      // The branch is in the fork a pull request came from; gone with it, nothing can be committed.
+      if (!pull.head.repo) return "refused";
+      const file = `${repo(pull.head.repo.full_name)}/contents/${githubRepoPath(commit.path)}`;
+      const read = await platformCall<File>(`${file}?ref=${commit.head}`, headers);
+      if (!read) return null;
+      if (read.type !== "file" || read.encoding !== "base64" || read.size > MAX_FIX_FILE_BYTES) {
+        return "not_applicable";
+      }
+      const bytes = fromBase64(read.content ?? "");
+      const fixed = bytes && fixedFile(bytes, commit.fix);
+      if (!fixed) return "not_applicable";
+      // sha: the file as it was read; one changed since is a conflict, not overwritten.
+      return outcomeOf(
+        await send(token, "PUT", file, {
+          message: commit.message,
+          content: toBase64(fixed),
+          sha: read.sha,
+          branch: pull.head.ref,
+        }),
+        { 409: "head_moved" },
       );
     },
   };

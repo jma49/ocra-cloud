@@ -76,6 +76,9 @@ const FINDING_FIELDS = {
   redacted: "bigint",
   truncated: "bigint",
   position: "bigint",
+  fixStartLine: "bigint",
+  fixEndLine: "bigint",
+  fixReplacement: "text",
 } as const;
 
 /** Where a page of rows ends: the last row's primary key, column by column. */
@@ -336,7 +339,8 @@ export function scoped(db: Db, accountId: string) {
         SELECT je."id", ${accountId}, ${review.id}, je."fingerprint", je."reviewer",
           je."severity", je."category", je."verification", je."file", je."lineStart",
           je."lineEnd", je."title", je."body", je."suggestion", je."code", je."redacted",
-          je."truncated", ${now.getTime()}, 'open', NULL, NULL, NULL, je."position"
+          je."truncated", ${now.getTime()}, 'open', NULL, NULL, NULL, je."position",
+          je."fixStartLine", je."fixEndLine", je."fixReplacement"
         FROM ${jsonRecords(db, rows, FINDING_FIELDS)}
         WHERE EXISTS (SELECT 1 FROM reviews WHERE id = ${review.id} AND account_id = ${accountId})
           AND ${findingsCounted(accountId, now)} + ${list.length} <= ${limits.maxFindings}`);

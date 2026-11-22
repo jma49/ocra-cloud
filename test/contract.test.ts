@@ -73,7 +73,7 @@ describe("the CLI's real upload", () => {
       ({ id: _id, createdAt: _at, status: _s, reason: _r, note: _n, decidedAt: _d, ...f }) => f,
     );
     expect(stored).toEqual(
-      body.findingList.map((f) => ({ redacted: false, truncated: false, ...f })),
+      body.findingList.map((f) => ({ redacted: false, truncated: false, fix: null, ...f })),
     );
   });
 });
