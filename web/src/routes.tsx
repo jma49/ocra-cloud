@@ -23,6 +23,9 @@ import { loadProviders, NotFound } from "./ui.js";
 
 // Pages few visits open load on demand, so the sign-in screen and the
 // console's first page do not wait for them (audit C11).
+const Automations = lazy(() =>
+  import("./pages/Automations.js").then((m) => ({ default: m.Automations })),
+);
 const AutoReview = lazy(() =>
   import("./pages/AutoReview.js").then((m) => ({ default: m.AutoReview })),
 );
@@ -145,6 +148,13 @@ const ROUTES: readonly Route[] = [
     group: "Review",
     prefs: true,
     page: () => <Rules />,
+  },
+  {
+    path: "/automations",
+    place: "settings",
+    tab: "Automations",
+    group: "Review",
+    page: (me) => <Automations me={me} />,
   },
   {
     path: "/plugins",
