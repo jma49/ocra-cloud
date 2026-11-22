@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { apiError, jsonBody } from "./http.js";
-import { chainTo, MAX_STACK, stackOf } from "./platforms/stacks.js";
+import { MAX_STACK, stackOf } from "./platforms/stacks.js";
 import {
   byKind,
   mergeMethodsOf,
@@ -14,6 +14,7 @@ import {
 import { perMinute } from "./rate.js";
 import { requireSession } from "./session.js";
 import {
+  chainTo,
   MERGE_METHODS,
   type PullStackView,
   type StackedPull,

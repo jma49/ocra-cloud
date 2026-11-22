@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import type {
-  CodePlatformKind,
-  MergeMethod,
-  PullStackView,
-  StackedPull,
-  StackMergeView,
-  StackStepOutcome,
+import {
+  type CodePlatformKind,
+  chainTo,
+  type MergeMethod,
+  type PullStackView,
+  type StackedPull,
+  type StackMergeView,
+  type StackStepOutcome,
 } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
 import { Link } from "../router.js";
@@ -38,17 +39,6 @@ const depthOf = (pulls: StackedPull[], p: StackedPull) => {
     up = pulls.find((q) => q.number === up)?.parent ?? null;
   }
   return depth;
-};
-
-/** From the bottom up to `number`. */
-const chainTo = (pulls: StackedPull[], number: number) => {
-  const chain: StackedPull[] = [];
-  for (let p = pulls.find((q) => q.number === number); p && !chain.includes(p); ) {
-    chain.unshift(p);
-    const parent = p.parent;
-    p = pulls.find((q) => q.number === parent);
-  }
-  return chain;
 };
 
 export function StackPanel(props: {

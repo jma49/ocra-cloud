@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { chainTo, MAX_STACK, type OpenPull, stackOf } from "../src/platforms/stacks.js";
+import { MAX_STACK, type OpenPull, stackOf } from "../src/platforms/stacks.js";
+import { chainTo } from "../src/shared/index.js";
 
 // A stack read from the open pull requests' branches alone (ADR-0052).
 
