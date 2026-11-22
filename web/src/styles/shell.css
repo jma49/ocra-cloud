@@ -367,6 +367,8 @@
   }
   .settings-nav {
     position: static;
+    align-self: stretch;
+    min-width: 0;
     flex: none;
     flex-direction: row;
     overflow-x: auto;
