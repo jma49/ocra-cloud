@@ -8,9 +8,10 @@ import {
   withRoles,
 } from "./pulls.js";
 
-type MergeRequest = {
+export type MergeRequest = {
   id: number;
   iid: number;
+  project_id: number;
   title: string;
   web_url: string;
   state: string;
@@ -23,7 +24,7 @@ type MergeRequest = {
   references?: { full?: string };
 };
 
-function repoOf(mr: MergeRequest): string {
+export function repoOf(mr: MergeRequest): string {
   const full = mr.references?.full;
   if (full?.includes("!")) return full.slice(0, full.lastIndexOf("!"));
   const path = new URL(mr.web_url).pathname.replace(/^\/+/, "");

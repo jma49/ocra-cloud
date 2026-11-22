@@ -3,6 +3,7 @@ import type { CodePlatformKind } from "../shared/index.js";
 import type { PullActions } from "./actions.js";
 import type { PullDiffs } from "./changes.js";
 import type { RepoContents } from "./contents.js";
+import type { PullCycles } from "./cycles.js";
 import type { PullListing } from "./pulls.js";
 
 // What the product layer needs from a code platform, whatever it is: GitHub,
@@ -47,6 +48,7 @@ export interface CodePlatform {
   readonly contents: RepoContents;
   readonly changes: PullDiffs;
   readonly actions: PullActions;
+  readonly cycles: PullCycles;
 }
 
 /**

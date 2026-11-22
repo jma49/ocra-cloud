@@ -5,6 +5,7 @@ import { type AutoReviewService, autoReviewRoute } from "./auto-review/routes.js
 import { BodyTooLarge } from "./body.js";
 import { budget } from "./budget.js";
 import { providersRoute } from "./catalog.js";
+import { cycles } from "./cycles.js";
 import type { Db } from "./db/client.js";
 import { device } from "./device.js";
 import { exportRoute } from "./export.js";
@@ -103,6 +104,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
   app.route("/pull-views", pullViewsRoute);
   app.route("/pulls", pullPage);
   app.route("/notifications", notifyRoute);
+  app.route("/insights/cycle", cycles);
   const hook = githubWebhook(host);
   app.route("/webhooks/github", hook);
   // The address the App's webhook had when it carried only pushes.

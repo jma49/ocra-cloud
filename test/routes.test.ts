@@ -47,6 +47,7 @@ const ACCESS: Record<string, Access> = {
   "PATCH /api/notifications/channels/:id": "web",
   "DELETE /api/notifications/channels/:id": "web",
   "POST /api/notifications/channels/:id/test": "web",
+  "GET /api/insights/cycle": "web",
   "GET /api/platforms/repos": "web",
   "POST /api/platforms/sync-names": "web",
   "GET /api/platforms/gitlab/connect": "web",
