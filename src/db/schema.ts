@@ -208,6 +208,10 @@ export const reviews = sqliteTable(
     costUsd: real("cost_usd").notNull().default(0),
     durationMs: integer("duration_ms").notNull().default(0),
     ocraVersion: text("ocra_version"),
+    // ADR-0038: the pull request a PR-mode review was of; null for other reviews.
+    prRepository: text("pr_repository"),
+    prNumber: integer("pr_number"),
+    prHeadSha: text("pr_head_sha"),
     // ADR-0028, 1: numbers per reviewer and the run's outcomes; never text.
     byReviewer: text("by_reviewer", { mode: "json" }).$type<Record<string, ReviewerCounts>>(),
     verification: text("verification", { mode: "json" }).$type<Partial<Record<string, number>>>(),

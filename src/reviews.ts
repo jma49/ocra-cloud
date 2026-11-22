@@ -52,6 +52,9 @@ export function reviewRow(u: Upload) {
     costUsd: u.usage.costUsd,
     durationMs: u.durationMs,
     ocraVersion: u.ocraVersion,
+    prRepository: u.pullRequest?.repository ?? null,
+    prNumber: u.pullRequest?.number ?? null,
+    prHeadSha: u.pullRequest?.headSha ?? null,
     // How many reviewers' counts were left out, for the answer's `dropped`.
     reviewersDropped: Object.keys(u.reviewers ?? {}).length - Object.keys(byReviewer).length,
   };
@@ -147,6 +150,9 @@ function reviewDto(r: Row<"reviews">) {
     costUsd: r.costUsd,
     durationMs: r.durationMs,
     ocraVersion: r.ocraVersion,
+    prRepository: r.prRepository,
+    prNumber: r.prNumber,
+    prHeadSha: r.prHeadSha,
     byReviewer: r.byReviewer,
     verification: r.verification,
     fixed: r.fixed,
