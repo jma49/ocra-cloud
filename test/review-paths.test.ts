@@ -90,6 +90,16 @@ describe("keeping a reviewed pull request's directories", () => {
     expect(await kept(data)).toEqual(["7@b:web"]);
   });
 
+  it("keeps at most MAX_PULL_PREFIXES rows for a pull request with many directories", async () => {
+    const { data, repo } = await enrolled(1, "octo");
+    const { paths } = reader(
+      () => Array.from({ length: 80 }, (_, i) => `pkg${i}/src/index.ts`),
+      () => H1,
+    );
+    await keepReviewedPaths(paths, { repo, number: 7, head: H1 });
+    expect(await data.list("pullPaths")).toHaveLength(MAX_PULL_PREFIXES);
+  });
+
   it("reads nothing for a head that is not a commit id", async () => {
     const { repo } = await enrolled(1, "octo");
     const { paths, asked } = reader(
