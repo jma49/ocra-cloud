@@ -122,7 +122,11 @@ const labels = {
 const draft = { draft: true, state: "open" };
 
 describe("a pull request's page", () => {
-  const show = (queue: unknown = { enabled: false, entry: null }, listed: unknown = files) => {
+  const show = (
+    queue: unknown = { enabled: false, entry: null },
+    listed: unknown = files,
+    platform = "github",
+  ) => {
     const sent: { url: string; body: unknown }[] = [];
     vi.stubGlobal(
       "fetch",
@@ -139,7 +143,7 @@ describe("a pull request's page", () => {
         return Response.json(url.startsWith("/api/pulls/queue") ? queue : listed);
       }),
     );
-    render(<PullPage platform="github" repo="octo/api" number="7" />);
+    render(<PullPage platform={platform} repo="octo/api" number="7" />);
     return sent;
   };
 
@@ -239,6 +243,17 @@ describe("a pull request's page", () => {
     expect(screen.queryByRole("group", { name: "Verdict" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Merge pull request" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Write the PR description" })).toBeNull();
+  });
+
+  it("names a rebase the way each platform does", async () => {
+    show(undefined, { ...files, mergeMethods: ["rebase"] });
+    expect(await screen.findAllByRole("option", { name: "Rebase and merge" })).not.toHaveLength(0);
+    cleanup();
+    show(undefined, { ...files, mergeMethods: ["rebase"] }, "gitlab");
+    expect(await screen.findAllByRole("option", { name: "Fast-forward merge" })).not.toHaveLength(
+      0,
+    );
+    expect(screen.queryByRole("option", { name: "Rebase and merge" })).toBeNull();
   });
 
   it("writes a suggestion on a new line into the review", async () => {
