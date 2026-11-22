@@ -102,7 +102,9 @@ export function Activity() {
       <div className="section card">
         <div className="card-head">
           <h3>Recent requests</h3>
-          <span className="subtle small">latest {usage?.calls.length ?? 0}</span>
+          {usage && usage.calls.length > 0 && (
+            <span className="subtle small">latest {usage.calls.length}</span>
+          )}
         </div>
         {usage && usage.calls.length > 0 ? (
           <div className="table-wrap">
