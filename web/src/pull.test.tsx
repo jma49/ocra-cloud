@@ -65,6 +65,8 @@ const files = {
   mergeMethods: ["squash", "merge"],
 };
 
+const noReviewers = { suggestions: [], owners: [] };
+
 describe("a pull request's page", () => {
   const show = (queue: unknown = { enabled: false, entry: null }) => {
     const sent: { url: string; body: unknown }[] = [];
@@ -76,6 +78,7 @@ describe("a pull request's page", () => {
           return Response.json({ outcome: url.endsWith("/merge") ? "head_moved" : "done" });
         }
         if (url.startsWith("/api/pulls/stack")) return Response.json({ trunk: "", pulls: [] });
+        if (url.startsWith("/api/pulls/reviewers")) return Response.json(noReviewers);
         return Response.json(url.startsWith("/api/pulls/queue") ? queue : files);
       }),
     );
@@ -144,6 +147,7 @@ describe("a pull request's page", () => {
           return Response.json({ enrolled: true, jobs });
         }
         if (url.startsWith("/api/pulls/stack")) return Response.json({ trunk: "", pulls: [] });
+        if (url.startsWith("/api/pulls/reviewers")) return Response.json(noReviewers);
         return Response.json(files);
       }),
     );
