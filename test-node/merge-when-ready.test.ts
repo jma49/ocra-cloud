@@ -291,5 +291,11 @@ describe("merge when ready", () => {
     expect(taken).toEqual(later);
     expect(await intents.release(intent.id, now, "waiting_platform", later)).toBe(false);
     expect(await intents.release(intent.id, later, "waiting_platform", later)).toBe(true);
+    expect(await intents.claim(intent.id, C1, later)).toEqual(later);
+    const lapsed = new Date(later.getTime() + MERGE_LEASE_MS + 1);
+    expect(await intents.arm({ ...key, ...intent, head: C2 }, lapsed)).toMatchObject({
+      state: "armed",
+      head: C2,
+    });
   });
 });
