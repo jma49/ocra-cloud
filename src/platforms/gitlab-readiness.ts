@@ -120,6 +120,7 @@ export function gitlabReadiness(origin: string, files: RepoFiles): PullReadiness
         platformRepoId: String(mr.project_id),
         draft: mr.draft ?? mr.work_in_progress ?? false,
         conflicts: mr.has_conflicts ? true : checking ? null : false,
+        branchRule: null,
         mergeable: status === "mergeable" ? true : checking ? null : false,
         reviews: {
           required:

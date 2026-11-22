@@ -1,9 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as schema from "../src/db/schema.js";
 import { scoped } from "../src/db/scoped.js";
-import type { PullReadinessView, ReadinessItem } from "../src/shared/index.js";
 import { db, resetDb, signIn } from "./helpers.js";
 import { connectGitlab, GITLAB, githubFake, signInWithGithub } from "./platform-fakes.js";
+import {
+  BASE,
+  byKind,
+  type GithubPull,
+  githubPull,
+  HEAD,
+  NOT_PROTECTED,
+  OLD,
+  PLAN,
+  REFUSED,
+  readiness,
+  run,
+} from "./readiness-fakes.js";
 
 // A pull request's merge readiness, read as the user in one GraphQL query on
 // GitHub and in bounded calls on GitLab: a requirement the token cannot read
@@ -11,153 +23,6 @@ import { connectGitlab, GITLAB, githubFake, signInWithGithub } from "./platform-
 
 beforeEach(resetDb);
 afterEach(() => vi.restoreAllMocks());
-
-const HEAD = "c".repeat(40);
-const OLD = "d".repeat(40);
-const BASE = "b".repeat(40);
-const CODEOWNERS = [
-  "/src/      @lead",
-  "/src/db/   @dba",
-  "/web/      @octo/web",
-  "*.md docs@example.com",
-].join("\n");
-
-type Review = { login: string; oid: string; teams?: string[] };
-type GithubPull = {
-  rule?: Record<string, unknown> | null;
-  ruleRefused?: boolean;
-  decision?: string | null;
-  draft?: boolean;
-  mergeable?: string;
-  reviews?: Review[];
-  files?: string[];
-  threads?: boolean[];
-  contexts?: Record<string, unknown>[];
-  state?: string;
-  title?: string;
-};
-
-const RULE = {
-  requiresApprovingReviews: true,
-  requiredApprovingReviewCount: 2,
-  requiresCodeOwnerReviews: true,
-  dismissesStaleReviews: true,
-  requiresStatusChecks: true,
-  requiredStatusCheckContexts: ["ci", "lint"],
-};
-
-function githubPull(p: GithubPull = {}) {
-  const calls: string[] = [];
-  githubFake({
-    extra: async (req) => {
-      if (!req.url.startsWith("https://api.github.com/") || req.url.includes("/installations")) {
-        return undefined;
-      }
-      if (req.url === "https://api.github.com/user") return undefined;
-      calls.push(`${req.method} ${req.url}`);
-      if (req.method !== "POST" || !req.url.endsWith("/graphql")) return undefined;
-      const body = (await req.json()) as { query: string; variables: Record<string, unknown> };
-      expect(body.variables).toEqual({ owner: "octo", name: "api", number: 7 });
-      const reviews = p.reviews ?? [];
-      return Response.json({
-        data: {
-          repository: {
-            databaseId: 1,
-            pullRequest: {
-              state: p.state ?? "OPEN",
-              isDraft: p.draft ?? false,
-              mergeable: p.mergeable ?? "MERGEABLE",
-              reviewDecision: p.decision === undefined ? "REVIEW_REQUIRED" : p.decision,
-              title: p.title ?? "fix: cap refunds",
-              body: "",
-              headRefOid: HEAD,
-              changedFiles: (p.files ?? []).length,
-              additions: 3,
-              deletions: 1,
-              baseRef: {
-                branchProtectionRule: p.ruleRefused ? null : p.rule === undefined ? RULE : p.rule,
-                target: {
-                  c0: null,
-                  c1: {
-                    object: {
-                      byteSize: CODEOWNERS.length,
-                      isBinary: false,
-                      text: CODEOWNERS,
-                    },
-                  },
-                  c2: null,
-                },
-              },
-              reviews: {
-                nodes: reviews.map((r) => ({
-                  state: "APPROVED",
-                  author: { login: r.login },
-                  commit: { oid: r.oid },
-                })),
-              },
-              teams: {
-                nodes: reviews.map((r) => ({
-                  author: { login: r.login },
-                  onBehalfOf: { nodes: (r.teams ?? []).map((combinedSlug) => ({ combinedSlug })) },
-                })),
-              },
-              reviewThreads: {
-                pageInfo: { hasNextPage: false },
-                nodes: (p.threads ?? []).map((isResolved) => ({ isResolved })),
-              },
-              files: {
-                pageInfo: { hasNextPage: false },
-                nodes: (p.files ?? []).map((path) => ({ path })),
-              },
-              commits: {
-                nodes: [
-                  {
-                    commit: {
-                      statusCheckRollup: {
-                        contexts: { pageInfo: { hasNextPage: false }, nodes: p.contexts ?? [] },
-                      },
-                    },
-                  },
-                ],
-              },
-            },
-          },
-        },
-        ...(p.ruleRefused
-          ? {
-              errors: [
-                {
-                  type: "FORBIDDEN",
-                  path: ["repository", "pullRequest", "baseRef", "branchProtectionRule"],
-                },
-              ],
-            }
-          : {}),
-      });
-    },
-  });
-  return calls;
-}
-
-const run = (name: string, status: string, conclusion: string | null, isRequired: boolean) => ({
-  __typename: "CheckRun",
-  name,
-  status,
-  conclusion,
-  isRequired,
-});
-
-async function readiness(send: (p: string) => Promise<Response>, query: string) {
-  const res = await send(`/api/pulls/readiness?${query}`);
-  expect(res.status).toBe(200);
-  return (await res.json()) as PullReadinessView;
-}
-
-const byKind = (view: PullReadinessView) =>
-  Object.fromEntries(view.items.map((i) => [i.kind, [i.state, i.detail]])) as Record<
-    ReadinessItem["kind"],
-    [ReadinessItem["state"], string]
-  >;
 
 const accountId = async () => (await db.select().from(schema.accounts))[0]?.id ?? "";
 
@@ -233,12 +98,12 @@ describe("merge readiness on GitHub", () => {
     const items = byKind(await readiness(a.send, "platform=github&repo=octo/api&number=7"));
     expect(items.approvals).toEqual([
       "unknown",
-      "2 approvals; the token cannot read how many are required; 1 approval of an earlier head still count",
+      "2 approvals; branch rule not readable; 1 approval of an earlier head still count",
     ]);
     expect(items.code_owners).toEqual(["met", "2 of 2 owner groups approved"]);
     expect(items.required_checks).toEqual([
       "unknown",
-      "None of the head's 1 check is marked required; the token cannot read the branch rule",
+      "None of the head's 1 check is marked required; branch rule not readable",
     ]);
   });
 
@@ -248,7 +113,7 @@ describe("merge readiness on GitHub", () => {
     const view = await readiness(a.send, "platform=github&repo=octo/api&number=7");
     expect(byKind(view).code_owners).toEqual([
       "unknown",
-      "0 of 1 owner group approved; the token cannot read whether the rest must approve",
+      "0 of 1 owner group approved; whether the rest must approve is not known (branch rule not readable)",
     ]);
     expect(view.codeOwners[0]).toMatchObject({ owners: ["dba"], state: "unmet", required: null });
   });
@@ -256,6 +121,7 @@ describe("merge readiness on GitHub", () => {
   it("judges only this account's pre-merge checks, from the same query", async () => {
     const calls = githubPull({
       rule: null,
+      protection: NOT_PROTECTED,
       decision: null,
       title: "cap refunds",
       files: ["docs/x.txt"],
@@ -284,9 +150,54 @@ describe("merge readiness on GitHub", () => {
     const second = await readiness(a.send, "platform=github&repo=octo/api&number=7");
     expect(byKind(second).premerge_checks).toEqual(["unmet", "1 blocking check failed"]);
     expect(second.ready).toBe("unmet");
+    const rule = "GET https://api.github.com/repos/octo/api/branches/main/protection";
     expect(calls).toEqual([
       "POST https://api.github.com/graphql",
+      rule,
       "POST https://api.github.com/graphql",
+      rule,
+    ]);
+  });
+
+  it("never takes a rule GraphQL leaves out for no rule: the REST rule says which it is", async () => {
+    const view = async (protection: NonNullable<GithubPull["protection"]>) => {
+      vi.restoreAllMocks();
+      githubPull({ rule: null, protection, decision: null, contexts: [] });
+      const a = await signInWithGithub();
+      return byKind(await readiness(a.send, "platform=github&repo=octo/api&number=7"));
+    };
+    const refused = await view(REFUSED);
+    expect(refused.approvals).toEqual(["unknown", "0 approvals; branch rule not readable"]);
+    expect(refused.required_checks).toEqual([
+      "unknown",
+      "No check reported; branch rule not readable",
+    ]);
+    const plan = await view(PLAN);
+    expect(plan.approvals).toEqual([
+      "unknown",
+      "0 approvals; branch rules not available on this repository's plan",
+    ]);
+    const none = await view(NOT_PROTECTED);
+    expect(none.approvals).toEqual(["met", "No approval is required (0 given)"]);
+    expect(none.required_checks).toEqual(["met", "No check is required"]);
+    const read = await view({
+      status: 200,
+      body: {
+        required_pull_request_reviews: { required_approving_review_count: 1 },
+        required_status_checks: { contexts: ["ci"], checks: [{ context: "ci" }] },
+      },
+    });
+    expect(read.approvals).toEqual(["unmet", "0 of 1 required approvals"]);
+    expect(read.required_checks).toEqual(["pending", "Waiting for ci"]);
+  });
+
+  it("is unmet on the platform's word that a review is required, though the count is unread", async () => {
+    githubPull({ ruleRefused: true, decision: "REVIEW_REQUIRED", reviews: [] });
+    const a = await signInWithGithub();
+    const items = byKind(await readiness(a.send, "platform=github&repo=octo/api&number=7"));
+    expect(items.approvals).toEqual([
+      "unmet",
+      "Review required; 0 approvals; branch rule not readable",
     ]);
   });
 
@@ -437,13 +348,10 @@ describe("merge readiness on GitLab", () => {
     await (await connectGitlab(a))("code=c&state=STATE");
     const view = await readiness(a.send, "platform=gitlab&repo=Group/Sub/Project&number=7");
     const items = byKind(view);
-    expect(items.approvals).toEqual([
-      "unknown",
-      "0 approvals; the token cannot read how many are required",
-    ]);
+    expect(items.approvals).toEqual(["unknown", "0 approvals; required count not readable"]);
     expect(items.code_owners).toEqual([
       "unknown",
-      "0 of 2 owner groups approved; the token cannot read whether the rest must approve",
+      "0 of 2 owner groups approved; whether the rest must approve is not readable",
     ]);
     expect(view.codeOwners.map((g) => [g.owners, g.files, g.state])).toEqual([
       [["gopher"], 1, "unknown"],

@@ -2,8 +2,9 @@ import type { CodePlatformKind } from "./domain.js";
 
 // What still stands between a pull request and its merge, read live as the
 // signed-in user: one item per requirement, each met, unmet, pending (the
-// platform is still working it out) or unknown (the user's token cannot
-// read it). Nothing is guessed: an unreadable requirement is unknown.
+// platform is still working it out) or unknown (the platform did not
+// answer it, or it was not readable). Nothing is guessed: a requirement
+// not read is unknown, and a detail names only what the platform said.
 
 const READINESS_KINDS = [
   "draft",
