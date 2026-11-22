@@ -13,14 +13,19 @@ import {
 import { api, why } from "../api.js";
 import { ago } from "../format.js";
 import { EventsMenu } from "../notifications/events-menu.js";
+import {
+  type ReminderChange,
+  RemindersDrawer,
+  reminderSummary,
+} from "../notifications/reminders-drawer.js";
 import { ReportSlot } from "../notifications/report-slot.js";
 import { ActionError, LoadError, Loading, PageHead, useAction, useLoad } from "../ui.js";
 
 // The chats and email addresses that hear about reviews: a Slack or WeCom
 // incoming webhook, or an address confirmed by the link mailed to it, each
 // with which reviews it hears about and whether it gets the daily digest and
-// the weekly report, whose UTC day and hour the account picks, and whether
-// which events of the user's own pull requests it hears about.
+// the weekly report, whose UTC day and hour the account picks, which events
+// of the user's own pull requests it hears about, and its reminders.
 // The address is sent once and never shown again.
 
 const KIND_LABEL: Record<NotifyKind, string> = { slack: "Slack", wecom: "WeCom", email: "Email" };
@@ -43,10 +48,13 @@ export function Notifications() {
   const { data, error, reload } = useLoad(() => api<NotifyChannelsView>("/notifications/channels"));
   const [tested, setTested] = useState<{ id: string; delivered: boolean } | null>(null);
   const [linkSent, setLinkSent] = useState<string | null>(null);
+  const [reminding, setReminding] = useState<NotifyChannelView | null>(null);
   const change = useAction(
     (
       id: string,
-      body: { when?: NotifyWhen; digest?: boolean; weekly?: boolean; events?: NotifyEvent[] },
+      body:
+        | { when?: NotifyWhen; digest?: boolean; weekly?: boolean; events?: NotifyEvent[] }
+        | ReminderChange,
     ) => api(`/notifications/channels/${id}`, json("PATCH", body)),
   );
   const remove = useAction((id: string) => api(`/notifications/channels/${id}`, json("DELETE")));
@@ -109,6 +117,7 @@ export function Notifications() {
                   <th>Digest</th>
                   <th>Weekly</th>
                   <th>My pull requests</th>
+                  <th>Reminders</th>
                   <th>Last message</th>
                   <th />
                 </tr>
@@ -173,6 +182,20 @@ export function Notifications() {
                       />
                     </td>
                     <td>
+                      <span className="cell-name" aria-hidden="true">
+                        Reminders
+                      </span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        aria-label={`Reminders to ${c.name}: ${reminderSummary(c)}`}
+                        onClick={() => setReminding(c)}
+                      >
+                        {reminderSummary(c)}
+                      </Button>
+                    </td>
+                    <td>
                       {c.confirmed ? (
                         <LastSent c={c} tested={tested?.id === c.id ? tested.delivered : null} />
                       ) : (
@@ -230,6 +253,16 @@ export function Notifications() {
         </div>
       )}
       <ReportSlot />
+      {reminding && (
+        <RemindersDrawer
+          channel={reminding}
+          onSave={async (body) => {
+            await api(`/notifications/channels/${reminding.id}`, json("PATCH", body));
+            reload();
+          }}
+          onClose={() => setReminding(null)}
+        />
+      )}
     </>
   );
 }

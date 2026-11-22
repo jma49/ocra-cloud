@@ -722,6 +722,9 @@ td.finding-cell {
   font-weight: 500;
   margin-bottom: 6px;
 }
+.quiet-hours {
+  flex-basis: 100%;
+}
 .name-field {
   display: flex;
   gap: 8px;
@@ -758,7 +761,8 @@ td.finding-cell {
 .report-slot {
   margin-top: 12px;
 }
-.report-when {
+.report-when,
+.quiet-hours {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
