@@ -14,6 +14,7 @@ import { type GraphService, graphsRoute } from "./graph/routes.js";
 import { apiError } from "./http.js";
 import { inbox } from "./inbox.js";
 import { keys } from "./keys.js";
+import { learningsRoute } from "./learnings.js";
 import { errorName, logError } from "./log.js";
 import { meRoute } from "./me.js";
 import { memory } from "./memory.js";
@@ -105,6 +106,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
   app.route("/pull-views", pullViewsRoute);
   app.route("/pulls", pullPage);
   app.route("/pulls", pullStack);
+  app.route("/learnings", learningsRoute);
   app.route("/notifications", notifyRoute);
   app.route("/insights/cycle", cycles);
   const hook = githubWebhook(host);
