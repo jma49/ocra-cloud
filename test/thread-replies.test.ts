@@ -217,7 +217,7 @@ describe("GitLab discussions", () => {
     expect(posted).toHaveLength(1);
   });
 
-  it("never takes a diff note of an unknown discussion for its start", async () => {
+  it("never takes a diff note of an unknown discussion for its start without a lookup", async () => {
     const { posted, data, repo } = await gitlab();
     const first = note(1, { id: ME, username: "lab-mona" }, "d2", "DiffNote");
     await tellGitlabNote(db, out(), repo, first);
