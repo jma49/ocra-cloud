@@ -1,4 +1,5 @@
 import { type FormEvent, useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
   NOTIFY_KINDS,
   NOTIFY_WHEN,
@@ -147,18 +148,20 @@ export function Notifications() {
                     </td>
                     <td className="num nobreak">
                       {c.confirmed ? (
-                        <button
+                        <Button
                           type="button"
-                          className="btn btn-sm"
+                          variant="outline"
+                          size="sm"
                           disabled={test.busy}
                           onClick={() => sendTest(c.id)}
                         >
                           Send test
-                        </button>
+                        </Button>
                       ) : (
-                        <button
+                        <Button
                           type="button"
-                          className="btn btn-sm"
+                          variant="outline"
+                          size="sm"
                           disabled={resend.busy}
                           onClick={async () => {
                             if ((await resend.run(c.id)) === undefined) return;
@@ -167,16 +170,17 @@ export function Notifications() {
                           }}
                         >
                           Send link again
-                        </button>
+                        </Button>
                       )}{" "}
-                      <button
+                      <Button
                         type="button"
-                        className="btn btn-sm btn-danger"
+                        variant="destructive-outline"
+                        size="sm"
                         disabled={remove.busy}
                         onClick={() => after(remove.run(c.id))}
                       >
                         Remove
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 ))}
@@ -276,13 +280,9 @@ function AddChannel(props: {
           value={url}
           onChange={(e) => setUrl(e.target.value)}
         />
-        <button
-          type="submit"
-          className="btn btn-primary"
-          disabled={add.busy || props.full || !name.trim() || !url.trim()}
-        >
+        <Button type="submit" disabled={add.busy || props.full || !name.trim() || !url.trim()}>
           Add
-        </button>
+        </Button>
       </div>
       <label className="check small">
         <input type="checkbox" checked={digest} onChange={(e) => setDigest(e.target.checked)} />

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { forgetKeys, loadKeys } from "../account-keys.js";
 import { api, type CheckStatus, type Key, type ProviderInfo, why } from "../api.js";
 import { ago, date, num } from "../format.js";
@@ -28,14 +29,10 @@ export function Keys() {
         title="Provider keys"
         sub="Bring your own key. ocra calls the provider with it, and the provider bills you directly."
         actions={
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => setDrawer({ provider: null })}
-          >
+          <Button type="button" onClick={() => setDrawer({ provider: null })}>
             <AddGlyph size={14} />
             Add key
-          </button>
+          </Button>
         }
       />
       {keysError ? <p className="error">Could not load keys: {why(keysError)}.</p> : null}
@@ -46,13 +43,9 @@ export function Keys() {
             Add a key from {anyProvider(providers?.length)}. It is encrypted at rest and never shown
             again.
           </p>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => setDrawer({ provider: null })}
-          >
+          <Button type="button" onClick={() => setDrawer({ provider: null })}>
             Add your first key
-          </button>
+          </Button>
           <div className="quick">
             {POPULAR.slice(0, 6)
               .map((n) => info.get(n))
@@ -208,37 +201,45 @@ function KeyRow(props: {
         <div className="row-actions">
           {confirm ? (
             <>
-              <button
+              <Button
                 type="button"
-                className="btn btn-sm btn-danger-solid"
+                variant="destructive"
+                size="sm"
                 disabled={busy !== ""}
                 onClick={remove}
               >
                 Delete
-              </button>
-              <button type="button" className="btn btn-sm" onClick={() => setConfirm(false)}>
+              </Button>
+              <Button type="button" variant="outline" size="sm" onClick={() => setConfirm(false)}>
                 Cancel
-              </button>
+              </Button>
             </>
           ) : (
             <>
               {k.checkable && (
-                <button type="button" className="btn btn-sm" disabled={busy !== ""} onClick={test}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={busy !== ""}
+                  onClick={test}
+                >
                   {busy === "test" ? "Testing…" : "Test"}
-                </button>
+                </Button>
               )}
               {!k.managed && (
                 <>
-                  <button type="button" className="btn btn-sm" onClick={props.onReplace}>
+                  <Button type="button" variant="outline" size="sm" onClick={props.onReplace}>
                     Replace
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
-                    className="btn btn-sm btn-danger"
+                    variant="destructive-outline"
+                    size="sm"
                     onClick={() => setConfirm(true)}
                   >
                     Delete
-                  </button>
+                  </Button>
                 </>
               )}
             </>

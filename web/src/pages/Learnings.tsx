@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import type {
   CodePlatformKind,
   LearningChangeView,
@@ -141,9 +142,9 @@ function RepoLearnings(props: { at: Repo }) {
               </span>
             </h3>
             {editing === null && (
-              <button type="button" className="btn btn-sm" onClick={() => setEditing("new")}>
+              <Button type="button" variant="outline" size="sm" onClick={() => setEditing("new")}>
                 <AddGlyph size={14} /> New learning
-              </button>
+              </Button>
             )}
           </div>
           {page.data.learnings.length === 0 && page.data.invalid.length === 0 ? (
@@ -162,17 +163,23 @@ function RepoLearnings(props: { at: Repo }) {
                   learning={l}
                   actions={
                     <span className="row-gap">
-                      <button type="button" className="btn btn-sm" onClick={() => setEditing(l)}>
-                        Edit
-                      </button>
-                      <button
+                      <Button
                         type="button"
-                        className="btn btn-sm btn-danger"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEditing(l)}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="destructive-outline"
+                        size="sm"
                         disabled={remove.busy}
                         onClick={async () => done((await remove.run(l)) ?? null)}
                       >
                         Delete
-                      </button>
+                      </Button>
                     </span>
                   }
                 />
@@ -188,18 +195,19 @@ function RepoLearnings(props: { at: Repo }) {
           {(after || page.data.next) && (
             <div className="list-row">
               {after && (
-                <button type="button" className="btn btn-sm" onClick={() => setAfter(null)}>
+                <Button type="button" variant="outline" size="sm" onClick={() => setAfter(null)}>
                   First page
-                </button>
+                </Button>
               )}
               {page.data.next && (
-                <button
+                <Button
                   type="button"
-                  className="btn btn-sm"
+                  variant="outline"
+                  size="sm"
                   onClick={() => setAfter(page.data?.next ?? null)}
                 >
                   Next page
-                </button>
+                </Button>
               )}
             </div>
           )}

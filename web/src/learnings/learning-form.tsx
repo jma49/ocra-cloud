@@ -1,4 +1,5 @@
 import { type FormEvent, useState } from "react";
+import { Button } from "@/components/ui/button";
 import type {
   CodePlatformKind,
   LearningChangeView,
@@ -166,12 +167,12 @@ export function LearningForm(props: {
           <input type="checkbox" checked={direct} onChange={(e) => setDirect(e.target.checked)} />
           Commit to {props.branch} instead of opening a pull request
         </label>
-        <button type="button" className="btn" onClick={() => props.done(null)}>
+        <Button type="button" variant="outline" onClick={() => props.done(null)}>
           Cancel
-        </button>
-        <button type="submit" className="btn btn-primary" disabled={save.busy || !ready}>
+        </Button>
+        <Button type="submit" disabled={save.busy || !ready}>
           {direct ? "Commit" : "Open pull request"}
-        </button>
+        </Button>
       </div>
     </form>
   );

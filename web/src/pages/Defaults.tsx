@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { formatModelId, parseModelId } from "../../../src/shared/index.js";
 import { loadKeys } from "../account-keys.js";
 import { ApiError, api, why } from "../api.js";
@@ -169,9 +170,9 @@ export function Defaults() {
       <div className="card">
         <div className="card-head">
           <h3>.ocra/config.json</h3>
-          <button type="button" className="btn btn-sm" onClick={() => copy(config)}>
+          <Button type="button" variant="outline" size="sm" onClick={() => copy(config)}>
             Copy
-          </button>
+          </Button>
         </div>
         <pre className="codeblock">{config}</pre>
       </div>
@@ -179,9 +180,9 @@ export function Defaults() {
         <div className="section card">
           <div className="card-head">
             <h3>.ocra/rules.json</h3>
-            <button type="button" className="btn btn-sm" onClick={() => copy(rules)}>
+            <Button type="button" variant="outline" size="sm" onClick={() => copy(rules)}>
               Copy
-            </button>
+            </Button>
           </div>
           <pre className="codeblock">{rules}</pre>
         </div>
@@ -206,9 +207,9 @@ export function Defaults() {
             onChange={(e) => setPaste(e.target.value)}
           />
           <div className="row-gap">
-            <button
+            <Button
               type="button"
-              className="btn btn-primary btn-sm"
+              size="sm"
               disabled={!paste.trim()}
               onClick={() => {
                 const r = importConfig(paste, draft, keyed);
@@ -221,7 +222,7 @@ export function Defaults() {
               }}
             >
               Import into draft
-            </button>
+            </Button>
             <span className="subtle small self-center">Review the other pages, then save.</span>
           </div>
           {result?.error && <p className="error">{result.error}</p>}
@@ -243,9 +244,9 @@ export function Defaults() {
       <div className="section card">
         <div className="card-head">
           <h3>History</h3>
-          <button type="button" className="btn btn-sm" onClick={reloadVersions}>
+          <Button type="button" variant="outline" size="sm" onClick={reloadVersions}>
             Refresh
-          </button>
+          </Button>
         </div>
         {versions && versions.versions.length === 0 && (
           <div className="empty">No saved versions yet.</div>
@@ -259,9 +260,9 @@ export function Defaults() {
               <div className="subtle small">Changed: {v.changed.join(", ")}</div>
             </div>
             {i > 0 && (
-              <button type="button" className="btn btn-sm" onClick={() => restore(v.id)}>
+              <Button type="button" variant="outline" size="sm" onClick={() => restore(v.id)}>
                 Restore
-              </button>
+              </Button>
             )}
           </div>
         ))}

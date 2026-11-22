@@ -1,4 +1,5 @@
 import { type FormEvent, useState } from "react";
+import { Button } from "@/components/ui/button";
 import type {
   AutomationMatchView,
   AutomationPullFacts,
@@ -138,9 +139,9 @@ export function DryRun(props: { queued: boolean; repos: Choice[] | null }) {
             </label>
           </>
         )}
-        <button type="submit" className="btn" disabled={run.busy}>
+        <Button type="submit" variant="outline" disabled={run.busy}>
           Try
-        </button>
+        </Button>
       </div>
       {run.error !== null && (
         <p className="error" role="alert">

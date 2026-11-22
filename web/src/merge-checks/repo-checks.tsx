@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import type { MergeCheckView } from "../../../src/shared/index.js";
 import { api } from "../api.js";
 import { ActionError, LoadError, Loading, useAction, useLoad } from "../ui.js";
@@ -54,14 +55,15 @@ export function RepoChecks(props: { repoId: string; fullName: string }) {
                   </option>
                 ))}
               </select>
-              <button
+              <Button
                 type="button"
-                className="btn btn-sm btn-danger"
+                variant="destructive-outline"
+                size="sm"
                 disabled={remove.busy}
                 onClick={() => after(remove.run(c.id))}
               >
                 Remove
-              </button>
+              </Button>
             </li>
           ))}
         </ul>

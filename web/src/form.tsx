@@ -1,4 +1,5 @@
 import { type ReactNode, useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { CloseGlyph } from "./glyphs.js";
 import { useResets } from "./prefs.js";
 
@@ -99,9 +100,9 @@ export function TriSwitch(props: {
       {props.value === undefined ? (
         <span className="default-tag">default</span>
       ) : (
-        <button type="button" className="btn btn-sm" onClick={() => props.onChange(undefined)}>
+        <Button type="button" variant="outline" size="sm" onClick={() => props.onChange(undefined)}>
           Reset
-        </button>
+        </Button>
       )}
       <button
         type="button"
@@ -162,9 +163,9 @@ export function GlobList(props: {
             }
           }}
         />
-        <button type="button" className="btn btn-sm" onClick={add} disabled={!text.trim()}>
+        <Button type="button" variant="outline" size="sm" onClick={add} disabled={!text.trim()}>
           Add
-        </button>
+        </Button>
       </div>
     </div>
   );

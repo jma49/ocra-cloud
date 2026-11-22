@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { type Rule, useSettings } from "../prefs.js";
 import { PageHead } from "../ui.js";
 
@@ -35,9 +36,8 @@ export function Rules() {
         title="Rules"
         sub="Tell reviewers what your code must do, by path. They apply alongside a repository's own rules and AGENTS.md."
         actions={
-          <button
+          <Button
             type="button"
-            className="btn btn-primary"
             disabled={rules.length >= MAX}
             onClick={() => {
               set("rules", [...rules, { path: "**", rule: "" }]);
@@ -45,7 +45,7 @@ export function Rules() {
             }}
           >
             + Add rule
-          </button>
+          </Button>
         }
       />
       {rules.length === 0 ? (
@@ -55,16 +55,15 @@ export function Rules() {
             A rule is a sentence the reviewers check every matching file against, such as "Every
             write to the billing service carries an idempotency key."
           </p>
-          <button
+          <Button
             type="button"
-            className="btn btn-primary"
             onClick={() => {
               set("rules", [{ path: "**", rule: "" }]);
               setEditing(0);
             }}
           >
             Write your first rule
-          </button>
+          </Button>
         </div>
       ) : (
         <div className="card">
@@ -116,16 +115,22 @@ export function Rules() {
                 )}
               </div>
               <div className="row-actions">
-                <button
+                <Button
                   type="button"
-                  className="btn btn-sm"
+                  variant="outline"
+                  size="sm"
                   onClick={() => setEditing(editing === i ? null : i)}
                 >
                   {editing === i ? "Done" : "Edit"}
-                </button>
-                <button type="button" className="btn btn-sm btn-danger" onClick={() => removeAt(i)}>
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive-outline"
+                  size="sm"
+                  onClick={() => removeAt(i)}
+                >
                   Delete
-                </button>
+                </Button>
               </div>
             </div>
           ))}

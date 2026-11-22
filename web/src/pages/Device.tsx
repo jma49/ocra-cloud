@@ -1,4 +1,5 @@
 import { type FormEvent, useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { ApiError, api } from "../api.js";
 import { ago } from "../format.js";
 import { DoneGlyph } from "../glyphs.js";
@@ -81,13 +82,9 @@ export function Device() {
               />
             </div>
             <div className="device-submit">
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={busy || code.replace(/[^a-z]/gi, "").length !== 8}
-              >
+              <Button type="submit" disabled={busy || code.replace(/[^a-z]/gi, "").length !== 8}>
                 Continue
-              </button>
+              </Button>
             </div>
           </form>
         )}
@@ -119,17 +116,12 @@ export function Device() {
               Someone who sent you this code could use your keys.
             </div>
             <div className="device-actions">
-              <button
-                type="button"
-                className="btn btn-primary"
-                disabled={busy}
-                onClick={() => decide(true)}
-              >
+              <Button type="button" disabled={busy} onClick={() => decide(true)}>
                 Approve
-              </button>
-              <button type="button" className="btn" disabled={busy} onClick={() => decide(false)}>
+              </Button>
+              <Button type="button" variant="outline" disabled={busy} onClick={() => decide(false)}>
                 Deny
-              </button>
+              </Button>
             </div>
           </>
         )}

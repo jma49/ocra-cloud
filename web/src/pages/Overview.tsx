@@ -1,3 +1,4 @@
+import { buttonVariants } from "@/components/ui/button";
 import { loadKeys } from "../account-keys.js";
 import { api, type Reviews, type Session, type Usage } from "../api.js";
 import { useCached } from "../cache.js";
@@ -69,7 +70,7 @@ export function Overview(props: { login: string }) {
         <div className="card">
           <div className="card-head">
             <h3>Requests, last 14 days</h3>
-            <Link to="/activity" className="btn btn-sm">
+            <Link to="/activity" className={buttonVariants({ variant: "outline", size: "sm" })}>
               View activity
             </Link>
           </div>

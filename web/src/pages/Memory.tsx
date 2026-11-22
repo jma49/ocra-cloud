@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import { api, why } from "../api.js";
 import { ago } from "../format.js";
 import { LoadError, Loading, PageHead, useAction, useLoad } from "../ui.js";
@@ -79,13 +80,14 @@ export function Memory() {
                     <td className="text">{m.reason}</td>
                     <td className="muted">{ago(m.createdAt)}</td>
                     <td className="num">
-                      <button
+                      <Button
                         type="button"
-                        className="btn btn-sm btn-danger"
+                        variant="destructive-outline"
+                        size="sm"
                         onClick={() => remove(m.id)}
                       >
                         Forget
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 ))}

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
 import type { CodePlatformKind, GraphPolicy, GraphRepoView } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
 import { useCached } from "../cache.js";
@@ -162,9 +163,9 @@ function AddRepo(props: { policy: Exclude<GraphPolicy, "off">; added: (a: Added)
         value={fullName}
         onChange={(e) => setFullName(e.target.value)}
       />
-      <button type="submit" className="btn btn-primary btn-sm" disabled={!ready || add.busy}>
+      <Button type="submit" size="sm" disabled={!ready || add.busy}>
         {add.busy ? "Adding…" : "Add repository"}
-      </button>
+      </Button>
       {props.policy === "opt-in" && (
         <label className="small graph-consent">
           <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />{" "}
@@ -196,9 +197,9 @@ function WebhookNote(props: { webhook: Added["webhook"]; close: () => void }) {
           <dd>{secret}</dd>
         </dl>
       )}
-      <button type="button" className="btn btn-sm" onClick={props.close}>
+      <Button type="button" variant="outline" size="sm" onClick={props.close}>
         Done
-      </button>
+      </Button>
     </div>
   );
 }
@@ -263,44 +264,48 @@ function GraphRow(props: { repo: GraphRepoView; put: (r: GraphRepoView) => void;
         <div className="row-actions">
           {confirm ? (
             <>
-              <button
+              <Button
                 type="button"
-                className="btn btn-sm btn-danger-solid"
+                variant="destructive"
+                size="sm"
                 disabled={busy}
                 onClick={confirm === "purge" ? onPurge : onRemove}
               >
                 {confirm === "purge" ? "Delete graphs" : "Stop keeping"}
-              </button>
-              <button type="button" className="btn btn-sm" onClick={() => setConfirm("")}>
+              </Button>
+              <Button type="button" variant="outline" size="sm" onClick={() => setConfirm("")}>
                 Cancel
-              </button>
+              </Button>
             </>
           ) : (
             <>
-              <button
+              <Button
                 type="button"
-                className="btn btn-sm"
+                variant="outline"
+                size="sm"
                 disabled={busy || building(repo)}
                 onClick={onRebuild}
               >
                 {rebuild.busy ? "Queuing…" : "Rebuild"}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
-                className="btn btn-sm btn-danger"
+                variant="destructive-outline"
+                size="sm"
                 disabled={busy || !latest || building(repo)}
                 onClick={() => setConfirm("purge")}
               >
                 Purge
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
-                className="btn btn-sm btn-danger"
+                variant="destructive-outline"
+                size="sm"
                 disabled={busy}
                 onClick={() => setConfirm("remove")}
               >
                 Remove
-              </button>
+              </Button>
             </>
           )}
         </div>

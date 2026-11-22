@@ -7,6 +7,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import { Button } from "@/components/ui/button";
 import type {
   AgentPrefs,
   Effort,
@@ -216,14 +217,9 @@ export function PrefsProvider(props: {
             latest; your changes here will be dropped.
           </span>
           <span className="row-gap">
-            <button
-              type="button"
-              className="btn btn-sm btn-primary"
-              onClick={reload}
-              disabled={saving}
-            >
+            <Button type="button" size="sm" onClick={reload} disabled={saving}>
               {saving ? "Loading…" : "Reload"}
-            </button>
+            </Button>
           </span>
         </section>
       )}
@@ -231,17 +227,12 @@ export function PrefsProvider(props: {
         <section className="savebar" aria-label="Unsaved changes">
           <span role={error ? "alert" : undefined}>{error || "You have unsaved changes"}</span>
           <span className="row-gap">
-            <button type="button" className="btn btn-sm" onClick={discard} disabled={saving}>
+            <Button type="button" variant="outline" size="sm" onClick={discard} disabled={saving}>
               Discard
-            </button>
-            <button
-              type="button"
-              className="btn btn-sm btn-primary"
-              onClick={save}
-              disabled={saving}
-            >
+            </Button>
+            <Button type="button" size="sm" onClick={save} disabled={saving}>
               {saving ? "Saving…" : "Save changes"}
-            </button>
+            </Button>
           </span>
         </section>
       )}

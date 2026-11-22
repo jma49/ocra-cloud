@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import type {
   DismissReason,
   FindingStatus,
@@ -236,9 +237,9 @@ export function Findings() {
         {selected.size > 0 && (
           <fieldset className="toolbar bulk" disabled={decide.busy}>
             <span className="small">{selected.size} selected</span>
-            <button type="button" className="btn btn-sm" onClick={() => apply("fixed")}>
+            <Button type="button" variant="outline" size="sm" onClick={() => apply("fixed")}>
               Mark fixed
-            </button>
+            </Button>
             <label>
               Reason{" "}
               <select
@@ -270,15 +271,20 @@ export function Findings() {
               />{" "}
               Remember
             </label>
-            <button type="button" className="btn btn-sm" onClick={() => apply("dismissed")}>
+            <Button type="button" variant="outline" size="sm" onClick={() => apply("dismissed")}>
               Dismiss
-            </button>
-            <button type="button" className="btn btn-sm" onClick={() => apply("open")}>
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => apply("open")}>
               Reopen
-            </button>
-            <button type="button" className="btn btn-sm" onClick={() => setSelected(new Set())}>
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setSelected(new Set())}
+            >
               Clear
-            </button>
+            </Button>
           </fieldset>
         )}
         {decide.error ? (
@@ -366,14 +372,14 @@ export function Findings() {
           </div>
         )}
         {next && (
-          <button
+          <Button
             type="button"
-            className="btn"
+            variant="outline"
             disabled={loadMore.busy}
             onClick={() => loadMore.run()}
           >
             {loadMore.busy ? "Loading…" : "Load more"}
-          </button>
+          </Button>
         )}
         {loadMore.error ? (
           <p className="error" role="alert">

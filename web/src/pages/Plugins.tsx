@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import { useSettings } from "../prefs.js";
 import { PageHead } from "../ui.js";
 
@@ -76,9 +77,10 @@ export function Plugins() {
                 </div>
               </div>
               <div className="row-actions">
-                <button
+                <Button
                   type="button"
-                  className="btn btn-sm"
+                  variant="outline"
+                  size="sm"
                   onClick={() => {
                     setEditing(editing === p ? null : p);
                     setText(pluginSettings[p] ? JSON.stringify(pluginSettings[p], null, 2) : "");
@@ -86,10 +88,15 @@ export function Plugins() {
                   }}
                 >
                   Settings
-                </button>
-                <button type="button" className="btn btn-sm btn-danger" onClick={() => remove(p)}>
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive-outline"
+                  size="sm"
+                  onClick={() => remove(p)}
+                >
                   Remove
-                </button>
+                </Button>
               </div>
             </div>
             {editing === p && (
@@ -103,13 +110,9 @@ export function Plugins() {
                   onChange={(e) => setText(e.target.value)}
                 />
                 <div className="row-gap center">
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-primary"
-                    onClick={() => saveSettings(p)}
-                  >
+                  <Button type="button" size="sm" onClick={() => saveSettings(p)}>
                     Apply
-                  </button>
+                  </Button>
                   <span className="subtle small">
                     Applied to the draft; save the page to keep it.
                   </span>
@@ -133,9 +136,14 @@ export function Plugins() {
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
-          <button type="submit" className="btn btn-sm" disabled={!valid || plugins.length >= 20}>
+          <Button
+            type="submit"
+            variant="outline"
+            size="sm"
+            disabled={!valid || plugins.length >= 20}
+          >
             Add plugin
-          </button>
+          </Button>
         </form>
       </div>
     </>

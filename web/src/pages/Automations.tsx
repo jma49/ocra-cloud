@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import type {
   AutomationRuleView,
   AutomationRunView,
@@ -86,14 +87,13 @@ export function Automations(props: { me: Me }) {
         }
         actions={
           editing === null && (
-            <button
+            <Button
               type="button"
-              className="btn btn-primary"
               disabled={list.length >= MAX_RULES}
               onClick={() => setEditing("new")}
             >
               <AddGlyph size={14} /> New rule
-            </button>
+            </Button>
           )
         }
       />
@@ -140,17 +140,23 @@ export function Automations(props: { me: Me }) {
                     <div className="subtle small">{ruleSummary(r, names)}</div>
                   </div>
                   {!r.runsHere && <span className="badge hide-narrow">Self-hosted actions</span>}
-                  <button type="button" className="btn btn-sm" onClick={() => setEditing(r.id)}>
-                    Edit
-                  </button>
-                  <button
+                  <Button
                     type="button"
-                    className="btn btn-sm btn-danger"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setEditing(r.id)}
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="destructive-outline"
+                    size="sm"
                     disabled={remove.busy}
                     onClick={() => after(remove.run(r.id))}
                   >
                     Remove
-                  </button>
+                  </Button>
                 </div>
               ),
             )}
