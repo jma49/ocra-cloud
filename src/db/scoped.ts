@@ -51,6 +51,7 @@ import { nameRepo, nameRepos, pulledRepos, reviewedRepos } from "./repos.js";
 import { accountReviewChat } from "./review-chat.js";
 import { accountReviewJobs } from "./review-jobs.js";
 import { accountTables } from "./schema.js";
+import { accountSearch } from "./search.js";
 
 type Tables = typeof accountTables;
 type Name = keyof Tables;
@@ -436,6 +437,7 @@ export function scoped(db: Db, accountId: string) {
     automations: accountAutomations(db, accountId),
     mergeChecks: accountMergeChecks(db, accountId),
     live: accountLive(db, accountId),
+    search: accountSearch(db, accountId),
     /** The findings of one of this account's reviews. */
     findingsOf(reviewId: string): Promise<Row<"findings">[]> {
       const f = accountTables.findings;

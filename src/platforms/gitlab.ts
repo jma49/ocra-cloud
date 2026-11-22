@@ -7,6 +7,7 @@ import { gitlabLearnings } from "./gitlab-learnings.js";
 import { gitlabMergeStatus } from "./gitlab-merge-status.js";
 import { gitlabPulls } from "./gitlab-pulls.js";
 import { gitlabQueue } from "./gitlab-queue.js";
+import { gitlabSearch } from "./gitlab-search.js";
 import { gitlabStacks } from "./gitlab-stack.js";
 import { platformCall } from "./http.js";
 import type { CodePlatform, PlatformRepo, TokenAnswer } from "./platform.js";
@@ -42,6 +43,7 @@ export function gitlab(client: GitlabClient, redirectUri: string): CodePlatform 
         redirect_uri: redirectUri,
       }),
     listPulls: (token) => gitlabPulls(client.url, token),
+    searchPulls: (token, search, limit) => gitlabSearch(client.url, token, search, limit),
     contents: gitlabContents(client.url),
     changes: gitlabChanges(client.url),
     actions: gitlabActions(client.url),

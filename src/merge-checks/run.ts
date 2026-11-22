@@ -2,7 +2,7 @@ import { sha256Hex } from "../crypto.js";
 import type { Row, Scoped } from "../db/scoped.js";
 import type { PostedStatus } from "../platforms/merge-status.js";
 import { type CodePlatform, repoIdentity } from "../platforms/platform.js";
-import type { MergeChecksReportView } from "../shared/index.js";
+import { type MergeChecksReportView, pullPath } from "../shared/index.js";
 import { type CheckConfig, evaluateChecks, type HeadReview } from "./evaluate.js";
 import { withEngineIds } from "./instruction.js";
 
@@ -117,7 +117,4 @@ export function statusOf(report: MergeChecksReportView, detailsUrl: string): Pos
 
 /** The pull request's page in the console. */
 export const consolePullUrl = (publicUrl: string, repo: Row<"reviewRepos">, number: number) =>
-  new URL(
-    `/pull/${repo.platform}/${encodeURIComponent(repo.fullName)}/${number}`,
-    publicUrl,
-  ).toString();
+  new URL(pullPath(repo.platform, repo.fullName, number), publicUrl).toString();

@@ -7,6 +7,7 @@ import { githubLearnings } from "./github-learnings.js";
 import { githubMergeStatus } from "./github-merge-status.js";
 import { githubPulls } from "./github-pulls.js";
 import { githubQueue } from "./github-queue.js";
+import { githubSearch } from "./github-search.js";
 import { githubStacks } from "./github-stack.js";
 import { platformCall } from "./http.js";
 import type { CodePlatform, PlatformRepo, TokenAnswer } from "./platform.js";
@@ -61,6 +62,7 @@ export function github(client: { id: string; secret: string }): CodePlatform {
         }),
       }),
     listPulls: (token) => githubPulls(post(token)),
+    searchPulls: (token, search, limit) => githubSearch(post(token), search, limit),
     contents: githubContents(),
     changes: githubChanges(),
     actions: githubActions(),

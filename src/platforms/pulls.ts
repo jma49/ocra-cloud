@@ -26,3 +26,9 @@ export function withRoles(lists: { role: PullRole; pulls: ListedPull[] }[]): Pul
   }
   return [...byId.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
+
+/** What a search asks a platform for: words, or a number in one repository or in any. */
+export type PullSearch = { text: string } | { repo: string | null; number: number };
+
+/** At most this many pull requests per platform and search. */
+export const MAX_SEARCHED = 20;

@@ -1,4 +1,4 @@
-import { type SQL, sql } from "drizzle-orm";
+import { type AnyColumn, type SQL, sql } from "drizzle-orm";
 import type { Db } from "./client.js";
 
 // The few statements SQLite and Postgres write differently: reading JSON
@@ -74,4 +74,12 @@ export function utcDayOf(db: Db, ms: SQL): SQL<string> {
 /** A new random id, made in the statement. */
 export function randomId(db: Db): SQL {
   return isPostgres(db) ? sql`gen_random_uuid()::text` : sql`lower(hex(randomblob(16)))`;
+}
+
+/** Whether a text column holds `needle`, ignoring ASCII case: Postgres' LIKE minds it. */
+export function containsText(db: Db, column: SQL | AnyColumn, needle: string): SQL {
+  const pattern = `%${needle.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`;
+  return isPostgres(db)
+    ? sql`${column} ILIKE ${pattern} ESCAPE '\\'`
+    : sql`${column} LIKE ${pattern} ESCAPE '\\'`;
 }
