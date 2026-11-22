@@ -91,6 +91,15 @@ export const rows = {
     last4: "abcd",
   }),
   // The enrolled repository it belongs to is made in beforeEach (the foreign key needs one).
+  closedPulls: (id: string) => ({
+    id,
+    reviewRepoId: "review-repo-of-a",
+    number: 1,
+    title: `pull ${id}`,
+    merged: true,
+    closedAt: new Date(),
+  }),
+  // The enrolled repository it belongs to is made in beforeEach (the foreign key needs one).
   replyJobs: (id: string) => ({
     id,
     reviewRepoId: "review-repo-of-a",

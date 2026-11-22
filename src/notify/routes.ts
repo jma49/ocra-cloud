@@ -10,17 +10,20 @@ import {
   type NotifyChannelAdded,
   type NotifyChannelsView,
   type NotifyChannelView,
+  type ReportScheduleView,
 } from "../shared/index.js";
 import type { AppEnv } from "../types.js";
 import { hookUrl, reviewMessage } from "./channels.js";
 import { emailAddress, mailOf, sendMail } from "./email.js";
 import { CONFIRM_TTL_MS, confirmToken, linkUrl, unsubscribeUrl } from "./links.js";
 import { openHook, outboxOf, sealHook, send } from "./notify.js";
+import { nextSlot } from "./report.js";
 
 // The account's channels: added with their webhook or email address, which
 // is stored encrypted and never answered, tested with a sample message, and
 // removed. An email address first gets a link to confirm it, and nothing
-// else until it is opened. Only the web session manages them.
+// else until it is opened. The account's weekly report slot is set here
+// too. Only the web session manages them.
 
 export const notifyRoute = new Hono<AppEnv>().use(requireSession(["web"]));
 
@@ -29,7 +32,12 @@ const MAX_CHANNELS = 10;
 const DAILY_CONFIRMATIONS = 10;
 
 const name = z.string().trim().min(1).max(64);
-const common = { name, when: z.enum(NOTIFY_WHEN), digest: z.boolean().optional() };
+const common = {
+  name,
+  when: z.enum(NOTIFY_WHEN),
+  digest: z.boolean().optional(),
+  weekly: z.boolean().optional(),
+};
 const addBody = z.discriminatedUnion("kind", [
   z.object({ kind: z.enum(["slack", "wecom"]), url: z.string().max(512), ...common }),
   z.object({ kind: z.literal("email"), address: z.string().max(320), ...common }),
@@ -39,11 +47,13 @@ const changeBody = z
     name: name.optional(),
     when: z.enum(NOTIFY_WHEN).optional(),
     digest: z.boolean().optional(),
+    weekly: z.boolean().optional(),
   })
-  .refine(
-    (b) => b.name !== undefined || b.when !== undefined || b.digest !== undefined,
-    "nothing to change",
-  );
+  .refine((b) => Object.values(b).some((v) => v !== undefined), "nothing to change");
+const scheduleBody = z.object({
+  weekday: z.number().int().min(0).max(6),
+  hour: z.number().int().min(0).max(23),
+});
 
 const channelView = (r: Row<"notifyChannels">) =>
   ({
@@ -54,6 +64,7 @@ const channelView = (r: Row<"notifyChannels">) =>
     last4: r.last4,
     confirmed: r.confirmedAt !== null,
     digest: r.digest,
+    weekly: r.weekly,
     lastStatus: r.lastStatus,
     lastSentAt: r.lastSentAt?.toISOString() ?? null,
     createdAt: r.createdAt.toISOString(),
@@ -120,6 +131,7 @@ notifyRoute.post("/channels", perMinute("settings"), jsonBody(addBody), async (c
     name: body.name,
     when: body.when,
     digest: body.digest ?? false,
+    weekly: body.weekly ?? false,
     ...sealed,
     last4: address.slice(-4),
     // A webhook address is its chat's own credential: whoever has it may post there.
@@ -149,12 +161,13 @@ notifyRoute.post("/channels/:id/confirm", perMinute("settings"), async (c) => {
 
 notifyRoute.patch("/channels/:id", perMinute("settings"), jsonBody(changeBody), async (c) => {
   const id = c.req.param("id");
-  const { name: newName, when, digest } = c.req.valid("json");
+  const { name: newName, when, digest, weekly } = c.req.valid("json");
   await c.var.data.batch((w) => [
     w.update("notifyChannels", id, {
       ...(newName !== undefined ? { name: newName } : {}),
       ...(when !== undefined ? { when } : {}),
       ...(digest !== undefined ? { digest } : {}),
+      ...(weekly !== undefined ? { weekly } : {}),
     }),
   ]);
   const stored = await c.var.data.get("notifyChannels", id);
@@ -183,4 +196,18 @@ notifyRoute.post("/channels/:id/test", perMinute("settings"), async (c) => {
   });
   const ok = await send(c.var.data, outboxOf(c), channel, message);
   return c.json({ delivered: ok });
+});
+
+const scheduleView = (s: { weekday: number; hour: number }) =>
+  ({ ...s, next: nextSlot(new Date(), s).toISOString() }) satisfies ReportScheduleView;
+
+/** When the weekly report goes, to the channels set to take it. */
+notifyRoute.get("/report", async (c) => {
+  return c.json(scheduleView(await c.var.data.reports.schedule()));
+});
+
+notifyRoute.put("/report", perMinute("settings"), jsonBody(scheduleBody), async (c) => {
+  const { weekday, hour } = c.req.valid("json");
+  await c.var.data.reports.setSchedule({ weekday, hour });
+  return c.json(scheduleView({ weekday, hour }));
 });

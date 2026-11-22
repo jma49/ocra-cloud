@@ -156,6 +156,21 @@ describe("retention", () => {
     await waitOnExecutionContext(ctx);
     expect(await scoped(db, account.id).list("reviews")).toEqual([]);
   });
+
+  it("leaves retention to the daily cron, not the hourly one", async () => {
+    const { account } = await signIn(1, "octo");
+    await scoped(db, account.id).insert("reviews", {
+      id: "ancient",
+      runId: "a",
+      repoHash: "h",
+      source: "local",
+      createdAt: new Date(Date.now() - 200 * DAY),
+    });
+    const ctx = createExecutionContext();
+    await worker.scheduled(createScheduledController({ cron: "47 * * * *" }), env, ctx);
+    await waitOnExecutionContext(ctx);
+    expect(await scoped(db, account.id).count("reviews")).toBe(1);
+  });
 });
 
 describe("export and deletion", () => {
@@ -200,6 +215,7 @@ describe("export and deletion", () => {
         "graphBuilds",
         "reviewJobs",
         "replyJobs",
+        "closedPulls",
         "mergeChecks",
         "mergeCheckRuns",
       ];
@@ -218,7 +234,7 @@ describe("export and deletion", () => {
       ...rows.replyJobs("x-replyJobs"),
       reviewRepoId: "x-reviewRepos",
     });
-    for (const table of ["mergeChecks", "mergeCheckRuns"] as const) {
+    for (const table of ["closedPulls", "mergeChecks", "mergeCheckRuns"] as const) {
       await d.insert(table, {
         ...rows[table](`x-${table}`),
         reviewRepoId: "x-reviewRepos",

@@ -70,8 +70,8 @@ const retention = () =>
 setInterval(retention, DAY_MS).unref();
 void retention();
 
-// Hourly, so a digest goes soon after midnight UTC whenever the server
-// started; the database lets each account's go once a day.
+// Hourly, so a digest goes soon after midnight UTC and a weekly report in
+// its hour, whenever the server started; the database lets each go once.
 const digests = () =>
   host.digests().catch((err) => logError("digest_failed", { error: errorName(err) }));
 setInterval(digests, HOUR_MS).unref();

@@ -71,6 +71,13 @@
       "when": 1795348576498,
       "tag": "0009_email_notifications",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1795349230106,
+      "tag": "0010_closed_pulls_weekly_reports",
+      "breakpoints": true
     }
   ]
 }

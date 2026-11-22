@@ -68,6 +68,8 @@ const ACCESS: Record<string, Access> = {
   "GET /api/automations/runs": "web",
   "POST /api/automations/dry-run": "web",
   "POST /api/notifications/channels/:id/confirm": "web",
+  "GET /api/notifications/report": "web",
+  "PUT /api/notifications/report": "web",
   "GET /api/email/confirm": "public",
   "POST /api/email/confirm": "public",
   "GET /api/email/unsubscribe": "public",

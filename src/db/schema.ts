@@ -67,6 +67,11 @@ export const accounts = sqliteTable("accounts", {
   createdAt: createdAt(),
   // The last UTC day whose digest was sent, so that it goes once (src/notify/digest.ts).
   digestDay: text("digest_day"),
+  // The weekly report's slot (UTC weekday 0 = Sunday, hour) and the last
+  // slot sent, so that it goes once (src/notify/report.ts).
+  reportWeekday: integer("report_weekday").notNull().default(1),
+  reportHour: integer("report_hour").notNull().default(9),
+  reportSentFor: integer("report_sent_for", { mode: "timestamp_ms" }),
 });
 
 // Who signs in as an account: a sign-in provider's user, by the id it never
@@ -576,8 +581,33 @@ export const notifyChannels = sqliteTable(
     confirmTokenHash: text("confirm_token_hash"),
     confirmExpiresAt: integer("confirm_expires_at", { mode: "timestamp_ms" }),
     digest: integer("digest", { mode: "boolean" }).notNull().default(false),
+    weekly: integer("weekly", { mode: "boolean" }).notNull().default(false),
   },
   (t) => [index("notify_channels_account").on(t.accountId)],
+);
+
+// An enrolled repository's pull request as its platform said it ended:
+// merged or closed, one row per pull request; a later close (after a
+// reopen) replaces an earlier one. The title is the platform's, as sent.
+export const closedPulls = sqliteTable(
+  "closed_pulls",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    reviewRepoId: text("review_repo_id")
+      .notNull()
+      .references(() => reviewRepos.id, { onDelete: "cascade" }),
+    number: integer("number").notNull(),
+    title: text("title").notNull(),
+    merged: integer("merged", { mode: "boolean" }).notNull(),
+    openedAt: integer("opened_at", { mode: "timestamp_ms" }),
+    closedAt: integer("closed_at", { mode: "timestamp_ms" }).notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("closed_pulls_pull").on(t.reviewRepoId, t.number),
+    index("closed_pulls_account_closed").on(t.accountId, t.closedAt),
+  ],
 );
 
 // One review of a pull request's head, from queued to done; a newer head
@@ -751,6 +781,7 @@ export const accountTables = {
   reviewRepos,
   reviewJobs,
   notifyChannels,
+  closedPulls,
   replyJobs,
   reviewWalkthroughs,
   automationRules,
