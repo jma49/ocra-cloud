@@ -66,7 +66,7 @@ describe("applying a finding's fix on GitHub", () => {
     expect(unb64(body.content)).toBe("const a = 1;\nconst b = 20;\nconst c = 3;\n");
     expect(body).toMatchObject({ sha: "blob1", branch: "feature" });
     expect(body.message).toBe("Apply ocra's fix: SQL built from input");
-    expect((await data.get("findings", id))?.status).toBe("fixed");
+    expect(await data.get("findings", id)).toMatchObject({ status: "fixed", fixedVia: "applied" });
   });
 
   it("commits nothing on a pull request that moved since the review", async () => {

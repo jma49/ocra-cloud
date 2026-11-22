@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PullThreadsView } from "../src/shared/index.js";
+import { seed } from "./fix-fakes.js";
 import { resetDb } from "./helpers.js";
 import { githubFake, signInWithGithub } from "./platform-fakes.js";
 
@@ -270,6 +271,86 @@ describe("a GitHub pull request's threads", () => {
       resolved: true,
     });
     expect(await res.json()).toEqual({ outcome: "refused" });
+  });
+});
+
+describe("what the threads' actions record of ocra's findings", () => {
+  const FP = "0123456789abcdef";
+  const ocraThreads = (resolved = false) => [
+    thread({ isResolved: resolved, viewerCanUnresolve: true }, [
+      comment(
+        "C1",
+        `<!-- ocra:finding ${FP} -->\nBigger.\n\`\`\`suggestion\nconst b = 20;\n\`\`\``,
+        HUNK,
+      ),
+      comment("C9", `<!-- ocra:finding ${"f".repeat(16)} -->\nA reply quoting another.`, HUNK),
+    ]),
+  ];
+
+  it("marks the finding of the comment whose suggestion was applied fixed via suggestion", async () => {
+    platform({
+      [`POST ${GRAPHQL}`]: () => listed(HEAD, ocraThreads()),
+      [`GET ${PULL}`]: pullAt(),
+      [`GET ${CONTENTS}?ref=${HEAD}`]: fileRead(),
+      [`PUT ${CONTENTS}`]: () => Response.json({ commit: { sha: MOVED } }),
+    });
+    const a = await signInWithGithub();
+    const { id, data } = await seed("https://github.com/Octo/api", 7, { fingerprint: FP });
+    const other = await seed("https://github.com/octo/api", 8, { fingerprint: FP }, "run-2");
+    const res = await post(a, "/api/pulls/apply-suggestions", {
+      ...ref,
+      head: HEAD,
+      suggestions: ["C1:0"],
+    });
+    expect(await res.json()).toEqual({ outcome: "done" });
+    expect(await data.get("findings", id)).toMatchObject({
+      status: "fixed",
+      fixedVia: "suggestion",
+    });
+    // The same fingerprint on another pull request is another finding.
+    expect(await data.get("findings", other.id)).toMatchObject({ status: "open", fixedVia: null });
+    // Marked by hand afterwards, it keeps how it was fixed.
+    await data.decide([id], { status: "fixed", reason: null, note: null, decidedAt: new Date() });
+    expect((await data.get("findings", id))?.fixedVia).toBe("suggestion");
+  });
+
+  it("marks nothing when the commit was not made", async () => {
+    platform({ [`POST ${GRAPHQL}`]: () => listed(MOVED, ocraThreads()) });
+    const a = await signInWithGithub();
+    const { id, data } = await seed("https://github.com/octo/api", 7, { fingerprint: FP });
+    const res = await post(a, "/api/pulls/apply-suggestions", {
+      ...ref,
+      head: HEAD,
+      suggestions: ["C1:0"],
+    });
+    expect(await res.json()).toEqual({ outcome: "head_moved" });
+    expect(await data.get("findings", id)).toMatchObject({ status: "open", fixedVia: null });
+  });
+
+  it("records the thread of ocra's comment resolved, and clears it when reopened", async () => {
+    let resolved = false;
+    platform({
+      [`POST ${GRAPHQL}`]: (body) => {
+        if (!body.query?.startsWith("mutation")) return listed(HEAD, ocraThreads(resolved));
+        resolved = !body.query.includes("unresolve");
+        return Response.json({ data: {} });
+      },
+    });
+    const a = await signInWithGithub();
+    const { id, data } = await seed("https://github.com/octo/api", 7, { fingerprint: FP });
+    const resolve = (to: boolean) =>
+      post(a, "/api/pulls/resolve-thread", { ...ref, thread: "T1", resolved: to });
+    expect(await (await resolve(true)).json()).toEqual({ outcome: "done" });
+    const first = (await data.get("findings", id))?.threadResolvedAt;
+    expect(first).toBeInstanceOf(Date);
+    // Resolving it again keeps when it was first resolved; its status is untouched.
+    expect(await (await resolve(true)).json()).toEqual({ outcome: "done" });
+    expect(await data.get("findings", id)).toMatchObject({
+      status: "open",
+      threadResolvedAt: first,
+    });
+    expect(await (await resolve(false)).json()).toEqual({ outcome: "done" });
+    expect((await data.get("findings", id))?.threadResolvedAt).toBeNull();
   });
 });
 

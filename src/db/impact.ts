@@ -61,18 +61,27 @@ export function accountImpact(db: Db, accountId: string) {
       );
     },
 
-    /** Per review made since, its shared findings by status, and how many have an issue opened. */
+    /** Per review made since, its shared findings by status and how fixed, threads resolved, and issues opened. */
     async findingsSince(since: Date, identities: readonly string[], cap: number) {
       if (identities.length === 0) return { statuses: [], issues: [] };
       const f = findings;
       const i = findingIssues;
       const [statuses, issues] = await Promise.all([
         db
-          .select({ reviewId: f.reviewId, status: f.status, n: count })
+          .select({
+            reviewId: f.reviewId,
+            status: f.status,
+            fixedVia: f.fixedVia,
+            n: count,
+            threadResolved:
+              sql<number>`sum(CASE WHEN ${f.threadResolvedAt} IS NOT NULL THEN 1 ELSE 0 END)`.mapWith(
+                Number,
+              ),
+          })
           .from(f)
           .innerJoin(r, eq(r.id, f.reviewId))
           .where(and(eq(f.accountId, accountId), reviewsOf(since, identities)))
-          .groupBy(f.reviewId, f.status)
+          .groupBy(f.reviewId, f.status, f.fixedVia)
           .limit(cap),
         db
           .select({ reviewId: i.reviewId, n: count })

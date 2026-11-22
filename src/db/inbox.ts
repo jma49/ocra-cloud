@@ -95,9 +95,18 @@ export async function decide(
   decision: Decision,
 ): Promise<number> {
   if (ids.length === 0) return 0;
+  const f = findings;
+  // Marking a fixed finding fixed again keeps how and when it was fixed.
+  const fixedSet =
+    decision.status === "fixed"
+      ? {
+          decidedAt: sql`CASE WHEN ${f.status} = 'fixed' THEN ${f.decidedAt} ELSE ${decision.decidedAt?.getTime() ?? null} END`,
+          fixedVia: sql`CASE WHEN ${f.status} = 'fixed' THEN ${f.fixedVia} ELSE 'manual' END`,
+        }
+      : { fixedVia: null };
   const result = await db
     .update(findings)
-    .set(decision)
+    .set({ ...decision, ...fixedSet })
     .where(and(eq(findings.accountId, accountId), inArray(findings.id, [...ids])));
   return changedRows(result);
 }

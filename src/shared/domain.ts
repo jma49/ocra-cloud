@@ -50,6 +50,14 @@ export const RECENT_SIGN_IN_MINUTES = 15;
 export const FINDING_STATUSES = ["open", "fixed", "dismissed"] as const;
 export type FindingStatus = (typeof FINDING_STATUSES)[number];
 
+/**
+ * How a finding became fixed: its fix committed from the console, a
+ * suggested change in its comment applied from the console, marked by
+ * hand, or a re-review by the CLI. Null on one fixed before this was kept.
+ */
+export const FIXED_VIA = ["applied", "suggestion", "manual", "rereview"] as const;
+export type FixedVia = (typeof FIXED_VIA)[number];
+
 /** Why a finding was dismissed; a dismissal always names one. */
 export const DISMISS_REASONS = [
   "false_positive",

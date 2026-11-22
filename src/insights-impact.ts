@@ -31,7 +31,16 @@ const empty = (sharing: boolean): ImpactCounts => ({
   findings: { critical: 0, warning: 0, suggestion: 0 },
   fixedOnRereview: 0,
   dismissedOnRereview: 0,
-  actedOn: sharing ? { fixed: 0, dismissed: 0, open: 0, issueOpened: 0 } : null,
+  actedOn: sharing
+    ? {
+        fixed: 0,
+        fixedVia: { applied: 0, suggestion: 0, manual: 0, rereview: 0, unknown: 0 },
+        dismissed: 0,
+        open: 0,
+        issueOpened: 0,
+        threadResolved: 0,
+      }
+    : null,
 });
 
 const pullKey = (identity: string, number: number) => `${identity}#${number}`;
@@ -127,7 +136,10 @@ impact.get("/", requireSession(["web"]), async (c: Context<AppEnv>) => {
   }
   for (const s of decided?.statuses ?? []) {
     for (const b of reviewBuckets.get(s.reviewId) ?? []) {
-      if (b.actedOn) b.actedOn[s.status] += s.n;
+      if (!b.actedOn) continue;
+      b.actedOn[s.status] += s.n;
+      b.actedOn.threadResolved += s.threadResolved;
+      if (s.status === "fixed") b.actedOn.fixedVia[s.fixedVia ?? "unknown"] += s.n;
     }
   }
   for (const i of decided?.issues ?? []) {
