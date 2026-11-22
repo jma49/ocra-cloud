@@ -75,4 +75,30 @@ describe("repositories", () => {
       expect.objectContaining({ repoHash: hash, name: "octo/quiet", reviews: 0 }),
     ]);
   });
+
+  it("shows a repository by the path its pull request reviews give, under any name the account gives", async () => {
+    const a = await account();
+    const pullRequest = {
+      repository: "https://github.com/octo/api",
+      number: 7,
+      headSha: "9".repeat(40),
+    };
+    await call("/api/reviews", {
+      method: "POST",
+      auth: a.cli.auth,
+      json: { ...upload("r1", []), source: "github", pullRequest },
+    });
+    expect(await a.repos()).toMatchObject([
+      { repoHash: HASH, name: null, pulledFrom: { host: "github.com", repo: "octo/api" } },
+    ]);
+    const listed = (await (await call("/api/reviews", { auth: a.web.auth })).json()) as {
+      reviews: { name: string | null }[];
+    };
+    expect(listed.reviews.map((r) => r.name)).toEqual(["octo/api"]);
+    await a.send("PUT", `/api/repositories/${HASH}`, { name: "payments API" });
+    expect(await a.repos()).toMatchObject([
+      { name: "payments API", pulledFrom: { repo: "octo/api" } },
+    ]);
+    expect(await (await account(2, "other")).repos()).toEqual([]);
+  });
 });

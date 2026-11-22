@@ -1,62 +1,24 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CodePlatformKind } from "../../../src/shared/index.js";
-import { api, why } from "../api.js";
+import { api, type Me, why } from "../api.js";
 import { useCached } from "../cache.js";
 import { ago, num } from "../format.js";
 import { LoadError, Loading, PageHead, useAction, useLoad } from "../ui.js";
 
-// The repositories the account's reviews came from. Uploads carry only a
-// hash of the repository; a name given here is shown wherever the hash is.
+// The repositories the account's reviews came from, by name: the one the
+// account gave, else the platform's name for its hash, else the path a pull
+// request review named. The hash shows only for a repository none of them know.
 
 type Repo = {
   repoHash: string;
   repo: string;
   name: string | null;
+  pulledFrom: { host: string; repo: string } | null;
   reviews: number;
   findings: number;
   openFindings: number;
   lastReviewAt: string | null;
 };
-
-function NameField(props: { repo: Repo; saved: () => void }) {
-  const [draft, setDraft] = useState(props.repo.name ?? "");
-  const path = `/repositories/${props.repo.repoHash}`;
-  const save = useAction(() =>
-    draft.trim()
-      ? api(path, { method: "PUT", body: JSON.stringify({ name: draft.trim() }) })
-      : api(path, { method: "DELETE" }),
-  );
-  const changed = draft.trim() !== (props.repo.name ?? "");
-  return (
-    <form
-      className="name-field"
-      onSubmit={async (e) => {
-        e.preventDefault();
-        if ((await save.run()) !== undefined) props.saved();
-      }}
-    >
-      <input
-        type="text"
-        className="input"
-        aria-label={`Name of ${props.repo.repo}`}
-        placeholder="owner/name"
-        maxLength={200}
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-      />
-      {changed && (
-        <button type="submit" className="btn btn-sm" disabled={save.busy}>
-          {draft.trim() ? "Save" : "Clear"}
-        </button>
-      )}
-      {save.error ? (
-        <span className="error small" role="alert">
-          {why(save.error)}
-        </span>
-      ) : null}
-    </form>
-  );
-}
 
 type PlatformRepos = {
   sharing: boolean;
@@ -72,23 +34,110 @@ type PlatformRepos = {
 
 const PLATFORM_NAME: Record<CodePlatformKind, string> = { github: "GitHub", gitlab: "GitLab" };
 
-/** The repositories the user reaches on each connected code platform, read live. */
-function PlatformsSection(props: { synced: () => void }) {
-  const { data, error, reload } = useLoad(() => api<PlatformRepos>("/platforms/repos"));
-  const sync = useAction(() =>
-    api<{ named: number; sharing: boolean }>("/platforms/sync-names", { method: "POST" }),
+type Known = { name: string; where: string | null };
+
+/** What the page knows a repository as, and on which platform; null when only its hash is known. */
+function knownAs(r: Repo, platforms: PlatformRepos["platforms"]): Known | null {
+  const listed = platforms.flatMap((p) =>
+    p.repositories.filter((x) => x.repoHash === r.repoHash).map((x) => ({ p, x })),
+  )[0];
+  const pulledOn = r.pulledFrom && platforms.find((p) => p.host === r.pulledFrom?.host);
+  const where = listed
+    ? `${PLATFORM_NAME[listed.p.platform]} · ${listed.p.host}`
+    : r.pulledFrom
+      ? pulledOn
+        ? `${PLATFORM_NAME[pulledOn.platform]} · ${r.pulledFrom.host}`
+        : r.pulledFrom.host
+      : null;
+  const name = r.name ?? listed?.x.fullName ?? r.pulledFrom?.repo;
+  return name ? { name, where } : null;
+}
+
+function NameField(props: { repo: Repo; current: string; done: (saved: boolean) => void }) {
+  const [draft, setDraft] = useState(props.repo.name ?? props.current);
+  const path = `/repositories/${props.repo.repoHash}`;
+  const save = useAction(() =>
+    draft.trim()
+      ? api(path, { method: "PUT", body: JSON.stringify({ name: draft.trim() }) })
+      : api(path, { method: "DELETE" }),
   );
-  const [done, setDone] = useState("");
-  if (error && !data)
-    return <LoadError what="your connected repositories" error={error} retry={reload} />;
-  if (!data) return <Loading what="your connected repositories" />;
-  const anyRepos = data.platforms.some((p) => p.repositories.length > 0);
+  return (
+    <form
+      className="name-field"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        if ((await save.run()) !== undefined) props.done(true);
+      }}
+    >
+      <input
+        type="text"
+        className="input"
+        aria-label={`Name of ${props.current || props.repo.repo}`}
+        placeholder="owner/name"
+        maxLength={200}
+        value={draft}
+        // biome-ignore lint/a11y/noAutofocus: the field opens on the user's click.
+        autoFocus
+        onChange={(e) => setDraft(e.target.value)}
+      />
+      <button type="submit" className="btn btn-sm" disabled={save.busy}>
+        {draft.trim() ? "Save" : "Clear"}
+      </button>
+      <button type="button" className="btn btn-sm" onClick={() => props.done(false)}>
+        Cancel
+      </button>
+      {save.error ? (
+        <span className="error small" role="alert">
+          {why(save.error)}
+        </span>
+      ) : null}
+    </form>
+  );
+}
+
+function RepoName(props: { repo: Repo; known: Known | null; saved: () => void }) {
+  const [editing, setEditing] = useState(false);
+  const { repo, known } = props;
+  if (editing)
+    return (
+      <NameField
+        repo={repo}
+        current={known?.name ?? ""}
+        done={(saved) => {
+          setEditing(false);
+          if (saved) props.saved();
+        }}
+      />
+    );
+  return (
+    <div className="repo-name">
+      <div>
+        <div className={known ? "mono strong" : "muted"}>{known?.name ?? "Unknown repository"}</div>
+        <div className="subtle small">
+          {known?.where ? `${known.where} · ` : ""}
+          <span className="mono">{repo.repo}</span>
+        </div>
+      </div>
+      <button
+        type="button"
+        className="btn btn-sm"
+        aria-label={`${known ? "Rename" : "Name"} ${known?.name ?? repo.repo}`}
+        onClick={() => setEditing(true)}
+      >
+        {known ? "Rename" : "Name it"}
+      </button>
+    </div>
+  );
+}
+
+/** The code platforms the console reads as the user, and how to connect one that is not. */
+function PlatformsSection(props: { me: Me; data: PlatformRepos }) {
   return (
     <div className="card">
       <div className="card-head">
         <h3>Connected platforms</h3>
       </div>
-      {data.platforms.map((p) => (
+      {props.data.platforms.map((p) => (
         <div className="list-row row-top" key={`${p.platform}:${p.host}`}>
           <div className="grow">
             <div className="strong">
@@ -96,47 +145,39 @@ function PlatformsSection(props: { synced: () => void }) {
             </div>
             <PlatformState p={p} />
           </div>
-          {!p.linked && p.platform === "gitlab" && (
-            <a className="btn btn-sm" href="/api/platforms/gitlab/connect">
-              Connect GitLab
-            </a>
-          )}
+          <Connect me={props.me} p={p} />
         </div>
       ))}
-      {anyRepos && (
-        <div className="list-row row-top">
-          {data.sharing ? (
-            <>
-              <button
-                type="button"
-                className="btn btn-sm"
-                disabled={sync.busy}
-                onClick={async () => {
-                  const answer = await sync.run();
-                  if (answer) {
-                    setDone(`${answer.named} repositories named.`);
-                    props.synced();
-                  }
-                }}
-              >
-                Name repositories from these platforms
-              </button>
-              {done && <span className="muted small">{done}</span>}
-              {sync.error ? (
-                <span className="error small" role="alert">
-                  Could not name them: {why(sync.error)}.
-                </span>
-              ) : null}
-            </>
-          ) : (
-            <p className="muted small">
-              Turn on findings sharing in Settings to match reviews to these repositories: only then
-              does the CLI hash a repository the same way on every machine.
-            </p>
-          )}
+      {!props.data.sharing && props.data.platforms.some((p) => p.repositories.length > 0) && (
+        <div className="list-row">
+          <p className="muted small m-0">
+            Turn on findings sharing in Settings, and reviews you run locally are matched to these
+            repositories by name too.
+          </p>
         </div>
       )}
     </div>
+  );
+}
+
+function Connect(props: { me: Me; p: PlatformRepos["platforms"][number] }) {
+  const { p } = props;
+  if (p.linked && !p.failed) return null;
+  if (p.platform === "gitlab")
+    return (
+      <a className="btn btn-sm" href="/api/platforms/gitlab/connect">
+        Connect GitLab
+      </a>
+    );
+  // GitHub's access comes with signing in with GitHub; doing it again renews it in place.
+  if (props.me.githubId === null) return null;
+  return (
+    <a
+      className="btn btn-sm"
+      href={`/api/auth/github/login?next=${encodeURIComponent("/repositories")}`}
+    >
+      {p.linked ? "Reconnect GitHub" : "Connect GitHub"}
+    </a>
   );
 }
 
@@ -145,14 +186,15 @@ function PlatformState(props: { p: PlatformRepos["platforms"][number] }) {
   if (!p.linked)
     return (
       <p className="muted small">
-        {p.platform === "github"
-          ? "Sign out and sign in again to let ocra Cloud read your repositories here."
-          : "Not connected. Connect it to see your merge requests and name your repositories."}
+        Not connected yet. Connect it to see your {p.platform === "gitlab" ? "merge" : "pull"}{" "}
+        requests and your repositories by name.
       </p>
     );
   if (p.failed)
     return (
-      <p className="error small">{PLATFORM_NAME[p.platform]} refused to list your repositories.</p>
+      <p className="error small">
+        {PLATFORM_NAME[p.platform]} refused to list your repositories. Reconnect to renew access.
+      </p>
     );
   if (p.repositories.length === 0)
     return (
@@ -178,17 +220,47 @@ function PlatformState(props: { p: PlatformRepos["platforms"][number] }) {
   );
 }
 
-export function Repositories() {
+/** Stores the platform's names for reviewed repositories that have none, once, so every page shows them. */
+function useSyncNames(
+  repos: Repo[] | undefined,
+  platforms: PlatformRepos | undefined,
+  done: () => void,
+) {
+  const tried = useRef(false);
+  useEffect(() => {
+    if (tried.current || !repos || !platforms?.sharing) return;
+    const listed = new Set(
+      platforms.platforms.flatMap((p) => p.repositories.map((r) => r.repoHash)),
+    );
+    if (!repos.some((r) => r.name === null && listed.has(r.repoHash))) return;
+    tried.current = true;
+    api("/platforms/sync-names", { method: "POST" }).then(done, () => {});
+  }, [repos, platforms, done]);
+}
+
+export function Repositories(props: { me: Me }) {
   const { data, error, reload } = useCached("/repositories", () =>
     api<{ repositories: Repo[] }>("/repositories"),
   );
+  const platforms = useLoad(() => api<PlatformRepos>("/platforms/repos"));
+  useSyncNames(data?.repositories, platforms.data, reload);
   return (
     <>
       <PageHead
         title="Repositories"
-        sub="Every repository your reviews came from in the last 90 days. Reviews send only an anonymous hash; name the ones you recognise and the console shows the name instead."
+        sub="Every repository your reviews came from in the last 90 days, by its name on your code platform."
       />
-      <PlatformsSection synced={reload} />
+      {platforms.error && !platforms.data ? (
+        <LoadError
+          what="your connected platforms"
+          error={platforms.error}
+          retry={platforms.reload}
+        />
+      ) : !platforms.data ? (
+        <Loading what="your connected platforms" />
+      ) : (
+        <PlatformsSection me={props.me} data={platforms.data} />
+      )}
       {error && !data ? (
         <LoadError what="repositories" error={error} retry={reload} />
       ) : !data ? (
@@ -206,25 +278,30 @@ export function Repositories() {
             <table>
               <thead>
                 <tr>
-                  <th>Hash</th>
-                  <th>Name</th>
+                  <th>Repository</th>
                   <th className="num">Reviews</th>
                   <th className="num">Findings</th>
                   <th className="num">Open</th>
-                  <th>Last review</th>
+                  <th className="hide-narrow">Last review</th>
                 </tr>
               </thead>
               <tbody>
                 {data.repositories.map((r) => (
                   <tr key={r.repoHash}>
-                    <td className="mono">{r.repo}</td>
-                    <td>
-                      <NameField key={r.name ?? ""} repo={r} saved={reload} />
+                    <td className="text">
+                      <RepoName
+                        key={r.name ?? ""}
+                        repo={r}
+                        known={knownAs(r, platforms.data?.platforms ?? [])}
+                        saved={reload}
+                      />
                     </td>
                     <td className="num">{num(r.reviews)}</td>
                     <td className="num">{num(r.findings)}</td>
                     <td className="num">{num(r.openFindings)}</td>
-                    <td className="muted">{r.lastReviewAt ? ago(r.lastReviewAt) : "none"}</td>
+                    <td className="muted hide-narrow">
+                      {r.lastReviewAt ? ago(r.lastReviewAt) : "none"}
+                    </td>
                   </tr>
                 ))}
               </tbody>

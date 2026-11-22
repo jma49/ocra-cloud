@@ -5,13 +5,14 @@ import { RETENTION_DAYS } from "./db/retention.js";
 import type { Scoped } from "./db/scoped.js";
 import { apiError, jsonBody } from "./http.js";
 import { perMinute } from "./rate.js";
+import { repoOfIdentity } from "./review-pull.js";
 import { requireSession } from "./session.js";
 import { DAY } from "./time.js";
 import type { AppEnv } from "./types.js";
 
-// The account's repositories. Reviews carry only a repository's hash
-// (ADR-0028); the account names the ones it recognises, and the console
-// shows the name wherever it shows the hash.
+// The account's repositories. Reviews carry a repository's hash (ADR-0028),
+// and a pull request review also its host and path (ADR-0038). The console
+// shows that path, or a name the account gave, wherever it shows the hash.
 
 export const repositoriesRoute = new Hono<AppEnv>();
 
@@ -26,16 +27,34 @@ const nameSchema = z.object({
     .regex(/^[^\p{Cc}]+$/u, "no control characters"),
 });
 
-/** The names the account gave its repositories, by hash. */
+/** Where pull request reviews say each repository is, by hash. */
+async function pulledAt(data: Scoped): Promise<Map<string, { host: string; repo: string }>> {
+  const pulled = await data.pulledRepos();
+  return new Map(
+    pulled.flatMap((p) => {
+      const at = p.prRepository ? repoOfIdentity(p.prRepository) : null;
+      return at ? [[p.repoHash, at] as const] : [];
+    }),
+  );
+}
+
+/** Each repository's name by hash: the one the account gave, else the path its pull request reviews named. */
 export async function repoNames(data: Scoped): Promise<Map<string, string>> {
-  return new Map((await data.find("repositories", {}, MAX_NAMED)).map((r) => [r.repoHash, r.name]));
+  const [named, pulled] = await Promise.all([
+    data.find("repositories", {}, MAX_NAMED),
+    pulledAt(data),
+  ]);
+  const names = new Map([...pulled].map(([hash, at]) => [hash, at.repo]));
+  for (const r of named) names.set(r.repoHash, r.name);
+  return names;
 }
 
 repositoriesRoute.get("/", requireSession(), async (c) => {
   const since = new Date(Date.now() - RETENTION_DAYS * DAY);
-  const [reviewed, named] = await Promise.all([
+  const [reviewed, named, pulled] = await Promise.all([
     c.var.data.reviewedRepos(since),
     c.var.data.find("repositories", {}, MAX_NAMED),
+    pulledAt(c.var.data),
   ]);
   const names = new Map(named.map((r) => [r.repoHash, r.name]));
   const seen = new Set(reviewed.map((r) => r.repoHash));
@@ -53,6 +72,7 @@ repositoriesRoute.get("/", requireSession(), async (c) => {
       ...r,
       repo: r.repoHash.slice(0, 8),
       name: names.get(r.repoHash) ?? null,
+      pulledFrom: pulled.get(r.repoHash) ?? null,
     })),
   });
 });

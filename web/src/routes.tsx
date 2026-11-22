@@ -88,7 +88,7 @@ const ROUTES: readonly Route[] = [
     path: "/repositories",
     place: "repositories",
     tab: "Repositories",
-    page: () => <Repositories />,
+    page: (me) => <Repositories me={me} />,
   },
   {
     path: "/code-graphs",
