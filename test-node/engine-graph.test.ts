@@ -1,0 +1,68 @@
+import { parseGraph } from "@open-cr-agent/code-graph";
+import { describe, expect, it } from "vitest";
+import { engineGraphBuilder } from "../src/node/engine-graph.js";
+import { graphSettingsFrom } from "../src/node/env.js";
+
+// The engine's builder as the server calls it: a real tree-sitter parse, then
+// an update that reads only the changed blob.
+
+const files: Record<string, string> = {
+  a1: "export function total(xs: number[]) {\n  return xs.length;\n}\n",
+  b1: 'import { total } from "./a";\nexport const n = total([1, 2]);\n',
+  b2: 'import { total } from "./a";\nexport const n = total([1, 2, 3]);\n',
+};
+
+const build = (previous: string | undefined, tree: { path: string; blobId: string }[]) => {
+  const read: string[] = [];
+  const done = engineGraphBuilder({
+    previous,
+    tree,
+    readBlob: async (blobId) => {
+      read.push(blobId);
+      return new TextEncoder().encode(files[blobId]);
+    },
+    revision: "r",
+    maxBlobBytes: 1_000_000,
+    signal: new AbortController().signal,
+  });
+  return done.then((out) => ({ ...out, read }));
+};
+
+describe("the engine's graph builder", () => {
+  it("parses a commit, then reads only what the next one changed", async () => {
+    const first = await build(undefined, [
+      { path: "a.ts", blobId: "a1" },
+      { path: "b.ts", blobId: "b1" },
+      { path: "README.md", blobId: "readme" },
+    ]);
+    expect(first).toMatchObject({ files: 2, parsed: 2, reused: 0, skipped: 0 });
+    expect(parseGraph(first.graph)?.files.get("a.ts")).toBe("typescript:a1");
+
+    const second = await build(first.graph, [
+      { path: "a.ts", blobId: "a1" },
+      { path: "b.ts", blobId: "b2" },
+    ]);
+    expect(second).toMatchObject({ files: 2, parsed: 1, reused: 1 });
+    expect(second.read).toEqual(["b2"]);
+  });
+
+  it("rebuilds from scratch when the previous graph is not one it reads", async () => {
+    const out = await build("{}", [{ path: "a.ts", blobId: "a1" }]);
+    expect(out).toMatchObject({ parsed: 1, reused: 0 });
+  });
+});
+
+describe("the graph settings", () => {
+  it("keep graphs with one worker by default, and refuse a bad worker count", () => {
+    expect(graphSettingsFrom({})).toEqual({
+      policy: "keep",
+      githubWebhookSecret: undefined,
+      workers: 1,
+    });
+    expect(graphSettingsFrom({ GRAPH_WORKERS: "3", GITHUB_WEBHOOK_SECRET: "s" })).toMatchObject({
+      workers: 3,
+      githubWebhookSecret: "s",
+    });
+    expect(() => graphSettingsFrom({ GRAPH_WORKERS: "0" })).toThrow("GRAPH_WORKERS");
+  });
+});

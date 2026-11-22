@@ -41,6 +41,8 @@ Without Docker: `npm ci && npm run build:web && npm run build:node`, then `node 
 | `MODEL_ENDPOINTS` | for company models | the company's own OpenAI-compatible model endpoints, as JSON (Company models below) |
 | `DEFAULT_MODELS` | no | the default models, as JSON (`{"top": ["ocra-corp/qwen3-coder"], "light": "ocra-corp/qwen3-8b"}`), that an account starts with until it saves its own; each must be one the gateway serves |
 | `BUILTIN_PROVIDERS` | no | `off` forwards to `MODEL_ENDPOINTS` only, never to the public providers; `on` when unset |
+| `GITHUB_WEBHOOK_SECRET` | for GitHub code graphs | your GitHub App's webhook secret; the App's webhook URL is `<PUBLIC_URL>/api/graphs/webhooks/github`, subscribed to push events. GitHub pushes are refused without it |
+| `GRAPH_WORKERS` | no | code graph builds a process runs at once, each of another repository; 1 when unset |
 | `CODE_GRAPH` | no | what the server does with code graphs: `keep` (the default), `opt-in` (only for repositories added with the owner's consent) or `off` (none kept; the daily retention deletes any that are) |
 | `DATABASE_URL` | no | a Postgres server's `postgres://user:password@host:5432/db`, or a libSQL URL: `file:/data/ocra-cloud.db` in the image, or a libSQL server's |
 | `RATE_LIMITS` | with several processes | `database` counts the rate limits in the database, so that each holds for the deployment; `memory`, per process, when unset |
@@ -101,7 +103,7 @@ A one-off `migrate` run (`MIGRATE=only`) applies the migrations first; the repli
 
 ## Code graphs
 
-An account adds a repository under `/api/graphs/repos`; the server then keeps a graph of its default branch (symbol names, kinds and line numbers per file, never code), built after each push from the platform's tree and blob APIs with the account's own token, reading only the files that changed. Pushes arrive at `<PUBLIC_URL>/api/graphs/webhooks/github` (the GitHub App's webhook, signed with its secret) or `/api/graphs/webhooks/gitlab` (a project hook with the secret the server answers when the project is added). Builds older than 14 days are deleted daily, except each repository's newest; an account purges a repository's graphs or removes it at any time. Builds start once the server runs the engine's graph builder, which comes with the engine's next release.
+An account adds a repository under `/api/graphs/repos`; the server then keeps a graph of its default branch (symbol names, kinds and line numbers per file, never code), built after each push from the platform's tree and blob APIs with the account's own token, reading only the files that changed. Pushes arrive at `<PUBLIC_URL>/api/graphs/webhooks/github` (the GitHub App's webhook, signed with its secret) or `/api/graphs/webhooks/gitlab` (a project hook with the secret the server answers when the project is added). Builds older than 14 days are deleted daily, except each repository's newest; an account purges a repository's graphs or removes it at any time. Builds run in the server process with the engine's tree-sitter parser (`@open-cr-agent/code-graph`); with several processes on one database, each build is claimed by one of them. `PUBLIC_URL` must be set for GitLab, whose token refresh names the server's address.
 
 ## Limits of this first version
 

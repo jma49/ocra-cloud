@@ -2,9 +2,9 @@ import { resolve } from "node:path";
 import { serve } from "@hono/node-server";
 import { pruneGraphBuilds } from "../db/graphs.js";
 import { enforceRetention } from "../db/retention.js";
-import { graphPolicy } from "../graph/policy.js";
 import { errorName, logError } from "../log.js";
-import { bindingsFrom, migrateMode, trustedProxyHops } from "./env.js";
+import { engineGraphBuilder } from "./engine-graph.js";
+import { bindingsFrom, graphSettingsFrom, migrateMode, trustedProxyHops } from "./env.js";
 import { openHost } from "./host.js";
 import { rateLimitStore } from "./limits.js";
 
@@ -14,7 +14,7 @@ import { rateLimitStore } from "./limits.js";
 // every variable.
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const keepGraphs = graphPolicy(process.env.CODE_GRAPH) !== "off";
+const graphs = graphSettingsFrom(process.env);
 
 const migrate = migrateMode(process.env.MIGRATE);
 const host = await openHost({
@@ -26,6 +26,8 @@ const host = await openHost({
   web: resolve(process.env.WEB_DIR || "web/dist"),
   ...(process.env.PUBLIC_URL ? { publicUrl: process.env.PUBLIC_URL } : {}),
   trustedProxyHops: trustedProxyHops(process.env.TRUSTED_PROXY_HOPS),
+  // A run that only migrates builds nothing.
+  ...(migrate === "only" ? {} : { graphs: { ...graphs, builder: engineGraphBuilder } }),
 });
 
 if (migrate === "only") {
@@ -39,7 +41,7 @@ const retention = () =>
     enforceRetention(host.db).catch((err) =>
       logError("retention_failed", { error: errorName(err) }),
     ),
-    pruneGraphBuilds(host.db, keepGraphs).catch((err) =>
+    pruneGraphBuilds(host.db, graphs.policy !== "off").catch((err) =>
       logError("retention_failed", { table: "graph_builds", error: errorName(err) }),
     ),
   ]);
