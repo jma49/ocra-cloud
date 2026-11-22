@@ -1,8 +1,8 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { PullItem } from "../../src/shared/index.js";
+import { DEFAULT_PULL_VIEWS, type PullItem, type PullView } from "../../src/shared/index.js";
 import { clearCache } from "./cache.js";
-import { inboxSections, matchesView, type Row, rowsOf, sectionOf } from "./inbox/sections.js";
+import { inboxSections, matchesView, type Row, reviewAsked, rowsOf } from "./inbox/sections.js";
 import { sharedView, shareLink } from "./inbox/views.js";
 import { Inbox } from "./pages/Inbox.js";
 
@@ -64,28 +64,55 @@ const answer = {
   ],
 };
 
+const defaults: PullView[] = DEFAULT_PULL_VIEWS.map((d, position) => ({
+  id: `default:${position}`,
+  position,
+  hidden: false,
+  ...d,
+}));
+const noViews = { views: [], defaults: DEFAULT_PULL_VIEWS };
+
 describe("the inbox's sections", () => {
-  it("put each pull where it waits on someone", () => {
-    expect(answer.platforms[0]?.pulls.map((p) => [p.number, sectionOf(p)])).toEqual([
-      [1, "review"],
-      [2, "review"],
-      [3, "approved"],
-      [4, "returned"],
-      [5, "drafts"],
-      [6, "waiting"],
-      [7, "merged"],
+  const rows = rowsOf(answer);
+
+  it("are the views in their order, each with what it matches, a hidden one left out", () => {
+    const [review, mine, waiting, merged] = defaults;
+    const shown = inboxSections(rows, { text: "", repo: "" }, [
+      review as PullView,
+      { ...(mine as PullView), hidden: true },
+      waiting as PullView,
+      merged as PullView,
+    ]);
+    expect(shown.map((s) => [s.title, s.rows.map((r) => r.number)])).toEqual([
+      ["Needs my review", [1, 2]],
+      ["Waiting on others", [6]],
+      ["Recently merged", [7]],
     ]);
   });
 
-  it("leave out a draft asking your review, and your own pull asking it", () => {
-    expect(sectionOf(pull(8, { roles: ["reviewer"], draft: true }))).toBeNull();
-    expect(sectionOf(pull(9, { roles: ["reviewer", "author"] }))).toBe("waiting");
+  it("count for the tab's title what asks the user's review, not a draft or their own", () => {
+    expect(reviewAsked(rows)).toBe(2);
+    expect(
+      reviewAsked(
+        rowsOf({
+          platforms: [
+            {
+              ...answer.platforms[0],
+              pulls: [
+                pull(8, { roles: ["reviewer"], draft: true }),
+                pull(9, { roles: ["reviewer", "author"] }),
+              ],
+            },
+          ] as typeof answer.platforms,
+        }),
+      ),
+    ).toBe(0);
   });
 
   it("filter by text and by repository", () => {
-    const rows = rowsOf(answer);
-    const numbers = (f: { text: string; repo: string }) =>
-      inboxSections(rows, f).flatMap((s) => s.rows.map((r: Row) => r.number));
+    const numbers = (f: { text: string; repo: string }) => [
+      ...new Set(inboxSections(rows, f, defaults).flatMap((s) => s.rows.map((r: Row) => r.number))),
+    ];
     expect(numbers({ text: "LOGIN", repo: "" })).toEqual([2]);
     expect(numbers({ text: "", repo: "github.com/octo/web" })).toEqual([4]);
   });
@@ -105,19 +132,6 @@ describe("an account's own sections", () => {
     expect(numbers({ authors: ["ada"], repos: ["github.com/octo/api"] })).toEqual([1, 2]);
   });
 
-  it("come after the fixed ones", () => {
-    const view = {
-      id: "v1",
-      name: "Failing",
-      position: 0,
-      hidden: false,
-      filters: { checks: ["failing" as const] },
-    };
-    const shown = inboxSections(rows, { text: "", repo: "" }, [view]);
-    expect(shown.at(-1)).toMatchObject({ key: "view:v1", title: "Failing" });
-    expect(shown.at(-1)?.rows.map((r) => r.number)).toEqual([1]);
-  });
-
   it("travel in a link, names and all, and a broken link offers nothing", () => {
     const view = { name: "Équipe web", filters: { repos: ["github.com/octo/web"] } };
     const link = new URL(shareLink(view));
@@ -132,7 +146,7 @@ describe("the inbox page", () => {
   const show = async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => Response.json(answer)),
+      vi.fn(async (url: string) => Response.json(url === "/api/pull-views" ? noViews : answer)),
     );
     const open = vi.fn();
     vi.stubGlobal("open", open);
@@ -165,52 +179,104 @@ describe("the inbox page", () => {
 
   it("skips a folded section and remembers it", async () => {
     await show();
-    fireEvent.click(screen.getByRole("button", { name: /Needs your review/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Needs my review/ }));
     expect(screen.queryByText("Change 1")).toBeNull();
     expect(current()).toBe("/pull/github/octo%2Fapi/3");
-    expect(localStorage.getItem("ocra-inbox-collapsed")).toBe('["review"]');
+    expect(localStorage.getItem("ocra-inbox-collapsed")).toBe('["view:default:0"]');
   });
 
-  it("saves a new section and shows it at once", async () => {
-    const posted: unknown[] = [];
-    let views: unknown[] = [];
+  const kept = (): PullView[] => defaults.map((d, i) => ({ ...d, id: `v${i}` }));
+  /** A server that keeps the defaults when asked, then takes each change. */
+  const serve = () => {
+    const sent: { method: string; url: string; body: unknown }[] = [];
+    let views: PullView[] = [];
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string, init?: RequestInit) => {
-        if (url === "/api/pull-views" && init?.method === "POST") {
-          const body = JSON.parse(String(init.body));
-          posted.push(body);
-          views = [{ id: "v1", position: 0, ...body }];
-          return Response.json(views[0], { status: 201 });
-        }
-        if (url === "/api/pull-views") return Response.json({ views });
-        return Response.json(answer);
+        const method = init?.method ?? "GET";
+        if (!url.startsWith("/api/pull-views")) return Response.json(answer);
+        if (method === "GET")
+          return Response.json(views.length ? { views, defaults: [] } : noViews);
+        const body = init?.body ? JSON.parse(String(init.body)) : null;
+        sent.push({ method, url, body });
+        if (url.endsWith("/defaults")) views = kept();
+        else if (url.endsWith("/order")) {
+          views = views.map((v) => ({ ...v, position: body.ids.indexOf(v.id) }));
+        } else if (method === "POST") {
+          views = [...views, { id: "v9", position: views.length, hidden: false, ...body }];
+        } else views = views.map((v) => (url.endsWith(`/${v.id}`) ? { ...v, ...body } : v));
+        return Response.json({ views });
       }),
     );
+    return sent;
+  };
+  const regions = () => screen.getAllByRole("region").map((r) => r.getAttribute("aria-label"));
+  const choose = async (section: string, item: string) => {
+    fireEvent.click(screen.getByRole("button", { name: `Section ${section}` }));
+    await act(
+      async () => void fireEvent.click(await screen.findByRole("menuitem", { name: item })),
+    );
+  };
+
+  it("keeps the defaults as the account's own before adding a section to them", async () => {
+    const sent = serve();
     render(<Inbox />);
     await waitFor(() => expect(screen.getByText("Change 1")).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "New section" }));
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Web" } });
     fireEvent.click(screen.getByLabelText("github.com/octo/web"));
     await act(async () => void fireEvent.click(screen.getByRole("button", { name: "Save" })));
-    expect(posted).toEqual([
+    expect(sent).toEqual([
+      { method: "POST", url: "/api/pull-views/defaults", body: null },
       {
-        name: "Web",
-        filters: { roles: ["author"], states: ["open"], repos: ["github.com/octo/web"] },
+        method: "POST",
+        url: "/api/pull-views",
+        body: {
+          name: "Web",
+          filters: { roles: ["author"], states: ["open"], repos: ["github.com/octo/web"] },
+        },
       },
     ]);
-    await waitFor(() => expect(screen.getByRole("region", { name: "Web" })).toBeTruthy());
+    await waitFor(() => expect(regions().at(-1)).toBe("Web"));
+    expect(regions()).toHaveLength(5);
+  });
+
+  it("moves a section, hides it and shows it again", async () => {
+    const sent = serve();
+    render(<Inbox />);
+    await waitFor(() => expect(screen.getByText("Change 1")).toBeTruthy());
+    await choose("My open PRs", "Move up");
+    await waitFor(() => expect(regions().slice(0, 2)).toEqual(["My open PRs", "Needs my review"]));
+    expect(sent.at(-1)).toEqual({
+      method: "PUT",
+      url: "/api/pull-views/order",
+      body: { ids: ["v1", "v0", "v2", "v3"] },
+    });
+    await choose("Recently merged", "Hide");
+    await waitFor(() => expect(regions()).not.toContain("Recently merged"));
+    expect(sent.at(-1)).toMatchObject({ url: "/api/pull-views/v3", body: { hidden: true } });
+    await act(
+      async () =>
+        void fireEvent.click(screen.getByRole("button", { name: "Show Recently merged" })),
+    );
+    await waitFor(() => expect(regions()).toContain("Recently merged"));
+    expect(sent.at(-1)).toMatchObject({
+      url: "/api/pull-views/v3",
+      body: { name: "Recently merged", hidden: false },
+    });
   });
 
   it("asks to connect a platform when none is linked, once instead of each section", async () => {
     const none = answer.platforms.map((p) => ({ ...p, linked: false, pulls: [] }));
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => Response.json({ platforms: none })),
+      vi.fn(async (url: string) =>
+        Response.json(url === "/api/pull-views" ? noViews : { platforms: none }),
+      ),
     );
     render(<Inbox />);
     await waitFor(() => expect(screen.getByText("Connect a platform")).toBeTruthy());
-    expect(screen.queryByRole("region", { name: "Approved" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "My open PRs" })).toBeNull();
     expect(screen.queryByText(/is not connected/)).toBeNull();
   });
 

@@ -2,16 +2,19 @@ import InboxIcon from "lucide-react/icons/inbox";
 import Plug from "lucide-react/icons/plug";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import type { PullView } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
 import { useCached } from "../cache.js";
 import { useCollapsed } from "../inbox/collapsed.js";
 import { useListKeys } from "../inbox/keys.js";
 import { PullRow } from "../inbox/row.js";
+import { SectionMenu } from "../inbox/section-menu.js";
 import {
   type Filters,
   type InboxAnswer,
   inboxSections,
   reposOf,
+  reviewAsked,
   rowsOf,
   type ShownSection,
 } from "../inbox/sections.js";
@@ -22,7 +25,7 @@ import { Link, navigate } from "../router.js";
 import { useTitleCount } from "../title.js";
 import { EmptyState, LoadError, Loading, PageHead } from "../ui.js";
 
-type Editing = { draft: ViewDraft; id?: string };
+type Editing = { draft: ViewDraft; view?: PullView };
 const BLANK: ViewDraft = { name: "", filters: { roles: ["author"], states: ["open"] } };
 
 export function Inbox() {
@@ -34,6 +37,7 @@ export function Inbox() {
   const [at, setAt] = useState(0);
   const [editing, setEditing] = useState<Editing | null>(null);
   const [offered, setOffered] = useState(() => sharedView(location.search));
+  const [failed, setFailed] = useState<unknown>(null);
   const { collapsed, toggle } = useCollapsed();
   const finder = useRef<HTMLInputElement>(null);
   const list = useRef<HTMLDivElement>(null);
@@ -45,7 +49,12 @@ export function Inbox() {
   );
   const visible = sections.flatMap((s) => (collapsed.has(s.key) ? [] : s.rows));
   const current = Math.min(at, Math.max(visible.length - 1, 0));
-  useTitleCount(sections.find((s) => s.key === "review")?.rows.length ?? 0);
+  useTitleCount(useMemo(() => reviewAsked(rows), [rows]));
+  const hidden = views.views.filter((v) => v.hidden);
+  const arrange = (change: Promise<unknown>) => {
+    setFailed(null);
+    change.catch(setFailed);
+  };
 
   useEffect(() => {
     list.current
@@ -145,7 +154,7 @@ export function Inbox() {
       <PlatformNotes data={data} retry={reload} />
       {error && !data ? (
         <LoadError what="pull requests" error={error} retry={reload} />
-      ) : !data ? (
+      ) : !data || !views.ready ? (
         <Loading what="pull requests" />
       ) : !data.platforms.some((p) => p.linked) ? (
         <div className="section card">
@@ -174,13 +183,23 @@ export function Inbox() {
         </div>
       ) : (
         <div ref={list} className="inbox-sections card">
-          {sections.map((s) => (
+          {sections.map((s, place) => (
             <Section
               key={s.key}
               s={s}
               open={!collapsed.has(s.key)}
               toggle={() => toggle(s.key)}
-              edit={s.view && (() => s.view && setEditing({ draft: s.view, id: s.view.id }))}
+              menu={
+                <SectionMenu
+                  title={s.title}
+                  edit={() => setEditing({ draft: s.view, view: s.view })}
+                  up={place > 0 ? () => arrange(views.move(s.view, -1)) : undefined}
+                  down={
+                    place < sections.length - 1 ? () => arrange(views.move(s.view, 1)) : undefined
+                  }
+                  hide={() => arrange(views.setHidden(s.view, true))}
+                />
+              }
             >
               {!collapsed.has(s.key) &&
                 s.rows.map((r) => {
@@ -191,14 +210,36 @@ export function Inbox() {
           ))}
         </div>
       )}
+      {hidden.length > 0 && (
+        <p className="inbox-hidden muted small">
+          Hidden:
+          {hidden.map((v) => (
+            <Button
+              key={v.id}
+              type="button"
+              variant="outline"
+              size="sm"
+              aria-label={`Show ${v.name}`}
+              onClick={() => arrange(views.setHidden(v, false))}
+            >
+              {v.name}
+            </Button>
+          ))}
+        </p>
+      )}
+      {failed !== null && (
+        <p className="error" role="alert">
+          Could not change the sections: {why(failed)}.
+        </p>
+      )}
       {error && data ? <p className="error">Could not refresh: {why(error)}.</p> : null}
       {editing && (
         <ViewDrawer
           initial={editing.draft}
           repos={reposOf(rows)}
-          editing={Boolean(editing.id)}
-          onSave={(draft) => (editing.id ? views.save(editing.id, draft) : views.add(draft))}
-          {...(editing.id && { onDelete: () => views.remove(editing.id ?? "") })}
+          editing={Boolean(editing.view)}
+          onSave={(draft) => (editing.view ? views.save(editing.view, draft) : views.add(draft))}
+          {...(editing.view && { onDelete: () => views.remove(editing.view as PullView) })}
           onClose={() => setEditing(null)}
         />
       )}
@@ -210,7 +251,7 @@ function Section(props: {
   s: ShownSection;
   open: boolean;
   toggle: () => void;
-  edit: (() => void) | undefined;
+  menu: React.ReactNode;
   children: React.ReactNode;
 }) {
   const { s } = props;
@@ -227,16 +268,7 @@ function Section(props: {
           <h3>{s.title}</h3>
           <span className="count">{s.rows.length}</span>
         </button>
-        {props.edit && (
-          <button
-            type="button"
-            className="icon-btn"
-            aria-label={`Edit ${s.title}`}
-            onClick={props.edit}
-          >
-            ⋯
-          </button>
-        )}
+        {props.menu}
       </div>
       {props.open && props.children}
     </section>
