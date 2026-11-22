@@ -93,7 +93,10 @@ export function lineCounts(patch: string): { additions: number; deletions: numbe
  * The listed files with their diffs while they fit MAX_PATCH_BYTES; past it
  * a file keeps its counts but not its diff, and the answer says it is truncated.
  */
-export function withinBudget(listed: PullPatches, max = MAX_PATCH_BYTES): PullPatches {
+export function withinBudget<T extends Pick<PullPatches, "files" | "truncated">>(
+  listed: T,
+  max = MAX_PATCH_BYTES,
+): T {
   let left = max;
   let cut = false;
   const files = listed.files.map((f) => {

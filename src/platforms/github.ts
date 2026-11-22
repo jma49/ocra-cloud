@@ -14,6 +14,7 @@ import { githubQueue } from "./github-queue.js";
 import { githubReadiness } from "./github-readiness.js";
 import { githubReviewers } from "./github-reviewers.js";
 import { githubSearch } from "./github-search.js";
+import { githubSince } from "./github-since.js";
 import { githubStacks } from "./github-stack.js";
 import { githubThreads } from "./github-threads.js";
 import { githubViewed } from "./github-viewed.js";
@@ -80,6 +81,7 @@ export function github(client: GithubClient): CodePlatform {
     searchPulls: (token, search, limit) => githubSearch(post(token), search, limit),
     contents: githubContents(host),
     changes: githubChanges(host),
+    since: githubSince(host, post),
     actions,
     queue: githubQueue(host),
     autoMerge: githubAutoMerge(host),

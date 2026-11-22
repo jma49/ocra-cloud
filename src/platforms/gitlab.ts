@@ -13,6 +13,7 @@ import { gitlabQueue } from "./gitlab-queue.js";
 import { gitlabReadiness } from "./gitlab-readiness.js";
 import { gitlabReviewers } from "./gitlab-reviewers.js";
 import { gitlabSearch } from "./gitlab-search.js";
+import { gitlabSince } from "./gitlab-since.js";
 import { gitlabStacks } from "./gitlab-stack.js";
 import { gitlabThreads } from "./gitlab-threads.js";
 import { platformCall } from "./http.js";
@@ -65,6 +66,7 @@ export function gitlab(client: GitlabClient, redirectUri: string): CodePlatform 
     searchPulls: (token, search, limit) => gitlabSearch(client.url, token, search, limit),
     contents: gitlabContents(client.url),
     changes: gitlabChanges(client.url),
+    since: gitlabSince(client.url),
     actions: gitlabActions(client.url),
     queue: gitlabQueue(client.url),
     autoMerge: gitlabAutoMerge(client.url),

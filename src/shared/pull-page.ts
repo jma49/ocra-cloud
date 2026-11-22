@@ -5,7 +5,7 @@ import type { CodePlatformKind } from "./domain.js";
 
 type PullFileStatus = "added" | "removed" | "modified" | "renamed";
 
-type PullFileView = {
+export type PullFileView = {
   path: string;
   oldPath: string;
   status: PullFileStatus;
@@ -49,6 +49,40 @@ export type PullFilesView = {
    * A merge of any other is refused with invalid_body before it is sent.
    */
   mergeMethods: MergeMethod[];
+};
+
+/** Where a head to compare from comes from: the inbox's read mark, or the user's latest review on the platform. */
+type PullSinceSource = "seen" | "reviewed";
+
+/** A head GET /api/pulls/since offers to compare from, and when the user saw or reviewed it. */
+export type PullSinceOption = { source: PullSinceSource; head: string; at: string | null };
+
+/**
+ * What GET /api/pulls/since came to: `none` when there is no head to compare
+ * from, `same` when it is the current head, `changes` with the diff,
+ * `rebased` when a force push left it out of the current head's history,
+ * `unavailable` when the platform could not compare (an unknown commit, a
+ * comparison too large to read, or a failure).
+ */
+export type PullSinceState = "none" | "same" | "changes" | "rebased" | "unavailable";
+
+/**
+ * What changed in a pull request since a head: the files changed from
+ * `since` to `head`, in PullFilesView's shape. `viewed` is always null: the
+ * full page's files say it, by path.
+ */
+export type PullSinceView = {
+  platform: CodePlatformKind;
+  repo: string;
+  number: number;
+  head: string;
+  /** The head compared from: the one asked for, else the review's, else the read mark's. */
+  since: string | null;
+  state: PullSinceState;
+  /** The reviewed head first, then the read mark's; each at most once per source. */
+  options: PullSinceOption[];
+  files: PullFileView[];
+  truncated: boolean;
 };
 
 /** Files one POST /api/pulls/viewed ticks or unticks. */
