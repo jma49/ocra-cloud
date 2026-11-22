@@ -26,6 +26,9 @@ import { loadProviders, NotFound } from "./ui.js";
 const Automations = lazy(() =>
   import("./pages/Automations.js").then((m) => ({ default: m.Automations })),
 );
+const Learnings = lazy(() =>
+  import("./pages/Learnings.js").then((m) => ({ default: m.Learnings })),
+);
 const AutoReview = lazy(() =>
   import("./pages/AutoReview.js").then((m) => ({ default: m.AutoReview })),
 );
@@ -107,6 +110,7 @@ const ROUTES: readonly Route[] = [
     shown: (me) => me.autoReview,
     page: () => <AutoReview />,
   },
+  { path: "/learnings", place: "repositories", tab: "Learnings", page: () => <Learnings /> },
   { path: "/memory", place: "repositories", tab: "Memory", page: () => <Memory /> },
   { path: "/insights", place: "insights", tab: "Overview", page: () => <Insights /> },
   {
