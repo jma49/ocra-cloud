@@ -13,6 +13,7 @@ import { requireSession } from "./session.js";
 import {
   CODE_PLATFORMS,
   MERGE_METHODS,
+  type MergeQueueView,
   PULL_VERDICTS,
   type PullActionOutcome,
   type PullFilesView,
@@ -20,9 +21,9 @@ import {
 import type { AppEnv } from "./types.js";
 
 // A pull request's page: its diff, read live as the signed-in user, and
-// their comment, review, merge and commit of a finding's fix, sent to the
-// platform as them. Nothing read or sent is stored. Only the web session
-// acts: a CLI token never merges.
+// their comment, review, merge, merge queue entry and commit of a finding's
+// fix, sent to the platform as them. Nothing read or sent is stored. Only
+// the web session acts: a CLI token never merges.
 
 export const pullPage = new Hono<AppEnv>();
 
@@ -74,6 +75,8 @@ const reviewBody = z.object({
     .default([]),
 });
 const mergeBody = z.object({ ...pullRef, method: z.enum(MERGE_METHODS), head: sha });
+const queueBody = z.object({ ...pullRef, head: sha });
+const dequeueBody = z.object(pullRef);
 const fixBody = z.object({ finding: z.string().min(1).max(64) });
 
 type Ref = z.output<typeof filesQuery>;
@@ -169,6 +172,46 @@ pullPage.post(
     const { platform, token } = reached;
     if (!platform.actions.mergeMethods.includes(method)) return c.json({ outcome: "refused" });
     return answer(c, await platform.actions.merge(token, repo, number, { method, head }));
+  },
+);
+
+pullPage.get("/queue", requireSession(["web"]), perMinute("platform"), async (c) => {
+  const ref = filesQuery.safeParse(c.req.query());
+  if (!ref.success) return apiError(c, "not_found");
+  const reached = await reach(c, byKind(ref.data));
+  if ("refusal" in reached) return reached.refusal;
+  const { platform, token } = reached;
+  const view = await platform.queue.status(token, ref.data.repo, ref.data.number);
+  if (!view) return apiError(c, "upstream_unreachable");
+  return c.json({
+    enabled: view.enabled,
+    entry: view.entry && { state: view.entry.state, position: view.entry.position },
+  } satisfies MergeQueueView);
+});
+
+pullPage.post(
+  "/enqueue",
+  requireSession(["web"]),
+  perMinute("platform"),
+  jsonBody(queueBody),
+  async (c) => {
+    const { repo, number, head } = c.req.valid("json");
+    const reached = await reach(c, byKind(c.req.valid("json")));
+    if ("refusal" in reached) return reached.refusal;
+    return answer(c, await reached.platform.queue.enqueue(reached.token, repo, number, head));
+  },
+);
+
+pullPage.post(
+  "/dequeue",
+  requireSession(["web"]),
+  perMinute("platform"),
+  jsonBody(dequeueBody),
+  async (c) => {
+    const { repo, number } = c.req.valid("json");
+    const reached = await reach(c, byKind(c.req.valid("json")));
+    if ("refusal" in reached) return reached.refusal;
+    return answer(c, await reached.platform.queue.dequeue(reached.token, repo, number));
   },
 );
 
