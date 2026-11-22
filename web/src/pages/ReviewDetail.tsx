@@ -9,9 +9,9 @@ import { ago, sourceLabel, time } from "../format.js";
 import { type FocusedFinding, ImpactRail } from "../impact/rail.js";
 import { useImpact } from "../impact/use-impact.js";
 import { pullPath } from "../pull/path.js";
+import { ReviewChat } from "../review-chat/chat.js";
 import { Link } from "../router.js";
 import { EmptyState, LoadError, Loading, PageHead, Seg } from "../ui.js";
-import { ReviewChat } from "./review-chat.js";
 import { type Finding, FindingEvent } from "./review-finding.js";
 import { Walkthrough } from "./review-walkthrough.js";
 

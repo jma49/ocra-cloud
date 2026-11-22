@@ -1,0 +1,120 @@
+/* Ask ocra: the conversation about one review, under its walkthrough. */
+.chat {
+  margin: 16px 0;
+}
+.chat-model {
+  margin-left: auto;
+}
+.chat-body {
+  display: grid;
+  gap: 12px;
+  padding: 4px 16px 16px;
+}
+.chat-starters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.chat-log {
+  display: grid;
+  gap: 12px;
+  max-height: 440px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.chat-question {
+  justify-self: end;
+  max-width: min(560px, 85%);
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: var(--r-ctl);
+  background: var(--fill2);
+  overflow-wrap: anywhere;
+}
+.chat-answer {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.chat-caret {
+  display: inline-block;
+  width: 7px;
+  height: 14px;
+  margin-top: 4px;
+  border-radius: 1px;
+  background: var(--t2);
+  animation: chat-caret 1s steps(2, start) infinite;
+}
+@keyframes chat-caret {
+  to {
+    visibility: hidden;
+  }
+}
+.chat-note {
+  align-items: center;
+  margin-top: 0;
+}
+.chat-ask {
+  display: grid;
+  gap: 8px;
+}
+.chat-ask textarea {
+  width: 100%;
+  height: auto;
+  padding: 8px 10px;
+  resize: vertical;
+}
+.chat-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.chat-tools select {
+  max-width: 260px;
+}
+
+/* Markdown drawn from a model's answer. */
+.md {
+  display: grid;
+  gap: 8px;
+  line-height: 1.55;
+}
+.md > * {
+  margin: 0;
+  min-width: 0;
+}
+.md p {
+  white-space: pre-wrap;
+}
+.md h4 {
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+.md ul,
+.md ol {
+  display: grid;
+  gap: 4px;
+  padding-left: 20px;
+}
+.md code {
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+  padding: 1px 4px;
+  border-radius: var(--r-tag);
+  background: var(--fill);
+}
+.md pre {
+  padding: 10px 12px;
+  border-radius: var(--r-chip);
+  background: var(--fill);
+  overflow-x: auto;
+}
+.md pre code {
+  padding: 0;
+  background: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat-caret {
+    animation: none;
+  }
+}
