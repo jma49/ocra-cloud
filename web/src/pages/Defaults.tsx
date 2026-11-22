@@ -150,14 +150,14 @@ export function Defaults() {
     : null;
   const copy = async (text: string) => {
     await navigator.clipboard.writeText(text).catch(() => {});
-    toast("Copied");
+    toast("Copied", "success");
   };
   const restore = async (id: string) => {
     try {
       await api(`/preferences/versions/${id}/restore`, { method: "POST" });
       location.reload();
     } catch (e) {
-      toast(restoreError(e));
+      toast(restoreError(e), "error");
     }
   };
 

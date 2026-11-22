@@ -1,6 +1,6 @@
 /* Shell: the signed-out top bar, the account menu, the rail and the page panel,
    the page bar and its tabs, the settings list, page header, policy, footer,
-   save bar and toast. */
+   save bar. */
 /* Top bar (signed out, data policy) */
 .topbar {
   position: sticky;
@@ -434,7 +434,7 @@
   color: var(--t1);
 }
 
-/* Save bar and toast: a raised panel, and an ink one, over the page. */
+/* Save bar: a raised panel over the page. */
 .savebar {
   position: fixed;
   left: 50%;
@@ -454,19 +454,6 @@
   font-size: var(--text-base);
   animation: rise 160ms var(--e-enter);
 }
-.toast {
-  position: fixed;
-  right: 20px;
-  bottom: 20px;
-  z-index: 31;
-  padding: 11px 16px;
-  border-radius: var(--r-ctl);
-  background: var(--ink);
-  color: var(--on-button);
-  font-size: var(--text-base);
-  box-shadow: var(--float);
-  animation: rise 160ms var(--e-enter);
-}
 @keyframes rise {
   from {
     transform: translate(var(--tx, 0), 8px);
@@ -477,8 +464,7 @@
   --tx: -50%;
 }
 @media (prefers-reduced-motion: reduce) {
-  .savebar,
-  .toast {
+  .savebar {
     animation: none;
   }
 }
