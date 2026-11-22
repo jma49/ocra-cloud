@@ -175,6 +175,17 @@ describe("query plans", () => {
     expect(p).not.toMatch(/SCAN s\b|SCAN pull_seen/);
   });
 
+  it("the inbox sets and reads its baseline by the account's primary key", async () => {
+    const seen: Captured[] = [];
+    await scoped(drizzle(recording(seen)), "acct").pullSeen.baseline(null);
+    expect(seen).toHaveLength(2);
+    for (const q of seen) {
+      const p = await plan(q);
+      expect(p).toMatch(/SEARCH accounts USING INDEX sqlite_autoindex_accounts_1 \(id=\?\)/);
+      expect(p).not.toMatch(/SCAN accounts/);
+    }
+  });
+
   it("the daily digest reads reviews and findings through their account indexes", async () => {
     const seen: Captured[] = [];
     const d = scoped(drizzle(recording(seen)), "acct");

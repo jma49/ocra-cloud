@@ -180,8 +180,7 @@ describe("the pull request inbox", () => {
     expect(lab?.pulls.find((p) => p.number === 6)?.state).toBe("merged");
     expect(lab?.pulls.find((p) => p.number === 4)).toMatchObject({
       head: "4".repeat(40),
-      unread: true,
-      unreadReason: "new",
+      unread: false,
     });
     expect(lab?.pulls.map((p) => [p.number, p.repo, p.draft, p.roles])).toEqual([
       [6, "Group/Sub/Project", false, ["author"]],

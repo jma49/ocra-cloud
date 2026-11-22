@@ -75,7 +75,8 @@ platformsRoute.get("/repos", requireSession(), async (c) => {
 
 // The pull requests asking the user's review, theirs open and theirs merged
 // this week, each with the verdict of the account's newest review of it and
-// whether it changed since the account last saw it (POST /api/pulls/seen).
+// whether it changed since the account last saw it (POST /api/pulls/seen),
+// or since its inbox baseline when it never did.
 // With group=views it also answers the account's visible views (or the
 // defaults while it has none), each with the pulls it holds, evaluated here
 // over this same listing.
@@ -96,16 +97,17 @@ platformsRoute.get("/pulls", requireSession(), async (c) => {
       return { platform, head, linked: true, failed: false, ...listing };
     }),
   );
-  const [reviewsOf, seenOf] = await Promise.all([
+  const [reviewsOf, seenOf, since] = await Promise.all([
     pullVerdicts(c.var.data, listed),
     pullSeenStates(c.var.data, listed),
+    c.var.data.pullSeen.baseline(c.var.session.account.inboxSince),
   ]);
   const platforms = listed.map(({ platform, head, pulls, ...rest }) => ({
     ...head,
     ...rest,
     pulls: pulls.map((p): PullItem => {
       const { verdict, reviewedAt } = reviewsOf(platform, p);
-      return { ...p, verdict, ...pullUnread(p, seenOf(platform, p), reviewedAt) };
+      return { ...p, verdict, ...pullUnread(p, seenOf(platform, p), reviewedAt, since) };
     }),
   }));
   if (group !== "views") return c.json({ platforms });

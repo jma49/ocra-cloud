@@ -35,9 +35,9 @@ export type PullItem = {
 };
 
 /**
- * Why a pull request is unread: never seen, marked unread, new commits, a
- * merge, a new ocra review, or other activity on the platform (reviews,
- * comments, a title or label change).
+ * Why a pull request is unread: opened since the inbox's baseline and never
+ * seen, marked unread, new commits, a merge, a new ocra review, or other
+ * activity on the platform (reviews, comments, a title or label change).
  */
 export type PullUnreadReason = "new" | "marked" | "commits" | "merged" | "ocra_review" | "activity";
 
@@ -71,15 +71,18 @@ export type PullSeenState = {
 /**
  * Whether a listed pull request changed since the account saw it, and the
  * first reason that holds. reviewedAt is when the account's newest ocra
- * review of it was made.
+ * review of it was made; one with no mark counts as seen as it stood at
+ * since, the account's inbox baseline.
  */
 export function pullUnread(
-  pull: Pick<PullItem, "updatedAt" | "head" | "mergedAt">,
-  seen: PullSeenState | undefined,
+  pull: Pick<PullItem, "createdAt" | "updatedAt" | "head" | "mergedAt">,
+  mark: PullSeenState | undefined,
   reviewedAt: number | null,
+  since: number,
 ): { unread: boolean; unreadReason?: PullUnreadReason } {
   const reason = ((): PullUnreadReason | null => {
-    if (!seen) return "new";
+    if (!mark && Date.parse(pull.createdAt) > since) return "new";
+    const seen = mark ?? { updatedAt: since, head: null, unread: false, seenAt: since };
     if (seen.unread) return "marked";
     const moved = Date.parse(pull.updatedAt) > seen.updatedAt;
     if (moved && pull.head !== null && seen.head !== null && pull.head !== seen.head) {
