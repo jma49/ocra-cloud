@@ -35,9 +35,12 @@ function how(via: Via): string {
 const found = (c: ImpactCounts) => c.findings.critical + c.findings.warning + c.findings.suggestion;
 const share = (n: number, of: number) => (of ? `${Math.round((n / of) * 100)}%` : "–");
 
-export function ImpactSection(props: { days: number }) {
+/** `quiet`: the page already says there are no reviews, so an empty section adds nothing. */
+export function ImpactSection(props: { days: number; quiet?: boolean }) {
   const path = `/insights/impact?days=${props.days}`;
   const { data, error, reload } = useCached(path, () => api<Impact>(path));
+  const nothing = data ? data.total.pulls === 0 && data.total.reviews === 0 : false;
+  if (props.quiet && (nothing || !data)) return null;
   return (
     <section className="section card" aria-label="What ocra changed">
       <div className="card-head">
@@ -54,7 +57,7 @@ export function ImpactSection(props: { days: number }) {
         <div className="card-pad">
           <Loading what="what ocra changed" />
         </div>
-      ) : data.total.pulls === 0 && data.total.reviews === 0 ? (
+      ) : nothing ? (
         <p className="card-pad subtle small m-0">
           Nothing recorded in this period. This counts ocra's reviews of pull requests, uploaded by
           the CLI or made by auto review.
