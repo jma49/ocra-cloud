@@ -238,7 +238,23 @@ describe("a GitHub pull request's threads", () => {
     ]);
     // Thread ids are global: one this pull request has not is not sent.
     expect(await (await resolve("OTHER", true)).json()).toEqual({ outcome: "refused" });
+    // T2 is open and the viewer may resolve it, but not reopen what is not resolved.
+    expect(await (await resolve("T2", false)).json()).toEqual({ outcome: "done" });
     expect(sent.filter((s) => s.body.query?.startsWith("mutation"))).toHaveLength(2);
+  });
+
+  it("refuses unsent a resolve GitHub says the viewer may not make", async () => {
+    const sent = platform({
+      [`POST ${GRAPHQL}`]: () => listed(HEAD, [thread({ viewerCanResolve: false }, [])]),
+    });
+    const a = await signInWithGithub();
+    const res = await post(a, "/api/pulls/resolve-thread", {
+      ...ref,
+      thread: "T1",
+      resolved: true,
+    });
+    expect(await res.json()).toEqual({ outcome: "refused" });
+    expect(sent.filter((s) => s.body.query?.startsWith("mutation"))).toEqual([]);
   });
 
   it("answers GitHub's refusal to resolve as one", async () => {

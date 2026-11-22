@@ -167,7 +167,10 @@ export function githubThreads(post: Post, actions: Pick<PullActions, "applyFix">
       // Thread ids are global: one of another pull request's is not acted on from this one.
       const listing = await read(token, fullName, number);
       if (!listing) return null;
-      if (!listing.threads.some((t) => t.id === thread)) return "refused";
+      const found = listing.threads.find((t) => t.id === thread);
+      // GitHub says whether the viewer may; one who may not is refused unsent.
+      if (!found || (found.resolved !== resolved && !found.canResolve)) return "refused";
+      if (found.resolved === resolved) return "done";
       const answer = await post(token)<Mutated>("/graphql", {
         query: resolved ? RESOLVE : UNRESOLVE,
         variables: { id: thread },
