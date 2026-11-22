@@ -113,7 +113,16 @@ describe("ARIA", () => {
 
   it("the account menu is a disclosure that Escape closes, returning focus", () => {
     render(
-      <TopBar me={{ login: "ada", githubId: 1, session: "web", since: "", codeGraphs: "off" }} />,
+      <TopBar
+        me={{
+          login: "ada",
+          githubId: 1,
+          session: "web",
+          since: "",
+          codeGraphs: "off",
+          autoReview: false,
+        }}
+      />,
     );
     const button = screen.getByRole("button", { name: /ada/ });
     fireEvent.click(button);

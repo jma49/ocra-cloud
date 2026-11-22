@@ -13,6 +13,7 @@ const me = {
   session: "web" as const,
   since: "2026-10-01T00:00:00Z",
   codeGraphs: "off" as const,
+  autoReview: false,
 };
 const never = () => new Promise<Response>(() => {});
 

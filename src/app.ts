@@ -86,7 +86,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
 
   // Every router applies its own session guard (test/routes.test.ts checks
   // each route): this file only composes them.
-  app.route("/me", meRoute(host.graphs?.policy ?? "off"));
+  app.route("/me", meRoute(host.graphs?.policy ?? "off", host.autoReview !== undefined));
   app.route("/usage", usage);
   app.route("/sessions", sessions);
   app.route("/export", exportRoute);

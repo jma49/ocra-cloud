@@ -108,6 +108,13 @@ describe("a review job's run", () => {
   });
   afterEach(() => s.host.close());
 
+  it("is offered to the console: /me says the server reviews pull requests itself", async () => {
+    const { auth } = await s.signIn(2);
+    expect(await (await s.call("/api/me", { headers: auth })).json()).toMatchObject({
+      autoReview: true,
+    });
+  });
+
   type Call = {
     command: string;
     args: readonly string[];

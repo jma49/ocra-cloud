@@ -76,6 +76,7 @@ describe("GitHub sign-in", () => {
       githubId: 42,
       session: "web",
       codeGraphs: "off",
+      autoReview: false,
     });
   });
 

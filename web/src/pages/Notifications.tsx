@@ -163,9 +163,9 @@ function AddChannel(props: { onAdded: () => void; full: boolean }) {
     props.onAdded();
   };
   return (
-    <form className="card card-pad stack notify-add" onSubmit={submit}>
+    <form className="card card-pad stack add-form" onSubmit={submit}>
       <div className="strong">Add a channel</div>
-      <div className="notify-fields">
+      <div className="add-fields">
         <select
           className="input"
           aria-label="Chat"

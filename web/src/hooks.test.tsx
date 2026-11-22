@@ -60,12 +60,13 @@ describe("useLoad", () => {
 });
 
 describe("the routes", () => {
-  const me = (codeGraphs: Me["codeGraphs"]): Me => ({
+  const me = (codeGraphs: Me["codeGraphs"], autoReview = false): Me => ({
     login: "ada",
     githubId: 1,
     session: "web",
     since: "2026-11-01T00:00:00Z",
     codeGraphs,
+    autoReview,
   });
   const paths = (routes: { path: string }[]) => routes.map((r) => r.path);
 
@@ -98,6 +99,11 @@ describe("the routes", () => {
     expect(paths(placeTabs("repositories", me("opt-in")))).toContain("/code-graphs");
     expect(paths(placeTabs("repositories", me("off")))).not.toContain("/code-graphs");
     expect(matchRoute("/code-graphs")).toBeDefined();
+  });
+
+  it("show auto review only where the server reviews pull requests itself", () => {
+    expect(paths(placeTabs("repositories", me("off", true)))).toContain("/auto-review");
+    expect(paths(placeTabs("repositories", me("off")))).not.toContain("/auto-review");
   });
 
   it("start the keys a page shows with /me, not after it (audit C11)", () => {
