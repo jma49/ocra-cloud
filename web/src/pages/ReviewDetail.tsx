@@ -11,6 +11,7 @@ import { useImpact } from "../impact/use-impact.js";
 import { pullPath } from "../pull/path.js";
 import { Link } from "../router.js";
 import { EmptyState, LoadError, Loading, PageHead, Seg } from "../ui.js";
+import { ReviewChat } from "./review-chat.js";
 import { type Finding, FindingEvent } from "./review-finding.js";
 import { Walkthrough } from "./review-walkthrough.js";
 
@@ -116,6 +117,7 @@ export function ReviewDetail(props: { id: string; graphs: boolean }) {
           <h1>Review of {r.repo}</h1>
         </div>
         {data.walkthrough && <Walkthrough w={data.walkthrough} />}
+        <ReviewChat reviewId={r.id} />
         <div className="review-tabs">
           <span className="caps">
             Activity · {data.findings.length} finding{data.findings.length === 1 ? "" : "s"} in{" "}
