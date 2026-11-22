@@ -29,6 +29,9 @@ const Automations = lazy(() =>
 const Learnings = lazy(() =>
   import("./pages/Learnings.js").then((m) => ({ default: m.Learnings })),
 );
+const RepoConfig = lazy(() =>
+  import("./pages/RepoConfig.js").then((m) => ({ default: m.RepoConfig })),
+);
 const AutoReview = lazy(() =>
   import("./pages/AutoReview.js").then((m) => ({ default: m.AutoReview })),
 );
@@ -120,6 +123,12 @@ const ROUTES: readonly Route[] = [
     page: () => <AutoReview />,
   },
   { path: "/learnings", place: "repositories", tab: "Learnings", page: () => <Learnings /> },
+  {
+    path: "/review-config",
+    place: "repositories",
+    tab: "Review config",
+    page: () => <RepoConfig />,
+  },
   { path: "/memory", place: "repositories", tab: "Memory", page: () => <Memory /> },
   { path: "/insights", place: "insights", tab: "Overview", page: () => <Insights /> },
   {
