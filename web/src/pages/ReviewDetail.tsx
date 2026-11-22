@@ -39,6 +39,8 @@ type Detail = {
     prRepository: string | null;
     prNumber: number | null;
     linkedTasks: LinkedTaskView[] | null;
+    /** The ids of the learnings its reviewers were given; null where it did not say. */
+    learnings: string[] | null;
   };
   findings: Finding[];
   walkthrough: ReviewWalkthroughView | null;
@@ -232,6 +234,18 @@ function Properties(props: { r: Review }) {
           </>
         )}
         <LinkedTasks tasks={r.linkedTasks ?? null} />
+        {r.learnings && r.learnings.length > 0 && (
+          <>
+            <dt>Learnings</dt>
+            <dd>
+              <ul className="prop-items mono small">
+                {r.learnings.map((id) => (
+                  <li key={id}>{id}</li>
+                ))}
+              </ul>
+            </dd>
+          </>
+        )}
         <dt>Source</dt>
         <dd>{sourceLabel(r.source)}</dd>
         <dt>Reviewed</dt>

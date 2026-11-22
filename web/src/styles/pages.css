@@ -288,6 +288,13 @@ td.finding-cell {
   min-width: 0;
   overflow-wrap: anywhere;
 }
+.prop-items {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
 .sev-counts {
   display: flex;
   flex-wrap: wrap;
