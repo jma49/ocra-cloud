@@ -17,6 +17,7 @@ import { gateway } from "./gateway.js";
 import { type GraphService, graphsRoute } from "./graph/routes.js";
 import { apiError } from "./http.js";
 import { inbox } from "./inbox.js";
+import { impact } from "./insights-impact.js";
 import { keys } from "./keys.js";
 import { learningsRoute } from "./learnings.js";
 import { liveRoute } from "./live/routes.js";
@@ -158,6 +159,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
   );
   app.route("/insights/cycle", cycles);
   app.route("/insights/flow", flow);
+  app.route("/insights/impact", impact);
   app.route("/insights/reviewers", reviewLoad);
   const hook = githubWebhook(host);
   app.route("/webhooks/github", hook);
