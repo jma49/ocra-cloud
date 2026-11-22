@@ -126,6 +126,21 @@ describe("an issue drafted from a finding on GitHub", () => {
     expect(view.body).toContain("in src/../../etc/passwd L10–12.");
   });
 
+  it("fits within what the platform takes however much the escapes grow the finding's text", async () => {
+    platform({});
+    const a = await signInWithGithub();
+    const { id } = await seed(await accountOf("42"), GITHUB_PULL, {
+      title: "@&".repeat(2048),
+      body: "&@".repeat(2048),
+      suggestion: "<@".repeat(2048),
+      category: "&".repeat(64),
+    });
+    const view = (await (await draftOf(a, id)).json()) as FindingIssueDraftView;
+    expect([...view.title].length).toBeLessThanOrEqual(MAX_ISSUE_TITLE_CHARS);
+    expect(view.body.length).toBeLessThanOrEqual(MAX_ISSUE_BODY_CHARS);
+    expect(view.body).not.toMatch(/&(?!amp;|lt;|gt;)/);
+  });
+
   it("answers not found for a finding of another account, missing, or of no pull request", async () => {
     platform({});
     const a = await signInWithGithub();
