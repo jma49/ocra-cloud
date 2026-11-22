@@ -123,6 +123,7 @@ describe("notices held in quiet hours", () => {
     expect(lines[2]).toContain("hubot commented on your pull request");
     expect(text).toContain("https://console.test/");
     expect(text).not.toContain("<!channel>");
+    expect(text).not.toContain("@mona");
     expect(await data.count("notifyHeld")).toBe(0);
 
     await runHeld(db, out, new Date(afterEnd.getTime() + HOUR));
