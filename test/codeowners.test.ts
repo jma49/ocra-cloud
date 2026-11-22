@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ownersOfPath, parseCodeOwners, patternRegex } from "../src/codeowners.js";
+import { ownersOfPath, parseCodeOwners, patternMatcher } from "../src/codeowners.js";
 import { rankReviewers, withLoad } from "../src/reviewer-rank.js";
 
 // CODEOWNERS read as each platform documents it, and the ranking of the
@@ -10,7 +10,7 @@ const names = (text: string, flavor: "github" | "gitlab", path: string) =>
 
 describe("CODEOWNERS patterns", () => {
   const matches = (pattern: string, path: string, flavor: "github" | "gitlab" = "github") =>
-    patternRegex(pattern, flavor)?.test(path) ?? false;
+    patternMatcher(pattern, flavor)?.test(path) ?? false;
 
   it("reads a name without a slash at any depth, and everything under a directory", () => {
     expect(matches("*.js", "src/a/b.js")).toBe(true);
@@ -36,8 +36,17 @@ describe("CODEOWNERS patterns", () => {
     expect(matches("/src/api", "lib/src/api/x.ts", "gitlab")).toBe(false);
   });
 
+  it("reads a hostile file's many `**` in time that grows with the path, not exponentially", () => {
+    const file = parseCodeOwners(`${"**a".repeat(4)}**b @x`, "github");
+    const started = Date.now();
+    const owners = ["b", "a/b", "c"].map((top) => ownersOfPath(file, `${top}${"a".repeat(200)}`));
+    expect(Date.now() - started).toBeLessThan(2_000);
+    expect(owners).toEqual([[], [], []]);
+    expect(ownersOfPath(file, "aaaab")).toEqual([{ name: "x", kind: "user" }]);
+  }, 120_000);
+
   it("does not read a negation, which neither platform has", () => {
-    expect(patternRegex("!docs/", "github")).toBeUndefined();
+    expect(patternMatcher("!docs/", "github")).toBeUndefined();
     expect(names("* @all\n!docs/ @nobody", "github", "docs/a.md")).toEqual(["user:all"]);
   });
 });
