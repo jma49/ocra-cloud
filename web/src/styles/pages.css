@@ -190,13 +190,6 @@
 .key-input {
   height: 38px;
 }
-.drawer-form {
-  display: flex;
-  flex-direction: column;
-}
-.drawer-form .drawer-foot {
-  margin: 20px -20px -20px;
-}
 .pick.static {
   cursor: default;
 }
@@ -675,12 +668,6 @@ td.finding-cell {
   .pull-review:empty {
     display: none;
   }
-}
-.view-form {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
 }
 .view-group {
   border: 0;
