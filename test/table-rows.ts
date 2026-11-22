@@ -127,6 +127,15 @@ export const rows = {
     submittedAt: new Date(),
   }),
   // The enrolled repository it belongs to is made in beforeEach (the foreign key needs one).
+  pullPaths: (id: string) => ({
+    id,
+    reviewRepoId: "review-repo-of-a",
+    number: 1,
+    head: "c".repeat(40),
+    prefix: `src/${id}`,
+    seenAt: new Date(),
+  }),
+  // The enrolled repository it belongs to is made in beforeEach (the foreign key needs one).
   replyJobs: (id: string) => ({
     id,
     reviewRepoId: "review-repo-of-a",

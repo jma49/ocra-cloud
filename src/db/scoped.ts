@@ -45,6 +45,7 @@ import { accountMergeIntents } from "./merge-intents.js";
 import { accountNotify } from "./notify.js";
 import { type PreferencesSave, savePreferences } from "./preferences.js";
 import { accountPullFlows } from "./pull-flows.js";
+import { accountPullPaths } from "./pull-paths.js";
 import { accountPullSeen } from "./pull-seen.js";
 import { accountPullViews } from "./pull-views.js";
 import { accountReplyJobs } from "./reply-jobs.js";
@@ -433,6 +434,7 @@ export function scoped(db: Db, accountId: string) {
     reports: accountReports(db, accountId),
     closedPulls: accountClosedPulls(db, accountId),
     pullFlows: accountPullFlows(db, accountId),
+    pullPaths: accountPullPaths(db, accountId),
     replies: accountReplyJobs(db, accountId),
     chat: accountReviewChat(db, accountId),
     generations: accountGenerateJobs(db, accountId),

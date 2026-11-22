@@ -117,6 +117,7 @@ describe("deleting an account", () => {
           "closedPulls",
           "pullFlows",
           "pullReviews",
+          "pullPaths",
           "mergeChecks",
           "mergeCheckRuns",
           "liveEvents",
@@ -152,7 +153,7 @@ describe("deleting an account", () => {
       ...rows.generateJobs(id("generateJobs")),
       reviewRepoId: id("reviewRepos"),
     });
-    for (const table of ["closedPulls", "pullFlows", "pullReviews"] as const) {
+    for (const table of ["closedPulls", "pullFlows", "pullReviews", "pullPaths"] as const) {
       await d.insert(table, { ...rows[table](id(table)), reviewRepoId: id("reviewRepos") });
     }
     await d.insert("mergeChecks", {

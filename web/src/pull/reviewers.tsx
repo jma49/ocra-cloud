@@ -11,15 +11,17 @@ import { api, why } from "../api.js";
 import { useAction, useLoad } from "../ui.js";
 import { OUTCOME } from "./outcome.js";
 
-// Reviewers suggested for the pull request: the changed files' code owners
-// and the repository's recent reviewers, each with the reviews they are
-// asked for now; one is asked from here, as the user.
+// Reviewers suggested for the pull request: the changed files' code owners,
+// who reviewed changes to the same directories and the repository's recent
+// reviewers, each with the reviews they are asked for now; one is asked
+// from here, as the user.
 
 type Ref = { platform: CodePlatformKind; repo: string; number: number };
 
 const REASON: Record<ReviewerReason, string> = {
   codeowner: "code owner",
   recent_reviewer: "reviews here",
+  reviewed_these_paths: "reviews these paths",
 };
 
 const count = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
@@ -27,6 +29,9 @@ const count = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
 const detail = (s: SuggestedReviewer, days: number) =>
   [
     s.ownedFiles > 0 ? `owns ${count(s.ownedFiles, "changed file")}` : "",
+    s.reviewedPaths
+      ? `reviewed ${count(s.reviewedPaths.pulls, "PR")} in ${s.reviewedPaths.prefix}`
+      : "",
     s.recentReviews > 0 ? `${count(s.recentReviews, "review")} in ${days} days` : "",
     s.load === null ? "" : `${count(s.load, "open request")}`,
   ]

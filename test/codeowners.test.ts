@@ -116,11 +116,33 @@ describe("reviewer ranking", () => {
         { login: "project_7_bot_ab12", reviews: 30 },
         { login: "ALICE", reviews: 9 },
       ],
+      paths: [],
     });
     expect(ranked.map((r) => [r.login, r.score, r.reasons, r.alreadyRequested])).toEqual([
       ["carol", 14, ["codeowner", "recent_reviewer"], true],
       ["bob", 12, ["codeowner"], false],
       ["dave", 10, ["recent_reviewer"], false],
+    ]);
+  });
+
+  it("adds reviews in the changed directories, capped, naming the one reviewed most in", () => {
+    const ranked = rankReviewers({
+      author: "alice",
+      requested: [],
+      owners: [],
+      history: [{ login: "erin", reviews: 1 }],
+      paths: [
+        { login: "erin", prefix: "src", pulls: 2 },
+        { login: "erin", prefix: "src/db", pulls: 2 },
+        { login: "erin", prefix: "web", pulls: 1 },
+        { login: "frank", prefix: "docs", pulls: 40 },
+        { login: "alice", prefix: "src", pulls: 9 },
+        { login: "renovate[bot]", prefix: "src", pulls: 9 },
+      ],
+    });
+    expect(ranked.map((r) => [r.login, r.score, r.reasons, r.reviewedPaths])).toEqual([
+      ["frank", 10, ["reviewed_these_paths"], { prefix: "docs", pulls: 40 }],
+      ["erin", 5, ["reviewed_these_paths", "recent_reviewer"], { prefix: "src/db", pulls: 2 }],
     ]);
   });
 
@@ -133,6 +155,7 @@ describe("reviewer ranking", () => {
         { login: "b", reviews: 10 },
         { login: "c", reviews: 2 },
       ],
+      paths: [],
     });
     const loaded = withLoad(ranked, [9, 0, null]);
     expect(loaded.map((r) => [r.login, r.score, r.load])).toEqual([

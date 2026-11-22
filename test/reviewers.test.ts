@@ -93,12 +93,18 @@ async function enroll(accountId: string, platformRepoId = "1") {
   return id;
 }
 
-async function reviewed(accountId: string, repoId: string, reviewer: string, times: number) {
+async function reviewed(
+  accountId: string,
+  repoId: string,
+  reviewer: string,
+  times: number,
+  from = 100,
+) {
   const flows = scoped(db, accountId).pullFlows;
   for (let i = 0; i < times; i++) {
     const event = {
       reviewRepoId: repoId,
-      number: 100 + i,
+      number: from + i,
       title: "x",
       author: "someone",
       draft: false,
@@ -154,6 +160,36 @@ describe("suggested reviewers on GitHub", () => {
       "is:pr is:open archived:false review-requested:lead",
       "is:pr is:open archived:false review-requested:veteran",
     ]);
+  });
+
+  it("ranks higher who reviewed pull requests changing the same directories, and says where", async () => {
+    githubPlatform();
+    const a = await signInWithGithub();
+    const me = await accountId();
+    const repo = await enroll(me);
+    await reviewed(me, repo, "pathfinder", 3);
+    await reviewed(me, repo, "veteran", 4, 200);
+    const paths = scoped(db, me).pullPaths;
+    await paths.keep(repo, 100, HEAD, ["src", "src/db"], new Date());
+    await paths.keep(repo, 101, HEAD, ["src", "src/db", "web"], new Date());
+    await paths.keep(repo, 102, HEAD, ["web"], new Date());
+    await paths.keep(repo, 200, HEAD, ["web"], new Date());
+    // Another account's kept directories of its own repository never count.
+    const other = await signIn(9, "eve");
+    const theirs = await enroll(other.account.id, "2");
+    await reviewed(other.account.id, theirs, "outsider", 3);
+    await scoped(db, other.account.id).pullPaths.keep(theirs, 100, HEAD, ["src"], new Date());
+    const view = await suggest(a.send);
+    const pathfinder = view.suggestions.find((s) => s.login === "pathfinder");
+    expect(pathfinder).toMatchObject({
+      reasons: ["reviewed_these_paths", "recent_reviewer"],
+      reviewedPaths: { prefix: "src/db", pulls: 2 },
+      recentReviews: 3,
+      score: 3 + 2 * 2 - 1,
+    });
+    const veteran = view.suggestions.find((s) => s.login === "veteran");
+    expect(veteran).toMatchObject({ reasons: ["recent_reviewer"], reviewedPaths: null, score: 3 });
+    expect(view.suggestions.map((s) => s.login)).not.toContain("outsider");
   });
 
   it("suggests only code owners for a repository the account has not enrolled", async () => {
