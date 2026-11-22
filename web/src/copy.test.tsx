@@ -25,6 +25,8 @@ function fakeApi() {
       const path = String(input);
       if (path.endsWith("/api/providers")) return Response.json({ providers });
       if (path.endsWith("/api/keys")) return Response.json({ keys: [] });
+      if (path.endsWith("/api/sessions")) return Response.json({ sessions: [] });
+      if (path.includes("/api/reviews")) return Response.json({ summary: { reviews: 0 } });
       if (path.includes("/api/usage"))
         return Response.json({
           days: 14,
