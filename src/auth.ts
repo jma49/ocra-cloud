@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { audit } from "./audit.js";
 import { githubIdentity, upsertAccount } from "./db/accounts.js";
 import { scoped } from "./db/scoped.js";
 import { deadline } from "./deadline.js";
@@ -92,12 +93,13 @@ auth.get("/github/callback", async (c) => {
   // Kept so the console can read what the user reaches on GitHub
   // (./platforms/links.ts).
   await saveToken(scoped(c.var.db, account.id), c.env, github(client), tokenBody);
-  await signInBrowser(c, account.id);
+  await signInBrowser(c, account.id, "github");
   return c.redirect(signIn.next, 302);
 });
 
 auth.post("/logout", requireSession(["web", "cli"]), async (c) => {
   await c.var.data.remove("sessions", c.var.session.sessionId);
+  await audit(c.var.data, "session.signed_out", { client: c.var.session.kind });
   clearSessionCookie(c);
   return c.json({ ok: true });
 });

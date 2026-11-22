@@ -120,6 +120,24 @@ describe("query plans", () => {
     },
   );
 
+  it("an audit page walks an index in (created_at, id) order, of all kinds or one", async () => {
+    const seen: Captured[] = [];
+    const d = scoped(drizzle(recording(seen)), "acct");
+    const after = { createdAt: new Date(5), id: "x" };
+    const range = { since: new Date(0), until: new Date(9) };
+    await d.audit.page({}, 50);
+    await d.audit.page(range, 50, after);
+    await d.audit.page({ kind: "key.saved" }, 50);
+    await d.audit.page({ kind: "key.saved", ...range }, 50, after);
+    expect(seen).toHaveLength(4);
+    for (const [i, q] of seen.entries()) {
+      const p = await plan(q);
+      const index = i < 2 ? "audit_events_account_created" : "audit_events_account_kind_created";
+      expect(p, q.sql).toMatch(new RegExp(`SEARCH audit_events USING INDEX ${index} `));
+      expect(p, q.sql).not.toMatch(/\bSCAN\b|TEMP B-TREE/);
+    }
+  });
+
   it("find, count, listNewest and liveSessions search an index on account_id (#34)", async () => {
     const seen: Captured[] = [];
     const d = scoped(drizzle(recording(seen)), "acct");

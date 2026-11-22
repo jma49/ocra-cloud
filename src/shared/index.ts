@@ -4,6 +4,7 @@
 // imports the database or the Worker (test/shared-boundary.test.ts).
 
 export * from "./agents.js";
+export * from "./audit.js";
 export * from "./auto-review.js";
 export * from "./automations.js";
 export * from "./cycles.js";

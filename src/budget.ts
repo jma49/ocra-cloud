@@ -1,5 +1,6 @@
 import { type Context, Hono } from "hono";
 import { z } from "zod";
+import { auditRow } from "./audit.js";
 import { config } from "./config.js";
 import { jsonBody } from "./http.js";
 import { perMinute } from "./rate.js";
@@ -31,6 +32,9 @@ budget.get("/", requireSession(), (c) => answer(c));
 
 budget.put("/", requireSession(), perMinute("settings"), jsonBody(budgetSchema), async (c) => {
   const { dailyCalls } = c.req.valid("json");
-  await c.var.data.batch((w) => [w.upsert("budgets", { dailyCalls }, ["accountId"])]);
+  await c.var.data.batch((w) => [
+    w.upsert("budgets", { dailyCalls }, ["accountId"]),
+    w.insert("auditEvents", auditRow("budget.changed", { dailyCalls })),
+  ]);
   return answer(c);
 });

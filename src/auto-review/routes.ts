@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { z } from "zod";
+import { audit } from "../audit.js";
 import { randomToken, sha256Hex } from "../crypto.js";
 import type { ReviewJobSummary } from "../db/review-jobs.js";
 import type { Row } from "../db/scoped.js";
@@ -112,6 +113,10 @@ export function autoReviewRoute(service: AutoReviewService) {
       }
       const repo = await c.var.data.get("reviewRepos", id);
       if (!repo) return apiError(c, "not_found");
+      await audit(c.var.data, "auto_review.enrolled", {
+        repo: repo.fullName,
+        platform: repo.platform,
+      });
       const hook =
         platform.kind === "gitlab" ? "/api/auto-review/webhooks/gitlab" : "/api/webhooks/github";
       return c.json({
@@ -134,16 +139,23 @@ export function autoReviewRoute(service: AutoReviewService) {
     jsonBody(profileBody),
     async (c) => {
       const { profile } = c.req.valid("json");
-      const changed = await c.var.data.update("reviewRepos", c.req.param("id"), {
-        reviewProfile: profile,
-      });
-      if (!changed) return apiError(c, "not_found");
+      const repo = await c.var.data.get("reviewRepos", c.req.param("id"));
+      const changed =
+        repo &&
+        (await c.var.data.update("reviewRepos", repo.id, {
+          reviewProfile: profile,
+        }));
+      if (!repo || !changed) return apiError(c, "not_found");
+      await audit(c.var.data, "auto_review.profile_changed", { repo: repo.fullName, profile });
       return c.json({ profile } satisfies ReviewProfileView);
     },
   );
 
   route.delete("/repos/:id", requireSession(["web"]), async (c) => {
-    return c.json({ removed: await c.var.data.remove("reviewRepos", c.req.param("id")) });
+    const repo = await c.var.data.get("reviewRepos", c.req.param("id"));
+    const removed = repo !== undefined && (await c.var.data.remove("reviewRepos", repo.id));
+    if (repo && removed) await audit(c.var.data, "auto_review.unenrolled", { repo: repo.fullName });
+    return c.json({ removed });
   });
 
   return route;

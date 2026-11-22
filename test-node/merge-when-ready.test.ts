@@ -205,7 +205,10 @@ describe("merge when ready", () => {
     expect(merges).toEqual([{ merge_method: "squash", sha: C1 }]);
     expect(chats).toHaveLength(1);
     expect(chats[0]).toContain("was merged");
-    const kinds = (await data.find("auditEvents", {})).map((e) => e.kind).sort();
+    const kinds = (await data.find("auditEvents", {}))
+      .map((e) => e.kind)
+      .filter((k) => k.startsWith("merge_when_ready."))
+      .sort();
     expect(kinds).toEqual(["merge_when_ready.armed", "merge_when_ready.merged"]);
   });
 

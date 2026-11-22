@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { AuditPage } from "../src/shared/index.js";
 import { FILE, HEAD, seed } from "./fix-fakes.js";
 import { resetDb } from "./helpers.js";
 import { connectGitlab, GITLAB, githubFake, signInWithGithub } from "./platform-fakes.js";
@@ -67,6 +68,10 @@ describe("applying a finding's fix on GitHub", () => {
     expect(body).toMatchObject({ sha: "blob1", branch: "feature" });
     expect(body.message).toBe("Apply ocra's fix: SQL built from input");
     expect(await data.get("findings", id)).toMatchObject({ status: "fixed", fixedVia: "applied" });
+    const log = (await (await a.send("/api/audit")).json()) as AuditPage;
+    expect(log.events.filter((e) => e.kind !== "session.signed_in")).toMatchObject([
+      { kind: "pull.fix_applied", detail: { pull: "octo/api#7", finding: id } },
+    ]);
   });
 
   it("commits nothing on a pull request that moved since the review", async () => {

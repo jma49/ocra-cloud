@@ -1,5 +1,6 @@
 import type { Context, MiddlewareHandler } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
+import { audit } from "./audit.js";
 import { randomToken, sha256Hex } from "./crypto.js";
 import {
   revokeSession,
@@ -102,10 +103,15 @@ export function needsRecentSignIn(c: Context<AppEnv>): Response | undefined {
  * held before ends now, not at its idle or 30-day end, since nothing in this
  * browser can reach it again (#92).
  */
-export async function signInBrowser(c: Context<AppEnv>, accountId: string): Promise<void> {
+export async function signInBrowser(
+  c: Context<AppEnv>,
+  accountId: string,
+  method: "github" | "oidc",
+): Promise<void> {
   const replaced = getCookie(c, SESSION_COOKIE);
   if (replaced) await revokeWebSession(c.var.db, await sha256Hex(replaced));
   setSessionCookie(c, await startWebSession(c.var.db, accountId));
+  await audit(scoped(c.var.db, accountId), "session.signed_in", { client: "web", method });
 }
 
 /** Starts a browser session and returns its token, set once as a cookie. */

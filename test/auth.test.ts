@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { AuditPage } from "../src/shared/index.js";
 import { call, ORIGIN, resetDb, signIn, signInCli } from "./helpers.js";
 
 beforeEach(resetDb);
@@ -70,6 +71,10 @@ describe("GitHub sign-in", () => {
     const exchange = fake.mock.calls.find(([i]) => new Request(i).url.includes("access_token"));
     expect(String(exchange?.[1]?.body)).toContain("test-client-secret");
 
+    const log = await call("/api/audit", { headers: { cookie: `${SESSION}=${session}` } });
+    expect(((await log.json()) as AuditPage).events).toMatchObject([
+      { kind: "session.signed_in", detail: { client: "web", method: "github" } },
+    ]);
     const me = await call("/api/me", { headers: { cookie: `${SESSION}=${session}` } });
     expect(await me.json()).toMatchObject({
       login: "octo",

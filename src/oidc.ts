@@ -150,6 +150,6 @@ oidc.get("/callback", async (c) => {
     const platform = gitlab(lab, gitlabCallback(c.req.url));
     await saveToken(scoped(c.var.db, account.id), c.env, platform, token);
   }
-  await signInBrowser(c, account.id);
+  await signInBrowser(c, account.id, "oidc");
   return c.redirect(signIn.next, 302);
 });

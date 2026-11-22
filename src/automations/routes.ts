@@ -1,6 +1,7 @@
 import { VERDICTS } from "@open-cr-agent/cloud-contract";
 import { Hono } from "hono";
 import { z } from "zod";
+import { audit } from "../audit.js";
 import { newId, type Row } from "../db/scoped.js";
 import { apiError, jsonBody } from "../http.js";
 import { perMinute } from "../rate.js";
@@ -181,6 +182,7 @@ automationsRoute.post("/rules", perMinute("settings"), jsonBody(ruleBody), async
   }
   const stored = await c.var.data.get("automationRules", id);
   if (!stored) return apiError(c, "not_found");
+  await audit(c.var.data, "automation.added", { rule: id, trigger: stored.trigger });
   return c.json({ rule: ruleView(stored, c.var.bots !== undefined) });
 });
 
@@ -195,11 +197,19 @@ automationsRoute.put("/rules/:id", perMinute("settings"), jsonBody(ruleBody), as
   });
   const stored = changed && (await c.var.data.get("automationRules", id));
   if (!stored) return apiError(c, "not_found");
+  await audit(c.var.data, "automation.changed", {
+    rule: id,
+    trigger: stored.trigger,
+    enabled: stored.enabled,
+  });
   return c.json({ rule: ruleView(stored, c.var.bots !== undefined) });
 });
 
 automationsRoute.delete("/rules/:id", async (c) => {
-  return c.json({ removed: await c.var.data.remove("automationRules", c.req.param("id")) });
+  const id = c.req.param("id");
+  const removed = await c.var.data.remove("automationRules", id);
+  if (removed) await audit(c.var.data, "automation.removed", { rule: id });
+  return c.json({ removed });
 });
 
 automationsRoute.get("/runs", async (c) => {

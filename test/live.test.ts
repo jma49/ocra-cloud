@@ -1,7 +1,13 @@
 import fixture from "@open-cr-agent/cloud-contract/fixtures/events.json" with { type: "json" };
 import { beforeEach, describe, expect, it } from "vitest";
 import { setSharing } from "../src/db/accounts.js";
-import type { LiveCommentView, LiveRunView, LiveShareView } from "../src/shared/index.js";
+import type {
+  AuditPage,
+  LiveCommentView,
+  LiveRunView,
+  LiveShareView,
+} from "../src/shared/index.js";
+import { auditLines, lines } from "./audit-lines.js";
 import { call, db, ORIGIN, resetDb, signIn, signInCli } from "./helpers.js";
 
 beforeEach(resetDb);
@@ -145,7 +151,16 @@ describe("sharing a run", () => {
 
     const grant = added.people[0]?.id ?? "";
     await o("DELETE", `/api/live/${id}/people/${grant}`);
+    await o("DELETE", `/api/live/${id}/people/${grant}`);
     expect((await guest("GET", `/api/live/${id}`)).status).toBe(404);
+    const log = (await (await o("GET", "/api/audit")).json()) as AuditPage;
+    expect(auditLines(log.events)).toEqual(
+      lines(
+        ["live.person_removed", { run: id }],
+        ["live.person_added", { run: id, login: "mona", role: "comment" }],
+        ["live.person_added", { run: id, login: "mona", role: "watch" }],
+      ),
+    );
   });
 
   it("opens to anyone signed in with the link, until it is replaced or turned off", async () => {
@@ -176,6 +191,15 @@ describe("sharing a run", () => {
     await o("DELETE", `/api/live/${id}/link`);
     const k2 = new URL(replaced.link?.url ?? "").searchParams.get("k");
     expect((await guest("GET", `/api/live/${id}?k=${k2}`)).status).toBe(404);
+    const log = (await (await o("GET", "/api/audit")).json()) as AuditPage;
+    expect(auditLines(log.events)).toEqual(
+      lines(
+        ...[null, "comment", "comment", "watch"].map((role): [string, unknown] => [
+          "live.link_changed",
+          { run: id, role },
+        ]),
+      ),
+    );
   });
 
   it("refuses a name nobody signs in under, and the owner's own", async () => {

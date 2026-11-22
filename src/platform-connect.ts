@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { deleteCookie, getSignedCookie, setSignedCookie } from "hono/cookie";
+import { audit } from "./audit.js";
 import { randomToken } from "./crypto.js";
 import { apiError } from "./http.js";
 import { gitlab, gitlabToken, gitlabUser } from "./platforms/gitlab.js";
@@ -67,5 +68,6 @@ platformConnect.get("/gitlab/callback", requireSession(), async (c) => {
     Date.now(),
     user ?? undefined,
   );
+  await audit(c.var.data, "platform.connected", { platform: "gitlab" });
   return c.redirect("/repositories", 302);
 });

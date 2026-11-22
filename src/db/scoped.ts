@@ -14,6 +14,7 @@ import {
 } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 import { getTableConfig, type SQLiteColumn } from "drizzle-orm/sqlite-core";
+import { accountAuditEvents } from "./audit-events.js";
 import { accountAutomations } from "./automations.js";
 import { changedRows, type Db, first } from "./client.js";
 import { accountClosedPulls } from "./closed-pulls.js";
@@ -452,6 +453,7 @@ export function scoped(db: Db, accountId: string) {
     replies: accountReplyJobs(db, accountId),
     chat: accountReviewChat(db, accountId),
     generations: accountGenerateJobs(db, accountId),
+    audit: accountAuditEvents(db, accountId),
     automations: accountAutomations(db, accountId),
     mergeChecks: accountMergeChecks(db, accountId),
     mergeIntents: accountMergeIntents(db, accountId),

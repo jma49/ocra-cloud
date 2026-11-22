@@ -5,6 +5,7 @@ import {
 } from "@open-cr-agent/cloud-contract";
 import { Hono, type MiddlewareHandler } from "hono";
 import { z } from "zod";
+import { audit } from "./audit.js";
 import { config } from "./config.js";
 import { hmacHex, randomToken, sha256Hex } from "./crypto.js";
 import {
@@ -15,6 +16,7 @@ import {
   decide,
   recordPoll,
 } from "./db/device.js";
+import { scoped } from "./db/scoped.js";
 import { apiError, jsonBody } from "./http.js";
 import { retryTomorrow } from "./rate.js";
 import {
@@ -161,6 +163,7 @@ device.post("/decide", requireSession(), limitLookups, jsonBody(decideRequest), 
   const approve = body.approve;
   const ok = await decide(c.var.db, row.id, approve, c.var.session.account.id);
   if (!ok) return apiError(c, "already_decided");
+  await audit(c.var.data, "device.decided", { approved: approve });
   return c.json({ approved: approve });
 });
 
@@ -186,9 +189,17 @@ device.post("/token", jsonBody(deviceTokenRequestSchema, RFC_INVALID), async (c)
     const again = await reissueCliSession(c.var.db, row.approvedAccountId, row.id, now);
     return again ? c.json(again) : apiError(c, "invalid_grant");
   }
-  return c.json(
-    await startCliSession(c.var.db, row.approvedAccountId, row.label ?? "Terminal", row.id),
+  const tokens = await startCliSession(
+    c.var.db,
+    row.approvedAccountId,
+    row.label ?? "Terminal",
+    row.id,
   );
+  await audit(scoped(c.var.db, row.approvedAccountId), "session.signed_in", {
+    client: "cli",
+    method: "device",
+  });
+  return c.json(tokens);
 });
 
 device.post("/refresh", jsonBody(refreshRequestSchema, RFC_INVALID), async (c) => {
