@@ -107,6 +107,11 @@ describe("OpenID Connect sign-in", () => {
     const session = cookieOf(res, SESSION);
     const me = await call("/api/me", { headers: { cookie: session ?? "" } });
     expect(await me.json()).toMatchObject({ login: "ada", githubId: null, session: "web" });
+    // Another provider's sign-in is no GitLab link: GitLab is connected on its own.
+    const { platforms } = (await (
+      await call("/api/platforms/repos", { headers: { cookie: session ?? "" } })
+    ).json()) as { platforms: { platform: string; linked: boolean }[] };
+    expect(platforms.find((p) => p.platform === "gitlab")?.linked).toBe(false);
   });
 
   it("finds the same account on the next sign-in, with the login kept current", async () => {
