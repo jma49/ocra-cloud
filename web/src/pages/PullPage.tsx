@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import type {
   CodePlatformKind,
   LineComment,
@@ -10,6 +11,7 @@ import type {
 } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
 import { PlatformMark } from "../platform-mark.js";
+import { ChecksBox } from "../pull/checks-box.js";
 import { splitPath } from "../pull/diff.js";
 import { FileDiff } from "../pull/file-diff.js";
 import { GenerateBox } from "../pull/generate-box.js";
@@ -124,6 +126,7 @@ export function PullPage(props: {
             })}
           </nav>
           <ReviewBox data={data} pull={ref} pending={pending} onDone={(o) => done("Review", o)} />
+          <ChecksBox pull={ref} head={data.head} />
           {props.runner && <GenerateBox pull={ref} head={data.head} />}
           {queue.data?.enabled ? (
             <QueueBox
@@ -208,14 +211,9 @@ function ReviewBox(props: {
             ? "1 line comment goes with it."
             : `${props.pending.length} line comments go with it.`}
       </span>
-      <button
-        type="button"
-        className="btn btn-primary"
-        disabled={send.busy || empty}
-        onClick={submit}
-      >
+      <Button disabled={send.busy || empty} onClick={submit}>
         Submit review
-      </button>
+      </Button>
       {send.error !== null && (
         <p className="error" role="alert">
           Could not send the review: {why(send.error)}.
@@ -256,22 +254,17 @@ function MergeBox(props: {
       </select>
       {asking ? (
         <div className="row-gap">
-          <button
-            type="button"
-            className="btn btn-primary grow"
-            disabled={merge.busy}
-            onClick={confirm}
-          >
+          <Button className="grow" disabled={merge.busy} onClick={confirm}>
             Confirm: {METHOD[method].toLowerCase()}
-          </button>
-          <button type="button" className="btn" onClick={() => setAsking(false)}>
+          </Button>
+          <Button variant="outline" onClick={() => setAsking(false)}>
             Cancel
-          </button>
+          </Button>
         </div>
       ) : (
-        <button type="button" className="btn" onClick={() => setAsking(true)}>
+        <Button variant="outline" onClick={() => setAsking(true)}>
           Merge pull request
-        </button>
+        </Button>
       )}
       {merge.error !== null && (
         <p className="error" role="alert">

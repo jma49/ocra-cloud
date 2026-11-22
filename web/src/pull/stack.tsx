@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import type {
   CodePlatformKind,
   MergeMethod,
@@ -140,23 +141,18 @@ function MergeStack(props: { pull: Ref; chain: StackedPull[]; methods: MergeMeth
             </select>
           )}
           <div className="row-gap">
-            <button
-              type="button"
-              className="btn btn-primary grow"
-              disabled={merge.busy}
-              onClick={confirm}
-            >
+            <Button className="grow" disabled={merge.busy} onClick={confirm}>
               Confirm: merge {n}
-            </button>
-            <button type="button" className="btn" onClick={() => setAsking(false)}>
+            </Button>
+            <Button variant="outline" onClick={() => setAsking(false)}>
               Cancel
-            </button>
+            </Button>
           </div>
         </>
       ) : (
-        <button type="button" className="btn" onClick={() => setAsking(true)}>
+        <Button variant="outline" onClick={() => setAsking(true)}>
           Merge stack up to here
-        </button>
+        </Button>
       )}
       {steps && (
         <ul className="pull-stack-steps small" role="status">

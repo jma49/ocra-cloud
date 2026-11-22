@@ -1,4 +1,5 @@
 import { type FormEvent, useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { ApiError, api, type KeyCheck, type ProviderInfo } from "../api.js";
 import { CloseGlyph, DoneGlyph } from "../glyphs.js";
 import { ActionError, ProviderLogo } from "../ui.js";
@@ -158,16 +159,17 @@ export function AddKeyDrawer(props: {
                 <div className="subtle small mono">{new URL(p.base).host}</div>
               </div>
               {!props.initial && (
-                <button
+                <Button
                   type="button"
-                  className="btn btn-sm"
+                  variant="outline"
+                  size="sm"
                   onClick={() => {
                     setChosen(null);
                     setResult(null);
                   }}
                 >
                   Change
-                </button>
+                </Button>
               )}
             </div>
             <div className="field">
@@ -211,16 +213,12 @@ export function AddKeyDrawer(props: {
               ))}
             <div className="grow" />
             <div className="drawer-foot">
-              <button type="button" className="btn" onClick={props.onClose}>
+              <Button type="button" variant="outline" onClick={props.onClose}>
                 {result ? "Done" : "Cancel"}
-              </button>
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={busy || value.trim().length < 8}
-              >
+              </Button>
+              <Button type="submit" disabled={busy || value.trim().length < 8}>
                 {busy ? "Checking…" : "Save and test"}
-              </button>
+              </Button>
             </div>
           </form>
         )}

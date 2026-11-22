@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import { loadKeys } from "../account-keys.js";
 import { api, type Reviews, type Session, type Usage } from "../api.js";
 import { useCached } from "../cache.js";
@@ -69,9 +70,9 @@ export function Overview(props: { login: string }) {
         <div className="card">
           <div className="card-head">
             <h3>Requests, last 14 days</h3>
-            <Link to="/activity" className="btn btn-sm">
+            <Button variant="outline" size="sm" render={<Link to="/activity" />}>
               View activity
-            </Link>
+            </Button>
           </div>
           {usage && anyCalls ? (
             <StackedBars series={usage.series} metric="calls" />

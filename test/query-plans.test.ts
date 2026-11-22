@@ -68,11 +68,14 @@ const TABLE: Record<string, string> = {
   reviewRepos: "review_repos",
   reviewJobs: "review_jobs",
   notifyChannels: "notify_channels",
+  closedPulls: "closed_pulls",
   replyJobs: "reply_jobs",
   generateJobs: "generate_jobs",
   reviewWalkthroughs: "review_walkthroughs",
   automationRules: "automation_rules",
   automationRuns: "automation_runs",
+  mergeChecks: "merge_checks",
+  mergeCheckRuns: "merge_check_runs",
 };
 
 describe("query plans", () => {
@@ -140,6 +143,19 @@ describe("query plans", () => {
     expect(counts).toMatch(
       /SEARCH findings USING (COVERING )?INDEX findings_account_status_created/,
     );
+  });
+
+  it("the daily digest reads reviews and findings through their account indexes", async () => {
+    const seen: Captured[] = [];
+    const d = scoped(drizzle(recording(seen)), "acct");
+    await d.notify.digestOf(new Date(0), new Date(), true);
+    await d.notify.digesting();
+    await d.notify.listening(["every"]);
+    expect(seen).toHaveLength(4);
+    const [reviews, findings, ...channels] = await Promise.all(seen.map(plan));
+    expect(reviews).toMatch(/SEARCH reviews USING INDEX reviews_account_created/);
+    expect(findings).toMatch(/SEARCH findings USING INDEX findings_account_status_created/);
+    for (const p of [reviews, findings, ...channels]) expect(p).not.toMatch(/\bSCAN\b/);
   });
 
   it("a review's findings are found by review_id, for the delete's cascade", async () => {
@@ -221,6 +237,21 @@ describe("checking a cap", () => {
   });
 });
 
+describe("the weekly report", () => {
+  it("reads closed pull requests through the (account_id, closed_at) index", async () => {
+    const seen: Captured[] = [];
+    const d = scoped(drizzle(recording(seen)), "acct");
+    await d.closedPulls.mergedBetween(new Date(0), new Date(), 5);
+    await d.closedPulls.mergeTimes(new Date(0), new Date(), 10);
+    expect(seen).toHaveLength(3);
+    for (const q of seen) {
+      const p = await plan(q);
+      expect(p, q.sql).toMatch(/SEARCH closed_pulls USING INDEX closed_pulls_account_closed/);
+      expect(p, q.sql).not.toMatch(/SCAN closed_pulls/);
+    }
+  });
+});
+
 describe("retention", () => {
   it("finds each table's old rows through an index, never reading the whole table (audit C3)", async () => {
     const seen: Captured[] = [];
@@ -233,6 +264,7 @@ describe("retention", () => {
     expect([...plans.keys()].sort()).toEqual([
       "audit_events",
       "automation_runs",
+      "closed_pulls",
       "device_codes",
       "gateway_calls",
       "rate_windows",

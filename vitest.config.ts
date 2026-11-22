@@ -22,6 +22,11 @@ const POSTGRES_EXCLUDE = [
 // the same tests on Node with Postgres (PGlite), but those that read D1
 // itself; the self-hosted server's on Node, with a SQLite file; the web
 // app's in a simulated browser.
+
+// CI runs node and web in one job with postgres, every core busy, where a
+// test that starts PGlite or imports the whole app can pass five seconds.
+const SHARED_RUNNER_TIMEOUT = 15_000;
+
 export default defineConfig({
   test: {
     projects: [
@@ -69,14 +74,17 @@ export default defineConfig({
           name: "node",
           environment: "node",
           include: ["test-node/**/*.test.ts"],
+          testTimeout: SHARED_RUNNER_TIMEOUT,
         },
       },
       {
         plugins: [react()],
+        resolve: { alias: { "@": resolve("web/src") } },
         test: {
           name: "web",
           environment: "happy-dom",
           include: ["web/src/**/*.test.{ts,tsx}"],
+          testTimeout: SHARED_RUNNER_TIMEOUT,
         },
       },
     ],

@@ -1,4 +1,6 @@
 import { Component, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { SignInMethod } from "../../src/shared/index.js";
 import { api, type Day, needsSignIn, type ProviderInfo, why } from "./api.js";
 import { compact } from "./format.js";
@@ -24,19 +26,22 @@ export function Seg<T extends string | number>(props: {
   label: string;
 }) {
   return (
-    <fieldset className="seg" aria-label={props.label}>
+    <ToggleGroup
+      className="seg"
+      size="sm"
+      aria-label={props.label}
+      value={[String(props.value)]}
+      onValueChange={(values) => {
+        const picked = props.options.find((o) => String(o.value) === values[0]);
+        if (picked) props.onChange(picked.value);
+      }}
+    >
       {props.options.map((o) => (
-        <button
-          key={String(o.value)}
-          type="button"
-          aria-pressed={o.value === props.value}
-          className={o.value === props.value ? "on" : ""}
-          onClick={() => props.onChange(o.value)}
-        >
+        <ToggleGroupItem key={String(o.value)} value={String(o.value)}>
           {o.label}
-        </button>
+        </ToggleGroupItem>
       ))}
-    </fieldset>
+    </ToggleGroup>
   );
 }
 
@@ -166,9 +171,9 @@ export function LoadError(props: { what: string; error: unknown; retry: () => vo
     <div className="card empty-hero" role="alert">
       <h3>Could not load {props.what}</h3>
       <p>{capital(why(props.error))}.</p>
-      <button type="button" className="btn" onClick={props.retry}>
+      <Button type="button" variant="outline" onClick={props.retry}>
         Try again
-      </button>
+      </Button>
     </div>
   );
 }
@@ -183,9 +188,13 @@ export function ActionError(props: { what: string; error: unknown }) {
     <p className="error" role="alert">
       Could not {props.what}: {why(props.error)}.{" "}
       {needsSignIn(props.error) && method && (
-        <a className="btn btn-sm" href={signInHref(method, location.pathname)}>
+        <Button
+          variant="outline"
+          size="sm"
+          render={<a href={signInHref(method, location.pathname)} />}
+        >
           Sign in again
-        </a>
+        </Button>
       )}
     </p>
   );
@@ -200,9 +209,9 @@ export function NotFound() {
       <div className="card empty-hero">
         <h3>There is no page at this address</h3>
         <p>The link may be mistyped, or the page has moved.</p>
-        <Link to="/" className="btn">
+        <Button variant="outline" render={<Link to="/" />}>
           Back to overview
-        </Link>
+        </Button>
       </div>
     </>
   );
@@ -222,9 +231,9 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { failed: 
         <div className="card empty-hero" role="alert">
           <h3>This page could not be shown</h3>
           <p>Reload to try again. The rest of the console still works.</p>
-          <button type="button" className="btn" onClick={() => location.reload()}>
+          <Button type="button" variant="outline" onClick={() => location.reload()}>
             Reload
-          </button>
+          </Button>
         </div>
       </>
     );

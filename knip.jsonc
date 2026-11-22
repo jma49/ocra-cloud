@@ -15,8 +15,12 @@
     // cloudflare:test and cloudflare:workers are runtime modules, not packages.
     "cloudflare",
     // Imported from CSS, which knip does not read.
-    "@fontsource-variable/inter",
-    "@fontsource-variable/jetbrains-mono"
+    "@fontsource-variable/geist",
+    "@fontsource-variable/geist-mono",
+    "@fontsource-variable/noto-sans-sc",
+    "tailwindcss"
   ],
+  // The coss ui components are copied whole, so that a later copy diffs cleanly.
+  "ignoreIssues": { "web/src/components/ui/*.tsx": ["exports", "types"] },
   "vite": { "config": ["web/vite.config.ts"] }
 }

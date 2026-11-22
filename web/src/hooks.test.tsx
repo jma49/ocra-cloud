@@ -74,10 +74,13 @@ describe("the routes", () => {
     const m = me("off");
     expect(paths(placeTabs("inbox", m))).toEqual(["/"]);
     expect(paths(placeTabs("reviews", m))).toEqual(["/reviews", "/activity"]);
-    expect(paths(placeTabs("repositories", m))).toEqual(["/repositories", "/memory"]);
+    expect(paths(placeTabs("repositories", m))).toEqual(["/repositories", "/learnings", "/memory"]);
     expect(paths(placeTabs("insights", m))).toEqual(["/insights", "/usage"]);
     expect(settingsGroups(m).map((g) => [g.label, paths(g.routes)])).toEqual([
-      ["Review", ["/agents", "/review-settings", "/rules", "/plugins", "/defaults"]],
+      [
+        "Review",
+        ["/agents", "/review-settings", "/rules", "/automations", "/plugins", "/defaults"],
+      ],
       ["Models & spend", ["/keys", "/budget"]],
       ["Account", ["/settings", "/notifications", "/sessions"]],
     ]);

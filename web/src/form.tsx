@@ -1,4 +1,6 @@
 import { type ReactNode, useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { CloseGlyph } from "./glyphs.js";
 import { useResets } from "./prefs.js";
 
@@ -13,6 +15,15 @@ export function withOptional<T extends object, K extends keyof T>(
 ): T {
   const { [key]: _, ...rest } = obj;
   return (value === undefined ? rest : { ...rest, [key]: value }) as T;
+}
+
+/** A comma-separated field as a list; undefined when it names nothing. */
+export function listOf(text: string): string[] | undefined {
+  const items = text
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return items.length ? items : undefined;
 }
 
 export function Row(props: { label: string; desc: ReactNode; children: ReactNode }) {
@@ -90,18 +101,15 @@ export function TriSwitch(props: {
       {props.value === undefined ? (
         <span className="default-tag">default</span>
       ) : (
-        <button type="button" className="btn btn-sm" onClick={() => props.onChange(undefined)}>
+        <Button type="button" variant="outline" size="sm" onClick={() => props.onChange(undefined)}>
           Reset
-        </button>
+        </Button>
       )}
-      <button
-        type="button"
-        role="switch"
-        className="switch"
+      <Switch
         aria-label={props.label}
-        aria-checked={on}
+        checked={on}
         data-inherit={props.value === undefined}
-        onClick={() => props.onChange(!on)}
+        onCheckedChange={() => props.onChange(!on)}
       />
     </>
   );
@@ -153,9 +161,9 @@ export function GlobList(props: {
             }
           }}
         />
-        <button type="button" className="btn btn-sm" onClick={add} disabled={!text.trim()}>
+        <Button type="button" variant="outline" size="sm" onClick={add} disabled={!text.trim()}>
           Add
-        </button>
+        </Button>
       </div>
     </div>
   );

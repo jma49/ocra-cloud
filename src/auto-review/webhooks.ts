@@ -10,12 +10,15 @@ import { apiError, jsonBody } from "../http.js";
 import { COMMIT_ID } from "../platforms/contents.js";
 import { gitlabClientOf } from "../platforms/registry.js";
 import type { AppEnv } from "../types.js";
+import { recordGitlabClose } from "./closes.js";
 import { gitlabNote, queueGitlabNote } from "./replies.js";
 import type { AutoReviewService } from "./routes.js";
 
 // A pull request of an enrolled repository is queued for review when it
 // opens, reopens, leaves draft or gains commits (ADR-0046, 2). A draft is
-// not. GitLab's note hook, on the same address, queues answers (./replies.ts).
+// not. Its pre-merge checks are evaluated then, and again when its title or
+// description is edited. GitLab's note hook, on the same address, queues
+// answers (./replies.ts).
 
 type PullChange = {
   fullName: string;
@@ -51,9 +54,14 @@ export async function queueGithubPull(
   const parsed = githubPull.safeParse(body);
   if (!parsed.success) return 0;
   const { action, number, pull_request: pull, repository } = parsed.data;
-  if (!GITHUB_ACTIONS.has(action) || pull.draft) return 0;
+  const reviews = GITHUB_ACTIONS.has(action);
+  if ((!reviews && action !== "edited") || pull.draft) return 0;
   const repo = await reviewRepoFor(c.var.db, "github", "github.com", String(repository.id));
   if (!repo) return 0;
+  if (!reviews) {
+    service.checkPull?.(repo.accountId, repo.id, number);
+    return 0;
+  }
   return queue(c, service, repo, {
     fullName: repository.full_name,
     number,
@@ -85,9 +93,14 @@ const gitlabMergeRequest = z.object({
   labels: z.array(z.object({ title: z.string() })).optional(),
 });
 
-const gitlabQueues = (a: z.infer<typeof gitlabMergeRequest>["object_attributes"]) =>
+type MergeRequestChange = z.infer<typeof gitlabMergeRequest>["object_attributes"];
+
+const gitlabQueues = (a: MergeRequestChange) =>
   !a.draft &&
   (a.action === "open" || a.action === "reopen" || (a.action === "update" && !!a.oldrev));
+
+/** An update without new commits: its title or description may have changed. */
+const gitlabEdited = (a: MergeRequestChange) => !a.draft && a.action === "update" && !a.oldrev;
 
 /** GitLab's merge request hooks, each proven by the secret of the repository it names. */
 export function autoReviewWebhooks(service: AutoReviewService) {
@@ -112,7 +125,11 @@ export function autoReviewWebhooks(service: AutoReviewService) {
     if (note?.data) {
       return c.json({ queued: await queueGitlabNote(c.var.db, service, repo, note.data) }, 202);
     }
+    if (mr && (await recordGitlabClose(c.var.db, repo, body))) return c.json({ queued: 0 }, 202);
     const event = mr?.data;
+    if (event && gitlabEdited(event.object_attributes)) {
+      service.checkPull?.(repo.accountId, repo.id, event.object_attributes.iid);
+    }
     if (!event || !gitlabQueues(event.object_attributes)) return c.json({ queued: 0 }, 202);
     const a = event.object_attributes;
     const queued = await queue(c, service, repo, {
@@ -153,6 +170,8 @@ async function queue(
     consoleUrl: new URL("/settings", c.req.url).toString(),
   });
   defer(c, run);
+  // A pull request a rule skips the review of still has its checks.
+  service.checkPull?.(repo.accountId, repo.id, change.number);
   if (skipped) return 0;
   const queued = await data.autoReview.queue(repo.id, change.number, change.head, new Date());
   if (queued) service.kick();

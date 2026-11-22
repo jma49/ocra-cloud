@@ -1,0 +1,58 @@
+/* Pre-merge checks: a repository's list and form, and a pull request's results. */
+.repo-checks {
+  padding: 12px 20px 16px;
+  background: var(--fill);
+}
+.check-rows,
+.check-results {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+.check-rows li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.check-rows select {
+  width: auto;
+}
+.check-results li {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+}
+.check-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  margin-top: 1px;
+}
+.check-mark.ok {
+  color: var(--green);
+}
+.check-mark.err {
+  color: var(--critical);
+}
+.check-mark.warn {
+  color: var(--warning);
+}
+.check-mark.muted {
+  border: 1px dashed var(--t4);
+}
+.checks-head {
+  align-items: center;
+}
+@media (max-width: 640px) {
+  .check-rows li {
+    flex-wrap: wrap;
+  }
+}
+.checks-row > td {
+  padding: 0;
+}

@@ -1,26 +1,26 @@
-import {
-  Bell,
-  Book,
-  Brain,
-  ChartBar,
-  Coins,
-  Flag,
-  Folder,
-  GitPullRequest,
-  History,
-  Inbox,
-  Key,
-  type KubaiIconComponent,
-  ListChecks,
-  Puzzle,
-  SettingsIcon,
-  Sliders,
-  Terminal,
-  User,
-} from "kubai-icons-react";
-import { type ReactNode, useEffect, useRef } from "react";
+import type { LucideIcon } from "lucide-react";
+import Bell from "lucide-react/icons/bell";
+import BookOpen from "lucide-react/icons/book-open";
+import Brain from "lucide-react/icons/brain";
+import ChartColumn from "lucide-react/icons/chart-column";
+import Coins from "lucide-react/icons/coins";
+import Flag from "lucide-react/icons/flag";
+import Folder from "lucide-react/icons/folder";
+import GitPullRequest from "lucide-react/icons/git-pull-request";
+import History from "lucide-react/icons/history";
+import Inbox from "lucide-react/icons/inbox";
+import KeyRound from "lucide-react/icons/key-round";
+import ListChecks from "lucide-react/icons/list-checks";
+import Puzzle from "lucide-react/icons/puzzle";
+import Settings from "lucide-react/icons/settings";
+import SlidersHorizontal from "lucide-react/icons/sliders-horizontal";
+import Terminal from "lucide-react/icons/terminal";
+import UserRound from "lucide-react/icons/user-round";
+import { type ReactElement, type ReactNode, useEffect, useRef, useSyncExternalStore } from "react";
+import { Tooltip, TooltipPopup, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Me } from "./api.js";
 import { AccountMenu } from "./chrome.js";
+import { CommandMenu, type CommandSection } from "./command-menu.js";
 import { EyesMark } from "./eyes.js";
 import { Link } from "./router.js";
 import { type Place, placeHome, placeTabs, type Route, settingsGroups } from "./routes.js";
@@ -29,75 +29,111 @@ import { DOCS } from "./site.js";
 // The signed-in frame: the icon rail of places on the ground, and the open
 // page on a panel beside it, headed by where it is and its place's tabs.
 
-const PLACES: { id: Place; label: string; icon: KubaiIconComponent }[] = [
+const PLACES: { id: Place; label: string; icon: LucideIcon }[] = [
   { id: "inbox", label: "Inbox", icon: Inbox },
   { id: "reviews", label: "Reviews", icon: GitPullRequest },
   { id: "findings", label: "Findings", icon: Flag },
   { id: "repositories", label: "Repositories", icon: Folder },
-  { id: "insights", label: "Insights", icon: ChartBar },
+  { id: "insights", label: "Insights", icon: ChartColumn },
 ];
 
-const SETTINGS_ICONS: Record<string, KubaiIconComponent> = {
+const SETTINGS_ICONS: Record<string, LucideIcon> = {
   "/agents": Brain,
-  "/review-settings": Sliders,
+  "/review-settings": SlidersHorizontal,
   "/rules": ListChecks,
   "/plugins": Puzzle,
   "/defaults": History,
-  "/keys": Key,
+  "/keys": KeyRound,
   "/budget": Coins,
-  "/settings": User,
+  "/settings": UserRound,
   "/notifications": Bell,
   "/sessions": Terminal,
 };
 
-function RailLink(props: { to: string; label: string; on: boolean; icon: KubaiIconComponent }) {
+function NavIcon(props: { icon: LucideIcon; size: number }) {
   const Icon = props.icon;
+  return <Icon className="nav-icon" size={props.size} strokeWidth={1.75} aria-hidden="true" />;
+}
+
+// Below this width the rail is a row across the top (shell.css).
+const RAIL_ROW = "(max-width: 760px)";
+
+function useRailRow(): boolean {
+  return useSyncExternalStore(
+    (changed) => {
+      const query = matchMedia(RAIL_ROW);
+      query.addEventListener("change", changed);
+      return () => query.removeEventListener("change", changed);
+    },
+    () => matchMedia(RAIL_ROW).matches,
+  );
+}
+
+/** Names an icon-only rail control beside it, on hover and on keyboard focus. */
+function RailTip(props: { label: string; children: ReactElement }) {
+  const row = useRailRow();
   return (
-    <Link
-      to={props.to}
-      className={`rail-link${props.on ? " on" : ""}`}
-      current={props.on}
-      label={props.label}
-    >
-      <Icon size={20} variant={props.on ? "color" : "soft"} trigger="parent" />
-    </Link>
+    <Tooltip>
+      <TooltipTrigger render={props.children} />
+      <TooltipPopup side={row ? "bottom" : "right"} sideOffset={8}>
+        {props.label}
+      </TooltipPopup>
+    </Tooltip>
+  );
+}
+
+function RailLink(props: { to: string; label: string; on: boolean; icon: LucideIcon }) {
+  return (
+    <RailTip label={props.label}>
+      <Link
+        to={props.to}
+        className={`rail-link${props.on ? " on" : ""}`}
+        current={props.on}
+        label={props.label}
+      >
+        <NavIcon icon={props.icon} size={20} />
+      </Link>
+    </RailTip>
   );
 }
 
 function Rail(props: { me: Me; place: Place | undefined }) {
   return (
-    <nav className="rail" aria-label="Console">
-      <Link to="/" className="rail-brand" label="ocra">
-        <EyesMark size={22} />
-      </Link>
-      {PLACES.map((p) => (
+    <TooltipProvider delay={300}>
+      <nav className="rail" aria-label="Console">
+        <Link to="/" className="rail-brand" label="ocra">
+          <EyesMark size={22} />
+        </Link>
+        {PLACES.map((p) => (
+          <RailLink
+            key={p.id}
+            to={placeHome(p.id)}
+            label={p.label}
+            on={props.place === p.id}
+            icon={p.icon}
+          />
+        ))}
+        <span className="rail-gap" />
+        <RailTip label="Documentation">
+          <a
+            className="rail-link"
+            href={DOCS}
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Documentation"
+          >
+            <NavIcon icon={BookOpen} size={20} />
+          </a>
+        </RailTip>
         <RailLink
-          key={p.id}
-          to={placeHome(p.id)}
-          label={p.label}
-          on={props.place === p.id}
-          icon={p.icon}
+          to={placeHome("settings")}
+          label="Settings"
+          on={props.place === "settings"}
+          icon={Settings}
         />
-      ))}
-      <span className="rail-gap" />
-      <a
-        className="rail-link"
-        href={DOCS}
-        target="_blank"
-        rel="noreferrer"
-        aria-label="Documentation"
-        title="Documentation"
-      >
-        <Book size={20} variant="soft" trigger="parent" />
-      </a>
-      <RailLink
-        to={placeHome("settings")}
-        label="Settings"
-        on={props.place === "settings"}
-        icon={SettingsIcon}
-      />
-      <AccountMenu me={props.me} compact />
-    </nav>
+        <AccountMenu me={props.me} compact />
+      </nav>
+    </TooltipProvider>
   );
 }
 
@@ -117,7 +153,7 @@ function SettingsNav(props: { me: Me; path: string }) {
         <div key={g.label} className="settings-group">
           <div className="caps">{g.label}</div>
           {g.routes.map((r) => {
-            const Icon = SETTINGS_ICONS[r.path] ?? SettingsIcon;
+            const Icon = SETTINGS_ICONS[r.path] ?? Settings;
             const on = r.path === props.path;
             return (
               <Link
@@ -126,7 +162,7 @@ function SettingsNav(props: { me: Me; path: string }) {
                 className={`settings-link${on ? " on" : ""}`}
                 current={on}
               >
-                <Icon size={16} variant={on ? "color" : "soft"} trigger="parent" />
+                <NavIcon icon={Icon} size={16} />
                 {r.tab}
               </Link>
             );
@@ -171,6 +207,22 @@ function PageBar(props: { me: Me; route: Route | undefined; path: string }) {
   );
 }
 
+function commandSections(me: Me): CommandSection[] {
+  const entries = (within: string, routes: { path: string; tab: string }[]) =>
+    routes.map((r) => ({ label: r.tab, to: r.path, within }));
+  return [
+    ...PLACES.map((p) => ({ value: p.label, items: entries(p.label, placeTabs(p.id, me)) })),
+    ...settingsGroups(me).map((g) => ({
+      value: `Settings: ${g.label}`,
+      items: entries("Settings", g.routes),
+    })),
+    {
+      value: "Help",
+      items: [{ label: "Documentation", to: DOCS, within: "Help", external: true }],
+    },
+  ];
+}
+
 export function Frame(props: {
   me: Me;
   route: Route | undefined;
@@ -188,6 +240,7 @@ export function Frame(props: {
           <main className="content">{props.children}</main>
         </div>
       </div>
+      <CommandMenu sections={commandSections(props.me)} />
     </div>
   );
 }

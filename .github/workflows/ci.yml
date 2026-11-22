@@ -41,20 +41,21 @@ jobs:
       - if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: npx wrangler deploy --dry-run --outdir /tmp/bundle
 
-  # The vitest projects (vitest.config.ts) side by side, the Worker's in
-  # shards: a private repository's runner has two cores.
+  # The vitest projects (vitest.config.ts) side by side, the Worker's in two
+  # shards. Postgres (PGlite) apart from node and web: together they starve
+  # the cold imports of web/src/preload.test.tsx and the PGlite boot of
+  # test-node/postgres-schema.test.ts past the test timeout, as does giving
+  # vitest every core (its default leaves one for its own transforms).
   test:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         include:
-          - name: worker 1/3
-            args: --project worker --shard=1/3
-          - name: worker 2/3
-            args: --project worker --shard=2/3
-          - name: worker 3/3
-            args: --project worker --shard=3/3
+          - name: worker 1/2
+            args: --project worker --shard=1/2
+          - name: worker 2/2
+            args: --project worker --shard=2/2
           - name: postgres
             args: --project postgres
           - name: node, web

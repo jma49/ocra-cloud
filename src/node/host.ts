@@ -7,6 +7,10 @@ import { migrate } from "drizzle-orm/libsql/migrator";
 import { Hono } from "hono";
 import { createApp } from "../app.js";
 import type { Db } from "../db/client.js";
+import { masterKeys } from "../keyring.js";
+import { runDigests } from "../notify/digest.js";
+import type { Mailer } from "../notify/email.js";
+import { runReports } from "../notify/report.js";
 import type { AppBindings } from "../types.js";
 import { botTokens } from "./bot-tokens.js";
 import { clientAddress } from "./client-address.js";
@@ -54,6 +58,8 @@ export type HostOptions = {
   githubWebhookSecret?: string;
   /** Pull requests reviewed by this server (ADR-0046); none without it. Needs publicUrl. */
   autoReview?: AutoReviewOptions;
+  /** Email notifications and digests (SMTP_URL); none without it. */
+  mailer?: Mailer;
 };
 
 /**
@@ -82,7 +88,10 @@ export async function openHost(options: HostOptions) {
     ...(graphs ? { graphs: graphs.service } : {}),
     ...(options.githubWebhookSecret ? { githubWebhookSecret: options.githubWebhookSecret } : {}),
     ...(reviews ? { autoReview: reviews.service } : {}),
-    ...(options.autoReview ? { bots: botTokens(options.autoReview.bots) } : {}),
+    ...(options.autoReview
+      ? { bots: options.autoReview.tokens ?? botTokens(options.autoReview.bots) }
+      : {}),
+    ...(options.mailer ? { mailer: options.mailer } : {}),
   });
 
   const origin = options.publicUrl ? new URL(options.publicUrl).origin : undefined;
@@ -118,6 +127,20 @@ export async function openHost(options: HostOptions) {
       return pathname === "/api" || pathname.startsWith("/api/")
         ? api.fetch(request, bindings)
         : site.fetch(request);
+    },
+    /**
+     * Sends the daily digests and weekly reports not sent yet; needs
+     * publicUrl, which their links point to.
+     */
+    digests: async () => {
+      if (!origin) return;
+      const out = {
+        keys: masterKeys(bindings),
+        mailer: options.mailer,
+        linkSecret: bindings.SESSION_SECRET,
+        origin,
+      };
+      await Promise.all([runDigests(shared, out), runReports(shared, out)]);
     },
     /** The graph build worker, when graphs are on. */
     graphWorker: graphs?.worker,

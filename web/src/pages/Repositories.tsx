@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
 import type { CodePlatformKind } from "../../../src/shared/index.js";
 import { api, type Me, why } from "../api.js";
 import { useCached } from "../cache.js";
@@ -82,12 +83,12 @@ function NameField(props: { repo: Repo; current: string; done: (saved: boolean) 
         autoFocus
         onChange={(e) => setDraft(e.target.value)}
       />
-      <button type="submit" className="btn btn-sm" disabled={save.busy}>
+      <Button type="submit" variant="outline" size="sm" disabled={save.busy}>
         {draft.trim() ? "Save" : "Clear"}
-      </button>
-      <button type="button" className="btn btn-sm" onClick={() => props.done(false)}>
+      </Button>
+      <Button variant="outline" size="sm" onClick={() => props.done(false)}>
         Cancel
-      </button>
+      </Button>
       {save.error ? (
         <span className="error small" role="alert">
           {why(save.error)}
@@ -123,14 +124,14 @@ function RepoName(props: { repo: Repo; known: Known | null; saved: () => void })
           <span className="mono">{repo.repo}</span>
         </div>
       </div>
-      <button
-        type="button"
-        className="btn btn-sm"
+      <Button
+        variant="outline"
+        size="sm"
         aria-label={`${known ? "Rename" : "Name"} ${known?.name ?? repo.repo}`}
         onClick={() => setEditing(true)}
       >
         {known ? "Rename" : "Name it"}
-      </button>
+      </Button>
     </div>
   );
 }
@@ -170,19 +171,20 @@ function Connect(props: { me: Me; p: PlatformRepos["platforms"][number] }) {
   if (p.linked && !p.failed) return null;
   if (p.platform === "gitlab")
     return (
-      <a className="btn btn-sm" href="/api/platforms/gitlab/connect">
+      <Button variant="outline" size="sm" render={<a href="/api/platforms/gitlab/connect" />}>
         Connect GitLab
-      </a>
+      </Button>
     );
   // GitHub's access comes with signing in with GitHub; doing it again renews it in place.
   if (props.me.githubId === null) return null;
   return (
-    <a
-      className="btn btn-sm"
-      href={`/api/auth/github/login?next=${encodeURIComponent("/repositories")}`}
+    <Button
+      variant="outline"
+      size="sm"
+      render={<a href={`/api/auth/github/login?next=${encodeURIComponent("/repositories")}`} />}
     >
       {p.linked ? "Reconnect GitHub" : "Connect GitHub"}
-    </a>
+    </Button>
   );
 }
 

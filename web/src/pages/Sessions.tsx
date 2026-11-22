@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import { api, type Session, why } from "../api.js";
 import { ago, date } from "../format.js";
 import { LoadError, Loading, PageHead, useAction, useLoad } from "../ui.js";
@@ -69,14 +70,15 @@ export function Sessions() {
                     <td className="muted">{ago(s.lastUsedAt)}</td>
                     <td className="muted hide-narrow">{date(s.expiresAt)}</td>
                     <td className="num">
-                      <button
+                      <Button
                         type="button"
-                        className="btn btn-sm btn-danger"
+                        variant="destructive-outline"
+                        size="sm"
                         disabled={busy === s.id}
                         onClick={() => revoke(s)}
                       >
                         {s.current ? "Sign out" : "Revoke"}
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 ))}

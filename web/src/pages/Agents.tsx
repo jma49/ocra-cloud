@@ -1,4 +1,6 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import {
   type AgentRole,
   BUILT_IN_REVIEWERS,
@@ -79,9 +81,7 @@ export function Agents() {
             Agents run on your own keys. Add a key from a provider with an OpenAI-compatible
             endpoint.
           </p>
-          <Link to="/keys" className="btn btn-primary">
-            Add a key
-          </Link>
+          <Button render={<Link to="/keys" />}>Add a key</Button>
         </div>
       </>
     );
@@ -218,13 +218,10 @@ export function Agents() {
                       {a.role ? (
                         <span className="subtle small">always</span>
                       ) : (
-                        <button
-                          type="button"
-                          role="switch"
-                          className="switch"
+                        <Switch
                           aria-label={`${a.id} on`}
-                          aria-checked={enabled}
-                          onClick={() => update({ enabled: enabled ? false : undefined })}
+                          checked={enabled}
+                          onCheckedChange={() => update({ enabled: enabled ? false : undefined })}
                         />
                       )}
                     </td>
@@ -240,9 +237,10 @@ export function Agents() {
                           <span className="subtle">
                             {draft.models[a.tier]?.[0] ?? `${a.tier} tier (repository)`}
                           </span>{" "}
-                          <button
+                          <Button
                             type="button"
-                            className="btn btn-sm"
+                            variant="outline"
+                            size="sm"
                             onClick={() =>
                               update({
                                 models: [
@@ -252,7 +250,7 @@ export function Agents() {
                             }
                           >
                             Override
-                          </button>
+                          </Button>
                         </span>
                       )}
                     </td>
@@ -398,25 +396,27 @@ function ChainEditor(props: {
               value={model}
               onChange={(e) => setAt(i, formatModelId(provider, e.target.value))}
             />
-            <button
+            <Button
               type="button"
-              className="btn btn-sm btn-danger"
+              variant="destructive-outline"
+              size="sm"
               onClick={() => props.onChange(rows.filter((_, j) => j !== i))}
             >
               Remove
-            </button>
+            </Button>
           </div>
         );
       })}
       <div>
-        <button
+        <Button
           type="button"
-          className="btn btn-sm"
+          variant="outline"
+          size="sm"
           disabled={rows.length >= 4}
           onClick={() => props.onChange([...rows, formatModelId(props.usable[0]?.name ?? "")])}
         >
           + {rows.length ? "Fallback" : "Model"}
-        </button>
+        </Button>
       </div>
     </div>
   );

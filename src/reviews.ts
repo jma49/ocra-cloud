@@ -8,11 +8,11 @@ import type { Row, Scoped } from "./db/scoped.js";
 import { defer } from "./defer.js";
 import { parseFindings } from "./findings.js";
 import { apiError, jsonBody, queryDays } from "./http.js";
-import { masterKeys } from "./keyring.js";
-import { notifyReview } from "./notify/notify.js";
+import { notifyReview, outboxOf } from "./notify/notify.js";
 import { platformsOf } from "./platforms/registry.js";
 import { perMinute, retryTomorrow } from "./rate.js";
 import { repoNames } from "./repositories.js";
+import { platformOfPull, pullOfReview } from "./review-pull.js";
 import { requireSession } from "./session.js";
 import type { ReviewerCounts, ReviewWalkthroughView } from "./shared/index.js";
 import { DAY } from "./time.js";
@@ -105,6 +105,7 @@ reviews.post("/", requireSession(["web", "cli"]), perMinute("upload"), uploadBod
   // A retry of the run answers duplicate above, so this runs once per review.
   if (walkthrough) await c.var.data.insert("reviewWalkthroughs", { ...walkthrough, reviewId: id });
   defer(c, announce(c, id));
+  defer(c, recheckPull(c, id));
   return c.json({
     id,
     findings: findingsSkipped ? 0 : parsed.rows.length,
@@ -120,9 +121,24 @@ async function announce(c: Context<AppEnv>, id: string) {
   if (!review) return;
   const consoleUrl = new URL(`/reviews/${encodeURIComponent(id)}`, c.req.url).toString();
   const platforms = platformsOf(c.env, c.req.url);
-  await notifyReview(c.var.data, masterKeys(c.env), review, platforms, consoleUrl);
+  await notifyReview(c.var.data, outboxOf(c), review, platforms, consoleUrl);
   const event = await reviewedEvent(c.var.data, review, platforms, consoleUrl);
   if (event) await (await automate(c, c.var.data, event)).run;
+}
+
+/**
+ * Evaluates the pre-merge checks of the reviewed pull request again, now
+ * that its head has a review, when this account enrolled its repository on
+ * a platform this deployment serves; a review naming any other host is not one.
+ */
+async function recheckPull(c: Context<AppEnv>, id: string) {
+  const service = c.var.autoReview;
+  const review = service?.checkPull && (await c.var.data.get("reviews", id));
+  const pull = review && pullOfReview(review);
+  const platform = pull && platformOfPull(platformsOf(c.env, c.req.url), pull);
+  if (!service?.checkPull || !pull || !platform) return;
+  const repo = await c.var.data.mergeChecks.enrolledRepo(platform.kind, platform.host, pull.repo);
+  if (repo) service.checkPull(c.var.data.accountId, repo.id, pull.number);
 }
 
 // One review with its findings, for the web's detail page.
@@ -184,6 +200,7 @@ function reviewDto(r: Row<"reviews">) {
     prRepository: r.prRepository,
     prNumber: r.prNumber,
     prHeadSha: r.prHeadSha,
+    linkedTasks: r.linkedTasks,
     byReviewer: r.byReviewer,
     verification: r.verification,
     fixed: r.fixed,

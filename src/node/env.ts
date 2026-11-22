@@ -25,6 +25,7 @@ const OPTIONAL = [
   "MODEL_ENDPOINTS",
   "BUILTIN_PROVIDERS",
   "DEFAULT_MODELS",
+  "PUBLIC_URL",
 ] as const;
 
 const DEFAULTS = {

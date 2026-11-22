@@ -2,6 +2,8 @@ import { gitlabActions } from "./gitlab-actions.js";
 import { gitlabChanges } from "./gitlab-changes.js";
 import { gitlabContents } from "./gitlab-contents.js";
 import { gitlabCycles } from "./gitlab-cycles.js";
+import { gitlabLearnings } from "./gitlab-learnings.js";
+import { gitlabMergeStatus } from "./gitlab-merge-status.js";
 import { gitlabPulls } from "./gitlab-pulls.js";
 import { gitlabQueue } from "./gitlab-queue.js";
 import { gitlabStacks } from "./gitlab-stack.js";
@@ -44,6 +46,8 @@ export function gitlab(client: GitlabClient, redirectUri: string): CodePlatform 
     queue: gitlabQueue(client.url),
     cycles: gitlabCycles(client.url),
     stacks: gitlabStacks(client.url),
+    learnings: gitlabLearnings(client.url),
+    mergeStatus: gitlabMergeStatus(client.url),
     async listRepos(token) {
       const repositories: PlatformRepo[] = [];
       for (let page = 1; page <= MAX_PAGES; page++) {

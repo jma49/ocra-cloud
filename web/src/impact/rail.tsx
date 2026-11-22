@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import type {
   GraphRepoView,
   ImpactSymbol,
@@ -47,9 +48,9 @@ export function ImpactRail(props: Props) {
           </div>
         </div>
         {finding && (
-          <button type="button" className="btn btn-sm" onClick={props.onClose}>
+          <Button variant="outline" size="sm" onClick={props.onClose}>
             Show all
-          </button>
+          </Button>
         )}
       </div>
       <RailBody impact={impact} finding={finding} />
@@ -64,9 +65,9 @@ function RailBody(props: { impact: Impact; finding: FocusedFinding | null }) {
     return (
       <div className="impact-pad">
         <p className="m-0">The impact could not be read.</p>
-        <button type="button" className="btn btn-sm" onClick={impact.retry}>
+        <Button variant="outline" size="sm" onClick={impact.retry}>
           Try again
-        </button>
+        </Button>
       </div>
     );
   }
@@ -78,9 +79,9 @@ function RailBody(props: { impact: Impact; finding: FocusedFinding | null }) {
           ocra keeps a graph of a repository's symbol names, kinds and lines, never its code, and
           updates it on every push.
         </p>
-        <Link to="/code-graphs" className="btn btn-sm">
+        <Button variant="outline" size="sm" render={<Link to="/code-graphs" />}>
           Keep a code graph
-        </Link>
+        </Button>
       </div>
     );
   }

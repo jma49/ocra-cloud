@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Me } from "./api.js";
 import { matchRoute } from "./routes.js";
@@ -46,5 +46,42 @@ describe("settings nav", () => {
       </Frame>,
     );
     expect(screen.getByRole("navigation", { name: "Settings" }).scrollLeft).toBe(0);
+  });
+});
+
+describe("command menu", () => {
+  it("opens on Ctrl+K, finds a page by its place's name and goes there", async () => {
+    history.replaceState(null, "", "/");
+    render(
+      <Frame me={me} route={matchRoute("/")?.route} path="/">
+        <p>page</p>
+      </Frame>,
+    );
+    expect(screen.queryByRole("dialog")).toBeNull();
+    fireEvent.keyDown(document, { key: "k", ctrlKey: true });
+    const input = await screen.findByPlaceholderText("Go to…");
+    fireEvent.change(input, { target: { value: "insights" } });
+    const usage = await screen.findByRole("option", { name: "Usage" });
+    expect(screen.queryByRole("option", { name: "Inbox" })).toBeNull();
+    fireEvent.click(usage);
+    expect(location.pathname).toBe("/usage");
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+});
+
+describe("rail", () => {
+  it("names an icon-only place beside it on keyboard focus", async () => {
+    history.replaceState(null, "", "/");
+    render(
+      <Frame me={me} route={matchRoute("/")?.route} path="/">
+        <p>page</p>
+      </Frame>,
+    );
+    const insights = screen.getByRole("link", { name: "Insights" });
+    expect(insights.getAttribute("title")).toBeNull();
+    fireEvent.focus(insights);
+    expect(
+      (await screen.findByText("Insights")).closest("[data-slot=tooltip-popup]"),
+    ).not.toBeNull();
   });
 });

@@ -80,8 +80,22 @@ tr.selected td {
   background: var(--tint);
 }
 /* A table whose rows a phone stacks: each row becomes a block, its first
-   cell a full-width title and the rest flowing after it. */
+   cell a full-width title and the rest flowing after it. A cell whose
+   meaning was only in its column head carries the head as .cell-name. */
+.cell-name {
+  display: none;
+}
 @media (max-width: 560px) {
+  .table-wrap.stack td:has(> .cell-name) {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .table-wrap.stack .cell-name {
+    display: inline;
+    color: var(--t3);
+    font-size: var(--text-xs);
+  }
   .table-wrap.stack thead {
     display: none;
   }

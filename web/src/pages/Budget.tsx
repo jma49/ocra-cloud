@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import { api, why } from "../api.js";
 import { useCached } from "../cache.js";
 import { num } from "../format.js";
@@ -61,9 +62,9 @@ export function BudgetPage() {
                 onChange={(e) => setDraft(e.target.value)}
               />
             </label>
-            <button type="submit" className="btn btn-sm" disabled={!valid || save.busy}>
+            <Button type="submit" variant="outline" size="sm" disabled={!valid || save.busy}>
               Save
-            </button>
+            </Button>
           </form>
           {!valid && <p className="error small">A limit is a whole number of at least 1.</p>}
           {save.error ? (

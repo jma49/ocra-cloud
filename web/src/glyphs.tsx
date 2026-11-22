@@ -3,9 +3,8 @@ import Check from "lucide-react/icons/check";
 import Plus from "lucide-react/icons/plus";
 import X from "lucide-react/icons/x";
 
-// Control glyphs (close, add, done) are line icons at one weight; the
-// places and settings keep their coloured Kubai icons. Each is imported
-// alone: the package's index loads every icon it has.
+// Control glyphs (close, add, done) are line icons at one weight. Each is
+// imported alone: the package's index loads every icon it has.
 function glyph(Icon: LucideIcon) {
   return (props: { size?: number }) => (
     <Icon

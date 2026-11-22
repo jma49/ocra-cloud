@@ -147,10 +147,6 @@
   flex: 1;
   min-width: 180px;
 }
-.chain-row .btn-danger {
-  background: transparent;
-  box-shadow: none;
-}
 
 /* Device sign-in */
 .device-card {
@@ -725,6 +721,24 @@ td.finding-cell {
 .add-fields .input.grow {
   min-width: 260px;
 }
+.add-extras {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+}
+
+/* Notifications: the weekly report's day and hour, read as one sentence. */
+.report-slot {
+  margin-top: 12px;
+}
+.report-when {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: var(--t2);
+  font-size: var(--text-sm);
+}
 
 /* Insights: the user's pull requests, three figures over the slowest ones. */
 .cycle-figures {
@@ -904,7 +918,8 @@ td.finding-cell {
 .pull-side .seg {
   display: grid;
 }
-.pull-side .seg button {
+.pull-side .seg [data-slot="toggle"] {
+  justify-content: flex-start;
   text-align: left;
 }
 .diff-comment-box textarea,

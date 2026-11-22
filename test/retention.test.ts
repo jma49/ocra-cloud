@@ -156,6 +156,21 @@ describe("retention", () => {
     await waitOnExecutionContext(ctx);
     expect(await scoped(db, account.id).list("reviews")).toEqual([]);
   });
+
+  it("leaves retention to the daily cron, not the hourly one", async () => {
+    const { account } = await signIn(1, "octo");
+    await scoped(db, account.id).insert("reviews", {
+      id: "ancient",
+      runId: "a",
+      repoHash: "h",
+      source: "local",
+      createdAt: new Date(Date.now() - 200 * DAY),
+    });
+    const ctx = createExecutionContext();
+    await worker.scheduled(createScheduledController({ cron: "47 * * * *" }), env, ctx);
+    await waitOnExecutionContext(ctx);
+    expect(await scoped(db, account.id).count("reviews")).toBe(1);
+  });
 });
 
 describe("export and deletion", () => {
@@ -195,9 +210,17 @@ describe("export and deletion", () => {
     // The findings' review first (the foreign key needs it), then one row per table.
     await d.insert("reviews", rows.reviews("review-of-a"));
     for (const [table, row] of Object.entries(rows)) {
-      if (["reviews", "graphBuilds", "reviewJobs", "replyJobs", "generateJobs"].includes(table)) {
-        continue;
-      }
+      const later = [
+        "reviews",
+        "graphBuilds",
+        "reviewJobs",
+        "replyJobs",
+        "closedPulls",
+        "mergeChecks",
+        "mergeCheckRuns",
+        "generateJobs",
+      ];
+      if (later.includes(table)) continue;
       await d.insert(table as keyof typeof rows, row(`x-${table}`) as never);
     }
     await d.insert("graphBuilds", {
@@ -212,10 +235,12 @@ describe("export and deletion", () => {
       ...rows.replyJobs("x-replyJobs"),
       reviewRepoId: "x-reviewRepos",
     });
-    await d.insert("generateJobs", {
-      ...rows.generateJobs("x-generateJobs"),
-      reviewRepoId: "x-reviewRepos",
-    });
+    for (const table of ["closedPulls", "mergeChecks", "mergeCheckRuns", "generateJobs"] as const) {
+      await d.insert(table, {
+        ...rows[table](`x-${table}`),
+        reviewRepoId: "x-reviewRepos",
+      } as never);
+    }
     await setSharing(db, me.account.id, true);
     const salt = await accountSalt(db, me.account.id);
 

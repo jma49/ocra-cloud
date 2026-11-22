@@ -76,6 +76,7 @@ export function botTokens(settings: BotSettings): BotTokens {
             contents: access === "commit" ? "write" : "read",
             pull_requests: "write",
             metadata: "read",
+            checks: "write",
           },
         }),
       });

@@ -1,4 +1,5 @@
-import { type FormEvent, useState } from "react";
+import { type FormEvent, Fragment, useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
   type AutoReviewRepoView,
   CODE_PLATFORMS,
@@ -6,6 +7,7 @@ import {
 } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
 import { ago } from "../format.js";
+import { RepoChecks } from "../merge-checks/repo-checks.js";
 import { PlatformMark } from "../platform-mark.js";
 import { pullPath } from "../pull/path.js";
 import { Link } from "../router.js";
@@ -31,6 +33,7 @@ const STATE: Record<Job["state"], { label: string; tone: string }> = {
 export function AutoReview() {
   const { data, error, reload } = useLoad(() => api<Repos>("/auto-review/repos"));
   const [added, setAdded] = useState<Added | null>(null);
+  const [checking, setChecking] = useState<string | null>(null);
   const remove = useAction((id: string) =>
     api(`/auto-review/repos/${encodeURIComponent(id)}`, { method: "DELETE" }),
   );
@@ -73,30 +76,49 @@ export function AutoReview() {
               </thead>
               <tbody>
                 {data.repos.map((r) => (
-                  <tr key={r.id}>
-                    <td className="text">
-                      <div className="mono with-mark">
-                        <PlatformMark platform={r.platform} size={14} />
-                        {r.fullName}
-                      </div>
-                      <div className="subtle small">
-                        {PLATFORM[r.platform]} · {r.host}
-                      </div>
-                    </td>
-                    <td>
-                      <LastJob r={r} />
-                    </td>
-                    <td className="num">
-                      <button
-                        type="button"
-                        className="btn btn-sm btn-danger"
-                        disabled={remove.busy}
-                        onClick={() => drop(r.id)}
-                      >
-                        Stop reviewing
-                      </button>
-                    </td>
-                  </tr>
+                  <Fragment key={r.id}>
+                    <tr>
+                      <td className="text">
+                        <div className="mono with-mark">
+                          <PlatformMark platform={r.platform} size={14} />
+                          {r.fullName}
+                        </div>
+                        <div className="subtle small">
+                          {PLATFORM[r.platform]} · {r.host}
+                        </div>
+                      </td>
+                      <td>
+                        <LastJob r={r} />
+                      </td>
+                      <td className="num nobreak">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          aria-expanded={checking === r.id}
+                          onClick={() => setChecking(checking === r.id ? null : r.id)}
+                        >
+                          Checks
+                        </Button>{" "}
+                        <Button
+                          type="button"
+                          variant="destructive-outline"
+                          size="sm"
+                          disabled={remove.busy}
+                          onClick={() => drop(r.id)}
+                        >
+                          Stop reviewing
+                        </Button>
+                      </td>
+                    </tr>
+                    {checking === r.id && (
+                      <tr className="checks-row">
+                        <td colSpan={3}>
+                          <RepoChecks repoId={r.id} fullName={r.fullName} />
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 ))}
               </tbody>
             </table>
@@ -152,9 +174,9 @@ function Hook(props: { added: Added; onDone: () => void }) {
         </label>
       )}
       <div>
-        <button type="button" className="btn" onClick={props.onDone}>
+        <Button type="button" variant="outline" onClick={props.onDone}>
           Done
-        </button>
+        </Button>
       </div>
     </section>
   );
@@ -200,13 +222,9 @@ function AddRepo(props: { full: boolean; onAdded: (a: Added) => void }) {
           value={fullName}
           onChange={(e) => setFullName(e.target.value)}
         />
-        <button
-          type="submit"
-          className="btn btn-primary"
-          disabled={add.busy || props.full || !fullName.trim()}
-        >
+        <Button type="submit" disabled={add.busy || props.full || !fullName.trim()}>
           Add
-        </button>
+        </Button>
       </div>
       {props.full && (
         <span className="subtle small">An account reviews at most 100 repositories.</span>

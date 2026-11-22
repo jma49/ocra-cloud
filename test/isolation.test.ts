@@ -32,11 +32,14 @@ const changes = {
   reviewRepos: { fullName: "octo/renamed" },
   reviewJobs: { state: "done" as const },
   notifyChannels: { name: "renamed" },
+  closedPulls: { merged: false },
   replyJobs: { state: "done" as const },
   reviewWalkthroughs: { overview: "changed" },
   generateJobs: { state: "done" as const },
   automationRules: { name: "renamed" },
   automationRuns: { outcome: "failed" as const },
+  mergeChecks: { mode: "block" as const },
+  mergeCheckRuns: { conclusion: "failure" as const },
 } satisfies { [N in keyof typeof rows]: Record<string, unknown> };
 
 // Storage persists across tests in a file; deleting the accounts cascades.
@@ -115,7 +118,16 @@ describe.each(withIds)("%s", (name) => {
         .insert(schema.reviews)
         .values({ id: "review-of-a", accountId: A, runId: "r", repoHash: "h", source: "local" });
     }
-    if (name === "reviewJobs" || name === "replyJobs" || name === "generateJobs") {
+    if (
+      [
+        "reviewJobs",
+        "replyJobs",
+        "closedPulls",
+        "mergeChecks",
+        "mergeCheckRuns",
+        "generateJobs",
+      ].includes(name)
+    ) {
       await db
         .insert(schema.reviewRepos)
         .values({ ...rows.reviewRepos("review-repo-of-a"), accountId: A });

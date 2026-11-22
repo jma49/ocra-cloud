@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { api, why } from "../api.js";
 import { useCached } from "../cache.js";
 import { useCollapsed } from "../inbox/collapsed.js";
@@ -85,27 +86,28 @@ export function Inbox() {
         title="Pull requests"
         sub="What waits on you across every connected platform, read live. j and k move, Enter opens, o opens on the platform, / finds, r refreshes."
         actions={
-          <button type="button" className="btn" onClick={() => setEditing({ draft: BLANK })}>
+          <Button type="button" variant="outline" onClick={() => setEditing({ draft: BLANK })}>
             New section
-          </button>
+          </Button>
         }
       />
       {offered && (
         <div className="note" role="status">
           <span className="grow">Someone shared the section “{offered.name}” with you.</span>
-          <button
+          <Button
             type="button"
-            className="btn btn-sm"
+            variant="outline"
+            size="sm"
             onClick={() => {
               setEditing({ draft: offered });
               dismissOffer();
             }}
           >
             Add it
-          </button>
-          <button type="button" className="btn btn-sm" onClick={dismissOffer}>
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={dismissOffer}>
             Dismiss
-          </button>
+          </Button>
         </div>
       )}
       <div className="inbox-tools">
@@ -147,9 +149,9 @@ export function Inbox() {
         <div className="section card empty-hero">
           <h3>Connect a platform</h3>
           <p>Link GitHub or GitLab to see the pull requests that wait on you.</p>
-          <Link to="/repositories" className="btn">
+          <Button variant="outline" render={<Link to="/repositories" />}>
             Connect under Repositories
-          </Link>
+          </Button>
         </div>
       ) : sections.every((s) => s.rows.length === 0) ? (
         <div className="section card empty-hero">
@@ -240,9 +242,9 @@ function PlatformNotes(props: { data: InboxAnswer | undefined; retry: () => void
         .map((p) => (
           <p key={p.host} className="error" role="alert">
             Could not read pull requests from {p.host}.{" "}
-            <button type="button" className="btn btn-sm" onClick={props.retry}>
+            <Button type="button" variant="outline" size="sm" onClick={props.retry}>
               Try again
-            </button>
+            </Button>
           </p>
         ))}
       {platforms

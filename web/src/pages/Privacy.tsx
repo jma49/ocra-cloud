@@ -102,7 +102,8 @@ export function Privacy() {
       <h2>How long</h2>
       <ul>
         <li>
-          Model call records, review counts, findings, the daily counts and the audit log: 90 days,
+          Model call records, review counts, findings, the merged and closed pull requests of
+          repositories you enrolled for auto review, the daily counts and the audit log: 90 days,
           then deleted by a daily job.
         </li>
         <li>

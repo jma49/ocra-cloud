@@ -16,6 +16,7 @@ import type { BatchItem } from "drizzle-orm/batch";
 import { getTableConfig, type SQLiteColumn } from "drizzle-orm/sqlite-core";
 import { accountAutomations } from "./automations.js";
 import { changedRows, type Db, first } from "./client.js";
+import { accountClosedPulls } from "./closed-pulls.js";
 import {
   countCall,
   countFindingsOf,
@@ -37,10 +38,12 @@ import {
   inbox,
   rememberFindings,
 } from "./inbox.js";
+import { accountMergeChecks } from "./merge-checks.js";
 import { accountNotify } from "./notify.js";
 import { type PreferencesSave, savePreferences } from "./preferences.js";
 import { addPullView } from "./pull-views.js";
 import { accountReplyJobs } from "./reply-jobs.js";
+import { accountReports } from "./reports.js";
 import { nameRepo, nameRepos, pulledRepos, reviewedRepos } from "./repos.js";
 import { accountReviewJobs } from "./review-jobs.js";
 import { accountTables } from "./schema.js";
@@ -418,9 +421,12 @@ export function scoped(db: Db, accountId: string) {
     graphs: accountGraphs(db, accountId),
     autoReview: accountReviewJobs(db, accountId),
     notify: accountNotify(db, accountId),
+    reports: accountReports(db, accountId),
+    closedPulls: accountClosedPulls(db, accountId),
     replies: accountReplyJobs(db, accountId),
     generations: accountGenerateJobs(db, accountId),
     automations: accountAutomations(db, accountId),
+    mergeChecks: accountMergeChecks(db, accountId),
     /** The findings of one of this account's reviews. */
     findingsOf(reviewId: string): Promise<Row<"findings">[]> {
       const f = accountTables.findings;

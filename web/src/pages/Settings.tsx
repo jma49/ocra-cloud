@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { api, type Me } from "../api.js";
 import { date, num } from "../format.js";
 import { ActionError, LoadError, Loading, PageHead, useLoad } from "../ui.js";
@@ -72,9 +74,9 @@ export function Settings(props: { me: Me }) {
             Download everything stored for your account as JSON. Records are kept 90 days;{" "}
             <a href="/privacy">data policy</a>.
           </span>
-          <a className="btn" href="/api/export" download>
+          <Button variant="outline" render={<a href="/api/export" download />}>
             Export my data
-          </a>
+          </Button>
         </div>
       </div>
 
@@ -95,14 +97,14 @@ export function Settings(props: { me: Me }) {
               placeholder={props.me.login}
               aria-label="Type your login to confirm"
             />
-            <button
+            <Button
               type="button"
-              className="btn btn-danger-solid"
+              variant="destructive"
               disabled={typed !== props.me.login}
               onClick={remove}
             >
               Delete my account
-            </button>
+            </Button>
           </div>
           {error !== null && <ActionError what="delete the account" error={error} />}
         </div>
@@ -148,14 +150,11 @@ function Sharing({ load }: { load: SharingLoad }) {
     <div className="section card">
       <div className="card-head">
         {title}
-        <button
-          type="button"
-          role="switch"
-          className="switch"
+        <Switch
           aria-label="Send findings and the code they quote"
-          aria-checked={data.shareFindings}
+          checked={data.shareFindings}
           disabled={busy}
-          onClick={() => (data.shareFindings ? setAsking(true) : put(true))}
+          onCheckedChange={() => (data.shareFindings ? setAsking(true) : put(true))}
         />
       </div>
       <div className="card-pad small muted stack">
@@ -179,20 +178,27 @@ function Sharing({ load }: { load: SharingLoad }) {
         {asking && (
           <div className="note confirm-note">
             <span>Stop sending findings. Delete the {data.findingsStored} already sent too?</span>
-            <button
+            <Button
               type="button"
-              className="btn btn-sm btn-danger-solid"
+              variant="destructive"
+              size="sm"
               disabled={busy}
               onClick={() => put(false, true)}
             >
               Turn off and delete
-            </button>
-            <button type="button" className="btn btn-sm" disabled={busy} onClick={() => put(false)}>
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={busy}
+              onClick={() => put(false)}
+            >
               Turn off, keep them
-            </button>
-            <button type="button" className="btn btn-sm" onClick={() => setAsking(false)}>
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => setAsking(false)}>
               Cancel
-            </button>
+            </Button>
           </div>
         )}
       </div>

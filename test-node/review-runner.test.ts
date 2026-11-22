@@ -59,7 +59,7 @@ describe("the ocra bot's GitHub token", () => {
     const minted = asked.find((a) => a.url.endsWith("/access_tokens"));
     expect(minted?.body).toEqual({
       repositories: ["API"],
-      permissions: { contents: "read", pull_requests: "write", metadata: "read" },
+      permissions: { contents: "read", pull_requests: "write", metadata: "read", checks: "write" },
     });
     await botTokens({ githubAppId: "123", githubAppPrivateKey: PEM }).forRepo(
       "github",

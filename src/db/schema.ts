@@ -28,6 +28,11 @@ import {
   FINDING_STATUSES,
   GENERATE_KINDS,
   GRAPH_BUILD_STATES,
+  type LinkedTaskView,
+  MERGE_CHECK_KINDS,
+  MERGE_CHECK_MODES,
+  type MergeCheckResultView,
+  type MergeChecksConclusion,
   type ModelChains,
   NOTIFY_KINDS,
   NOTIFY_WHEN,
@@ -61,6 +66,13 @@ export const accounts = sqliteTable("accounts", {
   // The repository-hash salt shared by the account's machines when sharing is on.
   salt: text("salt"),
   createdAt: createdAt(),
+  // The last UTC day whose digest was sent, so that it goes once (src/notify/digest.ts).
+  digestDay: text("digest_day"),
+  // The weekly report's slot (UTC weekday 0 = Sunday, hour) and the last
+  // slot sent, so that it goes once (src/notify/report.ts).
+  reportWeekday: integer("report_weekday").notNull().default(1),
+  reportHour: integer("report_hour").notNull().default(9),
+  reportSentFor: integer("report_sent_for", { mode: "timestamp_ms" }),
 });
 
 // Who signs in as an account: a sign-in provider's user, by the id it never
@@ -221,6 +233,8 @@ export const reviews = sqliteTable(
     prRepository: text("pr_repository"),
     prNumber: integer("pr_number"),
     prHeadSha: text("pr_head_sha"),
+    // The pull request's linked tasks as uploaded; null when the review did not look them up.
+    linkedTasks: text("linked_tasks", { mode: "json" }).$type<LinkedTaskView[]>(),
     // ADR-0028, 1: numbers per reviewer and the run's outcomes; never text.
     byReviewer: text("by_reviewer", { mode: "json" }).$type<Record<string, ReviewerCounts>>(),
     verification: text("verification", { mode: "json" }).$type<Partial<Record<string, number>>>(),
@@ -399,7 +413,9 @@ export const usageCounters = sqliteTable(
   "usage_counters",
   {
     accountId: accountId(),
-    kind: text("kind", { enum: ["uploads", "gateway_calls", "findings"] }).notNull(),
+    kind: text("kind", {
+      enum: ["uploads", "gateway_calls", "findings", "email_confirmations"],
+    }).notNull(),
     /** The UTC date, YYYY-MM-DD. */
     day: text("day").notNull(),
     n: integer("n").notNull().default(0),
@@ -544,8 +560,10 @@ export const reviewRepos = sqliteTable(
   ],
 );
 
-// A chat the account's reviews are announced in: its incoming webhook's
-// address, encrypted like a model key (it is the chat's credential).
+// A chat or an email address the account's reviews are announced in: the
+// webhook's address or the email address, encrypted like a model key (a
+// webhook is the chat's credential). An email address gets nothing until
+// the link sent to it is opened: only its token's hash is kept, until then.
 export const notifyChannels = sqliteTable(
   "notify_channels",
   {
@@ -560,8 +578,37 @@ export const notifyChannels = sqliteTable(
     lastStatus: text("last_status", { enum: ["ok", "failed"] }),
     lastSentAt: integer("last_sent_at", { mode: "timestamp_ms" }),
     createdAt: createdAt(),
+    confirmedAt: integer("confirmed_at", { mode: "timestamp_ms" }),
+    confirmTokenHash: text("confirm_token_hash"),
+    confirmExpiresAt: integer("confirm_expires_at", { mode: "timestamp_ms" }),
+    digest: integer("digest", { mode: "boolean" }).notNull().default(false),
+    weekly: integer("weekly", { mode: "boolean" }).notNull().default(false),
   },
   (t) => [index("notify_channels_account").on(t.accountId)],
+);
+
+// An enrolled repository's pull request as its platform said it ended:
+// merged or closed, one row per pull request; a later close (after a
+// reopen) replaces an earlier one. The title is the platform's, as sent.
+export const closedPulls = sqliteTable(
+  "closed_pulls",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    reviewRepoId: text("review_repo_id")
+      .notNull()
+      .references(() => reviewRepos.id, { onDelete: "cascade" }),
+    number: integer("number").notNull(),
+    title: text("title").notNull(),
+    merged: integer("merged", { mode: "boolean" }).notNull(),
+    openedAt: integer("opened_at", { mode: "timestamp_ms" }),
+    closedAt: integer("closed_at", { mode: "timestamp_ms" }).notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("closed_pulls_pull").on(t.reviewRepoId, t.number),
+    index("closed_pulls_account_closed").on(t.accountId, t.closedAt),
+  ],
 );
 
 // One review of a pull request's head, from queued to done; a newer head
@@ -692,6 +739,57 @@ export const automationRuns = sqliteTable(
   ],
 );
 
+// A pre-merge check an account asks of an enrolled repository's pull
+// requests; its settings are checked against its kind's schema on the way
+// in and out (src/merge-checks/settings.ts).
+export const mergeChecks = sqliteTable(
+  "merge_checks",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    reviewRepoId: text("review_repo_id")
+      .notNull()
+      .references(() => reviewRepos.id, { onDelete: "cascade" }),
+    kind: text("kind", { enum: MERGE_CHECK_KINDS }).notNull(),
+    mode: text("mode", { enum: MERGE_CHECK_MODES }).notNull(),
+    settings: text("settings", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("merge_checks_repo").on(t.reviewRepoId, t.createdAt),
+    index("merge_checks_account").on(t.accountId),
+  ],
+);
+
+// How one head of a pull request fared, one row per head: posted to the
+// platform when its digest changes, so a result is posted once.
+export const mergeCheckRuns = sqliteTable(
+  "merge_check_runs",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    reviewRepoId: text("review_repo_id")
+      .notNull()
+      .references(() => reviewRepos.id, { onDelete: "cascade" }),
+    number: integer("number").notNull(),
+    head: text("head").notNull(),
+    conclusion: text("conclusion", { enum: ["success", "neutral", "failure"] })
+      .$type<MergeChecksConclusion>()
+      .notNull(),
+    results: text("results", { mode: "json" }).$type<MergeCheckResultView[]>().notNull(),
+    digest: text("digest").notNull(),
+    postedDigest: text("posted_digest"),
+    // The platform's id of the check run, to update it rather than add another.
+    externalId: text("external_id"),
+    postedAt: integer("posted_at", { mode: "timestamp_ms" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("merge_check_runs_head").on(t.reviewRepoId, t.number, t.head),
+    index("merge_check_runs_account_created").on(t.accountId, t.createdAt),
+  ],
+);
+
 /** The tables scoped by account, by the name scoped() uses. */
 export const accountTables = {
   sessions,
@@ -713,9 +811,12 @@ export const accountTables = {
   reviewRepos,
   reviewJobs,
   notifyChannels,
+  closedPulls,
   replyJobs,
   reviewWalkthroughs,
   generateJobs,
   automationRules,
   automationRuns,
+  mergeChecks,
+  mergeCheckRuns,
 } as const;

@@ -91,6 +91,15 @@ export const rows = {
     last4: "abcd",
   }),
   // The enrolled repository it belongs to is made in beforeEach (the foreign key needs one).
+  closedPulls: (id: string) => ({
+    id,
+    reviewRepoId: "review-repo-of-a",
+    number: 1,
+    title: `pull ${id}`,
+    merged: true,
+    closedAt: new Date(),
+  }),
+  // The enrolled repository it belongs to is made in beforeEach (the foreign key needs one).
   replyJobs: (id: string) => ({
     id,
     reviewRepoId: "review-repo-of-a",
@@ -128,6 +137,23 @@ export const rows = {
     pull: "octo/api#7",
     eventKey: `review:${id}`,
     actions: [],
+  }),
+  // The enrolled repository they belong to is made in beforeEach (the foreign key needs one).
+  mergeChecks: (id: string) => ({
+    id,
+    reviewRepoId: "review-repo-of-a",
+    kind: "size" as const,
+    mode: "warn" as const,
+    settings: { maxFiles: 10 },
+  }),
+  mergeCheckRuns: (id: string) => ({
+    id,
+    reviewRepoId: "review-repo-of-a",
+    number: 1,
+    head: `h-${id}`,
+    conclusion: "success" as const,
+    results: [],
+    digest: "d",
   }),
   repositories: (id: string) => ({ id, repoHash: `h-${id}`, name: `octo/${id}` }),
   // One row per account, kind and day; the id names the day.

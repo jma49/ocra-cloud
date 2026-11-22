@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import type { PullActionOutcome, Severity, Verification } from "../../../src/shared/index.js";
 import { api } from "../api.js";
 import { symbolsOf } from "../impact/select.js";
@@ -103,29 +104,31 @@ export function FindingEvent(props: {
           {f.code && <pre className="codeblock">{f.code}</pre>}
         </div>
         <div className="event-actions">
-          <button type="button" className="btn btn-sm" onClick={() => setOpen(!open)}>
+          <Button type="button" variant="outline" size="sm" onClick={() => setOpen(!open)}>
             {open ? "Hide" : "Details"}
-          </button>
+          </Button>
           {reached[0] && (
-            <button
+            <Button
               type="button"
-              className="btn btn-sm"
+              variant="outline"
+              size="sm"
               aria-pressed={props.focused}
               onClick={props.onImpact}
             >
               Reaches {uses} use{uses === 1 ? "" : "s"} of {reached[0].name}
               {reached.length > 1 ? ` and ${reached.length - 1} more` : ""}
-            </button>
+            </Button>
           )}
           {fixable && (
-            <button
+            <Button
               type="button"
-              className="btn btn-sm"
+              variant="outline"
+              size="sm"
               disabled={fixed === "sending"}
               onClick={commitFix}
             >
               Commit fix
-            </button>
+            </Button>
           )}
           {(f.status === "fixed" || fixed === "done") && (
             <span className="badge badge-ok">Fixed</span>
@@ -175,14 +178,15 @@ export function FindingEvent(props: {
                     value={reason}
                     onChange={(e) => setReason(e.target.value)}
                   />
-                  <button
+                  <Button
                     type="button"
-                    className="btn btn-sm"
+                    variant="outline"
+                    size="sm"
                     disabled={!reason.trim() || state === "saving"}
                     onClick={remember}
                   >
                     Remember
-                  </button>
+                  </Button>
                   {state === "error" && <span className="error">Could not remember it.</span>}
                 </>
               )}
