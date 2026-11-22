@@ -9,6 +9,7 @@ import type {
   MergeWhenReadyView,
 } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
+import { ago } from "../format.js";
 import { useAction, useLoad } from "../ui.js";
 import { OUTCOME } from "./outcome.js";
 
@@ -16,25 +17,25 @@ import { OUTCOME } from "./outcome.js";
 // it as the user once the platform, the pre-merge checks and ocra's review
 // of the head allow it.
 
-const STATE: Record<MergeIntentState, string> = {
-  armed: "Merges when ready",
-  merging: "Merging",
-  merged: "Merged",
-  closed: "Closed before it merged",
-  disarmed: "Stopped: new commits",
-  cancelled: "Cancelled",
-  failed: "Stopped",
+const STATE: Record<MergeIntentState, { text: string; tone: string }> = {
+  armed: { text: "Armed", tone: "badge badge-ok" },
+  merging: { text: "Merging", tone: "badge badge-ok" },
+  merged: { text: "Merged", tone: "badge" },
+  closed: { text: "Closed unmerged", tone: "badge" },
+  disarmed: { text: "Stopped", tone: "badge badge-warn" },
+  cancelled: { text: "Cancelled", tone: "badge" },
+  failed: { text: "Stopped", tone: "badge badge-err" },
 };
 
 const REASON: Record<MergeIntentReason, string> = {
-  waiting_platform: "waiting for required checks, approvals or a clean merge",
-  waiting_checks: "waiting for the pre-merge checks",
-  checks_failed: "a blocking pre-merge check fails",
-  blocking_review: "ocra's review of this head has a critical finding",
-  head_moved: "the pull request gained commits",
-  refused: "the platform refused the merge",
-  no_token: "connect the platform again",
-  unreachable: "the platform did not answer; it is tried again on its next event",
+  waiting_platform: "Waiting for required checks, approvals or a clean merge.",
+  waiting_checks: "Waiting for the pre-merge checks.",
+  checks_failed: "A blocking pre-merge check fails.",
+  blocking_review: "ocra's review of this head has a critical finding.",
+  head_moved: "The pull request gained commits.",
+  refused: "The platform refused the merge.",
+  no_token: "Connect the platform again.",
+  unreachable: "The platform did not answer; it is tried again on its next event.",
 };
 
 const ANSWER: Record<MergeWhenReadyOutcome, string> = {
@@ -78,15 +79,19 @@ export function MergeWhenReadyBox(props: {
   const live = intent && (intent.state === "armed" || intent.state === "merging");
   return (
     <section className="card card-pad stack" aria-label="Merge when ready">
-      <div className="strong">Merge when ready</div>
-      {intent && (
-        <span>
-          {STATE[intent.state]}
-          {intent.reason && <span className="subtle"> · {REASON[intent.reason]}</span>}
+      <div className="row-gap checks-head">
+        <span className="strong grow">Merge when ready</span>
+        {intent && <span className={STATE[intent.state].tone}>{STATE[intent.state].text}</span>}
+      </div>
+      {live && (
+        <span className="subtle small">
+          {props.label[intent.method]}, set by {intent.armedBy} {ago(intent.armedAt)}
+          {intent.keepOnPush ? ", kept on new commits" : ""}.
         </span>
       )}
+      {intent?.reason && <span className="subtle small">{REASON[intent.reason]}</span>}
       {live ? (
-        <Button variant="outline" disabled={write.busy} onClick={() => send("DELETE")}>
+        <Button type="button" variant="outline" loading={write.busy} onClick={() => send("DELETE")}>
           Cancel merge when ready
         </Button>
       ) : (
@@ -107,13 +112,13 @@ export function MergeWhenReadyBox(props: {
             <input type="checkbox" checked={keep} onChange={(e) => setKeep(e.target.checked)} />
             Keep armed on new commits
           </label>
-          <Button variant="outline" disabled={write.busy} onClick={() => send("POST")}>
+          <Button type="button" variant="outline" loading={write.busy} onClick={() => send("POST")}>
             Merge when ready
           </Button>
         </>
       )}
       {said && said !== "done" && (
-        <p className="error" role="status">
+        <p className="error small m-0" role="status">
           {ANSWER[said]}
         </p>
       )}
