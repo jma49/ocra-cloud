@@ -3,12 +3,14 @@ import { createApp } from "./app.js";
 import { enforceRetention } from "./db/retention.js";
 import { masterKeys } from "./keyring.js";
 import { runDigests } from "./notify/digest.js";
+import { runReminders } from "./notify/reminders.js";
 import { runReports } from "./notify/report.js";
 
 // The Cloudflare Worker: D1, its rate limiting bindings and its crons: the
 // daily one runs retention, the hourly one (HOURLY, in wrangler.jsonc) the
-// digests and weekly reports, which the database lets go once. It has no
-// mailer: no email API is configured for it, so they go to its chats only.
+// digests, weekly reports and review reminders, which the database lets go
+// once. It has no mailer: no email API is configured for it, so they go to
+// its chats only.
 const HOURLY = "47 * * * *";
 export const app = createApp({
   openDb: (env: Env) => drizzle(env.DB),
@@ -30,6 +32,7 @@ export default {
       };
       ctx.waitUntil(runDigests(db, out));
       ctx.waitUntil(runReports(db, out));
+      ctx.waitUntil(runReminders(db, out));
     }
   },
 } satisfies ExportedHandler<Env>;

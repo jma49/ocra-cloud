@@ -18,6 +18,7 @@ import { recordGitlabClose } from "./closes.js";
 import { recordGitlabFlow } from "./flows.js";
 import { keepReviewedPaths, pathReaderOf } from "./paths.js";
 import { gitlabNote, queueGitlabNote } from "./replies.js";
+import { recordGitlabRequests } from "./requests.js";
 import type { AutoReviewService } from "./routes.js";
 
 // A pull request of an enrolled repository is queued for review when it
@@ -144,6 +145,7 @@ export function autoReviewWebhooks(service: AutoReviewService) {
     if (mr) {
       const reviewed = await recordGitlabFlow(c.var.db, repo, body);
       if (reviewed) defer(c, keepReviewedPaths(pathReaderOf(c), reviewed));
+      await recordGitlabRequests(c.var.db, repo, body);
       defer(c, tellGitlabHook(c.var.db, publicOutbox(c), repo, body));
     }
     if (mr && (await recordGitlabClose(c.var.db, repo, body))) return c.json({ queued: 0 }, 202);

@@ -18,6 +18,7 @@ import {
   pullReviews,
   pullSeen,
   rateWindows,
+  reviewRequests,
   reviews,
   serviceCounters,
   sessions,
@@ -100,6 +101,15 @@ export async function enforceRetention(db: Db, now = new Date()): Promise<void> 
         db
           .delete(pullReviews)
           .where(and(ofEachAccount(pullReviews.accountId), lt(pullReviews.submittedAt, cutoff))),
+    ],
+    [
+      "review_requests",
+      () =>
+        db
+          .delete(reviewRequests)
+          .where(
+            and(ofEachAccount(reviewRequests.accountId), lt(reviewRequests.requestedAt, cutoff)),
+          ),
     ],
     // A pull request not seen for that long falls back on the inbox baseline,
     // which is never older than the cutoff (./pull-seen.ts): read until it changes.

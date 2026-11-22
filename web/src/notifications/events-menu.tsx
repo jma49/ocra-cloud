@@ -9,6 +9,8 @@ const EVENT_LABEL: Record<NotifyEvent, string> = {
   checks_failed: "Pre-merge checks fail on my pull request",
   review_blocking: "ocra finds something critical in my pull request",
   merge_when_ready: "A pull request I set to merge when ready merges or stops",
+  review_waiting: "Remind me of a review still asked of me",
+  pull_waiting: "Remind me of my pull request no one has reviewed",
 };
 
 function summary(events: NotifyEvent[]): string {

@@ -11,6 +11,8 @@ import {
   type NotifyChannelAdded,
   type NotifyChannelsView,
   type NotifyChannelView,
+  type NotifyTimeZoneView,
+  REMINDER_HOURS,
   type ReportScheduleView,
 } from "../shared/index.js";
 import type { AppEnv } from "../types.js";
@@ -18,6 +20,7 @@ import { hookUrl, reviewMessage } from "./channels.js";
 import { emailAddress, mailOf, sendMail } from "./email.js";
 import { CONFIRM_TTL_MS, confirmToken, linkUrl, unsubscribeUrl } from "./links.js";
 import { openHook, outboxOf, sealHook, send } from "./notify.js";
+import { timeZoneOf } from "./reminders.js";
 import { nextSlot } from "./report.js";
 
 // The account's channels: added with their webhook or email address, which
@@ -38,12 +41,20 @@ const events = z
   .array(z.enum(NOTIFY_EVENTS))
   .max(NOTIFY_EVENTS.length)
   .transform((list) => NOTIFY_EVENTS.filter((e) => list.includes(e)));
+const hour = z.number().int().min(0).max(23);
+const reminderHours = z.literal(REMINDER_HOURS).nullable();
+const quietHours = z
+  .object({ start: hour, end: hour })
+  .refine((q) => q.start !== q.end, "start and end differ")
+  .nullable();
 const common = {
   name,
   when: z.enum(NOTIFY_WHEN),
   digest: z.boolean().optional(),
   weekly: z.boolean().optional(),
   events: events.optional(),
+  reminderHours: reminderHours.optional(),
+  quietHours: quietHours.optional(),
 };
 const addBody = z.discriminatedUnion("kind", [
   z.object({ kind: z.enum(["slack", "wecom"]), url: z.string().max(512), ...common }),
@@ -56,12 +67,15 @@ const changeBody = z
     digest: z.boolean().optional(),
     weekly: z.boolean().optional(),
     events: events.optional(),
+    reminderHours: reminderHours.optional(),
+    quietHours: quietHours.optional(),
   })
   .refine((b) => Object.values(b).some((v) => v !== undefined), "nothing to change");
-const scheduleBody = z.object({
-  weekday: z.number().int().min(0).max(6),
-  hour: z.number().int().min(0).max(23),
-});
+const scheduleBody = z.object({ weekday: z.number().int().min(0).max(6), hour });
+const timeZoneBody = z.object({ timeZone: z.string().trim().min(1).max(64) });
+
+const quietOf = (q: { start: number; end: number } | null | undefined) =>
+  q === undefined ? {} : { quietStart: q?.start ?? null, quietEnd: q?.end ?? null };
 
 const channelView = (r: Row<"notifyChannels">) =>
   ({
@@ -74,6 +88,13 @@ const channelView = (r: Row<"notifyChannels">) =>
     digest: r.digest,
     weekly: r.weekly,
     events: r.events,
+    reminderHours: (REMINDER_HOURS as readonly number[]).includes(r.reminderHours ?? -1)
+      ? (r.reminderHours as (typeof REMINDER_HOURS)[number])
+      : null,
+    quietHours:
+      r.quietStart !== null && r.quietEnd !== null
+        ? { start: r.quietStart, end: r.quietEnd }
+        : null,
     lastStatus: r.lastStatus,
     lastSentAt: r.lastSentAt?.toISOString() ?? null,
     createdAt: r.createdAt.toISOString(),
@@ -142,6 +163,9 @@ notifyRoute.post("/channels", perMinute("settings"), jsonBody(addBody), async (c
     digest: body.digest ?? false,
     weekly: body.weekly ?? false,
     events: body.events ?? [],
+    reminderHours: body.reminderHours ?? null,
+    quietStart: body.quietHours?.start ?? null,
+    quietEnd: body.quietHours?.end ?? null,
     ...sealed,
     last4: address.slice(-4),
     // A webhook address is its chat's own credential: whoever has it may post there.
@@ -171,7 +195,8 @@ notifyRoute.post("/channels/:id/confirm", perMinute("settings"), async (c) => {
 
 notifyRoute.patch("/channels/:id", perMinute("settings"), jsonBody(changeBody), async (c) => {
   const id = c.req.param("id");
-  const { name: newName, when, digest, weekly, events: newEvents } = c.req.valid("json");
+  const b = c.req.valid("json");
+  const { name: newName, when, digest, weekly, events: newEvents } = b;
   await c.var.data.batch((w) => [
     w.update("notifyChannels", id, {
       ...(newName !== undefined ? { name: newName } : {}),
@@ -179,6 +204,8 @@ notifyRoute.patch("/channels/:id", perMinute("settings"), jsonBody(changeBody), 
       ...(digest !== undefined ? { digest } : {}),
       ...(weekly !== undefined ? { weekly } : {}),
       ...(newEvents !== undefined ? { events: newEvents } : {}),
+      ...(b.reminderHours !== undefined ? { reminderHours: b.reminderHours } : {}),
+      ...quietOf(b.quietHours),
     }),
   ]);
   const stored = await c.var.data.get("notifyChannels", id);
@@ -221,4 +248,16 @@ notifyRoute.put("/report", perMinute("settings"), jsonBody(scheduleBody), async 
   const { weekday, hour } = c.req.valid("json");
   await c.var.data.reports.setSchedule({ weekday, hour });
   return c.json(scheduleView({ weekday, hour }));
+});
+
+/** The account's time zone, which its channels' quiet hours are read in. */
+notifyRoute.get("/time-zone", async (c) => {
+  return c.json({ timeZone: await c.var.data.notify.timeZone() } satisfies NotifyTimeZoneView);
+});
+
+notifyRoute.put("/time-zone", perMinute("settings"), jsonBody(timeZoneBody), async (c) => {
+  const timeZone = timeZoneOf(c.req.valid("json").timeZone);
+  if (!timeZone) return refuse(c, "timeZone", "not an IANA time zone");
+  await c.var.data.notify.setTimeZone(timeZone);
+  return c.json({ timeZone } satisfies NotifyTimeZoneView);
 });

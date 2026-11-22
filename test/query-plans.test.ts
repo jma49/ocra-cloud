@@ -74,6 +74,7 @@ const TABLE: Record<string, string> = {
   pullFlows: "pull_flows",
   pullReviews: "pull_reviews",
   pullPaths: "pull_paths",
+  reviewRequests: "review_requests",
   replyJobs: "reply_jobs",
   generateJobs: "generate_jobs",
   reviewWalkthroughs: "review_walkthroughs",
@@ -367,6 +368,24 @@ describe("the review flow", () => {
   });
 });
 
+describe("review reminders", () => {
+  it("reads the asks and the unreviewed pull requests through an index, never a whole table", async () => {
+    const seen: Captured[] = [];
+    const d = scoped(drizzle(recording(seen)), "acct");
+    const u = { platform: "github", host: "github.com", userId: "42" } as const;
+    await d.reviewRequests.askedOf(u, new Date(0), new Date(), 25);
+    await d.reviewRequests.unreviewedOf(u, new Date(0), new Date(), 25);
+    expect(seen).toHaveLength(2);
+    for (const q of seen) {
+      const p = await plan(q);
+      expect(p, q.sql).toMatch(
+        /SEARCH (review_requests|pull_flows) USING INDEX (review_requests_account_requested|pull_flows_account_seen)/,
+      );
+      expect(p, q.sql).not.toMatch(/SCAN (review_requests|pull_flows|closed_pulls|review_repos)/);
+    }
+  });
+});
+
 describe("retention", () => {
   it("finds each table's old rows through an index, never reading the whole table (audit C3)", async () => {
     const seen: Captured[] = [];
@@ -390,6 +409,7 @@ describe("retention", () => {
       "pull_reviews",
       "pull_seen",
       "rate_windows",
+      "review_requests",
       "reviews",
       "service_counters",
       "sessions",
