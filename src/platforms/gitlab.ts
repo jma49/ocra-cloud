@@ -7,6 +7,7 @@ import { gitlabLearnings } from "./gitlab-learnings.js";
 import { gitlabMergeStatus } from "./gitlab-merge-status.js";
 import { gitlabPulls } from "./gitlab-pulls.js";
 import { gitlabQueue } from "./gitlab-queue.js";
+import { gitlabReviewers } from "./gitlab-reviewers.js";
 import { gitlabSearch } from "./gitlab-search.js";
 import { gitlabStacks } from "./gitlab-stack.js";
 import { platformCall } from "./http.js";
@@ -61,6 +62,7 @@ export function gitlab(client: GitlabClient, redirectUri: string): CodePlatform 
     learnings: gitlabLearnings(client.url),
     files: gitlabFiles(client.url),
     mergeStatus: gitlabMergeStatus(client.url),
+    reviewers: gitlabReviewers(client.url),
     async listRepos(token) {
       const repositories: PlatformRepo[] = [];
       for (let page = 1; page <= MAX_PAGES; page++) {

@@ -10,6 +10,7 @@ import type { RepoLearnings } from "./learnings.js";
 import type { PullMergeStatus } from "./merge-status.js";
 import type { ListedPull, PullListing, PullSearch } from "./pulls.js";
 import type { MergeQueue } from "./queue.js";
+import type { PullReviewers } from "./reviewers.js";
 import type { PullStacks } from "./stacks.js";
 
 // What the product layer needs from a code platform, whatever it is: GitHub,
@@ -67,6 +68,7 @@ export interface CodePlatform {
   readonly learnings: RepoLearnings;
   readonly files: RepoFiles;
   readonly mergeStatus: PullMergeStatus;
+  readonly reviewers: PullReviewers;
 }
 
 /**
