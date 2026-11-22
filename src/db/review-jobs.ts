@@ -14,6 +14,19 @@ export type ReviewJobSummary = typeof reviewJobs.$inferSelect;
 export function accountReviewJobs(db: Db, accountId: string) {
   const j = reviewJobs;
   const own = eq(j.accountId, accountId);
+  const supersedeOthers = (reviewRepoId: string, number: number, head: string, now: Date) =>
+    db
+      .update(j)
+      .set({ state: "superseded", finishedAt: now })
+      .where(
+        and(
+          own,
+          eq(j.reviewRepoId, reviewRepoId),
+          eq(j.number, number),
+          ne(j.head, head),
+          eq(j.state, "queued"),
+        ),
+      );
   return {
     /**
      * Enrolls a repository for this account, or brings its name and hook
@@ -50,20 +63,69 @@ export function accountReviewJobs(db: Db, accountId: string) {
       const result = await db
         .insert(j)
         .values({ id: crypto.randomUUID(), accountId, reviewRepoId, number, head, createdAt: now })
-        .onConflictDoNothing({ target: [j.reviewRepoId, j.number, j.head] });
+        .onConflictDoNothing({ target: [j.reviewRepoId, j.number, j.head, j.run] });
+      await supersedeOthers(reviewRepoId, number, head, now);
+      return changedRows(result) > 0;
+    },
+
+    /**
+     * A review of the pull request's head asked for by a person: queued
+     * unless the head has a job that was not superseded or, with force,
+     * unless one is queued or running; a forced one is the head's next run.
+     * The unique index on the run keeps two requests at once to one job.
+     * Answers the head's current job.
+     */
+    async request(
+      reviewRepoId: string,
+      number: number,
+      head: string,
+      force: boolean,
+      now: Date,
+    ): Promise<ReviewJobSummary | undefined> {
+      const sameHead = sql`r.review_repo_id = ${reviewRepoId} AND r.number = ${number} AND r.head = ${head}`;
+      const blocking = force ? sql`r.state IN ('queued', 'running')` : sql`r.state <> 'superseded'`;
       await db
-        .update(j)
-        .set({ state: "superseded", finishedAt: now })
+        .insert(j)
+        .select(sql`SELECT ${crypto.randomUUID()}, ${accountId}, ${reviewRepoId}, ${number}, ${head},
+          (SELECT coalesce(max(r.run), -1) + 1 FROM ${j} r WHERE ${sameHead}),
+          'queued', 0, NULL, NULL, NULL, NULL, NULL, ${now.getTime()}
+        WHERE EXISTS (SELECT 1 FROM ${reviewRepos} WHERE id = ${reviewRepoId} AND account_id = ${accountId})
+          AND NOT EXISTS (SELECT 1 FROM ${j} r WHERE ${sameHead} AND ${blocking})`)
+        .onConflictDoNothing({ target: [j.reviewRepoId, j.number, j.head, j.run] });
+      await supersedeOthers(reviewRepoId, number, head, now);
+      return db
+        .select()
+        .from(j)
         .where(
           and(
             own,
             eq(j.reviewRepoId, reviewRepoId),
             eq(j.number, number),
-            ne(j.head, head),
-            eq(j.state, "queued"),
+            eq(j.head, head),
+            ne(j.state, "superseded"),
           ),
-        );
-      return changedRows(result) > 0;
+        )
+        .orderBy(desc(j.run))
+        .limit(1)
+        .then(first);
+    },
+
+    /** The pull request's newest job that was not superseded. */
+    latestPullJob(reviewRepoId: string, number: number): Promise<ReviewJobSummary | undefined> {
+      return db
+        .select()
+        .from(j)
+        .where(
+          and(
+            own,
+            eq(j.reviewRepoId, reviewRepoId),
+            eq(j.number, number),
+            ne(j.state, "superseded"),
+          ),
+        )
+        .orderBy(desc(j.createdAt), desc(j.run))
+        .limit(1)
+        .then(first);
     },
 
     /** Each repository's newest job. */
