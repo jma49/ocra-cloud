@@ -2,7 +2,12 @@ import Flag from "lucide-react/icons/flag";
 import SearchX from "lucide-react/icons/search-x";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import type { ReviewSource, ReviewWalkthroughView, Verdict } from "../../../src/shared/index.js";
+import type {
+  LinkedTaskView,
+  ReviewSource,
+  ReviewWalkthroughView,
+  Verdict,
+} from "../../../src/shared/index.js";
 import { ApiError, api } from "../api.js";
 import { useCached } from "../cache.js";
 import { ago, sourceLabel, time } from "../format.js";
@@ -13,6 +18,7 @@ import { ReviewChat } from "../review-chat/chat.js";
 import { Link } from "../router.js";
 import { EmptyState, LoadError, Loading, PageHead, Seg } from "../ui.js";
 import { type Finding, FindingEvent } from "./review-finding.js";
+import { LinkedTasks } from "./review-linked-tasks.js";
 import { Walkthrough } from "./review-walkthrough.js";
 
 // One review and, when the account shares findings, its findings (ADR-0028):
@@ -32,6 +38,8 @@ type Detail = {
     createdAt: string;
     prRepository: string | null;
     prNumber: number | null;
+    // Absent from a review uploaded before the console stored them.
+    linkedTasks?: LinkedTaskView[] | null;
   };
   findings: Finding[];
   walkthrough: ReviewWalkthroughView | null;
@@ -224,6 +232,7 @@ function Properties(props: { r: Review }) {
             </dd>
           </>
         )}
+        <LinkedTasks tasks={r.linkedTasks ?? null} />
         <dt>Source</dt>
         <dd>{sourceLabel(r.source)}</dd>
         <dt>Reviewed</dt>
