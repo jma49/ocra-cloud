@@ -18,8 +18,8 @@ export const platformConnect = new Hono<AppEnv>();
 
 const STATE_COOKIE = "__Host-ocra_gitlab_state";
 const STATE_OPTIONS = { secure: true, path: "/" } as const;
-/** What the token can do: read the user's projects and nothing else. */
-const SCOPE = "read_api";
+/** What the token can do: read the user's projects, and comment, approve and merge as them. */
+const SCOPE = "api";
 
 platformConnect.get("/gitlab/connect", requireSession(), perMinute("settings"), async (c) => {
   const client = gitlabClientOf(c.env);

@@ -28,13 +28,13 @@ Without Docker: `npm ci && npm run build:web && npm run build:node`, then `node 
 
 | Variable | Required | Meaning |
 |---|---|---|
-| `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | one way to sign in | Your own GitHub App's client; its callback URL is `<PUBLIC_URL>/api/auth/github/callback` |
+| `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | one way to sign in | Your own GitHub App's client, with expiring user tokens and the repository permissions Contents and Pull requests set to read and write (the console comments, reviews and merges as the user); its callback URL is `<PUBLIC_URL>/api/auth/github/callback` |
 | `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` | one way to sign in | An OpenID Connect provider: the company's SSO (Keycloak, Azure AD, Okta) or a self-hosted GitLab, which is one. A confidential client with the scopes `openid profile email` and the redirect URI `<PUBLIC_URL>/api/auth/oidc/callback`; the issuer is the URL its discovery document names, such as `https://gitlab.example.com` |
 | `OIDC_NAME` | no | the provider's name on the sign-in button, "SSO" when unset |
 | `MASTER_KEY` | yes | base64 of 32 random bytes (`openssl rand -base64 32`); wraps every stored key. Losing it loses them |
 | `MASTER_KEY_PREVIOUS` | during a rotation | as on Workers (`docs/rotation.md`) |
 | `SESSION_SECRET` | yes | signs the sign-in state cookie |
-| `GITLAB_CLIENT_ID`, `GITLAB_CLIENT_SECRET` | to connect GitLab | a GitLab OAuth application (scope `read_api`); its redirect URI is `<PUBLIC_URL>/api/platforms/gitlab/callback` |
+| `GITLAB_CLIENT_ID`, `GITLAB_CLIENT_SECRET` | to connect GitLab | a GitLab OAuth application (scope `api`: the console comments, approves and merges as the user); its redirect URI is `<PUBLIC_URL>/api/platforms/gitlab/callback` |
 | `GITLAB_URL` | for a self-hosted GitLab | the instance, such as `https://gitlab.example.com`; `https://gitlab.com` when unset |
 | `PUBLIC_URL` | behind a TLS proxy | the address people open, such as `https://ocra.example.com` |
 | `TRUSTED_PROXY_HOPS` | behind a proxy | how many proxies in front append to `X-Forwarded-For` (1 for one TLS proxy); the login code limits count by the address read past them. 0, the socket's peer, when unset |
@@ -104,6 +104,8 @@ A one-off `migrate` run (`MIGRATE=only`) applies the migrations first; the repli
 ## Code graphs
 
 An account adds a repository on the console's Code graphs page (or `/api/graphs/repos`); the server then keeps a graph of its default branch (symbol names, kinds and line numbers per file, never code), built after each push from the platform's tree and blob APIs with the account's own token, reading only the files that changed. Pushes arrive at `<PUBLIC_URL>/api/graphs/webhooks/github` (the GitHub App's webhook, signed with its secret) or `/api/graphs/webhooks/gitlab` (a project hook with the secret the server answers when the project is added). Builds older than 14 days are deleted daily, except each repository's newest; an account rebuilds a repository's graph from its branch's head, purges its graphs or removes it at any time, from the same page. The page is in the console only where `CODE_GRAPH` is not `off`. Builds run in the server process with the engine's tree-sitter parser (`@open-cr-agent/code-graph`); with several processes on one database, each build is claimed by one of them. `PUBLIC_URL` must be set for GitLab, whose token refresh names the server's address.
+
+A pull request's page reads its diff live as the signed-in user (`GET /api/pulls/files`, at most 4 MB of diff per page) and sends their comment, review and merge to the platform as them (`POST /api/pulls/comment`, `/review`, `/merge`); only a web session may, and nothing read or sent is kept. A review or merge names the head commit the user read, and one that moved since answers `head_moved` instead of acting. GitLab takes approve and comment as verdicts, and merge or squash as merges.
 
 A pull request's impact (`/api/graphs/repos/<id>/impact?pull=<number>`) is computed from that graph on request: the platform's pull request API gives the changed files' hunk headers, the symbols the hunks touch on the graph's side are the changed ones, and their uses are the other files' identifiers of the same name, matched by name and not type-resolved. The code line of up to 40 uses is read from the platform at the graph's commit for the answer and not kept. The review page of a pull request's review shows it in a rail beside the findings when the console keeps a graph of that repository; a review uploaded before this server stored pull requests (migration `0028`) has none.
 

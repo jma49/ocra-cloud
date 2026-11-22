@@ -59,3 +59,24 @@ export async function boundedBytes(res: Response, max: number): Promise<Uint8Arr
   }
   return out;
 }
+
+/** A write's status and JSON answer; null when it failed to reach the platform or took too long. */
+export async function platformSend<T>(
+  url: string,
+  init: RequestInit,
+): Promise<{ status: number; body: T | null } | null> {
+  const clock = deadline(TIMEOUT_MS);
+  try {
+    const res = await fetch(url, { ...init, redirect: "manual", signal: clock.signal });
+    if (res.status >= 300 && res.status < 400) {
+      await res.body?.cancel().catch(() => {});
+      return { status: res.status, body: null };
+    }
+    const body = (await res.json().catch(() => null)) as T | null;
+    return { status: res.status, body };
+  } catch {
+    return null;
+  } finally {
+    clock.clear();
+  }
+}

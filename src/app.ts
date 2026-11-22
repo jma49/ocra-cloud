@@ -19,6 +19,7 @@ import { oidc } from "./oidc.js";
 import { platformConnect } from "./platform-connect.js";
 import { platformsRoute } from "./platform-routes.js";
 import { preferences } from "./preferences.js";
+import { pullPage } from "./pull-page.js";
 import { pullViewsRoute } from "./pull-views.js";
 import { repositoriesRoute } from "./repositories.js";
 import { reviews } from "./reviews.js";
@@ -93,6 +94,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
   app.route("/platforms", platformsRoute);
   app.route("/platforms", platformConnect);
   app.route("/pull-views", pullViewsRoute);
+  app.route("/pulls", pullPage);
   if (host.graphs) app.route("/graphs", graphsRoute(host.graphs));
 
   app.notFound((c) => apiError(c, "not_found"));
