@@ -930,6 +930,31 @@ export const reviewRequests = sqliteTable(
   ],
 );
 
+// An account's review targets (src/review-targets.ts): its default (scope
+// "default", no repository) and an enrolled repository's own, which takes
+// the default's place (scope is the repository's id). A null target sets
+// none of that kind. One row per account and scope; removed with its
+// repository.
+export const reviewTargets = sqliteTable(
+  "review_targets",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    scope: text("scope").notNull(),
+    reviewRepoId: text("review_repo_id").references(() => reviewRepos.id, {
+      onDelete: "cascade",
+    }),
+    firstReviewHours: integer("first_review_hours"),
+    mergeDays: integer("merge_days"),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("review_targets_account_scope").on(t.accountId, t.scope),
+    index("review_targets_repo").on(t.reviewRepoId),
+  ],
+);
+
 // One review of a pull request's head, from queued to done; a newer head
 // of the same pull request supersedes the queued ones. A head is reviewed
 // again (asked for on the console) as its next run.
@@ -1296,6 +1321,7 @@ export const accountTables = {
   reviewThreads,
   pullPaths,
   reviewRequests,
+  reviewTargets,
   replyJobs,
   reviewWalkthroughs,
   generateJobs,

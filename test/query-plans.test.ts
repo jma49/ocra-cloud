@@ -78,6 +78,7 @@ const TABLE: Record<string, string> = {
   reviewThreads: "review_threads",
   pullPaths: "pull_paths",
   reviewRequests: "review_requests",
+  reviewTargets: "review_targets",
   replyJobs: "reply_jobs",
   generateJobs: "generate_jobs",
   reviewWalkthroughs: "review_walkthroughs",
@@ -511,6 +512,27 @@ describe("review reminders", () => {
         /SEARCH (review_requests|pull_flows) USING INDEX (review_requests_account_requested|pull_flows_account_seen)/,
       );
       expect(p, q.sql).not.toMatch(/SCAN (review_requests|pull_flows|closed_pulls|review_repos)/);
+    }
+  });
+});
+
+describe("pull requests at risk", () => {
+  it("reads open pull requests and their waiting asks through an index, never a whole table", async () => {
+    const seen: Captured[] = [];
+    const d = scoped(drizzle(recording(seen)), "acct");
+    await d.find("reviewTargets", {}, 101);
+    await d.reviewTargets.openPulls(new Date(0), null, 2_000);
+    await d.reviewTargets.openPulls(new Date(0), ["r1", "r2"], 2_000);
+    await d.reviewTargets.waitingOn([{ reviewRepoId: "r1", number: 5 }]);
+    expect(seen).toHaveLength(4);
+    for (const q of seen) {
+      const p = await plan(q);
+      expect(p, q.sql).toMatch(
+        /SEARCH (review_targets|pull_flows|review_requests) USING (COVERING )?INDEX (review_targets_account_scope|pull_flows_account_seen|pull_flows_pull|review_requests_pull_reviewer|review_requests_account_requested)/,
+      );
+      expect(p, q.sql).not.toMatch(
+        /SCAN (review_targets|pull_flows|review_requests|closed_pulls|review_repos)/,
+      );
     }
   });
 });

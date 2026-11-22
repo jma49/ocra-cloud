@@ -173,6 +173,14 @@ export const rows = {
     reviewerId: `reviewer-${id}`,
     requestedAt: new Date(),
   }),
+  // The account default: a repository's own needs the enrolled repository too.
+  reviewTargets: (id: string) => ({
+    id,
+    scope: `default-${id}`,
+    firstReviewHours: 24,
+    mergeDays: 7,
+    updatedAt: new Date(),
+  }),
   // The enrolled repository it belongs to is made in beforeEach (the foreign key needs one).
   replyJobs: (id: string) => ({
     id,

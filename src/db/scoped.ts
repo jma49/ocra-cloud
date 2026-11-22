@@ -60,6 +60,7 @@ import { accountReviewChat } from "./review-chat.js";
 import { accountReviewJobs } from "./review-jobs.js";
 import { accountReviewLoad } from "./review-load.js";
 import { accountReviewRequests } from "./review-requests.js";
+import { accountReviewTargets } from "./review-targets.js";
 import { accountReviewThreads } from "./review-threads.js";
 import { accountTables } from "./schema.js";
 import { accountSearch } from "./search.js";
@@ -447,6 +448,7 @@ export function scoped(db: Db, accountId: string) {
     pullPaths: accountPullPaths(db, accountId),
     reviewRequests: accountReviewRequests(db, accountId),
     reviewThreads: accountReviewThreads(db, accountId),
+    reviewTargets: accountReviewTargets(db, accountId),
     reviewLoad: accountReviewLoad(db, accountId),
     impact: accountImpact(db, accountId),
     findingOutcomes: accountFindingOutcomes(db, accountId),
