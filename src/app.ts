@@ -13,7 +13,7 @@ import { apiError } from "./http.js";
 import { inbox } from "./inbox.js";
 import { keys } from "./keys.js";
 import { errorName, logError } from "./log.js";
-import { me } from "./me.js";
+import { meRoute } from "./me.js";
 import { memory } from "./memory.js";
 import { oidc } from "./oidc.js";
 import { platformConnect } from "./platform-connect.js";
@@ -77,7 +77,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
 
   // Every router applies its own session guard (test/routes.test.ts checks
   // each route): this file only composes them.
-  app.route("/me", me);
+  app.route("/me", meRoute(host.graphs?.policy ?? "off"));
   app.route("/usage", usage);
   app.route("/sessions", sessions);
   app.route("/export", exportRoute);

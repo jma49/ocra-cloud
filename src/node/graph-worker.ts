@@ -1,11 +1,11 @@
 import type { Db } from "../db/client.js";
 import type { GraphBuilder } from "../graph/builder.js";
-import type { GraphPolicy } from "../graph/policy.js";
 import type { GraphService } from "../graph/routes.js";
 import { runNextBuild } from "../graph/runner.js";
 import { errorName, logError } from "../log.js";
 import type { CodePlatform } from "../platforms/platform.js";
 import { platformsOf } from "../platforms/registry.js";
+import type { GraphPolicy } from "../shared/index.js";
 import type { AppBindings } from "../types.js";
 
 type Options = {

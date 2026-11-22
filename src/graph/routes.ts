@@ -9,10 +9,9 @@ import { accessToken } from "../platforms/links.js";
 import { platformsOf } from "../platforms/registry.js";
 import { perMinute } from "../rate.js";
 import { requireSession } from "../session.js";
-import { CODE_PLATFORMS, type GraphRepoView } from "../shared/index.js";
+import { CODE_PLATFORMS, type GraphPolicy, type GraphRepoView } from "../shared/index.js";
 import type { AppEnv } from "../types.js";
 import { gunzip } from "./gzip.js";
-import type { GraphPolicy } from "./policy.js";
 import { graphWebhooks } from "./webhooks.js";
 
 /** What a host that builds graphs gives the API. */
@@ -125,6 +124,33 @@ export function graphsRoute(service: GraphService) {
 
   route.delete("/repos/:id", requireSession(), async (c) => {
     return c.json({ removed: await c.var.data.remove("graphRepos", c.req.param("id")) });
+  });
+
+  // Builds the default branch's head again, as of now: after a failed
+  // build, or to pick up a push the server missed.
+  route.post("/repos/:id/builds", requireSession(), perMinute("settings"), async (c) => {
+    const repo = await c.var.data.get("graphRepos", c.req.param("id"));
+    if (!repo) return apiError(c, "not_found");
+    const platform = platformsOf(c.env, c.req.url).find(
+      (p) => p.kind === repo.platform && p.host === repo.host,
+    );
+    if (!platform) return apiError(c, "not_found");
+    const token = await accessToken(c.var.data, c.env, platform);
+    if (!token) return apiError(c, "github_user");
+    const head = await platform.contents.head(token, repo.fullName);
+    if (!head || head.platformRepoId !== repo.platformRepoId || !COMMIT_ID.test(head.commit)) {
+      return apiError(c, "not_found");
+    }
+    const queued = await c.var.data.graphs.rebuild(repo.id, head.commit, new Date());
+    if (queued) service.kick();
+    const latest = await c.var.data.graphs.latestBuilds();
+    return c.json({
+      queued,
+      repo: repoView(
+        repo,
+        latest.find((b) => b.graphRepoId === repo.id),
+      ),
+    });
   });
 
   route.delete("/repos/:id/graphs", requireSession(), async (c) => {
