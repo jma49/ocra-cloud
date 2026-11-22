@@ -1,5 +1,6 @@
 import type { GenerateKind } from "@open-cr-agent/cloud-contract";
 import type { CodePlatformKind } from "./domain.js";
+import type { ReviewProfile } from "./review-profiles.js";
 
 // Pull requests reviewed by the server itself when they open or gain
 // commits (ADR-0046): the repositories an account enrolled and their jobs.
@@ -12,6 +13,7 @@ export type AutoReviewRepoView = {
   platform: CodePlatformKind;
   host: string;
   fullName: string;
+  profile: ReviewProfile;
   latest: {
     number: number;
     head: string;

@@ -8,7 +8,12 @@ import { accessToken } from "../platforms/links.js";
 import { platformsOf } from "../platforms/registry.js";
 import { perMinute } from "../rate.js";
 import { requireSession } from "../session.js";
-import { type AutoReviewRepoView, CODE_PLATFORMS } from "../shared/index.js";
+import {
+  type AutoReviewRepoView,
+  CODE_PLATFORMS,
+  REVIEW_PROFILES,
+  type ReviewProfileView,
+} from "../shared/index.js";
 import type { AppEnv } from "../types.js";
 import { generateRoute } from "./generate.js";
 import { autoReviewWebhooks } from "./webhooks.js";
@@ -33,12 +38,15 @@ const enrollSchema = z.object({
     .refine((p) => !p.split("/").some((s) => s === "." || s === ".."), "a repository path"),
 });
 
+const profileBody = z.object({ profile: z.enum(REVIEW_PROFILES) });
+
 const repoView = (r: Row<"reviewRepos">, latest: ReviewJobSummary | undefined) =>
   ({
     id: r.id,
     platform: r.platform,
     host: r.host,
     fullName: r.fullName,
+    profile: r.reviewProfile,
     latest: latest
       ? {
           number: latest.number,
@@ -110,6 +118,27 @@ export function autoReviewRoute(service: AutoReviewService) {
         repo: repoView(repo, undefined),
         webhook: { url: new URL(hook, c.req.url).toString(), ...(secret ? { secret } : {}) },
       });
+    },
+  );
+
+  route.get("/repos/:id/profile", requireSession(), async (c) => {
+    const repo = await c.var.data.get("reviewRepos", c.req.param("id"));
+    if (!repo) return apiError(c, "not_found");
+    return c.json({ profile: repo.reviewProfile } satisfies ReviewProfileView);
+  });
+
+  route.put(
+    "/repos/:id/profile",
+    requireSession(["web"]),
+    perMinute("settings"),
+    jsonBody(profileBody),
+    async (c) => {
+      const { profile } = c.req.valid("json");
+      const changed = await c.var.data.update("reviewRepos", c.req.param("id"), {
+        reviewProfile: profile,
+      });
+      if (!changed) return apiError(c, "not_found");
+      return c.json({ profile } satisfies ReviewProfileView);
     },
   );
 

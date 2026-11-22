@@ -287,6 +287,43 @@ describe("a review job's run", () => {
     ]);
   });
 
+  it("runs the repository's review profile: quiet in the configuration, thorough as --ultra", async () => {
+    const data = scoped(s.host.db, accountId);
+    const runs: { args: readonly string[]; config: unknown }[] = [];
+    const exec: Exec = async (command, args) => {
+      if (command === "git") {
+        await mkdir(join(args.at(-1) ?? "", ".git"), { recursive: true });
+        return { code: 0 };
+      }
+      runs.push({ args, config: JSON.parse(await readFile(args.at(-1) ?? "", "utf8")) });
+      return { code: 0 };
+    };
+    await data.update("reviewRepos", repoId, { reviewProfile: "quiet" });
+    expect(await run(exec)).toBe(true);
+    await data.update("reviewRepos", repoId, { reviewProfile: "thorough" });
+    await data.autoReview.queue(repoId, 8, C1, new Date());
+    expect(await run(exec)).toBe(true);
+
+    const [quiet, thorough] = runs;
+    expect(quiet?.config).toEqual({
+      reviewers: {
+        performance: { enabled: false },
+        docs: { enabled: false },
+        "agents-md": { enabled: false },
+      },
+      showPreExisting: false,
+      github: { botLogin: "ocra-review[bot]" },
+    });
+    expect(quiet?.args).not.toContain("--ultra");
+    expect(thorough?.config).toEqual({ github: { botLogin: "ocra-review[bot]" } });
+    expect(thorough?.args.slice(-4)).toEqual([
+      "--no-repo-config",
+      "--ultra",
+      "--config",
+      expect.stringMatching(/ocra\.json$/),
+    ]);
+  });
+
   it("answers an @ocra comment with `ocra reply` on it, after the review", async () => {
     await scoped(s.host.db, accountId).replies.queue(repoId, 7, "502", true);
     await scoped(s.host.db, accountId).mergeChecks.add(

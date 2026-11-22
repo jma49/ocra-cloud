@@ -1,0 +1,1 @@
+ALTER TABLE `review_repos` ADD `review_profile` text DEFAULT 'balanced' NOT NULL;

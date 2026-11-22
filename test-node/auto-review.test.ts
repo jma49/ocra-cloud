@@ -87,6 +87,48 @@ describe("a repository enrolled for auto review", () => {
   });
 });
 
+describe("an enrolled repository's review profile", () => {
+  it("is balanced until the account picks another, and only the account sees or sets it", async () => {
+    const first = await s.signIn(1);
+    const second = await s.signIn(2);
+    const enrolled = (await (
+      await enroll(first.auth, { platform: "github", fullName: "octo/api" })
+    ).json()) as { repo: { id: string; profile: string } };
+    expect(enrolled.repo.profile).toBe("balanced");
+    const path = `/api/auto-review/repos/${enrolled.repo.id}/profile`;
+    expect(await (await s.call(path, { headers: first.auth })).json()).toEqual({
+      profile: "balanced",
+    });
+
+    const set = await s.call(path, {
+      method: "PUT",
+      headers: first.auth,
+      json: { profile: "quiet" },
+    });
+    expect(await set.json()).toEqual({ profile: "quiet" });
+    const listed = await (await s.call("/api/auto-review/repos", { headers: first.auth })).json();
+    expect(listed).toMatchObject({ repos: [{ profile: "quiet" }] });
+
+    const wrong = await s.call(path, {
+      method: "PUT",
+      headers: first.auth,
+      json: { profile: "loud" },
+    });
+    expect(wrong.status).toBe(400);
+    expect(await wrong.json()).toMatchObject({ error: "invalid_body" });
+
+    const theirs = await s.call(path, {
+      method: "PUT",
+      headers: second.auth,
+      json: { profile: "thorough" },
+    });
+    expect(theirs.status).toBe(404);
+    expect((await s.call(path, { headers: second.auth })).status).toBe(404);
+    const [row] = await s.host.db.select().from(schema.reviewRepos);
+    expect(row?.reviewProfile).toBe("quiet");
+  });
+});
+
 describe("GitHub's pull request webhook", () => {
   beforeEach(async () => {
     const { auth } = await s.signIn(1);
