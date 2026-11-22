@@ -19,7 +19,11 @@ function timeOf(text: string | null | undefined): Date | null {
   return Number.isFinite(ms) ? new Date(ms) : null;
 }
 
-const githubUser = z.object({ login: z.string(), type: z.string().optional() });
+const githubUser = z.object({
+  login: z.string(),
+  id: z.number().optional(),
+  type: z.string().optional(),
+});
 
 const githubPullFields = z.object({
   title: z.string().max(1024),
@@ -67,6 +71,7 @@ function githubFlow(
     number,
     title: pull.title,
     author: pull.user?.login ?? null,
+    authorId: pull.user?.id !== undefined ? String(pull.user.id) : null,
     draft: pull.draft === true,
     size,
     openedAt: timeOf(pull.created_at),
@@ -173,6 +178,7 @@ export async function recordGitlabFlow(
     title: a.title,
     // Who caused the event is the author only when the merge request opens.
     author: a.action === "open" && user ? user.username : null,
+    authorId: a.author_id !== undefined ? String(a.author_id) : null,
     draft,
     size: null,
     openedAt: opened,

@@ -11,6 +11,7 @@ import {
   deviceCodes,
   gatewayCalls,
   liveRuns,
+  notifySends,
   pullFlows,
   pullReviews,
   rateWindows,
@@ -28,6 +29,8 @@ import {
 export const RETENTION_DAYS = 90;
 /** An automation's run is kept for a month: enough to see why a rule acted. */
 export const AUTOMATION_RUN_DAYS = 30;
+/** A pull request event's claim, long past any webhook's redelivery. */
+const NOTIFY_SEND_DAYS = 30;
 
 /**
  * Runs every delete, each on its own: one that fails is logged and the rest
@@ -102,6 +105,18 @@ export async function enforceRetention(db: Db, now = new Date()): Promise<void> 
             and(
               ofEachAccount(automationRuns.accountId),
               lt(automationRuns.createdAt, new Date(now.getTime() - AUTOMATION_RUN_DAYS * DAY)),
+            ),
+          ),
+    ],
+    [
+      "notify_sends",
+      () =>
+        db
+          .delete(notifySends)
+          .where(
+            and(
+              ofEachAccount(notifySends.accountId),
+              lt(notifySends.createdAt, new Date(now.getTime() - NOTIFY_SEND_DAYS * DAY)),
             ),
           ),
     ],

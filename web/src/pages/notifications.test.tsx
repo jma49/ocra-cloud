@@ -17,6 +17,7 @@ const channel = {
   confirmed: true,
   digest: false,
   weekly: false,
+  events: [],
   lastStatus: null,
   lastSentAt: null,
   createdAt: "2026-11-20T10:00:00Z",
@@ -148,6 +149,39 @@ describe("the weekly report", () => {
       { url: "/api/notifications/channels/n1", method: "PATCH", body: { weekly: true } },
       { url: "/api/notifications/report", method: "PUT", body: { weekday: 5, hour: 9 } },
     ]);
+  });
+});
+
+describe("my pull requests' events", () => {
+  it("are switched on per channel, all of them", async () => {
+    const sent: unknown[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        const method = init?.method ?? "GET";
+        if (url === "/api/notifications/report") return Response.json(SLOT);
+        if (method === "PATCH") {
+          sent.push(JSON.parse(String(init?.body)));
+          return Response.json({ channel });
+        }
+        return Response.json({ channels: [channel], email: false });
+      }),
+    );
+    render(<Notifications />);
+    const toggle = await screen.findByRole("switch", {
+      name: "My pull requests' events to #reviews",
+    });
+    await act(async () => void fireEvent.click(toggle));
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0]).toEqual({
+      events: [
+        "review_requested",
+        "pull_reviewed",
+        "pull_closed",
+        "checks_failed",
+        "review_blocking",
+      ],
+    });
   });
 });
 

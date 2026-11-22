@@ -32,6 +32,7 @@ const changes = {
   reviewRepos: { fullName: "octo/renamed" },
   reviewJobs: { state: "done" as const },
   notifyChannels: { name: "renamed" },
+  notifySends: { eventKey: "changed" },
   closedPulls: { merged: false },
   pullFlows: { draft: true },
   pullReviews: { approved: false },

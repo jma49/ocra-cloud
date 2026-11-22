@@ -1,5 +1,8 @@
 import type { Db } from "../db/client.js";
 import { scoped } from "../db/scoped.js";
+import { errorName, logError } from "../log.js";
+import type { Outbox } from "../notify/notify.js";
+import { tellChecksFailed } from "../notify/pull-events.js";
 import type { BotTokens } from "../platforms/bot.js";
 import type { CodePlatform } from "../platforms/platform.js";
 import { consolePullUrl, digestOf, evaluatePull, statusOf } from "./run.js";
@@ -14,6 +17,8 @@ export type ChecksPoster = {
   platforms: readonly CodePlatform[];
   bots: BotTokens;
   publicUrl: string;
+  /** Where the author is told of failed checks; nobody is without it. */
+  outbox?: Outbox;
 };
 
 export type PostOutcome = "posted" | "unchanged" | "skipped" | "failed";
@@ -51,6 +56,12 @@ export async function postChecks(
   if (!id || !(await checks.claimPost(id, digest))) return "unchanged";
   const run = await data.get("mergeCheckRuns", id);
   const status = statusOf(report, consolePullUrl(poster.publicUrl, repo, number));
+  if (report.conclusion === "failure" && poster.outbox) {
+    const pull = { number, head: report.head, summary: status.title };
+    await tellChecksFailed(poster.db, data, poster.outbox, repo, pull).catch((e) =>
+      logError("notify_failed", { error: errorName(e) }),
+    );
+  }
   const external = await platform.mergeStatus.publish(
     bot.token,
     repo.fullName,

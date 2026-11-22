@@ -1,13 +1,15 @@
 import { and, desc, eq, gt, gte, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
-import type { NotifyWhen } from "../shared/index.js";
+import type { NotifyEvent, NotifyWhen } from "../shared/index.js";
 import { changedRows, type Db, first } from "./client.js";
-import { accounts, findings, notifyChannels, reviews } from "./schema.js";
+import { jsonElements } from "./dialect.js";
+import { accounts, findings, notifyChannels, notifySends, reviews } from "./schema.js";
 
 // The account's channels (reached through scoped()): added in one statement
 // under the cap, so parallel adds cannot pass a count taken first; an email
 // address confirmed only by the token sent to it, compared in the update
-// itself; and the daily digest, claimed for a day by a compare-and-set on
-// the account, so that two cron runs or two processes send it once.
+// itself; the daily digest, claimed for a day by a compare-and-set on the
+// account, so that two cron runs or two processes send it once; and a pull
+// request event, claimed per channel by its key's unique row.
 
 type NewChannel = Omit<
   typeof notifyChannels.$inferInsert,
@@ -36,7 +38,8 @@ export function accountNotify(db: Db, accountId: string) {
         SELECT ${row.id}, ${accountId}, ${row.kind}, ${row.name}, ${row.when},
           ${row.wrappedKey}, ${row.ciphertext}, ${row.last4}, NULL, NULL, ${Date.now()},
           ${row.confirmedAt?.getTime() ?? null}, ${row.confirmTokenHash ?? null},
-          ${row.confirmExpiresAt?.getTime() ?? null}, ${row.digest ? 1 : 0}, ${row.weekly ? 1 : 0}
+          ${row.confirmExpiresAt?.getTime() ?? null}, ${row.digest ? 1 : 0}, ${row.weekly ? 1 : 0},
+          ${JSON.stringify(row.events ?? [])}
         WHERE (SELECT count(*) FROM ${t} WHERE ${own}) < ${cap}`);
       return changedRows(inserted) > 0;
     },
@@ -47,6 +50,29 @@ export function accountNotify(db: Db, accountId: string) {
         .select()
         .from(t)
         .where(and(own, inArray(t.when, [...whens]), isNotNull(t.confirmedAt)));
+    },
+
+    /** The confirmed channels that hear about event. */
+    subscribed(event: NotifyEvent) {
+      return db
+        .select()
+        .from(t)
+        .where(
+          and(
+            own,
+            isNotNull(t.confirmedAt),
+            sql`EXISTS (SELECT 1 FROM ${jsonElements(db, sql`${t.events}`)} WHERE je.value = ${event})`,
+          ),
+        );
+    },
+
+    /** Takes the event for the channel unless it was taken; whether this call did. */
+    async claimSend(channelId: string, eventKey: string): Promise<boolean> {
+      const res = await db
+        .insert(notifySends)
+        .values({ id: crypto.randomUUID(), accountId, channelId, eventKey })
+        .onConflictDoNothing({ target: [notifySends.channelId, notifySends.eventKey] });
+      return changedRows(res) > 0;
     },
 
     /** The confirmed channels that get the digest. */

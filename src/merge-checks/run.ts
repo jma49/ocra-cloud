@@ -116,5 +116,8 @@ export function statusOf(report: MergeChecksReportView, detailsUrl: string): Pos
 }
 
 /** The pull request's page in the console. */
-export const consolePullUrl = (publicUrl: string, repo: Row<"reviewRepos">, number: number) =>
-  new URL(pullPath(repo.platform, repo.fullName, number), publicUrl).toString();
+export const consolePullUrl = (
+  publicUrl: string,
+  repo: Pick<Row<"reviewRepos">, "platform" | "fullName">,
+  number: number,
+) => new URL(pullPath(repo.platform, repo.fullName, number), publicUrl).toString();

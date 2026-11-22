@@ -1,6 +1,7 @@
 // Where the account is told about its reviews: a chat's incoming webhook or
-// an email address, which reviews it hears about, and whether it gets the
-// daily digest and the weekly report.
+// an email address, which reviews it hears about, whether it gets the daily
+// digest and the weekly report, and which events of its own pull requests
+// it hears about.
 
 export const NOTIFY_KINDS = ["slack", "wecom", "email"] as const;
 export type NotifyKind = (typeof NOTIFY_KINDS)[number];
@@ -8,6 +9,21 @@ export type NotifyKind = (typeof NOTIFY_KINDS)[number];
 /** blocking: a review with a critical finding; findings: one with any; every: all of them. */
 export const NOTIFY_WHEN = ["blocking", "findings", "every"] as const;
 export type NotifyWhen = (typeof NOTIFY_WHEN)[number];
+
+/**
+ * Events of an enrolled repository's pull requests that concern the
+ * account's own platform user: a review asked of them; on a pull request
+ * they wrote, a reviewer's review, its merge or close, failed pre-merge
+ * checks, or ocra's review with a critical finding.
+ */
+export const NOTIFY_EVENTS = [
+  "review_requested",
+  "pull_reviewed",
+  "pull_closed",
+  "checks_failed",
+  "review_blocking",
+] as const;
+export type NotifyEvent = (typeof NOTIFY_EVENTS)[number];
 
 export type NotifyChannelView = {
   id: string;
@@ -22,6 +38,8 @@ export type NotifyChannelView = {
   digest: boolean;
   /** Whether it gets the weekly report, at the account's report slot. */
   weekly: boolean;
+  /** The events of the account's own pull requests it hears about; none unless set. */
+  events: NotifyEvent[];
   /** How the last message went; null before the first. */
   lastStatus: "ok" | "failed" | null;
   lastSentAt: string | null;

@@ -19,13 +19,18 @@ const after = (now: number, seconds: number | undefined) =>
 /** A minute's margin, so a call does not start with a token about to lapse. */
 const MARGIN_MS = 60_000;
 
-/** Stores the platform's answer, replacing the account's previous token there. */
+/**
+ * Stores the platform's answer, replacing the account's previous token
+ * there, with the id of the user it is of when the caller read it (a
+ * refresh keeps the one stored).
+ */
 export async function saveToken(
   data: Scoped,
   env: Pick<Keys, "MASTER_KEY">,
   platform: CodePlatform,
   answer: TokenAnswer,
   now = Date.now(),
+  userId?: string,
 ): Promise<void> {
   if (!answer.access_token) return;
   const tokens: Tokens = {
@@ -43,6 +48,7 @@ export async function saveToken(
     ...sealed,
     accessExpiresAt: after(now, answer.expires_in),
     refreshExpiresAt: after(now, answer.refresh_token_expires_in),
+    ...(userId !== undefined ? { userId } : {}),
   };
   await data.batch((w) => [w.upsert("platformLinks", row, ["accountId", "platform", "host"])]);
 }

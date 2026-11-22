@@ -90,6 +90,7 @@ export const rows = {
     ciphertext: "c",
     last4: "abcd",
   }),
+  notifySends: (id: string) => ({ id, channelId: "channel", eventKey: `review:${id}` }),
   // The enrolled repository it belongs to is made in beforeEach (the foreign key needs one).
   closedPulls: (id: string) => ({
     id,

@@ -1,7 +1,9 @@
 import type { AutoReviewService } from "../auto-review/routes.js";
 import type { Db } from "../db/client.js";
+import { masterKeys } from "../keyring.js";
 import { errorName, logError } from "../log.js";
 import { postChecks } from "../merge-checks/publish.js";
+import type { Mailer } from "../notify/email.js";
 import type { BotTokens } from "../platforms/bot.js";
 import { platformsOf } from "../platforms/registry.js";
 import type { AppBindings } from "../types.js";
@@ -18,6 +20,8 @@ export type AutoReviewOptions = {
   cli?: string;
   /** How often it looks for due reviews when nothing woke it: retries, lapsed leases. */
   pollMs?: number;
+  /** The server's mailer, for the email channels told of failed checks. */
+  mailer?: Mailer;
 };
 
 /** Runs queued reviews in this process until stopped; kick() wakes it at once. */
@@ -33,6 +37,12 @@ export function startAutoReview(
     platforms: platformsOf(env, publicUrl),
     bots: options.tokens ?? botTokens(options.bots),
     publicUrl,
+    outbox: {
+      keys: masterKeys(env),
+      mailer: options.mailer,
+      linkSecret: env.SESSION_SECRET,
+      origin: new URL(publicUrl).origin,
+    },
     ...(options.exec ? { exec: options.exec } : {}),
     ...(options.cli ? { cli: options.cli } : {}),
   };
