@@ -2,7 +2,6 @@ import Lightbulb from "lucide-react/icons/lightbulb";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import type {
-  CodePlatformKind,
   LearningChangeView,
   LearningProposalsView,
   LearningsView,
@@ -14,105 +13,32 @@ import { LearningCard } from "../learnings/learning-card.js";
 import { LearningForm } from "../learnings/learning-form.js";
 import { ChangeOutcome } from "../learnings/outcome.js";
 import { Proposals } from "../learnings/proposals.js";
-import { Link } from "../router.js";
-import {
-  ActionError,
-  EmptyState,
-  LoadError,
-  Loading,
-  PageHead,
-  useAction,
-  useLoad,
-} from "../ui.js";
+import { type RepoChoice, useRepoChoice } from "../repo-choice.js";
+import { ActionError, LoadError, Loading, PageHead, useAction, useLoad } from "../ui.js";
 
 // A repository's learnings, read live from its default branch as the user,
 // with the pull requests proposing more. Every change is a commit of the
 // user, on a new branch opened as a pull request unless they ask otherwise.
 
-type Listed = {
-  platforms: {
-    platform: CodePlatformKind;
-    repositories: { id: string; fullName: string }[];
-  }[];
-};
-type Repo = { platform: CodePlatformKind; repo: string };
-
-const keyOf = (r: Repo) => `${r.platform}:${r.repo}`;
-
-function initialRepo(): Repo | null {
-  const q = new URLSearchParams(location.search);
-  const platform = q.get("platform");
-  const repo = q.get("repo");
-  return (platform === "github" || platform === "gitlab") && repo ? { platform, repo } : null;
-}
-
 const NEVER_USED = { reviews: 0, lastUsedAt: null };
 
 export function Learnings() {
-  const listed = useLoad(() => api<Listed>("/platforms/repos"));
-  const choices: Repo[] = (listed.data?.platforms ?? []).flatMap((p) =>
-    p.repositories.map((r) => ({ platform: p.platform, repo: r.fullName })),
-  );
-  const [picked, setPicked] = useState<Repo | null>(initialRepo);
-  const repo = picked ?? choices[0] ?? null;
-  const pick = (r: Repo) => {
-    setPicked(r);
-    history.replaceState(null, "", `/learnings?${new URLSearchParams(r)}`);
-  };
+  const choice = useRepoChoice("/learnings");
   return (
     <>
       <PageHead
         title="Learnings"
         sub="What reviews know about a repository, from .ocra/learnings on its default branch. Each change you make here is a commit of yours, opened as a pull request."
-        actions={
-          choices.length > 0 && (
-            <select
-              className="input"
-              aria-label="Repository"
-              value={repo ? keyOf(repo) : ""}
-              onChange={(e) => {
-                const r = choices.find((c) => keyOf(c) === e.target.value);
-                if (r) pick(r);
-              }}
-            >
-              {picked && !choices.some((c) => keyOf(c) === keyOf(picked)) && (
-                <option value={keyOf(picked)}>{picked.repo}</option>
-              )}
-              {choices.map((c) => (
-                <option key={keyOf(c)} value={keyOf(c)}>
-                  {c.repo}
-                </option>
-              ))}
-            </select>
-          )
-        }
+        actions={choice.select}
       />
-      {listed.error && !listed.data ? (
-        <LoadError what="your repositories" error={listed.error} retry={listed.reload} />
-      ) : !listed.data ? (
-        <Loading what="your repositories" />
-      ) : !repo ? (
-        <div className="card">
-          <EmptyState
-            icon={Lightbulb}
-            title="No repository to read"
-            action={
-              <Button variant="outline" render={<Link to="/repositories" />}>
-                Connect under Repositories
-              </Button>
-            }
-          >
-            Connect GitHub or GitLab under Repositories, and its repositories show up here.
-          </EmptyState>
-        </div>
-      ) : (
-        <RepoLearnings key={keyOf(repo)} at={repo} />
-      )}
+      {choice.body(Lightbulb, (repo, key) => (
+        <RepoLearnings key={key} at={repo} />
+      ))}
     </>
   );
 }
 
-function RepoLearnings(props: { at: Repo }) {
+function RepoLearnings(props: { at: RepoChoice }) {
   const query = new URLSearchParams(props.at).toString();
   const [after, setAfter] = useState<string | null>(null);
   const page = useLoad(
