@@ -836,6 +836,38 @@ export const pullReviews = sqliteTable(
   ],
 );
 
+// A review thread started on an enrolled repository's pull request, from its
+// platform's webhooks: who started it (the platform's id), and when someone
+// else and the starter last wrote in it, for thread_replied and the inbox's
+// replies waiting. One row per platform thread (GitHub's first comment id,
+// GitLab's discussion id), the earliest start kept; a thread started before
+// ocra kept threads is not on record. Kept like pull_flows (seenAt).
+export const reviewThreads = sqliteTable(
+  "review_threads",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    reviewRepoId: text("review_repo_id")
+      .notNull()
+      .references(() => reviewRepos.id, { onDelete: "cascade" }),
+    number: integer("number").notNull(),
+    threadKey: text("thread_key").notNull(),
+    starterId: text("starter_id").notNull(),
+    starterLogin: text("starter_login").notNull(),
+    startedAt: integer("started_at", { mode: "timestamp_ms" }).notNull(),
+    // The newest reply by someone else, and by the starter, by the platform's clock.
+    repliedAt: integer("replied_at", { mode: "timestamp_ms" }),
+    starterRepliedAt: integer("starter_replied_at", { mode: "timestamp_ms" }),
+    seenAt: integer("seen_at", { mode: "timestamp_ms" }).notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("review_threads_thread").on(t.reviewRepoId, t.threadKey),
+    index("review_threads_pull").on(t.reviewRepoId, t.number, t.starterId),
+    index("review_threads_account_seen").on(t.accountId, t.seenAt),
+  ],
+);
+
 // The directories a reviewed pull request of an enrolled repository
 // changes, top-level and second-level, at most MAX_PULL_PREFIXES of them,
 // as read at the head its latest review saw, for suggested reviewers
@@ -1250,6 +1282,7 @@ export const accountTables = {
   closedPulls,
   pullFlows,
   pullReviews,
+  reviewThreads,
   pullPaths,
   reviewRequests,
   replyJobs,

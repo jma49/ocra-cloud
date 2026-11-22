@@ -6,7 +6,7 @@ import type { CodePlatform, PlatformRepo } from "./platforms/platform.js";
 import { repoHashOf } from "./platforms/platform.js";
 import { platformsOf } from "./platforms/registry.js";
 import { sectionsOf } from "./pull-sections.js";
-import { pullSeenStates } from "./pull-unread.js";
+import { pullRepliesWaiting, pullSeenStates } from "./pull-unread.js";
 import { pullVerdicts } from "./pull-verdicts.js";
 import { perMinute } from "./rate.js";
 import { MAX_NAMED } from "./repositories.js";
@@ -77,7 +77,8 @@ platformsRoute.get("/repos", requireSession(), async (c) => {
 // The pull requests asking the user's review, theirs open and theirs merged
 // this week, each with the verdict of the account's newest review of it and
 // whether it changed since the account last saw it (POST /api/pulls/seen),
-// or since its inbox baseline when it never did.
+// or since its inbox baseline when it never did, and how many replies wait
+// for the user in review threads they started on it (repliesWaiting).
 // With group=views it also answers the account's visible views (or the
 // defaults while it has none), each with the pulls it holds, evaluated here
 // over this same listing. Open pulls stacked on one another in a repository
@@ -104,6 +105,7 @@ platformsRoute.get("/pulls", requireSession(), async (c) => {
     pullSeenStates(c.var.data, listed),
     c.var.data.pullSeen.baseline(c.var.session.account.inboxSince),
   ]);
+  const repliesOf = await pullRepliesWaiting(c.var.db, c.var.data, listed, seenOf, since);
   const platforms = listed.map(({ platform, head, pulls, ...rest }) => {
     const stacked = pulls.flatMap((p) =>
       p.state === "open" && p.branches ? [{ repo: p.repo, number: p.number, ...p.branches }] : [],
@@ -117,10 +119,12 @@ platformsRoute.get("/pulls", requireSession(), async (c) => {
         const { branches: _, ...p } = pull;
         const { verdict, reviewedAt } = reviewsOf(platform, pull);
         const stack = placeOf.get(`${p.repo}#${p.number}`);
+        const repliesWaiting = repliesOf(platform, pull);
         return {
           ...p,
           verdict,
-          ...pullUnread(p, seenOf(platform, pull), reviewedAt, since),
+          repliesWaiting,
+          ...pullUnread(p, seenOf(platform, pull), reviewedAt, since, repliesWaiting),
           ...(stack ? { stack } : {}),
         };
       }),

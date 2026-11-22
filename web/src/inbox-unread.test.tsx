@@ -32,6 +32,7 @@ const pull = (n: number, over: Partial<PullItem> = {}): PullItem => ({
   deletions: null,
   head: `head${n}`,
   unread: false,
+  repliesWaiting: 0,
   ...over,
 });
 

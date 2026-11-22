@@ -32,6 +32,7 @@ const EVENT_LABEL: Record<MenuEvent, string> = {
   merge_when_ready: "A pull request I set to merge when ready merges or stops",
   pull_commented: "Someone comments on my pull request",
   mentioned: "Someone mentions me in a pull request",
+  thread_replied: "Someone replies in a review thread I started",
 };
 
 const isQuiet = (e: MenuEvent) => (QUIET_EVENTS as readonly NotifyEvent[]).includes(e);

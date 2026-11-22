@@ -106,7 +106,7 @@ export const pullPath = (platform: CodePlatformKind, repo: string, number: numbe
 
 export type SearchPullResult = Omit<
   PullItem,
-  "roles" | "labels" | "verdict" | "head" | "unread" | "unreadReason"
+  "roles" | "labels" | "verdict" | "head" | "unread" | "unreadReason" | "repliesWaiting"
 > & {
   platform: CodePlatformKind;
   host: string;

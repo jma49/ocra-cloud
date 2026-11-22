@@ -112,9 +112,9 @@ export function Privacy() {
         <li>
           Model call records, review counts, findings, the merged and closed pull requests of
           repositories you enrolled for auto review and their steps toward review (when each was
-          opened, asked for review, reviewed and approved, and by whom), when you last saw each pull
-          request in the inbox, the daily counts and the audit log: 90 days, then deleted by a daily
-          job.
+          opened, asked for review, reviewed and approved, and by whom), who started each review
+          thread on them and when it was last replied to, when you last saw each pull request in the
+          inbox, the daily counts and the audit log: 90 days, then deleted by a daily job.
         </li>
         <li>
           Expired sign-in codes and sessions: deleted the day they expire. The day's count of

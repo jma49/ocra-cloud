@@ -12,9 +12,9 @@ import type { PullEvent } from "./pull-events.js";
 // review itself, so a review with five inline comments is one notice.
 // Comment text goes out only as a short plain excerpt, and is never logged.
 
-const user = z.object({ id: z.number(), login: z.string(), type: z.string().optional() });
+export const user = z.object({ id: z.number(), login: z.string(), type: z.string().optional() });
 type User = z.infer<typeof user>;
-const isBot = (u: User) => u.type === "Bot" || isBotLogin(u.login);
+export const isBot = (u: User) => u.type === "Bot" || isBotLogin(u.login);
 
 const githubIssueComment = z.object({
   action: z.literal("created"),
@@ -205,6 +205,7 @@ export function gitlabCommentEvents(body: unknown, repoId: string): PullEvent[] 
 
 /** Events in the order a channel hears of one: a mention, then the rest, a comment last. */
 export function bySpecificity(events: PullEvent[]): PullEvent[] {
+  // A reply in the user's own thread says more than a comment on their pull request.
   const rank = (e: PullEvent) => (e.kind === "mentioned" ? 0 : e.kind === "pull_commented" ? 2 : 1);
   return [...events].sort((a, b) => rank(a) - rank(b));
 }
