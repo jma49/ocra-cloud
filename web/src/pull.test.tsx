@@ -143,6 +143,7 @@ describe("a pull request's page", () => {
         if (url.startsWith("/api/auto-review/generate")) {
           return Response.json({ enrolled: true, jobs });
         }
+        if (url.startsWith("/api/pulls/stack")) return Response.json({ trunk: "", pulls: [] });
         return Response.json(files);
       }),
     );
