@@ -37,7 +37,7 @@ export function Link({
   to: string;
   /** The open page: announced as such. */
   current?: boolean;
-  /** The accessible name and tooltip, for a link that shows only an icon. */
+  /** The accessible name, for a link that shows only an icon. */
   label?: string;
   children?: ReactNode;
 }) {
@@ -54,7 +54,6 @@ export function Link({
       onClick={onClick}
       aria-current={current ? "page" : undefined}
       aria-label={label}
-      title={label}
     >
       {children}
     </a>
