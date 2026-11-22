@@ -28,3 +28,23 @@ describe("focus ring", () => {
     },
   );
 });
+
+describe("colour", () => {
+  it.each(sheets)("%s takes its colours from base.css's tokens", (sheet) => {
+    const literal =
+      css(sheet).match(/#[0-9a-f]{3,8}\b|\b(?:rgba?|hsla?|oklch|oklab|lab|lch)\(/gi) ?? [];
+    expect(literal).toEqual([]);
+  });
+});
+
+describe("icons", () => {
+  const sources = readdirSync(root, { recursive: true, encoding: "utf8" }).filter((f) =>
+    /\.tsx?$/.test(f),
+  );
+  it("imports Lucide icons one by one, never the whole set", () => {
+    const barrel = sources.filter((f) =>
+      /^import (?!type )[^;]*from "lucide-react";/m.test(readFileSync(join(root, f), "utf8")),
+    );
+    expect(barrel).toEqual([]);
+  });
+});

@@ -1,5 +1,6 @@
 import { Autocomplete as AutocompletePrimitive } from "@base-ui/react/autocomplete";
-import { ChevronsUpDownIcon, XIcon } from "lucide-react";
+import ChevronsUpDownIcon from "lucide-react/icons/chevrons-up-down";
+import XIcon from "lucide-react/icons/x";
 import type React from "react";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
