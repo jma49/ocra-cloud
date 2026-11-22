@@ -1,5 +1,6 @@
 import { Component, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { SignInMethod } from "../../src/shared/index.js";
 import { api, type Day, needsSignIn, type ProviderInfo, why } from "./api.js";
 import { compact } from "./format.js";
@@ -25,19 +26,22 @@ export function Seg<T extends string | number>(props: {
   label: string;
 }) {
   return (
-    <fieldset className="seg" aria-label={props.label}>
+    <ToggleGroup
+      className="seg"
+      size="sm"
+      aria-label={props.label}
+      value={[String(props.value)]}
+      onValueChange={(values) => {
+        const picked = props.options.find((o) => String(o.value) === values[0]);
+        if (picked) props.onChange(picked.value);
+      }}
+    >
       {props.options.map((o) => (
-        <button
-          key={String(o.value)}
-          type="button"
-          aria-pressed={o.value === props.value}
-          className={o.value === props.value ? "on" : ""}
-          onClick={() => props.onChange(o.value)}
-        >
+        <ToggleGroupItem key={String(o.value)} value={String(o.value)}>
           {o.label}
-        </button>
+        </ToggleGroupItem>
       ))}
-    </fieldset>
+    </ToggleGroup>
   );
 }
 
