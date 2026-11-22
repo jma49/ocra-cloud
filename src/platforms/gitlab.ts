@@ -2,6 +2,7 @@ import { gitlabActions } from "./gitlab-actions.js";
 import { gitlabChanges } from "./gitlab-changes.js";
 import { gitlabContents } from "./gitlab-contents.js";
 import { gitlabCycles } from "./gitlab-cycles.js";
+import { gitlabFiles } from "./gitlab-files.js";
 import { gitlabLearnings } from "./gitlab-learnings.js";
 import { gitlabMergeStatus } from "./gitlab-merge-status.js";
 import { gitlabPulls } from "./gitlab-pulls.js";
@@ -48,6 +49,7 @@ export function gitlab(client: GitlabClient, redirectUri: string): CodePlatform 
     cycles: gitlabCycles(client.url),
     stacks: gitlabStacks(client.url),
     learnings: gitlabLearnings(client.url),
+    files: gitlabFiles(client.url),
     mergeStatus: gitlabMergeStatus(client.url),
     async listRepos(token) {
       const repositories: PlatformRepo[] = [];

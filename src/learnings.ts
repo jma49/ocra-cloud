@@ -5,6 +5,7 @@ import {
   learningFrontmatterSchema,
   learningIdOf,
   MAX_LEARNING_BODY,
+  MAX_LEARNING_BYTES,
   MAX_LEARNINGS,
 } from "@open-cr-agent/cloud-contract";
 import { type Context, Hono } from "hono";
@@ -13,20 +14,19 @@ import { accountSalt } from "./db/accounts.js";
 import { apiError, jsonBody } from "./http.js";
 import { learningFile, parseLearning } from "./learning-file.js";
 import { COMMIT_ID } from "./platforms/contents.js";
-import type { LearningChange, LearningRead } from "./platforms/learnings.js";
+import { type FileChange, type FileRead, proposalBranch } from "./platforms/files.js";
 import { type CodePlatform, repoHashOf } from "./platforms/platform.js";
-import { reach, repoName } from "./pull-page.js";
 import { perMinute } from "./rate.js";
+import { reachRepo, repoRef } from "./repo-head.js";
 import { requireSession } from "./session.js";
-import {
-  CODE_PLATFORMS,
-  type InvalidLearningView,
-  type LearningChangeView,
-  type LearningProposalsView,
-  type LearningProposalView,
-  type LearningsView,
-  type LearningUsageView,
-  type LearningView,
+import type {
+  InvalidLearningView,
+  LearningChangeView,
+  LearningProposalsView,
+  LearningProposalView,
+  LearningsView,
+  LearningUsageView,
+  LearningView,
 } from "./shared/index.js";
 import { DAY } from "./time.js";
 import type { AppEnv } from "./types.js";
@@ -46,7 +46,6 @@ const MAX_PROPOSAL_FILES = 20;
 const BLOB_ID = /^[0-9a-f]{40}([0-9a-f]{24})?$/;
 const MAX_CHANGE_BYTES = 64 * 1024;
 
-const repoRef = { platform: z.enum(CODE_PLATFORMS), repo: repoName };
 const listQuery = z.object({ ...repoRef, after: z.string().regex(LEARNING_ID).optional() });
 const proposalsQuery = z.object(repoRef);
 const target = {
@@ -66,19 +65,7 @@ const putBody = z.object({
 });
 const deleteBody = z.object({ ...target, expected: z.string().regex(BLOB_ID) });
 
-type RepoRef = z.output<typeof proposalsQuery>;
-const byKind = (ref: RepoRef) => (p: CodePlatform) => p.kind === ref.platform;
-
-/** The platform, the token and the repository's default branch head, or the refusal. */
-async function reachRepo(c: Context<AppEnv>, ref: RepoRef) {
-  const reached = await reach(c, byKind(ref));
-  if ("refusal" in reached) return { refusal: reached.refusal } as const;
-  const head = await reached.platform.contents.head(reached.token, ref.repo);
-  if (!head || !COMMIT_ID.test(head.commit)) return { refusal: apiError(c, "not_found") } as const;
-  return { ...reached, head } as const;
-}
-
-function viewsOf(reads: LearningRead[]) {
+function viewsOf(reads: FileRead[]) {
   const learnings: LearningView[] = [];
   const invalid: InvalidLearningView[] = [];
   for (const read of reads) {
@@ -87,7 +74,7 @@ function viewsOf(reads: LearningRead[]) {
     if (!id || typeof parsed === "string") {
       invalid.push({
         path: read.path,
-        blobId: read.blobId,
+        blobId: read.blobId ?? "",
         reason: typeof parsed === "string" ? parsed : "its name is not a learning's",
       });
       continue;
@@ -96,7 +83,7 @@ function viewsOf(reads: LearningRead[]) {
     learnings.push({
       id,
       path: read.path,
-      blobId: read.blobId,
+      blobId: read.blobId ?? "",
       title: f.title,
       body: parsed.body,
       paths: f.paths,
@@ -157,11 +144,12 @@ learningsRoute.get("/", requireSession(["web"]), perMinute("platform"), async (c
   const after = query.data.after;
   const rest = after === undefined ? named : named.filter((e) => e.id > after);
   const page = rest.slice(0, LEARNINGS_PAGE);
-  const reads = await platform.learnings.read(
+  const reads = await platform.files.read(
     token,
     head,
     head.commit,
     page.map((e) => e.path),
+    MAX_LEARNING_BYTES,
   );
   if (!reads) return apiError(c, "upstream_unreachable");
   const { learnings, invalid } = viewsOf(reads);
@@ -214,26 +202,17 @@ learningsRoute.get("/proposals", requireSession(["web"]), perMinute("platform"),
       return id ? [id] : [];
     });
     const paths = kept.slice(0, MAX_PROPOSAL_FILES).map((f) => f.path);
-    const reads = await platform.learnings.read(token, head, changes.head, paths);
+    const reads = await platform.files.read(token, head, changes.head, paths, MAX_LEARNING_BYTES);
     const { learnings, invalid } = viewsOf(reads ?? []);
     proposals.push({ ...p, head: changes.head, learnings, invalid, removed });
   }
   return c.json({ proposals, more: listed.more } satisfies LearningProposalsView);
 });
 
-/** A proposal branch of the engine's form, unique to this change. */
-function branchName(now = new Date()): string {
-  const stamp = now.toISOString().replace(/\D/g, "").slice(0, 14);
-  const tail = [...crypto.getRandomValues(new Uint8Array(3))]
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-  return `${LEARNING_PROPOSAL_BRANCH}${stamp}-${tail}`;
-}
-
 async function sendChange(
   c: Context<AppEnv>,
   ref: z.output<typeof deleteBody> | z.output<typeof putBody>,
-  change: Omit<LearningChange, "path" | "pull" | "message">,
+  change: Omit<FileChange, "path" | "pull" | "message">,
   verb: "add" | "update" | "delete",
 ) {
   const path = `${LEARNINGS_DIR}/${ref.id}.md`;
@@ -243,14 +222,15 @@ async function sendChange(
   if ("refusal" in reached) return reached.refusal;
   const { platform, token, head } = reached;
   const message = `chore(ocra): ${verb} learning ${ref.id}`;
-  const result = await platform.learnings.change(token, head, {
+  const result = await platform.files.commit(token, head, {
     ...change,
     path,
     message,
     pull: ref.direct
       ? null
       : {
-          branch: branchName(),
+          // A proposal branch of the engine's form.
+          branch: proposalBranch(LEARNING_PROPOSAL_BRANCH),
           title: message,
           body: `A change to \`${path}\` made in the ocra Cloud console. Reviews give each learning to the changes it applies to.`,
         },

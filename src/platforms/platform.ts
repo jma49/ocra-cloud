@@ -5,6 +5,7 @@ import type { PullActions } from "./actions.js";
 import type { PullDiffs } from "./changes.js";
 import type { RepoContents } from "./contents.js";
 import type { PullCycles } from "./cycles.js";
+import type { RepoFiles } from "./files.js";
 import type { RepoLearnings } from "./learnings.js";
 import type { PullMergeStatus } from "./merge-status.js";
 import type { PullListing } from "./pulls.js";
@@ -59,6 +60,7 @@ export interface CodePlatform {
   readonly cycles: PullCycles;
   readonly stacks: PullStacks;
   readonly learnings: RepoLearnings;
+  readonly files: RepoFiles;
   readonly mergeStatus: PullMergeStatus;
 }
 
