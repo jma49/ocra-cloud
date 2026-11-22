@@ -138,7 +138,8 @@ export function autoReviewWebhooks(service: AutoReviewService) {
       return apiError(c, "unauthenticated");
     }
     const signal = gitlabSignal(kind, body);
-    if (signal) defer(c, moveIntents(runnerOf(c), repo, signal.fullName, signal.signal));
+    // The secret proves this project only: its intents are moved, whatever path the body names.
+    if (signal) defer(c, moveIntents(runnerOf(c), repo, repo.fullName, signal.signal));
     if (note?.data) {
       return c.json({ queued: await queueGitlabNote(c.var.db, service, repo, note.data) }, 202);
     }

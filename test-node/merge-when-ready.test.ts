@@ -7,7 +7,7 @@ import { MERGE_LEASE_MS } from "../src/db/merge-intents.js";
 import { scoped } from "../src/db/scoped.js";
 import { repoIdentity } from "../src/platforms/platform.js";
 import type { MergeWhenReadyAnswer, MergeWhenReadyView } from "../src/shared/index.js";
-import { C1, C2 } from "./graph-fakes.js";
+import { C1, C2, GITLAB } from "./graph-fakes.js";
 import { graphServer, SECRET, type Server } from "./graph-server.js";
 
 // Merge when ready: GitHub's own auto-merge where the repository allows it;
@@ -270,6 +270,46 @@ describe("merge when ready", () => {
       json: ref,
     });
     expect((await view(mine.auth)).intent?.state).toBe("armed");
+  });
+
+  it("moves on a GitLab hook only the intents of the project whose secret proved it", async () => {
+    const { auth, account } = await me(false);
+    const route = vi.mocked(globalThis.fetch).getMockImplementation();
+    vi.mocked(globalThis.fetch).mockImplementation(async (input, init) => {
+      const url = new Request(input, init).url;
+      const lab = `${GITLAB}/api/v4/projects/`;
+      if (url === `${lab}group%2Fapi`) {
+        return Response.json({ id: 21, path_with_namespace: "group/api", default_branch: "main" });
+      }
+      if (url === `${lab}21/repository/branches/main`) return Response.json({ commit: { id: C1 } });
+      return route ? route(input, init) : new Response(null, { status: 404 });
+    });
+    const res = await s.call("/api/auto-review/repos", {
+      method: "POST",
+      headers: auth,
+      json: { platform: "gitlab", fullName: "group/api" },
+    });
+    expect(res.status).toBe(200);
+    const { webhook } = (await res.json()) as { webhook: { secret: string } };
+    const intents = scoped(s.host.db, account.id).mergeIntents;
+    const armed = { platform: "gitlab" as const, host: new URL(GITLAB).host, number: 5 };
+    const intent = { method: "merge", mode: "server", head: C1, keepOnPush: false } as const;
+    for (const fullName of ["group/api", "group/web"]) {
+      await intents.arm({ ...armed, ...intent, fullName, armedBy: "user-1" }, new Date());
+    }
+    // group/api's secret, with a body that names another project of the account.
+    const hook = await s.call("/api/auto-review/webhooks/gitlab", {
+      method: "POST",
+      headers: { "x-gitlab-event": "Merge Request Hook", "x-gitlab-token": webhook.secret },
+      json: {
+        object_attributes: { iid: 5, action: "close", state: "closed", last_commit: { id: C1 } },
+        project: { id: 21, path_with_namespace: "group/web" },
+      },
+    });
+    expect(hook.status).toBe(202);
+    const of = (fullName: string) => intents.of({ ...armed, fullName }, 5);
+    await vi.waitFor(async () => expect((await of("group/api"))?.state).toBe("closed"));
+    expect((await of("group/web"))?.state).toBe("armed");
   });
 
   it("lets one runner claim a merge, keeps it from a new arming, and takes over a lapsed claim", async () => {
