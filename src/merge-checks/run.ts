@@ -1,6 +1,6 @@
 import { sha256Hex } from "../crypto.js";
 import type { Row, Scoped } from "../db/scoped.js";
-import type { PostedStatus } from "../platforms/merge-status.js";
+import type { PostedStatus, PullFacts } from "../platforms/merge-status.js";
 import { type CodePlatform, repoIdentity } from "../platforms/platform.js";
 import { type MergeChecksReportView, pullPath } from "../shared/index.js";
 import { type CheckConfig, evaluateChecks, type HeadReview } from "./evaluate.js";
@@ -66,19 +66,20 @@ export type PullEvaluation =
   | { report: MergeChecksReportView }
   | { report: null; reason: "no_checks" | "unreachable" };
 
-/** The report on the pull request's current head, read with token. */
+/** The report on the pull request's current head, read with token unless `known` came with another read. */
 export async function evaluatePull(
   data: Scoped,
   platform: CodePlatform,
   token: string,
   repo: Row<"reviewRepos">,
   number: number,
+  known: PullFacts | null = null,
 ): Promise<PullEvaluation> {
   const checks: CheckConfig[] = await withEngineIds(
     (await checksOf(data, repo.id)).filter((c) => c.mode !== "off"),
   );
   if (checks.length === 0) return { report: null, reason: "no_checks" };
-  const facts = await platform.mergeStatus.facts(token, repo.fullName, number);
+  const facts = known ?? (await platform.mergeStatus.facts(token, repo.fullName, number));
   if (!facts) return { report: null, reason: "unreachable" };
   const review = await headReview(data, platform, repo, number, facts.head);
   return { report: evaluateChecks(checks, facts, review, repo.holdUnreviewed) };

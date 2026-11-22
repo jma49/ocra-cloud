@@ -206,15 +206,20 @@ export function parseCodeOwners(text: string, flavor: CodePlatformKind): CodeOwn
   return { rules, budget: { steps: MAX_MATCH_STEPS } };
 }
 
-/** The owners of one path: the last matching rule's, or on GitLab each section's last. */
-export function ownersOfPath(file: CodeOwners, path: string): Owner[] {
+/** The owners of one path per section (GitHub's file is one section): each one's last matching rule. */
+export function ownerGroupsOfPath(file: CodeOwners, path: string): Owner[][] {
   const bySection = new Map<string, Owner[]>();
   for (const rule of file.rules) {
     if (rule.match.test(path, file.budget)) bySection.set(rule.section, rule.owners);
   }
+  return [...bySection.values()].filter((owners) => owners.length > 0);
+}
+
+/** The owners of one path: the last matching rule's, or on GitLab each section's last. */
+export function ownersOfPath(file: CodeOwners, path: string): Owner[] {
   const seen = new Set<string>();
   const owners: Owner[] = [];
-  for (const list of bySection.values()) {
+  for (const list of ownerGroupsOfPath(file, path)) {
     for (const o of list) {
       const key = `${o.kind}:${o.name.toLowerCase()}`;
       if (seen.has(key)) continue;
