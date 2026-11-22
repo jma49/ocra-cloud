@@ -1,11 +1,12 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { normaliseRemote } from "@open-cr-agent/cloud-contract";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { hmacHex } from "../src/crypto.js";
 import { graphPolicy } from "../src/graph/policy.js";
 import type { GraphPolicy } from "../src/shared/index.js";
-import { C1, C2, C3, fakeBuilder, repoFake } from "./graph-fakes.js";
+import { C1, C2, C3, fakeBuilder, GITLAB, repoFake } from "./graph-fakes.js";
 import {
   addRepo,
   githubPush,
@@ -277,6 +278,14 @@ describe("a push webhook", () => {
     const hookOne = await secretOf(one.auth);
     await secretOf(two.auth);
     expect(hookOne.url).toBe(`${ORIGIN}/api/graphs/webhooks/gitlab`);
+    // The rail finds it by the name a review of it uploads, and links to it on the instance.
+    const listed = (await (await s.call("/api/graphs/repos", { headers: one.auth })).json()) as {
+      repos: { url: string; identity: string }[];
+    };
+    expect(listed.repos[0]).toMatchObject({
+      url: `${GITLAB}/group/api`,
+      identity: normaliseRemote(`${GITLAB}/group/api.git`),
+    });
     await s.settled();
     const push = (token: string) =>
       s.call("/api/graphs/webhooks/gitlab", {

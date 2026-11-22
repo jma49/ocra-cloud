@@ -14,6 +14,10 @@ export type GraphRepoView = {
   platform: CodePlatformKind;
   host: string;
   fullName: string;
+  /** Its web address, under the instance's relative root. */
+  url: string;
+  /** The name the CLI gives a clone of it (`https://host/path`, lower case), which reviews upload. */
+  identity: string;
   branch: string;
   latest: {
     commit: string;
