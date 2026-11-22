@@ -43,13 +43,14 @@ const gitlabPush = z.object({
 /** A GitHub App webhook's push (src/webhooks.ts verified it): queues the graph builds it calls for. */
 export async function queueGithubPush(
   db: AppEnv["Variables"]["db"],
+  host: string,
   service: GraphService,
   body: unknown,
 ): Promise<number> {
   const parsed = githubPush.safeParse(body);
   if (!parsed.success) return 0;
   const push = parsed.data;
-  const repos = await reposForPush(db, "github", "github.com", String(push.repository.id));
+  const repos = await reposForPush(db, "github", host, String(push.repository.id));
   return queue(db, repos, service, {
     platformRepoId: String(push.repository.id),
     fullName: push.repository.full_name,

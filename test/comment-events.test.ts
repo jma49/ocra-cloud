@@ -194,8 +194,8 @@ describe("telling the account of the conversation", () => {
     const posted = chats();
     await setUp(["pull_commented", "mentioned"]);
     const body = issueComment("@mona can you look? <!channel>");
-    expect(await tellGithubHook(db, out(), "issue_comment", body)).toBe(1);
-    expect(await tellGithubHook(db, out(), "issue_comment", body)).toBe(0);
+    expect(await tellGithubHook(db, "github.com", out(), "issue_comment", body)).toBe(1);
+    expect(await tellGithubHook(db, "github.com", out(), "issue_comment", body)).toBe(0);
     expect(posted).toHaveLength(1);
     expect(posted[0]).toContain("hubot mentioned you");
     expect(posted[0]).toContain("can you look");
@@ -206,7 +206,9 @@ describe("telling the account of the conversation", () => {
   it("tells the author of a comment without a mention", async () => {
     const posted = chats();
     await setUp(["pull_commented"]);
-    expect(await tellGithubHook(db, out(), "issue_comment", issueComment("LGTM"))).toBe(1);
+    expect(
+      await tellGithubHook(db, "github.com", out(), "issue_comment", issueComment("LGTM")),
+    ).toBe(1);
     expect(posted[0]).toContain("hubot commented on your pull request");
   });
 
@@ -216,6 +218,7 @@ describe("telling the account of the conversation", () => {
     expect(
       await tellGithubHook(
         db,
+        "github.com",
         out(),
         "issue_comment",
         issueComment("note to self @mona", user(ME, "mona")),
@@ -224,15 +227,19 @@ describe("telling the account of the conversation", () => {
     expect(
       await tellGithubHook(
         db,
+        "github.com",
         out(),
         "issue_comment",
         issueComment("@mona", user(3, "ocra[bot]", "Bot")),
       ),
     ).toBe(0);
-    expect(await tellGithubHook(db, out(), "issue_comment", issueComment("LGTM"))).toBe(0);
+    expect(
+      await tellGithubHook(db, "github.com", out(), "issue_comment", issueComment("LGTM")),
+    ).toBe(0);
     expect(
       await tellGithubHook(
         db,
+        "github.com",
         out(),
         "issue_comment",
         issueComment("@monalisa hi", undefined, 501),
@@ -263,7 +270,9 @@ describe("telling the account of the conversation", () => {
       auth: other.auth,
       json: { kind: "slack", url: SLACK, name: "theirs", when: "blocking", events: ["mentioned"] },
     });
-    expect(await tellGithubHook(db, out(), "issue_comment", issueComment("@hubot2 @mona"))).toBe(1);
+    expect(
+      await tellGithubHook(db, "github.com", out(), "issue_comment", issueComment("@hubot2 @mona")),
+    ).toBe(1);
     expect(posted).toHaveLength(1);
   });
 

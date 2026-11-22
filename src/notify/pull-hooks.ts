@@ -195,6 +195,7 @@ const quick = new Set([
 /** Tells the enrolled repository's account of a GitHub delivery's events that are its own. */
 export async function tellGithubHook(
   db: Db,
+  host: string,
   out: Outbox,
   event: string | undefined,
   body: unknown,
@@ -202,7 +203,7 @@ export async function tellGithubHook(
   if (!event || !quick.has(event)) return 0;
   const repoId = z.object({ repository: z.object({ id: z.number() }) }).safeParse(body);
   if (!repoId.success) return 0;
-  const repo = await reviewRepoFor(db, "github", "github.com", id(repoId.data.repository.id));
+  const repo = await reviewRepoFor(db, "github", host, id(repoId.data.repository.id));
   if (!repo) return 0;
   const sender = z.object({ sender: user }).safeParse(body);
   if (sender.success) {

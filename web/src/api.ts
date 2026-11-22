@@ -13,6 +13,9 @@ import { RECENT_SIGN_IN, RECENT_SIGN_IN_MINUTES } from "../../src/shared/index.j
 export type Me = {
   login: string;
   githubId: number | null;
+  /** The web address of this server's GitHub, where it has one. */
+  githubUrl: string | null;
+  avatarUrl: string | null;
   session: "web" | "cli";
   since: string;
   /** What this server does with code graphs; off where it builds none. */

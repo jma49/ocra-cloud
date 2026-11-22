@@ -4,6 +4,7 @@ import { githubChanges } from "./github-changes.js";
 import { githubContents } from "./github-contents.js";
 import { githubCycles } from "./github-cycles.js";
 import { githubFiles } from "./github-files.js";
+import type { GithubHost } from "./github-host.js";
 import { githubIssues } from "./github-issues.js";
 import { githubLearnings } from "./github-learnings.js";
 import { githubMergeStatus } from "./github-merge-status.js";
@@ -18,22 +19,23 @@ import { githubViewed } from "./github-viewed.js";
 import { platformCall } from "./http.js";
 import type { CodePlatform, PlatformRepo, TokenAnswer } from "./platform.js";
 
-// GitHub, through the ocra Cloud GitHub App: the user's expiring token
-// (8 hours, with a single-use refresh token) reads the App's installations
-// the user can see and their repositories.
+// GitHub, github.com or a GitHub Enterprise Server, through this
+// deployment's GitHub App: the user's expiring token (8 hours, with a
+// single-use refresh token) reads the App's installations the user can see
+// and their repositories.
 
-const API = "https://api.github.com";
 /** Bounds the calls of one request (Workers' subrequest limit). */
 const MAX_INSTALLATIONS = 10;
 
 type Installation = { id: number };
 type Repo = { id: number; full_name: string; private: boolean; html_url: string };
 
-export type GithubClient = { id: string; secret: string; slug?: string };
+export type GithubClient = { host: GithubHost; id: string; secret: string; slug?: string };
 
 export function github(client: GithubClient): CodePlatform {
+  const { host } = client;
   const get = <T>(token: string, path: string) =>
-    platformCall<T>(`${API}${path}`, {
+    platformCall<T>(`${host.api}${path}`, {
       headers: {
         authorization: `Bearer ${token}`,
         accept: "application/vnd.github+json",
@@ -43,8 +45,8 @@ export function github(client: GithubClient): CodePlatform {
     });
   const post =
     (token: string) =>
-    <T>(path: string, body: unknown) =>
-      platformCall<T>(`${API}${path}`, {
+    <T>(body: unknown) =>
+      platformCall<T>(host.graphql, {
         method: "POST",
         headers: {
           authorization: `Bearer ${token}`,
@@ -54,16 +56,16 @@ export function github(client: GithubClient): CodePlatform {
         },
         body: JSON.stringify(body),
       });
-  const actions = githubActions();
+  const actions = githubActions(host);
   return {
     kind: "github",
-    host: "github.com",
-    url: "https://github.com",
+    host: host.host,
+    url: host.url,
     ...(client.slug
-      ? { install: `https://github.com/apps/${encodeURIComponent(client.slug)}/installations/new` }
+      ? { install: `${host.url}/apps/${encodeURIComponent(client.slug)}/installations/new` }
       : {}),
     refresh: (refreshToken) =>
-      platformCall<TokenAnswer>("https://github.com/login/oauth/access_token", {
+      platformCall<TokenAnswer>(`${host.url}/login/oauth/access_token`, {
         method: "POST",
         headers: { accept: "application/json", "content-type": "application/json" },
         body: JSON.stringify({
@@ -75,20 +77,20 @@ export function github(client: GithubClient): CodePlatform {
       }),
     listPulls: (token) => githubPulls(post(token)),
     searchPulls: (token, search, limit) => githubSearch(post(token), search, limit),
-    contents: githubContents(),
-    changes: githubChanges(),
+    contents: githubContents(host),
+    changes: githubChanges(host),
     actions,
-    queue: githubQueue(),
-    autoMerge: githubAutoMerge(),
+    queue: githubQueue(host),
+    autoMerge: githubAutoMerge(host),
     cycles: githubCycles(post),
-    stacks: githubStacks(post),
-    learnings: githubLearnings(),
-    files: githubFiles(post),
-    mergeStatus: githubMergeStatus(),
-    readiness: githubReadiness(post),
-    reviewers: githubReviewers(post),
+    stacks: githubStacks(host, post),
+    learnings: githubLearnings(host),
+    files: githubFiles(host, post),
+    mergeStatus: githubMergeStatus(host),
+    readiness: githubReadiness(host, post),
+    reviewers: githubReviewers(host, post),
     threads: githubThreads(post, actions),
-    issues: githubIssues(),
+    issues: githubIssues(host),
     viewed: githubViewed(post),
     async listRepos(token) {
       const installs = await get<{ installations: Installation[] }>(

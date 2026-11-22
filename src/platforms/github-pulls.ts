@@ -1,4 +1,5 @@
 import type { PullChecks, PullReview } from "../shared/index.js";
+import type { GithubGraphql } from "./github-host.js";
 import {
   type ListedPull,
   labelsOf,
@@ -100,12 +101,12 @@ const pulls = (s: Search) =>
   s.nodes.filter((n): n is PullNode => Boolean(n?.repository)).map(pullNodeItem);
 
 export async function githubPulls(
-  post: <T>(path: string, body: unknown) => Promise<T | null>,
+  post: ReturnType<GithubGraphql>,
   now = Date.now(),
 ): Promise<PullListing | null> {
   const since = mergedSince(now).toISOString().slice(0, 10);
   const ask = (checks: boolean) =>
-    post<Answer>("/graphql", {
+    post<Answer>({
       query: query(checks),
       variables: {
         review: "is:pr is:open archived:false review-requested:@me",

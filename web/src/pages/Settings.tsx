@@ -52,9 +52,13 @@ export function Settings(props: { me: Me }) {
         <dl className="kv card-pad m-0">
           <dt>GitHub</dt>
           <dd>
-            <a href={`https://github.com/${props.me.login}`} target="_blank" rel="noreferrer">
-              {props.me.login}
-            </a>
+            {props.me.githubUrl && props.me.githubId !== null ? (
+              <a href={`${props.me.githubUrl}/${props.me.login}`} target="_blank" rel="noreferrer">
+                {props.me.login}
+              </a>
+            ) : (
+              props.me.login
+            )}
           </dd>
           <dt>Member since</dt>
           <dd>{date(props.me.since)}</dd>

@@ -33,6 +33,8 @@ const prefs = { runtime: null, models: {}, agents: {}, settings: {}, version: "v
 const me = {
   login: "ada",
   githubId: 1,
+  githubUrl: "https://github.com",
+  avatarUrl: null,
   session: "web" as const,
   since: "",
   codeGraphs: "off" as const,

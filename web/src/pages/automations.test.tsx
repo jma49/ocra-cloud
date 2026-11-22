@@ -11,6 +11,8 @@ afterEach(() => {
 const me = (autoReview: boolean): Me => ({
   login: "ada",
   githubId: 1,
+  githubUrl: "https://github.com",
+  avatarUrl: null,
   session: "web",
   since: "",
   codeGraphs: "off",

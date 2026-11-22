@@ -28,6 +28,7 @@ const githubComment = z.object({
 /** A GitHub App webhook's issue_comment or pull_request_review_comment (src/webhooks.ts verified it). */
 export async function queueGithubComment(
   db: Db,
+  host: string,
   service: AutoReviewService,
   event: "issue_comment" | "pull_request_review_comment",
   body: unknown,
@@ -37,7 +38,7 @@ export async function queueGithubComment(
   const { comment, repository, issue, pull_request } = parsed.data;
   const number = event === "issue_comment" ? issue?.number : pull_request?.number;
   if (!number || comment.user.type === "Bot" || !MENTION.test(comment.body)) return 0;
-  const repo = await reviewRepoFor(db, "github", "github.com", String(repository.id));
+  const repo = await reviewRepoFor(db, "github", host, String(repository.id));
   if (!repo) return 0;
   return queueReply(
     db,

@@ -15,6 +15,7 @@ import {
 } from "../src/node/review-runner.js";
 import type { BotTokens } from "../src/platforms/bot.js";
 import { github } from "../src/platforms/github.js";
+import { GITHUB_COM } from "../src/platforms/github-host.js";
 import { C1 } from "./graph-fakes.js";
 import { graphServer, ORIGIN, type Server } from "./graph-server.js";
 
@@ -52,21 +53,22 @@ describe("the ocra bot's GitHub token", () => {
       }
       return new Response(null, { status: 404 });
     });
-    const bot = await botTokens({ githubAppId: "123", githubAppPrivateKey: PEM }).forRepo(
-      "github",
-      "Octo/API",
-    );
+    const bot = await botTokens({
+      githubApi: GITHUB_COM.api,
+      githubAppId: "123",
+      githubAppPrivateKey: PEM,
+    }).forRepo("github", "Octo/API");
     expect(bot).toEqual({ token: "ghs_bot", login: "ocra-review[bot]" });
     const minted = asked.find((a) => a.url.endsWith("/access_tokens"));
     expect(minted?.body).toEqual({
       repositories: ["API"],
       permissions: { contents: "read", pull_requests: "write", metadata: "read", checks: "write" },
     });
-    await botTokens({ githubAppId: "123", githubAppPrivateKey: PEM }).forRepo(
-      "github",
-      "Octo/API",
-      "commit",
-    );
+    await botTokens({
+      githubApi: GITHUB_COM.api,
+      githubAppId: "123",
+      githubAppPrivateKey: PEM,
+    }).forRepo("github", "Octo/API", "commit");
     const pushing = asked.filter((a) => a.url.endsWith("/access_tokens")).at(-1);
     expect(pushing?.body).toMatchObject({ permissions: { contents: "write" } });
     const jwt = minted?.auth?.replace("Bearer ", "") ?? "";
@@ -80,13 +82,27 @@ describe("the ocra bot's GitHub token", () => {
   });
 
   it("is none without the App's key, or when the App is not on the repository", async () => {
-    expect(await botTokens({ githubAppId: "123" }).forRepo("github", "Octo/API")).toBeNull();
+    expect(
+      await botTokens({ githubApi: GITHUB_COM.api, githubAppId: "123" }).forRepo(
+        "github",
+        "Octo/API",
+      ),
+    ).toBeNull();
     vi.spyOn(globalThis, "fetch").mockImplementation(
       async () => new Response(null, { status: 404 }),
     );
-    const bots = botTokens({ githubAppId: "123", githubAppPrivateKey: PEM });
+    const bots = botTokens({
+      githubApi: GITHUB_COM.api,
+      githubAppId: "123",
+      githubAppPrivateKey: PEM,
+    });
     expect(await bots.forRepo("github", "Octo/API")).toBeNull();
-    expect(await botTokens({ gitlabBotToken: "glpat-bot" }).forRepo("gitlab", "g/p")).toEqual({
+    expect(
+      await botTokens({ githubApi: GITHUB_COM.api, gitlabBotToken: "glpat-bot" }).forRepo(
+        "gitlab",
+        "g/p",
+      ),
+    ).toEqual({
       token: "glpat-bot",
     });
   });
@@ -106,10 +122,15 @@ describe("a review job's run", () => {
   const bots: BotTokens = {
     forRepo: async () => ({ token: "ghs_bot", login: "ocra-review[bot]" }),
   };
-  const platforms = [github({ id: "self-hosted-app", secret: "test-client-secret" })];
+  const platforms = [
+    github({ host: GITHUB_COM, id: "self-hosted-app", secret: "test-client-secret" }),
+  ];
 
   beforeEach(async () => {
-    s = await graphServer(dir, `runner-${n++}.db`, "off", undefined, { bots: {}, workers: 0 });
+    s = await graphServer(dir, `runner-${n++}.db`, "off", undefined, {
+      bots: { githubApi: GITHUB_COM.api },
+      workers: 0,
+    });
     const me = await s.signIn(1);
     accountId = me.account.id;
     const jobs = scoped(s.host.db, accountId).autoReview;

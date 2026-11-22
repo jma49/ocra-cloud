@@ -35,6 +35,7 @@ const githubReviewEvent = z.object({
 /** A GitHub App webhook's ask, removed ask or review (src/webhooks.ts verified it); whether it recorded one. */
 export async function recordGithubRequest(
   db: Db,
+  host: string,
   event: string | undefined,
   body: unknown,
   now = new Date(),
@@ -43,7 +44,7 @@ export async function recordGithubRequest(
     const parsed = githubReviewEvent.safeParse(body);
     if (!parsed.success) return false;
     const { review, pull_request: pull, repository } = parsed.data;
-    const repo = await reviewRepoFor(db, "github", "github.com", String(repository.id));
+    const repo = await reviewRepoFor(db, "github", host, String(repository.id));
     if (!repo || !review.user) return false;
     await scoped(db, repo.accountId).reviewRequests.done({
       reviewRepoId: repo.id,
@@ -60,7 +61,7 @@ export async function recordGithubRequest(
   const { action, number, pull_request: pull, requested_reviewer: reviewer } = parsed.data;
   const asked = action === "review_requested";
   if (!reviewer || (!asked && action !== "review_request_removed")) return false;
-  const repo = await reviewRepoFor(db, "github", "github.com", String(parsed.data.repository.id));
+  const repo = await reviewRepoFor(db, "github", host, String(parsed.data.repository.id));
   if (!repo) return false;
   const e = {
     reviewRepoId: repo.id,

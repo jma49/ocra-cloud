@@ -84,7 +84,8 @@ const reviewComment = (
   repository: { id: 11 },
 });
 
-const hook = (body: unknown) => tellGithubHook(db, out(), "pull_request_review_comment", body);
+const hook = (body: unknown) =>
+  tellGithubHook(db, "github.com", out(), "pull_request_review_comment", body);
 
 describe("GitHub review threads", () => {
   it("keeps a start and tells its starter of someone else's reply, once, with a plain excerpt", async () => {

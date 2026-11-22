@@ -54,7 +54,7 @@ const pull = (a: Account, number: number, author: string, opened: number, extra:
   });
 
 const ask = (a: Account, number: number, reviewer: { id: number; login?: string }, hours: number) =>
-  recordGithubRequest(db, "pull_request", {
+  recordGithubRequest(db, "github.com", "pull_request", {
     action: "review_requested",
     number,
     pull_request: { updated_at: ago(hours).toISOString() },
@@ -80,7 +80,7 @@ async function review(a: Account, number: number, reviewer: typeof ALICE, hours:
       submittedAt: ago(hours),
     },
   );
-  await recordGithubRequest(db, "pull_request_review", {
+  await recordGithubRequest(db, "github.com", "pull_request_review", {
     action: "submitted",
     review: { user: reviewer, submitted_at: ago(hours).toISOString() },
     pull_request: { number },

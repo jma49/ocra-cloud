@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { github } from "../src/platforms/github.js";
+import { GITHUB_COM } from "../src/platforms/github-host.js";
 import { gitlab } from "../src/platforms/gitlab.js";
 import { pullOnPlatform, pullPageUrl, repoOfIdentity } from "../src/review-pull.js";
 
-const hub = github({ id: "app", secret: "s" });
+const hub = github({ host: GITHUB_COM, id: "app", secret: "s" });
 const lab = (url: string) => gitlab({ url, id: "lab", secret: "s" }, "http://ocra.test/cb");
 const pull = (identity: string) => {
   const at = repoOfIdentity(identity);

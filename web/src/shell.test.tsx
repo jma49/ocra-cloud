@@ -7,6 +7,8 @@ import { Frame } from "./shell.js";
 const me: Me = {
   login: "sample-user",
   githubId: null,
+  githubUrl: "https://github.com",
+  avatarUrl: null,
   session: "web",
   since: "2026-11-01T00:00:00Z",
   codeGraphs: "keep",

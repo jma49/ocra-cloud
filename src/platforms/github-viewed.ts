@@ -1,9 +1,8 @@
+import type { GithubGraphql } from "./github-host.js";
 import type { PullFileViewed } from "./viewed.js";
 
 // GitHub's own viewed state through GraphQL, so a tick here is the one on
 // github.com: `viewerViewedState` is DISMISSED once a viewed file changed.
-
-type Post = (token: string) => <T>(path: string, body: unknown) => Promise<T | null>;
 
 /** Pages of files read: with the diff's own pages, a request stays within Workers' subrequests. */
 const MAX_PAGES = 10;
@@ -49,7 +48,7 @@ function marking(count: number, viewed: boolean): string {
   return `mutation($id: ID!${params}) {\n  ${calls.join("\n  ")}\n}`;
 }
 
-export function githubViewed(post: Post): PullFileViewed {
+export function githubViewed(post: GithubGraphql): PullFileViewed {
   const where = (fullName: string, number: number) => {
     const [owner, name] = fullName.split("/");
     return { owner, name, number };
@@ -59,7 +58,7 @@ export function githubViewed(post: Post): PullFileViewed {
       const viewed = new Map<string, boolean>();
       let after: string | null = null;
       for (let page = 0; page < MAX_PAGES; page++) {
-        const answer: Files | null = await post(token)<Files>("/graphql", {
+        const answer: Files | null = await post(token)<Files>({
           query: FILES,
           variables: { ...where(fullName, number), after },
         });
@@ -72,7 +71,7 @@ export function githubViewed(post: Post): PullFileViewed {
       return viewed;
     },
     async mark(token, fullName, number, mark) {
-      const answer = await post(token)<Pull>("/graphql", {
+      const answer = await post(token)<Pull>({
         query: PULL,
         variables: where(fullName, number),
       });
@@ -80,7 +79,7 @@ export function githubViewed(post: Post): PullFileViewed {
       if (!pull) return null;
       if (pull.headRefOid !== mark.head) return "head_moved";
       const paths = Object.fromEntries(mark.paths.map((p, i) => [`p${i}`, p]));
-      const sent = await post(token)<Mutated>("/graphql", {
+      const sent = await post(token)<Mutated>({
         query: marking(mark.paths.length, mark.viewed),
         variables: { id: pull.id, ...paths },
       });

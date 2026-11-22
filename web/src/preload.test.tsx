@@ -5,7 +5,14 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 // signed in when it last asked: the sign-in screen does not cost a /keys
 // 401 on every load (#92).
 
-const me = { login: "ada", githubId: 1, session: "web", since: "2026-10-01T00:00:00Z" };
+const me = {
+  login: "ada",
+  githubId: 1,
+  githubUrl: "https://github.com",
+  avatarUrl: null,
+  session: "web",
+  since: "2026-10-01T00:00:00Z",
+};
 const usage = { days: 14, today: 0, dailyLimit: 1000, series: [], models: [], calls: [] };
 
 /** Loads the app at "/usage" (a page that shows the keys) with /me answered by `answer` (never, when undefined). */

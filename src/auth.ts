@@ -52,7 +52,7 @@ auth.get("/github/login", async (c) => {
   const client = githubClientOf(c.env);
   if (!client) return apiError(c, "not_found");
   const state = await startSignIn(c);
-  const url = new URL("https://github.com/login/oauth/authorize");
+  const url = new URL(`${client.host.url}/login/oauth/authorize`);
   url.searchParams.set("client_id", client.id);
   url.searchParams.set("redirect_uri", callbackUrl(c.req.url));
   url.searchParams.set("state", state);
@@ -66,7 +66,7 @@ auth.get("/github/callback", async (c) => {
   const signIn = await finishSignIn(c);
   const code = c.req.query("code");
   if (!signIn || !code) return apiError(c, "bad_state");
-  const tokenBody = await githubCall<TokenAnswer>("https://github.com/login/oauth/access_token", {
+  const tokenBody = await githubCall<TokenAnswer>(`${client.host.url}/login/oauth/access_token`, {
     method: "POST",
     headers: { accept: "application/json", "content-type": "application/json" },
     body: JSON.stringify({
@@ -78,7 +78,7 @@ auth.get("/github/callback", async (c) => {
   });
   if (!tokenBody?.access_token) return apiError(c, "github_exchange");
   // The GitHub token tells who signed in, and is kept below.
-  const user = await githubCall<{ id?: number; login?: string }>("https://api.github.com/user", {
+  const user = await githubCall<{ id?: number; login?: string }>(`${client.host.api}/user`, {
     headers: {
       authorization: `Bearer ${tokenBody.access_token}`,
       accept: "application/vnd.github+json",

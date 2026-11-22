@@ -7,9 +7,9 @@ import {
   type PullPatches,
   withinBudget,
 } from "./changes.js";
+import type { GithubHost } from "./github-host.js";
 import { platformCall } from "./http.js";
 
-const API = "https://api.github.com";
 const PER_PAGE = 100;
 
 type Pull = {
@@ -54,8 +54,14 @@ export const githubHeaders = (token: string) => ({
 export const githubRepoPath = (fullName: string) =>
   fullName.split("/").map(encodeURIComponent).join("/");
 
-async function listFiles(token: string, fullName: string, number: number, max = MAX_CHANGED_FILES) {
-  const base = `${API}/repos/${githubRepoPath(fullName)}/pulls/${number}`;
+async function listFiles(
+  host: GithubHost,
+  token: string,
+  fullName: string,
+  number: number,
+  max = MAX_CHANGED_FILES,
+) {
+  const base = `${host.api}/repos/${githubRepoPath(fullName)}/pulls/${number}`;
   const pull = await platformCall<Pull>(base, { headers: githubHeaders(token) });
   if (!pull) return null;
   const wanted = Math.min(pull.changed_files, max);
@@ -87,10 +93,10 @@ const where = (f: File) => ({
   status: STATUS[f.status],
 });
 
-export function githubChanges(): PullDiffs {
+export function githubChanges(host: GithubHost): PullDiffs {
   return {
     async changes(token, fullName, number, maxFiles) {
-      const listed = await listFiles(token, fullName, number, maxFiles);
+      const listed = await listFiles(host, token, fullName, number, maxFiles);
       if (!listed) return null;
       return {
         ...listed,
@@ -101,7 +107,7 @@ export function githubChanges(): PullDiffs {
       };
     },
     async patches(token, fullName, number) {
-      const listed = await listFiles(token, fullName, number);
+      const listed = await listFiles(host, token, fullName, number);
       if (!listed) return null;
       const files = listed.files.map(
         (f): PatchedFile => ({

@@ -6,11 +6,12 @@ import type { BotTokens } from "../platforms/bot.js";
 // to the one repository and to what a review needs; on GitLab the bot
 // account's token the administrator configured. Neither is stored.
 
-const API = "https://api.github.com";
 /** GitHub takes an App's JWT for at most ten minutes; a minute of clock skew is allowed for. */
 const JWT_SECONDS = 9 * 60;
 
 export type BotSettings = {
+  /** The REST API of the GitHub the App is on. */
+  githubApi: string;
   githubAppId?: string | undefined;
   githubAppPrivateKey?: string | undefined;
   gitlabBotToken?: string | undefined;
@@ -29,9 +30,9 @@ export function appJwt(appId: string, privateKeyPem: string, now = Date.now()): 
   return `${head}.${body}.${base64url(signer.sign(createPrivateKey(privateKeyPem)))}`;
 }
 
-async function github(path: string, init: RequestInit & { token: string }) {
+async function github(api: string, path: string, init: RequestInit & { token: string }) {
   const { token, ...rest } = init;
-  const res = await fetch(`${API}${path}`, {
+  const res = await fetch(`${api}${path}`, {
     ...rest,
     redirect: "manual",
     signal: AbortSignal.timeout(10_000),
@@ -63,23 +64,27 @@ export function botTokens(settings: BotSettings): BotTokens {
       if (!owner || !repo) return null;
       const path = `${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
       const [app, installation] = await Promise.all([
-        github("/app", { token: jwt }),
-        github(`/repos/${path}/installation`, { token: jwt }),
+        github(settings.githubApi, "/app", { token: jwt }),
+        github(settings.githubApi, `/repos/${path}/installation`, { token: jwt }),
       ]);
       if (typeof installation?.id !== "number") return null;
-      const minted = await github(`/app/installations/${installation.id}/access_tokens`, {
-        token: jwt,
-        method: "POST",
-        body: JSON.stringify({
-          repositories: [repo],
-          permissions: {
-            contents: access === "commit" ? "write" : "read",
-            pull_requests: "write",
-            metadata: "read",
-            checks: "write",
-          },
-        }),
-      });
+      const minted = await github(
+        settings.githubApi,
+        `/app/installations/${installation.id}/access_tokens`,
+        {
+          token: jwt,
+          method: "POST",
+          body: JSON.stringify({
+            repositories: [repo],
+            permissions: {
+              contents: access === "commit" ? "write" : "read",
+              pull_requests: "write",
+              metadata: "read",
+              checks: "write",
+            },
+          }),
+        },
+      );
       if (typeof minted?.token !== "string") return null;
       return {
         token: minted.token,

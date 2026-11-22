@@ -1,4 +1,5 @@
 import { CODEOWNERS_PATHS, MAX_CODEOWNERS_BYTES } from "../codeowners.js";
+import type { GithubGraphql, GithubHost } from "./github-host.js";
 import { type GithubRule, protectionOf, rulesetsOf, strictest } from "./github-rulesets.js";
 import {
   type Approval,
@@ -19,8 +20,6 @@ import {
 // without branch protection. The branch's rulesets are one more REST call,
 // folded in where the strictest wins; while either is not fully read, what
 // the read part requires is a floor, not the answer.
-
-type Post = (token: string) => <T>(path: string, body: unknown) => Promise<T | null>;
 
 const OWNER_FILES = CODEOWNERS_PATHS.github;
 
@@ -170,11 +169,11 @@ function codeownersOf(target: Record<string, { object: Blob } | null> | null | u
   return null;
 }
 
-export function githubReadiness(post: Post): PullReadiness {
+export function githubReadiness(host: GithubHost, post: GithubGraphql): PullReadiness {
   return {
     async read(token, fullName, number) {
       const [owner, name] = fullName.split("/");
-      const answer = await post(token)<Answer>("/graphql", {
+      const answer = await post(token)<Answer>({
         query: READINESS,
         variables: { owner, name, number },
       });
@@ -191,9 +190,9 @@ export function githubReadiness(post: Post): PullReadiness {
         graphRule
           ? { read: "read" as const, rule: graphRule }
           : pull.baseRef
-            ? protectionOf(token, fullName, pull.baseRefName)
+            ? protectionOf(host, token, fullName, pull.baseRefName)
             : { read: "unreadable" as const, rule: null },
-        rulesetsOf(token, fullName, pull.baseRefName),
+        rulesetsOf(host, token, fullName, pull.baseRefName),
       ]);
       const branchRule = classic.read;
       const merged = strictest(classic.rule, rulesets.rule);

@@ -1,13 +1,12 @@
 import type { MergeMethod, PullActionOutcome } from "../shared/index.js";
 import type { PullAutoMerge } from "./auto-merge.js";
 import { githubHeaders } from "./github-changes.js";
+import type { GithubHost } from "./github-host.js";
 import { platformSend } from "./http.js";
 
 // GitHub's auto-merge (a repository setting, "Allow auto-merge") through
 // GraphQL. It waits on the branch's required checks and reviews only: the
 // ocra pre-merge check counts where branch protection requires it.
-
-const GRAPHQL = "https://api.github.com/graphql";
 
 const METHOD = {
   merge: "MERGE",
@@ -60,9 +59,9 @@ function outcomeOfMutation(sent: { status: number; body: Answer<unknown> | null 
   return errors.length > 0 ? "not_mergeable" : "done";
 }
 
-export function githubAutoMerge(): PullAutoMerge {
+export function githubAutoMerge(host: GithubHost): PullAutoMerge {
   const ask = <T>(token: string, query: string, variables: Record<string, unknown>) =>
-    platformSend<Answer<T>>(GRAPHQL, {
+    platformSend<Answer<T>>(host.graphql, {
       method: "POST",
       headers: { ...githubHeaders(token), "content-type": "application/json" },
       body: JSON.stringify({ query, variables }),

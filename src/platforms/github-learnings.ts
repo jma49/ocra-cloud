@@ -1,9 +1,8 @@
 import { LEARNING_PROPOSAL_BRANCH, LEARNINGS_DIR } from "@open-cr-agent/cloud-contract";
 import { githubHeaders, githubRepoPath } from "./github-changes.js";
+import type { GithubHost } from "./github-host.js";
 import { platformCall, platformSend } from "./http.js";
 import { MAX_PROPOSALS, type RepoLearnings } from "./learnings.js";
-
-const API = "https://api.github.com";
 
 type DirEntry = { type: string; path: string; sha: string };
 type Pull = {
@@ -15,8 +14,8 @@ type Pull = {
   head: { ref: string; sha: string; repo: { full_name: string } | null };
 };
 
-export function githubLearnings(): RepoLearnings {
-  const repoUrl = (fullName: string) => `${API}/repos/${githubRepoPath(fullName)}`;
+export function githubLearnings(host: GithubHost): RepoLearnings {
+  const repoUrl = (fullName: string) => `${host.api}/repos/${githubRepoPath(fullName)}`;
   const send = (token: string, method: string, url: string, body?: unknown) =>
     platformSend<Record<string, unknown>>(url, {
       method,

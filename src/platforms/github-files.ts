@@ -8,11 +8,9 @@ import {
 } from "./files.js";
 import { toBase64 } from "./fix.js";
 import { githubHeaders, githubRepoPath } from "./github-changes.js";
+import type { GithubGraphql, GithubHost } from "./github-host.js";
 import { platformSend } from "./http.js";
 
-const API = "https://api.github.com";
-
-type Post = (token: string) => <T>(path: string, body: unknown) => Promise<T | null>;
 type Blob = {
   oid?: string;
   byteSize: number;
@@ -49,8 +47,8 @@ function readQuery(count: number): string {
 }`;
 }
 
-export function githubFiles(post: Post): RepoFiles {
-  const repoUrl = (fullName: string) => `${API}/repos/${githubRepoPath(fullName)}`;
+export function githubFiles(host: GithubHost, post: GithubGraphql): RepoFiles {
+  const repoUrl = (fullName: string) => `${host.api}/repos/${githubRepoPath(fullName)}`;
   const send = (token: string, method: string, url: string, body?: unknown) =>
     platformSend<Record<string, unknown>>(url, {
       method,
@@ -73,7 +71,7 @@ export function githubFiles(post: Post): RepoFiles {
         variables[`e${i}`] = `${commit}:${p}`;
         variables[`p${i}`] = p;
       });
-      const answer = await post(token)<ReadAnswer>("/graphql", {
+      const answer = await post(token)<ReadAnswer>({
         query: readQuery(paths.length),
         variables,
       });

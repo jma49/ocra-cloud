@@ -3,6 +3,7 @@ import { conditionsHold, globMatch } from "../src/automations/rules.js";
 import { AUTOMATION_RUN_DAYS, enforceRetention } from "../src/db/retention.js";
 import { scoped } from "../src/db/scoped.js";
 import { githubActions } from "../src/platforms/github-actions.js";
+import { GITHUB_COM } from "../src/platforms/github-host.js";
 import { DAY } from "../src/time.js";
 import { upload } from "./finding-uploads.js";
 import { call, db, resetDb, signIn, signInCli } from "./helpers.js";
@@ -261,7 +262,7 @@ describe("GitHub's pull request actions for a rule", () => {
       sent.push({ method: req.method, url: req.url, body: await req.json() });
       return new Response("{}", { status: req.url.endsWith("requested_reviewers") ? 422 : 200 });
     });
-    const actions = githubActions();
+    const actions = githubActions(GITHUB_COM);
     expect(await actions.addLabels("t", "octo/api", 7, ["a", "b"])).toBe("done");
     expect(await actions.requestReviewers("t", "octo/api", 7, ["alice"])).toBe("refused");
     expect(sent).toEqual([

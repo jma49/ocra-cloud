@@ -2,10 +2,9 @@ import type { LineSide, MergeMethod, PullVerdict } from "../shared/index.js";
 import { outcomeOf, type PullActions } from "./actions.js";
 import { fixedFile, fromBase64, MAX_FIX_FILE_BYTES, toBase64 } from "./fix.js";
 import { githubHeaders, githubRepoPath } from "./github-changes.js";
+import type { GithubHost } from "./github-host.js";
 import { platformCall, platformSend } from "./http.js";
 import { withSuggestion } from "./suggestions.js";
-
-const API = "https://api.github.com";
 
 const EVENT = {
   approve: "APPROVE",
@@ -27,14 +26,14 @@ type Pull = { head: { sha: string; ref: string; repo: { full_name: string } | nu
 type PullBody = { head: { sha: string }; body: string | null };
 type File = { type: string; sha: string; size: number; encoding?: string; content?: string };
 
-export function githubActions(): PullActions {
+export function githubActions(host: GithubHost): PullActions {
   const send = (token: string, method: string, url: string, body: unknown) =>
     platformSend(url, {
       method,
       headers: { ...githubHeaders(token), "content-type": "application/json" },
       body: JSON.stringify(body),
     });
-  const repo = (fullName: string) => `${API}/repos/${githubRepoPath(fullName)}`;
+  const repo = (fullName: string) => `${host.api}/repos/${githubRepoPath(fullName)}`;
   const description = async (token: string, fullName: string, number: number) => {
     const url = `${repo(fullName)}/pulls/${number}`;
     const pull = await platformCall<PullBody>(url, { headers: githubHeaders(token) });

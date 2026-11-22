@@ -1,5 +1,6 @@
 import type { AppBindings } from "../types.js";
 import { type GithubClient, github } from "./github.js";
+import { GITHUB_COM, type GithubHost, githubHost } from "./github-host.js";
 import { type GitlabClient, gitlab } from "./gitlab.js";
 import type { CodePlatform } from "./platform.js";
 
@@ -8,6 +9,7 @@ type Settings = Pick<
   | "GITHUB_CLIENT_ID"
   | "GITHUB_CLIENT_SECRET"
   | "GITHUB_APP_SLUG"
+  | "GITHUB_URL"
   | "GITLAB_CLIENT_ID"
   | "GITLAB_CLIENT_SECRET"
   | "GITLAB_URL"
@@ -17,31 +19,42 @@ type Settings = Pick<
 export function githubClientOf(env: Settings): GithubClient | undefined {
   if (!env.GITHUB_CLIENT_ID || !env.GITHUB_CLIENT_SECRET) return undefined;
   return {
+    host: githubHostOf(env),
     id: env.GITHUB_CLIENT_ID,
     secret: env.GITHUB_CLIENT_SECRET,
     ...(env.GITHUB_APP_SLUG ? { slug: env.GITHUB_APP_SLUG } : {}),
   };
 }
 
+/** This deployment's GitHub: GITHUB_URL's GitHub Enterprise Server, else github.com. */
+export function githubHostOf(env: Pick<Settings, "GITHUB_URL">): GithubHost {
+  if (!env.GITHUB_URL) return GITHUB_COM;
+  const url = instanceUrl("GITHUB_URL", env.GITHUB_URL);
+  if (new URL(url).pathname !== "/") {
+    throw new Error("GITHUB_URL must be the server's address, without a path");
+  }
+  return githubHost(url);
+}
+
 /** This deployment's GitLab application, when it has one. */
 export function gitlabClientOf(env: Settings): GitlabClient | undefined {
   if (!env.GITLAB_CLIENT_ID || !env.GITLAB_CLIENT_SECRET) return undefined;
   return {
-    url: instanceUrl(env.GITLAB_URL || "https://gitlab.com"),
+    url: instanceUrl("GITLAB_URL", env.GITLAB_URL || "https://gitlab.com"),
     id: env.GITLAB_CLIENT_ID,
     secret: env.GITLAB_CLIENT_SECRET,
   };
 }
 
 /**
- * GITLAB_URL as its API and OAuth paths are appended to it: the origin, and
- * the relative root of an instance installed under a path
+ * An instance's address as its API and OAuth paths are appended to it: the
+ * origin, and the relative root of an instance installed under a path
  * (https://example.com/gitlab), without a trailing slash.
  */
-function instanceUrl(value: string): string {
+function instanceUrl(name: string, value: string): string {
   const url = new URL(value);
   if (!["https:", "http:"].includes(url.protocol) || url.username || url.password) {
-    throw new Error("GITLAB_URL must be an http or https URL without credentials");
+    throw new Error(`${name} must be an http or https URL without credentials`);
   }
   return `${url.origin}${url.pathname.replace(/\/+$/, "")}`;
 }

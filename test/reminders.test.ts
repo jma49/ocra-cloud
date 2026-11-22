@@ -76,7 +76,7 @@ async function addChannel(
 
 /** A GitHub ask of reviewer on pull number of the repository with that platform id. */
 const ask = (repo: number, number: number, reviewer: number, at: Date) =>
-  recordGithubRequest(db, "pull_request", {
+  recordGithubRequest(db, "github.com", "pull_request", {
     action: "review_requested",
     number,
     pull_request: { updated_at: at.toISOString() },
@@ -105,11 +105,14 @@ describe("reminders of a review asked of the user", () => {
     await flow(data, 5);
     await ask(11, 5, ME, ago(3));
     const posted = chats();
-    await runReminders(db, out, now);
+    await runReminders(db, out, "github.com", now);
     expect(posted).toEqual([]);
     const later = new Date(now.getTime() + 2 * HOUR);
-    await Promise.all([runReminders(db, out, later), runReminders(db, out, later)]);
-    await runReminders(db, out, new Date(now.getTime() + 3 * HOUR));
+    await Promise.all([
+      runReminders(db, out, "github.com", later),
+      runReminders(db, out, "github.com", later),
+    ]);
+    await runReminders(db, out, "github.com", new Date(now.getTime() + 3 * HOUR));
     expect(posted).toHaveLength(1);
     expect(posted[0]).toContain("Waiting for your review (1):");
     expect(posted[0]).toContain("<https://console.test/pull/github/mona%2Fapi/5|mona/api#5>");
@@ -125,7 +128,7 @@ describe("reminders of a review asked of the user", () => {
     await ask(11, 5, ME, ago(6));
     await ask(11, 6, ME, ago(24));
     const posted = chats();
-    await runReminders(db, out, now);
+    await runReminders(db, out, "github.com", now);
     expect(posted).toHaveLength(1);
     const text = posted[0] ?? "";
     expect(text).toContain("Waiting for your review (2):");
@@ -139,17 +142,17 @@ describe("reminders of a review asked of the user", () => {
     await addChannel(me.auth);
     await flow(data, 5);
     await ask(11, 5, ME, ago(10));
-    await recordGithubRequest(db, "pull_request_review", {
+    await recordGithubRequest(db, "github.com", "pull_request_review", {
       action: "submitted",
       review: { user: { id: ME }, submitted_at: ago(9).toISOString() },
       pull_request: { number: 5 },
       repository: { id: 11 },
     });
     const posted = chats();
-    await runReminders(db, out, now);
+    await runReminders(db, out, "github.com", now);
     expect(posted).toEqual([]);
     await ask(11, 5, ME, ago(5));
-    await runReminders(db, out, now);
+    await runReminders(db, out, "github.com", now);
     expect(posted).toHaveLength(1);
   });
 
@@ -172,7 +175,7 @@ describe("reminders of a review asked of the user", () => {
       });
     }
     const posted = chats();
-    await runReminders(db, out, now);
+    await runReminders(db, out, "github.com", now);
     expect(posted).toEqual([]);
   });
 
@@ -210,11 +213,11 @@ describe("reminders of a review asked of the user", () => {
     await recordGitlabRequests(db, repo, approved, ago(6));
     await addChannel(me.auth);
     const posted = chats();
-    await runReminders(db, out, now);
+    await runReminders(db, out, "github.com", now);
     expect(posted).toEqual([]);
     await recordGitlabRequests(db, repo, changed([900], []), ago(5.5));
     await recordGitlabRequests(db, repo, changed([], [900]), ago(5));
-    await runReminders(db, out, now);
+    await runReminders(db, out, "github.com", now);
     expect(posted).toHaveLength(1);
     expect(posted[0]).toContain("team/web#3");
   });
@@ -243,7 +246,7 @@ describe("reminders of the user's own pull request", () => {
     // An ask of the user is not this channel's.
     await ask(11, 5, ME, ago(9));
     const posted = chats();
-    await runReminders(db, out, now);
+    await runReminders(db, out, "github.com", now);
     expect(posted).toHaveLength(1);
     expect(posted[0]).toContain("Your pull requests waiting for a review (1):");
     expect(posted[0]).toContain("mona/api#5");
@@ -274,9 +277,9 @@ describe("quiet hours", () => {
     await flow(data, 5);
     await ask(11, 5, ME, ago(6));
     const posted = chats();
-    await runReminders(db, out, now);
+    await runReminders(db, out, "github.com", now);
     expect(posted).toEqual([]);
-    await runReminders(db, out, new Date(now.getTime() + HOUR));
+    await runReminders(db, out, "github.com", new Date(now.getTime() + HOUR));
     expect(posted).toHaveLength(1);
   });
 });
@@ -328,7 +331,7 @@ describe("isolation", () => {
     });
     await ask(22, 9, ME, ago(9));
     const posted = chats();
-    await runReminders(db, out, now);
+    await runReminders(db, out, "github.com", now);
     expect(posted).toEqual([]);
     expect(await a.data.count("notifySends")).toBe(0);
     expect(await b.data.count("notifySends")).toBe(0);

@@ -1,9 +1,8 @@
 import type { PullActionOutcome, QueueState } from "../shared/index.js";
 import { githubHeaders } from "./github-changes.js";
+import type { GithubHost } from "./github-host.js";
 import { platformSend } from "./http.js";
 import type { MergeQueue } from "./queue.js";
-
-const GRAPHQL = "https://api.github.com/graphql";
 
 type EntryState = "QUEUED" | "AWAITING_CHECKS" | "MERGEABLE" | "LOCKED" | "UNMERGEABLE";
 
@@ -45,9 +44,9 @@ function outcomeOfMutation(sent: { status: number; body: Answer<unknown> | null 
   return errors.length > 0 ? "not_mergeable" : "done";
 }
 
-export function githubQueue(): MergeQueue {
+export function githubQueue(host: GithubHost): MergeQueue {
   const ask = <T>(token: string, query: string, variables: Record<string, unknown>) =>
-    platformSend<Answer<T>>(GRAPHQL, {
+    platformSend<Answer<T>>(host.graphql, {
       method: "POST",
       headers: { ...githubHeaders(token), "content-type": "application/json" },
       body: JSON.stringify({ query, variables }),

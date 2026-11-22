@@ -13,6 +13,8 @@ afterEach(() => {
 const me = {
   login: "ada",
   githubId: 1,
+  githubUrl: "https://github.com",
+  avatarUrl: null,
   session: "web" as const,
   since: "2026-10-01T00:00:00Z",
   codeGraphs: "off" as const,

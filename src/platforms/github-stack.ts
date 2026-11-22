@@ -1,10 +1,10 @@
 import { outcomeOf } from "./actions.js";
 import { githubHeaders, githubRepoPath } from "./github-changes.js";
+import type { GithubGraphql, GithubHost } from "./github-host.js";
 import { CHECKS, REVIEW } from "./github-pulls.js";
 import { platformSend } from "./http.js";
 import type { OpenPull, PullStacks } from "./stacks.js";
 
-const API = "https://api.github.com";
 const PER_PAGE = 100;
 
 const query = (checks: boolean) => `query($owner: String!, $name: String!, $first: Int!) {
@@ -50,14 +50,12 @@ const openPull = (n: Node): OpenPull => {
   };
 };
 
-export function githubStacks(
-  post: (token: string) => <T>(path: string, body: unknown) => Promise<T | null>,
-): PullStacks {
+export function githubStacks(host: GithubHost, post: GithubGraphql): PullStacks {
   return {
     async open(token, fullName) {
       const [owner, name] = fullName.split("/");
       const ask = (checks: boolean) =>
-        post(token)<Answer>("/graphql", {
+        post(token)<Answer>({
           query: query(checks),
           variables: { owner, name, first: PER_PAGE },
         });
@@ -72,7 +70,7 @@ export function githubStacks(
     },
     async retarget(token, fullName, number, base) {
       return outcomeOf(
-        await platformSend(`${API}/repos/${githubRepoPath(fullName)}/pulls/${number}`, {
+        await platformSend(`${host.api}/repos/${githubRepoPath(fullName)}/pulls/${number}`, {
           method: "PATCH",
           headers: { ...githubHeaders(token), "content-type": "application/json" },
           body: JSON.stringify({ base }),
