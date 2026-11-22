@@ -1,9 +1,8 @@
-import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import type { PullReviewJobView, PullReviewNowView } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
 import { ago } from "../format.js";
-import { useAction, useLoad } from "../ui.js";
+import { useAction, useLoad, usePoll } from "../ui.js";
 
 // An AI review of the pull request's current head by the server's runner,
 // asked for here. The server answers only for a repository this account
@@ -39,11 +38,7 @@ export function ReviewNowBox(props: { pull: Pull; head: string }) {
   );
   const job = data?.job ?? null;
   const active = job?.state === "queued" || job?.state === "running";
-  useEffect(() => {
-    if (!active) return;
-    const timer = setInterval(reload, POLL_MS);
-    return () => clearInterval(timer);
-  }, [active, reload]);
+  usePoll(active, reload, POLL_MS);
   if (!data) return null;
   const ofHead = job?.head === props.head ? job : null;
   const reviewed = ofHead?.state === "done";

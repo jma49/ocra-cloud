@@ -1,5 +1,5 @@
 import Network from "lucide-react/icons/network";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { CodePlatformKind, GraphPolicy, GraphRepoView } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
@@ -7,7 +7,15 @@ import { useCached } from "../cache.js";
 import { ago, bytes, num } from "../format.js";
 import { PLATFORM_NAME, PlatformSelect } from "../platform-names.js";
 import { useToast } from "../toast.js";
-import { ActionError, EmptyState, LoadError, Loading, PageHead, useAction } from "../ui.js";
+import {
+  ActionError,
+  EmptyState,
+  LoadError,
+  Loading,
+  PageHead,
+  useAction,
+  usePoll,
+} from "../ui.js";
 
 type Repos = { repos: GraphRepoView[] };
 type Added = { repo: GraphRepoView; webhook: { url: string; secret?: string } };
@@ -58,11 +66,7 @@ function GraphRepos(props: {
   );
   const [webhook, setWebhook] = useState<Added["webhook"] | null>(null);
   const active = data?.repos.some(building) ?? false;
-  useEffect(() => {
-    if (!active) return;
-    const timer = setInterval(reload, POLL_MS);
-    return () => clearInterval(timer);
-  }, [active, reload]);
+  usePoll(active, reload, POLL_MS);
 
   const put = (repo: GraphRepoView) =>
     change((d) => ({

@@ -8,7 +8,11 @@ import type {
   RiskTier,
   Verdict,
 } from "../../src/shared/index.js";
-import { RECENT_SIGN_IN, RECENT_SIGN_IN_MINUTES } from "../../src/shared/index.js";
+import {
+  PLATFORM_RATE_LIMITED,
+  RECENT_SIGN_IN,
+  RECENT_SIGN_IN_MINUTES,
+} from "../../src/shared/index.js";
 
 export type Me = {
   login: string;
@@ -104,6 +108,8 @@ export class ApiError extends Error {
     readonly reason?: string,
     /** Where an invalid_body did not fit: each path into the body, and why. */
     readonly issues: readonly BodyIssue[] = [],
+    /** When a refusal for a used-up allowance lifts (ISO time). */
+    readonly retryAt?: string,
   ) {
     super(code ?? String(status));
   }
@@ -170,10 +176,12 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     error?: unknown;
     reason?: unknown;
     issues?: unknown;
+    retryAt?: unknown;
   };
   if (!res.ok) {
     const reason = typeof body.reason === "string" ? body.reason : undefined;
-    throw new ApiError(res.status, codeOf(body.error), reason, issuesOf(body));
+    const retryAt = typeof body.retryAt === "string" ? body.retryAt : undefined;
+    throw new ApiError(res.status, codeOf(body.error), reason, issuesOf(body), retryAt);
   }
   return body as T;
 }
@@ -183,6 +191,14 @@ export function why(e: unknown): string {
   if (e instanceof ApiError) {
     if (needsSignIn(e)) {
       return `this needs a sign-in within the last ${RECENT_SIGN_IN_MINUTES} minutes; sign in again, then retry`;
+    }
+    if (e.reason === PLATFORM_RATE_LIMITED) {
+      const at = e.retryAt ? new Date(e.retryAt) : null;
+      const time =
+        at && !Number.isNaN(at.getTime())
+          ? at.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+          : null;
+      return `the code platform's hourly allowance of requests for your account is used up; try again${time ? ` after ${time}` : " later"}`;
     }
     if (e.code) return MESSAGES[e.code];
     if (e.status === 401) return SIGNED_OUT;

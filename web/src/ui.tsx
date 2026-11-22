@@ -84,6 +84,28 @@ export function useLoad<T>(load: () => Promise<T>, deps: unknown[] = []) {
 }
 
 /**
+ * Calls `reload` every `ms` while `active` and the tab is in view: a hidden
+ * tab spends none of the platforms' allowance, and catches up when shown.
+ */
+export function usePoll(active: boolean, reload: () => void, ms: number) {
+  useEffect(() => {
+    if (!active) return;
+    const tick = () => {
+      if (document.visibilityState === "visible") reload();
+    };
+    const timer = setInterval(tick, ms);
+    const shown = () => {
+      if (document.visibilityState === "visible") reload();
+    };
+    document.addEventListener("visibilitychange", shown);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", shown);
+    };
+  }, [active, reload, ms]);
+}
+
+/**
  * A change the page asks for (a delete, a save): run() resolves to the
  * result, or undefined when it failed, and error holds why until the next run.
  */
