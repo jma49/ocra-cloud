@@ -4,8 +4,8 @@ A company runs ocra Cloud next to its own GitLab, with its own models and withou
 
 ## 1. In GitLab (an administrator)
 
-1. **Sign-in application.** Admin Area → Applications → New: redirect URI `<PUBLIC_URL>/api/auth/oidc/callback`, confidential, scopes `openid profile email`. Its id and secret are `OIDC_CLIENT_ID` and `OIDC_CLIENT_SECRET`; `OIDC_ISSUER` is the instance's address (`https://gitlab.example.com`, or `https://example.com/gitlab` under a relative root); `OIDC_NAME=GitLab`.
-2. **Console application.** A second application with redirect URI `<PUBLIC_URL>/api/platforms/gitlab/callback`, confidential, scope `api`: the console comments, approves, merges and commits fixes as the person who uses it. Its id and secret are `GITLAB_CLIENT_ID` and `GITLAB_CLIENT_SECRET`; `GITLAB_URL` is the same address as the issuer.
+1. **Application.** Admin Area → Applications → New, confidential, with two redirect URIs, `<PUBLIC_URL>/api/auth/oidc/callback` and `<PUBLIC_URL>/api/platforms/gitlab/callback`, and the scopes `openid profile email api`. Set its id and secret as both `OIDC_CLIENT_ID`/`OIDC_CLIENT_SECRET` and `GITLAB_CLIENT_ID`/`GITLAB_CLIENT_SECRET`, and the instance's address (`https://gitlab.example.com`, or `https://example.com/gitlab` under a relative root) as both `OIDC_ISSUER` and `GITLAB_URL`; `OIDC_NAME=GitLab`. Signing in then connects GitLab in the same consent: the console comments, approves, merges and commits fixes as the person who uses it.
+2. **Or two applications,** when people sign in with another SSO: the OIDC variables name that provider, and a GitLab application with the second redirect URI and scope `api` is connected once on the Repositories page.
 3. **Bot.** A user for ocra (or a group or project access token, which gets a bot user of its own) with the Developer role on the projects it reviews, and a token with the `api` scope: `GITLAB_BOT_TOKEN`. It posts the reviews and answers, and the pre-merge check's commit status.
 4. **Outbound requests.** Admin Area → Settings → Network → Outbound requests: allow requests to the local network, or add ocra's host to the allowlist, so that project hooks can reach it.
 
@@ -31,7 +31,7 @@ ENV NODE_EXTRA_CA_CERTS=/usr/local/share/ca-certificates/company-ca.crt
 ## 4. Start and enroll
 
 1. Start the server (self-hosting.md, Run it) with `PUBLIC_URL` set: reviews sign in to it and GitLab's token refresh names it.
-2. Each person signs in with GitLab, then connects GitLab once on the Repositories page (the console application's consent).
+2. Each person signs in with GitLab (with two applications, they also connect GitLab once on the Repositories page).
 3. Whoever owns a project's reviews enrolls it on the Auto review page. The answer gives the hook's address (`<PUBLIC_URL>/api/auto-review/webhooks/gitlab`) and a secret, shown once.
 4. In the project, Settings → Webhooks: that address and secret token, with **Merge request events** and **Comments**. A merge request is reviewed when it opens, reopens, leaves draft or gains commits; a comment that mentions `@ocra` is answered in its thread.
 5. For code graphs, a second hook to the address the Code graphs page gives, with **Push events**.
@@ -46,7 +46,3 @@ The server clones the project over HTTPS with the bot's token, under `GITLAB_URL
 - Sign in with GitLab: a refusal names the step (`bad_state` for a redirect URI that does not match, `upstream_unreachable` for a discovery document, token or user that GitLab did not give, often a certificate the server does not trust).
 - Open a merge request: the Auto review page shows the job, and its error when a run failed (`clone_failed` is usually the bot's role or git's certificate; `review_failed` the model endpoint).
 
-## Limits
-
-- Sign-in and the console are two GitLab applications and two consents.
-- The impact rail beside a review's findings does not yet find the graph of a project on an instance with a relative URL root or another port.
