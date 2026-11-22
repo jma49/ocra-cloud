@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from "react";
+import { type FormEvent, Fragment, useState } from "react";
 import {
   type AutoReviewRepoView,
   CODE_PLATFORMS,
@@ -6,6 +6,7 @@ import {
 } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
 import { ago } from "../format.js";
+import { RepoChecks } from "../merge-checks/repo-checks.js";
 import { PlatformMark } from "../platform-mark.js";
 import { pullPath } from "../pull/path.js";
 import { Link } from "../router.js";
@@ -31,6 +32,7 @@ const STATE: Record<Job["state"], { label: string; tone: string }> = {
 export function AutoReview() {
   const { data, error, reload } = useLoad(() => api<Repos>("/auto-review/repos"));
   const [added, setAdded] = useState<Added | null>(null);
+  const [checking, setChecking] = useState<string | null>(null);
   const remove = useAction((id: string) =>
     api(`/auto-review/repos/${encodeURIComponent(id)}`, { method: "DELETE" }),
   );
@@ -73,30 +75,47 @@ export function AutoReview() {
               </thead>
               <tbody>
                 {data.repos.map((r) => (
-                  <tr key={r.id}>
-                    <td className="text">
-                      <div className="mono with-mark">
-                        <PlatformMark platform={r.platform} size={14} />
-                        {r.fullName}
-                      </div>
-                      <div className="subtle small">
-                        {PLATFORM[r.platform]} · {r.host}
-                      </div>
-                    </td>
-                    <td>
-                      <LastJob r={r} />
-                    </td>
-                    <td className="num">
-                      <button
-                        type="button"
-                        className="btn btn-sm btn-danger"
-                        disabled={remove.busy}
-                        onClick={() => drop(r.id)}
-                      >
-                        Stop reviewing
-                      </button>
-                    </td>
-                  </tr>
+                  <Fragment key={r.id}>
+                    <tr>
+                      <td className="text">
+                        <div className="mono with-mark">
+                          <PlatformMark platform={r.platform} size={14} />
+                          {r.fullName}
+                        </div>
+                        <div className="subtle small">
+                          {PLATFORM[r.platform]} · {r.host}
+                        </div>
+                      </td>
+                      <td>
+                        <LastJob r={r} />
+                      </td>
+                      <td className="num nobreak">
+                        <button
+                          type="button"
+                          className="btn btn-sm"
+                          aria-expanded={checking === r.id}
+                          onClick={() => setChecking(checking === r.id ? null : r.id)}
+                        >
+                          Checks
+                        </button>{" "}
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-danger"
+                          disabled={remove.busy}
+                          onClick={() => drop(r.id)}
+                        >
+                          Stop reviewing
+                        </button>
+                      </td>
+                    </tr>
+                    {checking === r.id && (
+                      <tr className="checks-row">
+                        <td colSpan={3}>
+                          <RepoChecks repoId={r.id} fullName={r.fullName} />
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 ))}
               </tbody>
             </table>
