@@ -6,8 +6,9 @@ import type {
   Verdict,
 } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
+import { listOf } from "../form.js";
 import { Seg, useAction } from "../ui.js";
-import { ACTION_LABEL, listOf, VERDICT_LABEL, VERDICT_LIST } from "./describe.js";
+import { ACTION_LABEL, VERDICT_LABEL, VERDICT_LIST } from "./describe.js";
 import type { Choice } from "./rule-form.js";
 
 // Describe a pull request and see which enabled rules would act on it;

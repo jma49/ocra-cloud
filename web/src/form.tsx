@@ -15,6 +15,15 @@ export function withOptional<T extends object, K extends keyof T>(
   return (value === undefined ? rest : { ...rest, [key]: value }) as T;
 }
 
+/** A comma-separated field as a list; undefined when it names nothing. */
+export function listOf(text: string): string[] | undefined {
+  const items = text
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return items.length ? items : undefined;
+}
+
 export function Row(props: { label: string; desc: ReactNode; children: ReactNode }) {
   return (
     <div className="form-row">
