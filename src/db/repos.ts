@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gte, max, sql, sum } from "drizzle-orm";
+import { and, count, desc, eq, gte, isNotNull, max, sql, sum } from "drizzle-orm";
 import { changedRows, type Db } from "./client.js";
 import { findings, repositories, reviews } from "./schema.js";
 
@@ -30,6 +30,16 @@ export async function reviewedRepos(db: Db, accountId: string, since: Date) {
   ]);
   const openBy = new Map(open.map((o) => [o.repoHash, o.n]));
   return byRepo.map((x) => ({ ...x, openFindings: openBy.get(x.repoHash) ?? 0 }));
+}
+
+/** Per repository hash, the repository a pull request review named (ADR-0038); one per hash. */
+export function pulledRepos(db: Db, accountId: string) {
+  const r = reviews;
+  return db
+    .select({ repoHash: r.repoHash, prRepository: max(r.prRepository) })
+    .from(r)
+    .where(and(eq(r.accountId, accountId), isNotNull(r.prRepository)))
+    .groupBy(r.repoHash);
 }
 
 /**

@@ -989,3 +989,18 @@ td.finding-cell {
   max-width: 360px;
   white-space: normal;
 }
+
+/* Repositories: a repository's name over where it lives, its rename button beside them. */
+.repo-name {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+@media (max-width: 640px) {
+  .repo-name {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+}

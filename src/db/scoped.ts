@@ -39,7 +39,7 @@ import { accountNotify } from "./notify.js";
 import { type PreferencesSave, savePreferences } from "./preferences.js";
 import { addPullView } from "./pull-views.js";
 import { accountReplyJobs } from "./reply-jobs.js";
-import { nameRepo, nameRepos, reviewedRepos } from "./repos.js";
+import { nameRepo, nameRepos, pulledRepos, reviewedRepos } from "./repos.js";
 import { accountReviewJobs } from "./review-jobs.js";
 import { accountTables } from "./schema.js";
 
@@ -406,6 +406,7 @@ export function scoped(db: Db, accountId: string) {
     },
     /** The repositories reviewed since a time, summed (./repos.ts). */
     reviewedRepos: (since: Date) => reviewedRepos(db, accountId, since),
+    pulledRepos: () => pulledRepos(db, accountId),
     nameRepo: (repoHash: string, name: string, cap: number) =>
       nameRepo(db, accountId, repoHash, name, cap),
     nameRepos: (list: readonly { repoHash: string; name: string }[], cap: number) =>

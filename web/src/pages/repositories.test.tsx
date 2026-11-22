@@ -1,5 +1,6 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { Me } from "../api.js";
 import { clearCache } from "../cache.js";
 import { Repositories } from "./Repositories.js";
 
@@ -9,6 +10,15 @@ afterEach(async () => {
   await clearCache();
 });
 
+const ME: Me = {
+  login: "ada",
+  githubId: 1,
+  session: "web",
+  since: "",
+  codeGraphs: "off",
+  autoReview: false,
+};
+const HASH = "f8c2ef5b".padEnd(64, "0");
 const platform = (over: object) => ({
   linked: false,
   failed: false,
@@ -16,27 +26,88 @@ const platform = (over: object) => ({
   repositories: [],
   ...over,
 });
+const repo = (over: object) => ({
+  repoHash: HASH,
+  repo: HASH.slice(0, 8),
+  name: null,
+  pulledFrom: null,
+  reviews: 1,
+  findings: 1,
+  openFindings: 0,
+  lastReviewAt: null,
+  ...over,
+});
+
+function serve(platforms: unknown, repositories: unknown[], sharing = false) {
+  const posted: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === "POST") {
+        posted.push(url);
+        return Response.json({ named: 1, sharing: true });
+      }
+      return url === "/api/platforms/repos"
+        ? Response.json({ sharing, platforms })
+        : Response.json({ repositories });
+    }),
+  );
+  return posted;
+}
 
 describe("the connected platforms", () => {
-  it("offer to connect GitLab, and say how GitHub is linked", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (url: string) =>
-        url === "/api/platforms/repos"
-          ? Response.json({
-              sharing: false,
-              platforms: [
-                platform({ platform: "github", host: "github.com" }),
-                platform({ platform: "gitlab", host: "gitlab.example.com" }),
-              ],
-            })
-          : Response.json({ repositories: [] }),
-      ),
+  it("offer to connect GitLab, and GitHub by signing in with it again, in place", async () => {
+    serve(
+      [
+        platform({ platform: "github", host: "github.com" }),
+        platform({ platform: "gitlab", host: "gitlab.example.com" }),
+      ],
+      [],
     );
-    render(<Repositories />);
-    const connect = await screen.findByRole("link", { name: "Connect GitLab" });
-    expect(connect.getAttribute("href")).toBe("/api/platforms/gitlab/connect");
-    expect(screen.getAllByRole("link", { name: /Connect/ })).toHaveLength(1);
-    await waitFor(() => expect(screen.getByText(/Sign out and sign in again/)).toBeTruthy());
+    render(<Repositories me={ME} />);
+    const gitlab = await screen.findByRole("link", { name: "Connect GitLab" });
+    expect(gitlab.getAttribute("href")).toBe("/api/platforms/gitlab/connect");
+    expect(screen.getByRole("link", { name: "Connect GitHub" }).getAttribute("href")).toBe(
+      "/api/auth/github/login?next=%2Frepositories",
+    );
+    expect(screen.queryByText(/Sign out/)).toBeNull();
+  });
+});
+
+describe("a reviewed repository", () => {
+  it("shows the path its pull request reviews named, with the hash only beside it", async () => {
+    serve(
+      [platform({ platform: "github", host: "github.com", linked: true })],
+      [repo({ pulledFrom: { host: "github.com", repo: "octo/api" } })],
+    );
+    render(<Repositories me={ME} />);
+    expect(await screen.findByText("octo/api")).toBeTruthy();
+    expect(screen.getByText(/GitHub · github.com/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Rename octo/api" })).toBeTruthy();
+  });
+
+  it("takes the platform's name for its hash, and stores it for every page", async () => {
+    const posted = serve(
+      [
+        platform({
+          platform: "github",
+          host: "github.com",
+          linked: true,
+          repositories: [{ id: "1", fullName: "Octo/API", private: true, repoHash: HASH }],
+        }),
+      ],
+      [repo({})],
+      true,
+    );
+    render(<Repositories me={ME} />);
+    expect(await screen.findByText("Octo/API")).toBeTruthy();
+    await waitFor(() => expect(posted).toEqual(["/api/platforms/sync-names"]));
+  });
+
+  it("says when only its hash is known, and offers to name it", async () => {
+    serve([], [repo({})]);
+    render(<Repositories me={ME} />);
+    expect(await screen.findByText("Unknown repository")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Name f8c2ef5b" })).toBeTruthy();
   });
 });
