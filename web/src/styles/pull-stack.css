@@ -1,6 +1,7 @@
 /* A pull request's stack, first in the pull request page's sidebar. */
 .pull-stack-list {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 2px;
   margin: 0;
   padding: 0;
