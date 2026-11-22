@@ -1,5 +1,5 @@
 import { Component, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import type { SignInMethod } from "../../src/shared/index.js";
 import { api, type Day, needsSignIn, type ProviderInfo, why } from "./api.js";
 import { compact } from "./format.js";
@@ -184,12 +184,13 @@ export function ActionError(props: { what: string; error: unknown }) {
     <p className="error" role="alert">
       Could not {props.what}: {why(props.error)}.{" "}
       {needsSignIn(props.error) && method && (
-        <a
-          className={buttonVariants({ variant: "outline", size: "sm" })}
-          href={signInHref(method, location.pathname)}
+        <Button
+          variant="outline"
+          size="sm"
+          render={<a href={signInHref(method, location.pathname)} />}
         >
           Sign in again
-        </a>
+        </Button>
       )}
     </p>
   );
@@ -204,9 +205,9 @@ export function NotFound() {
       <div className="card empty-hero">
         <h3>There is no page at this address</h3>
         <p>The link may be mistyped, or the page has moved.</p>
-        <Link to="/" className={buttonVariants({ variant: "outline" })}>
+        <Button variant="outline" render={<Link to="/" />}>
           Back to overview
-        </Link>
+        </Button>
       </div>
     </>
   );

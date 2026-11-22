@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
   type AgentRole,
   BUILT_IN_REVIEWERS,
@@ -80,9 +80,7 @@ export function Agents() {
             Agents run on your own keys. Add a key from a provider with an OpenAI-compatible
             endpoint.
           </p>
-          <Link to="/keys" className={buttonVariants()}>
-            Add a key
-          </Link>
+          <Button render={<Link to="/keys" />}>Add a key</Button>
         </div>
       </>
     );

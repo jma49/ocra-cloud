@@ -1,4 +1,4 @@
-import { type MouseEvent, type ReactNode, useEffect, useState } from "react";
+import { type ComponentProps, type MouseEvent, type ReactNode, useEffect, useState } from "react";
 
 // A few pages need no router library: paths on the History API, served by
 // the Worker's single-page fallback.
@@ -26,30 +26,37 @@ export function usePath(): string {
   return path;
 }
 
-export function Link(props: {
+/** Other anchor props (a coss Button's, when it renders a Link) pass through. */
+export function Link({
+  to,
+  current,
+  label,
+  children,
+  ...rest
+}: Omit<ComponentProps<"a">, "href"> & {
   to: string;
-  className?: string;
   /** The open page: announced as such. */
   current?: boolean;
   /** The accessible name and tooltip, for a link that shows only an icon. */
   label?: string;
-  children: ReactNode;
+  children?: ReactNode;
 }) {
-  const onClick = (e: MouseEvent) => {
-    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+  const onClick = (e: MouseEvent<HTMLAnchorElement>) => {
+    rest.onClick?.(e);
+    if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
     e.preventDefault();
-    navigate(props.to);
+    navigate(to);
   };
   return (
     <a
-      href={props.to}
-      className={props.className}
+      {...rest}
+      href={to}
       onClick={onClick}
-      aria-current={props.current ? "page" : undefined}
-      aria-label={props.label}
-      title={props.label}
+      aria-current={current ? "page" : undefined}
+      aria-label={label}
+      title={label}
     >
-      {props.children}
+      {children}
     </a>
   );
 }

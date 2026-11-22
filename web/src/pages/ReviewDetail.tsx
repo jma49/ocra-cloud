@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import type { ReviewSource, ReviewWalkthroughView, Verdict } from "../../../src/shared/index.js";
 import { ApiError, api } from "../api.js";
 import { useCached } from "../cache.js";
@@ -78,9 +78,9 @@ export function ReviewDetail(props: { id: string; graphs: boolean }) {
         <div className="card empty-hero">
           <h3>Review not found</h3>
           <p>It may have passed the 90-day retention, or been deleted.</p>
-          <Link to="/reviews" className={buttonVariants({ variant: "outline" })}>
+          <Button variant="outline" render={<Link to="/reviews" />}>
             Back to reviews
-          </Link>
+          </Button>
         </div>
       </>
     );
@@ -158,9 +158,9 @@ export function ReviewDetail(props: { id: string; graphs: boolean }) {
               Findings are kept only when you share them (Settings). Counts are always kept; turn
               sharing on to see findings of later reviews here.
             </p>
-            <Link to="/settings" className={buttonVariants({ variant: "outline" })}>
+            <Button variant="outline" render={<Link to="/settings" />}>
               Open settings
-            </Link>
+            </Button>
           </div>
         )}
       </section>
@@ -218,16 +218,12 @@ function Properties(props: { r: Review }) {
         <dd className="mono">{r.runId}</dd>
       </dl>
       <div className="prop-actions">
-        <Link to="/reviews" className={buttonVariants({ variant: "outline" })}>
+        <Button variant="outline" render={<Link to="/reviews" />}>
           All reviews
-        </Link>
-        <a
-          className={buttonVariants({ variant: "outline" })}
-          href={`/api/reviews/${r.id}/export`}
-          download
-        >
+        </Button>
+        <Button variant="outline" render={<a href={`/api/reviews/${r.id}/export`} download />}>
           Download JSON
-        </a>
+        </Button>
       </div>
     </div>
   );
