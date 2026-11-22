@@ -153,35 +153,40 @@ describe("the weekly report", () => {
 });
 
 describe("my pull requests' events", () => {
-  it("are switched on per channel, all of them", async () => {
+  it("are chosen per channel, one at a time, with what a choice changes said below", async () => {
     const sent: unknown[] = [];
+    let events = ["review_requested", "checks_failed"];
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string, init?: RequestInit) => {
         const method = init?.method ?? "GET";
         if (url === "/api/notifications/report") return Response.json(SLOT);
         if (method === "PATCH") {
-          sent.push(JSON.parse(String(init?.body)));
+          const body = JSON.parse(String(init?.body));
+          sent.push(body);
+          events = body.events;
           return Response.json({ channel });
         }
-        return Response.json({ channels: [channel], email: false });
+        return Response.json({ channels: [{ ...channel, events }], email: false });
       }),
     );
     render(<Notifications />);
-    const toggle = await screen.findByRole("switch", {
-      name: "My pull requests' events to #reviews",
+    fireEvent.click(
+      await screen.findByRole("button", { name: "My pull requests' events to #reviews: 2 of 5" }),
+    );
+    const merged = await screen.findByRole("menuitemcheckbox", {
+      name: "My pull request is merged or closed",
     });
-    await act(async () => void fireEvent.click(toggle));
+    expect(merged.getAttribute("aria-checked")).toBe("false");
+    expect(
+      screen
+        .getByRole("menuitemcheckbox", { name: "A review is asked of me" })
+        .getAttribute("aria-checked"),
+    ).toBe("true");
+    await act(async () => void fireEvent.click(merged));
     await waitFor(() => expect(sent).toHaveLength(1));
-    expect(sent[0]).toEqual({
-      events: [
-        "review_requested",
-        "pull_reviewed",
-        "pull_closed",
-        "checks_failed",
-        "review_blocking",
-      ],
-    });
+    expect(sent[0]).toEqual({ events: ["review_requested", "pull_closed", "checks_failed"] });
+    expect(await screen.findByText(/in place of the review's announcement/)).toBeTruthy();
   });
 });
 
