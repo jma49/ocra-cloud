@@ -4,7 +4,7 @@ import { reminderAccounts } from "../db/notify.js";
 import type { PlatformUser, Waiting } from "../db/review-requests.js";
 import { type Row, type Scoped, scoped } from "../db/scoped.js";
 import { consolePullUrl } from "../merge-checks/run.js";
-import type { NotifyEvent } from "../shared/index.js";
+import { type NotifyEvent, REMINDER_EVENTS } from "../shared/index.js";
 import { HOUR } from "../time.js";
 import { type Message, plain } from "./channels.js";
 import { forAccounts, plural } from "./digest.js";
@@ -84,7 +84,7 @@ function lines(title: string, list: Reminder[], now: Date, origin: string) {
   return [[`${title} (${list.length}):`], ...shown, ...more];
 }
 
-export function reminderMessage(list: Reminder[], now: Date, origin: string): Message {
+function reminderMessage(list: Reminder[], now: Date, origin: string): Message {
   const review = list.filter((r) => r.kind === "review_waiting");
   const own = list.filter((r) => r.kind === "pull_waiting");
   return {
@@ -129,7 +129,7 @@ async function dueReminders(
 }
 
 /** Sends one account's due reminders, one message per channel; the channels told. */
-export async function sendReminders(
+async function sendReminders(
   db: Db,
   out: Outbox,
   accountId: string,
@@ -137,7 +137,7 @@ export async function sendReminders(
 ): Promise<string[]> {
   const data = scoped(db, accountId);
   const all = (await data.notify.reminding()).filter((ch) =>
-    ch.events.some((e) => e === "review_waiting" || e === "pull_waiting"),
+    ch.events.some((e) => (REMINDER_EVENTS as readonly NotifyEvent[]).includes(e)),
   );
   if (all.length === 0) return [];
   const hour = hourIn(now, await data.notify.timeZone());
