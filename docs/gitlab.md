@@ -44,6 +44,6 @@ The server clones the project over HTTPS with the bot's token, under `GITLAB_URL
 
 - `GET /api/health` answers.
 - Sign in with GitLab: a refusal names the step (`bad_state` for a redirect URI that does not match, `upstream_unreachable` for a discovery document, token or user that GitLab did not give, often a certificate the server does not trust).
-- Open a merge request with a pre-merge check enrolled: its commit status `ocra / pre-merge` says how many checks are not evaluated yet until the review lands, then the result.
+- Open a merge request with a pre-merge check enrolled: its commit status `ocra / pre-merge` is pending ("Waiting for the review") until the review lands, then the result.
 - Open a merge request: the Auto review page shows the job, and its error when a run failed (`clone_failed` is usually the bot's role or git's certificate; `review_failed` the model endpoint).
 

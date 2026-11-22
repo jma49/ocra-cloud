@@ -31,6 +31,7 @@ describe("a repository's pre-merge checks", () => {
               createdAt: "2026-11-22T10:00:00Z",
             },
           ],
+          holdUnreviewed: true,
         });
       }),
     );
@@ -62,6 +63,30 @@ describe("a pull request's checks", () => {
       "fetch",
       vi.fn(async () => Response.json({ report, postedAt: null })),
     );
+
+  it("turns off holding the merge for the review", async () => {
+    const sent: { url: string; method: string; body: unknown }[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        const method = init?.method ?? "GET";
+        if (method !== "GET") {
+          sent.push({ url, method, body: JSON.parse(String(init?.body)) });
+          return Response.json({ holdUnreviewed: false });
+        }
+        return Response.json({ checks: [], holdUnreviewed: true });
+      }),
+    );
+    render(<RepoChecks repoId="p1" fullName="acme/payments" />);
+    const hold = await screen.findByRole("switch", { name: "Wait for the review" });
+    expect(hold.getAttribute("aria-checked")).toBe("true");
+    await act(async () => void fireEvent.click(hold));
+    await waitFor(() =>
+      expect(sent).toEqual([
+        { url: "/api/merge-checks/repos/p1", method: "PATCH", body: { holdUnreviewed: false } },
+      ]),
+    );
+  });
 
   it("says the merge is blocked, and which check blocks it", async () => {
     serve({
