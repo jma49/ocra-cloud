@@ -918,7 +918,8 @@ td.finding-cell {
 .pull-side .seg {
   display: grid;
 }
-.pull-side .seg button {
+.pull-side .seg [data-slot="toggle"] {
+  justify-content: flex-start;
   text-align: left;
 }
 .diff-comment-box textarea,
