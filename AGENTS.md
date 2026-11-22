@@ -17,6 +17,7 @@ Read the private handoff (`../ocra-internal/handoff.md`) and [ADR-0024](https://
 - Work on a branch `<type>/<short-kebab-description>` in its own worktree; open a pull request; merge by rebase once CI is green. `main` is not protected (private repository on the Free plan), so this is on you.
 - [Conventional Commits](https://www.conventionalcommits.org/), committed as the maintainer (`git -c user.name=jincheng_m -c user.email=majincheng990128@gmail.com`); CI's `commits` job checks both and refuses AI attribution.
 - Run `npm run verify` before pushing and read its exit code.
+- CI follows the engine's [`docs/ci.md`](https://github.com/jma49/Open-CR-Agent/blob/main/docs/ci.md) (targets, budgets, the rules that outrank speed): a job that sets up or runs longer than its ceiling in `.github/ci-budgets.json` fails the run.
 - Never commit `.dev.vars`, keys or other secrets. Update `../ocra-internal/handoff.md` at the end of a batch of work, as Working with agents says.
 
 ## Working with agents
