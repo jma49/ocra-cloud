@@ -1,0 +1,59 @@
+name: experiment
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  shard:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        storage: [disk, shm]
+        fill: [none, dd]
+        rep: [1, 2]
+    name: shard 2/2 (${{ matrix.storage }}, ${{ matrix.fill }}, ${{ matrix.rep }})
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - name: probe
+        env:
+          FILL: ${{ matrix.fill }}
+        run: |
+          df -h /tmp /dev/shm
+          if [ "$FILL" = dd ]; then dd if=/dev/zero of="$RUNNER_TEMP/fill" bs=1M count=3000 status=none; fi
+          grep -E '^(Dirty|Writeback):' /proc/meminfo
+          cat > "$RUNNER_TEMP/probe.py" <<'EOF'
+          import os, sys, time, statistics
+          for d in sys.argv[1:]:
+              p = os.path.join(d, "fsync-probe")
+              ms = []
+              with open(p, "wb") as f:
+                  for _ in range(30):
+                      f.write(b"x" * 4096)
+                      t = time.perf_counter(); os.fsync(f.fileno()); ms.append((time.perf_counter() - t) * 1000)
+              os.remove(p)
+              print(f"fsync {d}: median {statistics.median(ms):.1f} ms, max {max(ms):.1f} ms, total {sum(ms):.0f} ms")
+          EOF
+          python3 -I "$RUNNER_TEMP/probe.py" /tmp /dev/shm
+      - name: vitest
+        env:
+          STORAGE: ${{ matrix.storage }}
+        run: |
+          if [ "$STORAGE" = shm ]; then export TMPDIR=/dev/shm; fi
+          npx vitest run --project worker --shard=2/2 --reporter=default --reporter=json --outputFile="$RUNNER_TEMP/r.json" > "$RUNNER_TEMP/out.log" 2>&1 || echo "vitest exit $?"
+          grep -E 'Test Files|Tests |Duration|timed out' "$RUNNER_TEMP/out.log" || true
+          python3 -I "$RUNNER_TEMP/probe.py" /tmp /dev/shm
+          grep -E '^(Dirty|Writeback):' /proc/meminfo
+          node -e '
+            const d = require(process.argv[1]); const R = d.testResults;
+            const t0 = Math.min(...R.map(r => r.startTime));
+            for (const r of R.sort((a, b) => a.startTime - b.startTime).slice(0, 6)) {
+              const a = r.assertionResults; const max = Math.max(...a.map(x => x.duration || 0));
+              console.log(`${((r.startTime - t0) / 1000).toFixed(1)}s ${r.name.split("/").pop()} first=${Math.round(a[0].duration)}ms max=${Math.round(max)}ms file=${r.endTime - r.startTime}ms`);
+            }' "$RUNNER_TEMP/r.json"
