@@ -2,6 +2,7 @@ import { type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import {
+  type CodePlatformKind,
   NOTIFY_KINDS,
   NOTIFY_WHEN,
   type NotifyChannelsView,
@@ -44,7 +45,7 @@ const json = (method: string, body?: unknown): RequestInit => ({
   ...(body === undefined ? {} : { body: JSON.stringify(body) }),
 });
 
-export function Notifications() {
+export function Notifications(props: { platforms: readonly CodePlatformKind[] }) {
   const { data, error, reload } = useLoad(() => api<NotifyChannelsView>("/notifications/channels"));
   const [tested, setTested] = useState<{ id: string; delivered: boolean } | null>(null);
   const [linkSent, setLinkSent] = useState<string | null>(null);
@@ -247,8 +248,9 @@ export function Notifications() {
           {data.channels.some((c) => c.events.length > 0) && (
             <p className="subtle small card-pad m-0">
               A channel that hears of ocra's critical findings in your pull requests gets that
-              message in place of the review's announcement. If GitLab's events do not arrive,
-              connect GitLab again under Repositories: an older connection does not say who you are.
+              message in place of the review's announcement.
+              {props.platforms.includes("gitlab") &&
+                " If GitLab's events do not arrive, connect GitLab again under Repositories: an older connection does not say who you are."}
             </p>
           )}
         </div>

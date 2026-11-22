@@ -5,6 +5,7 @@ import type { CodePlatformKind, GraphPolicy, GraphRepoView } from "../../../src/
 import { api, why } from "../api.js";
 import { useCached } from "../cache.js";
 import { ago, bytes, num } from "../format.js";
+import { PLATFORM_NAME, PlatformSelect } from "../platform-names.js";
 import { useToast } from "../toast.js";
 import { ActionError, EmptyState, LoadError, Loading, PageHead, useAction } from "../ui.js";
 
@@ -12,7 +13,6 @@ type Repos = { repos: GraphRepoView[] };
 type Added = { repo: GraphRepoView; webhook: { url: string; secret?: string } };
 type Rebuilt = { queued: boolean; repo: GraphRepoView };
 
-const PLATFORM_NAME: Record<CodePlatformKind, string> = { github: "GitHub", gitlab: "GitLab" };
 const POLL_MS = 4000;
 
 // The runner's failure codes (src/graph/runner.ts), in words.
@@ -28,7 +28,7 @@ const failure = (code: string) => FAILURES[code] ?? "The build failed.";
 const building = (r: GraphRepoView) =>
   r.latest?.state === "queued" || r.latest?.state === "running";
 
-export function CodeGraphs(props: { policy: GraphPolicy }) {
+export function CodeGraphs(props: { policy: GraphPolicy; platforms: readonly CodePlatformKind[] }) {
   return (
     <>
       <PageHead
@@ -43,13 +43,16 @@ export function CodeGraphs(props: { policy: GraphPolicy }) {
           </EmptyState>
         </div>
       ) : (
-        <GraphRepos policy={props.policy} />
+        <GraphRepos policy={props.policy} platforms={props.platforms} />
       )}
     </>
   );
 }
 
-function GraphRepos(props: { policy: Exclude<GraphPolicy, "off"> }) {
+function GraphRepos(props: {
+  policy: Exclude<GraphPolicy, "off">;
+  platforms: readonly CodePlatformKind[];
+}) {
   const { data, error, reload, change } = useCached("/graphs/repos", () =>
     api<Repos>("/graphs/repos"),
   );
@@ -71,6 +74,7 @@ function GraphRepos(props: { policy: Exclude<GraphPolicy, "off"> }) {
   return (
     <>
       <AddRepo
+        platforms={props.platforms}
         policy={props.policy}
         added={(answer) => {
           put(answer.repo);
@@ -116,8 +120,12 @@ function GraphRepos(props: { policy: Exclude<GraphPolicy, "off"> }) {
   );
 }
 
-function AddRepo(props: { policy: Exclude<GraphPolicy, "off">; added: (a: Added) => void }) {
-  const [platform, setPlatform] = useState<CodePlatformKind>("github");
+function AddRepo(props: {
+  policy: Exclude<GraphPolicy, "off">;
+  platforms: readonly CodePlatformKind[];
+  added: (a: Added) => void;
+}) {
+  const [platform, setPlatform] = useState<CodePlatformKind>(props.platforms[0] ?? "github");
   const [fullName, setFullName] = useState("");
   const [consent, setConsent] = useState(false);
   const add = useAction(() =>
@@ -143,18 +151,7 @@ function AddRepo(props: { policy: Exclude<GraphPolicy, "off">; added: (a: Added)
         setConsent(false);
       }}
     >
-      <select
-        className="input"
-        aria-label="Platform"
-        value={platform}
-        onChange={(e) => setPlatform(e.target.value as CodePlatformKind)}
-      >
-        {Object.entries(PLATFORM_NAME).map(([kind, name]) => (
-          <option key={kind} value={kind}>
-            {name}
-          </option>
-        ))}
-      </select>
+      <PlatformSelect platforms={props.platforms} value={platform} onChange={setPlatform} />
       <input
         type="text"
         className="input grow"

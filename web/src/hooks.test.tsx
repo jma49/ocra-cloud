@@ -67,6 +67,7 @@ describe("the routes", () => {
     since: "2026-11-01T00:00:00Z",
     codeGraphs,
     autoReview,
+    platforms: ["github", "gitlab"],
   });
   const paths = (routes: { path: string }[]) => routes.map((r) => r.path);
 

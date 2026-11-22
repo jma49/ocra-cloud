@@ -11,6 +11,7 @@ const me: Me = {
   since: "2026-11-01T00:00:00Z",
   codeGraphs: "keep",
   autoReview: true,
+  platforms: ["github", "gitlab"],
 };
 
 type Box = { scrollWidth: number; clientWidth: number; offsetLeft: number; offsetWidth: number };

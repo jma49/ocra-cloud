@@ -59,6 +59,7 @@ describe("links", () => {
             since: "",
             codeGraphs: "off",
             autoReview: false,
+            platforms: ["github", "gitlab"],
           }}
         />
         <Footer />

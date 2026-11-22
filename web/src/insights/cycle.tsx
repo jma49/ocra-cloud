@@ -3,6 +3,7 @@ import type { CodePlatformKind, CycleView, Spread } from "../../../src/shared/in
 import { ApiError, api } from "../api.js";
 import { useCached } from "../cache.js";
 import { date, num } from "../format.js";
+import { PLATFORM_NAME } from "../platform-names.js";
 import { Link } from "../router.js";
 import { LoadError, Loading, Seg } from "../ui.js";
 
@@ -21,8 +22,8 @@ export function span(ms: number | null): string {
 
 const SLOWEST = 8;
 
-export function Cycle(props: { days: number }) {
-  const [platform, setPlatform] = useState<CodePlatformKind>("github");
+export function Cycle(props: { days: number; platforms: readonly CodePlatformKind[] }) {
+  const [platform, setPlatform] = useState<CodePlatformKind>(props.platforms[0] ?? "github");
   const path = `/insights/cycle?platform=${platform}&days=${props.days}`;
   const { data, error, reload } = useCached(path, () => api<CycleView>(path));
   const unlinked = error instanceof ApiError && error.code === "github_user";
@@ -32,20 +33,19 @@ export function Cycle(props: { days: number }) {
         <h3>
           Your pull requests <span className="subtle">merged in {props.days} days</span>
         </h3>
-        <Seg
-          label="Platform"
-          value={platform}
-          onChange={setPlatform}
-          options={[
-            { value: "github", label: "GitHub" },
-            { value: "gitlab", label: "GitLab" },
-          ]}
-        />
+        {props.platforms.length > 1 && (
+          <Seg
+            label="Platform"
+            value={platform}
+            onChange={setPlatform}
+            options={props.platforms.map((p) => ({ value: p, label: PLATFORM_NAME[p] }))}
+          />
+        )}
       </div>
       {unlinked ? (
         <p className="card-pad subtle small m-0">
-          Connect {platform === "github" ? "GitHub" : "GitLab"} in{" "}
-          <Link to="/repositories">Repositories</Link> to time your pull requests.
+          Connect {PLATFORM_NAME[platform]} in <Link to="/repositories">Repositories</Link> to time
+          your pull requests.
         </p>
       ) : error && !data ? (
         <div className="card-pad">

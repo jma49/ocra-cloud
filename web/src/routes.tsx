@@ -113,14 +113,14 @@ const ROUTES: readonly Route[] = [
     place: "repositories",
     tab: "Code graphs",
     shown: graphsKept,
-    page: (me) => <CodeGraphs policy={me.codeGraphs} />,
+    page: (me) => <CodeGraphs policy={me.codeGraphs} platforms={me.platforms} />,
   },
   {
     path: "/auto-review",
     place: "repositories",
     tab: "Auto review",
     shown: (me) => me.autoReview,
-    page: () => <AutoReview />,
+    page: (me) => <AutoReview platforms={me.platforms} />,
   },
   { path: "/learnings", place: "repositories", tab: "Learnings", page: () => <Learnings /> },
   {
@@ -134,7 +134,7 @@ const ROUTES: readonly Route[] = [
     path: "/insights",
     place: "insights",
     tab: "Overview",
-    page: (me) => <Insights runner={me.autoReview} />,
+    page: (me) => <Insights runner={me.autoReview} platforms={me.platforms} />,
   },
   {
     path: "/usage",
@@ -227,7 +227,7 @@ const ROUTES: readonly Route[] = [
     place: "settings",
     tab: "Notifications",
     group: "Account",
-    page: () => <Notifications />,
+    page: (me) => <Notifications platforms={me.platforms} />,
   },
   {
     path: "/sessions",

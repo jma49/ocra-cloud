@@ -3,6 +3,7 @@ import { type ReactNode, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { CodePlatformKind } from "../../src/shared/index.js";
 import { api } from "./api.js";
+import { platformsText } from "./platform-names.js";
 import { Link } from "./router.js";
 import { EmptyState, LoadError, Loading, useLoad } from "./ui.js";
 
@@ -75,7 +76,8 @@ export function useRepoChoice(path: string) {
             </Button>
           }
         >
-          Connect GitHub or GitLab under Repositories, and its repositories show up here.
+          Connect {platformsText(listed.data.platforms.map((p) => p.platform))} under Repositories,
+          and its repositories show up here.
         </EmptyState>
       </div>
     ) : (

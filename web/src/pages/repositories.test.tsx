@@ -17,6 +17,7 @@ const ME: Me = {
   since: "",
   codeGraphs: "off",
   autoReview: false,
+  platforms: ["github", "gitlab"],
 };
 const HASH = "f8c2ef5b".padEnd(64, "0");
 const platform = (over: object) => ({

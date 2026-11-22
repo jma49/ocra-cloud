@@ -77,6 +77,7 @@ describe("GitHub sign-in", () => {
       session: "web",
       codeGraphs: "off",
       autoReview: false,
+      platforms: ["github", "gitlab"],
     });
   });
 

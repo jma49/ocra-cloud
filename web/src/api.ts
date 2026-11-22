@@ -1,5 +1,6 @@
 import type { ErrorCode } from "@open-cr-agent/cloud-contract";
 import type {
+  CodePlatformKind,
   GraphPolicy,
   ProviderGroup,
   ReviewerCounts,
@@ -18,6 +19,8 @@ export type Me = {
   codeGraphs: GraphPolicy;
   /** Whether this server reviews enrolled repositories' pull requests itself. */
   autoReview: boolean;
+  /** The code platforms this server can connect. */
+  platforms: readonly CodePlatformKind[];
 };
 export type ProviderInfo = {
   name: string;
