@@ -1,6 +1,7 @@
 import { type Context, Hono } from "hono";
 import { account } from "./account.js";
 import { auth } from "./auth.js";
+import { reviewNow } from "./auto-review/review-now.js";
 import { type AutoReviewService, autoReviewRoute } from "./auto-review/routes.js";
 import { automationsRoute } from "./automations/routes.js";
 import { BodyTooLarge } from "./body.js";
@@ -124,6 +125,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
   app.route("/pulls/checks", pullChecksRoute);
   app.route("/pulls", pullPage);
   app.route("/pulls", pullStack);
+  app.route("/pulls", reviewNow);
   app.route("/learnings", learningsRoute);
   app.route("/merge-checks", mergeChecksRoute);
   app.route("/notifications", notifyRoute);

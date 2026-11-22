@@ -681,7 +681,8 @@ export const pullReviews = sqliteTable(
 );
 
 // One review of a pull request's head, from queued to done; a newer head
-// of the same pull request supersedes the queued ones.
+// of the same pull request supersedes the queued ones. A head is reviewed
+// again (asked for on the console) as its next run.
 export const reviewJobs = sqliteTable(
   "review_jobs",
   {
@@ -692,6 +693,7 @@ export const reviewJobs = sqliteTable(
       .references(() => reviewRepos.id, { onDelete: "cascade" }),
     number: integer("number").notNull(),
     head: text("head").notNull(),
+    run: integer("run").notNull().default(0),
     state: text("state", { enum: REVIEW_JOB_STATES }).notNull().default("queued"),
     attempts: integer("attempts").notNull().default(0),
     notBefore: integer("not_before", { mode: "timestamp_ms" }),
@@ -702,7 +704,7 @@ export const reviewJobs = sqliteTable(
     createdAt: createdAt(),
   },
   (t) => [
-    uniqueIndex("review_jobs_pull_head").on(t.reviewRepoId, t.number, t.head),
+    uniqueIndex("review_jobs_pull_head_run").on(t.reviewRepoId, t.number, t.head, t.run),
     index("review_jobs_state").on(t.state, t.createdAt),
     index("review_jobs_account_created").on(t.accountId, t.createdAt),
   ],

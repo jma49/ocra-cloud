@@ -31,3 +31,13 @@ export type GenerateJobView = {
   error: string | null;
   finishedAt: string | null;
 };
+
+/** A pull request's review asked for on the console, or the newest one the server ran. */
+export type PullReviewJobView = {
+  state: Exclude<ReviewJobState, "superseded">;
+  jobId: string;
+  head: string;
+  queuedAt: string;
+};
+
+export type PullReviewNowView = { job: PullReviewJobView | null };
