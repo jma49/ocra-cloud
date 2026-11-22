@@ -899,15 +899,13 @@ td.finding-cell {
 .diff-comment-box {
   display: grid;
   gap: 8px;
-  max-width: 640px;
 }
+/* Three verdicts do not fit one row of the side column; they stack like a choice list. */
 .pull-side .seg {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
 }
 .pull-side .seg button {
-  flex: 1 1 auto;
-  white-space: nowrap;
+  text-align: left;
 }
 .diff-comment-box textarea,
 .pull-side textarea {
