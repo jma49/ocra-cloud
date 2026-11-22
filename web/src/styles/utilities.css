@@ -33,6 +33,9 @@
 .pre-wrap {
   white-space: pre-wrap;
 }
+.nobreak {
+  white-space: nowrap;
+}
 .capitalize {
   text-transform: capitalize;
 }
