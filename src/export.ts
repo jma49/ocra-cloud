@@ -72,6 +72,7 @@ const SHAPES: Partial<Record<Table, (row: never) => unknown>> = {
     platform: string;
     host: string;
     userId: string | null;
+    login: string | null;
     accessExpiresAt: Date | null;
     refreshExpiresAt: Date | null;
     createdAt: Date;
@@ -79,6 +80,7 @@ const SHAPES: Partial<Record<Table, (row: never) => unknown>> = {
     platform: g.platform,
     host: g.host,
     userId: g.userId,
+    login: g.login,
     accessExpiresAt: g.accessExpiresAt,
     refreshExpiresAt: g.refreshExpiresAt,
     createdAt: g.createdAt,

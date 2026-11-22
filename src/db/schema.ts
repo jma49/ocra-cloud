@@ -494,6 +494,8 @@ export const platformLinks = sqliteTable(
     // The platform's id of the user the token is of (GitLab), which says
     // which pull request events are this account's own.
     userId: text("user_id"),
+    // That user's login (GitLab), which says whom a comment's @-mention names.
+    login: text("login"),
     accessExpiresAt: integer("access_expires_at", { mode: "timestamp_ms" }),
     refreshExpiresAt: integer("refresh_expires_at", { mode: "timestamp_ms" }),
     createdAt: createdAt(),

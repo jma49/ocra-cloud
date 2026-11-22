@@ -15,6 +15,8 @@ const EVENT_LABEL: Record<MenuEvent, string> = {
   checks_failed: "Pre-merge checks fail on my pull request",
   review_blocking: "ocra finds something critical in my pull request",
   merge_when_ready: "A pull request I set to merge when ready merges or stops",
+  pull_commented: "Someone comments on my pull request",
+  mentioned: "Someone mentions me in a pull request",
 };
 
 function summary(all: NotifyEvent[]): string {

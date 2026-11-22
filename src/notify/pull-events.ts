@@ -1,12 +1,13 @@
-import { githubIdOf } from "../db/accounts.js";
+import { githubIdOf, loginOf } from "../db/accounts.js";
 import type { Db } from "../db/client.js";
 import type { Row, Scoped } from "../db/scoped.js";
 import { consolePullUrl } from "../merge-checks/run.js";
 import type { CodePlatform } from "../platforms/platform.js";
 import { pullOfReview, pullOnPlatform } from "../review-pull.js";
-import type { NotifyEvent } from "../shared/index.js";
+import { type NotifyEvent, QUIET_EVENTS } from "../shared/index.js";
 import { type Message, plain } from "./channels.js";
 import { type Outbox, send } from "./notify.js";
+import { hourIn, isQuiet } from "./reminders.js";
 
 // Telling the account about an event of an enrolled repository's pull
 // request that concerns its own platform user: known by the platform's id
@@ -14,6 +15,9 @@ import { type Outbox, send } from "./notify.js";
 // GitLab link), never by a login. Each subscribed channel claims the
 // event's key before its message goes, so a webhook delivered twice, or
 // two processes, tell it once; a message that fails is not sent again.
+// One delivery tells a channel once: its events come most specific first
+// (a mention before the comment it is in), and events of one comment share
+// its key, so a later delivery of the same comment tells it nothing new.
 
 export type EventRepo = Pick<Row<"reviewRepos">, "id" | "platform" | "host" | "fullName">;
 
@@ -24,7 +28,9 @@ export type PullEvent = {
   key: string;
   number: number;
   /** The platform's id of the user it concerns: the reviewer asked, or the author. */
-  concerns: string;
+  concerns?: string;
+  /** Instead of concerns: the logins it @-mentions, lowercased. */
+  mentions?: readonly string[];
   /** The platform's id of who did it; an event the user caused tells nobody. */
   by?: string | null;
   /** What happened, said to the user: plain text, never a finding's. */
@@ -33,15 +39,39 @@ export type PullEvent = {
   more?: string[];
 };
 
-/** The platform's id of the account's own user there; null when it has none on record. */
-async function ownUserId(db: Db, data: Scoped, repo: EventRepo): Promise<string | null> {
+type OwnUser = { id: string; login: string | null };
+
+/**
+ * The account's own user there: the platform's id, and the login it goes by
+ * (on GitHub the one it last signed in with); null when it has none on record.
+ */
+async function ownUser(db: Db, data: Scoped, repo: EventRepo): Promise<OwnUser | null> {
   if (repo.platform === "github") {
     if (repo.host !== "github.com") return null;
     const id = await githubIdOf(db, data.accountId);
-    return id === null ? null : String(id);
+    return id === null ? null : { id: String(id), login: await loginOf(db, data.accountId) };
   }
   const link = await data.findOne("platformLinks", { platform: repo.platform, host: repo.host });
-  return link?.userId ?? null;
+  return link?.userId ? { id: link.userId, login: link.login } : null;
+}
+
+function concernsMe(e: PullEvent, me: OwnUser): boolean {
+  if (e.by === me.id) return false;
+  if (e.concerns !== undefined) return e.concerns === me.id;
+  return me.login !== null && !!e.mentions?.includes(me.login.toLowerCase());
+}
+
+/** The channels that hear about events of kind now, leaving out those in their quiet hours. */
+async function awake(
+  data: Scoped,
+  kind: NotifyEvent,
+  channels: Row<"notifyChannels">[],
+  now: Date,
+) {
+  if (!(QUIET_EVENTS as readonly NotifyEvent[]).includes(kind)) return channels;
+  if (!channels.some((ch) => ch.quietStart !== null)) return channels;
+  const hour = hourIn(now, await data.notify.timeZone());
+  return channels.filter((ch) => !isQuiet(ch, hour));
 }
 
 function pullEventMessage(repo: EventRepo, e: PullEvent, origin: string): Message {
@@ -67,20 +97,21 @@ export async function tellPullEvent(
   out: Outbox,
   repo: EventRepo,
   events: readonly PullEvent[],
+  now = new Date(),
 ): Promise<string[]> {
   const kinds = [...new Set(events.map((e) => e.kind))];
   const heard = new Map<NotifyEvent, Row<"notifyChannels">[]>();
   for (const kind of kinds) {
-    const channels = await data.notify.subscribed(kind);
+    const channels = await awake(data, kind, await data.notify.subscribed(kind), now);
     if (channels.length > 0) heard.set(kind, channels);
   }
   if (heard.size === 0) return [];
-  const me = await ownUserId(db, data, repo);
+  const me = await ownUser(db, data, repo);
   if (me === null) return [];
   const told: string[] = [];
   for (const e of events) {
-    const channels = heard.get(e.kind);
-    if (!channels || e.concerns !== me || e.by === me) continue;
+    const channels = heard.get(e.kind)?.filter((ch) => !told.includes(ch.id));
+    if (!channels?.length || !concernsMe(e, me)) continue;
     const m = pullEventMessage(repo, e, out.origin);
     await Promise.all(
       channels.map(async (ch) => {
@@ -175,7 +206,7 @@ export async function tellOwnPullEvent(
   event: Omit<PullEvent, "concerns" | "by">,
 ): Promise<string[]> {
   if ((await data.notify.subscribed(event.kind)).length === 0) return [];
-  const me = await ownUserId(db, data, repo);
+  const me = await ownUser(db, data, repo);
   if (me === null) return [];
-  return tellPullEvent(db, data, out, repo, [{ ...event, concerns: me }]);
+  return tellPullEvent(db, data, out, repo, [{ ...event, concerns: me.id }]);
 }

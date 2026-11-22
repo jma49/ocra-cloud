@@ -60,6 +60,7 @@ export function githubFake(fake: Fake = {}) {
         expires_in: 7200,
       });
     }
+    if (url === `${GITLAB}/api/v4/user`) return Response.json({ id: 77, username: "Lab.User" });
     if (url.startsWith(`${GITLAB}/api/v4/projects?membership=true`)) {
       if (req.headers.get("authorization") !== "Bearer glpat_first") {
         return new Response(null, { status: 401 });

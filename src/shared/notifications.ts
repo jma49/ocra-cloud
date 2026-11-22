@@ -19,6 +19,9 @@ export type NotifyWhen = (typeof NOTIFY_WHEN)[number];
  * by the hourly run once a pull request has waited the channel's
  * reminderHours: a review asked of them still not given (review_waiting),
  * and a pull request they wrote that no one has reviewed (pull_waiting).
+ * Two are of the conversation: someone else commented on a pull request
+ * they wrote (pull_commented), or @-mentioned their login in a pull
+ * request's comment or review (mentioned).
  */
 export const NOTIFY_EVENTS = [
   "review_requested",
@@ -29,17 +32,22 @@ export const NOTIFY_EVENTS = [
   "merge_when_ready",
   "review_waiting",
   "pull_waiting",
+  "pull_commented",
+  "mentioned",
 ] as const;
 export type NotifyEvent = (typeof NOTIFY_EVENTS)[number];
 
 /** The events that are reminders, which go only with reminderHours set. */
 export const REMINDER_EVENTS = ["review_waiting", "pull_waiting"] as const satisfies NotifyEvent[];
 
+/** The events a channel's quiet hours hold back: one that arrives in them is not sent there. */
+export const QUIET_EVENTS = ["pull_commented", "mentioned"] as const satisfies NotifyEvent[];
+
 /** After how many hours of waiting a channel is reminded. */
 export const REMINDER_HOURS = [4, 8, 24, 48] as const;
 export type ReminderHours = (typeof REMINDER_HOURS)[number];
 
-/** Hours of the day (0-23, in the account's time zone) no reminder goes: from start up to end, over midnight when end is earlier. */
+/** Hours of the day (0-23, in the account's time zone) no reminder or comment notice goes: from start up to end, over midnight when end is earlier. */
 export type QuietHours = { start: number; end: number };
 
 export type NotifyChannelView = {
@@ -59,7 +67,7 @@ export type NotifyChannelView = {
   events: NotifyEvent[];
   /** After how many hours its reminders go; null: none go. */
   reminderHours: ReminderHours | null;
-  /** When its reminders wait for; null: any hour. */
+  /** When its reminders wait for, and its comment notices are not sent; null: any hour. */
   quietHours: QuietHours | null;
   /** How the last message went; null before the first. */
   lastStatus: "ok" | "failed" | null;

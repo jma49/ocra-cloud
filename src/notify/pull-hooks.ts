@@ -3,12 +3,14 @@ import type { Db } from "../db/client.js";
 import { reviewRepoFor } from "../db/review-jobs.js";
 import { scoped } from "../db/scoped.js";
 import { plain } from "./channels.js";
+import { bySpecificity, githubCommentEvents, gitlabCommentEvents } from "./comment-hooks.js";
 import type { Outbox } from "./notify.js";
 import { type EventRepo, type PullEvent, tellPullEvent } from "./pull-events.js";
 
 // The pull request events of the platforms' webhooks that may concern the
 // account's own user (./pull-events.ts): a review asked of them, and on a
-// pull request they wrote, a reviewer's review and its merge or close.
+// pull request they wrote, a reviewer's review and its merge or close;
+// and the conversation's comments and mentions (./comment-hooks.ts).
 // Read after the webhook is answered. A key is made of what a redelivery
 // repeats: the platform's review id, or the time it wrote for the change.
 
@@ -179,7 +181,12 @@ export function gitlabPullEvents(body: unknown, repoId: string): PullEvent[] {
   return events;
 }
 
-const quick = new Set(["pull_request", "pull_request_review"]);
+const quick = new Set([
+  "pull_request",
+  "pull_request_review",
+  "issue_comment",
+  "pull_request_review_comment",
+]);
 
 /** Tells the enrolled repository's account of a GitHub delivery's events that are its own. */
 export async function tellGithubHook(
@@ -193,7 +200,10 @@ export async function tellGithubHook(
   if (!repoId.success) return 0;
   const repo = await reviewRepoFor(db, "github", "github.com", id(repoId.data.repository.id));
   if (!repo) return 0;
-  const events = githubPullEvents(event, body, repo.id);
+  const events = bySpecificity([
+    ...githubPullEvents(event, body, repo.id),
+    ...githubCommentEvents(event, body, repo.id),
+  ]);
   if (events.length === 0) return 0;
   return (await tellPullEvent(db, scoped(db, repo.accountId), out, repo, events)).length;
 }
@@ -206,6 +216,18 @@ export async function tellGitlabHook(
   body: unknown,
 ): Promise<number> {
   const events = gitlabPullEvents(body, repo.id);
+  if (events.length === 0) return 0;
+  return (await tellPullEvent(db, scoped(db, repo.accountId), out, repo, events)).length;
+}
+
+/** Tells the account of a GitLab note hook's events that are its own. */
+export async function tellGitlabNote(
+  db: Db,
+  out: Outbox,
+  repo: EventRepo & { accountId: string },
+  body: unknown,
+): Promise<number> {
+  const events = bySpecificity(gitlabCommentEvents(body, repo.id));
   if (events.length === 0) return 0;
   return (await tellPullEvent(db, scoped(db, repo.accountId), out, repo, events)).length;
 }
