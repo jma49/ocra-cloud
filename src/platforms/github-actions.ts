@@ -16,6 +16,7 @@ const EVENT = {
 const SIDE = { old: "LEFT", new: "RIGHT" } as const satisfies Record<LineSide, string>;
 
 type Pull = { head: { sha: string; ref: string; repo: { full_name: string } | null } };
+type PullBody = { head: { sha: string }; body: string | null };
 type File = { type: string; sha: string; size: number; encoding?: string; content?: string };
 
 export function githubActions(): PullActions {
@@ -26,6 +27,11 @@ export function githubActions(): PullActions {
       body: JSON.stringify(body),
     });
   const repo = (fullName: string) => `${API}/repos/${githubRepoPath(fullName)}`;
+  const description = async (token: string, fullName: string, number: number) => {
+    const url = `${repo(fullName)}/pulls/${number}`;
+    const pull = await platformCall<PullBody>(url, { headers: githubHeaders(token) });
+    return pull && { head: pull.head.sha, body: pull.body ?? "" };
+  };
   return {
     verdicts: ["approve", "request_changes", "comment"],
     mergeMethods: ["merge", "squash", "rebase"],
@@ -108,6 +114,16 @@ export function githubActions(): PullActions {
           branch: pull.head.ref,
         }),
         { 409: "head_moved" },
+      );
+    },
+    description,
+    async setDescription(token, fullName, number, edit) {
+      // GitHub has no head guard on an edit: the head is read just before, as a review's is.
+      const now = await description(token, fullName, number);
+      if (!now) return null;
+      if (now.head !== edit.head) return "head_moved";
+      return outcomeOf(
+        await send(token, "PATCH", `${repo(fullName)}/pulls/${number}`, { body: edit.body }),
       );
     },
   };

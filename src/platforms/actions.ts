@@ -18,6 +18,9 @@ type MergeRequest = { method: MergeMethod; head: string };
 /** Fixes of the file at `path` as it is at `head`, committed together on the pull request's branch. */
 type FixCommit = { path: string; head: string; fixes: LineFix[]; message: string };
 
+/** A pull request's head commit and description (GitLab: a merge request's). */
+type PullDescription = { head: string; body: string };
+
 export interface PullActions {
   readonly verdicts: readonly PullVerdict[];
   readonly mergeMethods: readonly MergeMethod[];
@@ -59,6 +62,15 @@ export interface PullActions {
     fullName: string,
     number: number,
     commit: FixCommit,
+  ): Promise<PullActionOutcome | null>;
+  /** null when it could not be read. */
+  description(token: string, fullName: string, number: number): Promise<PullDescription | null>;
+  /** Replaces the description; `head_moved`, unsent, when the head is no longer `edit.head`. */
+  setDescription(
+    token: string,
+    fullName: string,
+    number: number,
+    edit: PullDescription,
   ): Promise<PullActionOutcome | null>;
 }
 

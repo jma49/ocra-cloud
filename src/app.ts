@@ -32,6 +32,7 @@ import { platformConnect } from "./platform-connect.js";
 import { platformsRoute } from "./platform-routes.js";
 import type { BotTokens } from "./platforms/bot.js";
 import { preferences } from "./preferences.js";
+import { pullDescription } from "./pull-description.js";
 import { pullPage } from "./pull-page.js";
 import { pullSeenRoute } from "./pull-seen.js";
 import { pullStack } from "./pull-stack.js";
@@ -132,6 +133,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
   app.route("/pulls/checks", pullChecksRoute);
   app.route("/pulls/merge-when-ready", mergeWhenReady);
   app.route("/pulls", pullPage);
+  app.route("/pulls", pullDescription);
   app.route("/pulls", pullStack);
   app.route("/pulls", pullThreads);
   app.route("/pulls", reviewers);

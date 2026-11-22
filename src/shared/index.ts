@@ -18,6 +18,7 @@ export * from "./merge-checks.js";
 export * from "./merge-when-ready.js";
 export * from "./models.js";
 export * from "./notifications.js";
+export * from "./pull-description.js";
 export * from "./pull-page.js";
 export * from "./pull-threads.js";
 export * from "./pulls.js";

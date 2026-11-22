@@ -12,6 +12,7 @@ import type {
 import { api, why } from "../api.js";
 import { PlatformMark } from "../platform-mark.js";
 import { ChecksBox } from "../pull/checks-box.js";
+import { DescriptionBox } from "../pull/description-box.js";
 import { FileDiff } from "../pull/file-diff.js";
 import { FileList } from "../pull/file-list.js";
 import { GenerateBox } from "../pull/generate-box.js";
@@ -147,6 +148,7 @@ export function PullPage(props: {
           <ReviewersPanel pull={ref} />
           <FileList files={data.files} isViewed={isViewed} />
           <ReviewBox data={data} pull={ref} pending={pending} onDone={(o) => done("Review", o)} />
+          <DescriptionBox pull={ref} onDone={(o) => done("Description", o)} />
           <ThreadsPanel pull={ref} onDone={(o) => done("Review threads", o)} />
           <ChecksBox pull={ref} head={data.head} />
           {props.runner && <ReviewNowBox pull={ref} head={data.head} />}
