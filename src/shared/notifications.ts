@@ -40,7 +40,7 @@ export type NotifyEvent = (typeof NOTIFY_EVENTS)[number];
 /** The events that are reminders, which go only with reminderHours set. */
 export const REMINDER_EVENTS = ["review_waiting", "pull_waiting"] as const satisfies NotifyEvent[];
 
-/** The events a channel's quiet hours hold back: one that arrives in them is not sent there. */
+/** The events a channel's quiet hours hold back: one that arrives in them goes in one message when they end. */
 export const QUIET_EVENTS = ["pull_commented", "mentioned"] as const satisfies NotifyEvent[];
 
 /** After how many hours of waiting a channel is reminded. */
@@ -67,7 +67,7 @@ export type NotifyChannelView = {
   events: NotifyEvent[];
   /** After how many hours its reminders go; null: none go. */
   reminderHours: ReminderHours | null;
-  /** When its reminders wait for, and its comment notices are not sent; null: any hour. */
+  /** When its reminders wait for, and its comment notices are held until; null: any hour. */
   quietHours: QuietHours | null;
   /** How the last message went; null before the first. */
   lastStatus: "ok" | "failed" | null;

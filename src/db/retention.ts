@@ -3,6 +3,7 @@ import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
 import { errorName, logError } from "../log.js";
 import { DAY, utcDay } from "../time.js";
 import type { Db } from "./client.js";
+import { HELD_FOR } from "./notify.js";
 import {
   accounts,
   auditEvents,
@@ -12,6 +13,7 @@ import {
   gatewayCalls,
   liveRuns,
   mergeIntents,
+  notifyHeld,
   notifySends,
   pullFileViews,
   pullFlows,
@@ -28,7 +30,8 @@ import {
 
 // What the data policy (web /privacy) promises: review records, live runs, gateway call
 // records, merged and closed pull requests and their review flow, the inbox's read marks, the daily counts and the audit log are deleted after
-// RETENTION_DAYS; expired login codes and sessions go at once. Runs daily
+// RETENTION_DAYS; expired login codes and sessions go at once; a notice held in
+// quiet hours after HELD_FOR. Runs daily
 // from the cron trigger.
 
 export const RETENTION_DAYS = 90;
@@ -156,6 +159,18 @@ export async function enforceRetention(db: Db, now = new Date()): Promise<void> 
             and(
               ofEachAccount(notifySends.accountId),
               lt(notifySends.createdAt, new Date(now.getTime() - NOTIFY_SEND_DAYS * DAY)),
+            ),
+          ),
+    ],
+    [
+      "notify_held",
+      () =>
+        db
+          .delete(notifyHeld)
+          .where(
+            and(
+              ofEachAccount(notifyHeld.accountId),
+              lt(notifyHeld.createdAt, new Date(now.getTime() - HELD_FOR)),
             ),
           ),
     ],

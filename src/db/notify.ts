@@ -1,15 +1,23 @@
 import { and, desc, eq, gt, gte, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import type { NotifyEvent, NotifyWhen } from "../shared/index.js";
+import { DAY } from "../time.js";
 import { changedRows, type Db, first } from "./client.js";
 import { jsonElements } from "./dialect.js";
-import { accounts, findings, notifyChannels, notifySends, reviews } from "./schema.js";
+import { accounts, findings, notifyChannels, notifyHeld, notifySends, reviews } from "./schema.js";
 
 // The account's channels (reached through scoped()): added in one statement
 // under the cap, so parallel adds cannot pass a count taken first; an email
 // address confirmed only by the token sent to it, compared in the update
 // itself; the daily digest, claimed for a day by a compare-and-set on the
 // account, so that two cron runs or two processes send it once; and a pull
-// request event, claimed per channel by its key's unique row.
+// request event, claimed per channel by its key's unique row; one that came
+// in the channel's quiet hours held by the same key, then claimed for its
+// message by a compare-and-set on claimedAt.
+
+/** How long a notice held in quiet hours waits for them to end; no quiet hours last longer. */
+export const HELD_FOR = 2 * DAY;
+
+export type HeldNotice = Omit<typeof notifyHeld.$inferInsert, "id" | "accountId" | "claimedAt">;
 
 type NewChannel = Omit<
   typeof notifyChannels.$inferInsert,
@@ -74,6 +82,59 @@ export function accountNotify(db: Db, accountId: string) {
         .values({ id: crypto.randomUUID(), accountId, channelId, eventKey })
         .onConflictDoNothing({ target: [notifySends.channelId, notifySends.eventKey] });
       return changedRows(res) > 0;
+    },
+
+    /** Holds the notice for the channel until its quiet hours end, unless it is held; whether this call did. */
+    async hold(notice: HeldNotice): Promise<boolean> {
+      const res = await db
+        .insert(notifyHeld)
+        .values({ ...notice, id: crypto.randomUUID(), accountId })
+        .onConflictDoNothing({ target: [notifyHeld.channelId, notifyHeld.eventKey] });
+      return changedRows(res) > 0;
+    },
+
+    /** The confirmed channels with a notice held and not yet claimed. */
+    holding() {
+      const h = notifyHeld;
+      return db
+        .select()
+        .from(t)
+        .where(
+          and(
+            own,
+            isNotNull(t.confirmedAt),
+            sql`EXISTS (SELECT 1 FROM ${h} WHERE ${h.accountId} = ${accountId} AND ${h.channelId} = ${t.id} AND ${h.claimedAt} IS NULL)`,
+          ),
+        );
+    },
+
+    /**
+     * Takes the channel's newest unclaimed notices held since, at most
+     * limit; only those no other run took first, newest first.
+     */
+    async claimHeld(channelId: string, since: Date, limit: number, now: Date) {
+      const h = notifyHeld;
+      const unclaimed = and(eq(h.accountId, accountId), isNull(h.claimedAt));
+      const newest = db
+        .select({ id: h.id })
+        .from(h)
+        .where(and(unclaimed, eq(h.channelId, channelId), gte(h.createdAt, since)))
+        .orderBy(desc(h.createdAt))
+        .limit(limit);
+      const rows = await db
+        .update(h)
+        .set({ claimedAt: now })
+        .where(and(unclaimed, inArray(h.id, newest)))
+        .returning();
+      return rows.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    },
+
+    /** Deletes the held notices whose message went. */
+    async dropHeld(ids: string[]): Promise<void> {
+      if (ids.length === 0) return;
+      await db
+        .delete(notifyHeld)
+        .where(and(eq(notifyHeld.accountId, accountId), inArray(notifyHeld.id, ids)));
     },
 
     /** The confirmed channels with reminders. */
@@ -220,5 +281,16 @@ export async function reminderAccounts(db: Db): Promise<string[]> {
     .selectDistinct({ accountId: t.accountId })
     .from(t)
     .where(and(isNotNull(t.reminderHours), isNotNull(t.confirmedAt)));
+  return rows.map((r) => r.accountId);
+}
+
+/** The accounts with a held notice not yet claimed, read across accounts by the hourly run. */
+export async function heldAccounts(db: Db, since: Date, limit: number): Promise<string[]> {
+  const h = notifyHeld;
+  const rows = await db
+    .selectDistinct({ accountId: h.accountId })
+    .from(h)
+    .where(and(isNull(h.claimedAt), gte(h.createdAt, since)))
+    .limit(limit);
   return rows.map((r) => r.accountId);
 }

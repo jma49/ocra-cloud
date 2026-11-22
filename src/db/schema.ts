@@ -726,6 +726,33 @@ export const notifySends = sqliteTable(
   ],
 );
 
+// A pull request event that came in a channel's quiet hours
+// (src/notify/held.ts), held to go in one message when they end: its line
+// made plain when it was held, and the pull request it links to. A notice
+// is held once per channel (the unique key); the hourly run claims a
+// channel's notices (claimedAt, compare-and-set) before their message
+// goes, then deletes them. Dropped after two days.
+export const notifyHeld = sqliteTable(
+  "notify_held",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    channelId: text("channel_id").notNull(),
+    eventKey: text("event_key").notNull(),
+    event: text("event").$type<NotifyEvent>().notNull(),
+    platform: text("platform", { enum: CODE_PLATFORMS }).notNull(),
+    repo: text("repo").notNull(),
+    number: integer("number").notNull(),
+    line: text("line").notNull(),
+    claimedAt: integer("claimed_at", { mode: "timestamp_ms" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("notify_held_channel_event").on(t.channelId, t.eventKey),
+    index("notify_held_account_created").on(t.accountId, t.createdAt),
+  ],
+);
+
 // An enrolled repository's pull request as its platform said it ended:
 // merged or closed, one row per pull request; a later close (after a
 // reopen) replaces an earlier one. The title is the platform's, as sent.
@@ -1219,6 +1246,7 @@ export const accountTables = {
   reviewJobs,
   notifyChannels,
   notifySends,
+  notifyHeld,
   closedPulls,
   pullFlows,
   pullReviews,

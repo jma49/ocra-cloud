@@ -18,6 +18,8 @@ import { hourIn, isQuiet } from "./reminders.js";
 // One delivery tells a channel once: its events come most specific first
 // (a mention before the comment it is in), and events of one comment share
 // its key, so a later delivery of the same comment tells it nothing new.
+// A comment notice that comes in a channel's quiet hours is claimed the same
+// way, then held (./held.ts) instead of sent.
 
 export type EventRepo = Pick<Row<"reviewRepos">, "id" | "platform" | "host" | "fullName">;
 
@@ -61,17 +63,20 @@ function concernsMe(e: PullEvent, me: OwnUser): boolean {
   return me.login !== null && !!e.mentions?.includes(me.login.toLowerCase());
 }
 
-/** The channels that hear about events of kind now, leaving out those in their quiet hours. */
-async function awake(
+type Heard = { channel: Row<"notifyChannels">; quiet: boolean };
+
+/** The channels that hear about events of kind, each with whether its quiet hours hold it now. */
+async function hearing(
   data: Scoped,
   kind: NotifyEvent,
   channels: Row<"notifyChannels">[],
   now: Date,
-) {
-  if (!(QUIET_EVENTS as readonly NotifyEvent[]).includes(kind)) return channels;
-  if (!channels.some((ch) => ch.quietStart !== null)) return channels;
-  const hour = hourIn(now, await data.notify.timeZone());
-  return channels.filter((ch) => !isQuiet(ch, hour));
+): Promise<Heard[]> {
+  const holds =
+    (QUIET_EVENTS as readonly NotifyEvent[]).includes(kind) &&
+    channels.some((ch) => ch.quietStart !== null);
+  const hour = holds ? hourIn(now, await data.notify.timeZone()) : 0;
+  return channels.map((channel) => ({ channel, quiet: holds && isQuiet(channel, hour) }));
 }
 
 function pullEventMessage(repo: EventRepo, e: PullEvent, origin: string): Message {
@@ -88,8 +93,8 @@ function pullEventMessage(repo: EventRepo, e: PullEvent, origin: string): Messag
 }
 
 /**
- * Tells each channel that hears about the event; the ids of those it went
- * to. Nothing is read past the channels when none hears about it.
+ * Tells each channel that hears about the event, or holds it for one in its
+ * quiet hours; the ids of those it went to now. Nothing is read past the channels when none hears about it.
  */
 export async function tellPullEvent(
   db: Db,
@@ -100,28 +105,52 @@ export async function tellPullEvent(
   now = new Date(),
 ): Promise<string[]> {
   const kinds = [...new Set(events.map((e) => e.kind))];
-  const heard = new Map<NotifyEvent, Row<"notifyChannels">[]>();
+  const heard = new Map<NotifyEvent, Heard[]>();
   for (const kind of kinds) {
-    const channels = await awake(data, kind, await data.notify.subscribed(kind), now);
+    const channels = await hearing(data, kind, await data.notify.subscribed(kind), now);
     if (channels.length > 0) heard.set(kind, channels);
   }
   if (heard.size === 0) return [];
   const me = await ownUser(db, data, repo);
   if (me === null) return [];
   const told: string[] = [];
+  const reached = new Set<string>();
   for (const e of events) {
-    const channels = heard.get(e.kind)?.filter((ch) => !told.includes(ch.id));
+    const channels = heard.get(e.kind)?.filter((h) => !reached.has(h.channel.id));
     if (!channels?.length || !concernsMe(e, me)) continue;
     const m = pullEventMessage(repo, e, out.origin);
     await Promise.all(
-      channels.map(async (ch) => {
+      channels.map(async ({ channel: ch, quiet }) => {
         if (!(await data.notify.claimSend(ch.id, e.key))) return;
+        reached.add(ch.id);
+        if (quiet) return hold(data, repo, ch, e, now);
         told.push(ch.id);
         await send(data, out, ch, m);
       }),
     );
   }
   return told;
+}
+
+/** Holds the event for the channel until its quiet hours end: one plain line and its pull request. */
+async function hold(
+  data: Scoped,
+  repo: EventRepo,
+  ch: Row<"notifyChannels">,
+  e: PullEvent,
+  now: Date,
+) {
+  const title = e.more?.[0];
+  await data.notify.hold({
+    channelId: ch.id,
+    eventKey: e.key,
+    event: e.kind,
+    platform: repo.platform,
+    repo: repo.fullName,
+    number: e.number,
+    line: plain(title ? `${e.what} · ${title}` : e.what),
+    createdAt: now,
+  });
 }
 
 /** The author's id of the pull request, as its webhooks recorded it. */

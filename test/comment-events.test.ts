@@ -241,16 +241,17 @@ describe("telling the account of the conversation", () => {
     expect(posted).toEqual([]);
   });
 
-  it("holds back comment notices in a channel's quiet hours", async () => {
+  it("holds back comment notices in a channel's quiet hours, once", async () => {
     const posted = chats();
     const { data, repo } = await setUp(["pull_commented"], { quietHours: { start: 22, end: 7 } });
     const [comment] = githubCommentEvents("issue_comment", issueComment("LGTM"), repo.id);
     if (!comment) throw new Error("no event");
     const night = new Date("2026-11-02T23:30:00Z");
     expect(await tellPullEvent(db, data, out(), repo, [comment], night)).toEqual([]);
-    const day = new Date("2026-11-02T12:00:00Z");
-    expect(await tellPullEvent(db, data, out(), repo, [comment], day)).toHaveLength(1);
-    expect(posted).toHaveLength(1);
+    const day = new Date("2026-11-03T12:00:00Z");
+    expect(await tellPullEvent(db, data, out(), repo, [comment], day)).toEqual([]);
+    expect(posted).toEqual([]);
+    expect(await data.count("notifyHeld")).toBe(1);
   });
 
   it("tells only the account that enrolled the repository", async () => {
