@@ -3,7 +3,7 @@ import { plain } from "./channels.js";
 // What a comment says to the people it names, read without a model: the
 // logins it @-mentions in its own prose, and a short excerpt of that prose.
 // Code (fenced blocks and inline spans) and quoted lines are not its prose,
-// so a mention there names nobody. Only the start of a long comment is read.
+// so a mention there names nobody. Only a long comment's start is read.
 
 /** The characters of a comment read; a mention after them names nobody. */
 export const MAX_COMMENT = 16_000;
