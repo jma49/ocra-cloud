@@ -39,8 +39,8 @@ jobs:
       - if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: npx wrangler deploy --dry-run --outdir /tmp/bundle
 
-  # The vitest projects (vitest.config.ts) side by side, the Worker's and
-  # Postgres's in shards: a private repository's runner has two cores.
+  # The vitest projects (vitest.config.ts) side by side, the Worker's in
+  # shards: a private repository's runner has two cores.
   test:
     runs-on: ubuntu-latest
     strategy:
@@ -53,10 +53,8 @@ jobs:
             args: --project worker --shard=2/3
           - name: worker 3/3
             args: --project worker --shard=3/3
-          - name: postgres 1/2
-            args: --project postgres --shard=1/2
-          - name: postgres 2/2
-            args: --project postgres --shard=2/2
+          - name: postgres
+            args: --project postgres
           - name: node, web
             args: --project node --project web
     name: test (${{ matrix.name }})
