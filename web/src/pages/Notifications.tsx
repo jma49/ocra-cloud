@@ -7,10 +7,10 @@ import {
   type NotifyChannelView,
   type NotifyKind,
   type NotifyWhen,
-  type ReportScheduleView,
 } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
 import { ago } from "../format.js";
+import { ReportSlot } from "../notifications/report-slot.js";
 import { ActionError, LoadError, Loading, PageHead, useAction, useLoad } from "../ui.js";
 
 // The chats and email addresses that hear about reviews: a Slack or WeCom
@@ -82,7 +82,6 @@ export function Notifications() {
         full={(data?.channels.length ?? 0) >= 10}
         email={data?.email ?? false}
       />
-      <ReportSlot />
       {resend.error !== null && <ActionError what="send the link again" error={resend.error} />}
       {change.error !== null && <ActionError what="change the channel" error={change.error} />}
       {remove.error !== null && <ActionError what="remove the channel" error={remove.error} />}
@@ -134,6 +133,9 @@ export function Notifications() {
                       </select>
                     </td>
                     <td>
+                      <span className="cell-name" aria-hidden="true">
+                        Digest
+                      </span>
                       <button
                         type="button"
                         role="switch"
@@ -145,6 +147,9 @@ export function Notifications() {
                       />
                     </td>
                     <td>
+                      <span className="cell-name" aria-hidden="true">
+                        Weekly
+                      </span>
                       <button
                         type="button"
                         role="switch"
@@ -205,6 +210,7 @@ export function Notifications() {
           </div>
         </div>
       )}
+      <ReportSlot />
     </>
   );
 }
@@ -232,6 +238,7 @@ function AddChannel(props: {
   const [when, setWhen] = useState<NotifyWhen>("blocking");
   const [url, setUrl] = useState("");
   const [digest, setDigest] = useState(false);
+  const [weekly, setWeekly] = useState(false);
   const add = useAction(() =>
     api<{ confirmationSent?: boolean }>(
       "/notifications/channels",
@@ -240,6 +247,7 @@ function AddChannel(props: {
         name: name.trim(),
         when,
         digest,
+        weekly,
         ...(kind === "email" ? { address: url.trim() } : { url }),
       }),
     ),
@@ -300,10 +308,16 @@ function AddChannel(props: {
           Add
         </Button>
       </div>
-      <label className="check small">
-        <input type="checkbox" checked={digest} onChange={(e) => setDigest(e.target.checked)} />
-        Also send a daily digest of yesterday's reviews
-      </label>
+      <div className="add-extras">
+        <label className="check small">
+          <input type="checkbox" checked={digest} onChange={(e) => setDigest(e.target.checked)} />
+          Daily digest of yesterday's reviews
+        </label>
+        <label className="check small">
+          <input type="checkbox" checked={weekly} onChange={(e) => setWeekly(e.target.checked)} />
+          Weekly report
+        </label>
+      </div>
       {kind === "email" && (
         <span className="subtle small">
           The address gets a link to confirm it first; nothing else is sent until it is opened.
@@ -316,54 +330,5 @@ function AddChannel(props: {
         </p>
       )}
     </form>
-  );
-}
-
-const HOURS = Array.from({ length: 24 }, (_, h) => h);
-const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-
-/** When the weekly report goes, in UTC. */
-function ReportSlot() {
-  const { data, reload } = useLoad(() => api<ReportScheduleView>("/notifications/report"));
-  const save = useAction((slot: { weekday: number; hour: number }) =>
-    api<ReportScheduleView>("/notifications/report", json("PUT", slot)),
-  );
-  if (!data) return null;
-  const set = async (slot: { weekday: number; hour: number }) => {
-    if ((await save.run(slot)) !== undefined) reload();
-  };
-  return (
-    <p className="subtle small">
-      The weekly report covers the seven days before{" "}
-      <select
-        className="input"
-        aria-label="Weekly report day"
-        value={data.weekday}
-        disabled={save.busy}
-        onChange={(e) => set({ weekday: Number(e.target.value), hour: data.hour })}
-      >
-        {WEEKDAYS.map((d, i) => (
-          <option key={d} value={i}>
-            {d}
-          </option>
-        ))}
-      </select>{" "}
-      at{" "}
-      <select
-        className="input"
-        aria-label="Weekly report hour"
-        value={data.hour}
-        disabled={save.busy}
-        onChange={(e) => set({ weekday: data.weekday, hour: Number(e.target.value) })}
-      >
-        {HOURS.map((h) => (
-          <option key={h} value={h}>
-            {String(h).padStart(2, "0")}:00
-          </option>
-        ))}
-      </select>{" "}
-      UTC, and goes to the channels with Weekly on; a week without reviews or merges sends nothing.
-      {save.error !== null && <ActionError what="change the report day" error={save.error} />}
-    </p>
   );
 }
