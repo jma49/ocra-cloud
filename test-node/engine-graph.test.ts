@@ -54,15 +54,8 @@ describe("the engine's graph builder", () => {
 
 describe("the graph settings", () => {
   it("keep graphs with one worker by default, and refuse a bad worker count", () => {
-    expect(graphSettingsFrom({})).toEqual({
-      policy: "keep",
-      githubWebhookSecret: undefined,
-      workers: 1,
-    });
-    expect(graphSettingsFrom({ GRAPH_WORKERS: "3", GITHUB_WEBHOOK_SECRET: "s" })).toMatchObject({
-      workers: 3,
-      githubWebhookSecret: "s",
-    });
+    expect(graphSettingsFrom({})).toEqual({ policy: "keep", workers: 1 });
+    expect(graphSettingsFrom({ GRAPH_WORKERS: "3" })).toMatchObject({ workers: 3 });
     expect(() => graphSettingsFrom({ GRAPH_WORKERS: "0" })).toThrow("GRAPH_WORKERS");
   });
 });

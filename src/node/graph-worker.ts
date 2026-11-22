@@ -24,7 +24,6 @@ export type GraphOptions = {
   policy: GraphPolicy;
   builder: GraphBuilder;
   parse: GraphParser;
-  githubWebhookSecret?: string | undefined;
   workers?: number;
 };
 
@@ -45,13 +44,11 @@ export function startGraphs(
     builder: options.builder,
     workers: options.workers ?? 1,
   });
-  const secret = options.githubWebhookSecret;
   return {
     service: {
       policy,
       kick: worker.kick,
       parse: options.parse,
-      ...(secret ? { githubWebhookSecret: secret } : {}),
     },
     worker,
   };

@@ -58,7 +58,7 @@ describe("a repository added for a code graph", () => {
     const body = (await res.json()) as { repo: { id: string }; webhook: unknown };
     expect(body).toMatchObject({
       repo: { fullName: "Octo/API", branch: "main", host: "github.com", latest: { commit: C1 } },
-      webhook: { url: `${ORIGIN}/api/graphs/webhooks/github` },
+      webhook: { url: `${ORIGIN}/api/webhooks/github` },
     });
     expect(body.webhook).not.toHaveProperty("secret");
     await s.settled();

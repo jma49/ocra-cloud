@@ -1,0 +1,47 @@
+import { Hono } from "hono";
+import { z } from "zod";
+import type { AutoReviewService } from "./auto-review/routes.js";
+import { queueGithubPull } from "./auto-review/webhooks.js";
+import { hmacHex, sameText } from "./crypto.js";
+import type { GraphService } from "./graph/routes.js";
+import { MAX_HOOK_BODY, queueGithubPush } from "./graph/webhooks.js";
+import { signedBody } from "./http.js";
+import type { AppEnv } from "./types.js";
+
+// The GitHub App's one webhook, proven by its signature: a push queues
+// graph builds, a pull request's change queues its review, where the host
+// does them. GitLab's hooks are per repository, with secrets of their own.
+
+export type WebhookHost = {
+  githubWebhookSecret?: string;
+  graphs?: GraphService;
+  autoReview?: AutoReviewService;
+};
+
+export function githubWebhook(host: WebhookHost) {
+  const hook = new Hono<AppEnv>();
+  hook.post(
+    "/",
+    signedBody(
+      z.looseObject({}),
+      async (c, raw) => {
+        const secret = host.githubWebhookSecret;
+        const signature = c.req.header("x-hub-signature-256") ?? "";
+        return !!secret && sameText(signature, `sha256=${await hmacHex(secret, raw)}`);
+      },
+      MAX_HOOK_BODY,
+    ),
+    async (c) => {
+      const body = c.req.valid("json");
+      const event = c.req.header("x-github-event");
+      const queued =
+        event === "push" && host.graphs
+          ? await queueGithubPush(c.var.db, host.graphs, body)
+          : event === "pull_request" && host.autoReview
+            ? await queueGithubPull(c.var.db, host.autoReview, body)
+            : 0;
+      return c.json({ queued }, 202);
+    },
+  );
+  return hook;
+}

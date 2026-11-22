@@ -104,13 +104,17 @@ describe("deleting an account", () => {
     // The findings' review first (the foreign key needs it), then one row per table.
     await d.insert("reviews", rows.reviews(id("reviews")));
     for (const [table, row] of Object.entries(rows)) {
-      if (["reviews", "findings", "graphBuilds"].includes(table)) continue;
+      if (["reviews", "findings", "graphBuilds", "reviewJobs"].includes(table)) continue;
       await d.insert(table as keyof typeof rows, row(id(table)) as never);
     }
     await d.insert("findings", { ...rows.findings(id("findings")), reviewId: id("reviews") });
     await d.insert("graphBuilds", {
       ...rows.graphBuilds(id("graphBuilds")),
       graphRepoId: id("graphRepos"),
+    });
+    await d.insert("reviewJobs", {
+      ...rows.reviewJobs(id("reviewJobs")),
+      reviewRepoId: id("reviewRepos"),
     });
     await db.insert(schema.deviceCodes).values({
       id: `dc-${accountId}`,

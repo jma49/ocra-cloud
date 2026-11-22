@@ -65,6 +65,8 @@ const TABLE: Record<string, string> = {
   pullViews: "pull_views",
   graphRepos: "graph_repos",
   graphBuilds: "graph_builds",
+  reviewRepos: "review_repos",
+  reviewJobs: "review_jobs",
 };
 
 describe("query plans", () => {

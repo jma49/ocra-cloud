@@ -25,6 +25,7 @@ import {
   GRAPH_BUILD_STATES,
   type ModelChains,
   type PullFilters,
+  REVIEW_JOB_STATES,
   type ReviewerCounts,
   type ReviewSettings,
   SIGN_IN_PROVIDERS,
@@ -485,6 +486,55 @@ export const graphBuilds = sqliteTable(
   ],
 );
 
+// A repository whose pull requests the server reviews itself (ADR-0046).
+// One account enrolls it and pays for its reviews: platform, host and id
+// are unique across accounts.
+export const reviewRepos = sqliteTable(
+  "review_repos",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    platform: text("platform", { enum: CODE_PLATFORMS }).notNull(),
+    host: text("host").notNull(),
+    platformRepoId: text("platform_repo_id").notNull(),
+    fullName: text("full_name").notNull(),
+    webhookSecretHash: text("webhook_secret_hash"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("review_repos_platform_repo").on(t.platform, t.host, t.platformRepoId),
+    index("review_repos_account").on(t.accountId),
+  ],
+);
+
+// One review of a pull request's head, from queued to done; a newer head
+// of the same pull request supersedes the queued ones.
+export const reviewJobs = sqliteTable(
+  "review_jobs",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    reviewRepoId: text("review_repo_id")
+      .notNull()
+      .references(() => reviewRepos.id, { onDelete: "cascade" }),
+    number: integer("number").notNull(),
+    head: text("head").notNull(),
+    state: text("state", { enum: REVIEW_JOB_STATES }).notNull().default("queued"),
+    attempts: integer("attempts").notNull().default(0),
+    notBefore: integer("not_before", { mode: "timestamp_ms" }),
+    leaseUntil: integer("lease_until", { mode: "timestamp_ms" }),
+    error: text("error"),
+    reviewId: text("review_id"),
+    finishedAt: integer("finished_at", { mode: "timestamp_ms" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("review_jobs_pull_head").on(t.reviewRepoId, t.number, t.head),
+    index("review_jobs_state").on(t.state, t.createdAt),
+    index("review_jobs_account_created").on(t.accountId, t.createdAt),
+  ],
+);
+
 /** The tables scoped by account, by the name scoped() uses. */
 export const accountTables = {
   sessions,
@@ -503,4 +553,6 @@ export const accountTables = {
   pullViews,
   graphRepos,
   graphBuilds,
+  reviewRepos,
+  reviewJobs,
 } as const;

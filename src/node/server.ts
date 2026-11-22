@@ -26,6 +26,9 @@ const host = await openHost({
   web: resolve(process.env.WEB_DIR || "web/dist"),
   ...(process.env.PUBLIC_URL ? { publicUrl: process.env.PUBLIC_URL } : {}),
   trustedProxyHops: trustedProxyHops(process.env.TRUSTED_PROXY_HOPS),
+  ...(process.env.GITHUB_WEBHOOK_SECRET
+    ? { githubWebhookSecret: process.env.GITHUB_WEBHOOK_SECRET }
+    : {}),
   // A run that only migrates builds nothing.
   ...(migrate === "only"
     ? {}

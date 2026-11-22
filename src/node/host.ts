@@ -6,6 +6,7 @@ import { drizzle } from "drizzle-orm/libsql";
 import { migrate } from "drizzle-orm/libsql/migrator";
 import { Hono } from "hono";
 import { createApp } from "../app.js";
+import type { AutoReviewService } from "../auto-review/routes.js";
 import type { Db } from "../db/client.js";
 import type { AppBindings } from "../types.js";
 import { clientAddress } from "./client-address.js";
@@ -48,6 +49,10 @@ export type HostOptions = {
   migrate?: boolean;
   /** Code graphs built after pushes, by the engine's builder; none when policy is off. */
   graphs?: GraphOptions;
+  /** The GitHub App's webhook secret; without it the App's webhooks are refused. */
+  githubWebhookSecret?: string;
+  /** Pull requests reviewed by this server (ADR-0046); none without it. */
+  autoReview?: AutoReviewService;
 };
 
 /**
@@ -70,6 +75,8 @@ export async function openHost(options: HostOptions) {
     openDb: () => shared,
     clientAddress: (c) => addresses.get(c.req.raw),
     ...(graphs ? { graphs: graphs.service } : {}),
+    ...(options.githubWebhookSecret ? { githubWebhookSecret: options.githubWebhookSecret } : {}),
+    ...(options.autoReview ? { autoReview: options.autoReview } : {}),
   });
 
   const origin = options.publicUrl ? new URL(options.publicUrl).origin : undefined;
