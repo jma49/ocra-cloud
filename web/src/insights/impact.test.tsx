@@ -65,8 +65,8 @@ describe("what ocra changed on Insights", () => {
         total: busy,
         weeks: [{ start: "2026-11-16T00:00:00.000Z", ...busy }],
         repos: [
-          { repo: "acme/payments", ...busy },
-          { repo: "acme/ledger", ...counts({ pulls: 4, reviewedPulls: 1 }) },
+          { repo: "acme/payments", enrolled: true, ...busy },
+          { repo: "acme/ledger", enrolled: true, ...counts({ pulls: 4, reviewedPulls: 1 }) },
         ],
         toMerge: {
           fromReview: { median: 3 * HOUR, p90: 20 * HOUR, count: 12 },

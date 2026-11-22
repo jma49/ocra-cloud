@@ -66,7 +66,7 @@ function ImpactBody(props: { data: Impact }) {
   const t = data.total;
   const findings = found(t);
   const most = Math.max(1, ...data.weeks.map((w) => w.pulls));
-  const { fromReview, reviewed, unreviewed } = data.toMerge;
+  const merge = data.toMerge;
   return (
     <>
       <div className="cycle-figures">
@@ -86,11 +86,11 @@ function ImpactBody(props: { data: Impact }) {
           note={`not found again on a later review · ${num(t.dismissedOnRereview)} dismissed by a reviewer`}
         />
       </div>
-      {reviewed.count > 0 && unreviewed.count > 0 && (
+      {merge && merge.reviewed.count > 0 && merge.unreviewed.count > 0 && (
         <div className="cycle-figures">
-          <Figure label="Opened to merge, reviewed by ocra" spread={reviewed} />
-          <Figure label="Opened to merge, not reviewed" spread={unreviewed} />
-          <Figure label="First ocra review to merge" spread={fromReview} />
+          <Figure label="Opened to merge, reviewed by ocra" spread={merge.reviewed} />
+          <Figure label="Opened to merge, not reviewed" spread={merge.unreviewed} />
+          <Figure label="First ocra review to merge" spread={merge.fromReview} />
         </div>
       )}
       {data.capped && (
@@ -144,7 +144,7 @@ function ImpactBody(props: { data: Impact }) {
             </thead>
             <tbody>
               {data.repos.map((r) => (
-                <tr key={r.repo}>
+                <tr key={`${r.repo}:${r.enrolled}`}>
                   <td className="mono">{r.repo}</td>
                   <td className="num">{num(r.pulls)}</td>
                   <td className="num">{share(r.reviewedPulls, r.pulls)}</td>

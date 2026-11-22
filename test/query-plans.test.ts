@@ -413,14 +413,17 @@ describe("what ocra changed", () => {
     const seen: Captured[] = [];
     const d = scoped(drizzle(recording(seen)), "acct");
     const ids = ["https://github.com/octo/api", "https://github.com/octo/web"];
-    await d.impact.reviewsSince(new Date(0), ids, 10);
+    await d.impact.reposSince(new Date(0), 10);
+    for (const identities of [null, ids]) {
+      await d.impact.reviewsSince(new Date(0), identities, 10);
+      await d.impact.findingsSince(new Date(0), identities, 10);
+    }
     await d.impact.firstReviews([{ repo: ids[0] ?? "", number: 7 }]);
-    await d.impact.findingsSince(new Date(0), ids, 10);
     for (const repos of [null, ["r1", "r2"]]) {
       await d.impact.openedSince(new Date(0), repos, 10);
       await d.impact.mergedSince(new Date(0), repos, 10);
     }
-    expect(seen).toHaveLength(8);
+    expect(seen).toHaveLength(12);
     for (const q of seen) {
       const p = await plan(q);
       expect(p, q.sql).toMatch(
