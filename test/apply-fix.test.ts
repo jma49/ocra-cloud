@@ -109,6 +109,16 @@ describe("applying a finding's fix on GitHub", () => {
     expect((await data.get("findings", id))?.status).toBe("open");
   });
 
+  it("refuses when the fork the pull request came from is gone", async () => {
+    const sent = platform({
+      [`GET ${PULL}`]: () => Response.json({ head: { sha: HEAD, ref: "feature", repo: null } }),
+    });
+    const a = await signInWithGithub();
+    const { id } = await seed("https://github.com/octo/api", 7);
+    expect(await (await apply(a, id)).json()).toEqual({ outcome: "refused" });
+    expect(sent).toEqual([]);
+  });
+
   it("commits nothing when the fix's lines are not in the file", async () => {
     const sent = platform({
       [`GET ${PULL}`]: () => githubPull(),
