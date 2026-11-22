@@ -9,6 +9,9 @@ COPY . .
 RUN npm run build:web && npm run build:node
 
 FROM node:22-slim
+# Auto review clones the repositories it reviews.
+RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 ENV NODE_ENV=production
 COPY package.json package-lock.json ./
