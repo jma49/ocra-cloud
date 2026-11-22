@@ -1,4 +1,7 @@
+import type { MouseEvent } from "react";
 import { ago } from "../format.js";
+import { pullPath } from "../pull/path.js";
+import { navigate } from "../router.js";
 import type { Row } from "./sections.js";
 
 const CHECKS = {
@@ -18,12 +21,17 @@ export function PullRow(props: { r: Row; i: number; current: boolean }) {
   const checks = r.checks && CHECKS[r.checks];
   const review = r.state === "open" && r.review ? REVIEW[r.review] : null;
   const when = r.mergedAt ?? r.updatedAt;
+  const to = pullPath(r.platform, r.repo, r.number);
+  const onClick = (e: MouseEvent) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+    e.preventDefault();
+    navigate(to);
+  };
   return (
     <a
       className={`pull-row${props.current ? " current" : ""}`}
-      href={r.url}
-      target="_blank"
-      rel="noreferrer"
+      href={to}
+      onClick={onClick}
       data-row={props.i}
       aria-current={props.current ? "true" : undefined}
     >

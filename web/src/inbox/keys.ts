@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 type Keys = {
   move: (step: 1 | -1) => void;
   open: () => void;
+  openOnPlatform: () => void;
   find: () => void;
   refresh: () => void;
 };
@@ -10,7 +11,7 @@ type Keys = {
 const typing = (t: EventTarget | null) =>
   t instanceof HTMLElement && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
 
-/** j/k move, Enter or o opens, / finds, r refreshes; never while typing. */
+/** j/k move, Enter opens here, o on the platform, / finds, r refreshes; never while typing. */
 export function useListKeys(keys: Keys) {
   const latest = useRef(keys);
   latest.current = keys;
@@ -25,7 +26,7 @@ export function useListKeys(keys: Keys) {
         j: () => k.move(1),
         k: () => k.move(-1),
         Enter: k.open,
-        o: k.open,
+        o: k.openOnPlatform,
         "/": k.find,
         r: k.refresh,
       }[e.key];

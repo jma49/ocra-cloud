@@ -1,8 +1,9 @@
 import { useState } from "react";
-import type { Severity, Verification } from "../../../src/shared/index.js";
+import type { PullActionOutcome, Severity, Verification } from "../../../src/shared/index.js";
 import { api } from "../api.js";
 import { symbolsOf } from "../impact/select.js";
 import type { Impact } from "../impact/use-impact.js";
+import { OUTCOME } from "../pull/outcome.js";
 import { Link } from "../router.js";
 
 // A finding as an event on the review's timeline: what it says, where, and
@@ -24,6 +25,9 @@ export type Finding = {
   code: string | null;
   redacted: boolean;
   truncated: boolean;
+  status: "open" | "fixed" | "dismissed";
+  /** The lines the fix replaces at the reviewed head, and what with; null without one. */
+  fix: { startLine: number; endLine: number; replacement: string } | null;
 };
 
 const SEV = {
@@ -37,6 +41,8 @@ export function FindingEvent(props: {
   impact: Impact;
   focused: boolean;
   onImpact: () => void;
+  /** The review names its pull request, so a fix can be committed to it. */
+  canFix: boolean;
 }) {
   const { f } = props;
   const reached = props.impact.state === "ready" ? symbolsOf(props.impact.view.symbols, f) : [];
@@ -53,6 +59,20 @@ export function FindingEvent(props: {
       setState("error");
     }
   };
+  const [fixed, setFixed] = useState<PullActionOutcome | "error" | "sending" | null>(null);
+  const commitFix = async () => {
+    setFixed("sending");
+    try {
+      const r = await api<{ outcome: PullActionOutcome }>("/pulls/apply-fix", {
+        method: "POST",
+        body: JSON.stringify({ finding: f.id }),
+      });
+      setFixed(r.outcome);
+    } catch {
+      setFixed("error");
+    }
+  };
+  const fixable = f.fix !== null && props.canFix && f.status !== "fixed" && fixed !== "done";
   const lines =
     f.lineStart === null
       ? ""
@@ -97,7 +117,30 @@ export function FindingEvent(props: {
               {reached.length > 1 ? ` and ${reached.length - 1} more` : ""}
             </button>
           )}
+          {fixable && (
+            <button
+              type="button"
+              className="btn btn-sm"
+              disabled={fixed === "sending"}
+              onClick={commitFix}
+            >
+              Commit fix
+            </button>
+          )}
+          {(f.status === "fixed" || fixed === "done") && (
+            <span className="badge badge-ok">Fixed</span>
+          )}
         </div>
+        {fixed && fixed !== "sending" && fixed !== "done" && (
+          <p className="error small m-0" role="alert">
+            {fixed === "error" ? "Could not commit the fix; try again." : OUTCOME[fixed]}
+          </p>
+        )}
+        {fixed === "done" && (
+          <p className="note small m-0" role="status">
+            The fix is committed to the pull request, and the finding is marked fixed.
+          </p>
+        )}
         {open && (
           <div className="finding-body">
             <p className="m-0 pre-wrap">{f.body}</p>
@@ -105,6 +148,15 @@ export function FindingEvent(props: {
               <div>
                 <div className="caps finding-label">Suggestion</div>
                 <p className="m-0 pre-wrap">{f.suggestion}</p>
+              </div>
+            )}
+            {f.fix && (
+              <div>
+                <div className="caps finding-label">
+                  Fix · replaces L{f.fix.startLine}
+                  {f.fix.endLine !== f.fix.startLine ? `–${f.fix.endLine}` : ""}
+                </div>
+                <pre className="codeblock">{f.fix.replacement}</pre>
               </div>
             )}
             <div className="inline-form">

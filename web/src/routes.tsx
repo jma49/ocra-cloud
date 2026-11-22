@@ -25,6 +25,7 @@ import { loadProviders, NotFound } from "./ui.js";
 // console's first page do not wait for them (audit C11).
 const Defaults = lazy(() => import("./pages/Defaults.js").then((m) => ({ default: m.Defaults })));
 const Device = lazy(() => import("./pages/Device.js").then((m) => ({ default: m.Device })));
+const PullPage = lazy(() => import("./pages/PullPage.js").then((m) => ({ default: m.PullPage })));
 const ReviewDetail = lazy(() =>
   import("./pages/ReviewDetail.js").then((m) => ({ default: m.ReviewDetail })),
 );
@@ -71,6 +72,13 @@ const ROUTES: readonly Route[] = [
     path: "/reviews/:id",
     place: "reviews",
     page: (me, [id]) => <ReviewDetail id={id ?? ""} graphs={graphsKept(me)} />,
+  },
+  {
+    path: "/pull/:platform/:repo/:number",
+    place: "inbox",
+    page: (_me, [platform, repo, number]) => (
+      <PullPage platform={platform ?? ""} repo={repo ?? ""} number={number ?? ""} />
+    ),
   },
   { path: "/findings", place: "findings", tab: "Findings", page: () => <Findings /> },
   {

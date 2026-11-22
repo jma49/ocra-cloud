@@ -141,28 +141,30 @@ describe("the inbox page", () => {
   const key = (k: string, on: Element = document.body) =>
     act(() => void fireEvent.keyDown(on, { key: k }));
 
-  it("walks the rows in section order with j and k and opens one with Enter", async () => {
+  it("walks the rows in section order with j and k, opens one here with Enter and on the platform with o", async () => {
     const open = await show();
     expect(screen.getByText(/gitlab.example.com is not connected/)).toBeTruthy();
     await waitFor(() => expect(document.title).toMatch(/^\(2\) /));
-    expect(current()).toBe("https://github.com/octo/api/pull/1");
+    expect(current()).toBe("/pull/github/octo%2Fapi/1");
     key("j");
     key("j");
-    expect(current()).toBe("https://github.com/octo/api/pull/3");
+    expect(current()).toBe("/pull/github/octo%2Fapi/3");
     key("k");
-    key("Enter");
+    key("o");
     expect(open).toHaveBeenCalledWith(
       "https://github.com/octo/api/pull/2",
       "_blank",
       "noopener,noreferrer",
     );
+    key("Enter");
+    expect(location.pathname).toBe("/pull/github/octo%2Fapi/2");
   });
 
   it("skips a folded section and remembers it", async () => {
     await show();
     fireEvent.click(screen.getByRole("button", { name: /Needs your review/ }));
     expect(screen.queryByText("Change 1")).toBeNull();
-    expect(current()).toBe("https://github.com/octo/api/pull/3");
+    expect(current()).toBe("/pull/github/octo%2Fapi/3");
     expect(localStorage.getItem("ocra-inbox-collapsed")).toBe('["review"]');
   });
 
@@ -222,6 +224,6 @@ describe("the inbox page", () => {
     const box = screen.getByLabelText("Find");
     expect(document.activeElement).toBe(box);
     key("j", box);
-    expect(current()).toBe("https://github.com/octo/api/pull/1");
+    expect(current()).toBe("/pull/github/octo%2Fapi/1");
   });
 });
