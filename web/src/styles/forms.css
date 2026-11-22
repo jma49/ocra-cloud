@@ -5,16 +5,16 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  height: 36px;
-  padding: 0 14px;
-  border-radius: var(--r-ctl);
+  height: 30px;
+  padding: 0 10px;
+  border-radius: var(--r-tab);
   border: 0;
-  background: transparent;
-  box-shadow: inset 0 0 0 1px var(--border-strong);
-  color: var(--fg);
+  background: var(--raised);
+  box-shadow: var(--shadow);
+  color: var(--t1);
   cursor: pointer;
   text-decoration: none;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   white-space: nowrap;
   transition:
@@ -22,18 +22,13 @@
     box-shadow 150ms var(--e-std),
     transform 200ms var(--e-std);
 }
-/* Under a pointer a button gives a little, and a little more pressed. */
+/* Pressed, a button gives a little. */
 .btn:active:not(:disabled) {
   transform: scale(0.98);
 }
 @media (hover: hover) {
   .btn:hover:not(:disabled) {
-    background: var(--tint);
-    box-shadow: inset 0 0 0 1px var(--fg-subtle);
-    transform: scale(0.98);
-  }
-  .btn:hover:active:not(:disabled) {
-    transform: scale(0.96);
+    background: color-mix(in srgb, var(--raised) 94%, var(--black));
   }
 }
 .btn-primary,
@@ -57,33 +52,37 @@
   color: var(--white);
 }
 .btn-sm {
-  height: 30px;
-  padding: 0 10px;
-  font-size: 13px;
+  height: 26px;
+  padding: 0 8px;
+  font-size: 12px;
 }
 .btn-lg {
-  height: 46px;
-  padding: 0 20px;
-  font-size: 15px;
+  height: 40px;
+  padding: 0 16px;
+  font-size: 13px;
 }
 .btn:disabled {
   opacity: 0.45;
   cursor: default;
 }
 .input {
-  height: 34px;
+  height: 30px;
   padding: 0 10px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--r-ctl);
-  background: var(--bg-subtle);
+  border: 0;
+  border-radius: var(--r-tab);
+  background: var(--raised);
+  box-shadow: var(--shadow);
   color: var(--fg);
   font: inherit;
-  font-size: 14px;
+  font-size: 13px;
   min-width: 0;
+}
+.input::placeholder {
+  color: var(--t4);
 }
 .input:focus,
 .btn:focus-visible {
-  outline: 2px solid var(--fg);
+  outline: 2px solid color-mix(in srgb, var(--blue) 55%, transparent);
   outline-offset: 1px;
 }
 .toolbar {
@@ -93,9 +92,9 @@
   gap: 10px 16px;
   margin: 0;
   min-width: 0;
-  padding: 12px 16px;
+  padding: 10px 16px;
   border: 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 0.5px solid var(--hair);
 }
 .toolbar label {
   display: inline-flex;
@@ -105,8 +104,7 @@
   color: var(--fg-muted);
 }
 .toolbar .input {
-  height: 30px;
-  font-size: 13px;
+  height: 28px;
 }
 .toolbar.bulk {
   gap: 8px 10px;
@@ -140,28 +138,37 @@
   color: var(--t1);
 }
 
+/* A pill: a soft fill in its tone. */
 .badge {
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  height: 22px;
   font-size: 12px;
   font-weight: 500;
-  padding: 1px 7px;
-  border-radius: var(--r-tag);
-  border: 1px solid var(--border);
-  font-family: var(--mono);
-  color: var(--fg-muted);
-  background: transparent;
+  padding: 0 8px;
+  border-radius: var(--r-tab);
+  border: 0;
+  color: var(--t2);
+  background: var(--fill);
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 .badge-ok {
-  color: var(--fg);
-  border-color: var(--border-strong);
+  color: var(--green);
+  background: color-mix(in srgb, var(--green) 11%, transparent);
+}
+.badge-warn {
+  color: var(--amber);
+  background: color-mix(in srgb, var(--amber) 12%, transparent);
+}
+.badge-run {
+  color: var(--blue);
+  background: color-mix(in srgb, var(--blue) 11%, transparent);
 }
 .badge-err {
   color: var(--critical);
-  border-color: color-mix(in srgb, var(--critical) 30%, transparent);
-  background: var(--critical-soft);
+  background: color-mix(in srgb, var(--critical) 11%, transparent);
 }
 .dot {
   width: 6px;
@@ -175,7 +182,7 @@
   gap: 8px;
   align-items: center;
   padding: 12px 20px 16px 66px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 0.5px solid var(--hair2);
   background: var(--bg-subtle);
   flex-wrap: wrap;
 }
@@ -197,7 +204,7 @@
 }
 .field label {
   font-weight: 500;
-  font-size: 14px;
+  font-size: 13px;
 }
 .field .hint {
   font-size: 12.5px;
@@ -210,7 +217,7 @@
   padding: 12px 14px;
   border-radius: var(--r-chip);
   font-size: 13.5px;
-  border: 1px solid var(--border);
+  border: 0.5px solid var(--hair2);
   background: var(--bg-subtle);
   color: var(--fg-muted);
   margin-top: 18px;
@@ -224,11 +231,6 @@
   background: var(--critical-soft);
   color: var(--fg);
 }
-.badge-warn {
-  color: var(--warning);
-  border-color: color-mix(in srgb, var(--warning) 30%, transparent);
-  background: color-mix(in srgb, var(--warning) 6%, transparent);
-}
 .row-actions {
   display: flex;
   gap: 6px;
@@ -239,7 +241,7 @@
   text-align: center;
 }
 .empty-hero h3 {
-  font-size: 20px;
+  font-size: 15px;
   font-weight: 600;
 }
 .empty-hero p {
@@ -259,11 +261,11 @@
   align-items: center;
   gap: 8px;
   padding: 5px 12px 5px 5px;
-  border: 1px solid var(--border);
+  border: 0.5px solid var(--hair2);
   border-radius: var(--r-ctl);
   background: transparent;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 13px;
   color: var(--fg);
 }
 .chip:hover {
@@ -278,7 +280,7 @@
   gap: 16px;
   align-items: center;
   padding: 14px 20px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 0.5px solid var(--hair2);
 }
 .form-row:last-child {
   border-bottom: 0;
@@ -344,7 +346,7 @@
   gap: 6px;
   padding: 3px 4px 3px 10px;
   border-radius: var(--r-chip);
-  border: 1px solid var(--border);
+  border: 0.5px solid var(--hair2);
   background: var(--bg-subtle);
   font: 12.5px var(--mono);
 }
@@ -353,7 +355,7 @@
   background: none;
   cursor: pointer;
   color: var(--fg-subtle);
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1;
   padding: 0 4px;
 }
@@ -368,7 +370,7 @@
   font: 12.5px / 1.6 var(--mono);
   overflow-x: auto;
   white-space: pre;
-  border-top: 1px solid var(--border);
+  border-top: 0.5px solid var(--hair2);
   border-radius: 0 0 var(--r-chip) var(--r-chip);
 }
 textarea.input {
