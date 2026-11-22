@@ -18,7 +18,7 @@ import {
   Terminal,
   User,
 } from "kubai-icons-react";
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect, useRef } from "react";
 import type { Me } from "./api.js";
 import { AccountMenu } from "./chrome.js";
 import { EyesMark } from "./eyes.js";
@@ -102,8 +102,17 @@ function Rail(props: { me: Me; place: Place | undefined }) {
 }
 
 function SettingsNav(props: { me: Me; path: string }) {
+  const nav = useRef<HTMLElement>(null);
+  // On a phone the nav is one scrolling row: keep the open page's link in view.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: runs again when the open page changes
+  useEffect(() => {
+    const el = nav.current;
+    const on = el?.querySelector<HTMLElement>(".settings-link.on");
+    if (!el || !on || el.scrollWidth <= el.clientWidth) return;
+    el.scrollLeft = on.offsetLeft - (el.clientWidth - on.offsetWidth) / 2;
+  }, [props.path]);
   return (
-    <nav className="settings-nav" aria-label="Settings">
+    <nav className="settings-nav" aria-label="Settings" ref={nav}>
       {settingsGroups(props.me).map((g) => (
         <div key={g.label} className="settings-group">
           <div className="caps">{g.label}</div>
