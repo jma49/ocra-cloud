@@ -1,6 +1,7 @@
 import ChartColumn from "lucide-react/icons/chart-column";
 import { lazy, Suspense, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import type { CodePlatformKind } from "../../../src/shared/index.js";
 import { api, type Reviews } from "../api.js";
 import { useCached } from "../cache.js";
 import { count, num, period, usd } from "../format.js";
@@ -86,7 +87,7 @@ function Breakdown(props: { title: string; rows: Row[]; none: string }) {
 }
 
 /** `runner`: the server reviews enrolled repositories itself, so their webhooks record the flow. */
-export function Insights(props: { runner: boolean }) {
+export function Insights(props: { runner: boolean; platforms: readonly CodePlatformKind[] }) {
   const [days, setDays] = useState(30);
   const quality = useCached(`/findings/insights?days=${days}`, () =>
     api<Insights>(`/findings/insights?days=${days}`),
@@ -164,7 +165,7 @@ export function Insights(props: { runner: boolean }) {
           <ReviewLoadSection days={days} />
         </>
       )}
-      <Cycle days={days} />
+      <Cycle days={days} platforms={props.platforms} />
     </>
   );
 }

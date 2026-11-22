@@ -1,15 +1,12 @@
 import { type FormEvent, Fragment, useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  type AutoReviewRepoView,
-  CODE_PLATFORMS,
-  type CodePlatformKind,
-} from "../../../src/shared/index.js";
+import type { AutoReviewRepoView, CodePlatformKind } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
 import { ProfileMenu } from "../auto-review/profile-menu.js";
 import { ago } from "../format.js";
 import { RepoChecks } from "../merge-checks/repo-checks.js";
 import { PlatformMark } from "../platform-mark.js";
+import { PLATFORM_NAME, PlatformSelect } from "../platform-names.js";
 import { pullPath } from "../pull/path.js";
 import { Link } from "../router.js";
 import { ActionError, LoadError, Loading, PageHead, useAction, useLoad } from "../ui.js";
@@ -22,7 +19,6 @@ type Repos = { repos: AutoReviewRepoView[] };
 type Added = { repo: AutoReviewRepoView; webhook: { url: string; secret?: string } };
 type Job = NonNullable<AutoReviewRepoView["latest"]>;
 
-const PLATFORM: Record<CodePlatformKind, string> = { github: "GitHub", gitlab: "GitLab" };
 const STATE: Record<Job["state"], { label: string; tone: string }> = {
   queued: { label: "Queued", tone: "badge-run" },
   running: { label: "Reviewing", tone: "badge-run" },
@@ -31,7 +27,7 @@ const STATE: Record<Job["state"], { label: string; tone: string }> = {
   superseded: { label: "Superseded", tone: "" },
 };
 
-export function AutoReview() {
+export function AutoReview(props: { platforms: readonly CodePlatformKind[] }) {
   const { data, error, reload } = useLoad(() => api<Repos>("/auto-review/repos"));
   const [added, setAdded] = useState<Added | null>(null);
   const [checking, setChecking] = useState<string | null>(null);
@@ -50,6 +46,7 @@ export function AutoReview() {
         sub="Pull requests in these repositories are reviewed by this server when they open or gain commits, and the review is posted as the ocra bot."
       />
       <AddRepo
+        platforms={props.platforms}
         full={(data?.repos.length ?? 0) >= 100}
         onAdded={(a) => {
           setAdded(a);
@@ -86,7 +83,7 @@ export function AutoReview() {
                           {r.fullName}
                         </div>
                         <div className="subtle small">
-                          {PLATFORM[r.platform]} · {r.host}
+                          {PLATFORM_NAME[r.platform]} · {r.host}
                         </div>
                       </td>
                       <td>
@@ -155,7 +152,7 @@ function Hook(props: { added: Added; onDone: () => void }) {
   const { repo, webhook } = props.added;
   return (
     <section className="card card-pad stack hook-card" aria-label="Webhook">
-      <div className="strong">One step on {PLATFORM[repo.platform]}</div>
+      <div className="strong">One step on {PLATFORM_NAME[repo.platform]}</div>
       {repo.platform === "gitlab" ? (
         <p className="m-0">
           In <span className="mono">{repo.fullName}</span>, open Settings, Webhooks, and add this
@@ -187,8 +184,12 @@ function Hook(props: { added: Added; onDone: () => void }) {
   );
 }
 
-function AddRepo(props: { full: boolean; onAdded: (a: Added) => void }) {
-  const [platform, setPlatform] = useState<CodePlatformKind>("github");
+function AddRepo(props: {
+  full: boolean;
+  platforms: readonly CodePlatformKind[];
+  onAdded: (a: Added) => void;
+}) {
+  const [platform, setPlatform] = useState<CodePlatformKind>(props.platforms[0] ?? "github");
   const [fullName, setFullName] = useState("");
   const add = useAction(() =>
     api<Added>("/auto-review/repos", {
@@ -207,18 +208,7 @@ function AddRepo(props: { full: boolean; onAdded: (a: Added) => void }) {
     <form className="card card-pad stack add-form" onSubmit={submit}>
       <div className="strong">Add a repository</div>
       <div className="add-fields">
-        <select
-          className="input"
-          aria-label="Platform"
-          value={platform}
-          onChange={(e) => setPlatform(e.target.value as CodePlatformKind)}
-        >
-          {CODE_PLATFORMS.map((p) => (
-            <option key={p} value={p}>
-              {PLATFORM[p]}
-            </option>
-          ))}
-        </select>
+        <PlatformSelect platforms={props.platforms} value={platform} onChange={setPlatform} />
         <input
           className="input grow mono"
           aria-label="Repository"

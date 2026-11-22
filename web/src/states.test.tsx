@@ -37,6 +37,7 @@ const me = {
   since: "",
   codeGraphs: "off" as const,
   autoReview: false,
+  platforms: ["github", "gitlab"] as const,
 };
 const never = () => new Promise<Response>(() => {});
 

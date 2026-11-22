@@ -46,7 +46,7 @@ describe("the Notifications page", () => {
         return Response.json({ channels });
       }),
     );
-    render(<Notifications />);
+    render(<Notifications platforms={["github", "gitlab"]} />);
     await screen.findByText("No channels yet.");
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: " #reviews " } });
     fireEvent.change(screen.getByLabelText("Webhook address"), {
@@ -87,7 +87,7 @@ describe("an email channel", () => {
         return Response.json({ email: true, channels: sent.length ? [mail] : [] });
       }),
     );
-    render(<Notifications />);
+    render(<Notifications platforms={["github", "gitlab"]} />);
     await screen.findByText("No channels yet.");
     fireEvent.change(screen.getByLabelText("Where"), { target: { value: "email" } });
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Ada" } });
@@ -122,7 +122,7 @@ describe("an email channel", () => {
       "fetch",
       vi.fn(async () => Response.json({ email: false, channels: [] })),
     );
-    render(<Notifications />);
+    render(<Notifications platforms={["github", "gitlab"]} />);
     await screen.findByText("No channels yet.");
     expect(screen.queryByRole("option", { name: "Email" })).toBeNull();
   });
@@ -142,7 +142,7 @@ describe("the weekly report", () => {
         return Response.json({ channels: [channel], email: false });
       }),
     );
-    render(<Notifications />);
+    render(<Notifications platforms={["github", "gitlab"]} />);
     const weekly = await screen.findByRole("switch", { name: "Weekly report to #reviews" });
     await act(async () => void fireEvent.click(weekly));
     fireEvent.change(await screen.findByLabelText("Weekly report day"), { target: { value: "5" } });
@@ -172,7 +172,7 @@ describe("my pull requests' events", () => {
         return Response.json({ channels: [{ ...channel, events }], email: false });
       }),
     );
-    render(<Notifications />);
+    render(<Notifications platforms={["github", "gitlab"]} />);
     fireEvent.click(
       await screen.findByRole("button", { name: "My pull requests' events to #reviews: 2 of 9" }),
     );

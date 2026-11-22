@@ -41,7 +41,7 @@ describe("the auto review page", () => {
         return Response.json({ repos: [REPO] });
       }),
     );
-    render(<AutoReview />);
+    render(<AutoReview platforms={["github", "gitlab"]} />);
     expect(await screen.findByText("clone failed")).toBeTruthy();
     expect(screen.getByRole("link", { name: "#9" }).getAttribute("href")).toBe(
       "/pull/gitlab/pay%2Fapi/9",
@@ -71,7 +71,7 @@ describe("the auto review page", () => {
         return Response.json({ repos: [REPO] });
       }),
     );
-    render(<AutoReview />);
+    render(<AutoReview platforms={["github", "gitlab"]} />);
     fireEvent.click(
       await screen.findByRole("button", { name: "Review profile of pay/api: Balanced" }),
     );

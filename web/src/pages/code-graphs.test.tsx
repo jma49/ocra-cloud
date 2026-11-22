@@ -44,7 +44,7 @@ function fakeApi(repos: GraphRepoView[], answers: Record<string, unknown> = {}) 
 describe("the code graphs page", () => {
   it("lists each repository's newest build", async () => {
     fakeApi([repo({}), { ...repo({ state: "failed", error: "unlinked" }), id: "g2" }]);
-    render(<CodeGraphs policy="keep" />);
+    render(<CodeGraphs policy="keep" platforms={["github", "gitlab"]} />);
     await screen.findByText("Built");
     expect(screen.getAllByText("aaaaaaa")).toHaveLength(2);
     expect(screen.getAllByText("1,200")).toHaveLength(2);
@@ -57,7 +57,7 @@ describe("the code graphs page", () => {
     const fetch = fakeApi([repo({ state: "failed", error: "build_failed" })], {
       "POST /api/graphs/repos/g1/builds": { queued: true, repo: repo({ state: "queued" }) },
     });
-    render(<CodeGraphs policy="keep" />);
+    render(<CodeGraphs policy="keep" platforms={["github", "gitlab"]} />);
     fireEvent.click(await screen.findByRole("button", { name: "Rebuild" }));
     await screen.findByText("Queued");
     expect(fetch).toHaveBeenCalledWith(
@@ -71,7 +71,7 @@ describe("the code graphs page", () => {
 
   it("purges a graph only after a second click, and puts it back when the server refuses", async () => {
     const fetch = fakeApi([repo({})]);
-    render(<CodeGraphs policy="keep" />);
+    render(<CodeGraphs policy="keep" platforms={["github", "gitlab"]} />);
     fireEvent.click(await screen.findByRole("button", { name: "Purge" }));
     expect(fetch).not.toHaveBeenCalledWith("/api/graphs/repos/g1/graphs", expect.anything());
     fireEvent.click(screen.getByRole("button", { name: "Delete graphs" }));
@@ -87,7 +87,7 @@ describe("the code graphs page", () => {
 
   it("asks for consent before adding where the server keeps graphs only with it", async () => {
     fakeApi([]);
-    render(<CodeGraphs policy="opt-in" />);
+    render(<CodeGraphs policy="opt-in" platforms={["github", "gitlab"]} />);
     await screen.findByText("No code graphs yet");
     fireEvent.change(screen.getByLabelText("Repository"), { target: { value: "octo/api" } });
     const add = screen.getByRole("button", { name: "Add repository" });
@@ -98,7 +98,7 @@ describe("the code graphs page", () => {
 
   it("says so where the server keeps none, and reads nothing", () => {
     const fetch = fakeApi([]);
-    render(<CodeGraphs policy="off" />);
+    render(<CodeGraphs policy="off" platforms={["github", "gitlab"]} />);
     expect(screen.getByText("This server keeps no code graphs")).toBeTruthy();
     expect(fetch).not.toHaveBeenCalled();
   });

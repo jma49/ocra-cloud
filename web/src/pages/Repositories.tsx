@@ -5,6 +5,7 @@ import { api, type Me, why } from "../api.js";
 import { useCached } from "../cache.js";
 import { ago, count, num } from "../format.js";
 import { PlatformMark } from "../platform-mark.js";
+import { PLATFORM_NAME } from "../platform-names.js";
 import { LoadError, Loading, PageHead, useAction, useLoad } from "../ui.js";
 
 // The repositories the account's reviews came from, by name: the one the
@@ -35,8 +36,6 @@ type PlatformRepos = {
     repositories: { id: string; fullName: string; private: boolean; repoHash: string | null }[];
   }[];
 };
-
-const PLATFORM_NAME: Record<CodePlatformKind, string> = { github: "GitHub", gitlab: "GitLab" };
 
 type Known = { name: string; platform: CodePlatformKind | null; where: string | null };
 

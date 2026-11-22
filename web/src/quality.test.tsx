@@ -121,6 +121,7 @@ describe("ARIA", () => {
           since: "",
           codeGraphs: "off",
           autoReview: false,
+          platforms: ["github", "gitlab"],
         }}
       />,
     );

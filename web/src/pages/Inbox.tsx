@@ -22,6 +22,7 @@ import {
 import { useUnreadMarks } from "../inbox/unread.js";
 import { ViewDrawer } from "../inbox/view-drawer.js";
 import { forgetSharedView, sharedView, usePullViews, type ViewDraft } from "../inbox/views.js";
+import { platformsText } from "../platform-names.js";
 import { pullPath } from "../pull/path.js";
 import { Link, navigate } from "../router.js";
 import { useTitleCount } from "../title.js";
@@ -187,7 +188,8 @@ export function Inbox() {
               </Button>
             }
           >
-            Link GitHub or GitLab to see the pull requests that wait on you.
+            Link {platformsText(data.platforms.map((p) => p.platform))} to see the pull requests
+            that wait on you.
           </EmptyState>
         </div>
       ) : sections.every((s) => s.rows.length === 0) ? (

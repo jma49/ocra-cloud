@@ -17,6 +17,7 @@ const me = {
   since: "2026-10-01T00:00:00Z",
   codeGraphs: "off" as const,
   autoReview: false,
+  platforms: ["github", "gitlab"] as const,
 };
 
 it("offers a fresh sign-in when deleting the account needs one", async () => {
