@@ -22,11 +22,13 @@ const REASON: Record<ReviewerReason, string> = {
   recent_reviewer: "reviews here",
 };
 
+const count = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
+
 const detail = (s: SuggestedReviewer, days: number) =>
   [
-    s.ownedFiles > 0 ? `owns ${s.ownedFiles} changed ${s.ownedFiles === 1 ? "file" : "files"}` : "",
-    s.recentReviews > 0 ? `${s.recentReviews} reviews in ${days} days` : "",
-    s.load === null ? "" : `${s.load} open requests`,
+    s.ownedFiles > 0 ? `owns ${count(s.ownedFiles, "changed file")}` : "",
+    s.recentReviews > 0 ? `${count(s.recentReviews, "review")} in ${days} days` : "",
+    s.load === null ? "" : `${count(s.load, "open request")}`,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -45,8 +47,10 @@ export function ReviewersPanel(props: { pull: Ref }) {
     }),
   );
   const [refused, setRefused] = useState<RequestReviewersView["outcome"] | null>(null);
+  const [asking, setAsking] = useState<string | null>(null);
   if (!data || (data.suggestions.length === 0 && data.owners.length === 0)) return null;
   const send = async (login: string) => {
+    setAsking(login);
     const sent = await ask.run(login);
     setRefused(sent && sent.outcome !== "done" ? sent.outcome : null);
     if (sent?.outcome === "done") reload();
@@ -55,36 +59,37 @@ export function ReviewersPanel(props: { pull: Ref }) {
   return (
     <section className="card card-pad stack" aria-label="Suggested reviewers">
       <div className="strong">Suggested reviewers</div>
-      <ul className="stack">
+      <ul className="reviewer-list">
         {data.suggestions.map((s) => (
-          <li key={s.login} className="stack">
-            <span>
-              <span className="mono">{s.login}</span>{" "}
+          <li key={s.login}>
+            <div className="reviewer-who">
+              <span className="mono strong">{s.login}</span>
               <span className="subtle small">{s.reasons.map((r) => REASON[r]).join(", ")}</span>
-            </span>
-            <span className="subtle small">{detail(s, data.historyDays)}</span>
+            </div>
             {s.alreadyRequested ? (
-              <span className="subtle small">Asked for a review</span>
+              <span className="badge">Asked</span>
             ) : (
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                loading={ask.busy}
+                disabled={ask.busy}
+                loading={ask.busy && asking === s.login}
                 onClick={() => send(s.login)}
                 aria-label={`Ask ${s.login} for a review`}
               >
-                Ask for review
+                Ask
               </Button>
             )}
+            <span className="reviewer-detail subtle small">{detail(s, data.historyDays)}</span>
           </li>
         ))}
       </ul>
       {teams.length > 0 && (
-        <p className="subtle small">Also owned by {teams.map((t) => t.owner).join(", ")}.</p>
+        <p className="subtle small m-0">Also owned by {teams.map((t) => t.owner).join(", ")}.</p>
       )}
       {data.history === "not_enrolled" && (
-        <p className="subtle small">
+        <p className="subtle small m-0">
           Review history is kept only for repositories enrolled for reviews.
         </p>
       )}
