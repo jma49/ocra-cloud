@@ -15,9 +15,11 @@ import { count } from "../format.js";
 import { PlatformMark } from "../platform-mark.js";
 import { ChecksBox } from "../pull/checks-box.js";
 import { DescriptionBox } from "../pull/description-box.js";
+import { DraftToggle } from "../pull/draft-toggle.js";
 import { FileDiff } from "../pull/file-diff.js";
 import { FileList } from "../pull/file-list.js";
 import { GenerateBox } from "../pull/generate-box.js";
+import { LabelsBox } from "../pull/labels-box.js";
 import { MergeWhenReadyBox } from "../pull/merge-when-ready-box.js";
 import { OUTCOME } from "../pull/outcome.js";
 import { QueueBox } from "../pull/queue-box.js";
@@ -136,6 +138,7 @@ export function PullPage(props: {
     <>
       <PageHead
         title={title}
+        actions={<DraftToggle pull={ref} onDone={(o) => done("Draft", o)} />}
         sub={
           <>
             <PlatformMark platform={platform} size={14} />{" "}
@@ -172,6 +175,7 @@ export function PullPage(props: {
         <aside className="pull-side">
           <StackPanel pull={ref} mergeMethods={data.mergeMethods} onMerged={reload} />
           <ReviewersPanel pull={ref} />
+          <LabelsBox pull={ref} onDone={(o) => done("Labels", o)} />
           <FileList files={data.files} isViewed={isViewed} />
           <ReviewBox data={data} pull={ref} pending={pending} onDone={(o) => done("Review", o)} />
           {!settled && <DescriptionBox pull={ref} onDone={(o) => done("Description", o)} />}
