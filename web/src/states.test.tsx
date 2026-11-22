@@ -36,6 +36,7 @@ const me = {
   session: "web" as const,
   since: "",
   codeGraphs: "off" as const,
+  autoReview: false,
 };
 const never = () => new Promise<Response>(() => {});
 

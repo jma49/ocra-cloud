@@ -46,6 +46,7 @@ describe("/me", () => {
       const { auth } = await s.signIn(1);
       expect(await (await s.call("/api/me", { headers: auth })).json()).toMatchObject({
         codeGraphs: policy,
+        autoReview: false,
       });
     }),
   );

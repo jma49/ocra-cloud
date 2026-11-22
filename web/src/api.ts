@@ -16,6 +16,8 @@ export type Me = {
   since: string;
   /** What this server does with code graphs; off where it builds none. */
   codeGraphs: GraphPolicy;
+  /** Whether this server reviews enrolled repositories' pull requests itself. */
+  autoReview: boolean;
 };
 export type ProviderInfo = {
   name: string;

@@ -713,16 +713,16 @@ td.finding-cell {
   padding-left: 18px;
 }
 
-/* Notifications: the add form's fields on one line, wrapping on a narrow screen. */
-.notify-fields {
+/* An add form (Notifications, Auto review): its fields on one line, wrapping on a narrow screen. */
+.add-fields {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
-.notify-add {
+.add-form {
   margin-bottom: 12px;
 }
-.notify-fields .input.grow {
+.add-fields .input.grow {
   min-width: 260px;
 }
 
@@ -972,4 +972,13 @@ td.finding-cell {
   overflow-x: auto;
   border-radius: var(--r-tab);
   background: var(--fill2);
+}
+
+/* Auto review: the one-time webhook card, and a failed job's reason. */
+.hook-card {
+  margin-bottom: 12px;
+}
+.job-error {
+  max-width: 360px;
+  white-space: normal;
 }

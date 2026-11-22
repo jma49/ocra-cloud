@@ -23,6 +23,9 @@ import { loadProviders, NotFound } from "./ui.js";
 
 // Pages few visits open load on demand, so the sign-in screen and the
 // console's first page do not wait for them (audit C11).
+const AutoReview = lazy(() =>
+  import("./pages/AutoReview.js").then((m) => ({ default: m.AutoReview })),
+);
 const Defaults = lazy(() => import("./pages/Defaults.js").then((m) => ({ default: m.Defaults })));
 const Device = lazy(() => import("./pages/Device.js").then((m) => ({ default: m.Device })));
 const PullPage = lazy(() => import("./pages/PullPage.js").then((m) => ({ default: m.PullPage })));
@@ -93,6 +96,13 @@ const ROUTES: readonly Route[] = [
     tab: "Code graphs",
     shown: graphsKept,
     page: (me) => <CodeGraphs policy={me.codeGraphs} />,
+  },
+  {
+    path: "/auto-review",
+    place: "repositories",
+    tab: "Auto review",
+    shown: (me) => me.autoReview,
+    page: () => <AutoReview />,
   },
   { path: "/memory", place: "repositories", tab: "Memory", page: () => <Memory /> },
   { path: "/insights", place: "insights", tab: "Overview", page: () => <Insights /> },
