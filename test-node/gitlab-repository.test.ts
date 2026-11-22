@@ -31,7 +31,7 @@ beforeAll(async () => {
       const url = new URL(req.url ?? "/", "http://git");
       await gitHttp(dir, req, res, url.pathname, url.search.slice(1), body, "bot");
     } catch (error) {
-      failures.push(error);
+      record(error);
       res.destroy();
     }
   };
