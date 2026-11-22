@@ -13,7 +13,7 @@ import { scoped } from "../src/db/scoped.js";
 import { EXPORTED } from "../src/export.js";
 import worker from "../src/index.js";
 import { DAY, utcDay } from "../src/time.js";
-import { call, db, resetDb, signIn, signInCli } from "./helpers.js";
+import { call, db, ORIGIN, resetDb, signIn, signInCli } from "./helpers.js";
 import { rows } from "./table-rows.js";
 
 beforeEach(async () => {
@@ -353,6 +353,13 @@ describe("export and deletion", () => {
     await d.insert("liveComments", { ...rows.liveComments("x-liveComments"), ...live });
     await setSharing(db, me.account.id, true);
     const salt = await accountSalt(db, me.account.id);
+    const zone = await call("/api/notifications/time-zone", {
+      method: "PUT",
+      auth: me.auth,
+      headers: { origin: ORIGIN },
+      json: { timeZone: "Europe/Berlin" },
+    });
+    expect(zone.status).toBe(200);
 
     const body = (await (await call("/api/export", { auth: me.auth })).json()) as Record<
       string,
@@ -363,7 +370,12 @@ describe("export and deletion", () => {
       expect((body[key] as unknown[] | undefined)?.length, table).toBeGreaterThan(0);
     }
     expect(body.account).toEqual(
-      expect.objectContaining({ login: "octo", shareFindings: true, salt }),
+      expect.objectContaining({
+        login: "octo",
+        shareFindings: true,
+        salt,
+        timeZone: "Europe/Berlin",
+      }),
     );
   });
 

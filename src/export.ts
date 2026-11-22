@@ -170,6 +170,7 @@ async function* exportChunks(
     // The repository-hash salt, held once findings were shared (null before).
     salt: a.salt,
     inboxSince: a.inboxSince,
+    timeZone: a.timeZone,
   })}`;
   const truncated: string[] = [];
   for (const [table, key] of Object.entries(EXPORTED) as [Table, string][]) {
