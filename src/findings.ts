@@ -2,6 +2,7 @@ import {
   MAX_FINDINGS,
   MAX_TOTAL_BYTES,
   redactField,
+  type SharedFinding,
   sharedFindingSchema,
 } from "@open-cr-agent/cloud-contract";
 import type { Severity, Verification } from "./shared/index.js";
@@ -25,6 +26,9 @@ export type FindingRow = {
   body: string;
   suggestion: string | null;
   code: string | null;
+  fixStartLine: number | null;
+  fixEndLine: number | null;
+  fixReplacement: string | null;
   redacted: boolean;
   truncated: boolean;
 };
@@ -57,6 +61,7 @@ export function parseFindings(list: unknown): {
       rowTruncated ||= r.truncated;
       return r.text;
     };
+    const fix = fixOf(f.fix);
     const row: FindingRow = {
       fingerprint: f.fingerprint,
       reviewer: f.reviewer,
@@ -70,13 +75,20 @@ export function parseFindings(list: unknown): {
       body: text(f.body),
       suggestion: f.suggestion === null ? null : text(f.suggestion),
       code: f.code === null ? null : text(f.code),
+      fixStartLine: fix?.startLine ?? null,
+      fixEndLine: fix?.endLine ?? null,
+      fixReplacement: fix?.replacement ?? null,
       redacted: false,
       truncated: false,
     };
     row.redacted = rowRedacted || f.redacted === true;
     row.truncated = rowTruncated || f.truncated === true;
     const size =
-      row.title.length + row.body.length + (row.suggestion?.length ?? 0) + (row.code?.length ?? 0);
+      row.title.length +
+      row.body.length +
+      (row.suggestion?.length ?? 0) +
+      (row.code?.length ?? 0) +
+      (row.fixReplacement?.length ?? 0);
     if (total + size > MAX_TOTAL_BYTES) {
       truncated = true;
       break;
@@ -85,4 +97,15 @@ export function parseFindings(list: unknown): {
     rows.push(row);
   }
   return { rows, truncated, dropped };
+}
+
+/**
+ * A fix is code that a commit writes as it is: kept only when the server's
+ * own pass leaves it whole, since a redacted or cut replacement would break
+ * the file it is applied to.
+ */
+function fixOf(fix: SharedFinding["fix"]) {
+  if (!fix) return undefined;
+  const r = redactField(fix.replacement);
+  return r.redacted || r.truncated ? undefined : fix;
 }

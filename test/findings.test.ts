@@ -60,6 +60,17 @@ describe("finding bounds", () => {
     expect(row).toMatchObject({ redacted: true, truncated: true });
   });
 
+  it("keeps a fix only while the server's pass leaves its replacement whole", () => {
+    const fix = { startLine: 3, endLine: 4, replacement: "const limit = 10;" };
+    const [kept] = parseFindings([finding({ fix })]).rows;
+    expect(kept).toMatchObject({ fixStartLine: 3, fixEndLine: 4, fixReplacement: fix.replacement });
+    const secret = { ...fix, replacement: "const token = 'Bearer abcd1234efgh5678';" };
+    const [dropped] = parseFindings([finding({ fix: secret })]).rows;
+    expect(dropped).toMatchObject({ fixStartLine: null, fixEndLine: null, fixReplacement: null });
+    const [none] = parseFindings([finding({})]).rows;
+    expect(none?.fixReplacement).toBeNull();
+  });
+
   it("cuts a category at 64 characters", () => {
     const [row] = parseFindings([finding({ category: "c".repeat(100) })]).rows;
     expect(row?.category).toBe("c".repeat(64));
