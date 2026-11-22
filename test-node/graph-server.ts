@@ -1,7 +1,6 @@
 import { join, resolve } from "node:path";
 import { eq } from "drizzle-orm";
 import { expect, vi } from "vitest";
-import type { AutoReviewService } from "../src/auto-review/routes.js";
 import { hmacHex } from "../src/crypto.js";
 import { githubIdentity, upsertAccount } from "../src/db/accounts.js";
 import * as schema from "../src/db/schema.js";
@@ -9,6 +8,7 @@ import { scoped } from "../src/db/scoped.js";
 import { engineGraphParser } from "../src/node/engine-graph.js";
 import { bindingsFrom } from "../src/node/env.js";
 import { openHost } from "../src/node/host.js";
+import type { AutoReviewOptions } from "../src/node/review-worker.js";
 import { github } from "../src/platforms/github.js";
 import { gitlab } from "../src/platforms/gitlab.js";
 import { saveToken } from "../src/platforms/links.js";
@@ -39,7 +39,7 @@ export async function graphServer(
   file: string,
   policy: GraphPolicy,
   builder = fakeBuilder(),
-  autoReview?: AutoReviewService,
+  autoReview?: AutoReviewOptions,
 ) {
   const host = await openHost({
     databaseUrl: `file:${join(dir, file)}`,

@@ -6,13 +6,13 @@ import { drizzle } from "drizzle-orm/libsql";
 import { migrate } from "drizzle-orm/libsql/migrator";
 import { Hono } from "hono";
 import { createApp } from "../app.js";
-import type { AutoReviewService } from "../auto-review/routes.js";
 import type { Db } from "../db/client.js";
 import type { AppBindings } from "../types.js";
 import { clientAddress } from "./client-address.js";
 import { type GraphOptions, startGraphs } from "./graph-worker.js";
 import { type RateLimitStore, rateLimits } from "./limits.js";
 import { openPostgres } from "./postgres.js";
+import { type AutoReviewOptions, startAutoReview } from "./review-worker.js";
 
 export type HostOptions = {
   /**
@@ -51,8 +51,8 @@ export type HostOptions = {
   graphs?: GraphOptions;
   /** The GitHub App's webhook secret; without it the App's webhooks are refused. */
   githubWebhookSecret?: string;
-  /** Pull requests reviewed by this server (ADR-0046); none without it. */
-  autoReview?: AutoReviewService;
+  /** Pull requests reviewed by this server (ADR-0046); none without it. Needs publicUrl. */
+  autoReview?: AutoReviewOptions;
 };
 
 /**
@@ -71,12 +71,16 @@ export async function openHost(options: HostOptions) {
       : options.bindings;
   const addresses = new WeakMap<Request, string | undefined>();
   const graphs = options.graphs && startGraphs(options.graphs, shared, bindings, options.publicUrl);
+  const reviews =
+    options.autoReview && options.publicUrl
+      ? startAutoReview(options.autoReview, shared, bindings, options.publicUrl)
+      : undefined;
   const api = createApp({
     openDb: () => shared,
     clientAddress: (c) => addresses.get(c.req.raw),
     ...(graphs ? { graphs: graphs.service } : {}),
     ...(options.githubWebhookSecret ? { githubWebhookSecret: options.githubWebhookSecret } : {}),
-    ...(options.autoReview ? { autoReview: options.autoReview } : {}),
+    ...(reviews ? { autoReview: reviews.service } : {}),
   });
 
   const origin = options.publicUrl ? new URL(options.publicUrl).origin : undefined;
@@ -115,8 +119,11 @@ export async function openHost(options: HostOptions) {
     },
     /** The graph build worker, when graphs are on. */
     graphWorker: graphs?.worker,
+    /** The review worker, when auto review is on. */
+    reviewWorker: reviews,
     close: () => {
       graphs?.worker.stop();
+      reviews?.stop();
       close();
     },
   };

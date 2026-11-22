@@ -4,7 +4,13 @@ import { pruneGraphBuilds } from "../db/graphs.js";
 import { enforceRetention } from "../db/retention.js";
 import { errorName, logError } from "../log.js";
 import { engineGraphBuilder, engineGraphParser } from "./engine-graph.js";
-import { bindingsFrom, graphSettingsFrom, migrateMode, trustedProxyHops } from "./env.js";
+import {
+  autoReviewSettingsFrom,
+  bindingsFrom,
+  graphSettingsFrom,
+  migrateMode,
+  trustedProxyHops,
+} from "./env.js";
 import { openHost } from "./host.js";
 import { rateLimitStore } from "./limits.js";
 
@@ -15,6 +21,10 @@ import { rateLimitStore } from "./limits.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const graphs = graphSettingsFrom(process.env);
+const autoReview = autoReviewSettingsFrom(process.env);
+if (autoReview && !process.env.PUBLIC_URL) {
+  throw new Error("auto review needs PUBLIC_URL, the address its reviews sign in to");
+}
 
 const migrate = migrateMode(process.env.MIGRATE);
 const host = await openHost({
@@ -32,7 +42,10 @@ const host = await openHost({
   // A run that only migrates builds nothing.
   ...(migrate === "only"
     ? {}
-    : { graphs: { ...graphs, builder: engineGraphBuilder, parse: engineGraphParser } }),
+    : {
+        graphs: { ...graphs, builder: engineGraphBuilder, parse: engineGraphParser },
+        ...(autoReview ? { autoReview } : {}),
+      }),
 });
 
 if (migrate === "only") {
