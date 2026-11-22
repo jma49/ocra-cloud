@@ -1,7 +1,7 @@
 import { lineCounts } from "./changes.js";
 import { gitlabHeaders, mergeRequestUrl } from "./gitlab-changes.js";
 import { platformCall, platformSend } from "./http.js";
-import { CHECK_NAME, type PullMergeStatus } from "./merge-status.js";
+import { CHECK_NAME, type PostedStatus, type PullMergeStatus } from "./merge-status.js";
 
 // GitLab lists no line counts on a merge request: its diffs are read, at
 // most MAX_PAGES pages of them. A commit status has no neutral state and
@@ -19,6 +19,14 @@ type MergeRequest = {
   changes_count: string | null;
 };
 type Diff = { diff: string };
+
+/** A commit status has no neutral: a failing warning shows as success, with its title. */
+const STATE = {
+  success: "success",
+  neutral: "success",
+  failure: "failed",
+  pending: "pending",
+} as const satisfies Record<PostedStatus["conclusion"], string>;
 
 export function gitlabMergeStatus(origin: string): PullMergeStatus {
   return {
@@ -61,7 +69,7 @@ export function gitlabMergeStatus(origin: string): PullMergeStatus {
           method: "POST",
           headers: { ...gitlabHeaders(token), "content-type": "application/json" },
           body: JSON.stringify({
-            state: status.conclusion === "failure" ? "failed" : "success",
+            state: STATE[status.conclusion],
             name: CHECK_NAME,
             description: status.title.slice(0, MAX_DESCRIPTION),
             target_url: status.detailsUrl,

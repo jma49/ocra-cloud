@@ -81,7 +81,7 @@ export async function evaluatePull(
   const facts = await platform.mergeStatus.facts(token, repo.fullName, number);
   if (!facts) return { report: null, reason: "unreachable" };
   const review = await headReview(data, platform, repo, number, facts.head);
-  return { report: evaluateChecks(checks, facts, review) };
+  return { report: evaluateChecks(checks, facts, review, repo.holdUnreviewed) };
 }
 
 /** What the report's result is known by: the same result is posted once. */
@@ -93,14 +93,17 @@ export function statusOf(report: MergeChecksReportView, detailsUrl: string): Pos
   const failed = report.results.filter((r) => r.outcome === "failed");
   const blocking = failed.filter((r) => r.mode === "block").length;
   const waiting = report.results.filter((r) => r.outcome === "not_evaluated").length;
+  const notYet = `${waiting} check${waiting === 1 ? "" : "s"} not evaluated yet`;
   const title =
     blocking > 0
       ? `${blocking} blocking check${blocking === 1 ? "" : "s"} failed`
-      : failed.length > 0
-        ? `Passed with ${failed.length} warning${failed.length === 1 ? "" : "s"}`
-        : waiting > 0
-          ? `${waiting} check${waiting === 1 ? "" : "s"} not evaluated yet`
-          : "All checks passed";
+      : report.conclusion === "pending"
+        ? `Waiting for the review: ${notYet}`
+        : failed.length > 0
+          ? `Passed with ${failed.length} warning${failed.length === 1 ? "" : "s"}`
+          : waiting > 0
+            ? notYet
+            : "All checks passed";
   const summary = report.results
     .map((r) => {
       // A check not evaluated says so in its detail.

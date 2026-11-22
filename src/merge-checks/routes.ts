@@ -6,7 +6,12 @@ import { accessToken } from "../platforms/links.js";
 import { platformsOf } from "../platforms/registry.js";
 import { perMinute } from "../rate.js";
 import { requireSession } from "../session.js";
-import { CODE_PLATFORMS, type MergeCheckView, type PullChecksView } from "../shared/index.js";
+import {
+  CODE_PLATFORMS,
+  type MergeCheckView,
+  type PullChecksView,
+  type RepoChecksView,
+} from "../shared/index.js";
 import type { AppEnv } from "../types.js";
 import { checksOf, evaluatePull, MAX_CHECKS } from "./run.js";
 import { addCheckBody, changeCheckBody, settingsOf } from "./settings.js";
@@ -37,7 +42,20 @@ const settingsRefused = (c: Context<AppEnv>) =>
 mergeChecksRoute.get("/repos/:id/checks", async (c) => {
   const repo = await c.var.data.get("reviewRepos", c.req.param("id"));
   if (!repo) return apiError(c, "not_found");
-  return c.json({ checks: (await checksOf(c.var.data, repo.id)).map(checkView) });
+  return c.json({
+    checks: (await checksOf(c.var.data, repo.id)).map(checkView),
+    holdUnreviewed: repo.holdUnreviewed,
+  } satisfies RepoChecksView);
+});
+
+const repoChecksBody = z.object({ holdUnreviewed: z.boolean() });
+
+mergeChecksRoute.patch("/repos/:id", perMinute("settings"), jsonBody(repoChecksBody), async (c) => {
+  const repo = await c.var.data.get("reviewRepos", c.req.param("id"));
+  if (!repo) return apiError(c, "not_found");
+  const { holdUnreviewed } = c.req.valid("json");
+  await c.var.data.update("reviewRepos", repo.id, { holdUnreviewed });
+  return c.json({ holdUnreviewed });
 });
 
 mergeChecksRoute.post(
