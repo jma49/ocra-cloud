@@ -1,5 +1,7 @@
+import { useState } from "react";
 import type { ReviewWalkthroughView } from "../../../src/shared/index.js";
 import { splitPath } from "../pull/diff.js";
+import { Diagram } from "../walkthrough/diagram.js";
 
 // The change's walkthrough above a review's findings: what it does, its files
 // grouped by purpose, and the diagram's text. All of it is plain text: the
@@ -43,13 +45,23 @@ export function Walkthrough(props: { w: ReviewWalkthroughView }) {
             ))}
           </ul>
         )}
-        {w.diagram && (
-          <details className="walkthrough-diagram">
-            <summary className="small muted">Diagram (Mermaid)</summary>
-            <pre className="mono small">{w.diagram}</pre>
-          </details>
-        )}
+        {w.diagram && <DiagramFold source={w.diagram} />}
       </div>
+    </details>
+  );
+}
+
+// The drawing loads Mermaid, so it starts only once the fold is opened.
+function DiagramFold(props: { source: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <details className="walkthrough-diagram" onToggle={(e) => setOpen(e.currentTarget.open)}>
+      <summary className="small muted">Diagram</summary>
+      {open && <Diagram source={props.source} />}
+      <details className="walkthrough-source">
+        <summary className="small subtle">Mermaid text</summary>
+        <pre className="mono small">{props.source}</pre>
+      </details>
     </details>
   );
 }

@@ -966,7 +966,14 @@ td.finding-cell {
 .walkthrough-diagram summary {
   cursor: pointer;
 }
-.walkthrough-diagram pre {
+.walkthrough-drawing {
+  margin-top: 8px;
+  overflow-x: auto;
+}
+.walkthrough-source {
+  margin-top: 8px;
+}
+.walkthrough-source pre {
   margin: 8px 0 0;
   padding: 12px;
   overflow-x: auto;
