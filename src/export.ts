@@ -44,6 +44,7 @@ export const EXPORTED = {
   closedPulls: "closedPulls",
   replyJobs: "replyJobs",
   reviewWalkthroughs: "walkthroughs",
+  generateJobs: "generateJobs",
   automationRules: "automationRules",
   automationRuns: "automationRuns",
   mergeChecks: "mergeChecks",

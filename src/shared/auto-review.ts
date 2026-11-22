@@ -1,3 +1,4 @@
+import type { GenerateKind } from "@open-cr-agent/cloud-contract";
 import type { CodePlatformKind } from "./domain.js";
 
 // Pull requests reviewed by the server itself when they open or gain
@@ -18,4 +19,15 @@ export type AutoReviewRepoView = {
     error: string | null;
     finishedAt: string | null;
   } | null;
+};
+
+export type { GenerateKind };
+
+/** One request to generate, on the head it was asked for. */
+export type GenerateJobView = {
+  kind: GenerateKind;
+  head: string;
+  state: ReviewJobState;
+  error: string | null;
+  finishedAt: string | null;
 };

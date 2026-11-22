@@ -1,4 +1,5 @@
 import {
+  GENERATE_KINDS,
   REVIEW_SOURCES,
   RISK_TIERS,
   RUNTIMES,
@@ -668,6 +669,35 @@ export const replyJobs = sqliteTable(
   ],
 );
 
+// Tests or docstrings generated on an enrolled repository's pull request and
+// committed to its branch by the bot: one per head and kind, so a second
+// click on the same commit queues nothing.
+export const generateJobs = sqliteTable(
+  "generate_jobs",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    reviewRepoId: text("review_repo_id")
+      .notNull()
+      .references(() => reviewRepos.id, { onDelete: "cascade" }),
+    number: integer("number").notNull(),
+    head: text("head").notNull(),
+    kind: text("kind", { enum: GENERATE_KINDS }).notNull(),
+    state: text("state", { enum: REVIEW_JOB_STATES }).notNull().default("queued"),
+    attempts: integer("attempts").notNull().default(0),
+    notBefore: integer("not_before", { mode: "timestamp_ms" }),
+    leaseUntil: integer("lease_until", { mode: "timestamp_ms" }),
+    error: text("error"),
+    finishedAt: integer("finished_at", { mode: "timestamp_ms" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("generate_jobs_pull_head_kind").on(t.reviewRepoId, t.number, t.head, t.kind),
+    index("generate_jobs_state").on(t.state, t.createdAt),
+    index("generate_jobs_account_pull").on(t.accountId, t.reviewRepoId, t.number),
+  ],
+);
+
 // A rule the account set for its pull requests (src/automations/).
 export const automationRules = sqliteTable(
   "automation_rules",
@@ -808,6 +838,7 @@ export const accountTables = {
   closedPulls,
   replyJobs,
   reviewWalkthroughs,
+  generateJobs,
   automationRules,
   automationRuns,
   mergeChecks,

@@ -35,6 +35,7 @@ const changes = {
   closedPulls: { merged: false },
   replyJobs: { state: "done" as const },
   reviewWalkthroughs: { overview: "changed" },
+  generateJobs: { state: "done" as const },
   automationRules: { name: "renamed" },
   automationRuns: { outcome: "failed" as const },
   mergeChecks: { mode: "block" as const },
@@ -119,7 +120,14 @@ describe.each(withIds)("%s", (name) => {
         .values({ id: "review-of-a", accountId: A, runId: "r", repoHash: "h", source: "local" });
     }
     if (
-      ["reviewJobs", "replyJobs", "closedPulls", "mergeChecks", "mergeCheckRuns"].includes(name)
+      [
+        "reviewJobs",
+        "replyJobs",
+        "closedPulls",
+        "mergeChecks",
+        "mergeCheckRuns",
+        "generateJobs",
+      ].includes(name)
     ) {
       await db
         .insert(schema.reviewRepos)

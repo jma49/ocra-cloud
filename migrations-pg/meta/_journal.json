@@ -85,6 +85,13 @@
       "when": 1795354567717,
       "tag": "0011_review_chat_messages",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1795356291185,
+      "tag": "0012_generate_jobs",
+      "breakpoints": true
     }
   ]
 }
