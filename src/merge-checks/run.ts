@@ -4,6 +4,7 @@ import type { PostedStatus } from "../platforms/merge-status.js";
 import { type CodePlatform, repoIdentity } from "../platforms/platform.js";
 import type { MergeChecksReportView } from "../shared/index.js";
 import { type CheckConfig, evaluateChecks, type HeadReview } from "./evaluate.js";
+import { withEngineIds } from "./instruction.js";
 
 // A pull request's checks: its enrolled repository's configuration, the
 // pull request as the token reads it, and the stored review of its head.
@@ -47,15 +48,18 @@ async function headReview(
     prHeadSha: head,
   });
   if (!review) return null;
-  const linkedTasks = review.linkedTasks ?? undefined;
+  const uploaded = {
+    linkedTasks: review.linkedTasks ?? undefined,
+    mergeChecks: review.mergeChecks ?? undefined,
+  };
   const shared = await data.count("findings", { reviewId: review.id });
-  if (shared === 0) return { unresolvedCritical: review.critical, linkedTasks };
+  if (shared === 0) return { unresolvedCritical: review.critical, ...uploaded };
   const open = await data.count("findings", {
     reviewId: review.id,
     severity: "critical",
     status: "open",
   });
-  return { unresolvedCritical: open, linkedTasks };
+  return { unresolvedCritical: open, ...uploaded };
 }
 
 export type PullEvaluation =
@@ -70,7 +74,9 @@ export async function evaluatePull(
   repo: Row<"reviewRepos">,
   number: number,
 ): Promise<PullEvaluation> {
-  const checks: CheckConfig[] = (await checksOf(data, repo.id)).filter((c) => c.mode !== "off");
+  const checks: CheckConfig[] = await withEngineIds(
+    (await checksOf(data, repo.id)).filter((c) => c.mode !== "off"),
+  );
   if (checks.length === 0) return { report: null, reason: "no_checks" };
   const facts = await platform.mergeStatus.facts(token, repo.fullName, number);
   if (!facts) return { report: null, reason: "unreachable" };

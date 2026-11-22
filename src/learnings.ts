@@ -1,5 +1,6 @@
 import {
   LEARNING_ID,
+  LEARNING_PROPOSAL_BRANCH,
   LEARNINGS_DIR,
   learningFrontmatterSchema,
   learningIdOf,
@@ -8,11 +9,12 @@ import {
 } from "@open-cr-agent/cloud-contract";
 import { type Context, Hono } from "hono";
 import { z } from "zod";
+import { accountSalt } from "./db/accounts.js";
 import { apiError, jsonBody } from "./http.js";
 import { learningFile, parseLearning } from "./learning-file.js";
 import { COMMIT_ID } from "./platforms/contents.js";
-import { type LearningChange, type LearningRead, PROPOSAL_BRANCH } from "./platforms/learnings.js";
-import type { CodePlatform } from "./platforms/platform.js";
+import type { LearningChange, LearningRead } from "./platforms/learnings.js";
+import { type CodePlatform, repoHashOf } from "./platforms/platform.js";
 import { reach, repoName } from "./pull-page.js";
 import { perMinute } from "./rate.js";
 import { requireSession } from "./session.js";
@@ -23,8 +25,10 @@ import {
   type LearningProposalsView,
   type LearningProposalView,
   type LearningsView,
+  type LearningUsageView,
   type LearningView,
 } from "./shared/index.js";
+import { DAY } from "./time.js";
 import type { AppEnv } from "./types.js";
 
 // A repository's learnings, managed from the console as the signed-in user:
@@ -107,6 +111,32 @@ function viewsOf(reads: LearningRead[]) {
   return { learnings, invalid };
 }
 
+/** How far back a learning's use is counted. */
+const USAGE_DAYS = 90;
+
+/**
+ * Each learning's use by the repository's uploaded reviews, which name it
+ * by the hash the CLI makes of the repository for this account.
+ */
+async function usageOf(
+  c: Context<AppEnv>,
+  platform: CodePlatform,
+  fullName: string,
+  ids: string[],
+): Promise<Record<string, LearningUsageView>> {
+  const salt = await accountSalt(c.var.db, c.var.session.account.id);
+  const repoHash = await repoHashOf(salt, platform, fullName);
+  const since = new Date(Date.now() - USAGE_DAYS * DAY);
+  const used = await c.var.data.learningUsage(repoHash, ids, since);
+  const byId = new Map(used.map((u) => [u.id, u]));
+  return Object.fromEntries(
+    ids.map((id) => {
+      const u = byId.get(id);
+      return [id, { reviews: u?.reviews ?? 0, lastUsedAt: u?.lastUsedAt.toISOString() ?? null }];
+    }),
+  );
+}
+
 learningsRoute.get("/", requireSession(["web"]), perMinute("platform"), async (c) => {
   const query = listQuery.safeParse(c.req.query());
   if (!query.success) return apiError(c, "not_found");
@@ -135,6 +165,12 @@ learningsRoute.get("/", requireSession(["web"]), perMinute("platform"), async (c
   );
   if (!reads) return apiError(c, "upstream_unreachable");
   const { learnings, invalid } = viewsOf(reads);
+  const usage = await usageOf(
+    c,
+    platform,
+    head.fullName,
+    learnings.map((l) => l.id),
+  );
   const misnamed =
     after === undefined
       ? markdown
@@ -153,6 +189,8 @@ learningsRoute.get("/", requireSession(["web"]), perMinute("platform"), async (c
     learnings,
     invalid: [...misnamed, ...invalid],
     total: named.length,
+    usage,
+    usageDays: USAGE_DAYS,
     next: rest.length > page.length ? (page.at(-1)?.id ?? null) : null,
   } satisfies LearningsView);
 });
@@ -189,7 +227,7 @@ function branchName(now = new Date()): string {
   const tail = [...crypto.getRandomValues(new Uint8Array(3))]
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
-  return `${PROPOSAL_BRANCH}${stamp}-${tail}`;
+  return `${LEARNING_PROPOSAL_BRANCH}${stamp}-${tail}`;
 }
 
 async function sendChange(

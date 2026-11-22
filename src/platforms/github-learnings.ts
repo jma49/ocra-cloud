@@ -1,4 +1,8 @@
-import { LEARNINGS_DIR, MAX_LEARNING_BYTES } from "@open-cr-agent/cloud-contract";
+import {
+  LEARNING_PROPOSAL_BRANCH,
+  LEARNINGS_DIR,
+  MAX_LEARNING_BYTES,
+} from "@open-cr-agent/cloud-contract";
 import { toBase64 } from "./fix.js";
 import { githubHeaders, githubRepoPath } from "./github-changes.js";
 import { platformCall, platformSend } from "./http.js";
@@ -7,7 +11,6 @@ import {
   type LearningChangeResult,
   type LearningRead,
   MAX_PROPOSALS,
-  PROPOSAL_BRANCH,
   type RepoLearnings,
 } from "./learnings.js";
 
@@ -129,7 +132,9 @@ export function githubLearnings(post: Post): RepoLearnings {
       if (!pulls) return null;
       // Only the repository's own branches: a fork may name a branch anything.
       const own = pulls.filter(
-        (p) => p.head.ref.startsWith(PROPOSAL_BRANCH) && p.head.repo?.full_name === repo.fullName,
+        (p) =>
+          p.head.ref.startsWith(LEARNING_PROPOSAL_BRANCH) &&
+          p.head.repo?.full_name === repo.fullName,
       );
       return {
         more: own.length > MAX_PROPOSALS,

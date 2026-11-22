@@ -1,11 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { accountSalt } from "../src/db/accounts.js";
+import { accounts } from "../src/db/schema.js";
+import { scoped } from "../src/db/scoped.js";
 import { parseLearning } from "../src/learning-file.js";
+import { repoHashOf } from "../src/platforms/platform.js";
 import type {
   LearningChangeView,
   LearningProposalsView,
   LearningsView,
 } from "../src/shared/index.js";
-import { resetDb } from "./helpers.js";
+import { db, resetDb } from "./helpers.js";
 import {
   BLOB,
   githubBlobs,
@@ -97,6 +101,41 @@ describe("listing a repository's learnings", () => {
       ".ocra/learnings/Bad Name.md",
       ".ocra/learnings/broken.md",
     ]);
+  });
+
+  it("says how many of the repository's reviews were given each learning lately", async () => {
+    platform(
+      { ...githubHead, [`GET ${DIR}`]: () => dir("close-pools.md", "retry.md") },
+      githubBlobs({
+        [POOLS]: { oid: BLOB, text: learningText() },
+        ".ocra/learnings/retry.md": { oid: OTHER, text: learningText() },
+      }),
+    );
+    const a = await signInWithGithub();
+    const [account] = await db.select().from(accounts);
+    const id = account?.id ?? "";
+    const repoHash = await repoHashOf(
+      await accountSalt(db, id),
+      { url: "https://github.com" },
+      "Octo/API",
+    );
+    const at = new Date(Date.now() - 86_400_000);
+    const reviews: { repoHash: string; learnings: string[]; createdAt?: Date }[] = [
+      { repoHash, learnings: ["close-pools"], createdAt: at },
+      { repoHash, learnings: ["close-pools"], createdAt: new Date(at.getTime() - 1000) },
+      { repoHash: "b".repeat(64), learnings: ["retry"] },
+    ];
+    for (const [n, over] of reviews.entries()) {
+      await scoped(db, id).insert("reviews", { runId: `r${n}`, source: "github", ...over });
+    }
+    const view = (await (
+      await a.send("/api/learnings?platform=github&repo=octo/api")
+    ).json()) as LearningsView;
+    expect(view.usageDays).toBe(90);
+    expect(view.usage).toEqual({
+      "close-pools": { reviews: 2, lastUsedAt: at.toISOString() },
+      retry: { reviews: 0, lastUsedAt: null },
+    });
   });
 
   it("answers an empty list for a repository without the directory", async () => {

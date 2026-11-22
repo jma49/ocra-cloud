@@ -33,6 +33,7 @@ import {
   MERGE_CHECK_MODES,
   type MergeCheckResultView,
   type MergeChecksConclusion,
+  type MergeCheckVerdictView,
   type ModelChains,
   NOTIFY_KINDS,
   NOTIFY_WHEN,
@@ -236,6 +237,10 @@ export const reviews = sqliteTable(
     prHeadSha: text("pr_head_sha"),
     // The pull request's linked tasks as uploaded; null when the review did not look them up.
     linkedTasks: text("linked_tasks", { mode: "json" }).$type<LinkedTaskView[]>(),
+    // The ids of the learnings the review was given; null when the upload did not say.
+    learnings: text("learnings", { mode: "json" }).$type<(string | null)[]>(),
+    // Its plain-language checks' outcomes; null when it was given none.
+    mergeChecks: text("merge_checks", { mode: "json" }).$type<MergeCheckVerdictView[]>(),
     // ADR-0028, 1: numbers per reviewer and the run's outcomes; never text.
     byReviewer: text("by_reviewer", { mode: "json" }).$type<Record<string, ReviewerCounts>>(),
     verification: text("verification", { mode: "json" }).$type<Partial<Record<string, number>>>(),

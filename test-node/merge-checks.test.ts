@@ -125,7 +125,9 @@ describe("pre-merge checks on an enrolled repository", () => {
     });
     const summary = (sent[0]?.body.output as { summary?: string } | undefined)?.summary;
     expect(summary).toContain("**Critical findings** (blocking): not evaluated yet: ocra has not");
-    expect(summary).toContain("**Instruction** (blocking): not evaluated yet: plain-language");
+    expect(summary).toContain(
+      "**Instruction** (blocking): not evaluated yet: no ocra review of this head judged",
+    );
     expect(summary).toContain("**Title** (warning): failed, the title does not start with");
 
     // The same head and result again: nothing more is posted.
