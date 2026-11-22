@@ -45,9 +45,13 @@ beforeAll(async () => {
 afterAll(() => rm(dir, { recursive: true, force: true }));
 afterEach(() => vi.restoreAllMocks());
 
-async function serverWith(policy: "keep" | "opt-in" | "off", builder = fakeBuilder()) {
+async function serverWith(
+  policy: "keep" | "opt-in" | "off",
+  builder = fakeBuilder(),
+  file = `graphs-${n++}.db`,
+) {
   const host = await openHost({
-    databaseUrl: `file:${join(dir, `graphs-${n++}.db`)}`,
+    databaseUrl: `file:${join(dir, file)}`,
     bindings,
     migrations: resolve("migrations"),
     publicUrl: ORIGIN,
@@ -414,6 +418,35 @@ describe("the deployment's policy", () => {
       expect(s.host.graphWorker).toBeUndefined();
     } finally {
       s.host.close();
+    }
+  });
+});
+
+describe("a server starting", () => {
+  it("builds what was queued before it started, without a push", async () => {
+    repoFake({ [C1]: { "a.ts": "a" } });
+    const before = await serverWith("off", fakeBuilder(), "restart.db");
+    const { account, data } = await before.signIn(1);
+    const id = await data.graphs.addRepo(
+      {
+        platform: "github",
+        host: "github.com",
+        platformRepoId: "11",
+        fullName: "Octo/API",
+        branch: "main",
+      },
+      10,
+    );
+    await data.graphs.queueBuild(id ?? "", C1);
+    before.host.close();
+    const after = await serverWith("keep", fakeBuilder(), "restart.db");
+    try {
+      await vi.waitFor(async () => {
+        expect(await after.builds(account.id)).toMatchObject([{ commit: C1, state: "done" }]);
+      });
+    } finally {
+      await after.settled();
+      after.host.close();
     }
   });
 });

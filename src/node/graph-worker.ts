@@ -74,6 +74,8 @@ function startGraphWorker(options: Options) {
     while (!stopped && running < options.workers) void loop();
   };
   const timer = setInterval(kick, options.pollMs ?? 30_000);
+  // Builds queued before a restart, or by another process, start now.
+  queueMicrotask(kick);
   timer.unref();
   return {
     kick,
