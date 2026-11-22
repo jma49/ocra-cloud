@@ -1,4 +1,5 @@
 import { type FormEvent, type ReactNode, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { CloseGlyph } from "./glyphs.js";
 
 /**
@@ -33,7 +34,8 @@ export function Drawer(props: {
       {props.foot && <div className="drawer-foot">{props.foot}</div>}
     </>
   );
-  return (
+  // On the body, so a positioned ancestor's stacking context cannot put it under the top bar.
+  return createPortal(
     <>
       <div className="scrim" onClick={onClose} aria-hidden="true" />
       <aside className="drawer" role="dialog" aria-modal="true" aria-label={props.title}>
@@ -45,6 +47,7 @@ export function Drawer(props: {
           inner
         )}
       </aside>
-    </>
+    </>,
+    document.body,
   );
 }
