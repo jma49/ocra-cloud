@@ -216,6 +216,26 @@ describe("asking about a review", () => {
     expect(view.sharing).toBe(false);
   });
 
+  it("lists the models of the account's tiers, the standard one first, once each", async () => {
+    const user = await signIn(1, "octo");
+    await scoped(db, user.account.id).insert("preferences", {
+      models: {
+        top: ["ocra-openrouter/vendor/model-b", "ocra-openrouter/vendor/model-a"],
+        standard: ["ocra-openrouter/vendor/model-a"],
+        light: ["ocra-openrouter/vendor/model-c"],
+      },
+    });
+    const id = await reviewOf(user.account.id);
+    const res = await call(`/api/reviews/${id}/chat`, { auth: user.auth });
+    const view = (await res.json()) as ReviewChatView;
+    expect(view.model).toBe("ocra-openrouter/vendor/model-a");
+    expect(view.models).toEqual([
+      "ocra-openrouter/vendor/model-a",
+      "ocra-openrouter/vendor/model-b",
+      "ocra-openrouter/vendor/model-c",
+    ]);
+  });
+
   it("refuses without a model or a key for it, and before calling anything", async () => {
     const none = await signIn(2, "none");
     const sent = model(() => openaiAnswer("x"));
