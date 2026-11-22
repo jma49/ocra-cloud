@@ -108,6 +108,16 @@ export const rows = {
     last4: "abcd",
   }),
   notifySends: (id: string) => ({ id, channelId: "channel", eventKey: `review:${id}` }),
+  notifyHeld: (id: string) => ({
+    id,
+    channelId: "channel",
+    eventKey: `comment:${id}`,
+    event: "pull_commented" as const,
+    platform: "github" as const,
+    repo: "octo/api",
+    number: 1,
+    line: "hubot commented on your pull request",
+  }),
   // The enrolled repository it belongs to is made in beforeEach (the foreign key needs one).
   closedPulls: (id: string) => ({
     id,

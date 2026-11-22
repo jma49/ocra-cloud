@@ -44,6 +44,7 @@ export const EXPORTED = {
   reviewJobs: "reviewJobs",
   notifyChannels: "notifyChannels",
   notifySends: "notifySends",
+  notifyHeld: "notifyHeld",
   closedPulls: "closedPulls",
   pullFlows: "pullFlows",
   pullReviews: "pullReviews",

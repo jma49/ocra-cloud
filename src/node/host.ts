@@ -11,6 +11,7 @@ import type { Db } from "../db/client.js";
 import { masterKeys } from "../keyring.js";
 import { runDigests } from "../notify/digest.js";
 import type { Mailer } from "../notify/email.js";
+import { runHeld } from "../notify/held.js";
 import { runReminders } from "../notify/reminders.js";
 import { runReports } from "../notify/report.js";
 import { platformsOf } from "../platforms/registry.js";
@@ -138,8 +139,8 @@ export async function openHost(options: HostOptions) {
         : site.fetch(request);
     },
     /**
-     * Sends the daily digests, weekly reports and review reminders not sent yet; needs
-     * publicUrl, which their links point to.
+     * Sends the daily digests, weekly reports, review reminders and quiet
+     * hours' held notices not sent yet; needs publicUrl, which their links point to.
      */
     digests: async () => {
       if (!origin) return;
@@ -153,6 +154,7 @@ export async function openHost(options: HostOptions) {
         runDigests(shared, out),
         runReports(shared, out),
         runReminders(shared, out),
+        runHeld(shared, out),
       ]);
     },
     /** Tries again the automations' writes the platform did not answer; only with a bot. */

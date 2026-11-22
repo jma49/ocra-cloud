@@ -100,6 +100,15 @@ describe("retention", () => {
     expect((await d.list("notifySends")).map((r) => r.id)).toEqual(["new"]);
   });
 
+  it("drops a notice held in quiet hours after two days", async () => {
+    const { account } = await signIn(1, "octo");
+    const d = scoped(db, account.id);
+    await d.insert("notifyHeld", { ...rows.notifyHeld("old"), createdAt: ago(2.1) });
+    await d.insert("notifyHeld", { ...rows.notifyHeld("new"), createdAt: ago(1.9) });
+    await enforceRetention(db, now);
+    expect((await d.list("notifyHeld")).map((r) => r.id)).toEqual(["new"]);
+  });
+
   it("deletes a merge-when-ready intent a month after it ended, an armed one after 90 days", async () => {
     const { account } = await signIn(1, "octo");
     const d = scoped(db, account.id);

@@ -38,6 +38,7 @@ export const reviewRepos = pg(sqlite.reviewRepos);
 export const reviewJobs = pg(sqlite.reviewJobs);
 export const notifyChannels = pg(sqlite.notifyChannels);
 export const notifySends = pg(sqlite.notifySends);
+export const notifyHeld = pg(sqlite.notifyHeld);
 export const closedPulls = pg(sqlite.closedPulls);
 export const pullFlows = pg(sqlite.pullFlows);
 export const pullReviews = pg(sqlite.pullReviews);

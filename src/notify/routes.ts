@@ -216,7 +216,10 @@ notifyRoute.patch("/channels/:id", perMinute("settings"), jsonBody(changeBody), 
 });
 
 notifyRoute.delete("/channels/:id", async (c) => {
-  return c.json({ removed: await c.var.data.remove("notifyChannels", c.req.param("id")) });
+  const id = c.req.param("id");
+  const removed = await c.var.data.remove("notifyChannels", id);
+  if (removed) await c.var.data.removeWhere("notifyHeld", { channelId: id });
+  return c.json({ removed });
 });
 
 /** A sample message, with numbers marked as an example, so the user sees where it lands. */
