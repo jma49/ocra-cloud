@@ -1,0 +1,79 @@
+/* Learnings: a repository's list, its proposals and the edit form. */
+.learning {
+  border-bottom: 0.5px solid var(--hair2);
+}
+.learning:last-child {
+  border-bottom: 0;
+}
+.learning > summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  cursor: pointer;
+  list-style: none;
+}
+.learning > summary::-webkit-details-marker {
+  display: none;
+}
+.learning[open] > summary {
+  background: var(--fill);
+}
+.learning-text {
+  display: grid;
+  gap: 8px;
+  padding: 12px 20px 16px;
+}
+.learning-text pre {
+  margin: 0;
+  font-family: var(--font);
+  font-size: var(--text-base);
+  line-height: 20px;
+}
+.learning.removed,
+.learning.invalid {
+  padding: 10px 20px;
+}
+.proposal + .proposal {
+  border-top: 0.5px solid var(--hair);
+}
+.proposal .learning > summary {
+  padding-left: 36px;
+}
+.learning-form {
+  margin: 0 0 16px;
+}
+.card .learning-form {
+  margin: 0;
+  box-shadow: none;
+  border-radius: 0;
+}
+.learning-form .form-row {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 360px);
+}
+.learning-body {
+  display: grid;
+  gap: 6px;
+  padding: 14px 20px;
+  border-bottom: 0.5px solid var(--hair2);
+}
+.learning-body .label {
+  font-weight: 600;
+  font-size: var(--text-md);
+}
+.learning-body textarea {
+  height: auto;
+  padding: 8px 10px;
+  resize: vertical;
+}
+@media (max-width: 640px) {
+  .learning-form .form-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .learning > summary {
+    flex-wrap: wrap;
+  }
+  .rule-foot {
+    flex-wrap: wrap;
+  }
+}
