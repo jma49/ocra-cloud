@@ -135,7 +135,10 @@ describe("a review job's run", () => {
     cwd: string;
     env: Record<string, string>;
   };
-  const fakeExec = (cliCode: number, seen: { credentials?: unknown; config?: string }) => {
+  const fakeExec = (
+    cliCode: number,
+    seen: { credentials?: unknown; config?: string; ocra?: unknown },
+  ) => {
     const calls: Call[] = [];
     const exec: Exec = async (command, args, options) => {
       calls.push({ command, args, cwd: options.cwd, env: options.env });
@@ -147,6 +150,7 @@ describe("a review job's run", () => {
         await readFile(join(options.env.XDG_CONFIG_HOME ?? "", "ocra", "credentials.json"), "utf8"),
       );
       seen.config = await readFile(join(options.cwd, ".git", "config"), "utf8");
+      seen.ocra = JSON.parse(await readFile(args.at(-1) ?? "", "utf8"));
       return { code: cliCode };
     };
     return { exec, calls };
@@ -285,7 +289,13 @@ describe("a review job's run", () => {
 
   it("answers an @ocra comment with `ocra reply` on it, after the review", async () => {
     await scoped(s.host.db, accountId).replies.queue(repoId, 7, "502", true);
-    const { exec, calls } = fakeExec(0, {});
+    await scoped(s.host.db, accountId).mergeChecks.add(
+      repoId,
+      { kind: "instruction", mode: "block", settings: { text: "No new globals" } },
+      20,
+    );
+    const seen: { ocra?: unknown } = {};
+    const { exec, calls } = fakeExec(0, seen);
     const runner = { db: s.host.db, platforms, bots, publicUrl: ORIGIN, exec, cli: "/c.js" };
     expect(await runNextReply(runner)).toBe(true);
     expect(calls.at(-1)?.args).toEqual([
@@ -302,6 +312,8 @@ describe("a review job's run", () => {
       expect.stringMatching(/ocra\.json$/),
     ]);
     expect(calls.at(-1)?.env).toMatchObject({ GITHUB_TOKEN: "ghs_bot" });
+    // Plain-language checks are a review's, not an answer's.
+    expect(seen.ocra).toEqual({ github: { botLogin: "ocra-review[bot]" } });
     expect(await runNextReply(runner)).toBe(false);
     const [reply] = await scoped(s.host.db, accountId).list("replyJobs");
     expect(reply).toMatchObject({ state: "done", attempts: 1 });
