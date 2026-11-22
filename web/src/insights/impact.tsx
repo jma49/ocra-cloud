@@ -5,9 +5,10 @@ import { count, num } from "../format.js";
 import { LoadError, Loading } from "../ui.js";
 import { Bar, Figure, week } from "./flow.js";
 
-// What ocra's reviews changed in the enrolled repositories: how much it
+// What ocra's reviews changed in the repositories it reviewed: how much it
 // reviewed, what it found and what became of that, and whether reviewed
-// pull requests merged sooner.
+// pull requests merged sooner. Only enrolled repositories know what was
+// opened and merged, so the shares and merge times show for those alone.
 
 type Impact = InsightsImpactView;
 
@@ -42,7 +43,7 @@ export function ImpactSection(props: { days: number }) {
       <div className="card-head">
         <h3>
           What ocra changed{" "}
-          <span className="subtle">in enrolled repositories, {props.days} days</span>
+          <span className="subtle">in the repositories it reviewed, {props.days} days</span>
         </h3>
       </div>
       {error && !data ? (
@@ -55,8 +56,8 @@ export function ImpactSection(props: { days: number }) {
         </div>
       ) : data.total.pulls === 0 && data.total.reviews === 0 ? (
         <p className="card-pad subtle small m-0">
-          Nothing recorded in this period. This counts ocra's reviews of pull requests in
-          repositories enrolled for auto review, from the day each was enrolled.
+          Nothing recorded in this period. This counts ocra's reviews of pull requests, uploaded by
+          the CLI or made by auto review.
         </p>
       ) : (
         <ImpactBody data={data} />
@@ -84,11 +85,19 @@ function ImpactBody(props: { data: Impact }) {
   return (
     <>
       <div className="cycle-figures">
-        <Stat
-          label="Pull requests reviewed"
-          value={share(t.reviewedPulls, t.pulls)}
-          note={`${num(t.reviewedPulls)} of ${num(t.pulls)} opened · ${count(t.reviews, "review")}`}
-        />
+        {merge ? (
+          <Stat
+            label="Pull requests reviewed"
+            value={share(t.reviewedPulls, t.pulls)}
+            note={`${num(t.reviewedPulls)} of ${num(t.pulls)} opened · ${count(t.reviews, "review")}`}
+          />
+        ) : (
+          <Stat
+            label="Pull requests reviewed"
+            value={num(t.reviewedPulls)}
+            note={count(t.reviews, "review")}
+          />
+        )}
         <Stat
           label="Findings"
           value={num(findings)}
@@ -114,12 +123,14 @@ function ImpactBody(props: { data: Impact }) {
       )}
       <div className="flow-grid">
         <div>
-          <div className="stat-label">Opened and reviewed, by week</div>
-          <ul className="flow-rows">
+          <div className="stat-label">
+            {merge ? "Opened and reviewed, by week" : "Reviewed, by week"}
+          </div>
+          <ul className={merge ? "flow-rows" : "flow-rows sizes"}>
             {data.weeks.map((w) => (
               <li key={w.start}>
                 <span className="muted">{week(w.start)}</span>
-                <Bar n={w.pulls} of={most} tone="opened" label="opened" />
+                {merge && <Bar n={w.pulls} of={most} tone="opened" label="opened" />}
                 <Bar n={w.reviewedPulls} of={most} tone="merged" label="reviewed" />
               </li>
             ))}
@@ -160,8 +171,10 @@ function ImpactBody(props: { data: Impact }) {
               {data.repos.map((r) => (
                 <tr key={`${r.repo}:${r.enrolled}`}>
                   <td className="mono">{r.repo}</td>
-                  <td className="num">{num(r.pulls)}</td>
-                  <td className="num">{share(r.reviewedPulls, r.pulls)}</td>
+                  <td className="num">{r.enrolled ? num(r.pulls) : "–"}</td>
+                  <td className="num">
+                    {r.enrolled ? share(r.reviewedPulls, r.pulls) : num(r.reviewedPulls)}
+                  </td>
                   <td className="num">{num(found(r))}</td>
                   <td className="num hide-narrow">{num(r.fixedOnRereview)}</td>
                 </tr>

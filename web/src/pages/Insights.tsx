@@ -160,9 +160,9 @@ export function Insights(props: { runner: boolean; platforms: readonly CodePlatf
           <Breakdown title="By category (top 20)" rows={data.byCategory} none="No category" />
         </>
       )}
+      <ImpactSection days={days} />
       {props.runner && (
         <>
-          <ImpactSection days={days} />
           <FlowSection days={days} />
           <ReviewLoadSection days={days} />
         </>
