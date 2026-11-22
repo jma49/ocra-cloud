@@ -135,3 +135,18 @@ export function stackPlaces(pulls: readonly StackBranches[]): (PullStackPlace | 
   }
   return pulls.map((p) => places.get(key(p)));
 }
+
+/** The pull requests from the bottom of the stack up to and including `number`. */
+export function chainTo(pulls: StackedPull[], number: number): StackedPull[] {
+  const byNumber = new Map(pulls.map((p) => [p.number, p]));
+  const chain: StackedPull[] = [];
+  for (
+    let p = byNumber.get(number);
+    p;
+    p = p.parent === null ? undefined : byNumber.get(p.parent)
+  ) {
+    if (chain.includes(p)) break;
+    chain.unshift(p);
+  }
+  return chain;
+}
