@@ -7,6 +7,7 @@ import { useCached } from "../cache.js";
 import { count, num, period, usd } from "../format.js";
 import { Cycle } from "../insights/cycle.js";
 import { FlowSection } from "../insights/flow.js";
+import { ImpactSection } from "../insights/impact.js";
 import { ReviewLoadSection } from "../insights/reviewers.js";
 import { daily, quantile } from "../insights/series.js";
 import { Link } from "../router.js";
@@ -161,6 +162,7 @@ export function Insights(props: { runner: boolean; platforms: readonly CodePlatf
       )}
       {props.runner && (
         <>
+          <ImpactSection days={days} />
           <FlowSection days={days} />
           <ReviewLoadSection days={days} />
         </>
