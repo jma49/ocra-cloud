@@ -38,6 +38,7 @@ import { repoConfigRoute } from "./repo-config.js";
 import { repositoriesRoute } from "./repositories.js";
 import { reviewChat } from "./review-chat.js";
 import { reviews } from "./reviews.js";
+import { searchRoute } from "./search.js";
 import { sessions } from "./sessions.js";
 import type { AppBindings, AppEnv } from "./types.js";
 import { usage } from "./usage.js";
@@ -133,6 +134,13 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
   app.route("/notifications", notifyRoute);
   app.route("/automations", automationsRoute);
   app.route("/email", emailLinks);
+  app.route(
+    "/search",
+    searchRoute({
+      autoReview: host.autoReview !== undefined,
+      codeGraphs: (host.graphs?.policy ?? "off") !== "off",
+    }),
+  );
   app.route("/insights/cycle", cycles);
   app.route("/insights/flow", flow);
   const hook = githubWebhook(host);

@@ -31,7 +31,7 @@ export function repoOf(mr: MergeRequest): string {
   return path.split("/-/")[0] ?? path;
 }
 
-const item = (mr: MergeRequest): ListedPull => ({
+export const mergeRequestItem = (mr: MergeRequest): ListedPull => ({
   id: String(mr.id),
   number: mr.iid,
   title: mr.title,
@@ -73,8 +73,8 @@ export async function gitlabPulls(
   if (!review || !authored || !merged) return null;
   return {
     pulls: withRoles([
-      { role: "reviewer", pulls: review.map(item) },
-      { role: "author", pulls: [...authored, ...merged].map(item) },
+      { role: "reviewer", pulls: review.map(mergeRequestItem) },
+      { role: "author", pulls: [...authored, ...merged].map(mergeRequestItem) },
     ]),
     more: review.length >= OPEN_PER_LIST || authored.length >= OPEN_PER_LIST,
   };

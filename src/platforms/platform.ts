@@ -8,7 +8,7 @@ import type { PullCycles } from "./cycles.js";
 import type { RepoFiles } from "./files.js";
 import type { RepoLearnings } from "./learnings.js";
 import type { PullMergeStatus } from "./merge-status.js";
-import type { PullListing } from "./pulls.js";
+import type { ListedPull, PullListing, PullSearch } from "./pulls.js";
 import type { MergeQueue } from "./queue.js";
 import type { PullStacks } from "./stacks.js";
 
@@ -53,6 +53,11 @@ export interface CodePlatform {
   listRepos(accessToken: string): Promise<RepoListing | null>;
   /** null when the platform refused the token. */
   listPulls(accessToken: string): Promise<PullListing | null>;
+  /**
+   * The pull requests the user is involved in that match, at most `limit`;
+   * null when the platform failed or refused the token.
+   */
+  searchPulls(accessToken: string, search: PullSearch, limit: number): Promise<ListedPull[] | null>;
   readonly contents: RepoContents;
   readonly changes: PullDiffs;
   readonly actions: PullActions;

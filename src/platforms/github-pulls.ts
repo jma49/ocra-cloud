@@ -18,14 +18,16 @@ const query = (
   authored: search(query: $authored, type: ISSUE, first: $open) { issueCount nodes { ...P } }
   merged: search(query: $merged, type: ISSUE, first: $done) { issueCount nodes { ...P } }
 }
-fragment P on PullRequest {
+${pullFragment(checks)}`;
+
+export const pullFragment = (checks: boolean) => `fragment P on PullRequest {
   id number title url isDraft state createdAt updatedAt mergedAt additions deletions reviewDecision
   author { login }
   repository { nameWithOwner }
   ${checks ? "commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }" : ""}
 }`;
 
-type Node = {
+export type PullNode = {
   id?: string;
   number: number;
   title: string;
@@ -42,7 +44,7 @@ type Node = {
   repository: { nameWithOwner: string };
   commits?: { nodes: { commit: { statusCheckRollup: { state: string } | null } }[] };
 };
-type Search = { issueCount: number; nodes: (Node | null)[] };
+type Search = { issueCount: number; nodes: (PullNode | null)[] };
 type Answer = { data?: Partial<Record<List, Search>>; errors?: unknown[] };
 
 export const CHECKS: Record<string, PullChecks> = {
@@ -58,7 +60,7 @@ export const REVIEW: Record<string, PullReview> = {
   REVIEW_REQUIRED: "required",
 };
 
-function item(n: Node): ListedPull {
+export function pullNodeItem(n: PullNode): ListedPull {
   const rollup = n.commits?.nodes[0]?.commit.statusCheckRollup?.state;
   return {
     id: n.id ?? `${n.repository.nameWithOwner}#${n.number}`,
@@ -79,7 +81,8 @@ function item(n: Node): ListedPull {
   };
 }
 
-const pulls = (s: Search) => s.nodes.filter((n): n is Node => Boolean(n?.repository)).map(item);
+const pulls = (s: Search) =>
+  s.nodes.filter((n): n is PullNode => Boolean(n?.repository)).map(pullNodeItem);
 
 export async function githubPulls(
   post: <T>(path: string, body: unknown) => Promise<T | null>,
