@@ -213,6 +213,47 @@ describe("a review job's run", () => {
     expect(job).toMatchObject({ state: "done", attempts: 1 });
   });
 
+  it("leaves the account's fixes setting to the signed-in CLI: the arguments and file are unchanged", async () => {
+    const { auth } = await s.signIn(1);
+    const saved = await s.call("/api/preferences", {
+      method: "PUT",
+      headers: auth,
+      json: { settings: { fixes: true } },
+    });
+    expect(saved.status).toBe(200);
+    let read: unknown;
+    const seen: { ocra?: unknown; credentials?: { access_token?: string } } = {};
+    const { exec: base, calls } = fakeExec(0, seen);
+    const exec: Exec = async (command, args, options) => {
+      const ran = await base(command, args, options);
+      if (command !== "git") {
+        const res = await s.call("/api/preferences", {
+          headers: { authorization: `Bearer ${seen.credentials?.access_token}` },
+        });
+        read = await res.json();
+      }
+      return ran;
+    };
+    expect(await run(exec)).toBe(true);
+
+    expect(calls.at(-1)?.args).toEqual([
+      "/opt/ocra/main.js",
+      "review",
+      "--pr",
+      "7",
+      "--repo",
+      "Octo/API",
+      "--publish",
+      "--no-repo-config",
+      "--config",
+      expect.stringMatching(/ocra\.json$/),
+    ]);
+    expect(calls.at(-1)?.args).not.toContain("--fixes");
+    // The file is a layer above the account's settings: setting fixes there would hide them.
+    expect(seen.ocra).not.toHaveProperty("fixes");
+    expect(read).toMatchObject({ settings: { fixes: true } });
+  });
+
   it("retries a failed review later, then gives it up", async () => {
     const { exec } = fakeExec(2, {});
     const later = (minutes: number) => new Date(Date.now() + minutes * 60_000);
