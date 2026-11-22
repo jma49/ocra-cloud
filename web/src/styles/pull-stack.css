@@ -39,3 +39,32 @@
   padding: 0;
   list-style: none;
 }
+
+/* Suggested reviewers, beside the diff: who and the ask on one line, why below. */
+.reviewer-list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.reviewer-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 8px;
+  align-items: center;
+}
+.reviewer-who {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 6px;
+  align-items: baseline;
+  min-width: 0;
+}
+.reviewer-who .mono {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.reviewer-detail {
+  grid-column: 1 / -1;
+}
