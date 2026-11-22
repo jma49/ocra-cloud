@@ -1,6 +1,6 @@
 import type { Row, Scoped } from "../db/scoped.js";
 import type { CodePlatform } from "../platforms/platform.js";
-import { platformOfPull, pullOfReview } from "../review-pull.js";
+import { pullOfReview, pullOnPlatform } from "../review-pull.js";
 import type { AutomationEvent } from "./run.js";
 
 // A pull request's uploaded review as an automation event. The bot writes
@@ -13,9 +13,11 @@ export async function reviewedEvent(
   platforms: readonly CodePlatform[],
   consoleUrl: string,
 ): Promise<AutomationEvent | undefined> {
-  const pull = pullOfReview(review);
-  if (!pull) return undefined;
-  const platform = platformOfPull(platforms, pull);
+  const reviewed = pullOfReview(review);
+  if (!reviewed) return undefined;
+  const on = pullOnPlatform(platforms, reviewed);
+  const platform = on?.platform;
+  const pull = on?.pull ?? reviewed;
   const repo = platform
     ? await data.findOne("reviewRepos", {
         platform: platform.kind,

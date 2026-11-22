@@ -82,6 +82,8 @@ const gitlabMergeRequest = z.object({
     iid: z.number().int().min(1),
     action: z.string().optional(),
     draft: z.boolean().optional(),
+    // What GitLab before 15.0 sends instead of draft.
+    work_in_progress: z.boolean().optional(),
     oldrev: z.string().optional(),
     last_commit: z.object({ id: z.string() }),
     title: z.string().optional(),
@@ -95,12 +97,14 @@ const gitlabMergeRequest = z.object({
 
 type MergeRequestChange = z.infer<typeof gitlabMergeRequest>["object_attributes"];
 
+const isDraft = (a: MergeRequestChange) => a.draft ?? a.work_in_progress ?? false;
+
 const gitlabQueues = (a: MergeRequestChange) =>
-  !a.draft &&
+  !isDraft(a) &&
   (a.action === "open" || a.action === "reopen" || (a.action === "update" && !!a.oldrev));
 
 /** An update without new commits: its title or description may have changed. */
-const gitlabEdited = (a: MergeRequestChange) => !a.draft && a.action === "update" && !a.oldrev;
+const gitlabEdited = (a: MergeRequestChange) => !isDraft(a) && a.action === "update" && !a.oldrev;
 
 /** GitLab's merge request hooks, each proven by the secret of the repository it names. */
 export function autoReviewWebhooks(service: AutoReviewService) {

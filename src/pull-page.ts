@@ -7,7 +7,7 @@ import { accessToken } from "./platforms/links.js";
 import type { CodePlatform } from "./platforms/platform.js";
 import { platformsOf } from "./platforms/registry.js";
 import { perMinute } from "./rate.js";
-import { platformOfPull, pullOfReview } from "./review-pull.js";
+import { pullOfReview, pullOnPlatform } from "./review-pull.js";
 import { fixOf } from "./reviews.js";
 import { requireSession } from "./session.js";
 import {
@@ -235,13 +235,14 @@ pullPage.post(
     const finding = await data.get("findings", c.req.valid("json").finding);
     const fix = finding && fixOf(finding);
     const review = fix && (await data.get("reviews", finding.reviewId));
-    const pull = review && pullOfReview(review);
-    if (!finding || !fix || !pull) return apiError(c, "not_found");
+    const reviewed = review && pullOfReview(review);
+    if (!finding || !fix || !reviewed) return apiError(c, "not_found");
     const path = repoFilePath(finding.file);
     if (!path) return c.json({ outcome: "not_applicable" satisfies PullActionOutcome });
-    const reached = await reach(c, (p) => platformOfPull([p], pull) !== undefined);
+    const reached = await reach(c, (p) => pullOnPlatform([p], reviewed) !== undefined);
     if ("refusal" in reached) return reached.refusal;
     const { platform, token } = reached;
+    const pull = pullOnPlatform([platform], reviewed)?.pull ?? reviewed;
     // The fix's lines are the reviewed head's: a pull request that moved since is head_moved,
     // which also keeps a second click from committing it twice.
     const outcome = await platform.actions.applyFix(token, pull.repo, pull.number, {
