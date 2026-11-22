@@ -17,12 +17,15 @@
 .wrap {
   flex-wrap: wrap;
 }
+/* One column that its content cannot widen: a long unbroken line clips or wraps inside it. */
 .stack {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
 }
 .stack-tight {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 4px;
 }
 .m-0 {
