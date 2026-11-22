@@ -13,6 +13,7 @@ import { splitPath } from "../pull/diff.js";
 import { FileDiff } from "../pull/file-diff.js";
 import { OUTCOME } from "../pull/outcome.js";
 import { QueueBox } from "../pull/queue-box.js";
+import { StackPanel } from "../pull/stack.js";
 import { LoadError, Loading, PageHead, Seg, useAction, useLoad } from "../ui.js";
 
 // A pull request in the console: its changed files read live from the
@@ -96,6 +97,7 @@ export function PullPage(props: { platform: string; repo: string; number: string
       )}
       <div className="pull-frame">
         <aside className="pull-side">
+          <StackPanel pull={ref} mergeMethods={data.mergeMethods} />
           <nav className="card file-list" aria-label="Changed files">
             {data.files.map((f) => {
               const { dir, name } = splitPath(f.path);
