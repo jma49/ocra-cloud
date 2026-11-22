@@ -3,6 +3,7 @@ import { ago } from "../format.js";
 import { pullPath } from "../pull/path.js";
 import { navigate } from "../router.js";
 import type { Row } from "./sections.js";
+import { UNREAD_REASON } from "./unread.js";
 
 const CHECKS = {
   passing: { label: "Checks pass", cls: "ok" },
@@ -15,8 +16,14 @@ const REVIEW = {
   required: { label: "Review required", cls: "" },
 } as const;
 
-/** One pull request on one line: checks, number, title, repository, review, author, age. */
-export function PullRow(props: { r: Row; i: number; current: boolean }) {
+/** One pull request on one line: unread mark, checks, number, title, repository, review, author, age. */
+export function PullRow(props: {
+  r: Row;
+  i: number;
+  current: boolean;
+  onOpen: () => void;
+  onMark: (read: boolean) => void;
+}) {
   const { r } = props;
   const checks = r.checks && CHECKS[r.checks];
   const review = r.state === "open" && r.review ? REVIEW[r.review] : null;
@@ -25,8 +32,35 @@ export function PullRow(props: { r: Row; i: number; current: boolean }) {
   const onClick = (e: MouseEvent) => {
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
     e.preventDefault();
+    props.onOpen();
     navigate(to);
   };
+  const why = r.unread && r.unreadReason ? UNREAD_REASON[r.unreadReason] : null;
+  return (
+    <div className={`pull-line${r.unread ? " unread" : ""}`}>
+      <button
+        type="button"
+        className="unread-mark"
+        aria-label={`Mark #${r.number} ${r.unread ? "read" : "unread"}`}
+        title={r.unread ? `${why ?? "Unread"}. Mark read` : "Mark unread"}
+        onClick={() => props.onMark(r.unread)}
+      />
+      <PullLink {...props} to={to} onClick={onClick} checks={checks} review={review} when={when} />
+    </div>
+  );
+}
+
+function PullLink(props: {
+  r: Row;
+  i: number;
+  current: boolean;
+  to: string;
+  onClick: (e: MouseEvent) => void;
+  checks: (typeof CHECKS)[keyof typeof CHECKS] | null | "";
+  review: (typeof REVIEW)[keyof typeof REVIEW] | null;
+  when: string;
+}) {
+  const { r, to, onClick, checks, review, when } = props;
   return (
     <a
       className={`pull-row${props.current ? " current" : ""}`}

@@ -6,12 +6,13 @@ type Keys = {
   openOnPlatform: () => void;
   find: () => void;
   refresh: () => void;
+  toggleRead: () => void;
 };
 
 const typing = (t: EventTarget | null) =>
   t instanceof HTMLElement && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
 
-/** j/k move, Enter opens here, o on the platform, / finds, r refreshes; never while typing. */
+/** j/k move, Enter opens here, o on the platform, / finds, r refreshes, u marks read or unread; never while typing. */
 export function useListKeys(keys: Keys) {
   const latest = useRef(keys);
   latest.current = keys;
@@ -29,6 +30,7 @@ export function useListKeys(keys: Keys) {
         o: k.openOnPlatform,
         "/": k.find,
         r: k.refresh,
+        u: k.toggleRead,
       }[e.key];
       if (!act) return;
       e.preventDefault();
