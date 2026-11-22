@@ -11,6 +11,7 @@ import type {
 import { api, why } from "../api.js";
 import { Link } from "../router.js";
 import { useAction, useLoad } from "../ui.js";
+import { CHECKS } from "./check-state.js";
 import { OUTCOME } from "./outcome.js";
 import { pullPath } from "./path.js";
 
@@ -19,12 +20,6 @@ import { pullPath } from "./path.js";
 // this one, each with the head this page read.
 
 type Ref = { platform: CodePlatformKind; repo: string; number: number };
-
-const CHECKS = {
-  passing: { label: "Checks pass", cls: "ok" },
-  failing: { label: "Checks fail", cls: "fail" },
-  pending: { label: "Checks running", cls: "wait" },
-} as const;
 
 const METHOD: Record<MergeMethod, string> = {
   merge: "Merge commits",
