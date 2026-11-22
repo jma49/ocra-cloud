@@ -54,9 +54,10 @@ describe("suggested reviewers", () => {
     );
     render(<ReviewersPanel pull={{ platform: "github", repo: "octo/api", number: 7 }} />);
     expect(
-      await screen.findByText("owns 2 changed files · 1 reviews in 90 days · 7 open requests"),
+      await screen.findByText("owns 2 changed files · 1 review in 90 days · 7 open requests"),
     ).toBeTruthy();
-    expect(screen.getByText("Asked for a review")).toBeTruthy();
+    expect(screen.getByText("owns 1 changed file · 1 open request")).toBeTruthy();
+    expect(screen.getByText("Asked")).toBeTruthy();
     expect(screen.getByText("Also owned by octo/core.")).toBeTruthy();
     await act(
       async () =>
