@@ -80,7 +80,7 @@ async function setUp(pull: Pull) {
     });
   const seen = (updatedAt: string, head: string | null = HEAD, repo = "octo/api") =>
     post("seen", { platform: "github", repo, number: 7, updatedAt, head });
-  return { now, listed, post, seen };
+  return { a, now, listed, post, seen };
 }
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -96,6 +96,10 @@ describe("unread pull requests in the inbox", () => {
     expect(since).not.toBeNull();
     await t.listed();
     expect(await inboxSince()).toEqual(since);
+    const exported = (await (await t.a.send("/api/export")).json()) as {
+      account: { inboxSince: string };
+    };
+    expect(exported.account.inboxSince).toBe(since?.toISOString());
   });
 
   it("shows a pull request opened or updated after the baseline unread until seen", async () => {
