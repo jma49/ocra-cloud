@@ -16,6 +16,7 @@ const CONCLUSION: Record<MergeChecksConclusion, { text: string; tone: string }> 
   success: { text: "All checks pass", tone: "badge badge-ok" },
   neutral: { text: "Warnings", tone: "badge badge-warn" },
   failure: { text: "Blocked", tone: "badge badge-err" },
+  pending: { text: "Waiting for the review", tone: "badge" },
 };
 
 type Pull = { platform: string; repo: string; number: number };
