@@ -85,7 +85,8 @@ function Breakdown(props: { title: string; rows: Row[]; none: string }) {
   );
 }
 
-export function Insights() {
+/** `runner`: the server reviews enrolled repositories itself, so their webhooks record the flow. */
+export function Insights(props: { runner: boolean }) {
   const [days, setDays] = useState(30);
   const quality = useCached(`/findings/insights?days=${days}`, () =>
     api<Insights>(`/findings/insights?days=${days}`),
@@ -157,8 +158,12 @@ export function Insights() {
           <Breakdown title="By category (top 20)" rows={data.byCategory} none="No category" />
         </>
       )}
-      <FlowSection days={days} />
-      <ReviewLoadSection days={days} />
+      {props.runner && (
+        <>
+          <FlowSection days={days} />
+          <ReviewLoadSection days={days} />
+        </>
+      )}
       <Cycle days={days} />
     </>
   );
