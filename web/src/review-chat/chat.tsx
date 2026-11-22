@@ -1,82 +1,67 @@
-import { useEffect, useState } from "react";
+import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import type {
-  ReviewChatEvent,
-  ReviewChatMessageView,
-  ReviewChatView,
-} from "../../../src/shared/index.js";
-import { ApiError, api, why } from "../api.js";
+import type { ReviewChatMessageView, ReviewChatView } from "../../../src/shared/index.js";
+import { api } from "../api.js";
+import { Markdown } from "../markdown.js";
+import { LoadError } from "../ui.js";
+import { modelName, NoModel, Refusal } from "./refusal.js";
+import { askReview } from "./stream.js";
 
 // "Ask ocra" about this review: questions answered by the account's own
-// model from what the review stored and the pull request's diff. Answers
-// are model output about untrusted code, so they are shown as plain text.
+// model from what the review stored and the pull request's diff, the answer
+// drawn as it streams.
 
 const MAX_QUESTION = 4_000;
+const STARTERS = [
+  "What does this pull request change?",
+  "Which finding matters most, and why?",
+  "What should I test before merging?",
+];
 
-async function readError(res: Response): Promise<ApiError> {
-  const body = (await res.json().catch(() => ({}))) as { error?: string };
-  return new ApiError(res.status, body.error as ApiError["code"]);
-}
-
-/** Reads the answer's events as they come; the finished message, or throws. */
-async function stream(
-  res: Response,
-  onText: (text: string) => void,
-): Promise<ReviewChatMessageView> {
-  const reader = res.body?.getReader();
-  if (!reader) throw new ApiError(502, "upstream_unreachable");
-  const decoder = new TextDecoder();
-  let buffer = "";
-  for (;;) {
-    const { done, value } = await reader.read();
-    buffer += done ? decoder.decode() : decoder.decode(value, { stream: true });
-    const blocks = buffer.split("\n\n");
-    buffer = done ? "" : (blocks.pop() ?? "");
-    for (const block of blocks) {
-      if (!block.startsWith("data: ")) continue;
-      const event = JSON.parse(block.slice(6)) as ReviewChatEvent;
-      if (event.type === "delta") onText(event.text);
-      if (event.type === "done") return event.message;
-      if (event.type === "error") throw new ApiError(502, event.error);
-    }
-    if (done) throw new ApiError(502, "upstream_unreachable");
-  }
-}
+type Pending = { question: string; answer: string };
 
 export function ReviewChat(props: { reviewId: string }) {
   const path = `/reviews/${encodeURIComponent(props.reviewId)}/chat`;
   const [view, setView] = useState<ReviewChatView | null>(null);
+  const [loadError, setLoadError] = useState<unknown>(null);
+  const [open, setOpen] = useState(false);
   const [question, setQuestion] = useState("");
-  const [pending, setPending] = useState<{ question: string; answer: string } | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [model, setModel] = useState<string | null>(null);
+  const [pending, setPending] = useState<Pending | null>(null);
+  const [error, setError] = useState<unknown>(null);
+  const log = useRef<HTMLDivElement>(null);
 
+  const load = () => {
+    setLoadError(null);
+    api<ReviewChatView>(path).then((v) => {
+      setView(v);
+      if (v.messages.length > 0) setOpen(true);
+    }, setLoadError);
+  };
+  useEffect(load, [path]);
+
+  const messages = view?.messages ?? [];
+  const shown = messages.length + (pending ? pending.answer.length : 0);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: follows the conversation as it grows
   useEffect(() => {
-    api<ReviewChatView>(path).then(setView, (e) => setError(why(e)));
-  }, [path]);
+    log.current?.scrollTo({ top: log.current.scrollHeight });
+  }, [shown, open]);
 
-  async function ask() {
-    const message = question.trim();
+  async function ask(text = question) {
+    const message = text.trim();
     if (!message || pending || !view) return;
     setError(null);
     setPending({ question: message, answer: "" });
     try {
-      const res = await fetch(`/api${path}`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ message }),
-      });
-      if (!res.ok) throw await readError(res);
-      const answer = await stream(res, (text) =>
-        setPending((p) => p && { ...p, answer: p.answer + text }),
+      const answer = await askReview(path, { message, ...(model ? { model } : {}) }, (piece) =>
+        setPending((p) => p && { ...p, answer: p.answer + piece }),
       );
       setView((v) => v && { ...v, messages: [...v.messages, asked(message), answer] });
       setQuestion("");
     } catch (e) {
-      setError(
-        e instanceof ApiError && e.code === "no_key"
-          ? "add a provider key and choose a standard model in Settings to ask ocra"
-          : why(e),
-      );
+      // The question stays in the box, to send again once what refused it is lifted.
+      setQuestion(message);
+      setError(e);
     } finally {
       setPending(null);
     }
@@ -88,64 +73,127 @@ export function ReviewChat(props: { reviewId: string }) {
       await api(path, { method: "DELETE" });
       setView((v) => v && { ...v, messages: [] });
     } catch (e) {
-      setError(why(e));
+      setError(e);
     }
   }
 
-  const messages = view?.messages ?? [];
+  const onKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing) return;
+    e.preventDefault();
+    void ask();
+  };
+
+  const asking = model ?? view?.model ?? null;
   return (
-    <details className="card">
+    <details
+      className="card chat"
+      open={open}
+      onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}
+    >
       <summary className="walkthrough-head">
         <span className="fold" aria-hidden="true" />
         <span className="strong">Ask ocra</span>
-        {view?.model && <span className="subtle small mono">{view.model}</span>}
+        {messages.length > 0 && <span className="subtle small">{messages.length} messages</span>}
+        {asking && <span className="subtle small mono chat-model">{modelName(asking)}</span>}
       </summary>
-      <div className="card-pad stack">
-        {view && !view.sharing && (
-          <p className="muted small m-0">
-            This account does not share findings, so answers come from the review's counts and the
-            pull request alone.
-          </p>
-        )}
-        {messages.map((m) => (
-          <p key={m.id} className={`pre-wrap m-0${m.role === "user" ? " strong" : ""}`}>
-            {m.text}
-          </p>
-        ))}
-        {pending && (
-          <>
-            <p className="pre-wrap m-0 strong">{pending.question}</p>
-            <p className="pre-wrap m-0" aria-live="polite">
-              {pending.answer || "…"}
-            </p>
-          </>
-        )}
-        {error && (
-          <p className="note err small m-0" role="alert">
-            Could not answer: {error}.
-          </p>
-        )}
-        <textarea
-          aria-label="Question about this review"
-          className="input"
-          rows={3}
-          maxLength={MAX_QUESTION}
-          placeholder="Why is this finding critical? What does this pull request change?"
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
-        />
-        <div className="row-gap">
-          <Button size="sm" disabled={!question.trim() || !!pending || !view} onClick={ask}>
-            Ask
-          </Button>
-          {messages.length > 0 && (
-            <Button size="sm" variant="ghost" disabled={!!pending} onClick={clear}>
-              Clear conversation
-            </Button>
-          )}
-        </div>
-      </div>
+      {loadError !== null ? (
+        <LoadError what="the conversation" error={loadError} retry={load} />
+      ) : (
+        view && (
+          <div className="chat-body">
+            {!view.sharing && (
+              <p className="muted small m-0">
+                This account does not share findings, so answers come from the review's counts and
+                the pull request alone.
+              </p>
+            )}
+            {messages.length === 0 && !pending ? (
+              view.model && (
+                <div className="chat-starters">
+                  {STARTERS.map((s) => (
+                    <Button key={s} size="sm" variant="outline" onClick={() => ask(s)}>
+                      {s}
+                    </Button>
+                  ))}
+                </div>
+              )
+            ) : (
+              <div className="chat-log" ref={log} role="log" aria-label="Conversation">
+                {messages.map((m) => (
+                  <Message key={m.id} from={m.role} text={m.text} />
+                ))}
+                {pending && (
+                  <>
+                    <Message from="user" text={pending.question} />
+                    <Message from="assistant" text={pending.answer} streaming />
+                  </>
+                )}
+              </div>
+            )}
+            {!view.model && <NoModel />}
+            {error !== null && <Refusal error={error} limit={view.limit} onClear={clear} />}
+            <div className="chat-ask">
+              <textarea
+                aria-label="Question about this review"
+                className="input"
+                rows={2}
+                maxLength={MAX_QUESTION}
+                placeholder="Ask about a finding or the change. Enter sends, Shift+Enter adds a line."
+                value={question}
+                disabled={!view.model}
+                onChange={(e) => setQuestion(e.target.value)}
+                onKeyDown={onKey}
+              />
+              <div className="chat-tools">
+                {view.models.length > 1 && (
+                  <select
+                    className="input mono"
+                    aria-label="Model to ask"
+                    value={asking ?? ""}
+                    disabled={!!pending}
+                    onChange={(e) => setModel(e.target.value)}
+                  >
+                    {view.models.map((m) => (
+                      <option key={m} value={m}>
+                        {modelName(m)}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                <span className="grow" />
+                {messages.length > 0 && (
+                  <Button size="sm" variant="ghost" disabled={!!pending} onClick={clear}>
+                    Clear conversation
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  loading={!!pending}
+                  disabled={!question.trim() || !view.model}
+                  onClick={() => ask()}
+                >
+                  Ask
+                </Button>
+              </div>
+            </div>
+          </div>
+        )
+      )}
     </details>
+  );
+}
+
+function Message(props: {
+  from: ReviewChatMessageView["role"];
+  text: string;
+  streaming?: boolean;
+}) {
+  if (props.from === "user") return <p className="chat-question pre-wrap">{props.text}</p>;
+  return (
+    <div className="chat-answer" aria-busy={props.streaming || undefined}>
+      <Markdown text={props.text} />
+      {props.streaming && <span className="chat-caret" aria-hidden="true" />}
+    </div>
   );
 }
 
