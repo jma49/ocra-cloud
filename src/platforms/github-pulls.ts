@@ -24,7 +24,7 @@ ${pullFragment(checks)}`;
 
 export const pullFragment = (checks: boolean) => `fragment P on PullRequest {
   id number title url isDraft state createdAt updatedAt mergedAt additions deletions reviewDecision
-  headRefOid
+  headRefOid headRefName baseRefName isCrossRepository
   author { login }
   repository { nameWithOwner }
   labels(first: ${MAX_LABELS}) { nodes { name } }
@@ -45,6 +45,9 @@ export type PullNode = {
   deletions: number;
   reviewDecision: "APPROVED" | "CHANGES_REQUESTED" | "REVIEW_REQUIRED" | null;
   headRefOid?: string | null;
+  headRefName?: string;
+  baseRefName?: string;
+  isCrossRepository?: boolean;
   author: { login: string } | null;
   repository: { nameWithOwner: string };
   labels?: { nodes: ({ name: string } | null)[] } | null;
@@ -86,6 +89,10 @@ export function pullNodeItem(n: PullNode): ListedPull {
     additions: n.additions,
     deletions: n.deletions,
     head: n.headRefOid ?? null,
+    branches:
+      n.headRefName && n.baseRefName && n.isCrossRepository === false
+        ? { head: n.headRefName, base: n.baseRefName }
+        : null,
   };
 }
 

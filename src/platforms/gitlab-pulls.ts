@@ -24,6 +24,10 @@ export type MergeRequest = {
   author: { username: string } | null;
   labels?: string[];
   sha?: string | null;
+  source_branch?: string;
+  target_branch?: string;
+  source_project_id?: number;
+  target_project_id?: number;
   references?: { full?: string };
 };
 
@@ -53,6 +57,13 @@ export const mergeRequestItem = (mr: MergeRequest): ListedPull => ({
   additions: null,
   deletions: null,
   head: mr.sha ?? null,
+  branches:
+    mr.source_branch &&
+    mr.target_branch &&
+    mr.source_project_id !== undefined &&
+    mr.source_project_id === mr.target_project_id
+      ? { head: mr.source_branch, base: mr.target_branch }
+      : null,
 });
 
 export async function gitlabPulls(

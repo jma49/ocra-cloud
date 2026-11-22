@@ -189,6 +189,90 @@ describe("the pull request inbox", () => {
     ]);
   });
 
+  it("places GitHub pulls stacked in one repository, leaving forks, merges and loners out", async () => {
+    const branch = (n: number, head: string, base: string, over: Record<string, unknown> = {}) =>
+      node(n, { headRefName: head, baseRefName: base, isCrossRepository: false, ...over });
+    githubFake({
+      extra: graphql(() => ({
+        data: {
+          review: {
+            issueCount: 3,
+            nodes: [
+              branch(1, "a", "main"),
+              branch(5, "c", "b"),
+              branch(6, "x", "a", { isCrossRepository: true }),
+            ],
+          },
+          authored: { issueCount: 2, nodes: [branch(3, "b", "a"), branch(4, "solo", "main")] },
+          merged: {
+            issueCount: 1,
+            nodes: [branch(2, "c", "b", { state: "MERGED", mergedAt: "2026-11-22T09:00:00Z" })],
+          },
+        },
+      })),
+    });
+    const a = await signInWithGithub();
+    const listed = (await (await a.send("/api/platforms/pulls")).json()) as Listed;
+    const pulls = listed.platforms[0]?.pulls ?? [];
+    expect(Object.fromEntries(pulls.map((p) => [p.number, p.stack ?? null]))).toEqual({
+      1: { id: "octo/api#1", position: 1, size: 3 },
+      3: { id: "octo/api#1", position: 2, size: 3 },
+      5: { id: "octo/api#1", position: 3, size: 3 },
+      2: null,
+      4: null,
+      6: null,
+    });
+    expect(pulls[0]).not.toHaveProperty("branches");
+  });
+
+  it("places GitLab merge requests stacked in one project, not one from a fork", async () => {
+    const mr = (iid: number, source: string, target: string, fork = false) => ({
+      id: 200 + iid,
+      iid,
+      title: `MR ${iid}`,
+      web_url: `${GITLAB}/Group/Project/-/merge_requests/${iid}`,
+      state: "opened",
+      created_at: "2026-11-19T08:00:00Z",
+      updated_at: `2026-11-1${iid}T08:00:00Z`,
+      author: { username: "me" },
+      references: { full: `Group/Project!${iid}` },
+      source_branch: source,
+      target_branch: target,
+      source_project_id: fork ? 9 : 1,
+      target_project_id: 1,
+    });
+    githubFake({
+      extra: (req) => {
+        if (req.url.startsWith("https://api.github.com/graphql")) {
+          return Response.json({
+            data: {
+              review: { issueCount: 0, nodes: [] },
+              authored: { issueCount: 0, nodes: [] },
+              merged: { issueCount: 0, nodes: [] },
+            },
+          });
+        }
+        if (!req.url.startsWith(`${GITLAB}/api/v4/`)) return undefined;
+        if (req.url === `${GITLAB}/api/v4/user`) return Response.json({ id: 77 });
+        const q = new URL(req.url).searchParams;
+        if (q.get("reviewer_id") === "77")
+          return Response.json([mr(3, "b", "a"), mr(4, "z", "b", true)]);
+        if (q.get("state") === "merged") return Response.json([]);
+        if (q.get("scope") === "created_by_me") return Response.json([mr(2, "a", "main")]);
+        return undefined;
+      },
+    });
+    const a = await signInWithGithub();
+    await (await connectGitlab(a))("code=c&state=STATE");
+    const listed = (await (await a.send("/api/platforms/pulls")).json()) as Listed;
+    const lab = listed.platforms.find((p) => p.platform === "gitlab");
+    expect(lab?.pulls.map((p) => [p.number, p.stack ?? null])).toEqual([
+      [4, null],
+      [3, { id: "Group/Project#2", position: 2, size: 2 }],
+      [2, { id: "Group/Project#2", position: 1, size: 2 }],
+    ]);
+  });
+
   it("asks a sign-in first", async () => {
     const { call } = await import("./helpers.js");
     expect((await call("/api/platforms/pulls")).status).toBe(401);

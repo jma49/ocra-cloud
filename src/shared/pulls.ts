@@ -1,4 +1,5 @@
 import type { CodePlatformKind } from "./domain.js";
+import type { PullStackPlace } from "./stacks.js";
 
 export type PullRole = "reviewer" | "author";
 export type PullChecks = "passing" | "failing" | "pending" | null;
@@ -32,6 +33,8 @@ export type PullItem = {
   unread: boolean;
   /** What changed first, of what counts; only on an unread pull. */
   unreadReason?: PullUnreadReason;
+  /** Its place among the listed open pulls of its repository stacked with it; none when unstacked. */
+  stack?: PullStackPlace;
 };
 
 /**
