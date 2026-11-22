@@ -164,7 +164,7 @@ export function Automations(props: { me: Me }) {
           <h3>Recent runs</h3>
         </div>
         {runs.error && !runs.data ? (
-          <LoadError what="the runs" error={runs.error} retry={runs.reload} />
+          <LoadError what="the runs" error={runs.error} retry={runs.reload} inCard />
         ) : !runs.data ? (
           <Loading what="runs" />
         ) : (
