@@ -42,7 +42,7 @@ export function FileDiff(props: {
   const [draft, setDraft] = useState("");
   // A suggestion replaces the commented new line; null while the comment carries none.
   const [suggestion, setSuggestion] = useState<string | null>(null);
-  const [folded, setFolded] = useState(file.status === "removed");
+  const [folded, setFolded] = useState(file.status === "removed" || props.viewed);
   const { dir, name } = splitPath(file.path);
   const add = (line: DiffLine) => {
     const a = anchorOf(line);
@@ -58,7 +58,11 @@ export function FileDiff(props: {
     setOpen(null);
   };
   return (
-    <section className="card diff-file" id={`file-${file.path}`} aria-label={file.path}>
+    <section
+      className={`card diff-file${props.viewed ? " is-viewed" : ""}`}
+      id={`file-${file.path}`}
+      aria-label={file.path}
+    >
       <div className="diff-head-row">
         <button
           type="button"

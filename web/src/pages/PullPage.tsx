@@ -12,8 +12,8 @@ import type {
 import { api, why } from "../api.js";
 import { PlatformMark } from "../platform-mark.js";
 import { ChecksBox } from "../pull/checks-box.js";
-import { splitPath } from "../pull/diff.js";
 import { FileDiff } from "../pull/file-diff.js";
+import { FileList } from "../pull/file-list.js";
 import { GenerateBox } from "../pull/generate-box.js";
 import { MergeWhenReadyBox } from "../pull/merge-when-ready-box.js";
 import { OUTCOME } from "../pull/outcome.js";
@@ -103,7 +103,6 @@ export function PullPage(props: {
   };
   const sent = ticked.head === data.head ? ticked.paths : new Map<string, boolean>();
   const isViewed = (f: PullFilesView["files"][number]) => sent.get(f.path) ?? f.viewed === true;
-  const viewedCount = data.files.filter(isViewed).length;
   const markViewed = async (path: string, viewed: boolean) => {
     const head = data.head;
     // A path is a map key, never an object's: it may be any name, `__proto__` included.
@@ -128,8 +127,7 @@ export function PullPage(props: {
           <>
             <PlatformMark platform={platform} size={14} /> {data.files.length} files ·{" "}
             <span className="add-n">+{total.add}</span> <span className="del-n">−{total.del}</span>{" "}
-            · head <span className="mono">{data.head.slice(0, 7)}</span> · {viewedCount} of{" "}
-            {data.files.length} files viewed
+            · head <span className="mono">{data.head.slice(0, 7)}</span>
           </>
         }
       />
@@ -147,23 +145,7 @@ export function PullPage(props: {
         <aside className="pull-side">
           <StackPanel pull={ref} mergeMethods={data.mergeMethods} />
           <ReviewersPanel pull={ref} />
-          <nav className="card file-list" aria-label="Changed files">
-            {data.files.map((f) => {
-              const { dir, name } = splitPath(f.path);
-              return (
-                <a key={f.path} className="file-link" href={`#file-${f.path}`} title={f.path}>
-                  <span className="file-name">
-                    <span className="subtle">{dir}</span>
-                    {name}
-                  </span>
-                  <span className="diff-count small">
-                    <span className="add-n">+{f.additions}</span>{" "}
-                    <span className="del-n">−{f.deletions}</span>
-                  </span>
-                </a>
-              );
-            })}
-          </nav>
+          <FileList files={data.files} isViewed={isViewed} />
           <ReviewBox data={data} pull={ref} pending={pending} onDone={(o) => done("Review", o)} />
           <ThreadsPanel pull={ref} onDone={(o) => done("Review threads", o)} />
           <ChecksBox pull={ref} head={data.head} />

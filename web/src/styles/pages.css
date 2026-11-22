@@ -872,6 +872,21 @@ td.finding-cell {
   text-decoration: none;
   font-size: var(--text-sm);
 }
+.file-progress {
+  padding: 4px 8px 8px;
+}
+.file-progress .meter {
+  height: 3px;
+  margin-top: 6px;
+}
+.file-tick {
+  flex: none;
+  width: 12px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  color: var(--green);
+}
 .file-link:hover {
   background: var(--fill);
 }
@@ -881,6 +896,13 @@ td.finding-cell {
   white-space: nowrap;
   direction: rtl;
   text-align: left;
+}
+.file-link .file-name {
+  flex: 1;
+  min-width: 0;
+}
+.file-link.is-viewed .file-name {
+  color: var(--t3);
 }
 .add-n {
   color: var(--green);
@@ -901,8 +923,16 @@ td.finding-cell {
   border-bottom: 0;
 }
 .diff-viewed {
-  padding-right: 14px;
+  flex: none;
+  margin-right: 10px;
+  padding: 3px 8px;
+  border-radius: var(--r-tab);
   white-space: nowrap;
+  color: var(--t2);
+  cursor: pointer;
+}
+.diff-viewed:hover {
+  background: var(--fill);
 }
 .diff-head {
   display: flex;
@@ -931,6 +961,10 @@ td.finding-cell {
   font-family: var(--mono);
   font-size: var(--text-sm);
   white-space: nowrap;
+}
+.diff-file.is-viewed .diff-path,
+.diff-file.is-viewed .diff-count {
+  opacity: 0.6;
 }
 .diff-scroll {
   overflow-x: auto;
