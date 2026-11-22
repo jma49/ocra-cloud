@@ -50,7 +50,7 @@ function summary(all: NotifyEvent[]): string {
 export function EventsMenu(props: {
   channel: string;
   events: NotifyEvent[];
-  /** The channel's quiet hours, in which comments and mentions are not sent. */
+  /** The channel's quiet hours, which hold comments and mentions back until they end. */
   quietHours: QuietHours | null;
   disabled: boolean;
   change: (events: NotifyEvent[]) => void;
@@ -83,7 +83,7 @@ export function EventsMenu(props: {
         <MenuGroup>
           <MenuGroupLabel>
             {props.quietHours
-              ? `Not sent from ${clock(props.quietHours.start)} to ${clock(props.quietHours.end)}`
+              ? `Held from ${clock(props.quietHours.start)} to ${clock(props.quietHours.end)}, sent together after`
               : "Sent at any hour: no quiet hours set"}
           </MenuGroupLabel>
           {QUIET.map(item)}
