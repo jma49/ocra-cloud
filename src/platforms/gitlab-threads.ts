@@ -2,7 +2,10 @@ import { outcomeOf } from "./actions.js";
 import { type DiffRefs, gitlabHeaders, mergeRequestUrl } from "./gitlab-changes.js";
 import { platformCall, platformSend } from "./http.js";
 import {
+  actionOf,
   applicableOf,
+  findingsOfSuggestions,
+  findingsOfThread,
   MAX_THREAD_COMMENTS,
   MAX_THREADS,
   type PullThreads,
@@ -129,26 +132,31 @@ export function gitlabThreads(origin: string): PullThreads {
     async apply(token, fullName, number, apply) {
       const listing = await read(token, fullName, number);
       if (!listing) return null;
-      if (listing.head !== apply.head) return "head_moved";
+      if (listing.head !== apply.head) return actionOf("head_moved");
       const picked = applicableOf(listing.threads, apply.ids);
-      if (!picked) return "not_applicable";
+      if (!picked) return actionOf("not_applicable");
       const ids = picked.map((s) => Number(s.id));
       const [one] = ids;
       // GitLab answers 400 for a suggestion it cannot apply, such as one whose lines changed.
       const special = { 400: "not_applicable" } as const;
       const api = `${origin}/api/v4/suggestions`;
-      return outcomeOf(
+      const sent =
         ids.length === 1 && one !== undefined
           ? await send(token, `${api}/${one}/apply`, {})
-          : await send(token, `${api}/batch_apply`, { ids }),
-        special,
-      );
+          : await send(token, `${api}/batch_apply`, { ids });
+      return actionOf(outcomeOf(sent, special), findingsOfSuggestions(listing.threads, apply.ids));
     },
     async resolve(token, fullName, number, thread, resolved) {
       const url = mergeRequestUrl(origin, fullName, number);
-      return outcomeOf(
-        await send(token, `${url}/discussions/${encodeURIComponent(thread)}`, { resolved }),
-      );
+      const sent = await send(token, `${url}/discussions/${encodeURIComponent(thread)}`, {
+        resolved,
+      });
+      // GitLab answers the discussion it changed, with its notes.
+      const notes = (sent?.body as Partial<Discussion> | null)?.notes;
+      const comments = Array.isArray(notes)
+        ? notes.filter((n) => !n?.system && typeof n?.body === "string")
+        : [];
+      return actionOf(outcomeOf(sent), findingsOfThread({ comments }));
     },
   };
 }

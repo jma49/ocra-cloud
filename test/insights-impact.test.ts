@@ -2,7 +2,7 @@ import { reviewUploadSchema } from "@open-cr-agent/cloud-contract";
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { spread } from "../src/cycles.js";
-import { accounts, reviews } from "../src/db/schema.js";
+import { accounts, findings, reviews } from "../src/db/schema.js";
 import { scoped } from "../src/db/scoped.js";
 import { parseFindings } from "../src/findings.js";
 import { reviewRow } from "../src/reviews.js";
@@ -169,6 +169,20 @@ const view = async (auth: Record<string, string>, query = "days=7") => {
   return { status: res.status, body: (await res.json()) as InsightsImpactView };
 };
 
+type ActedOn = NonNullable<ImpactCounts["actedOn"]>;
+const acted = (
+  over: Partial<Omit<ActedOn, "fixedVia">>,
+  via: Partial<ActedOn["fixedVia"]> = {},
+): ActedOn => ({
+  fixed: 0,
+  fixedVia: { applied: 0, suggestion: 0, manual: 0, rereview: 0, unknown: 0, ...via },
+  dismissed: 0,
+  open: 0,
+  issueOpened: 0,
+  threadResolved: 0,
+  ...over,
+});
+
 const counts = (over: Partial<ImpactCounts>, sharing = true): ImpactCounts => ({
   pulls: 0,
   reviewedPulls: 0,
@@ -176,7 +190,7 @@ const counts = (over: Partial<ImpactCounts>, sharing = true): ImpactCounts => ({
   findings: { critical: 0, warning: 0, suggestion: 0 },
   fixedOnRereview: 0,
   dismissedOnRereview: 0,
-  actedOn: sharing ? { fixed: 0, dismissed: 0, open: 0, issueOpened: 0 } : null,
+  actedOn: sharing ? acted({}) : null,
   ...over,
 });
 
@@ -189,7 +203,7 @@ describe("what ocra changed", () => {
     await fixture(a);
     const { status, body } = await view(a.me.auth);
     expect(status).toBe(200);
-    const actedOn = { fixed: 1, dismissed: 1, open: 1, issueOpened: 1 };
+    const actedOn = acted({ fixed: 1, dismissed: 1, open: 1, issueOpened: 1 }, { manual: 1 });
     expect(body.repo).toBeNull();
     expect(body.days).toBe(7);
     expect(body.sharesFindings).toBe(true);
@@ -330,6 +344,71 @@ describe("what ocra changed", () => {
     const other = await view(bob.me.auth);
     expect(other.body.total).toEqual(counts({}));
     expect(other.body.repos).toEqual([]);
+  });
+
+  it("counts fixed findings by how they became fixed, once each, and older ones as unknown", async () => {
+    vi.useFakeTimers({ now, toFake: ["Date"] });
+    const mona = await account(42, "mona", true);
+    const bob = await account(43, "bob", true);
+    await opened(mona, "api", 1, ago(30));
+    const fps = ["applied", "suggestion", "manual", "older", "rereview", "open"].map((_, i) =>
+      `${i}`.repeat(16),
+    );
+    const { findings: ids } = await reviewed(
+      mona,
+      "run-a",
+      pr(mona, "api", 1),
+      ago(29),
+      {},
+      undefined,
+      fps.map((fingerprint) => finding({ fingerprint })),
+    );
+    const [applied, suggested, manual, older, rereview, open] = ids;
+    if (!applied || !suggested || !manual || !older || !rereview || !open)
+      throw new Error("not kept");
+    const onPull = (fingerprints: string[]) => ({
+      identity: `https://github.com/mona/api`,
+      number: 1,
+      fingerprints,
+    });
+    const byHand = { status: "fixed" as const, reason: null, note: null, decidedAt: now };
+    const m = mona.data.findingOutcomes;
+    // Another account's writes reach none of mona's findings.
+    expect(await bob.data.findingOutcomes.markFixed([applied], "applied")).toBe(0);
+    expect(
+      await bob.data.findingOutcomes.markFixedOnPull(onPull([fps[1] ?? ""]), "suggestion"),
+    ).toBe(0);
+    expect(await bob.data.findingOutcomes.markThreadResolved(onPull([fps[5] ?? ""]), true)).toBe(0);
+    expect(await m.markFixed([applied], "applied")).toBe(1);
+    expect(await m.markFixedOnPull(onPull([fps[1] ?? ""]), "suggestion")).toBe(1);
+    await mona.data.decide([manual], byHand);
+    // A second path finds each one fixed already and records nothing.
+    expect(await m.markFixed([applied, suggested, manual], "applied")).toBe(0);
+    expect(await m.markFixedOnPull(onPull([fps[0] ?? "", fps[2] ?? ""]), "suggestion")).toBe(0);
+    await mona.data.decide([applied], byHand);
+    // One fixed before the source was kept, and one the CLI's re-review fixed.
+    await db.update(findings).set({ status: "fixed" }).where(eq(findings.id, older));
+    await db
+      .update(findings)
+      .set({ status: "fixed", fixedVia: "rereview" })
+      .where(eq(findings.id, rereview));
+    expect(await m.markThreadResolved(onPull([fps[5] ?? ""]), true)).toBe(1);
+    const { body } = await view(mona.me.auth);
+    expect(body.total.actedOn).toEqual(
+      acted(
+        { fixed: 5, open: 1, threadResolved: 1 },
+        { applied: 1, suggestion: 1, manual: 1, rereview: 1, unknown: 1 },
+      ),
+    );
+    expect((await view(bob.me.auth)).body.total.actedOn).toEqual(acted({}));
+    // Reopening clears how it was fixed.
+    await mona.data.decide([applied], {
+      status: "open",
+      reason: null,
+      note: null,
+      decidedAt: null,
+    });
+    expect((await mona.data.get("findings", applied))?.fixedVia).toBeNull();
   });
 
   it("asks for a web session", async () => {

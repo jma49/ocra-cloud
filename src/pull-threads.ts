@@ -1,14 +1,17 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { apiError, jsonBody } from "./http.js";
+import type { CodePlatform } from "./platforms/platform.js";
 import {
   type Comment,
   MAX_APPLIED_SUGGESTIONS,
   type Suggestion,
   type Thread,
+  type ThreadAction,
 } from "./platforms/threads.js";
 import { byKind, pullRef, reach, sha } from "./pull-page.js";
 import { perMinute } from "./rate.js";
+import { identityOf } from "./review-pull.js";
 import { requireSession } from "./session.js";
 import type {
   PullActionOutcome,
@@ -74,6 +77,20 @@ const threadDto = (t: Thread) =>
 
 const answer = (outcome: PullActionOutcome) => ({ outcome });
 
+/** The account's findings on the pull request that the action's comments were ocra's comments of. */
+const findingsOn = (
+  platform: CodePlatform,
+  ref: { repo: string; number: number },
+  action: ThreadAction,
+) => {
+  const identity = identityOf(platform, ref.repo)?.toLowerCase();
+  return {
+    identity: identity ?? "",
+    number: ref.number,
+    fingerprints: identity ? action.findings : [],
+  };
+};
+
 pullThreads.get("/threads", requireSession(["web"]), perMinute("platform"), async (c) => {
   const ref = threadsQuery.safeParse(c.req.query());
   if (!ref.success) return apiError(c, "not_found");
@@ -99,11 +116,16 @@ pullThreads.post(
     const reached = await reach(c, byKind(body));
     if ("refusal" in reached) return reached.refusal;
     const { platform, token } = reached;
-    const outcome = await platform.threads.apply(token, body.repo, body.number, {
+    const action = await platform.threads.apply(token, body.repo, body.number, {
       head: body.head,
       ids: body.suggestions,
     });
-    return outcome ? c.json(answer(outcome)) : apiError(c, "upstream_unreachable");
+    if (!action) return apiError(c, "upstream_unreachable");
+    await c.var.data.findingOutcomes.markFixedOnPull(
+      findingsOn(platform, body, action),
+      "suggestion",
+    );
+    return c.json(answer(action.outcome));
   },
 );
 
@@ -117,13 +139,18 @@ pullThreads.post(
     const reached = await reach(c, byKind(body));
     if ("refusal" in reached) return reached.refusal;
     const { platform, token } = reached;
-    const outcome = await platform.threads.resolve(
+    const action = await platform.threads.resolve(
       token,
       body.repo,
       body.number,
       body.thread,
       body.resolved,
     );
-    return outcome ? c.json(answer(outcome)) : apiError(c, "upstream_unreachable");
+    if (!action) return apiError(c, "upstream_unreachable");
+    await c.var.data.findingOutcomes.markThreadResolved(
+      findingsOn(platform, body, action),
+      body.resolved,
+    );
+    return c.json(answer(action.outcome));
   },
 );

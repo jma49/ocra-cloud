@@ -287,6 +287,8 @@ function findingDto(f: FindingRow) {
     reason: f.reason,
     note: f.note,
     decidedAt: f.decidedAt,
+    fixedVia: f.fixedVia,
+    threadResolvedAt: f.threadResolvedAt,
     fix: fixOf(f),
   } satisfies Omit<FindingRow, "accountId" | "reviewId" | "position" | FixColumn> & {
     fix: unknown;

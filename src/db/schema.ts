@@ -31,6 +31,7 @@ import {
   CODE_PLATFORMS,
   DISMISS_REASONS,
   FINDING_STATUSES,
+  FIXED_VIA,
   LIVE_ROLES,
   LIVE_STATES,
   type LinkedTaskView,
@@ -380,6 +381,12 @@ export const findings = sqliteTable(
     fixStartLine: integer("fix_start_line"),
     fixEndLine: integer("fix_end_line"),
     fixReplacement: text("fix_replacement"),
+    // How it became fixed, set in the write that fixes it; null while not
+    // fixed, and on one fixed before this column was added.
+    fixedVia: text("fixed_via", { enum: FIXED_VIA }),
+    // When the user resolved its comment's thread from the console; cleared
+    // when they reopen it. A resolved thread says neither fixed nor dismissed.
+    threadResolvedAt: integer("thread_resolved_at", { mode: "timestamp_ms" }),
   },
   // review_id: a review's delete cascades here (by the user or retention).
   // findings_account_status_created leads with account_id, so it also

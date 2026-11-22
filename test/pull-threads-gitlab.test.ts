@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PullThreadsView } from "../src/shared/index.js";
+import { seed } from "./fix-fakes.js";
 import { resetDb } from "./helpers.js";
 import { connectGitlab, GITLAB, githubFake, signInWithGithub } from "./platform-fakes.js";
 
@@ -211,6 +212,47 @@ describe("a GitLab merge request's threads", () => {
     expect(await resolve(true)).toEqual({ outcome: "done" });
     expect(await resolve(false)).toEqual({ outcome: "done" });
     expect(sent.map((s) => s.body)).toEqual([{ resolved: true }, { resolved: false }]);
+  });
+});
+
+describe("what a GitLab discussion's actions record of ocra's findings", () => {
+  const FP = "0123456789abcdef";
+  const d1 = "d1".padEnd(40, "0");
+  const ocra = note(1, { body: `<!-- ocra:finding ${FP} -->\n\`\`\`suggestion\nx = 2\n\`\`\`` });
+  const seeded = () => seed("https://gitlab.example.com/group/sub/project", 3, { fingerprint: FP });
+
+  it("marks the finding of the note whose suggestion was applied fixed via suggestion", async () => {
+    platform({
+      [`GET ${MR}`]: () => Response.json({ sha: HEAD, diff_refs: refs }),
+      [`GET ${MR}/discussions?per_page=100&page=1`]: () =>
+        Response.json([{ id: d1, notes: [ocra] }]),
+      [`PUT ${SUGGESTIONS}/10/apply`]: () => Response.json({}),
+    });
+    const a = await signedIn();
+    const { id, data } = await seeded();
+    const res = await post(a, "/api/pulls/apply-suggestions", {
+      ...lab,
+      head: HEAD,
+      suggestions: ["10"],
+    });
+    expect(await res.json()).toEqual({ outcome: "done" });
+    expect(await data.get("findings", id)).toMatchObject({
+      status: "fixed",
+      fixedVia: "suggestion",
+    });
+  });
+
+  it("records the discussion GitLab answers resolved, from its first note", async () => {
+    platform({
+      [`PUT ${MR}/discussions/${d1}`]: () =>
+        Response.json({ id: d1, notes: [{ ...ocra, resolved: true }] }),
+    });
+    const a = await signedIn();
+    const { id, data } = await seeded();
+    const res = await post(a, "/api/pulls/resolve-thread", { ...lab, thread: d1, resolved: true });
+    expect(await res.json()).toEqual({ outcome: "done" });
+    expect(await data.get("findings", id)).toMatchObject({ status: "open" });
+    expect((await data.get("findings", id))?.threadResolvedAt).toBeInstanceOf(Date);
   });
 });
 

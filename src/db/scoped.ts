@@ -27,6 +27,7 @@ import {
 } from "./counters.js";
 import { countWhere, jsonMembers, jsonNumber, jsonRecords, utcDayOf } from "./dialect.js";
 import { accountFindingIssues } from "./finding-issues.js";
+import { accountFindingOutcomes } from "./finding-outcomes.js";
 import { accountGenerateJobs } from "./generate-jobs.js";
 import { accountGraphs } from "./graphs.js";
 import { accountImpact } from "./impact.js";
@@ -361,7 +362,7 @@ export function scoped(db: Db, accountId: string) {
           je."severity", je."category", je."verification", je."file", je."lineStart",
           je."lineEnd", je."title", je."body", je."suggestion", je."code", je."redacted",
           je."truncated", ${now.getTime()}, 'open', NULL, NULL, NULL, je."position",
-          je."fixStartLine", je."fixEndLine", je."fixReplacement"
+          je."fixStartLine", je."fixEndLine", je."fixReplacement", NULL, NULL
         FROM ${jsonRecords(db, rows, FINDING_FIELDS)}
         WHERE EXISTS (SELECT 1 FROM reviews WHERE id = ${review.id} AND account_id = ${accountId})
           AND ${findingsCounted(accountId, now)} + ${list.length} <= ${limits.maxFindings}`);
@@ -447,6 +448,7 @@ export function scoped(db: Db, accountId: string) {
     reviewThreads: accountReviewThreads(db, accountId),
     reviewLoad: accountReviewLoad(db, accountId),
     impact: accountImpact(db, accountId),
+    findingOutcomes: accountFindingOutcomes(db, accountId),
     replies: accountReplyJobs(db, accountId),
     chat: accountReviewChat(db, accountId),
     generations: accountGenerateJobs(db, accountId),

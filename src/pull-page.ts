@@ -326,14 +326,7 @@ pullPage.post(
       fixes: [fix],
       message: fixMessage(finding.title),
     });
-    if (outcome === "done") {
-      await data.decide([finding.id], {
-        status: "fixed",
-        reason: null,
-        note: null,
-        decidedAt: new Date(),
-      });
-    }
+    if (outcome === "done") await data.findingOutcomes.markFixed([finding.id], "applied");
     return answer(c, outcome);
   },
 );

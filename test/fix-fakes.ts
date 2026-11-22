@@ -15,13 +15,18 @@ export const FILE = "const a = 1;\nconst b = 2;\nconst c = 3;\n";
 const FIX = { fixStartLine: 2, fixEndLine: 2, fixReplacement: "const b = 20;" };
 
 /** A PR-mode review of the signed-in account with one finding; the finding's id. */
-export async function seed(repository: string, number: number, over: Record<string, unknown> = {}) {
+export async function seed(
+  repository: string,
+  number: number,
+  over: Record<string, unknown> = {},
+  run = "run-1",
+) {
   const [identity] = await db.select().from(identities).where(eq(identities.subject, "42"));
   const data = scoped(db, identity?.accountId ?? "");
   const { reviewersDropped: _, ...row } = reviewRow(
     // The contract's schema fills the defaults the route's body would have.
     reviewUploadSchema.parse({
-      ...upload("run-1", []),
+      ...upload(run, []),
       pullRequest: { repository, number, headSha: HEAD },
     }),
   );

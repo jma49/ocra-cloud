@@ -2,7 +2,10 @@ import type { PullActions } from "./actions.js";
 import { type LineFix, repoFilePath } from "./fix.js";
 import { githubSuggestions, newSideTail } from "./suggestions.js";
 import {
+  actionOf,
   applicableOf,
+  findingsOfSuggestions,
+  findingsOfThread,
   MAX_THREAD_COMMENTS,
   MAX_THREADS,
   type PullThreads,
@@ -150,18 +153,19 @@ export function githubThreads(post: Post, actions: Pick<PullActions, "applyFix">
     async apply(token, fullName, number, apply) {
       const listing = await read(token, fullName, number);
       if (!listing) return null;
-      if (listing.head !== apply.head) return "head_moved";
+      if (listing.head !== apply.head) return actionOf("head_moved");
       const picked = applicableOf(listing.threads, apply.ids);
-      if (!picked) return "not_applicable";
+      if (!picked) return actionOf("not_applicable");
       const paths = new Set(picked.map((s) => s.path));
       const [path] = paths;
-      if (paths.size !== 1 || !path) return "refused";
-      return actions.applyFix(token, fullName, number, {
+      if (paths.size !== 1 || !path) return actionOf("refused");
+      const outcome = await actions.applyFix(token, fullName, number, {
         path,
         head: apply.head,
         fixes: picked.map((s) => s.fix),
         message: suggestionMessage(picked.length),
       });
+      return actionOf(outcome, findingsOfSuggestions(listing.threads, apply.ids));
     },
     async resolve(token, fullName, number, thread, resolved) {
       // Thread ids are global: one of another pull request's is not acted on from this one.
@@ -169,14 +173,15 @@ export function githubThreads(post: Post, actions: Pick<PullActions, "applyFix">
       if (!listing) return null;
       const found = listing.threads.find((t) => t.id === thread);
       // GitHub says whether the viewer may; one who may not is refused unsent.
-      if (!found || (found.resolved !== resolved && !found.canResolve)) return "refused";
-      if (found.resolved === resolved) return "done";
+      if (!found || (found.resolved !== resolved && !found.canResolve)) return actionOf("refused");
+      const findings = findingsOfThread(found);
+      if (found.resolved === resolved) return actionOf("done", findings);
       const answer = await post(token)<Mutated>("/graphql", {
         query: resolved ? RESOLVE : UNRESOLVE,
         variables: { id: thread },
       });
       if (!answer) return null;
-      return answer.errors?.length ? "refused" : "done";
+      return actionOf(answer.errors?.length ? "refused" : "done", findings);
     },
   };
 }

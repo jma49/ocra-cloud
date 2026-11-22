@@ -43,6 +43,13 @@ type ThreadListing = { head: string; threads: Thread[]; truncated: boolean };
 
 type SuggestionApply = { head: string; ids: string[] };
 
+/**
+ * What an action did, and the fingerprints of ocra's findings whose comments
+ * it acted on, as their markers read: any comment can carry one, so they
+ * name only the signed-in account's own findings on this pull request.
+ */
+export type ThreadAction = { outcome: PullActionOutcome; findings: string[] };
+
 export interface PullThreads {
   list(token: string, fullName: string, number: number): Promise<ThreadListing | null>;
   /**
@@ -54,7 +61,7 @@ export interface PullThreads {
     fullName: string,
     number: number,
     apply: SuggestionApply,
-  ): Promise<PullActionOutcome | null>;
+  ): Promise<ThreadAction | null>;
   /** `refused` for a thread that is not one of the pull request's. */
   resolve(
     token: string,
@@ -62,8 +69,40 @@ export interface PullThreads {
     number: number,
     thread: string,
     resolved: boolean,
-  ): Promise<PullActionOutcome | null>;
+  ): Promise<ThreadAction | null>;
 }
+
+/** The marker ocra's inline comment starts with (the engine's vcs-platform render). */
+const FINDING_MARKER = /<!-- ocra:finding ([0-9a-f]{16}) -->/;
+
+/** The fingerprint of the finding a comment is ocra's comment of, if it is one. */
+const findingOfComment = (body: string): string | undefined => FINDING_MARKER.exec(body)?.[1];
+
+/** The findings of the comments carrying these suggestions. */
+export function findingsOfSuggestions(
+  threads: { comments: { body: string; suggestions: { id: string }[] }[] }[],
+  ids: readonly string[],
+): string[] {
+  const wanted = new Set(ids);
+  const found = threads.flatMap((t) =>
+    t.comments.flatMap((c) =>
+      c.suggestions.some((s) => wanted.has(s.id)) ? [findingOfComment(c.body)] : [],
+    ),
+  );
+  return [...new Set(found.filter((f): f is string => f !== undefined))];
+}
+
+/** The finding of the comment a thread starts with: ocra's comments start their threads. */
+export function findingsOfThread(thread: { comments: { body: string }[] } | undefined): string[] {
+  const first = thread?.comments[0] && findingOfComment(thread.comments[0].body);
+  return first ? [first] : [];
+}
+
+/** An outcome, with these findings only when it was done. */
+export const actionOf = (
+  outcome: PullActionOutcome | null,
+  findings: string[] = [],
+): ThreadAction | null => outcome && { outcome, findings: outcome === "done" ? findings : [] };
 
 /** The listing's suggestions of these ids, or undefined when one is missing or cannot be applied. */
 export function applicableOf<S extends Suggestion>(

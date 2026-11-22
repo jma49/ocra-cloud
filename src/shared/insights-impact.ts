@@ -1,3 +1,4 @@
+import type { FixedVia } from "./domain.js";
 import type { FlowSpread } from "./flow.js";
 
 // What ocra changed in the account's enrolled repositories, for the Insights
@@ -14,11 +15,15 @@ type ImpactFindings = { critical: number; warning: number; suggestion: number };
 type ImpactActedOn = {
   /** Marked fixed: its fix committed from the console, or marked by hand. */
   fixed: number;
+  /** The fixed ones by how they became fixed (FIXED_VIA); unknown for one fixed before that was kept. */
+  fixedVia: Record<FixedVia | "unknown", number>;
   dismissed: number;
   /** Neither fixed nor dismissed. */
   open: number;
   /** An issue was opened from it. */
   issueOpened: number;
+  /** Its comment's thread resolved from the console, whatever its status. */
+  threadResolved: number;
 };
 
 export type ImpactCounts = {
