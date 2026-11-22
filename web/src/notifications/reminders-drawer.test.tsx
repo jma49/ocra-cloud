@@ -63,7 +63,9 @@ describe("a channel's reminders", () => {
     fireEvent.click(button);
     fireEvent.click(screen.getByLabelText("A review asked of me is still waiting"));
     fireEvent.change(screen.getByLabelText("After"), { target: { value: "8" } });
-    fireEvent.click(screen.getByLabelText("Hold reminders during these hours"));
+    fireEvent.click(
+      screen.getByLabelText("Send no reminder, comment or mention during these hours"),
+    );
     fireEvent.change(screen.getByLabelText("Quiet until"), { target: { value: "7" } });
     await save();
     expect(sent).toEqual([
@@ -96,7 +98,9 @@ describe("a channel's reminders", () => {
     fireEvent.click(button);
     fireEvent.click(screen.getByLabelText("A review asked of me is still waiting"));
     fireEvent.click(screen.getByLabelText("My pull request has no review yet"));
-    fireEvent.click(screen.getByLabelText("Hold reminders during these hours"));
+    fireEvent.click(
+      screen.getByLabelText("Send no reminder, comment or mention during these hours"),
+    );
     await save();
     expect(sent[0]?.body).toEqual({
       events: ["pull_reviewed"],
