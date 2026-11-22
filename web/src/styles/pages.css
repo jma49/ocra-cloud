@@ -888,22 +888,31 @@ td.finding-cell {
   overflow: hidden;
   scroll-margin-top: 72px;
 }
+.diff-head-row {
+  display: flex;
+  align-items: center;
+  border-bottom: 0.5px solid var(--hair);
+}
+.diff-head-row:has(.diff-head[aria-expanded="false"]) {
+  border-bottom: 0;
+}
+.diff-viewed {
+  padding-right: 14px;
+  white-space: nowrap;
+}
 .diff-head {
   display: flex;
   align-items: center;
   gap: 8px;
   width: 100%;
+  min-width: 0;
   padding: 10px 14px;
   border: 0;
-  border-bottom: 0.5px solid var(--hair);
   background: transparent;
   color: var(--t1);
   font: inherit;
   text-align: left;
   cursor: pointer;
-}
-.diff-head[aria-expanded="false"] {
-  border-bottom: 0;
 }
 .diff-head[aria-expanded="false"] .fold {
   transform: rotate(-90deg);

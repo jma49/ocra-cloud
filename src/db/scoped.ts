@@ -44,6 +44,7 @@ import { accountMergeChecks } from "./merge-checks.js";
 import { accountMergeIntents } from "./merge-intents.js";
 import { accountNotify } from "./notify.js";
 import { type PreferencesSave, savePreferences } from "./preferences.js";
+import { accountPullFileViews } from "./pull-file-views.js";
 import { accountPullFlows } from "./pull-flows.js";
 import { accountPullPaths } from "./pull-paths.js";
 import { accountPullSeen } from "./pull-seen.js";
@@ -429,6 +430,7 @@ export function scoped(db: Db, accountId: string) {
       nameRepos(db, accountId, list, cap),
     pullViews: accountPullViews(db, accountId),
     pullSeen: accountPullSeen(db, accountId),
+    pullFileViews: accountPullFileViews(db, accountId),
     graphs: accountGraphs(db, accountId),
     autoReview: accountReviewJobs(db, accountId),
     notify: accountNotify(db, accountId),

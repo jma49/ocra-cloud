@@ -65,6 +65,15 @@ export const rows = {
     updatedAt: new Date(),
     seenAt: new Date(),
   }),
+  pullFileViews: (id: string) => ({
+    id,
+    platform: "gitlab" as const,
+    repo: `group/${id}`,
+    number: 1,
+    path: "app.rb",
+    sha: "e".repeat(64),
+    viewedAt: new Date(),
+  }),
   graphRepos: (id: string) => ({
     id,
     platform: "github" as const,

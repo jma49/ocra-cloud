@@ -81,6 +81,15 @@ describe("retention", () => {
     expect((await d.list("pullSeen")).map((r) => r.id)).toEqual(["new"]);
   });
 
+  it("forgets a file ticked as viewed 90 days after the tick", async () => {
+    const { account } = await signIn(1, "octo");
+    const d = scoped(db, account.id);
+    await d.insert("pullFileViews", { ...rows.pullFileViews("old"), viewedAt: ago(91) });
+    await d.insert("pullFileViews", { ...rows.pullFileViews("new"), viewedAt: ago(89) });
+    await enforceRetention(db, now);
+    expect((await d.list("pullFileViews")).map((r) => r.id)).toEqual(["new"]);
+  });
+
   it("forgets a pull request event a channel was told of after 30 days", async () => {
     const { account } = await signIn(1, "octo");
     const d = scoped(db, account.id);

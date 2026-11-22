@@ -64,6 +64,7 @@ const TABLE: Record<string, string> = {
   platformLinks: "platform_links",
   pullViews: "pull_views",
   pullSeen: "pull_seen",
+  pullFileViews: "pull_file_views",
   graphRepos: "graph_repos",
   graphBuilds: "graph_builds",
   reviewRepos: "review_repos",
@@ -175,6 +176,22 @@ describe("query plans", () => {
     const p = await plan(seen[0] as Captured);
     expect(p).toMatch(/SEARCH s USING INDEX pull_seen_account_pull/);
     expect(p).not.toMatch(/SCAN s\b|SCAN pull_seen/);
+  });
+
+  it("a merge request's viewed files are read, ticked and unticked through the file index", async () => {
+    const seen: Captured[] = [];
+    const d = scoped(drizzle(recording(seen)), "acct");
+    const pull = { platform: "gitlab" as const, repo: "group/api", number: 3 };
+    await d.pullFileViews.versions(pull);
+    await d.pullFileViews.unmark(pull, ["app.rb"]);
+    expect(seen).toHaveLength(2);
+    for (const q of seen) {
+      const p = await plan(q);
+      expect(p, q.sql).toMatch(
+        /SEARCH pull_file_views USING (COVERING )?INDEX pull_file_views_file/,
+      );
+      expect(p, q.sql).not.toMatch(/SCAN pull_file_views/);
+    }
   });
 
   it("the inbox sets and reads its baseline by the account's primary key", async () => {
@@ -404,6 +421,7 @@ describe("retention", () => {
       "live_runs",
       "merge_intents",
       "notify_sends",
+      "pull_file_views",
       "pull_flows",
       "pull_paths",
       "pull_reviews",

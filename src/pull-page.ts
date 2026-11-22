@@ -12,25 +12,29 @@ import {
   suggestionLineCount,
   withSuggestion,
 } from "./platforms/suggestions.js";
+import { markViewed, viewedOf } from "./pull-viewed.js";
 import { perMinute } from "./rate.js";
 import { pullOfReview, pullOnPlatform } from "./review-pull.js";
 import { fixOf } from "./reviews.js";
 import { requireSession } from "./session.js";
 import {
   CODE_PLATFORMS,
+  MAX_VIEWED_PATHS,
   MERGE_METHODS,
   type MergeMethod,
   type MergeQueueView,
   PULL_VERDICTS,
   type PullActionOutcome,
   type PullFilesView,
+  type PullViewedRequest,
 } from "./shared/index.js";
 import type { AppEnv } from "./types.js";
 
 // A pull request's page: its diff, read live as the signed-in user, and
 // their comment, review, merge, merge queue entry and commit of a finding's
-// fix, sent to the platform as them. Nothing read or sent is stored. Only
-// the web session acts: a CLI token never merges.
+// fix, sent to the platform as them. Nothing read or sent is stored but a
+// GitLab file's viewed tick (./pull-viewed.ts). Only the web session acts:
+// a CLI token never merges.
 
 export const pullPage = new Hono<AppEnv>();
 
@@ -103,6 +107,12 @@ const mergeBody = z.object({ ...pullRef, method: z.enum(MERGE_METHODS), head: sh
 const queueBody = z.object({ ...pullRef, head: sha });
 const dequeueBody = z.object(pullRef);
 const fixBody = z.object({ finding: z.string().min(1).max(64) });
+const viewedBody = z.object({
+  ...pullRef,
+  head: sha,
+  paths: z.array(z.string().min(1).max(4096)).min(1).max(MAX_VIEWED_PATHS),
+  viewed: z.boolean(),
+});
 
 type Ref = z.output<typeof filesQuery>;
 
@@ -137,8 +147,13 @@ pullPage.get("/files", requireSession(["web"]), perMinute("platform"), async (c)
   const reached = await reach(c, byKind(ref.data));
   if ("refusal" in reached) return reached.refusal;
   const { platform, token } = reached;
-  const patches = await platform.changes.patches(token, ref.data.repo, ref.data.number);
+  const { repo, number } = ref.data;
+  const [patches, kept] = await Promise.all([
+    platform.changes.patches(token, repo, number),
+    platform.viewed?.list(token, repo, number) ?? null,
+  ]);
   if (!patches) return apiError(c, "not_found");
+  const viewed = await viewedOf(c.var.data, platform, ref.data, patches, kept);
   return c.json({
     platform: platform.kind,
     repo: ref.data.repo,
@@ -153,6 +168,7 @@ pullPage.get("/files", requireSession(["web"]), perMinute("platform"), async (c)
       additions: f.additions,
       deletions: f.deletions,
       patch: f.patch,
+      viewed: viewed.get(f.path) ?? null,
     })),
     truncated: patches.truncated,
     verdicts: [...platform.actions.verdicts],
@@ -200,6 +216,19 @@ pullPage.post(
     const reached = await reach(c, byKind(body));
     if ("refusal" in reached) return reached.refusal;
     return answer(c, await mergeOne(reached.platform, reached.token, body));
+  },
+);
+
+pullPage.post(
+  "/viewed",
+  requireSession(["web"]),
+  perMinute("platform"),
+  jsonBody(viewedBody, { max: 512 * 1024 }),
+  async (c) => {
+    const body: PullViewedRequest = c.req.valid("json");
+    const reached = await reach(c, byKind(body));
+    if ("refusal" in reached) return reached.refusal;
+    return answer(c, await markViewed(c.var.data, reached.platform, reached.token, body));
   },
 );
 

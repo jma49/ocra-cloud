@@ -28,6 +28,7 @@ const changes = {
   platformLinks: { ciphertext: "changed" },
   pullViews: { name: "changed" },
   pullSeen: { unread: true },
+  pullFileViews: { sha: "f".repeat(64) },
   graphRepos: { branch: "trunk" },
   graphBuilds: { state: "done" as const },
   reviewRepos: { fullName: "octo/renamed" },

@@ -30,6 +30,11 @@ export type PatchedFile = Omit<ChangedFile, "hunks"> & {
   deletions: number;
   /** null when the platform sent no diff for it, or the page's diff budget ran out. */
   patch: string | null;
+  /**
+   * What changes when the file changes at a later head: GitHub's blob sha,
+   * a hash of GitLab's diff (gitlab-changes.ts); null when GitHub sent none.
+   */
+  version: string | null;
 };
 
 export type PullPatches = Omit<PullChanges, "files"> & { files: PatchedFile[] };

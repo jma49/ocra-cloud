@@ -539,6 +539,30 @@ export const pullSeen = sqliteTable(
   ],
 );
 
+// The files of a GitLab merge request the account ticked as viewed, with
+// the file's version then (a hash of its diff, src/platforms/gitlab-changes.ts):
+// a tick counts only while the version matches, so a file that changed in a
+// later head reads as not viewed. GitHub keeps its own (viewerViewedState).
+export const pullFileViews = sqliteTable(
+  "pull_file_views",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    platform: text("platform", { enum: CODE_PLATFORMS }).notNull(),
+    // Lower case: platforms compare repository paths without case.
+    repo: text("repo").notNull(),
+    number: integer("number").notNull(),
+    path: text("path").notNull(),
+    sha: text("sha").notNull(),
+    viewedAt: integer("viewed_at", { mode: "timestamp_ms" }).notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("pull_file_views_file").on(t.accountId, t.platform, t.repo, t.number, t.path),
+    index("pull_file_views_account_viewed").on(t.accountId, t.viewedAt),
+  ],
+);
+
 // A repository whose default branch the account has the server keep a code
 // graph of: symbol names, kinds and line numbers per file, never code. Found
 // by a push webhook through (platform, host, platform_repo_id); a GitLab
@@ -1155,6 +1179,7 @@ export const accountTables = {
   platformLinks,
   pullViews,
   pullSeen,
+  pullFileViews,
   graphRepos,
   graphBuilds,
   reviewRepos,
