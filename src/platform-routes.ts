@@ -1,9 +1,11 @@
 import { Hono } from "hono";
 import { accountSalt } from "./db/accounts.js";
 import { apiError } from "./http.js";
+import { rateLimited } from "./platform-limits.js";
 import { accessToken } from "./platforms/links.js";
 import type { CodePlatform, PlatformRepo } from "./platforms/platform.js";
 import { repoHashOf } from "./platforms/platform.js";
+import { platformLimitedUntil } from "./platforms/rate-limit.js";
 import { platformsOf } from "./platforms/registry.js";
 import { sectionsOf } from "./pull-sections.js";
 import { pullRepliesWaiting, pullSeenStates } from "./pull-unread.js";
@@ -100,6 +102,15 @@ platformsRoute.get("/pulls", requireSession(), async (c) => {
       return { platform, head, linked: true, failed: false, ...listing };
     }),
   );
+  // An empty inbox would read as "nothing waits for you".
+  const limited = platformLimitedUntil();
+  if (
+    limited !== null &&
+    listed.some((l) => l.failed) &&
+    !listed.some((l) => l.linked && !l.failed)
+  ) {
+    return rateLimited(c, limited);
+  }
   const [reviewsOf, seenOf, since] = await Promise.all([
     pullVerdicts(c.var.data, listed),
     pullSeenStates(c.var.data, listed),

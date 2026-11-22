@@ -32,6 +32,7 @@ import { emailLinks } from "./notify/links.js";
 import { notifyRoute } from "./notify/routes.js";
 import { oidc } from "./oidc.js";
 import { platformConnect } from "./platform-connect.js";
+import { platformLimits } from "./platform-limits.js";
 import { platformsRoute } from "./platform-routes.js";
 import type { BotTokens } from "./platforms/bot.js";
 import { preferences } from "./preferences.js";
@@ -105,6 +106,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
     c.set("mailer", host.mailer);
     await next();
   });
+  app.use(platformLimits);
 
   // Needs no session, so it reads nothing: on the Free plan D1's rows are a
   // daily quota shared by every account (audit C1).

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as schema from "../src/db/schema.js";
 import { scoped } from "../src/db/scoped.js";
+import { forgetPlatformAnswers } from "../src/platforms/answer-cache.js";
 import { db, resetDb, signIn } from "./helpers.js";
 import { connectGitlab, GITLAB, githubFake, signInWithGithub } from "./platform-fakes.js";
 import {
@@ -153,12 +154,15 @@ describe("merge readiness on GitHub", () => {
     expect(byKind(second).premerge_checks).toEqual(["unmet", "1 blocking check failed"]);
     expect(second.ready).toBe("unmet");
     const graphql = "POST https://api.github.com/graphql";
-    expect(calls).toEqual([graphql, PROTECTION, RULESETS_CALL, graphql, PROTECTION, RULESETS_CALL]);
+    // The branch rule's refusal is remembered: the second reading does not ask it again.
+    expect(calls).toEqual([graphql, PROTECTION, RULESETS_CALL, graphql, RULESETS_CALL]);
   });
 
   it("never takes a rule GraphQL leaves out for no rule: the REST rule says which it is", async () => {
     const view = async (protection: NonNullable<GithubPull["protection"]>) => {
       vi.restoreAllMocks();
+      // Each answer stands for another repository: none remembers the last one's refusal.
+      forgetPlatformAnswers();
       githubPull({ rule: null, protection, decision: null, contexts: [] });
       const a = await signInWithGithub();
       return byKind(await readiness(a.send, "platform=github&repo=octo/api&number=7"));

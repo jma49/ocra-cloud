@@ -1,6 +1,24 @@
 import { deadline } from "../deadline.js";
+import { type CacheOptions, cachedFetch } from "./answer-cache.js";
+import { notePlatformLimit } from "./rate-limit.js";
 
 const TIMEOUT_MS = 10_000;
+
+/** A platform call: never followed, since a redirect would resend the user's token elsewhere. */
+async function send(url: string, init: RequestInit, options?: CacheOptions): Promise<Response> {
+  const res = await cachedFetch(
+    url,
+    init,
+    (u, i) => {
+      // The deadline may pass while the cache reads its key, before the call starts.
+      i.signal?.throwIfAborted();
+      return fetch(u, { ...i, redirect: "manual" });
+    },
+    options,
+  );
+  notePlatformLimit(res);
+  return res;
+}
 
 /**
  * What `read` makes of a platform call's answer; null when the call failed,
@@ -14,8 +32,7 @@ export async function platformRead<T>(
 ): Promise<T | null> {
   const clock = deadline(TIMEOUT_MS, ...(signal ? [signal] : []));
   try {
-    // Not followed: a redirect would resend the user's token to another address.
-    const res = await fetch(url, { ...init, redirect: "manual", signal: clock.signal });
+    const res = await send(url, { ...init, signal: clock.signal });
     if (!res.ok) {
       await res.body?.cancel().catch(() => {});
       return null;
@@ -64,10 +81,11 @@ export async function boundedBytes(res: Response, max: number): Promise<Uint8Arr
 export async function platformSend<T>(
   url: string,
   init: RequestInit,
+  options?: CacheOptions,
 ): Promise<{ status: number; body: T | null } | null> {
   const clock = deadline(TIMEOUT_MS);
   try {
-    const res = await fetch(url, { ...init, redirect: "manual", signal: clock.signal });
+    const res = await send(url, { ...init, signal: clock.signal }, options);
     if (res.status >= 300 && res.status < 400) {
       await res.body?.cancel().catch(() => {});
       return { status: res.status, body: null };
