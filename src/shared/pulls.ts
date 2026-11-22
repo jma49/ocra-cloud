@@ -1,3 +1,5 @@
+import type { CodePlatformKind } from "./domain.js";
+
 export type PullRole = "reviewer" | "author";
 export type PullChecks = "passing" | "failing" | "pending" | null;
 export type PullReview = "approved" | "changes_requested" | "required" | null;
@@ -24,7 +26,73 @@ export type PullItem = {
   verdict: PullAiVerdict;
   additions: number | null;
   deletions: number | null;
+  /** The head commit, where the listing names it. */
+  head: string | null;
+  /** Changed since the account last saw it, or marked unread. */
+  unread: boolean;
+  /** What changed first, of what counts; only on an unread pull. */
+  unreadReason?: PullUnreadReason;
 };
+
+/**
+ * Why a pull request is unread: never seen, marked unread, new commits, a
+ * merge, a new ocra review, or other activity on the platform (reviews,
+ * comments, a title or label change).
+ */
+export type PullUnreadReason = "new" | "marked" | "commits" | "merged" | "ocra_review" | "activity";
+
+/** At most this many pull requests per POST /api/pulls/seen/bulk. */
+export const MAX_SEEN_BULK = 250;
+
+/** One pull request as the inbox saw it, to mark read: its updatedAt and head from the listing. */
+export type PullSeenMark = {
+  platform: CodePlatformKind;
+  repo: string;
+  number: number;
+  updatedAt: string;
+  head: string | null;
+};
+
+/** POST /api/pulls/seen/bulk: read needs each pull's updatedAt; unread takes it and head as given or not. */
+export type PullSeenBulkRequest =
+  | { read: true; pulls: PullSeenMark[] }
+  | { read: false; pulls: Pick<PullSeenMark, "platform" | "repo" | "number">[] };
+
+/** What the account last saw of a pull request; times in milliseconds. */
+export type PullSeenState = {
+  updatedAt: number;
+  head: string | null;
+  /** Marked unread by hand. */
+  unread: boolean;
+  /** When it was marked, by the server's clock, as ocra reviews are. */
+  seenAt: number;
+};
+
+/**
+ * Whether a listed pull request changed since the account saw it, and the
+ * first reason that holds. reviewedAt is when the account's newest ocra
+ * review of it was made.
+ */
+export function pullUnread(
+  pull: Pick<PullItem, "updatedAt" | "head" | "mergedAt">,
+  seen: PullSeenState | undefined,
+  reviewedAt: number | null,
+): { unread: boolean; unreadReason?: PullUnreadReason } {
+  const reason = ((): PullUnreadReason | null => {
+    if (!seen) return "new";
+    if (seen.unread) return "marked";
+    const moved = Date.parse(pull.updatedAt) > seen.updatedAt;
+    if (moved && pull.head !== null && seen.head !== null && pull.head !== seen.head) {
+      return "commits";
+    }
+    if (moved && pull.mergedAt !== null && Date.parse(pull.mergedAt) > seen.updatedAt) {
+      return "merged";
+    }
+    if (reviewedAt !== null && reviewedAt > seen.seenAt) return "ocra_review";
+    return moved ? "activity" : null;
+  })();
+  return reason ? { unread: true, unreadReason: reason } : { unread: false };
+}
 
 /** Every listed field narrows the view; within a field any value matches. */
 export type PullFilters = {

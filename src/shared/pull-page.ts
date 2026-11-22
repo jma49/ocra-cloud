@@ -21,6 +21,8 @@ export type PullFilesView = {
   number: number;
   base: string;
   head: string;
+  /** The platform's updated_at, which POST /api/pulls/seen takes back to mark it read. */
+  updatedAt: string | null;
   files: PullFileView[];
   /** True when the pull request has more files, or more diff, than one page reads. */
   truncated: boolean;

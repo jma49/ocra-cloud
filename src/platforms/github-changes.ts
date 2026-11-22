@@ -12,7 +12,12 @@ import { platformCall } from "./http.js";
 const API = "https://api.github.com";
 const PER_PAGE = 100;
 
-type Pull = { base: { sha: string }; head: { sha: string }; changed_files: number };
+type Pull = {
+  base: { sha: string };
+  head: { sha: string };
+  changed_files: number;
+  updated_at?: string;
+};
 type File = {
   filename: string;
   previous_filename?: string;
@@ -60,6 +65,7 @@ async function listFiles(token: string, fullName: string, number: number, max = 
   return {
     base: pull.base.sha,
     head: pull.head.sha,
+    updatedAt: pull.updated_at ?? null,
     files: files.slice(0, max),
     truncated: pull.changed_files > Math.min(files.length, max),
   };

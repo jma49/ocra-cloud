@@ -510,6 +510,30 @@ export const pullViews = sqliteTable(
   ],
 );
 
+// When the account last saw each pull request: the platform's updated_at
+// and head it saw then, so the inbox tells what changed since. A mark never
+// moves to an older updated_at; `unread` is the account's own "unread again".
+export const pullSeen = sqliteTable(
+  "pull_seen",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    platform: text("platform", { enum: CODE_PLATFORMS }).notNull(),
+    // Lower case: platforms compare repository paths without case.
+    repo: text("repo").notNull(),
+    number: integer("number").notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+    head: text("head"),
+    unread: integer("unread", { mode: "boolean" }).notNull().default(false),
+    seenAt: integer("seen_at", { mode: "timestamp_ms" }).notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("pull_seen_account_pull").on(t.accountId, t.platform, t.repo, t.number),
+    index("pull_seen_account_seen").on(t.accountId, t.seenAt),
+  ],
+);
+
 // A repository whose default branch the account has the server keep a code
 // graph of: symbol names, kinds and line numbers per file, never code. Found
 // by a push webhook through (platform, host, platform_repo_id); a GitLab
@@ -1071,6 +1095,7 @@ export const accountTables = {
   budgets,
   platformLinks,
   pullViews,
+  pullSeen,
   graphRepos,
   graphBuilds,
   reviewRepos,

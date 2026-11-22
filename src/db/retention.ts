@@ -15,6 +15,7 @@ import {
   notifySends,
   pullFlows,
   pullReviews,
+  pullSeen,
   rateWindows,
   reviews,
   serviceCounters,
@@ -23,7 +24,7 @@ import {
 } from "./schema.js";
 
 // What the data policy (web /privacy) promises: review records, live runs, gateway call
-// records, merged and closed pull requests and their review flow, the daily counts and the audit log are deleted after
+// records, merged and closed pull requests and their review flow, the inbox's read marks, the daily counts and the audit log are deleted after
 // RETENTION_DAYS; expired login codes and sessions go at once. Runs daily
 // from the cron trigger.
 
@@ -98,6 +99,14 @@ export async function enforceRetention(db: Db, now = new Date()): Promise<void> 
         db
           .delete(pullReviews)
           .where(and(ofEachAccount(pullReviews.accountId), lt(pullReviews.submittedAt, cutoff))),
+    ],
+    // A pull request not seen for that long shows as never seen.
+    [
+      "pull_seen",
+      () =>
+        db
+          .delete(pullSeen)
+          .where(and(ofEachAccount(pullSeen.accountId), lt(pullSeen.seenAt, cutoff))),
     ],
     [
       "automation_runs",

@@ -11,7 +11,7 @@ import { platformCall } from "./http.js";
 const PER_PAGE = 100;
 
 export type DiffRefs = { base_sha: string; head_sha: string; start_sha: string };
-type MergeRequest = { diff_refs: DiffRefs | null };
+type MergeRequest = { diff_refs: DiffRefs | null; updated_at?: string };
 type Diff = {
   old_path: string;
   new_path: string;
@@ -55,6 +55,7 @@ async function listDiffs(
   return {
     base: mr.diff_refs.base_sha,
     head: mr.diff_refs.head_sha,
+    updatedAt: mr.updated_at ?? null,
     diffs: diffs.slice(0, max),
     truncated: more || diffs.length > max,
   };

@@ -17,6 +17,8 @@ export type ChangedFile = {
 export type PullChanges = {
   base: string;
   head: string;
+  /** The platform's updated_at of the pull request, where it said. */
+  updatedAt: string | null;
   files: ChangedFile[];
   /** True when the pull request has more files than were read. */
   truncated: boolean;

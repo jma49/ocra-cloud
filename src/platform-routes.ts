@@ -6,11 +6,12 @@ import type { CodePlatform, PlatformRepo } from "./platforms/platform.js";
 import { repoHashOf } from "./platforms/platform.js";
 import { platformsOf } from "./platforms/registry.js";
 import { sectionsOf } from "./pull-sections.js";
+import { pullSeenStates } from "./pull-unread.js";
 import { pullVerdicts } from "./pull-verdicts.js";
 import { perMinute } from "./rate.js";
 import { MAX_NAMED } from "./repositories.js";
 import { requireSession } from "./session.js";
-import type { PullItem } from "./shared/index.js";
+import { type PullItem, pullUnread } from "./shared/index.js";
 import type { AppEnv } from "./types.js";
 
 // What the signed-in user reaches on each connected code platform, read
@@ -73,7 +74,8 @@ platformsRoute.get("/repos", requireSession(), async (c) => {
 });
 
 // The pull requests asking the user's review, theirs open and theirs merged
-// this week, each with the verdict of the account's newest review of it.
+// this week, each with the verdict of the account's newest review of it and
+// whether it changed since the account last saw it (POST /api/pulls/seen).
 // With group=views it also answers the account's visible views (or the
 // defaults while it has none), each with the pulls it holds, evaluated here
 // over this same listing.
@@ -94,11 +96,17 @@ platformsRoute.get("/pulls", requireSession(), async (c) => {
       return { platform, head, linked: true, failed: false, ...listing };
     }),
   );
-  const verdictOf = await pullVerdicts(c.var.data, listed);
+  const [reviewsOf, seenOf] = await Promise.all([
+    pullVerdicts(c.var.data, listed),
+    pullSeenStates(c.var.data, listed),
+  ]);
   const platforms = listed.map(({ platform, head, pulls, ...rest }) => ({
     ...head,
     ...rest,
-    pulls: pulls.map((p): PullItem => ({ ...p, verdict: verdictOf(platform, p) })),
+    pulls: pulls.map((p): PullItem => {
+      const { verdict, reviewedAt } = reviewsOf(platform, p);
+      return { ...p, verdict, ...pullUnread(p, seenOf(platform, p), reviewedAt) };
+    }),
   }));
   if (group !== "views") return c.json({ platforms });
   return c.json({ platforms, sections: await sectionsOf(c.var.data, platforms, Date.now()) });

@@ -29,6 +29,7 @@ export const platformLinks = pg(sqlite.platformLinks);
 export const budgets = pg(sqlite.budgets);
 export const repositories = pg(sqlite.repositories);
 export const pullViews = pg(sqlite.pullViews);
+export const pullSeen = pg(sqlite.pullSeen);
 export const graphRepos = pg(sqlite.graphRepos);
 export const graphBuilds = pg(sqlite.graphBuilds);
 export const reviewRepos = pg(sqlite.reviewRepos);

@@ -134,6 +134,7 @@ describe("a GitLab merge request's changes", () => {
     expect(changes).toEqual({
       base: C1,
       head: C2,
+      updatedAt: null,
       truncated: false,
       files: [
         { path: "lib/b.ts", oldPath: "lib/a.ts", status: "renamed", hunks: [] },

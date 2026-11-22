@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type {
   CodePlatformKind,
@@ -58,6 +58,15 @@ export function PullPage(props: {
     () => api<PullFilesView>(`/pulls/files?${query}`),
     [query.toString()],
   );
+  // Opening the page marks the pull request read as of what it read; the inbox shows it unread otherwise.
+  const { repo } = props;
+  const updatedAt = data?.updatedAt;
+  const head = data?.head;
+  useEffect(() => {
+    if (!updatedAt) return;
+    const mark = { platform, repo, number, updatedAt, head };
+    api("/pulls/seen", { method: "POST", body: JSON.stringify(mark) }).catch(() => undefined);
+  }, [platform, repo, number, updatedAt, head]);
   const queue = useLoad(() => api<MergeQueueView>(`/pulls/queue?${query}`), [query.toString()]);
   const [pending, setPending] = useState<LineComment[]>([]);
   const [said, setSaid] = useState<{ what: string; outcome: PullActionOutcome } | null>(null);

@@ -32,6 +32,8 @@ const pull = (n: number, over: Partial<PullItem> = {}): PullItem => ({
   verdict: null,
   additions: null,
   deletions: null,
+  head: null,
+  unread: false,
   ...over,
 });
 

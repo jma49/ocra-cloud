@@ -45,6 +45,7 @@ import { accountMergeIntents } from "./merge-intents.js";
 import { accountNotify } from "./notify.js";
 import { type PreferencesSave, savePreferences } from "./preferences.js";
 import { accountPullFlows } from "./pull-flows.js";
+import { accountPullSeen } from "./pull-seen.js";
 import { accountPullViews } from "./pull-views.js";
 import { accountReplyJobs } from "./reply-jobs.js";
 import { accountReports } from "./reports.js";
@@ -425,6 +426,7 @@ export function scoped(db: Db, accountId: string) {
     nameRepos: (list: readonly { repoHash: string; name: string }[], cap: number) =>
       nameRepos(db, accountId, list, cap),
     pullViews: accountPullViews(db, accountId),
+    pullSeen: accountPullSeen(db, accountId),
     graphs: accountGraphs(db, accountId),
     autoReview: accountReviewJobs(db, accountId),
     notify: accountNotify(db, accountId),

@@ -104,7 +104,10 @@ export function matchDestinations(
 export const pullPath = (platform: CodePlatformKind, repo: string, number: number) =>
   `/pull/${platform}/${encodeURIComponent(repo)}/${number}`;
 
-export type SearchPullResult = Omit<PullItem, "roles" | "labels" | "verdict"> & {
+export type SearchPullResult = Omit<
+  PullItem,
+  "roles" | "labels" | "verdict" | "head" | "unread" | "unreadReason"
+> & {
   platform: CodePlatformKind;
   host: string;
   to: string;
