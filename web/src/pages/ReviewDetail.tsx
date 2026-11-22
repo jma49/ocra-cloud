@@ -1,34 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
-import type { ReviewSource, Severity, Verdict, Verification } from "../../../src/shared/index.js";
+import type { ReviewSource, Verdict } from "../../../src/shared/index.js";
 import { ApiError, api } from "../api.js";
 import { useCached } from "../cache.js";
-import { sourceLabel, time } from "../format.js";
+import { ago, sourceLabel, time } from "../format.js";
 import { type FocusedFinding, ImpactRail } from "../impact/rail.js";
-import { symbolsOf } from "../impact/select.js";
-import { type Impact, useImpact } from "../impact/use-impact.js";
+import { useImpact } from "../impact/use-impact.js";
 import { Link } from "../router.js";
 import { LoadError, Loading, PageHead, Seg } from "../ui.js";
+import { type Finding, FindingEvent } from "./review-finding.js";
 
-// One review and, when the account shares findings, its findings (ADR-0028).
-// Every text is rendered as plain text: findings quote untrusted code.
+// One review and, when the account shares findings, its findings (ADR-0028):
+// its properties on the left, what happened on a timeline on the right.
 
-type Finding = {
-  id: string;
-  fingerprint: string;
-  reviewer: string;
-  severity: Severity;
-  category: string | null;
-  verification: Verification | null;
-  file: string;
-  lineStart: number | null;
-  lineEnd: number | null;
-  title: string;
-  body: string;
-  suggestion: string | null;
-  code: string | null;
-  redacted: boolean;
-  truncated: boolean;
-};
 type Detail = {
   review: {
     id: string;
@@ -46,8 +29,9 @@ type Detail = {
   };
   findings: Finding[];
 };
+type Review = Detail["review"];
 
-const SEV_CLASS = { critical: "badge-err", warning: "badge-warn", suggestion: "" } as const;
+const RANK = { critical: 0, warning: 1, suggestion: 2 } as const;
 
 export function ReviewDetail(props: { id: string; graphs: boolean }) {
   const { data, error, reload } = useCached(`/reviews/${props.id}`, () =>
@@ -66,14 +50,13 @@ export function ReviewDetail(props: { id: string; graphs: boolean }) {
     return () => window.removeEventListener("keydown", close);
   }, [focused]);
   const [severity, setSeverity] = useState<"all" | Finding["severity"]>("all");
-  const byFile = useMemo(() => {
-    const groups = new Map<string, Finding[]>();
-    for (const f of data?.findings ?? []) {
-      if (severity !== "all" && f.severity !== severity) continue;
-      groups.set(f.file, [...(groups.get(f.file) ?? []), f]);
-    }
-    return [...groups.entries()];
-  }, [data, severity]);
+  const shown = useMemo(
+    () =>
+      (data?.findings ?? [])
+        .filter((f) => severity === "all" || f.severity === severity)
+        .sort((a, b) => RANK[a.severity] - RANK[b.severity] || a.file.localeCompare(b.file)),
+    [data, severity],
+  );
 
   if (error && !(error instanceof ApiError && error.status === 404)) {
     return (
@@ -105,40 +88,64 @@ export function ReviewDetail(props: { id: string; graphs: boolean }) {
       </>
     );
   const r = data.review;
+  const files = new Set(data.findings.map((f) => f.file)).size;
   return (
-    <>
-      <PageHead
-        title={`Review of ${r.repo}`}
-        sub={`${time(r.createdAt)} · ${sourceLabel(r.source)} · run ${r.runId}`}
-        actions={
-          <span className="row-gap">
-            <Link to="/reviews" className="btn">
-              All reviews
-            </Link>
-            <a className="btn" href={`/api/reviews/${r.id}/export`} download>
-              Download JSON
-            </a>
+    <div className="review-frame">
+      <aside className="review-side" aria-label="Properties">
+        <Properties r={r} />
+        <ImpactRail impact={impact} finding={focused} onClose={() => setFocused(null)} />
+      </aside>
+      <section className="review-main" aria-label="Activity">
+        <div className="review-title">
+          <span className="mono subtle">
+            {r.prRepository && r.prNumber ? `#${r.prNumber} · ${r.prRepository}` : r.repo}
           </span>
-        }
-      />
-      <div className="stats">
-        <div className="card stat">
-          <div className="stat-label">Result</div>
-          <div className="stat-value stat-word">
-            {!r.complete ? "Incomplete" : (r.verdict ?? "–").replaceAll("_", " ")}
-          </div>
+          <h1>Review of {r.repo}</h1>
         </div>
-        {(["critical", "warning", "suggestion"] as const).map((k) => (
-          <div className="card stat" key={k}>
-            <div className="stat-label capitalize">{k}</div>
-            <div className="stat-value">{r[k]}</div>
-          </div>
-        ))}
-      </div>
-
-      <div className="review-layout">
-        {data.findings.length === 0 ? (
-          <div className="section card empty-hero">
+        <div className="review-tabs">
+          <span className="caps">
+            Activity · {data.findings.length} finding{data.findings.length === 1 ? "" : "s"} in{" "}
+            {files} file{files === 1 ? "" : "s"}
+          </span>
+          {data.findings.length > 0 && (
+            <Seg
+              label="Severity"
+              value={severity}
+              options={[
+                { value: "all", label: "All" },
+                { value: "critical", label: "Critical" },
+                { value: "warning", label: "Warning" },
+                { value: "suggestion", label: "Suggestion" },
+              ]}
+              onChange={setSeverity}
+            />
+          )}
+        </div>
+        <ol className="timeline">
+          <li className="event">
+            <span className="event-mark" aria-hidden="true" />
+            <div className="event-body">
+              <div className="event-meta">
+                <span>Review ran</span>
+                <span className="subtle">{ago(r.createdAt)}</span>
+              </div>
+              <p className="event-text">
+                {sourceLabel(r.source)}, run <span className="mono">{r.runId}</span>.
+              </p>
+            </div>
+          </li>
+          {shown.map((f) => (
+            <FindingEvent
+              key={f.id}
+              f={f}
+              impact={impact}
+              focused={focused?.id === f.id}
+              onImpact={() => setFocused(focused?.id === f.id ? null : f)}
+            />
+          ))}
+        </ol>
+        {data.findings.length === 0 && (
+          <div className="card empty-hero">
             <h3>No findings stored for this review</h3>
             <p>
               Findings are kept only when you share them (Settings). Counts are always kept; turn
@@ -148,140 +155,51 @@ export function ReviewDetail(props: { id: string; graphs: boolean }) {
               Open settings
             </Link>
           </div>
-        ) : (
-          <div className="section">
-            <div className="section-title">
-              <span>
-                {data.findings.length} finding{data.findings.length === 1 ? "" : "s"} in{" "}
-                {byFile.length} file
-                {byFile.length === 1 ? "" : "s"}
-              </span>
-              <Seg
-                label="Severity"
-                value={severity}
-                options={[
-                  { value: "all", label: "All" },
-                  { value: "critical", label: "Critical" },
-                  { value: "warning", label: "Warning" },
-                  { value: "suggestion", label: "Suggestion" },
-                ]}
-                onChange={setSeverity}
-              />
-            </div>
-            {byFile.map(([file, list]) => (
-              <div className="card file-card" key={file}>
-                <div className="card-head">
-                  <h3 className="mono">{file}</h3>
-                  <span className="subtle small">{list.length}</span>
-                </div>
-                {list.map((f) => (
-                  <FindingRow
-                    key={f.id}
-                    f={f}
-                    impact={impact}
-                    focused={focused?.id === f.id}
-                    onImpact={() => setFocused(focused?.id === f.id ? null : f)}
-                  />
-                ))}
-              </div>
-            ))}
-          </div>
         )}
-        <ImpactRail impact={impact} finding={focused} onClose={() => setFocused(null)} />
-      </div>
-    </>
+      </section>
+    </div>
   );
 }
 
-function FindingRow(props: { f: Finding; impact: Impact; focused: boolean; onImpact: () => void }) {
-  const { f } = props;
-  const reached = props.impact.state === "ready" ? symbolsOf(props.impact.view.symbols, f) : [];
-  const uses = reached.reduce((n, s) => n + s.useCount, 0);
-  const [open, setOpen] = useState(false);
-  const [reason, setReason] = useState("");
-  const [state, setState] = useState<"" | "saving" | "saved" | "error">("");
-  const remember = async () => {
-    setState("saving");
-    try {
-      await api("/memory", { method: "POST", body: JSON.stringify({ findingId: f.id, reason }) });
-      setState("saved");
-    } catch {
-      setState("error");
-    }
-  };
-  const lines =
-    f.lineStart === null
-      ? ""
-      : f.lineEnd && f.lineEnd !== f.lineStart
-        ? `L${f.lineStart}–${f.lineEnd}`
-        : `L${f.lineStart}`;
+function Properties(props: { r: Review }) {
+  const { r } = props;
+  const verdict = !r.complete ? "Incomplete" : (r.verdict ?? "–").replaceAll("_", " ");
   return (
-    <div className={`finding${props.focused ? " is-focused" : ""}`}>
-      <div className="finding-head">
-        <span className={`badge ${SEV_CLASS[f.severity]}`}>{f.severity}</span>
-        <span className="mono subtle small">{lines}</span>
-        <span className="finding-title">{f.title}</span>
-        <span className="subtle small">
-          {f.reviewer}
-          {f.verification ? ` · ${f.verification}` : ""}
-          {f.redacted ? " · redacted" : ""}
-          {f.truncated ? " · cut" : ""}
-        </span>
-        {reached[0] && (
-          <button
-            type="button"
-            className="btn btn-sm"
-            aria-pressed={props.focused}
-            onClick={props.onImpact}
-          >
-            Reaches {uses} use{uses === 1 ? "" : "s"} of {reached[0].name}
-            {reached.length > 1 ? ` and ${reached.length - 1} more` : ""}
-          </button>
+    <div className="props">
+      <dl className="prop-list">
+        <dt>Verdict</dt>
+        <dd className="capitalize">{verdict}</dd>
+        <dt>Findings</dt>
+        <dd className="sev-counts">
+          <span className="badge badge-err">{r.critical} critical</span>
+          <span className="badge badge-warn">{r.warning} warning</span>
+          <span className="badge">{r.suggestion} suggestion</span>
+        </dd>
+        <dt>Repository</dt>
+        <dd className="mono">{r.repo}</dd>
+        {r.prRepository && r.prNumber && (
+          <>
+            <dt>Pull request</dt>
+            <dd className="mono">
+              {r.prRepository}#{r.prNumber}
+            </dd>
+          </>
         )}
-        <button type="button" className="btn btn-sm" onClick={() => setOpen(!open)}>
-          {open ? "Hide" : "Details"}
-        </button>
+        <dt>Source</dt>
+        <dd>{sourceLabel(r.source)}</dd>
+        <dt>Reviewed</dt>
+        <dd>{time(r.createdAt)}</dd>
+        <dt>Run</dt>
+        <dd className="mono">{r.runId}</dd>
+      </dl>
+      <div className="prop-actions">
+        <Link to="/reviews" className="btn">
+          All reviews
+        </Link>
+        <a className="btn" href={`/api/reviews/${r.id}/export`} download>
+          Download JSON
+        </a>
       </div>
-      {open && (
-        <div className="finding-body">
-          <p className="m-0 pre-wrap">{f.body}</p>
-          {f.code && <pre className="codeblock">{f.code}</pre>}
-          {f.suggestion && (
-            <div>
-              <div className="subtle small finding-label">Suggestion</div>
-              <p className="m-0 pre-wrap">{f.suggestion}</p>
-            </div>
-          )}
-          <div className="inline-form">
-            {state === "saved" ? (
-              <span className="small">
-                Remembered: later reviews of this repository stop reporting it.{" "}
-                <Link to="/memory">Manage memory</Link>
-              </span>
-            ) : (
-              <>
-                <input
-                  className="input"
-                  aria-label="Why the team accepts this"
-                  placeholder="Why the team accepts this (shown in later reports)"
-                  maxLength={500}
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                />
-                <button
-                  type="button"
-                  className="btn btn-sm"
-                  disabled={!reason.trim() || state === "saving"}
-                  onClick={remember}
-                >
-                  Remember
-                </button>
-                {state === "error" && <span className="error">Could not remember it.</span>}
-              </>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
