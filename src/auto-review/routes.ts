@@ -16,6 +16,8 @@ import { autoReviewWebhooks } from "./webhooks.js";
 export type AutoReviewService = {
   /** Wakes the review runner after a job is queued. */
   kick: () => void;
+  /** Evaluates a pull request's pre-merge checks and posts them as the bot, after the answer. */
+  checkPull?: (accountId: string, reviewRepoId: string, number: number) => void;
 };
 
 const MAX_REVIEW_REPOS = 100;

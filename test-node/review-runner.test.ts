@@ -54,7 +54,7 @@ describe("the ocra bot's GitHub token", () => {
     const minted = asked.find((a) => a.url.endsWith("/access_tokens"));
     expect(minted?.body).toEqual({
       repositories: ["API"],
-      permissions: { contents: "read", pull_requests: "write", metadata: "read" },
+      permissions: { contents: "read", pull_requests: "write", metadata: "read", checks: "write" },
     });
     const jwt = minted?.auth?.replace("Bearer ", "") ?? "";
     const [head, body, signature] = jwt.split(".");

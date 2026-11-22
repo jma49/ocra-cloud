@@ -1,6 +1,8 @@
 import type { AutoReviewService } from "../auto-review/routes.js";
 import type { Db } from "../db/client.js";
 import { errorName, logError } from "../log.js";
+import { postChecks } from "../merge-checks/publish.js";
+import type { BotTokens } from "../platforms/bot.js";
 import { platformsOf } from "../platforms/registry.js";
 import type { AppBindings } from "../types.js";
 import { type BotSettings, botTokens } from "./bot-tokens.js";
@@ -8,6 +10,8 @@ import { type Exec, runNextReply, runNextReview } from "./review-runner.js";
 
 export type AutoReviewOptions = {
   bots: BotSettings;
+  /** The bot's credentials made elsewhere, in place of bots' (tests). */
+  tokens?: BotTokens;
   /** Reviews at once; 0 queues them for another process sharing the database. */
   workers: number;
   exec?: Exec;
@@ -27,7 +31,7 @@ export function startAutoReview(
     db,
     // A GitLab token's refresh names this server's own address.
     platforms: platformsOf(env, publicUrl),
-    bots: botTokens(options.bots),
+    bots: options.tokens ?? botTokens(options.bots),
     publicUrl,
     ...(options.exec ? { exec: options.exec } : {}),
     ...(options.cli ? { cli: options.cli } : {}),
@@ -44,6 +48,11 @@ export function startAutoReview(
       running--;
     }
   };
+  const checkPull = (accountId: string, reviewRepoId: string, number: number) => {
+    postChecks(runner, accountId, reviewRepoId, number).catch((e) =>
+      logError("merge_checks_failed", { repo: reviewRepoId, error: errorName(e) }),
+    );
+  };
   const kick = () => {
     while (!stopped && running < options.workers) void loop();
   };
@@ -52,7 +61,7 @@ export function startAutoReview(
   queueMicrotask(kick);
   timer.unref();
   return {
-    service: { kick },
+    service: { kick, checkPull },
     stop() {
       stopped = true;
       clearInterval(timer);

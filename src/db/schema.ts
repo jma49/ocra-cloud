@@ -27,6 +27,11 @@ import {
   DISMISS_REASONS,
   FINDING_STATUSES,
   GRAPH_BUILD_STATES,
+  type LinkedTaskView,
+  MERGE_CHECK_KINDS,
+  MERGE_CHECK_MODES,
+  type MergeCheckResultView,
+  type MergeChecksConclusion,
   type ModelChains,
   NOTIFY_KINDS,
   NOTIFY_WHEN,
@@ -220,6 +225,8 @@ export const reviews = sqliteTable(
     prRepository: text("pr_repository"),
     prNumber: integer("pr_number"),
     prHeadSha: text("pr_head_sha"),
+    // The pull request's linked tasks as uploaded; null when the review did not look them up.
+    linkedTasks: text("linked_tasks", { mode: "json" }).$type<LinkedTaskView[]>(),
     // ADR-0028, 1: numbers per reviewer and the run's outcomes; never text.
     byReviewer: text("by_reviewer", { mode: "json" }).$type<Record<string, ReviewerCounts>>(),
     verification: text("verification", { mode: "json" }).$type<Partial<Record<string, number>>>(),
@@ -662,6 +669,57 @@ export const automationRuns = sqliteTable(
   ],
 );
 
+// A pre-merge check an account asks of an enrolled repository's pull
+// requests; its settings are checked against its kind's schema on the way
+// in and out (src/merge-checks/settings.ts).
+export const mergeChecks = sqliteTable(
+  "merge_checks",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    reviewRepoId: text("review_repo_id")
+      .notNull()
+      .references(() => reviewRepos.id, { onDelete: "cascade" }),
+    kind: text("kind", { enum: MERGE_CHECK_KINDS }).notNull(),
+    mode: text("mode", { enum: MERGE_CHECK_MODES }).notNull(),
+    settings: text("settings", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("merge_checks_repo").on(t.reviewRepoId, t.createdAt),
+    index("merge_checks_account").on(t.accountId),
+  ],
+);
+
+// How one head of a pull request fared, one row per head: posted to the
+// platform when its digest changes, so a result is posted once.
+export const mergeCheckRuns = sqliteTable(
+  "merge_check_runs",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    reviewRepoId: text("review_repo_id")
+      .notNull()
+      .references(() => reviewRepos.id, { onDelete: "cascade" }),
+    number: integer("number").notNull(),
+    head: text("head").notNull(),
+    conclusion: text("conclusion", { enum: ["success", "neutral", "failure"] })
+      .$type<MergeChecksConclusion>()
+      .notNull(),
+    results: text("results", { mode: "json" }).$type<MergeCheckResultView[]>().notNull(),
+    digest: text("digest").notNull(),
+    postedDigest: text("posted_digest"),
+    // The platform's id of the check run, to update it rather than add another.
+    externalId: text("external_id"),
+    postedAt: integer("posted_at", { mode: "timestamp_ms" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("merge_check_runs_head").on(t.reviewRepoId, t.number, t.head),
+    index("merge_check_runs_account_created").on(t.accountId, t.createdAt),
+  ],
+);
+
 /** The tables scoped by account, by the name scoped() uses. */
 export const accountTables = {
   sessions,
@@ -687,4 +745,6 @@ export const accountTables = {
   reviewWalkthroughs,
   automationRules,
   automationRuns,
+  mergeChecks,
+  mergeCheckRuns,
 } as const;

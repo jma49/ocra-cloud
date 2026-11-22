@@ -38,3 +38,5 @@ export const replyJobs = pg(sqlite.replyJobs);
 export const reviewWalkthroughs = pg(sqlite.reviewWalkthroughs);
 export const automationRules = pg(sqlite.automationRules);
 export const automationRuns = pg(sqlite.automationRuns);
+export const mergeChecks = pg(sqlite.mergeChecks);
+export const mergeCheckRuns = pg(sqlite.mergeCheckRuns);

@@ -82,7 +82,9 @@ export async function openHost(options: HostOptions) {
     ...(graphs ? { graphs: graphs.service } : {}),
     ...(options.githubWebhookSecret ? { githubWebhookSecret: options.githubWebhookSecret } : {}),
     ...(reviews ? { autoReview: reviews.service } : {}),
-    ...(options.autoReview ? { bots: botTokens(options.autoReview.bots) } : {}),
+    ...(options.autoReview
+      ? { bots: options.autoReview.tokens ?? botTokens(options.autoReview.bots) }
+      : {}),
   });
 
   const origin = options.publicUrl ? new URL(options.publicUrl).origin : undefined;

@@ -72,6 +72,8 @@ const TABLE: Record<string, string> = {
   reviewWalkthroughs: "review_walkthroughs",
   automationRules: "automation_rules",
   automationRuns: "automation_runs",
+  mergeChecks: "merge_checks",
+  mergeCheckRuns: "merge_check_runs",
 };
 
 describe("query plans", () => {

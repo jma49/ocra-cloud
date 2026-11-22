@@ -72,7 +72,12 @@ export function botTokens(settings: BotSettings): BotTokens {
         method: "POST",
         body: JSON.stringify({
           repositories: [repo],
-          permissions: { contents: "read", pull_requests: "write", metadata: "read" },
+          permissions: {
+            contents: "read",
+            pull_requests: "write",
+            metadata: "read",
+            checks: "write",
+          },
         }),
       });
       if (typeof minted?.token !== "string") return null;

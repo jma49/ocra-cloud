@@ -36,6 +36,7 @@ import {
   inbox,
   rememberFindings,
 } from "./inbox.js";
+import { accountMergeChecks } from "./merge-checks.js";
 import { accountNotify } from "./notify.js";
 import { type PreferencesSave, savePreferences } from "./preferences.js";
 import { addPullView } from "./pull-views.js";
@@ -419,6 +420,7 @@ export function scoped(db: Db, accountId: string) {
     notify: accountNotify(db, accountId),
     replies: accountReplyJobs(db, accountId),
     automations: accountAutomations(db, accountId),
+    mergeChecks: accountMergeChecks(db, accountId),
     /** The findings of one of this account's reviews. */
     findingsOf(reviewId: string): Promise<Row<"findings">[]> {
       const f = accountTables.findings;
