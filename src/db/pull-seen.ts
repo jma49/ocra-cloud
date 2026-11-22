@@ -1,8 +1,10 @@
-import { sql } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import type { CodePlatformKind } from "../shared/index.js";
-import { changedRows, type Db } from "./client.js";
+import { DAY } from "../time.js";
+import { changedRows, type Db, first } from "./client.js";
 import { jsonRecords, randomId } from "./dialect.js";
-import { pullSeen } from "./schema.js";
+import { RETENTION_DAYS } from "./retention.js";
+import { accounts, pullSeen } from "./schema.js";
 
 // When the account last saw each pull request, for the inbox's unread
 // marks. Reached only through scoped().
@@ -31,6 +33,27 @@ export function accountPullSeen(db: Db, accountId: string) {
       WHERE true
       ON CONFLICT (account_id, platform, repo, number) DO UPDATE SET`;
   return {
+    /**
+     * Before when a pull request with no mark reads as read: when the inbox
+     * was first listed (set by the first call, never moved; kept is the
+     * session's copy), or the retention cutoff when later, since a mark
+     * deleted for age was seen before it, and so was the updated_at it kept.
+     */
+    async baseline(kept: Date | null, now = Date.now()): Promise<number> {
+      const a = accounts;
+      let since = kept;
+      if (since === null) {
+        const own = eq(a.id, accountId);
+        await db
+          .update(a)
+          .set({ inboxSince: new Date(now) })
+          .where(and(own, isNull(a.inboxSince)));
+        since =
+          first(await db.select({ at: a.inboxSince }).from(a).where(own))?.at ?? new Date(now);
+      }
+      return Math.max(since.getTime(), now - RETENTION_DAYS * DAY);
+    },
+
     /**
      * Marks pull requests read as of what the account saw; a mark older
      * than the one kept changes nothing. How many marks changed.

@@ -87,6 +87,9 @@ export const accounts = sqliteTable(
     reportWeekday: integer("report_weekday").notNull().default(1),
     reportHour: integer("report_hour").notNull().default(9),
     reportSentFor: integer("report_sent_for", { mode: "timestamp_ms" }),
+    // When the inbox was first listed: a pull request with no read mark
+    // updated before it reads as read (src/db/pull-seen.ts). Set once.
+    inboxSince: integer("inbox_since", { mode: "timestamp_ms" }),
   },
   (t) => [index("accounts_login").on(t.login)],
 );

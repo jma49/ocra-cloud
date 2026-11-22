@@ -100,7 +100,8 @@ export async function enforceRetention(db: Db, now = new Date()): Promise<void> 
           .delete(pullReviews)
           .where(and(ofEachAccount(pullReviews.accountId), lt(pullReviews.submittedAt, cutoff))),
     ],
-    // A pull request not seen for that long shows as never seen.
+    // A pull request not seen for that long falls back on the inbox baseline,
+    // which is never older than the cutoff (./pull-seen.ts): read until it changes.
     [
       "pull_seen",
       () =>

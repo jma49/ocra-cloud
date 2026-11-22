@@ -1,4 +1,6 @@
+import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { enforceRetention } from "../src/db/retention.js";
 import * as schema from "../src/db/schema.js";
 import { scoped } from "../src/db/scoped.js";
 import { MAX_SEEN_BULK, type PullItem, pullUnread } from "../src/shared/index.js";
@@ -13,7 +15,13 @@ const NEXT = "b".repeat(40);
 const T0 = "2026-11-20T10:00:00Z";
 const T1 = "2026-11-21T10:00:00Z";
 
-type Pull = { updatedAt: string; head: string; state?: string; mergedAt?: string | null };
+type Pull = {
+  updatedAt: string;
+  head: string;
+  createdAt?: string;
+  state?: string;
+  mergedAt?: string | null;
+};
 type Listed = { platforms: { pulls: PullItem[] }[] };
 
 /** GitHub lists one pull request, octo/api #7, as `now` says at each call. */
@@ -33,7 +41,7 @@ function listing(now: { pull: Pull }) {
                     url: "https://github.com/octo/api/pull/7",
                     isDraft: false,
                     state: now.pull.state ?? "OPEN",
-                    createdAt: T0,
+                    createdAt: now.pull.createdAt ?? T0,
                     updatedAt: now.pull.updatedAt,
                     mergedAt: now.pull.mergedAt ?? null,
                     additions: 1,
@@ -75,14 +83,55 @@ async function setUp(pull: Pull) {
   return { now, listed, post, seen };
 }
 
+const DAY = 24 * 60 * 60 * 1000;
+const ago = (days: number) => new Date(Date.now() - days * DAY);
+const inboxSince = async () => (await db.select().from(schema.accounts))[0]?.inboxSince ?? null;
+
 describe("unread pull requests in the inbox", () => {
-  it("shows a pull request never seen as new, and as read once its page marked it", async () => {
+  it("shows a fresh account nothing unread, and keeps the baseline where it was first set", async () => {
     const t = await setUp({ updatedAt: T0, head: HEAD });
+    expect(await inboxSince()).toBeNull();
+    expect(await t.listed()).toEqual({ unread: false, reason: undefined, head: HEAD });
+    const since = await inboxSince();
+    expect(since).not.toBeNull();
+    await t.listed();
+    expect(await inboxSince()).toEqual(since);
+  });
+
+  it("shows a pull request opened or updated after the baseline unread until seen", async () => {
+    const t = await setUp({ updatedAt: T0, head: HEAD });
+    await t.listed();
+    const later = new Date(Date.now() + 1000).toISOString();
+    t.now.pull = { updatedAt: later, head: HEAD };
+    expect(await t.listed()).toMatchObject({ unread: true, reason: "activity" });
+    t.now.pull = { updatedAt: later, head: HEAD, createdAt: later };
     expect(await t.listed()).toEqual({ unread: true, reason: "new", head: HEAD });
     const res = await t.seen(T0, HEAD, "Octo/API");
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ changed: 1 });
-    expect(await t.listed()).toEqual({ unread: false, reason: undefined, head: HEAD });
+    expect((await t.listed())?.reason).toBe("activity");
+  });
+
+  it("keeps a pull request read once retention deletes its mark", async () => {
+    const t = await setUp({
+      updatedAt: ago(150).toISOString(),
+      head: HEAD,
+      createdAt: ago(180).toISOString(),
+    });
+    expect(await t.listed()).toMatchObject({ unread: false });
+    // A baseline older than retention: only the cutoff keeps it read.
+    const since = ago(200);
+    await db.update(schema.accounts).set({ inboxSince: since });
+    await t.seen(ago(150).toISOString());
+    await db.update(schema.pullSeen).set({ seenAt: ago(120) });
+    expect(await t.listed()).toMatchObject({ unread: false });
+
+    await enforceRetention(db);
+    expect(await db.select().from(schema.pullSeen)).toEqual([]);
+    expect(await t.listed()).toMatchObject({ unread: false });
+    expect(await inboxSince()).toEqual(since);
+    t.now.pull = { ...t.now.pull, updatedAt: new Date().toISOString(), head: NEXT };
+    expect((await t.listed())?.reason).toBe("activity");
   });
 
   it("says what changed since: new commits, a merge, other activity", async () => {
@@ -148,26 +197,62 @@ describe("unread pull requests in the inbox", () => {
   });
 });
 
+describe("inbox baseline", () => {
+  it("is set once per account, by its own id only, and never trails retention", async () => {
+    await db.delete(schema.accounts);
+    await db.insert(schema.accounts).values([
+      { id: "a", login: "a" },
+      { id: "b", login: "b" },
+    ]);
+    const first = Date.parse(T0);
+    expect(await scoped(db, "a").pullSeen.baseline(null, first)).toBe(first);
+    expect(await scoped(db, "a").pullSeen.baseline(null, first + 1000)).toBe(first);
+    const rows = await db.select().from(schema.accounts).orderBy(schema.accounts.id);
+    expect(rows.map((r) => [r.id, r.inboxSince?.getTime() ?? null])).toEqual([
+      ["a", first],
+      ["b", null],
+    ]);
+    const late = first + 200 * DAY;
+    expect(await scoped(db, "a").pullSeen.baseline(new Date(first), late)).toBe(late - 90 * DAY);
+    const [a] = await db.select().from(schema.accounts).where(eq(schema.accounts.id, "a"));
+    expect(a?.inboxSince?.getTime()).toBe(first);
+  });
+});
+
 describe("pullUnread", () => {
   const seen = { updatedAt: Date.parse(T0), head: HEAD, unread: false, seenAt: Date.parse(T0) };
-  const pull = { updatedAt: T0, head: HEAD, mergedAt: null };
+  const pull = { createdAt: T0, updatedAt: T0, head: HEAD, mergedAt: null };
+  const since = Date.parse(T0);
 
   it("is read while nothing changed, and an older listing changes nothing", () => {
-    expect(pullUnread(pull, seen, null)).toEqual({ unread: false });
+    expect(pullUnread(pull, seen, null, since)).toEqual({ unread: false });
     expect(
-      pullUnread({ ...pull, head: NEXT }, { ...seen, updatedAt: Date.parse(T1) }, null),
+      pullUnread({ ...pull, head: NEXT }, { ...seen, updatedAt: Date.parse(T1) }, null, since),
     ).toEqual({ unread: false });
   });
 
   it("puts a hand mark first, and commits before an ocra review", () => {
-    expect(pullUnread(pull, { ...seen, unread: true }, null).unreadReason).toBe("marked");
+    expect(pullUnread(pull, { ...seen, unread: true }, null, since).unreadReason).toBe("marked");
     const moved = { ...pull, updatedAt: T1, head: NEXT };
-    expect(pullUnread(moved, seen, Date.parse(T1)).unreadReason).toBe("commits");
-    expect(pullUnread(pull, seen, Date.parse(T1)).unreadReason).toBe("ocra_review");
+    expect(pullUnread(moved, seen, Date.parse(T1), since).unreadReason).toBe("commits");
+    expect(pullUnread(pull, seen, Date.parse(T1), since).unreadReason).toBe("ocra_review");
+  });
+
+  it("reads a pull with no mark against the baseline", () => {
+    expect(pullUnread(pull, undefined, null, since)).toEqual({ unread: false });
+    const moved = { ...pull, updatedAt: T1, head: NEXT };
+    expect(pullUnread(moved, undefined, null, since).unreadReason).toBe("activity");
+    expect(pullUnread({ ...moved, mergedAt: T1 }, undefined, null, since).unreadReason).toBe(
+      "merged",
+    );
+    expect(pullUnread({ ...moved, createdAt: T1 }, undefined, null, since).unreadReason).toBe(
+      "new",
+    );
+    expect(pullUnread(pull, undefined, Date.parse(T1), since).unreadReason).toBe("ocra_review");
   });
 
   it("calls a head the listing does not name activity", () => {
-    expect(pullUnread({ ...pull, updatedAt: T1, head: null }, seen, null).unreadReason).toBe(
+    expect(pullUnread({ ...pull, updatedAt: T1, head: null }, seen, null, since).unreadReason).toBe(
       "activity",
     );
   });

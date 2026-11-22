@@ -1,0 +1,1 @@
+ALTER TABLE `accounts` ADD `inbox_since` integer;
