@@ -32,15 +32,18 @@
   padding: 18px 20px;
 }
 .stat-label {
-  font: 400 12.5px var(--mono);
-  color: var(--fg-muted);
+  font-size: 10px;
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--t3);
 }
 .stat-value {
   font-family: var(--display);
-  font-stretch: 78%;
-  font-size: 40px;
-  line-height: 1.05;
-  font-weight: 520;
+  font-size: 22px;
+  line-height: 28px;
+  font-weight: 600;
   letter-spacing: -0.01em;
   margin-top: 8px;
   font-variant-numeric: tabular-nums;

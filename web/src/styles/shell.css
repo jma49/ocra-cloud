@@ -1,241 +1,293 @@
-/* Shell: top bar and account menu, sidebar, the sheet, page header, footer, save bar and toast, the privacy page.
-   The bar and the sidebar lie on the desk; the page is a printed sheet. */
-/* Top bar */
+/* Shell: the signed-out top bar, the account menu, the rail and the page panel,
+   the page bar and its tabs, the settings list, page header, policy, footer,
+   save bar and toast. */
+/* Top bar (signed out, data policy) */
 .topbar {
   position: sticky;
   top: 0;
   z-index: 10;
-  height: 60px;
+  height: 52px;
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 0 20px;
-  color: var(--on-desk);
-  background: color-mix(in srgb, var(--ground) 88%, transparent);
-  -webkit-backdrop-filter: blur(20px);
-  backdrop-filter: blur(20px);
-  box-shadow: inset 0 -1px 0 var(--line-desk);
+  padding: 0 16px;
+  color: var(--t1);
+  background: color-mix(in srgb, var(--ground) 90%, transparent);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  box-shadow: inset 0 -0.5px 0 var(--hair2);
 }
 .brand {
   display: flex;
   align-items: center;
-  gap: 9px;
-  height: 44px;
+  gap: 8px;
+  height: 40px;
   margin-right: 8px;
-  font-weight: 540;
-  font-stretch: 78%;
-  font-size: 22px;
+  font-weight: 600;
+  font-size: 16px;
   letter-spacing: -0.01em;
   text-decoration: none;
 }
 .brand-tag {
-  font: 400 12px var(--mono);
-  color: var(--on-desk-2);
-  padding: 2px 7px;
+  font: 400 11px var(--mono);
+  color: var(--t3);
+  padding: 1px 6px;
   border-radius: var(--r-chip);
-  box-shadow: inset 0 0 0 1px var(--line-desk);
+  box-shadow: inset 0 0 0 0.5px var(--hair2);
 }
-.topbar .spacer {
+.spacer {
   flex: 1;
 }
 .toplink {
   display: inline-flex;
   align-items: center;
-  height: 36px;
-  padding: 0 11px;
+  height: 30px;
+  padding: 0 10px;
   border-radius: var(--r-tab);
-  color: var(--on-desk-2);
+  color: var(--t2);
   text-decoration: none;
   font-weight: 500;
-  font-size: 14px;
   transition:
     background-color 150ms var(--e-std),
     color 150ms var(--e-std);
+}
+.account {
+  position: relative;
 }
 .avatar-btn {
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 38px;
-  margin-left: 8px;
+  height: 32px;
+  margin-left: 6px;
   border: 0;
   background: transparent;
   border-radius: var(--r-ctl);
-  padding: 0 11px 0 5px;
+  padding: 0 10px 0 4px;
   cursor: pointer;
-  color: var(--on-desk);
-  box-shadow: inset 0 0 0 1px var(--line-desk);
+  color: var(--t1);
   transition: background-color 150ms var(--e-std);
+}
+.account.compact .avatar-btn {
+  margin: 0;
+  padding: 0;
+  width: 32px;
+  justify-content: center;
 }
 @media (hover: hover) {
   .toplink:hover,
   .avatar-btn:hover {
-    background: color-mix(in srgb, var(--on-desk) 7%, transparent);
-    color: var(--on-desk);
+    background: var(--fill2);
+    color: var(--t1);
   }
 }
 .avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: var(--r-chip);
-  background: var(--line-desk);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--fill2);
 }
-/* The account menu: a slip of card stock laid on the desk. */
 .menu {
   position: absolute;
-  right: 20px;
-  top: 54px;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 40;
   min-width: 220px;
   color: var(--fg);
-  background: var(--stock);
+  background: var(--raised);
   border-radius: var(--r-ctl);
   box-shadow: var(--float);
-  padding: 6px;
+  padding: 4px;
+}
+.account.compact .menu {
+  left: calc(100% + 8px);
+  right: auto;
+  top: auto;
+  bottom: 0;
 }
 .menu-head {
-  padding: 8px 10px 10px;
-  border-bottom: 1px solid var(--border);
+  padding: 8px 10px;
+  border-bottom: 0.5px solid var(--hair2);
   margin-bottom: 4px;
 }
 .menu-item {
   display: block;
   width: 100%;
   text-align: left;
-  padding: 7px 10px;
+  padding: 6px 10px;
   border: 0;
   background: none;
   border-radius: var(--r-tab);
   color: var(--fg);
   text-decoration: none;
   cursor: pointer;
-  font-size: 14px;
 }
 .menu-item:hover {
-  background: var(--tint);
+  background: var(--fill2);
 }
 
-/* Shell */
-.shell {
-  display: grid;
-  grid-template-columns: 248px minmax(0, 1fr);
+/* The frame: the rail on the ground, the page on a panel beside it. */
+.frame {
+  display: flex;
+  min-height: 100vh;
+  padding: 8px 8px 8px 0;
 }
-.sidebar {
+.rail {
   position: sticky;
-  top: 60px;
-  align-self: start;
-  padding: 20px 14px 32px 20px;
-  height: calc(100vh - 60px);
-  overflow-y: auto;
-  font-size: 15px;
+  top: 8px;
+  align-self: flex-start;
+  height: calc(100vh - 16px);
+  flex: none;
+  width: 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
 }
-.side-label {
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  color: var(--on-desk);
-  padding: 0 10px;
-  margin: 26px 0 6px;
+.rail-brand {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin-bottom: 10px;
+  color: var(--t1);
 }
-.sidebar > :first-child .side-label {
-  margin-top: 6px;
+.rail-link {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-ctl);
+  color: var(--t2);
+  transition: background-color 150ms var(--e-std);
 }
-.side-link {
+.rail-link:hover {
+  background: var(--fill2);
+}
+.rail-link.on {
+  background: var(--raised);
+  box-shadow: var(--shadow);
+}
+.rail-gap {
+  flex: 1;
+}
+.panel {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border-radius: var(--r-sheet);
+  box-shadow: var(--shadow);
+}
+.pagebar {
+  position: sticky;
+  top: 8px;
+  z-index: 5;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 7px 10px;
-  border-radius: 3px;
-  color: var(--on-desk-2);
-  text-decoration: none;
-  transition:
-    color 150ms var(--e-std),
-    background-color 150ms var(--e-std),
-    translate 260ms var(--e-settle);
+  gap: 8px;
+  min-height: 48px;
+  padding: 8px 16px;
+  background: var(--panel);
+  border-radius: var(--r-sheet) var(--r-sheet) 0 0;
+  box-shadow: inset 0 -0.5px 0 var(--hair);
 }
-.side-link + .side-link {
-  margin-top: 2px;
+.crumb {
+  color: var(--t2);
 }
-.side-link:hover {
-  color: var(--on-desk);
-}
-/* The open page is a paper slip, pulled out from under the desk's edge. */
-.side-link.active {
-  background: var(--sheet-bg);
-  color: var(--fg);
+.crumb-here {
+  color: var(--t1);
   font-weight: 500;
-  translate: 6px 0;
-  box-shadow:
-    0 0.5px 1px color-mix(in srgb, var(--umbra) 55%, transparent),
-    2px 4px 10px -4px color-mix(in srgb, var(--umbra) 80%, transparent);
 }
-@media (prefers-reduced-motion: no-preference) {
-  .side-link.active {
-    animation: slip 420ms var(--e-settle);
-  }
+.crumb-sep {
+  width: 6px;
+  height: 6px;
+  border-top: 1.5px solid var(--t4);
+  border-right: 1.5px solid var(--t4);
+  rotate: 45deg;
+  margin: 0 2px 0 -2px;
 }
-@keyframes slip {
-  from {
-    translate: -10px 0;
-    background-color: transparent;
-    box-shadow: none;
-  }
+/* Segmented tabs: a hairline box, the open tab filled. */
+.place-tabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
 }
-.side-link svg {
-  width: 16px;
-  height: 16px;
-  flex: none;
-  opacity: 0.8;
+.place-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: var(--r-tab);
+  box-shadow: inset 0 0 0 0.5px var(--hair);
+  color: var(--t2);
+  text-decoration: none;
+  font-weight: 500;
+  white-space: nowrap;
 }
-.side-link.active svg {
-  opacity: 1;
+.place-tab:hover {
+  color: var(--t1);
 }
-
-/* The sheet: printed paper with its tooth, lit from the top left, its wide
-   shadow on the desk. */
+.place-tab.on {
+  background: var(--fill2);
+  color: var(--t1);
+}
+.panel-body {
+  flex: 1;
+  display: flex;
+  min-width: 0;
+}
+.settings-nav {
+  position: sticky;
+  top: 56px;
+  align-self: flex-start;
+  flex: 0 0 232px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 10px 24px;
+}
+.settings-group .caps {
+  padding: 12px 10px 4px;
+}
+.settings-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: var(--r-tab);
+  color: var(--t2);
+  text-decoration: none;
+  font-weight: 500;
+}
+.settings-link:hover {
+  color: var(--t1);
+  background: var(--fill);
+}
+.settings-link.on {
+  color: var(--t1);
+  background: var(--fill2);
+}
 .content {
   position: relative;
-  width: min(100% - 48px, 1120px);
-  margin: 20px auto 72px;
-  padding: 32px 48px 64px;
+  flex: 1;
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 28px 32px 64px;
   min-width: 0;
-  border-radius: 2px;
   color: var(--fg);
-  background:
-    linear-gradient(170deg, var(--sheet-lit), transparent 28%),
-    url(/tex/paper-tooth.webp) 0 0 / 256px 256px,
-    var(--sheet-bg);
-  background-blend-mode: normal, multiply, normal;
-  box-shadow:
-    inset 1px 1px 0 var(--sheet-lit),
-    0 0.5px 1px color-mix(in srgb, var(--umbra) 55%, transparent),
-    1px 3px 8px color-mix(in srgb, var(--umbra) 30%, transparent),
-    10px 34px 60px -18px color-mix(in srgb, var(--umbra) 70%, transparent);
 }
-/* A page lands like a sheet put down. */
-@media (prefers-reduced-motion: no-preference) {
-  .content {
-    animation: land 620ms var(--e-settle) backwards;
-  }
-}
-@keyframes land {
-  from {
-    opacity: 0.55;
-    transform: translate3d(-2px, -12px, 0) rotate(-0.3deg) scale(1.01);
-  }
-  30% {
-    opacity: 1;
-  }
-}
-/* The sheet's printed head: where this page is, and which page of the console. */
-.sheet-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  padding-bottom: 12px;
-  margin-bottom: 36px;
-  border-bottom: 1px solid var(--border-strong);
-  font: 400 13px var(--mono);
-  color: var(--fg-muted);
+.content.solo {
+  margin: 16px auto 48px;
+  background: var(--panel);
+  border-radius: var(--r-sheet);
+  box-shadow: var(--shadow);
+  width: min(100% - 32px, 1120px);
 }
 
 /* Page */
@@ -244,30 +296,27 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 32px;
+  margin-bottom: 24px;
   flex-wrap: wrap;
 }
 .page-head h1 {
-  font-size: clamp(2.1rem, 3.2vw, 2.75rem);
-  font-weight: 560;
-  font-stretch: 86%;
-  line-height: 1;
-  letter-spacing: -0.022em;
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 .page-head p {
-  margin: 12px 0 0;
+  margin: 4px 0 0;
   max-width: 40rem;
-  color: var(--fg-muted);
-  font-size: 16px;
-  line-height: 1.55;
+  color: var(--t2);
 }
 .section {
-  margin-top: 48px;
+  margin-top: 32px;
 }
 .section-title {
-  font-size: 19px;
+  font-size: 13px;
   font-weight: 600;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -275,41 +324,66 @@
   gap: 12px;
 }
 
-@media (max-width: 900px) {
-  .shell {
-    grid-template-columns: 1fr;
+/* Phone: the rail turns into a row along the top, the panel fills the width. */
+@media (max-width: 760px) {
+  .frame {
+    flex-direction: column;
+    padding: 0;
   }
-  .sidebar {
-    position: static;
+  .rail {
+    position: sticky;
+    top: 0;
+    z-index: 20;
     height: auto;
-    padding: 8px 12px 12px;
-    display: flex;
-    gap: 4px;
+    width: 100%;
+    flex-direction: row;
+    padding: 8px 12px;
+    background: var(--ground);
     overflow-x: auto;
   }
-  .sidebar > div {
+  .rail-brand {
+    margin: 0 6px 0 0;
+  }
+  .rail-gap {
+    min-width: 8px;
+  }
+  .account.compact .menu {
+    position: fixed;
+    top: 56px;
+    right: 8px;
+    bottom: auto;
+    left: auto;
+  }
+  .panel {
+    border-radius: 0;
+  }
+  .pagebar {
+    top: 48px;
+    border-radius: 0;
+    flex-wrap: wrap;
+  }
+  .panel-body.with-nav {
+    flex-direction: column;
+  }
+  .settings-nav {
+    position: static;
+    flex: none;
+    flex-direction: row;
+    overflow-x: auto;
+    padding: 8px 12px;
+    box-shadow: inset 0 -0.5px 0 var(--hair);
+  }
+  .settings-group {
     display: contents;
   }
-  .side-label {
+  .settings-group .caps {
     display: none;
   }
-  .side-link {
+  .settings-link {
     white-space: nowrap;
   }
-  .side-link + .side-link {
-    margin-top: 0;
-  }
-  .side-link.active {
-    translate: 0 0;
-    animation: none;
-  }
   .content {
-    width: calc(100% - 20px);
-    margin: 4px auto 40px;
-    padding: 22px 20px 40px;
-  }
-  .sheet-head {
-    margin-bottom: 24px;
+    padding: 20px 16px 40px;
   }
   .topbar {
     padding: 0 12px;
@@ -324,8 +398,8 @@
   max-width: 720px;
 }
 .policy h2 {
-  font-size: 22px;
-  font-weight: 560;
+  font-size: 16px;
+  font-weight: 600;
   margin: 36px 0 10px;
   padding-top: 18px;
   border-top: 1px solid var(--border);
@@ -333,8 +407,8 @@
 .policy p,
 .policy li {
   color: var(--fg-muted);
-  font-size: 15px;
-  line-height: 1.7;
+  font-size: 13px;
+  line-height: 1.65;
 }
 .policy ul {
   padding-left: 20px;
@@ -355,20 +429,20 @@
 .footer {
   padding: 24px 16px 32px;
   text-align: center;
-  font-size: 13px;
-  color: var(--on-desk-3);
+  font-size: 12px;
+  color: var(--t3);
 }
 .footer a {
-  color: var(--on-desk-2);
+  color: var(--t2);
   margin: 0 8px;
   text-underline-offset: 4px;
-  text-decoration-color: var(--line-desk);
+  text-decoration-color: var(--hair2);
 }
 .footer a:hover {
-  color: var(--on-desk);
+  color: var(--t1);
 }
 
-/* Save bar and toast: a slip of card stock, and a dark one, over the sheet. */
+/* Save bar and toast: a raised panel, and an ink one, over the page. */
 .savebar {
   position: fixed;
   left: 50%;
@@ -385,7 +459,7 @@
   color: var(--fg);
   background: var(--stock);
   box-shadow: var(--float);
-  font-size: 14px;
+  font-size: 13px;
   animation: rise 160ms var(--e-enter);
 }
 .toast {
@@ -395,9 +469,9 @@
   z-index: 31;
   padding: 11px 16px;
   border-radius: var(--r-ctl);
-  background: var(--desk-hi);
-  color: var(--on-desk);
-  font-size: 14px;
+  background: var(--ink);
+  color: var(--on-button);
+  font-size: 13px;
   box-shadow: var(--float);
   animation: rise 160ms var(--e-enter);
 }

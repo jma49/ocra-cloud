@@ -142,16 +142,12 @@
     inset: auto 0 0;
     z-index: 20;
     max-height: 72vh;
-    background:
-      linear-gradient(170deg, var(--sheet-lit), transparent 28%),
-      url(/tex/paper-tooth.webp) 0 0 / 256px 256px,
-      var(--sheet-bg);
-    background-blend-mode: normal, multiply, normal;
+    background: var(--panel);
     border-radius: var(--r-sheet) var(--r-sheet) 0 0;
     box-shadow: var(--float);
   }
 }
 .finding.is-focused {
-  background: color-mix(in srgb, var(--print-teal) 7%, transparent);
-  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--print-teal) 45%, transparent);
+  background: color-mix(in srgb, var(--blue) 6%, transparent);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--blue) 45%, transparent);
 }

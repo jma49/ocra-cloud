@@ -8,7 +8,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 const me = { login: "ada", githubId: 1, session: "web", since: "2026-10-01T00:00:00Z" };
 const usage = { days: 14, today: 0, dailyLimit: 1000, series: [], models: [], calls: [] };
 
-/** Loads the app at "/" with /me answered by `answer` (never, when undefined). */
+/** Loads the app at "/usage" (a page that shows the keys) with /me answered by `answer` (never, when undefined). */
 async function load(answer: (() => Response) | undefined): Promise<string[]> {
   const asked: string[] = [];
   vi.stubGlobal(
@@ -23,7 +23,7 @@ async function load(answer: (() => Response) | undefined): Promise<string[]> {
       return Response.json(usage);
     }),
   );
-  history.replaceState(null, "", "/");
+  history.replaceState(null, "", "/usage");
   document.body.innerHTML = '<div id="root"></div>';
   vi.resetModules();
   await import("./main.js");
