@@ -102,6 +102,7 @@ const ACCESS: Record<string, Access> = {
   "POST /api/email/unsubscribe": "public",
   "GET /api/insights/cycle": "web",
   "GET /api/insights/flow": "web",
+  "GET /api/insights/impact": "web",
   "GET /api/insights/reviewers": "web",
   "GET /api/platforms/repos": "web",
   "POST /api/platforms/sync-names": "web",

@@ -408,6 +408,31 @@ describe("the review flow", () => {
   });
 });
 
+describe("what ocra changed", () => {
+  it("reads reviews, findings, issues and pull requests through an index, never a whole table", async () => {
+    const seen: Captured[] = [];
+    const d = scoped(drizzle(recording(seen)), "acct");
+    const ids = ["https://github.com/octo/api", "https://github.com/octo/web"];
+    await d.impact.reviewsSince(new Date(0), ids, 10);
+    await d.impact.firstReviews([{ repo: ids[0] ?? "", number: 7 }]);
+    await d.impact.findingsSince(new Date(0), ids, 10);
+    for (const repos of [null, ["r1", "r2"]]) {
+      await d.impact.openedSince(new Date(0), repos, 10);
+      await d.impact.mergedSince(new Date(0), repos, 10);
+    }
+    expect(seen).toHaveLength(8);
+    for (const q of seen) {
+      const p = await plan(q);
+      expect(p, q.sql).toMatch(
+        /SEARCH \w+ USING (COVERING )?INDEX (reviews_account_created|reviews_account_pull|findings_review|finding_issues_account_review|pull_flows_account_seen|closed_pulls_account_closed|pull_flows_pull)/,
+      );
+      expect(p, q.sql).not.toMatch(
+        /SCAN (reviews|findings|finding_issues|pull_flows|closed_pulls)\b/,
+      );
+    }
+  });
+});
+
 describe("review threads", () => {
   it("finds a thread by its key and the inbox's waiting replies through an index", async () => {
     const seen: Captured[] = [];

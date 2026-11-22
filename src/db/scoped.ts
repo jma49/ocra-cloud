@@ -29,6 +29,7 @@ import { countWhere, jsonMembers, jsonNumber, jsonRecords, utcDayOf } from "./di
 import { accountFindingIssues } from "./finding-issues.js";
 import { accountGenerateJobs } from "./generate-jobs.js";
 import { accountGraphs } from "./graphs.js";
+import { accountImpact } from "./impact.js";
 import {
   type Decision,
   decide,
@@ -445,6 +446,7 @@ export function scoped(db: Db, accountId: string) {
     reviewRequests: accountReviewRequests(db, accountId),
     reviewThreads: accountReviewThreads(db, accountId),
     reviewLoad: accountReviewLoad(db, accountId),
+    impact: accountImpact(db, accountId),
     replies: accountReplyJobs(db, accountId),
     chat: accountReviewChat(db, accountId),
     generations: accountGenerateJobs(db, accountId),
