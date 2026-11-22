@@ -79,6 +79,9 @@ const THREADS = `query($owner: String!, $name: String!, $number: Int!) {
 }`;
 const RESOLVE = `mutation($id: ID!) { resolveReviewThread(input: { threadId: $id }) { thread { id } } }`;
 const UNRESOLVE = `mutation($id: ID!) { unresolveReviewThread(input: { threadId: $id }) { thread { id } } }`;
+const REPLY = `mutation($id: ID!, $body: String!) {
+  addPullRequestReviewThreadReply(input: { pullRequestReviewThreadId: $id, body: $body }) { comment { id } }
+}`;
 
 type GithubSuggestion = Suggestion & { path: string; fix: LineFix };
 
@@ -184,6 +187,18 @@ export function githubThreads(
       });
       if (!answer) return null;
       return actionOf(answer.errors?.length ? "refused" : "done", findings);
+    },
+    async reply(token, fullName, number, thread, body) {
+      // As a resolve: a thread of another pull request is not replied to from this one.
+      const listing = await read(token, fullName, number);
+      if (!listing) return null;
+      if (!listing.threads.some((t) => t.id === thread)) return "refused";
+      const answer = await post(token)<Mutated>({
+        query: REPLY,
+        variables: { id: thread, body },
+      });
+      if (!answer) return null;
+      return answer.errors?.length ? "refused" : "done";
     },
   };
 }

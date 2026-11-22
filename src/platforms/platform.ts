@@ -6,6 +6,7 @@ import type { PullAutoMerge } from "./auto-merge.js";
 import type { PullDiffs } from "./changes.js";
 import type { RepoContents } from "./contents.js";
 import type { PullCycles } from "./cycles.js";
+import type { PullEdits } from "./edits.js";
 import type { RepoFiles } from "./files.js";
 import type { RepoIssues } from "./issues.js";
 import type { RepoLearnings } from "./learnings.js";
@@ -85,6 +86,7 @@ export interface CodePlatform {
   readonly readiness: PullReadiness;
   readonly reviewers: PullReviewers;
   readonly threads: PullThreads;
+  readonly edits: PullEdits;
   readonly issues: RepoIssues;
   /** null where the platform keeps no viewed files: the console keeps them (pull_file_views). */
   readonly viewed: PullFileViewed | null;

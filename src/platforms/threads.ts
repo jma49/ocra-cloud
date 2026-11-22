@@ -2,7 +2,7 @@ import type { LineSide, PullActionOutcome } from "../shared/index.js";
 
 // A pull request's review threads, read and acted on as the signed-in user:
 // listed with their comments and suggestions, suggestions applied as one
-// commit of the head the user saw, threads resolved and reopened. Each
+// commit of the head the user saw, threads resolved, reopened and replied to. Each
 // answers null when the platform could not be reached. Nothing is kept.
 
 /** Threads and comments one listing reads, and suggestions one commit applies. */
@@ -70,6 +70,14 @@ export interface PullThreads {
     thread: string,
     resolved: boolean,
   ): Promise<ThreadAction | null>;
+  /** Posts a reply as the user; `refused` for a thread that is not one of the pull request's. */
+  reply(
+    token: string,
+    fullName: string,
+    number: number,
+    thread: string,
+    body: string,
+  ): Promise<PullActionOutcome | null>;
 }
 
 /** The marker ocra's inline comment starts with (the engine's vcs-platform render). */

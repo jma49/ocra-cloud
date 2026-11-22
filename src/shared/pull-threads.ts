@@ -1,3 +1,4 @@
+import type { CodePlatformKind } from "./domain.js";
 import type { LineSide } from "./pull-page.js";
 
 // A pull request's review threads, read live as the signed-in user: each
@@ -48,4 +49,17 @@ export type PullThreadsView = {
   threads: ReviewThreadView[];
   /** True when the pull request has more threads, or a thread more comments, than one page reads. */
   truncated: boolean;
+};
+
+/** A reply's characters: as long as GitHub takes a comment. */
+export const MAX_THREAD_REPLY_CHARS = 65_536;
+
+/** A reply to a review thread, posted as the signed-in user (POST /api/pulls/reply-thread). */
+export type ThreadReplyRequest = {
+  platform: CodePlatformKind;
+  repo: string;
+  number: number;
+  /** A thread's id, as ReviewThreadView reads it. */
+  thread: string;
+  body: string;
 };

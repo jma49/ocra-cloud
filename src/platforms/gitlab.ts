@@ -3,6 +3,7 @@ import { gitlabAutoMerge } from "./gitlab-auto-merge.js";
 import { gitlabChanges } from "./gitlab-changes.js";
 import { gitlabContents } from "./gitlab-contents.js";
 import { gitlabCycles } from "./gitlab-cycles.js";
+import { gitlabEdits } from "./gitlab-edits.js";
 import { gitlabFiles } from "./gitlab-files.js";
 import { gitlabIssues } from "./gitlab-issues.js";
 import { gitlabLearnings } from "./gitlab-learnings.js";
@@ -75,6 +76,7 @@ export function gitlab(client: GitlabClient, redirectUri: string): CodePlatform 
     readiness: gitlabReadiness(client.url, files),
     reviewers: gitlabReviewers(client.url),
     threads: gitlabThreads(client.url),
+    edits: gitlabEdits(client.url),
     issues: gitlabIssues(client.url),
     viewed: null,
     async listRepos(token) {

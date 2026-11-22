@@ -3,6 +3,7 @@ import { githubAutoMerge } from "./github-auto-merge.js";
 import { githubChanges } from "./github-changes.js";
 import { githubContents } from "./github-contents.js";
 import { githubCycles } from "./github-cycles.js";
+import { githubEdits } from "./github-edits.js";
 import { githubFiles } from "./github-files.js";
 import type { GithubHost } from "./github-host.js";
 import { githubIssues } from "./github-issues.js";
@@ -90,6 +91,7 @@ export function github(client: GithubClient): CodePlatform {
     readiness: githubReadiness(host, post),
     reviewers: githubReviewers(host, post),
     threads: githubThreads(post, actions),
+    edits: githubEdits(host, post, actions),
     issues: githubIssues(host),
     viewed: githubViewed(post),
     async listRepos(token) {
