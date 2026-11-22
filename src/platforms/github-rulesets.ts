@@ -8,6 +8,13 @@ import type { BranchRuleRead, RulesetsRead } from "./readiness.js";
 // rulesets. Both are folded into one rule where the strictest wins: the
 // higher approval count, any requirement either sets, every required check.
 
+/**
+ * How long a refusal of the branch rule is answered from memory: the
+ * token's permissions and the plan seldom change, and every reading of a
+ * pull request's readiness asks for it.
+ */
+const KEEP_REFUSAL = { statuses: [403, 404], ms: 10 * 60_000 } as const;
+
 /** Rules one reading of a branch's rulesets takes; a full page may hide more. */
 const MAX_BRANCH_RULES = 100;
 
@@ -148,6 +155,7 @@ export async function protectionOf(
   const sent = await platformSend<Protection>(
     `${host.api}/repos/${githubRepoPath(fullName)}/branches/${githubRepoPath(branch)}/protection`,
     { headers: githubHeaders(token) },
+    { remember: KEEP_REFUSAL },
   );
   if (sent?.status === 200 && sent.body) return { read: "read", rule: ruleOfProtection(sent.body) };
   const message = sent?.body?.message ?? "";

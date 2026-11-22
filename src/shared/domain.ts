@@ -43,6 +43,13 @@ export const RECENT_SIGN_IN = "recent_sign_in";
 export const RECENT_SIGN_IN_MINUTES = 15;
 
 /**
+ * The `reason` of an upstream_unreachable refusal when the code platform
+ * said the user's allowance of calls is used up; `retryAt` (ISO time) is
+ * when it is back.
+ */
+export const PLATFORM_RATE_LIMITED = "platform_rate_limited";
+
+/**
  * What the account decided about a finding in the console. The engine's
  * feedback schema (team memory) will name these words; until it is
  * published they are the cloud's own.

@@ -4,6 +4,7 @@ import { drizzle } from "drizzle-orm/d1";
 import { githubIdentity, upsertAccount } from "../src/db/accounts.js";
 import * as schema from "../src/db/schema.js";
 import app from "../src/index.js";
+import { forgetPlatformAnswers } from "../src/platforms/answer-cache.js";
 import { startCliSession, startWebSession } from "../src/session.js";
 
 export const db = drizzle(env.DB);
@@ -48,6 +49,7 @@ export async function call(path: string, init: CallInit = {}): Promise<Response>
 }
 
 export async function resetDb(): Promise<void> {
+  forgetPlatformAnswers();
   await db.delete(schema.accounts);
 }
 
