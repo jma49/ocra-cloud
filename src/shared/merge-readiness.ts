@@ -59,4 +59,10 @@ export type PullReadinessView = {
   codeOwners: CodeOwnerGroupView[];
   /** Logins whose approval is of an earlier head. */
   staleApprovals: string[];
+  /**
+   * Branch rules that can hold the merge back which no item judges, by the
+   * platform's own rule type (GitHub rulesets: merge_queue,
+   * required_signatures, ...); empty when there are none or none were read.
+   */
+  otherRules: string[];
 };

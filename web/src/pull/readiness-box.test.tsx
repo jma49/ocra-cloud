@@ -31,6 +31,7 @@ it("lists each requirement with its state, and hides when the pull request is cl
     ],
     codeOwners: [],
     staleApprovals: [],
+    otherRules: [],
   };
   vi.stubGlobal(
     "fetch",
@@ -68,6 +69,7 @@ it("stays calm when the rest cannot be read, and names owner groups and stale ap
       { owners: ["@octo/ops"], files: 1, state: "unknown", approvedBy: [], required: null },
     ],
     staleApprovals: ["grace"],
+    otherRules: [],
   });
   render(<ReadinessBox pull={pull} head={HEAD} />);
   expect((await screen.findByText("Nothing in the way")).className).toBe("badge");
