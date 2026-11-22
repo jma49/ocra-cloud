@@ -13,6 +13,7 @@ import { api, why } from "../api.js";
 import { Link } from "../router.js";
 import { useAction, useLoad } from "../ui.js";
 import { CHECKS } from "./check-state.js";
+import { stackMethodLabels } from "./merge-method.js";
 import { OUTCOME } from "./outcome.js";
 import { pullPath } from "./path.js";
 
@@ -21,12 +22,6 @@ import { pullPath } from "./path.js";
 // this one, each with the head this page read.
 
 type Ref = { platform: CodePlatformKind; repo: string; number: number };
-
-const METHOD: Record<MergeMethod, string> = {
-  merge: "Merge commits",
-  squash: "Squash each",
-  rebase: "Rebase each",
-};
 
 const STEP: Record<StackStepOutcome, string> = {
   ...OUTCOME,
@@ -140,7 +135,7 @@ function MergeStack(props: {
             >
               {props.methods.map((m) => (
                 <option key={m} value={m}>
-                  {METHOD[m]}
+                  {stackMethodLabels(props.pull.platform)[m]}
                 </option>
               ))}
             </select>
