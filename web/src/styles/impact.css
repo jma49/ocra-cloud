@@ -31,7 +31,7 @@
   margin: 12px 16px 0;
   padding: 8px 10px;
   border-radius: var(--r-chip);
-  background: var(--muted);
+  background: var(--ground);
   color: var(--fg-muted);
   font-size: var(--text-sm);
 }
@@ -108,7 +108,7 @@
   margin-top: 4px;
   padding: 4px 8px;
   border-radius: var(--r-tag);
-  background: var(--muted);
+  background: var(--ground);
   white-space: pre;
   overflow: hidden;
   text-overflow: ellipsis;

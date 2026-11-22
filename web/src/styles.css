@@ -1,6 +1,10 @@
 /* The console's styles, by section; order matters (later wins at equal
-   specificity), so utilities come last. */
+   specificity). Nothing is in a cascade layer: the charts' library sets
+   the body outside layers, and any layered rule would lose to it. */
+@import "tailwindcss/theme.css" theme(reference inline);
 @import "./styles/base.css";
+@import "./styles/coss.css";
+@import "./styles/charts.css";
 @import "./styles/shell.css";
 @import "./styles/cards.css";
 @import "./styles/tables.css";

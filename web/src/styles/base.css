@@ -35,7 +35,6 @@
   --page: var(--panel);
   --stock: var(--raised);
   --bg-subtle: color-mix(in srgb, var(--black) 2.5%, var(--panel));
-  --muted: var(--ground);
   --fg: var(--t1);
   --fg-muted: var(--t2);
   --fg-subtle: var(--t3);
@@ -50,7 +49,31 @@
   --critical: var(--red);
   --critical-soft: color-mix(in srgb, var(--red) 9%, var(--panel));
   --warning: var(--amber);
-  --accent: var(--blue);
+
+  /* The same, under the names the coss ui components use. */
+  --background: var(--panel);
+  --foreground: var(--t1);
+  --card: var(--raised);
+  --card-foreground: var(--t1);
+  --popover: var(--raised);
+  --popover-foreground: var(--t1);
+  --primary-foreground: var(--on-primary);
+  --secondary: var(--fill);
+  --secondary-foreground: var(--t1);
+  --muted: var(--fill);
+  --muted-foreground: var(--t3);
+  --accent: var(--fill2);
+  --accent-foreground: var(--t1);
+  --destructive: var(--red);
+  --destructive-foreground: var(--red);
+  --info: var(--blue);
+  --info-foreground: var(--blue);
+  --success: var(--green);
+  --success-foreground: var(--green);
+  --warning-foreground: var(--amber);
+  --input: var(--hair2);
+  --ring: var(--focus);
+  --radius: var(--r-ctl);
   /* Chart series, most used first. */
   --c1: var(--ink);
   --c2: var(--blue);
@@ -122,34 +145,6 @@
     --on-button: #111112;
     color-scheme: dark;
   }
-}
-
-/* The charts' library names its fonts in these tokens; set to the console's
-   own, its fonts are never fetched from its makers' servers. */
-:root {
-  --dt-typography-code-base-default-family: var(--mono);
-  --dt-typography-code-base-emphasized-family: var(--mono);
-  --dt-typography-code-small-default-family: var(--mono);
-  --dt-typography-code-small-emphasized-family: var(--mono);
-  --dt-typography-display-level-1-family: var(--font);
-  --dt-typography-display-level-2-family: var(--font);
-  --dt-typography-display-level-3-family: var(--font);
-  --dt-typography-heading-level-1-family: var(--font);
-  --dt-typography-heading-level-2-family: var(--font);
-  --dt-typography-heading-level-3-family: var(--font);
-  --dt-typography-heading-level-4-family: var(--font);
-  --dt-typography-heading-level-5-family: var(--font);
-  --dt-typography-heading-level-6-family: var(--font);
-  --dt-typography-subtitle-display-level-1-family: var(--font);
-  --dt-typography-subtitle-display-level-2-family: var(--font);
-  --dt-typography-subtitle-display-level-3-family: var(--font);
-  --dt-typography-subtitle-heading-level-1-family: var(--font);
-  --dt-typography-subtitle-heading-level-2-family: var(--font);
-  --dt-typography-subtitle-heading-level-3-family: var(--font);
-  --dt-typography-text-base-default-family: var(--font);
-  --dt-typography-text-base-emphasized-family: var(--font);
-  --dt-typography-text-small-default-family: var(--font);
-  --dt-typography-text-small-emphasized-family: var(--font);
 }
 
 * {

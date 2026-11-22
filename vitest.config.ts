@@ -73,6 +73,7 @@ export default defineConfig({
       },
       {
         plugins: [react()],
+        resolve: { alias: { "@": resolve("web/src") } },
         test: {
           name: "web",
           environment: "happy-dom",
