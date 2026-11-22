@@ -141,7 +141,7 @@ describe("the rules", () => {
       rules: [],
     });
     const tried = await dryRun(b.auth, { trigger: "reviewed", pull: { critical: true } });
-    expect(await tried.json()).toEqual({ matches: [] });
+    expect(await tried.json()).toEqual({ matches: [], skipped: [] });
     expect(
       (await call("/api/automations/rules", { auth: (await signInCli(1, "octo")).auth })).status,
     ).toBe(403);
@@ -172,7 +172,7 @@ describe("a dry run", () => {
     });
     expect(await queued.json()).toMatchObject({ matches: [{ name: "bots" }] });
     const other = await dryRun(auth, { trigger: "queued", pull: { author: "octo", title: "x" } });
-    expect(await other.json()).toEqual({ matches: [] });
+    expect(await other.json()).toEqual({ matches: [], skipped: [] });
     expect(await (await call("/api/automations/runs", { auth })).json()).toEqual({ runs: [] });
   });
 });

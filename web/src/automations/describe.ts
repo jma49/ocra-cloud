@@ -5,6 +5,7 @@ import type {
   AutomationConditions,
   AutomationRuleView,
   AutomationRunView,
+  AutomationSkipReason,
   AutomationTrigger,
   Verdict,
 } from "../../../src/shared/index.js";
@@ -42,6 +43,12 @@ export const RUN_LABEL: Record<AutomationRunView["outcome"], string> = {
   done: "Done",
   partial: "Partly done",
   failed: "Failed",
+  skipped: "Skipped",
+};
+
+export const SKIP_LABEL: Record<AutomationSkipReason, string> = {
+  paths_unavailable: "Changed files not readable",
+  too_many_files: "Too many changed files to decide",
 };
 
 /** The actions a rule on this trigger may take; the server refuses the others. */
@@ -66,6 +73,11 @@ function conditionText(c: AutomationConditions, names: Names): string[] {
   if (c.critical !== undefined)
     out.push(c.critical ? "with a critical finding" : "with nothing critical");
   if (c.verdicts?.length) out.push(`judged ${any(c.verdicts.map((v) => VERDICT_LABEL[v]))}`);
+  if (c.paths) {
+    const files = c.paths.include?.length ? `files in ${any(c.paths.include)}` : "files";
+    const but = c.paths.exclude?.length ? ` outside ${any(c.paths.exclude)}` : "";
+    out.push(`changing ${c.paths.every ? "only " : ""}${files}${but}`);
+  }
   return out;
 }
 

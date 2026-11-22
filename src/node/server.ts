@@ -77,6 +77,13 @@ const digests = () =>
 setInterval(digests, HOUR_MS).unref();
 void digests();
 
+// A minute apart: the first retry of an automation's write is due a minute after it failed.
+const automationRetries = () =>
+  host
+    .automationRetries()
+    .catch((err) => logError("automation_retry_failed", { error: errorName(err) }));
+setInterval(automationRetries, 60_000).unref();
+
 const port = Number(process.env.PORT || 8787);
 const server = serve({ fetch: host.fetch, port });
 console.log({ level: "info", event: "listening", port });

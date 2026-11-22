@@ -10,7 +10,9 @@ import {
   type AutomationMatchView,
   type AutomationRuleView,
   type AutomationRunView,
+  type AutomationSkipView,
   BOT_ACTIONS,
+  MAX_AUTOMATION_PATHS,
 } from "../shared/index.js";
 import type { AppEnv } from "../types.js";
 import { triggerConflict } from "./rules.js";
@@ -45,6 +47,24 @@ const branch = z
   .max(255)
   .refine((b) => !/[\s~^:?*[\\]/.test(b) && !CONTROL.test(b), "a branch name");
 const list = <T extends z.ZodType>(item: T, max: number) => z.array(item).min(1).max(max);
+// A path glob of `*`, `?` and `**` (./paths.ts); classes, braces and a
+// leading `!` would mean something else in .gitignore, so they are refused.
+const pathGlob = z
+  .string()
+  .trim()
+  .min(1)
+  .max(200)
+  .refine(
+    (g) => !/[[\]{}\\]/.test(g) && !g.startsWith("!") && !CONTROL.test(g),
+    "a glob of *, ? and **",
+  );
+const paths = z
+  .strictObject({
+    include: list(pathGlob, 20).optional(),
+    exclude: list(pathGlob, 20).optional(),
+    every: z.boolean().optional(),
+  })
+  .refine((p) => p.include !== undefined || p.exclude !== undefined, "an include or exclude glob");
 
 /** Plain text: line breaks kept, every other control character dropped. */
 const plainText = (s: string) =>
@@ -61,6 +81,7 @@ const conditions = z.strictObject({
   labels: list(label, 10).optional(),
   critical: z.boolean().optional(),
   verdicts: list(z.enum(VERDICTS), VERDICTS.length).optional(),
+  paths: paths.optional(),
 });
 
 const action = z.discriminatedUnion("kind", [
@@ -92,6 +113,7 @@ const dryRunBody = z.object({
     labels: z.array(z.string().max(50)).max(50).optional(),
     critical: z.boolean().optional(),
     verdict: z.enum(VERDICTS).optional(),
+    paths: z.array(z.string().max(1024)).max(MAX_AUTOMATION_PATHS).optional(),
   }),
 });
 
@@ -118,7 +140,10 @@ const runView = (r: Row<"automationRuns">) =>
     trigger: r.trigger,
     pull: r.pull,
     outcome: r.outcome,
+    reason: r.reason,
     actions: r.actions,
+    attempts: r.attempts,
+    retryAt: r.retryAt?.toISOString() ?? null,
     createdAt: r.createdAt.toISOString(),
   }) satisfies AutomationRunView;
 
@@ -182,11 +207,19 @@ automationsRoute.get("/runs", async (c) => {
   return c.json({ runs: rows.map(runView) });
 });
 
-/** The enabled rules that would run on the pull request described; nothing is done. */
+/**
+ * The enabled rules that would run on the pull request described, and those
+ * on paths it listed none for; nothing is done.
+ */
 automationsRoute.post("/dry-run", perMinute("settings"), jsonBody(dryRunBody), async (c) => {
   const { trigger, pull } = c.req.valid("json");
-  const rules = await matchingRules(c.var.data, trigger, pull);
+  const listed = pull.paths ? { paths: pull.paths, truncated: false } : null;
+  const { rules, skipped } = await matchingRules(c.var.data, trigger, pull, async () => listed);
   return c.json({
+    skipped: skipped.map(
+      ({ rule, reason }) =>
+        ({ ruleId: rule.id, name: rule.name, reason }) satisfies AutomationSkipView,
+    ),
     matches: rules.map(
       (r) =>
         ({

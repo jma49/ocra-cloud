@@ -21,9 +21,12 @@ import {
 } from "drizzle-orm/sqlite-core";
 import {
   type AgentPrefs,
+  AUTOMATION_RUN_OUTCOMES,
+  AUTOMATION_SKIP_REASONS,
   AUTOMATION_TRIGGERS,
   type AutomationAction,
   type AutomationConditions,
+  type AutomationRetry,
   type AutomationRunView,
   CODE_PLATFORMS,
   DISMISS_REASONS,
@@ -798,15 +801,20 @@ export const automationRuns = sqliteTable(
     trigger: text("trigger", { enum: AUTOMATION_TRIGGERS }).notNull(),
     pull: text("pull").notNull(),
     eventKey: text("event_key").notNull(),
-    outcome: text("outcome", { enum: ["running", "done", "partial", "failed"] })
-      .notNull()
-      .default("running"),
+    outcome: text("outcome", { enum: AUTOMATION_RUN_OUTCOMES }).notNull().default("running"),
+    reason: text("reason", { enum: AUTOMATION_SKIP_REASONS }),
     actions: text("actions", { mode: "json" }).$type<AutomationRunView["actions"]>().notNull(),
+    attempts: integer("attempts").notNull().default(1),
+    // The actions the platform did not answer, tried again at retryAt; a
+    // runner claims the attempt by moving retryAt past its lease.
+    retry: text("retry", { mode: "json" }).$type<AutomationRetry>(),
+    retryAt: integer("retry_at", { mode: "timestamp_ms" }),
     createdAt: createdAt(),
   },
   (t) => [
     uniqueIndex("automation_runs_rule_event").on(t.ruleId, t.eventKey),
     index("automation_runs_account_created").on(t.accountId, t.createdAt),
+    index("automation_runs_retry").on(t.retryAt),
   ],
 );
 

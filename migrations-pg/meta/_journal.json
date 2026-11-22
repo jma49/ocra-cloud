@@ -120,6 +120,13 @@
       "when": 1795358606753,
       "tag": "0016_review_job_runs",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1795359479547,
+      "tag": "0017_automation_retries",
+      "breakpoints": true
     }
   ]
 }

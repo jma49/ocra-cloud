@@ -23,7 +23,34 @@ export type AutomationConditions = {
   critical?: boolean | undefined;
   /** The review's verdict, any of them; reviewed only. */
   verdicts?: Verdict[] | undefined;
+  /** The files it changes, read from the platform when the rule is tried. */
+  paths?: AutomationPaths | undefined;
 };
+
+/**
+ * Globs read as .gitignore reads them: `*` and `?` within a name, `**` any
+ * depth, one without a slash at any depth, one naming a directory what is
+ * under it, a leading `/` anchors it; case is ignored. A changed file is
+ * selected when it matches an include glob (any file without one) and no
+ * exclude glob.
+ */
+export type AutomationPaths = {
+  include?: string[] | undefined;
+  exclude?: string[] | undefined;
+  /** True: every changed file must be selected; else at least one. */
+  every?: boolean | undefined;
+};
+
+/** Files of a pull request read to try its rules' paths; past them a rule may not be decided. */
+export const MAX_AUTOMATION_PATHS = 300;
+
+/**
+ * Why a rule was not tried: `paths_unavailable` when the changed files
+ * could not be read (or a dry run listed none), `too_many_files` when the
+ * files read did not decide it.
+ */
+export const AUTOMATION_SKIP_REASONS = ["paths_unavailable", "too_many_files"] as const;
+export type AutomationSkipReason = (typeof AUTOMATION_SKIP_REASONS)[number];
 
 export type AutomationActionKind = AutomationAction["kind"];
 
@@ -77,11 +104,29 @@ export type AutomationRunView = {
   trigger: AutomationTrigger;
   /** `owner/repo#7`. */
   pull: string;
-  /** running while its actions are under way; partial when some failed. */
-  outcome: "running" | "done" | "partial" | "failed";
+  /** running while its actions are under way; partial when some failed; skipped when not tried. */
+  outcome: (typeof AUTOMATION_RUN_OUTCOMES)[number];
+  /** Why it was skipped; null otherwise. */
+  reason: AutomationSkipReason | null;
   actions: { kind: AutomationActionKind; outcome: AutomationActionOutcome }[];
+  /** How many times its actions were tried. */
+  attempts: number;
+  /** When the actions the platform did not answer are tried again; null when none will be. */
+  retryAt: string | null;
   createdAt: string;
 };
+
+/**
+ * What a run tries again: the pull request, and the actions (by their place
+ * in the run) the platform did not answer, as the rule said them then.
+ */
+export type AutomationRetry = {
+  reviewRepoId: string;
+  number: number;
+  actions: { index: number; action: AutomationAction }[];
+};
+
+export const AUTOMATION_RUN_OUTCOMES = ["running", "done", "partial", "failed", "skipped"] as const;
 
 /**
  * A pull request as a dry run describes it; what it leaves out matches no
@@ -95,10 +140,19 @@ export type AutomationPullFacts = {
   labels?: string[] | undefined;
   critical?: boolean | undefined;
   verdict?: Verdict | undefined;
+  /** The files it changes; a rule on paths is skipped without them. */
+  paths?: string[] | undefined;
 };
 
 export type AutomationMatchView = {
   ruleId: string;
   name: string;
   actions: AutomationActionKind[];
+};
+
+/** A rule a dry run could not decide. */
+export type AutomationSkipView = {
+  ruleId: string;
+  name: string;
+  reason: AutomationSkipReason;
 };

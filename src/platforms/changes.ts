@@ -34,7 +34,13 @@ export type PullPatches = Omit<PullChanges, "files"> & { files: PatchedFile[] };
 
 // Both answer null when the account does not reach the pull request, or the platform failed.
 export interface PullDiffs {
-  changes(token: string, fullName: string, number: number): Promise<PullChanges | null>;
+  /** At most maxFiles of them (MAX_CHANGED_FILES by default), read in pages. */
+  changes(
+    token: string,
+    fullName: string,
+    number: number,
+    maxFiles?: number,
+  ): Promise<PullChanges | null>;
   patches(token: string, fullName: string, number: number): Promise<PullPatches | null>;
 }
 
