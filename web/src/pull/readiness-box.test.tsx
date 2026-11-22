@@ -40,7 +40,7 @@ it("lists each requirement with its state, and hides when the pull request is cl
   expect(await screen.findByText("Not ready")).toBeTruthy();
   expect(screen.getByText("1 of 2 required approvals")).toBeTruthy();
   expect(screen.getByRole("img", { name: "Not met" })).toBeTruthy();
-  expect(screen.getByRole("img", { name: "Unknown" })).toBeTruthy();
+  expect(screen.getByRole("img", { name: "Cannot be read" })).toBeTruthy();
   expect(screen.getByText("1 of 3 met, 1 not readable with your sign-in")).toBeTruthy();
   cleanup();
   vi.stubGlobal(
