@@ -24,6 +24,10 @@ export type PullFilesView = {
   platform: CodePlatformKind;
   repo: string;
   number: number;
+  title: string | null;
+  author: string | null;
+  /** Its page on the platform. */
+  url: string | null;
   base: string;
   head: string;
   /** The platform's updated_at, which POST /api/pulls/seen takes back to mark it read. */

@@ -13,6 +13,9 @@ const API = "https://api.github.com";
 const PER_PAGE = 100;
 
 type Pull = {
+  title?: string;
+  user?: { login: string } | null;
+  html_url?: string;
   base: { sha: string };
   head: { sha: string };
   changed_files: number;
@@ -64,6 +67,9 @@ async function listFiles(token: string, fullName: string, number: number, max = 
     if (listed.length < PER_PAGE) break;
   }
   return {
+    title: pull.title ?? null,
+    author: pull.user?.login ?? null,
+    url: pull.html_url ?? null,
     base: pull.base.sha,
     head: pull.head.sha,
     updatedAt: pull.updated_at ?? null,

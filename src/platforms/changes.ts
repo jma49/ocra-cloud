@@ -15,6 +15,11 @@ export type ChangedFile = {
 };
 
 export type PullChanges = {
+  /** What the platform says the pull request is: null where it did not say. */
+  title: string | null;
+  author: string | null;
+  /** Its page on the platform. */
+  url: string | null;
   base: string;
   head: string;
   /** The platform's updated_at of the pull request, where it said. */

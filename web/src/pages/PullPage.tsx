@@ -23,6 +23,7 @@ import { ReviewNowBox } from "../pull/review-now-box.js";
 import { ReviewersPanel } from "../pull/reviewers.js";
 import { StackPanel } from "../pull/stack.js";
 import { ThreadsPanel } from "../pull/threads.js";
+import { setPageTitle } from "../title.js";
 import { LoadError, Loading, PageHead, Seg, useAction, useLoad } from "../ui.js";
 
 // A pull request in the console: its changed files read live from the
@@ -77,7 +78,11 @@ export function PullPage(props: {
   });
   const [pending, setPending] = useState<LineComment[]>([]);
   const [said, setSaid] = useState<{ what: string; outcome: PullActionOutcome } | null>(null);
-  const title = `${props.repo} #${props.number}`;
+  const where = `${props.repo} #${props.number}`;
+  const title = data?.title ?? where;
+  useEffect(() => {
+    if (data?.title) setPageTitle(`#${props.number} ${data.title}`);
+  }, [data?.title, props.number]);
   if (error && !data) {
     return (
       <>
@@ -126,7 +131,15 @@ export function PullPage(props: {
         title={title}
         sub={
           <>
-            <PlatformMark platform={platform} size={14} /> {data.files.length} files ·{" "}
+            <PlatformMark platform={platform} size={14} />{" "}
+            {data.url ? (
+              <a href={data.url} target="_blank" rel="noopener noreferrer">
+                {where}
+              </a>
+            ) : (
+              where
+            )}
+            {data.author && <> · {data.author}</>} · {data.files.length} files ·{" "}
             <span className="add-n">+{total.add}</span> <span className="del-n">−{total.del}</span>{" "}
             · head <span className="mono">{data.head.slice(0, 7)}</span>
           </>

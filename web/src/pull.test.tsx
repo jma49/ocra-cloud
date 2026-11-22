@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PullPage } from "./pages/PullPage.js";
 import { anchorOf, parsePatch } from "./pull/diff.js";
@@ -48,6 +48,9 @@ const files = {
   platform: "github",
   repo: "octo/api",
   number: 7,
+  title: "Cap refunds at the order total",
+  author: "ada",
+  url: "https://github.com/octo/api/pull/7",
   base: "b".repeat(40),
   head: HEAD,
   files: [
@@ -127,6 +130,20 @@ describe("a pull request's page", () => {
     render(<PullPage platform="github" repo="octo/api" number="7" />);
     return sent;
   };
+
+  it("heads the page with the pull request's title, its author and a link to it", async () => {
+    show();
+    expect(
+      await screen.findByRole("heading", { name: "Cap refunds at the order total" }),
+    ).toBeTruthy();
+    expect(screen.getByRole("link", { name: "octo/api #7" }).getAttribute("href")).toBe(
+      "https://github.com/octo/api/pull/7",
+    );
+    expect(screen.getByText(/ada/)).toBeTruthy();
+    await waitFor(() =>
+      expect(document.title).toBe("#7 Cap refunds at the order total · ocra Cloud"),
+    );
+  });
 
   it("sends a review with its line comments against the head it read", async () => {
     const sent = show();

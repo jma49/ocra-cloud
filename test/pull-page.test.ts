@@ -51,7 +51,14 @@ describe("a pull request's files", () => {
   it("answers each file's diff and what the platform lets the user do", async () => {
     platform({
       [`GET ${PULL}`]: () =>
-        Response.json({ base: { sha: BASE }, head: { sha: HEAD }, changed_files: 2 }),
+        Response.json({
+          title: "Cap refunds at the order total",
+          user: { login: "ada" },
+          html_url: "https://github.com/octo/api/pull/7",
+          base: { sha: BASE },
+          head: { sha: HEAD },
+          changed_files: 2,
+        }),
       [`GET ${PULL}/files?per_page=100&page=1`]: () =>
         Response.json([
           {
@@ -69,7 +76,14 @@ describe("a pull request's files", () => {
     const res = await a.send("/api/pulls/files?platform=github&repo=octo/api&number=7");
     expect(res.status).toBe(200);
     const view = (await res.json()) as PullFilesView;
-    expect(view).toMatchObject({ base: BASE, head: HEAD, truncated: false });
+    expect(view).toMatchObject({
+      title: "Cap refunds at the order total",
+      author: "ada",
+      url: "https://github.com/octo/api/pull/7",
+      base: BASE,
+      head: HEAD,
+      truncated: false,
+    });
     expect(view.files).toEqual([
       {
         path: "src/refund.ts",
@@ -116,6 +130,9 @@ describe("a pull request's files", () => {
     });
     const cut = withinBudget(
       {
+        title: null,
+        author: null,
+        url: null,
         base: BASE,
         head: HEAD,
         updatedAt: null,

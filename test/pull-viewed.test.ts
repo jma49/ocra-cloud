@@ -202,7 +202,12 @@ describe("a GitLab merge request's viewed files", () => {
   function mergeRequest(now: { head: string; diffs: ReturnType<typeof diff>[] }) {
     platform({
       [`GET ${MR}`]: () =>
-        Response.json({ diff_refs: { base_sha: BASE, start_sha: BASE, head_sha: now.head } }),
+        Response.json({
+          title: "Cap refunds",
+          author: { username: "ada" },
+          web_url: "https://gitlab.example.com/group/sub/project/-/merge_requests/3",
+          diff_refs: { base_sha: BASE, start_sha: BASE, head_sha: now.head },
+        }),
       [`GET ${MR}/diffs?per_page=100&page=1`]: () => Response.json(now.diffs),
     });
   }
@@ -223,6 +228,11 @@ describe("a GitLab merge request's viewed files", () => {
     };
     mergeRequest(now);
     const a = await signInToGitlab();
+    expect(await (await files(a)).clone().json()).toMatchObject({
+      title: "Cap refunds",
+      author: "ada",
+      url: "https://gitlab.example.com/group/sub/project/-/merge_requests/3",
+    });
     expect(await viewedOf(await files(a))).toEqual({ "app.rb": false, "lib/x.rb": false });
 
     const res = await post(a, { ...lab, head: HEAD, paths: ["app.rb", "lib/x.rb"], viewed: true });
