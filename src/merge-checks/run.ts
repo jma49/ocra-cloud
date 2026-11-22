@@ -35,7 +35,7 @@ export async function checksOf(data: Scoped, reviewRepoId: string) {
  * this one. Its unresolved critical findings are the open ones, or its
  * critical count when it shared no findings.
  */
-async function headReview(
+export async function headReview(
   data: Scoped,
   platform: CodePlatform,
   repo: Row<"reviewRepos">,

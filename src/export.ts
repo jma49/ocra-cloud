@@ -52,6 +52,7 @@ export const EXPORTED = {
   automationRuns: "automationRuns",
   mergeChecks: "mergeChecks",
   mergeCheckRuns: "mergeCheckRuns",
+  mergeIntents: "mergeIntents",
   reviewChatMessages: "reviewChat",
   liveRuns: "liveRuns",
   liveEvents: "liveEvents",

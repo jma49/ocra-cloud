@@ -15,6 +15,7 @@ import { ChecksBox } from "../pull/checks-box.js";
 import { splitPath } from "../pull/diff.js";
 import { FileDiff } from "../pull/file-diff.js";
 import { GenerateBox } from "../pull/generate-box.js";
+import { MergeWhenReadyBox } from "../pull/merge-when-ready-box.js";
 import { OUTCOME } from "../pull/outcome.js";
 import { QueueBox } from "../pull/queue-box.js";
 import { ReviewNowBox } from "../pull/review-now-box.js";
@@ -143,7 +144,15 @@ export function PullPage(props: {
           ) : (
             !queue.loading &&
             data.mergeMethods.length > 0 && (
-              <MergeBox data={data} pull={ref} onDone={(o) => done("Merge", o)} />
+              <>
+                <MergeBox data={data} pull={ref} onDone={(o) => done("Merge", o)} />
+                <MergeWhenReadyBox
+                  pull={ref}
+                  head={data.head}
+                  methods={data.mergeMethods}
+                  label={METHOD}
+                />
+              </>
             )
           )}
         </aside>

@@ -43,6 +43,7 @@ const changes = {
   automationRuns: { outcome: "failed" as const },
   mergeChecks: { mode: "block" as const },
   mergeCheckRuns: { conclusion: "failure" as const },
+  mergeIntents: { state: "cancelled" as const },
   reviewChatMessages: { text: "changed" },
   liveRuns: { target: "changed" },
   liveEvents: { kind: "changed" },

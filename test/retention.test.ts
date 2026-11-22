@@ -81,6 +81,20 @@ describe("retention", () => {
     expect((await d.list("notifySends")).map((r) => r.id)).toEqual(["new"]);
   });
 
+  it("deletes a merge-when-ready intent a month after it ended, an armed one after 90 days", async () => {
+    const { account } = await signIn(1, "octo");
+    const d = scoped(db, account.id);
+    const intent = (id: string, state: "armed" | "merged", days: number) =>
+      d.insert("mergeIntents", { ...rows.mergeIntents(id), state, updatedAt: ago(days) });
+    await intent("ended-old", "merged", 31);
+    await intent("ended-new", "merged", 29);
+    await intent("armed-month", "armed", 31);
+    await intent("armed-old", "armed", 91);
+    await enforceRetention(db, now);
+    const kept = (await d.list("mergeIntents")).map((r) => r.id).sort();
+    expect(kept).toEqual(["armed-month", "ended-new"]);
+  });
+
   it("deletes a pull request's flow 90 days after its last event, and reviews by when they were submitted", async () => {
     const { account } = await signIn(1, "octo");
     const d = scoped(db, account.id);

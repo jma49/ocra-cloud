@@ -41,6 +41,7 @@ import {
 import { learningUsage } from "./learning-usage.js";
 import { accountLive } from "./live.js";
 import { accountMergeChecks } from "./merge-checks.js";
+import { accountMergeIntents } from "./merge-intents.js";
 import { accountNotify } from "./notify.js";
 import { type PreferencesSave, savePreferences } from "./preferences.js";
 import { accountPullFlows } from "./pull-flows.js";
@@ -435,6 +436,7 @@ export function scoped(db: Db, accountId: string) {
     generations: accountGenerateJobs(db, accountId),
     automations: accountAutomations(db, accountId),
     mergeChecks: accountMergeChecks(db, accountId),
+    mergeIntents: accountMergeIntents(db, accountId),
     live: accountLive(db, accountId),
     search: accountSearch(db, accountId),
     /** The findings of one of this account's reviews. */

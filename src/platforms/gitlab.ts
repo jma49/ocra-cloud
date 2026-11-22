@@ -1,4 +1,5 @@
 import { gitlabActions } from "./gitlab-actions.js";
+import { gitlabAutoMerge } from "./gitlab-auto-merge.js";
 import { gitlabChanges } from "./gitlab-changes.js";
 import { gitlabContents } from "./gitlab-contents.js";
 import { gitlabCycles } from "./gitlab-cycles.js";
@@ -57,6 +58,7 @@ export function gitlab(client: GitlabClient, redirectUri: string): CodePlatform 
     changes: gitlabChanges(client.url),
     actions: gitlabActions(client.url),
     queue: gitlabQueue(client.url),
+    autoMerge: gitlabAutoMerge(client.url),
     cycles: gitlabCycles(client.url),
     stacks: gitlabStacks(client.url),
     learnings: gitlabLearnings(client.url),

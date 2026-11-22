@@ -2,6 +2,7 @@ import { normaliseRemote } from "@open-cr-agent/cloud-contract";
 import { sha256Hex } from "../crypto.js";
 import type { CodePlatformKind } from "../shared/index.js";
 import type { PullActions } from "./actions.js";
+import type { PullAutoMerge } from "./auto-merge.js";
 import type { PullDiffs } from "./changes.js";
 import type { RepoContents } from "./contents.js";
 import type { PullCycles } from "./cycles.js";
@@ -63,6 +64,7 @@ export interface CodePlatform {
   readonly changes: PullDiffs;
   readonly actions: PullActions;
   readonly queue: MergeQueue;
+  readonly autoMerge: PullAutoMerge;
   readonly cycles: PullCycles;
   readonly stacks: PullStacks;
   readonly learnings: RepoLearnings;

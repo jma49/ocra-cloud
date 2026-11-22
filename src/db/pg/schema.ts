@@ -45,6 +45,7 @@ export const automationRules = pg(sqlite.automationRules);
 export const automationRuns = pg(sqlite.automationRuns);
 export const mergeChecks = pg(sqlite.mergeChecks);
 export const mergeCheckRuns = pg(sqlite.mergeCheckRuns);
+export const mergeIntents = pg(sqlite.mergeIntents);
 export const reviewChatMessages = pg(sqlite.reviewChatMessages);
 export const liveRuns = pg(sqlite.liveRuns);
 export const liveEvents = pg(sqlite.liveEvents);
