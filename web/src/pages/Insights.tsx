@@ -1,13 +1,20 @@
-import { useState } from "react";
-import { api } from "../api.js";
+import { lazy, Suspense, useMemo, useState } from "react";
+import { api, type Reviews } from "../api.js";
 import { useCached } from "../cache.js";
-import { num } from "../format.js";
+import { num, usd } from "../format.js";
+import { daily, quantile } from "../insights/series.js";
 import { LoadError, Loading, PageHead, Seg } from "../ui.js";
 
-// What the decisions in the findings inbox say about the reviews: of the
-// findings someone marked fixed or dismissed, how many were right, per
-// reviewer, severity, category and verification, and why the rest were
-// dismissed. Only shared findings count.
+// How the reviews went: what they found, what they cost and how long they
+// took, from the uploaded reviews; and what the decisions in the findings
+// inbox say about them: of the findings someone marked fixed or dismissed,
+// how many were right, per reviewer, severity, category and verification,
+// and why the rest were dismissed. Only shared findings count there.
+
+// The charts measure their labels once, so they wait for the console's font.
+const Charts = lazy(() =>
+  Promise.all([import("../insights/charts.js"), document.fonts.ready]).then(([m]) => m),
+);
 
 type Row = {
   key: string | null;
@@ -74,14 +81,22 @@ function Breakdown(props: { title: string; rows: Row[]; none: string }) {
 
 export function Insights() {
   const [days, setDays] = useState(30);
-  const { data, error, reload } = useCached(`/findings/insights?days=${days}`, () =>
+  const quality = useCached(`/findings/insights?days=${days}`, () =>
     api<Insights>(`/findings/insights?days=${days}`),
   );
+  const runs = useCached(`/reviews?days=${days}`, () => api<Reviews>(`/reviews?days=${days}`));
+  const series = useMemo(() => runs.data && daily(runs.data.reviews, days), [runs.data, days]);
+  const error = quality.error ?? runs.error;
+  const reload = () => {
+    quality.reload();
+    runs.reload();
+  };
+  const data = quality.data;
   return (
     <>
       <PageHead
-        title="Review quality"
-        sub="Accepted is fixed out of fixed plus dismissed: how often a finding someone decided on was right. Decide findings in Findings to fill it in."
+        title="Insights"
+        sub="What the reviews found, what they cost and how long they took; and, of the findings someone decided on in Findings, how often they were right."
         actions={
           <Seg
             label="Period"
@@ -95,43 +110,42 @@ export function Insights() {
           />
         }
       />
-      {error && !data ? (
-        <LoadError what="review quality" error={error} retry={reload} />
-      ) : !data ? (
-        <Loading what="review quality" />
-      ) : data.total.total === 0 ? (
+      {error && !(data && runs.data) ? (
+        <LoadError what="insights" error={error} retry={reload} />
+      ) : !(data && runs.data && series) ? (
+        <Loading what="insights" />
+      ) : runs.data.summary.reviews === 0 && data.total.total === 0 ? (
         <div className="card empty-hero">
-          <h3>No shared findings in this period</h3>
-          <p>Turn on sharing in Settings; signed-in reviews then upload their findings.</p>
+          <h3>No reviews in this period</h3>
+          <p>
+            Reviews signed in to ocra Cloud upload their results; turn on sharing in Settings to see
+            their findings.
+          </p>
         </div>
       ) : (
         <>
-          <div className="stats">
-            <div className="card stat">
-              <div className="stat-label">Findings</div>
-              <div className="stat-value">{num(data.total.total)}</div>
-              <div className="stat-note">{num(data.total.open)} open</div>
-            </div>
-            <div className="card stat">
-              <div className="stat-label">Fixed</div>
-              <div className="stat-value">{num(data.total.fixed)}</div>
-            </div>
-            <div className="card stat">
-              <div className="stat-label">Dismissed</div>
-              <div className="stat-value">{num(data.total.dismissed)}</div>
-              {data.dismissReasons.length > 0 && (
-                <div className="stat-note">
-                  {data.dismissReasons
-                    .map((r) => `${REASON[r.key ?? ""] ?? r.key} ${num(r.n)}`)
-                    .join(", ")}
-                </div>
-              )}
-            </div>
-            <div className="card stat">
-              <div className="stat-label">Accepted</div>
-              <div className="stat-value">{rate(data.total.acceptanceRate)}</div>
-              <div className="stat-note">of decided findings</div>
-            </div>
+          <Kpis runs={runs.data} quality={data} />
+          {runs.data.reviews.length < runs.data.summary.reviews && (
+            <p className="muted small">
+              The charts show the newest {num(runs.data.reviews.length)} of{" "}
+              {num(runs.data.summary.reviews)} reviews.
+            </p>
+          )}
+          <div className="chart-grid">
+            <Suspense fallback={<Loading what="the charts" />}>
+              <Charts
+                daily={series}
+                acceptance={data.byReviewer.flatMap((r) =>
+                  r.key && r.acceptanceRate !== null
+                    ? [{ reviewer: r.key, rate: r.acceptanceRate }]
+                    : [],
+                )}
+                reasons={data.dismissReasons.map((r) => ({
+                  reason: REASON[r.key ?? ""] ?? r.key ?? "No reason",
+                  n: r.n,
+                }))}
+              />
+            </Suspense>
           </div>
           <Breakdown title="By reviewer" rows={data.byReviewer} none="(none)" />
           <Breakdown title="By severity" rows={data.bySeverity} none="(none)" />
@@ -140,5 +154,48 @@ export function Insights() {
         </>
       )}
     </>
+  );
+}
+
+function Kpis(props: { runs: Reviews; quality: Insights }) {
+  const s = props.runs.summary;
+  const times = props.runs.reviews.map((r) => r.durationMs / 1000).sort((a, b) => a - b);
+  const median = quantile(times, 0.5);
+  const t = props.quality.total;
+  return (
+    <div className="stats stats-6">
+      <div className="card stat">
+        <div className="stat-label">Reviews</div>
+        <div className="stat-value">{num(s.reviews)}</div>
+        <div className="stat-note">{num(s.repositories)} repositories</div>
+      </div>
+      <div className="card stat">
+        <div className="stat-label">Findings</div>
+        <div className="stat-value">{num(s.findings)}</div>
+        <div className="stat-note">{num(s.blocking)} blocking reviews</div>
+      </div>
+      <div className="card stat">
+        <div className="stat-label">Critical</div>
+        <div className="stat-value">{num(s.critical)}</div>
+        <div className="stat-note">{num(s.fixed)} findings fixed</div>
+      </div>
+      <div className="card stat">
+        <div className="stat-label">Accepted</div>
+        <div className="stat-value">{rate(t.acceptanceRate)}</div>
+        <div className="stat-note">of {num(t.fixed + t.dismissed)} decided</div>
+      </div>
+      <div className="card stat">
+        <div className="stat-label">Review time</div>
+        <div className="stat-value">{median === null ? "–" : `${Math.round(median)}s`}</div>
+        <div className="stat-note">median</div>
+      </div>
+      <div className="card stat">
+        <div className="stat-label">Spend</div>
+        <div className="stat-value">{usd(s.costUsd)}</div>
+        <div className="stat-note">
+          {s.reviews ? `${usd(s.costUsd / s.reviews)} a review` : "–"}
+        </div>
+      </div>
+    </div>
   );
 }

@@ -11,6 +11,71 @@
   height: 18px;
 }
 
+/* Insights: six numbers in a row, then the charts, the wide ones over two columns. */
+.stats.stats-6 {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+.chart-grid {
+  margin-top: 12px;
+}
+.chart-grid .charts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  background: transparent;
+  color: var(--fg);
+}
+.chart-card {
+  min-width: 0;
+}
+.chart-card.wide {
+  grid-column: span 2;
+}
+.chart-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 12px 14px 4px;
+}
+.chart-head h3 {
+  font-size: 13px;
+  font-weight: 500;
+}
+.chart-body {
+  padding: 4px 10px 10px;
+}
+/* The library sizes tick labels by its own font's widths at 12px; the
+   console's font is wider, so its ticks are set a pixel smaller to fit. */
+.chart-body foreignObject div {
+  font-size: 11px;
+}
+/* The library's handle for resizing a legend: the console's legends stay put. */
+.chart-body [data-testid="legend-resize-line"] {
+  display: none;
+}
+.chart-empty {
+  margin: 0;
+  padding: 40px 0;
+  text-align: center;
+  color: var(--t3);
+}
+@media (max-width: 1100px) {
+  .stats.stats-6 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .chart-grid .charts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .chart-card.wide {
+    grid-column: auto;
+  }
+}
+@media (max-width: 560px) {
+  .stats.stats-6 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 /* Stat rows that keep their column count on a narrow screen. */
 .stats.stats-3 {
   grid-template-columns: repeat(3, minmax(0, 1fr));

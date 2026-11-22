@@ -4,6 +4,8 @@ import type { ReviewSource } from "../../src/shared/index.js";
 
 const nf = new Intl.NumberFormat("en-US");
 export const num = (n: number) => nf.format(n);
+/** Dollars to the cent. */
+export const usd = (n: number) => `$${n.toFixed(2)}`;
 export function compact(n: number): string {
   if (n >= 1e9) return `${(n / 1e9).toFixed(1)}B`;
   if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
