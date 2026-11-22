@@ -83,3 +83,18 @@ export function containsText(db: Db, column: SQL | AnyColumn, needle: string): S
     ? sql`${column} ILIKE ${pattern} ESCAPE '\\'`
     : sql`${column} LIKE ${pattern} ESCAPE '\\'`;
 }
+
+/**
+ * Whether a write failed on a unique index: Postgres' 23505, libSQL's
+ * SQLITE_CONSTRAINT_UNIQUE, D1's message. Drizzle wraps the driver's error
+ * in `cause`.
+ */
+export function isUniqueViolation(error: unknown): boolean {
+  for (let e = error, depth = 0; e instanceof Object && depth < 5; depth++) {
+    const { code, message } = e as { code?: unknown; message?: unknown };
+    if (code === "23505" || code === "SQLITE_CONSTRAINT_UNIQUE") return true;
+    if (typeof message === "string" && message.includes("UNIQUE constraint failed")) return true;
+    e = (e as { cause?: unknown }).cause;
+  }
+  return false;
+}

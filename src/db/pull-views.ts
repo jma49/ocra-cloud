@@ -2,7 +2,7 @@ import type { Verdict } from "@open-cr-agent/cloud-contract";
 import { and, eq, ne, notExists, sql } from "drizzle-orm";
 import type { PullFilters, PullViewDraft } from "../shared/index.js";
 import { changedRows, type Db } from "./client.js";
-import { jsonRecords, randomId } from "./dialect.js";
+import { isUniqueViolation, jsonRecords, randomId } from "./dialect.js";
 import { pullViews, reviews } from "./schema.js";
 
 // The account's inbox sections and what the inbox reads about each listed
@@ -47,7 +47,16 @@ export function accountPullViews(db: Db, accountId: string) {
                 .from(t)
                 .where(and(named(changes.name), ne(t.id, id))),
             );
-      const result = await db.update(t).set(changes).where(and(own, free));
+      // A rename raced past `free` by another write of that name meets the unique index.
+      const result = await db
+        .update(t)
+        .set(changes)
+        .where(and(own, free))
+        .catch((error: unknown) => {
+          if (isUniqueViolation(error)) return "taken" as const;
+          throw error;
+        });
+      if (result === "taken") return result;
       if (changedRows(result) > 0) return "changed";
       const mine = await db.select({ id: t.id }).from(t).where(own).limit(1);
       return mine.length > 0 ? "taken" : "not_found";

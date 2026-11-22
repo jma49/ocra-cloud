@@ -1,6 +1,8 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { env } from "cloudflare:workers";
+import { sql } from "drizzle-orm";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { DEFAULT_PULL_VIEWS, type PullView, type PullViewsAnswer } from "../src/shared/index.js";
-import { call, ORIGIN, resetDb, signIn } from "./helpers.js";
+import { call, db, ORIGIN, resetDb, signIn } from "./helpers.js";
 
 beforeEach(resetDb);
 
@@ -20,6 +22,40 @@ async function account(id = 1, login = "octo") {
     (await (await send("POST", "/api/pull-views", { name, filters })).json()) as PullView;
   return { send, views, answer, add };
 }
+
+// Another write of the same name landing after the rename's own check and
+// before its row is written, as two concurrent renames can on Postgres: a
+// trigger that adds a view of the new name to the account.
+const onD1 = "prepare" in (env.DB as object);
+const RACE = onD1
+  ? [
+      `CREATE TRIGGER pull_views_race BEFORE UPDATE OF name ON pull_views
+        WHEN NEW.name = 'Raced'
+        BEGIN
+          INSERT INTO pull_views (id, account_id, name, filters, position)
+          VALUES ('raced', NEW.account_id, NEW.name, '{}', 99);
+        END`,
+    ]
+  : [
+      `CREATE FUNCTION pull_views_race() RETURNS trigger LANGUAGE plpgsql AS $$
+        BEGIN
+          INSERT INTO pull_views (id, account_id, name, filters, position)
+          VALUES ('raced', NEW.account_id, NEW.name, '{}', 99);
+          RETURN NEW;
+        END $$`,
+      `CREATE TRIGGER pull_views_race BEFORE UPDATE OF name ON pull_views
+        FOR EACH ROW WHEN (NEW.name = 'Raced') EXECUTE FUNCTION pull_views_race()`,
+    ];
+const UNRACE = onD1
+  ? ["DROP TRIGGER IF EXISTS pull_views_race"]
+  : [
+      "DROP TRIGGER IF EXISTS pull_views_race ON pull_views",
+      "DROP FUNCTION IF EXISTS pull_views_race()",
+    ];
+
+afterEach(async () => {
+  for (const s of UNRACE) await db.run(sql.raw(s));
+});
 
 const failing = { name: "Failing CI", filters: { roles: ["author"], checks: ["failing"] } };
 
@@ -94,6 +130,19 @@ describe("pull request views", () => {
     expect((await b.send("POST", "/api/pull-views", { name: "Mine", filters: {} })).status).toBe(
       201,
     );
+  });
+
+  it("refuse a rename that races onto a name taken after its check, as a taken name", async () => {
+    const a = await account();
+    const view = await a.add("Mine");
+    for (const s of RACE) await db.run(sql.raw(s));
+    const rename = await a.send("PUT", `/api/pull-views/${view.id}`, { name: "Raced" });
+    expect(rename.status).toBe(400);
+    expect(await rename.json()).toMatchObject({
+      error: "invalid_body",
+      issues: [{ path: ["name"] }],
+    });
+    expect((await a.views()).map((v) => v.name)).toEqual(["Mine"]);
   });
 
   it("hide, and take the newer filters, labels, verdicts and days within bounds", async () => {
