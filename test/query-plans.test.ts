@@ -68,6 +68,7 @@ const TABLE: Record<string, string> = {
   reviewRepos: "review_repos",
   reviewJobs: "review_jobs",
   notifyChannels: "notify_channels",
+  closedPulls: "closed_pulls",
   replyJobs: "reply_jobs",
   reviewWalkthroughs: "review_walkthroughs",
   automationRules: "automation_rules",
@@ -235,6 +236,21 @@ describe("checking a cap", () => {
   });
 });
 
+describe("the weekly report", () => {
+  it("reads closed pull requests through the (account_id, closed_at) index", async () => {
+    const seen: Captured[] = [];
+    const d = scoped(drizzle(recording(seen)), "acct");
+    await d.closedPulls.mergedBetween(new Date(0), new Date(), 5);
+    await d.closedPulls.mergeTimes(new Date(0), new Date(), 10);
+    expect(seen).toHaveLength(3);
+    for (const q of seen) {
+      const p = await plan(q);
+      expect(p, q.sql).toMatch(/SEARCH closed_pulls USING INDEX closed_pulls_account_closed/);
+      expect(p, q.sql).not.toMatch(/SCAN closed_pulls/);
+    }
+  });
+});
+
 describe("retention", () => {
   it("finds each table's old rows through an index, never reading the whole table (audit C3)", async () => {
     const seen: Captured[] = [];
@@ -247,6 +263,7 @@ describe("retention", () => {
     expect([...plans.keys()].sort()).toEqual([
       "audit_events",
       "automation_runs",
+      "closed_pulls",
       "device_codes",
       "gateway_calls",
       "rate_windows",

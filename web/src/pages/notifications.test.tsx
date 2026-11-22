@@ -16,10 +16,13 @@ const channel = {
   last4: "Xy9Q",
   confirmed: true,
   digest: false,
+  weekly: false,
   lastStatus: null,
   lastSentAt: null,
   createdAt: "2026-11-20T10:00:00Z",
 };
+
+const SLOT = { weekday: 1, hour: 9, next: "2026-11-23T09:00:00.000Z" };
 
 describe("the Notifications page", () => {
   it("adds a channel with its address, and shows what a test message did", async () => {
@@ -36,6 +39,7 @@ describe("the Notifications page", () => {
           return Response.json({ channel });
         }
         if (url.endsWith("/test")) return Response.json({ delivered: false });
+        if (url === "/api/notifications/report") return Response.json(SLOT);
         return Response.json({ channels });
       }),
     );
@@ -115,6 +119,32 @@ describe("an email channel", () => {
     render(<Notifications />);
     await screen.findByText("No channels yet.");
     expect(screen.queryByRole("option", { name: "Email" })).toBeNull();
+  });
+});
+
+describe("the weekly report", () => {
+  it("is switched on per channel, and its UTC day and hour are saved", async () => {
+    const sent: { url: string; method: string; body: unknown }[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        const method = init?.method ?? "GET";
+        const body = init?.body ? JSON.parse(String(init.body)) : undefined;
+        if (method !== "GET") sent.push({ url, method, body });
+        if (url === "/api/notifications/report") return Response.json(body ?? SLOT);
+        if (method === "PATCH") return Response.json({ channel: { ...channel, weekly: true } });
+        return Response.json({ channels: [channel], email: false });
+      }),
+    );
+    render(<Notifications />);
+    const weekly = await screen.findByRole("switch", { name: "Weekly report to #reviews" });
+    await act(async () => void fireEvent.click(weekly));
+    fireEvent.change(await screen.findByLabelText("Weekly report day"), { target: { value: "5" } });
+    await waitFor(() => expect(sent).toHaveLength(2));
+    expect(sent).toEqual([
+      { url: "/api/notifications/channels/n1", method: "PATCH", body: { weekly: true } },
+      { url: "/api/notifications/report", method: "PUT", body: { weekday: 5, hour: 9 } },
+    ]);
   });
 });
 

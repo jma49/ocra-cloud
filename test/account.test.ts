@@ -112,6 +112,7 @@ describe("deleting an account", () => {
           "graphBuilds",
           "reviewJobs",
           "replyJobs",
+          "closedPulls",
           "mergeChecks",
           "mergeCheckRuns",
         ].includes(table)
@@ -134,6 +135,10 @@ describe("deleting an account", () => {
     });
     await d.insert("replyJobs", {
       ...rows.replyJobs(id("replyJobs")),
+      reviewRepoId: id("reviewRepos"),
+    });
+    await d.insert("closedPulls", {
+      ...rows.closedPulls(id("closedPulls")),
       reviewRepoId: id("reviewRepos"),
     });
     await d.insert("mergeChecks", {

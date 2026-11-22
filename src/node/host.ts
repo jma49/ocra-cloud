@@ -10,6 +10,7 @@ import type { Db } from "../db/client.js";
 import { masterKeys } from "../keyring.js";
 import { runDigests } from "../notify/digest.js";
 import type { Mailer } from "../notify/email.js";
+import { runReports } from "../notify/report.js";
 import type { AppBindings } from "../types.js";
 import { botTokens } from "./bot-tokens.js";
 import { clientAddress } from "./client-address.js";
@@ -127,16 +128,20 @@ export async function openHost(options: HostOptions) {
         ? api.fetch(request, bindings)
         : site.fetch(request);
     },
-    /** Sends the daily digests not sent yet; needs publicUrl, which their links point to. */
-    digests: () =>
-      origin
-        ? runDigests(shared, {
-            keys: masterKeys(bindings),
-            mailer: options.mailer,
-            linkSecret: bindings.SESSION_SECRET,
-            origin,
-          })
-        : Promise.resolve(),
+    /**
+     * Sends the daily digests and weekly reports not sent yet; needs
+     * publicUrl, which their links point to.
+     */
+    digests: async () => {
+      if (!origin) return;
+      const out = {
+        keys: masterKeys(bindings),
+        mailer: options.mailer,
+        linkSecret: bindings.SESSION_SECRET,
+        origin,
+      };
+      await Promise.all([runDigests(shared, out), runReports(shared, out)]);
+    },
     /** The graph build worker, when graphs are on. */
     graphWorker: graphs?.worker,
     /** The review worker, when auto review is on. */

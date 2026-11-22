@@ -32,6 +32,7 @@ const changes = {
   reviewRepos: { fullName: "octo/renamed" },
   reviewJobs: { state: "done" as const },
   notifyChannels: { name: "renamed" },
+  closedPulls: { merged: false },
   replyJobs: { state: "done" as const },
   reviewWalkthroughs: { overview: "changed" },
   automationRules: { name: "renamed" },
@@ -116,7 +117,9 @@ describe.each(withIds)("%s", (name) => {
         .insert(schema.reviews)
         .values({ id: "review-of-a", accountId: A, runId: "r", repoHash: "h", source: "local" });
     }
-    if (["reviewJobs", "replyJobs", "mergeChecks", "mergeCheckRuns"].includes(name)) {
+    if (
+      ["reviewJobs", "replyJobs", "closedPulls", "mergeChecks", "mergeCheckRuns"].includes(name)
+    ) {
       await db
         .insert(schema.reviewRepos)
         .values({ ...rows.reviewRepos("review-repo-of-a"), accountId: A });

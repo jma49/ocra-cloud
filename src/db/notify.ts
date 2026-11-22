@@ -36,7 +36,7 @@ export function accountNotify(db: Db, accountId: string) {
         SELECT ${row.id}, ${accountId}, ${row.kind}, ${row.name}, ${row.when},
           ${row.wrappedKey}, ${row.ciphertext}, ${row.last4}, NULL, NULL, ${Date.now()},
           ${row.confirmedAt?.getTime() ?? null}, ${row.confirmTokenHash ?? null},
-          ${row.confirmExpiresAt?.getTime() ?? null}, ${row.digest ? 1 : 0}
+          ${row.confirmExpiresAt?.getTime() ?? null}, ${row.digest ? 1 : 0}, ${row.weekly ? 1 : 0}
         WHERE (SELECT count(*) FROM ${t} WHERE ${own}) < ${cap}`);
       return changedRows(inserted) > 0;
     },
@@ -55,6 +55,14 @@ export function accountNotify(db: Db, accountId: string) {
         .select()
         .from(t)
         .where(and(own, eq(t.digest, true), isNotNull(t.confirmedAt)));
+    },
+
+    /** The confirmed channels that get the weekly report. */
+    reporting() {
+      return db
+        .select()
+        .from(t)
+        .where(and(own, eq(t.weekly, true), isNotNull(t.confirmedAt)));
     },
 
     /** A new link for an unconfirmed address; false once it is confirmed or gone. */

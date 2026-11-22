@@ -6,6 +6,7 @@ import {
   type NotifyChannelView,
   type NotifyKind,
   type NotifyWhen,
+  type ReportScheduleView,
 } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
 import { ago } from "../format.js";
@@ -13,7 +14,8 @@ import { ActionError, LoadError, Loading, PageHead, useAction, useLoad } from ".
 
 // The chats and email addresses that hear about reviews: a Slack or WeCom
 // incoming webhook, or an address confirmed by the link mailed to it, each
-// with which reviews it hears about and whether it gets the daily digest.
+// with which reviews it hears about and whether it gets the daily digest and
+// the weekly report, whose UTC day and hour the account picks.
 // The address is sent once and never shown again.
 
 const KIND_LABEL: Record<NotifyKind, string> = { slack: "Slack", wecom: "WeCom", email: "Email" };
@@ -36,8 +38,9 @@ export function Notifications() {
   const { data, error, reload } = useLoad(() => api<NotifyChannelsView>("/notifications/channels"));
   const [tested, setTested] = useState<{ id: string; delivered: boolean } | null>(null);
   const [linkSent, setLinkSent] = useState<string | null>(null);
-  const change = useAction((id: string, body: { when?: NotifyWhen; digest?: boolean }) =>
-    api(`/notifications/channels/${id}`, json("PATCH", body)),
+  const change = useAction(
+    (id: string, body: { when?: NotifyWhen; digest?: boolean; weekly?: boolean }) =>
+      api(`/notifications/channels/${id}`, json("PATCH", body)),
   );
   const remove = useAction((id: string) => api(`/notifications/channels/${id}`, json("DELETE")));
   const resend = useAction((id: string) =>
@@ -61,8 +64,8 @@ export function Notifications() {
         title="Notifications"
         sub={
           data?.email
-            ? "Tell a Slack or WeCom chat, or an email address, when a review lands, and send a daily digest of yesterday's reviews. Each address is kept encrypted and never shown again; an email address first gets a link to confirm it."
-            : "Tell a Slack or WeCom chat when a review lands, and send a daily digest of yesterday's reviews. Each address is kept encrypted and never shown again."
+            ? "Tell a Slack or WeCom chat, or an email address, when a review lands, and send a daily digest of yesterday's reviews or a weekly report. Each address is kept encrypted and never shown again; an email address first gets a link to confirm it."
+            : "Tell a Slack or WeCom chat when a review lands, and send a daily digest of yesterday's reviews or a weekly report. Each address is kept encrypted and never shown again."
         }
       />
       {linkSent && (
@@ -78,6 +81,7 @@ export function Notifications() {
         full={(data?.channels.length ?? 0) >= 10}
         email={data?.email ?? false}
       />
+      <ReportSlot />
       {resend.error !== null && <ActionError what="send the link again" error={resend.error} />}
       {change.error !== null && <ActionError what="change the channel" error={change.error} />}
       {remove.error !== null && <ActionError what="remove the channel" error={remove.error} />}
@@ -97,6 +101,7 @@ export function Notifications() {
                   <th>Channel</th>
                   <th>Sends</th>
                   <th>Digest</th>
+                  <th>Weekly</th>
                   <th>Last message</th>
                   <th />
                 </tr>
@@ -136,6 +141,17 @@ export function Notifications() {
                         aria-checked={c.digest}
                         disabled={change.busy}
                         onClick={() => after(change.run(c.id, { digest: !c.digest }))}
+                      />
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        role="switch"
+                        className="switch"
+                        aria-label={`Weekly report to ${c.name}`}
+                        aria-checked={c.weekly}
+                        disabled={change.busy}
+                        onClick={() => after(change.run(c.id, { weekly: !c.weekly }))}
                       />
                     </td>
                     <td>
@@ -300,5 +316,54 @@ function AddChannel(props: {
         </p>
       )}
     </form>
+  );
+}
+
+const HOURS = Array.from({ length: 24 }, (_, h) => h);
+const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+/** When the weekly report goes, in UTC. */
+function ReportSlot() {
+  const { data, reload } = useLoad(() => api<ReportScheduleView>("/notifications/report"));
+  const save = useAction((slot: { weekday: number; hour: number }) =>
+    api<ReportScheduleView>("/notifications/report", json("PUT", slot)),
+  );
+  if (!data) return null;
+  const set = async (slot: { weekday: number; hour: number }) => {
+    if ((await save.run(slot)) !== undefined) reload();
+  };
+  return (
+    <p className="subtle small">
+      The weekly report covers the seven days before{" "}
+      <select
+        className="input"
+        aria-label="Weekly report day"
+        value={data.weekday}
+        disabled={save.busy}
+        onChange={(e) => set({ weekday: Number(e.target.value), hour: data.hour })}
+      >
+        {WEEKDAYS.map((d, i) => (
+          <option key={d} value={i}>
+            {d}
+          </option>
+        ))}
+      </select>{" "}
+      at{" "}
+      <select
+        className="input"
+        aria-label="Weekly report hour"
+        value={data.hour}
+        disabled={save.busy}
+        onChange={(e) => set({ weekday: data.weekday, hour: Number(e.target.value) })}
+      >
+        {HOURS.map((h) => (
+          <option key={h} value={h}>
+            {String(h).padStart(2, "0")}:00
+          </option>
+        ))}
+      </select>{" "}
+      UTC, and goes to the channels with Weekly on; a week without reviews or merges sends nothing.
+      {save.error !== null && <ActionError what="change the report day" error={save.error} />}
+    </p>
   );
 }

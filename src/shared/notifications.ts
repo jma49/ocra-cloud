@@ -1,6 +1,6 @@
 // Where the account is told about its reviews: a chat's incoming webhook or
 // an email address, which reviews it hears about, and whether it gets the
-// daily digest.
+// daily digest and the weekly report.
 
 export const NOTIFY_KINDS = ["slack", "wecom", "email"] as const;
 export type NotifyKind = (typeof NOTIFY_KINDS)[number];
@@ -20,6 +20,8 @@ export type NotifyChannelView = {
   confirmed: boolean;
   /** Whether it gets the daily digest of yesterday's reviews (UTC). */
   digest: boolean;
+  /** Whether it gets the weekly report, at the account's report slot. */
+  weekly: boolean;
   /** How the last message went; null before the first. */
   lastStatus: "ok" | "failed" | null;
   lastSentAt: string | null;
@@ -36,4 +38,12 @@ export type NotifyChannelAdded = {
   channel: NotifyChannelView;
   /** For an email address: whether the confirmation link was sent. */
   confirmationSent?: boolean;
+};
+
+/** When the account's weekly report goes: a UTC weekday (0 is Sunday) and hour. */
+export type ReportScheduleView = {
+  weekday: number;
+  hour: number;
+  /** The next slot, ISO 8601; the report covers the seven days before it. */
+  next: string;
 };
