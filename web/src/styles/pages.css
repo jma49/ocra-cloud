@@ -922,4 +922,52 @@ td.finding-cell {
   .pull-side {
     position: static;
   }
+/* A review's walkthrough, above its findings. */
+.walkthrough {
+  margin-bottom: 16px;
+}
+.walkthrough-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  cursor: pointer;
+  list-style: none;
+}
+.walkthrough-head::-webkit-details-marker {
+  display: none;
+}
+.walkthrough:not([open]) .fold {
+  rotate: -45deg;
+  margin-top: 0;
+}
+.walkthrough[open] > .walkthrough-head {
+  box-shadow: inset 0 -0.5px 0 var(--hair);
+}
+.walkthrough-groups {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.walkthrough-files {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.walkthrough-files li {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.walkthrough-diagram summary {
+  cursor: pointer;
+}
+.walkthrough-diagram pre {
+  margin: 8px 0 0;
+  padding: 12px;
+  overflow-x: auto;
+  border-radius: var(--r-tab);
+  background: var(--fill2);
 }

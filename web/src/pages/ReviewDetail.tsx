@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { ReviewSource, Verdict } from "../../../src/shared/index.js";
+import type { ReviewSource, ReviewWalkthroughView, Verdict } from "../../../src/shared/index.js";
 import { ApiError, api } from "../api.js";
 import { useCached } from "../cache.js";
 import { ago, sourceLabel, time } from "../format.js";
@@ -9,6 +9,7 @@ import { pullPath } from "../pull/path.js";
 import { Link } from "../router.js";
 import { LoadError, Loading, PageHead, Seg } from "../ui.js";
 import { type Finding, FindingEvent } from "./review-finding.js";
+import { Walkthrough } from "./review-walkthrough.js";
 
 // One review and, when the account shares findings, its findings (ADR-0028):
 // its properties on the left, what happened on a timeline on the right.
@@ -29,6 +30,7 @@ type Detail = {
     prNumber: number | null;
   };
   findings: Finding[];
+  walkthrough: ReviewWalkthroughView | null;
 };
 type Review = Detail["review"];
 
@@ -104,6 +106,7 @@ export function ReviewDetail(props: { id: string; graphs: boolean }) {
           </span>
           <h1>Review of {r.repo}</h1>
         </div>
+        {data.walkthrough && <Walkthrough w={data.walkthrough} />}
         <div className="review-tabs">
           <span className="caps">
             Activity · {data.findings.length} finding{data.findings.length === 1 ? "" : "s"} in{" "}
