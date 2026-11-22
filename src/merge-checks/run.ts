@@ -92,12 +92,15 @@ export const digestOf = (report: MergeChecksReportView) =>
 export function statusOf(report: MergeChecksReportView, detailsUrl: string): PostedStatus {
   const failed = report.results.filter((r) => r.outcome === "failed");
   const blocking = failed.filter((r) => r.mode === "block").length;
+  const waiting = report.results.filter((r) => r.outcome === "not_evaluated").length;
   const title =
     blocking > 0
       ? `${blocking} blocking check${blocking === 1 ? "" : "s"} failed`
       : failed.length > 0
         ? `Passed with ${failed.length} warning${failed.length === 1 ? "" : "s"}`
-        : "All checks passed";
+        : waiting > 0
+          ? `${waiting} check${waiting === 1 ? "" : "s"} not evaluated yet`
+          : "All checks passed";
   const summary = report.results
     .map((r) => {
       // A check not evaluated says so in its detail.
