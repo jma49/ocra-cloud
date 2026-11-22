@@ -69,6 +69,12 @@ describe("a fix on the pull request's page", () => {
           return Response.json({ review: { id: "r1", head: HEAD }, fixes: [fix()] });
         }
         if (url.startsWith("/api/pulls/stack")) return Response.json({ trunk: "", pulls: [] });
+        if (url.startsWith("/api/pulls/labels")) {
+          return Response.json({ applied: [], available: [], truncated: false });
+        }
+        if (url.startsWith("/api/pulls/draft")) {
+          return Response.json({ draft: false, state: "open" });
+        }
         if (url.startsWith("/api/pulls/reviewers")) {
           return Response.json({ suggestions: [], owners: [] });
         }
