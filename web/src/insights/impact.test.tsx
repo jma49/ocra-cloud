@@ -144,4 +144,12 @@ describe("what ocra changed on Insights", () => {
     expect(await screen.findByText(/Nothing recorded in this period/)).toBeTruthy();
     expect(screen.queryByText("Pull requests reviewed")).toBeNull();
   });
+
+  it("stays away when the page already says there are no reviews", async () => {
+    const fetch = serve(impact());
+    render(<ImpactSection days={7} quiet />);
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalled());
+    await new Promise((r) => setTimeout(r, 0));
+    expect(screen.queryByRole("region", { name: "What ocra changed" })).toBeNull();
+  });
 });
