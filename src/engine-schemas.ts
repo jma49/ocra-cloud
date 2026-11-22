@@ -50,6 +50,7 @@ export const CONFIG_JSON_SCHEMA = {
     judge: { type: "boolean" },
     showPreExisting: { type: "boolean" },
     walkthrough: { type: "boolean" },
+    fixes: { type: "boolean" },
     linkedTasks: { type: "boolean" },
     trackers: {
       default: {},
@@ -191,7 +192,7 @@ export const CONFIG_JSON_SCHEMA = {
     },
     roles: {
       type: "object",
-      propertyNames: { type: "string", enum: ["verifier", "judge", "helper", "writer"] },
+      propertyNames: { type: "string", enum: ["verifier", "judge", "helper", "writer", "fixer"] },
       additionalProperties: {
         type: "object",
         properties: {
