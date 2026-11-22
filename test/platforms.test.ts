@@ -55,7 +55,11 @@ describe("the GitHub link", () => {
 
     const before = (await (await a.send("/api/platforms/repos")).json()) as Listed;
     expect(before.sharing).toBe(false);
-    expect(githubOf(before)).toMatchObject({ host: "github.com", linked: true });
+    expect(githubOf(before)).toMatchObject({
+      host: "github.com",
+      linked: true,
+      installUrl: "https://github.com/apps/ocra-cloud-dev/installations/new",
+    });
     expect(githubOf(before)?.repositories.map((r) => [r.fullName, r.repoHash])).toEqual([
       ["Octo/API", null],
       ["octo/web", null],

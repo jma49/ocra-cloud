@@ -12,7 +12,7 @@ import type { BotTokens } from "./platforms/bot.js";
  */
 export type AppBindings = Widen<Omit<Env, "DB" | GithubApp>> & Partial<Record<GithubApp, string>>;
 /** Always set on Workers; a self-hosted server may sign people in through OpenID Connect only. */
-type GithubApp = "GITHUB_CLIENT_ID" | "GITHUB_CLIENT_SECRET";
+type GithubApp = "GITHUB_CLIENT_ID" | "GITHUB_CLIENT_SECRET" | "GITHUB_APP_SLUG";
 /** A self-hosted server sets its own GitHub App and limits: any string, not the Worker's. */
 type Widen<T> = { [K in keyof T]: NonNullable<T[K]> extends string ? string : T[K] };
 

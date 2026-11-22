@@ -22,6 +22,7 @@ const HASH = "f8c2ef5b".padEnd(64, "0");
 const platform = (over: object) => ({
   linked: false,
   failed: false,
+  installUrl: null,
   more: false,
   repositories: [],
   ...over,
@@ -71,6 +72,18 @@ describe("the connected platforms", () => {
       "/api/auth/github/login?next=%2Frepositories",
     );
     expect(screen.queryByText(/Sign out/)).toBeNull();
+  });
+
+  it("send a connected GitHub to choose the repositories its app reaches", async () => {
+    const install = "https://github.com/apps/ocra-cloud/installations/new";
+    serve(
+      [platform({ platform: "github", host: "github.com", linked: true, installUrl: install })],
+      [],
+    );
+    render(<Repositories me={ME} />);
+    const choose = await screen.findByRole("link", { name: "Choose repositories" });
+    expect(choose.getAttribute("href")).toBe(install);
+    expect(screen.getByText(/not installed on any repository/)).toBeTruthy();
   });
 });
 
