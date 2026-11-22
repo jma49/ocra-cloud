@@ -14,6 +14,7 @@ import { listOf, Row } from "../form.js";
 import { AddGlyph, CloseGlyph } from "../glyphs.js";
 import { Seg, useAction } from "../ui.js";
 import { ACTION_LABEL, actionsFor, VERDICT_LABEL, VERDICT_LIST } from "./describe.js";
+import { PathsRow, pathsDraft, pathsOf } from "./paths-row.js";
 
 // One rule, new or changed: its trigger, the conditions that trigger may
 // test, and up to five actions it may take. The form offers only what the
@@ -84,6 +85,7 @@ export function RuleForm(props: {
     c.critical === undefined ? "any" : c.critical ? "yes" : "no",
   );
   const [verdicts, setVerdicts] = useState<Verdict[]>(c.verdicts ?? []);
+  const [paths, setPaths] = useState(() => pathsDraft(c.paths));
   const [actions, setActions] = useState<Draft[]>(
     r ? r.actions.map(draftOf) : [{ key: nextKey++, kind: "notify", text: "" }],
   );
@@ -91,6 +93,7 @@ export function RuleForm(props: {
 
   const conditions = (): AutomationConditions => ({
     ...(repoIds.length ? { repoIds } : {}),
+    paths: pathsOf(paths),
     ...(trigger === "queued"
       ? {
           authors: listOf(authors),
@@ -246,6 +249,7 @@ export function RuleForm(props: {
           </Row>
         </>
       )}
+      <PathsRow value={paths} onChange={setPaths} />
       <div className="rule-actions">
         <div className="label">Then</div>
         {actions.map((a, i) => (
