@@ -53,6 +53,7 @@ describe("the Notifications page", () => {
         kind: "slack",
         name: "#reviews",
         when: "blocking",
+        digest: false,
         url: "https://hooks.slack.com/services/T/B/x",
       },
     });
@@ -60,6 +61,60 @@ describe("the Notifications page", () => {
     await act(async () => void fireEvent.click(screen.getByRole("button", { name: "Send test" })));
     await waitFor(() => expect(screen.getByText("Test not delivered")).toBeTruthy());
     expect(sent[1]).toMatchObject({ url: "/api/notifications/channels/n1/test", method: "POST" });
+  });
+});
+
+describe("an email channel", () => {
+  it("says a confirmation link went out, waits for it, and turns the digest on with a switch", async () => {
+    const sent: { url: string; method: string; body: unknown }[] = [];
+    const mail = { ...channel, id: "m1", kind: "email", name: "Ada", confirmed: false };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        const method = init?.method ?? "GET";
+        const body = init?.body ? JSON.parse(String(init.body)) : undefined;
+        if (method !== "GET") sent.push({ url, method, body });
+        if (method === "POST") return Response.json({ channel: mail, confirmationSent: true });
+        if (method === "PATCH") return Response.json({ channel: mail });
+        return Response.json({ email: true, channels: sent.length ? [mail] : [] });
+      }),
+    );
+    render(<Notifications />);
+    await screen.findByText("No channels yet.");
+    fireEvent.change(screen.getByLabelText("Where"), { target: { value: "email" } });
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Ada" } });
+    fireEvent.change(screen.getByLabelText("Email address"), {
+      target: { value: "ada@example.com" },
+    });
+    fireEvent.click(screen.getByLabelText("Also send a daily digest of yesterday's reviews"));
+    await act(async () => void fireEvent.click(screen.getByRole("button", { name: "Add" })));
+    expect(sent[0]?.body).toEqual({
+      kind: "email",
+      name: "Ada",
+      when: "blocking",
+      digest: true,
+      address: "ada@example.com",
+    });
+    expect(await screen.findByText(/A link to confirm Ada is on its way/)).toBeTruthy();
+    expect(await screen.findByText("Awaiting confirmation")).toBeTruthy();
+    await act(
+      async () => void fireEvent.click(screen.getByRole("switch", { name: "Daily digest to Ada" })),
+    );
+    expect(sent[1]).toEqual({
+      url: "/api/notifications/channels/m1",
+      method: "PATCH",
+      body: { digest: true },
+    });
+  });
+
+  it("is not offered where this server cannot send mail", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ email: false, channels: [] })),
+    );
+    render(<Notifications />);
+    await screen.findByText("No channels yet.");
+    expect(screen.queryByRole("option", { name: "Email" })).toBeNull();
   });
 });
 
