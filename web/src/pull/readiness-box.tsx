@@ -48,6 +48,17 @@ function Mark(props: { state: ReadinessState }) {
   );
 }
 
+const RULE: Record<string, string> = {
+  merge_queue: "a merge queue",
+  required_deployments: "deployments",
+  required_signatures: "signed commits",
+  required_linear_history: "a linear history",
+  code_scanning: "code scanning",
+  workflows: "workflows",
+  update: "permission to update the branch",
+};
+const ruleName = (type: string) => RULE[type] ?? type.replaceAll("_", " ");
+
 const count = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
 
 function ownerLine(group: CodeOwnerGroupView): string {
@@ -114,6 +125,11 @@ export function ReadinessBox(props: { pull: Pull; head: string }) {
           </li>
         ))}
       </ul>
+      {data.otherRules.length > 0 && (
+        <span className="subtle small">
+          Also required by branch rules: {data.otherRules.map(ruleName).join(", ")}
+        </span>
+      )}
     </section>
   );
 }
