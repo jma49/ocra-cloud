@@ -2,6 +2,7 @@ import { loadKeys } from "../account-keys.js";
 import { api, type Reviews, type Session, type Usage } from "../api.js";
 import { useCached } from "../cache.js";
 import { compact, num } from "../format.js";
+import { DoneGlyph } from "../glyphs.js";
 import { Link } from "../router.js";
 import { anyProvider } from "../site.js";
 import { LoadError, Loading, PageHead, StackedBars, useLoad, useProviders } from "../ui.js";
@@ -113,7 +114,7 @@ export function Overview(props: { login: string }) {
 function Step(props: { n: number; done?: boolean; title: string; children: React.ReactNode }) {
   return (
     <div className={`step${props.done ? " done" : ""}`}>
-      <span className="step-n">{props.done ? "✓" : props.n}</span>
+      <span className="step-n">{props.done ? <DoneGlyph size={14} /> : props.n}</span>
       <div>
         <div className="strong">{props.title}</div>
         <div className="muted small">{props.children}</div>
