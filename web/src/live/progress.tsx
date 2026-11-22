@@ -13,6 +13,7 @@ const STAGE_NAMES: Record<Stage, string> = {
   filter: "Filter",
   verify: "Verify",
   judge: "Judge",
+  fix: "Fix",
 };
 const STAGES = Object.keys(STAGE_NAMES) as Stage[];
 
