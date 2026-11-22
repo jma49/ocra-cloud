@@ -20,6 +20,7 @@ describe("review settings", () => {
       maxTasks: 60,
       verify: true,
       judge: false,
+      fixes: true,
       sampling: { temperature: 0.2, seed: 7 },
       include: ["src/**"],
       exclude: ["**/*.lock", "vendor/**"],
@@ -87,6 +88,25 @@ describe("review settings", () => {
       ]),
     );
     expect(JSON.stringify(changes)).not.toContain("vendor");
+  });
+
+  it("leave fixes off until the account turns them on, then give the CLI the saved value", async () => {
+    const web = await signIn(1, "octo");
+    const cli = await signInCli(1, "octo");
+    const read = async () =>
+      (
+        (await (await call("/api/preferences", { auth: cli.auth })).json()) as {
+          settings: Record<string, unknown>;
+        }
+      ).settings;
+    expect(await read()).not.toHaveProperty("fixes");
+    const put = (settings: unknown) =>
+      call("/api/preferences", { method: "PUT", auth: web.auth, json: { settings } });
+    expect((await put({ fixes: "yes" })).status).toBe(400);
+    expect((await put({ fixes: true, judge: false })).status).toBe(200);
+    expect(await read()).toMatchObject({ fixes: true, judge: false });
+    expect((await put({ judge: false })).status).toBe(200);
+    expect(await read()).not.toHaveProperty("fixes");
   });
 
   it("list changed keys without values", () => {

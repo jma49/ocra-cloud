@@ -101,6 +101,23 @@ describe("The linked-tasks switch", () => {
   });
 });
 
+describe("The fixes switch", () => {
+  it("starts off as the default and saves true when turned on", async () => {
+    const puts = fakeApi();
+    render(
+      <PrefsProvider>
+        <ReviewSettings />
+      </PrefsProvider>,
+    );
+    const toggle = await screen.findByRole("switch", { name: "Propose fixes" });
+    expect(toggle.getAttribute("aria-checked")).toBe("false");
+    fireEvent.click(toggle);
+    fireEvent.click(await screen.findByRole("button", { name: "Save changes" }));
+    await waitFor(() => expect(puts).toHaveLength(1));
+    expect(puts[0]).toMatchObject({ settings: { fixes: true, maxTasks: 20 } });
+  });
+});
+
 describe("Saving from a stale tab", () => {
   it("sends the base version, and on a 409 offers Reload, which drops the draft without a leave prompt", async () => {
     const puts: unknown[] = [];

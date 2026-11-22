@@ -20,6 +20,8 @@ const DATA_KEYS = [
   "maxTasks",
   "verify",
   "judge",
+  "linkedTasks",
+  "fixes",
   "sampling",
   "include",
   "exclude",

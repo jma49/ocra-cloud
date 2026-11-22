@@ -104,6 +104,17 @@ export function ReviewSettings() {
             onChange={(v) => set("judge", v)}
           />
         </Row>
+        <Row
+          label="Propose fixes"
+          desc="Suggest a fix for findings a local edit fixes, kept only if it applies and still parses."
+        >
+          <TriSwitch
+            label="Propose fixes"
+            value={settings.fixes}
+            fallback={false}
+            onChange={(v) => set("fixes", v)}
+          />
+        </Row>
       </div>
 
       <div className="section card">
