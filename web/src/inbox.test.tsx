@@ -28,6 +28,8 @@ const pull = (n: number, over: Partial<PullItem> = {}): PullItem => ({
   roles: ["author"],
   checks: null,
   review: null,
+  labels: [],
+  verdict: null,
   additions: null,
   deletions: null,
   ...over,
@@ -108,6 +110,7 @@ describe("an account's own sections", () => {
       id: "v1",
       name: "Failing",
       position: 0,
+      hidden: false,
       filters: { checks: ["failing" as const] },
     };
     const shown = inboxSections(rows, { text: "", repo: "" }, [view]);

@@ -36,6 +36,8 @@ const ACCESS: Record<string, Access> = {
   "GET /api/search": "web",
   "GET /api/pull-views": "web",
   "POST /api/pull-views": "web",
+  "POST /api/pull-views/defaults": "web",
+  "PUT /api/pull-views/order": "web",
   "PUT /api/pull-views/:id": "web",
   "DELETE /api/pull-views/:id": "web",
   "GET /api/pulls/files": "web",

@@ -1,6 +1,8 @@
 import type { PullChecks, PullReview } from "../shared/index.js";
 import {
   type ListedPull,
+  labelsOf,
+  MAX_LABELS,
   MERGED_PER_LIST,
   mergedSince,
   OPEN_PER_LIST,
@@ -24,6 +26,7 @@ export const pullFragment = (checks: boolean) => `fragment P on PullRequest {
   id number title url isDraft state createdAt updatedAt mergedAt additions deletions reviewDecision
   author { login }
   repository { nameWithOwner }
+  labels(first: ${MAX_LABELS}) { nodes { name } }
   ${checks ? "commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }" : ""}
 }`;
 
@@ -42,6 +45,7 @@ export type PullNode = {
   reviewDecision: "APPROVED" | "CHANGES_REQUESTED" | "REVIEW_REQUIRED" | null;
   author: { login: string } | null;
   repository: { nameWithOwner: string };
+  labels?: { nodes: ({ name: string } | null)[] } | null;
   commits?: { nodes: { commit: { statusCheckRollup: { state: string } | null } }[] };
 };
 type Search = { issueCount: number; nodes: (PullNode | null)[] };
@@ -76,6 +80,7 @@ export function pullNodeItem(n: PullNode): ListedPull {
     mergedAt: n.mergedAt,
     checks: (rollup && CHECKS[rollup]) || null,
     review: (n.reviewDecision && REVIEW[n.reviewDecision]) || null,
+    labels: labelsOf((n.labels?.nodes ?? []).flatMap((l) => (l ? [l.name] : []))),
     additions: n.additions,
     deletions: n.deletions,
   };
