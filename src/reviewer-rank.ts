@@ -1,13 +1,16 @@
 import type { Owner } from "./codeowners.js";
 import { isBotLogin } from "./platforms/reviewers.js";
-import type { ReviewerReason, SuggestedReviewer } from "./shared/index.js";
+import type { ReviewedPaths, ReviewerReason, SuggestedReviewer } from "./shared/index.js";
 
 // How suggested reviewers are ranked: owning changed files counts most, then
-// recent reviews of the repository, each capped so one large pull request or
-// one busy reviewer does not drown the rest; open review requests take away.
+// reviews of pull requests changing the same directories, then recent
+// reviews of the repository, each capped so one large pull request or one
+// busy reviewer does not drown the rest; open review requests take away.
+// Of the directories, the one they reviewed most in counts and is named.
 
 const OWNER_POINTS = 10;
 const CAP = 10;
+const PATH_POINTS = 2;
 const LOAD_CAP = 5;
 
 type RankInput = {
@@ -16,6 +19,8 @@ type RankInput = {
   /** The owners of each changed file. */
   owners: readonly Owner[][];
   history: readonly { login: string; reviews: number }[];
+  /** Per reviewer and changed directory, the pull requests changing it they reviewed. */
+  paths: readonly ({ login: string } & ReviewedPaths)[];
 };
 
 type Ranked = Omit<SuggestedReviewer, "load">;
@@ -37,6 +42,7 @@ export function rankReviewers(input: RankInput): Ranked[] {
         score: 0,
         ownedFiles: 0,
         recentReviews: 0,
+        reviewedPaths: null,
         alreadyRequested: requested.has(k),
       };
       byLogin.set(k, found);
@@ -55,6 +61,14 @@ export function rankReviewers(input: RankInput): Ranked[] {
       reason(r, "codeowner");
     }
   }
+  for (const p of input.paths) {
+    const r = entry(p.login);
+    if (!r || p.pulls <= 0) continue;
+    if (!r.reviewedPaths || morePaths(p, r.reviewedPaths)) {
+      r.reviewedPaths = { prefix: p.prefix, pulls: p.pulls };
+    }
+    reason(r, "reviewed_these_paths");
+  }
   for (const h of input.history) {
     const r = entry(h.login);
     if (!r || h.reviews <= 0) continue;
@@ -64,9 +78,17 @@ export function rankReviewers(input: RankInput): Ranked[] {
   for (const r of byLogin.values()) {
     r.score =
       (r.ownedFiles > 0 ? OWNER_POINTS + Math.min(r.ownedFiles, CAP) : 0) +
+      Math.min((r.reviewedPaths?.pulls ?? 0) * PATH_POINTS, CAP) +
       Math.min(r.recentReviews, CAP);
   }
   return [...byLogin.values()].sort(byScore);
+}
+
+/** More pull requests first, then the deeper directory, then by name. */
+function morePaths(a: ReviewedPaths, b: ReviewedPaths): boolean {
+  if (a.pulls !== b.pulls) return a.pulls > b.pulls;
+  const depth = a.prefix.split("/").length - b.prefix.split("/").length;
+  return depth !== 0 ? depth > 0 : a.prefix < b.prefix;
 }
 
 function byScore(a: { score: number; login: string }, b: { score: number; login: string }) {

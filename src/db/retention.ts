@@ -14,6 +14,7 @@ import {
   mergeIntents,
   notifySends,
   pullFlows,
+  pullPaths,
   pullReviews,
   pullSeen,
   rateWindows,
@@ -108,6 +109,13 @@ export async function enforceRetention(db: Db, now = new Date()): Promise<void> 
         db
           .delete(pullSeen)
           .where(and(ofEachAccount(pullSeen.accountId), lt(pullSeen.seenAt, cutoff))),
+    ],
+    [
+      "pull_paths",
+      () =>
+        db
+          .delete(pullPaths)
+          .where(and(ofEachAccount(pullPaths.accountId), lt(pullPaths.seenAt, cutoff))),
     ],
     [
       "automation_runs",

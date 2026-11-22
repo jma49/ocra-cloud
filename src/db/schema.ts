@@ -747,6 +747,30 @@ export const pullReviews = sqliteTable(
   ],
 );
 
+// The directories a reviewed pull request of an enrolled repository
+// changes, top-level and second-level, at most MAX_PULL_PREFIXES of them,
+// as read at the head its latest review saw, for suggested reviewers
+// (src/review-paths.ts). A newer head replaces the set.
+export const pullPaths = sqliteTable(
+  "pull_paths",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    reviewRepoId: text("review_repo_id")
+      .notNull()
+      .references(() => reviewRepos.id, { onDelete: "cascade" }),
+    number: integer("number").notNull(),
+    head: text("head").notNull(),
+    prefix: text("prefix").notNull(),
+    seenAt: integer("seen_at", { mode: "timestamp_ms" }).notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("pull_paths_prefix").on(t.reviewRepoId, t.number, t.prefix),
+    index("pull_paths_account_seen").on(t.accountId, t.seenAt),
+  ],
+);
+
 // One review of a pull request's head, from queued to done; a newer head
 // of the same pull request supersedes the queued ones. A head is reviewed
 // again (asked for on the console) as its next run.
@@ -1108,6 +1132,7 @@ export const accountTables = {
   closedPulls,
   pullFlows,
   pullReviews,
+  pullPaths,
   replyJobs,
   reviewWalkthroughs,
   generateJobs,

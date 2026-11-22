@@ -169,6 +169,13 @@
       "when": 1795366324136,
       "tag": "0023_inbox_since",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1795367341689,
+      "tag": "0024_pull_paths",
+      "breakpoints": true
     }
   ]
 }

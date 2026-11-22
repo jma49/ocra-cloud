@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { recordGithubClose } from "./auto-review/closes.js";
 import { recordGithubFlow } from "./auto-review/flows.js";
+import { keepReviewedPaths, pathReaderOf } from "./auto-review/paths.js";
 import { queueGithubComment } from "./auto-review/replies.js";
 import type { AutoReviewService } from "./auto-review/routes.js";
 import { queueGithubPull } from "./auto-review/webhooks.js";
@@ -18,8 +19,8 @@ import type { AppEnv } from "./types.js";
 
 // The GitHub App's one webhook, proven by its signature: a push queues
 // graph builds, a pull request's change queues its review (its merge or
-// close is recorded, as are its steps toward review, and its user told of
-// what concerns them) and an @ocra comment its answer, where the host does
+// close is recorded, as are its steps toward review and the directories a
+// reviewed one changes, and its user told of what concerns them) and an @ocra comment its answer, where the host does
 // them. A pull request's change, review, check or status also moves the
 // intents armed to merge it when ready. GitLab's hooks are per
 // repository, with secrets of their own.
@@ -49,7 +50,8 @@ export function githubWebhook(host: WebhookHost) {
       const review = host.autoReview;
       // A close is kept wherever the repository is enrolled, reviews or not.
       if (event === "pull_request") await recordGithubClose(c.var.db, body);
-      await recordGithubFlow(c.var.db, event, body);
+      const reviewed = await recordGithubFlow(c.var.db, event, body);
+      if (reviewed) defer(c, keepReviewedPaths(pathReaderOf(c), reviewed));
       defer(c, tellGithubHook(c.var.db, publicOutbox(c), event, body));
       defer(c, moveGithubIntents(runnerOf(c), event, body));
       const queued =

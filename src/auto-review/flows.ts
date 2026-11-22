@@ -2,16 +2,18 @@ import { z } from "zod";
 import type { Db } from "../db/client.js";
 import type { FlowEvent } from "../db/pull-flows.js";
 import { reviewRepoFor } from "../db/review-jobs.js";
-import { scoped } from "../db/scoped.js";
+import { type Row, scoped } from "../db/scoped.js";
+import type { ReviewedPull } from "./paths.js";
 
 // How an enrolled repository's pull request moves toward review, as its
 // platform's webhooks say, for the review flow on Insights (src/flow.ts):
 // opened, out of draft, reviewers asked, reviewed and approved. A time the
 // platform wrote is taken where there is one; otherwise the delivery's.
 // Reviews by the author or by a bot (the ocra bot's own included) are not
-// reviews here.
+// reviews here. A kept review names its pull request, whose changed
+// directories the caller reads after the answer (./paths.ts).
 
-type Repo = { id: string; accountId: string };
+type Repo = Row<"reviewRepos">;
 
 function timeOf(text: string | null | undefined): Date | null {
   if (!text) return null;
@@ -50,7 +52,10 @@ const githubReviewEvent = z.object({
     state: z.string(),
     submitted_at: z.string().nullish(),
   }),
-  pull_request: githubPullFields.extend({ number: z.number().int().min(1) }),
+  pull_request: githubPullFields.extend({
+    number: z.number().int().min(1),
+    head: z.object({ sha: z.string() }).optional(),
+  }),
   repository: z.object({ id: z.number() }),
 });
 
@@ -79,20 +84,20 @@ function githubFlow(
   };
 }
 
-/** A GitHub App webhook's pull request or review event (src/webhooks.ts verified it); whether it recorded one. */
+/** A GitHub App webhook's pull request or review event (src/webhooks.ts verified it); the pull request a review was kept on. */
 export async function recordGithubFlow(
   db: Db,
   event: string | undefined,
   body: unknown,
   now = new Date(),
-): Promise<boolean> {
+): Promise<ReviewedPull | null> {
   if (event === "pull_request_review") return recordGithubReview(db, body, now);
-  if (event !== "pull_request") return false;
+  if (event !== "pull_request") return null;
   const parsed = githubPullEvent.safeParse(body);
-  if (!parsed.success) return false;
+  if (!parsed.success) return null;
   const { action, number, pull_request: pull, repository } = parsed.data;
   const repo = await reviewRepoFor(db, "github", "github.com", String(repository.id));
-  if (!repo) return false;
+  if (!repo) return null;
   const flow = githubFlow(repo, number, pull, now);
   const at = timeOf(pull.updated_at) ?? now;
   const opened = flow.openedAt ?? at;
@@ -103,20 +108,20 @@ export async function recordGithubFlow(
     ...(action === "reopened" ? { reopenedAt: at } : {}),
     ...(action === "review_requested" ? { firstReviewRequestedAt: at } : {}),
   });
-  return true;
+  return null;
 }
 
-async function recordGithubReview(db: Db, body: unknown, now: Date): Promise<boolean> {
+async function recordGithubReview(db: Db, body: unknown, now: Date): Promise<ReviewedPull | null> {
   const parsed = githubReviewEvent.safeParse(body);
-  if (!parsed.success) return false;
+  if (!parsed.success) return null;
   const { review, pull_request: pull, repository } = parsed.data;
   const repo = await reviewRepoFor(db, "github", "github.com", String(repository.id));
-  if (!repo) return false;
+  if (!repo) return null;
   const flow = githubFlow(repo, pull.number, pull, now);
   const data = scoped(db, repo.accountId).pullFlows;
   if (!review.user || isBot(review.user) || review.user.login === flow.author) {
     await data.record(flow);
-    return true;
+    return null;
   }
   await data.review(flow, {
     reviewKey: `github:${review.id}`,
@@ -124,7 +129,7 @@ async function recordGithubReview(db: Db, body: unknown, now: Date): Promise<boo
     approved: review.state.toLowerCase() === "approved",
     submittedAt: timeOf(review.submitted_at) ?? now,
   });
-  return true;
+  return { repo, number: pull.number, head: pull.head?.sha };
 }
 
 const gitlabUser = z.object({ id: z.number(), username: z.string() });
@@ -138,6 +143,7 @@ const gitlabEvent = z.object({
     author_id: z.number().optional(),
     created_at: z.string().nullish(),
     reviewer_ids: z.array(z.number()).optional(),
+    last_commit: z.object({ id: z.string() }).optional(),
   }),
   user: gitlabUser.optional(),
   changes: z
@@ -157,15 +163,15 @@ const gitlabEvent = z.object({
 
 const APPROVALS = new Set(["approved", "approval"]);
 
-/** A GitLab merge request hook its repository's secret proved; whether it recorded one. */
+/** A GitLab merge request hook its repository's secret proved; the merge request an approval was kept on. */
 export async function recordGitlabFlow(
   db: Db,
   repo: Repo,
   body: unknown,
   now = new Date(),
-): Promise<boolean> {
+): Promise<ReviewedPull | null> {
   const parsed = gitlabEvent.safeParse(body);
-  if (!parsed.success) return false;
+  if (!parsed.success) return null;
   const { object_attributes: a, user, changes } = parsed.data;
   const draft = a.draft === true;
   const opened = timeOf(a.created_at);
@@ -198,8 +204,8 @@ export async function recordGitlabFlow(
       approved: true,
       submittedAt: now,
     });
-  } else {
-    await data.record(flow);
+    return { repo, number: a.iid, head: a.last_commit?.id };
   }
-  return true;
+  await data.record(flow);
+  return null;
 }

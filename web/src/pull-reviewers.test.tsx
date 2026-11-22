@@ -19,15 +19,17 @@ const view: PullReviewersView = {
       score: 10,
       ownedFiles: 1,
       recentReviews: 0,
+      reviewedPaths: null,
       load: 1,
       alreadyRequested: true,
     },
     {
       login: "dba",
-      reasons: ["codeowner", "recent_reviewer"],
+      reasons: ["codeowner", "reviewed_these_paths", "recent_reviewer"],
       score: 7,
       ownedFiles: 2,
       recentReviews: 1,
+      reviewedPaths: { prefix: "src/db", pulls: 4 },
       load: 7,
       alreadyRequested: false,
     },
@@ -54,7 +56,9 @@ describe("suggested reviewers", () => {
     );
     render(<ReviewersPanel pull={{ platform: "github", repo: "octo/api", number: 7 }} />);
     expect(
-      await screen.findByText("owns 2 changed files · 1 review in 90 days · 7 open requests"),
+      await screen.findByText(
+        "owns 2 changed files · reviewed 4 PRs in src/db · 1 review in 90 days · 7 open requests",
+      ),
     ).toBeTruthy();
     expect(screen.getByText("owns 1 changed file · 1 open request")).toBeTruthy();
     expect(screen.getByText("Asked")).toBeTruthy();

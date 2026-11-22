@@ -73,6 +73,7 @@ const TABLE: Record<string, string> = {
   closedPulls: "closed_pulls",
   pullFlows: "pull_flows",
   pullReviews: "pull_reviews",
+  pullPaths: "pull_paths",
   replyJobs: "reply_jobs",
   generateJobs: "generate_jobs",
   reviewWalkthroughs: "review_walkthroughs",
@@ -350,14 +351,18 @@ describe("the review flow", () => {
       await d.pullFlows.waiting(repos, 5);
       await d.pullFlows.reviewersSince(new Date(0), repos, 20);
     }
-    expect(seen).toHaveLength(8);
+    await d.pullPaths.headOf("r1", 7);
+    await d.pullPaths.reviewersIn(new Date(0), "r1", ["src", "src/db"], 200);
+    expect(seen).toHaveLength(10);
     for (const q of seen) {
       const p = await plan(q);
       // By the account's index, or by the enrolled repositories asked for.
       expect(p, q.sql).toMatch(
-        /SEARCH \w+ USING (COVERING )?INDEX (pull_flows_account_seen|closed_pulls_account_closed|pull_reviews_account_submitted|pull_flows_pull|closed_pulls_pull|pull_reviews_review|sqlite_autoindex_review_repos_1)/,
+        /SEARCH \w+ USING (COVERING )?INDEX (pull_flows_account_seen|closed_pulls_account_closed|pull_reviews_account_submitted|pull_flows_pull|closed_pulls_pull|pull_reviews_review|pull_paths_prefix|sqlite_autoindex_review_repos_1)/,
       );
-      expect(p, q.sql).not.toMatch(/SCAN (pull_flows|closed_pulls|pull_reviews|review_repos)/);
+      expect(p, q.sql).not.toMatch(
+        /SCAN (pull_flows|closed_pulls|pull_reviews|pull_paths|review_repos)/,
+      );
     }
   });
 });
@@ -381,6 +386,7 @@ describe("retention", () => {
       "merge_intents",
       "notify_sends",
       "pull_flows",
+      "pull_paths",
       "pull_reviews",
       "pull_seen",
       "rate_windows",
