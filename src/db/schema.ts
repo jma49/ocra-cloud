@@ -617,6 +617,63 @@ export const closedPulls = sqliteTable(
   ],
 );
 
+// How an enrolled repository's pull request moved before it ended, from
+// its platform's webhooks (src/auto-review/flows.ts): one row per pull
+// request. The first times keep the earliest delivered; title, author,
+// size and draft the latest. seen_at is the last event, for retention.
+export const pullFlows = sqliteTable(
+  "pull_flows",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    reviewRepoId: text("review_repo_id")
+      .notNull()
+      .references(() => reviewRepos.id, { onDelete: "cascade" }),
+    number: integer("number").notNull(),
+    title: text("title").notNull(),
+    author: text("author"),
+    draft: integer("draft", { mode: "boolean" }).notNull().default(false),
+    // Lines added plus deleted, where the platform says (GitHub).
+    size: integer("size"),
+    openedAt: integer("opened_at", { mode: "timestamp_ms" }),
+    readyAt: integer("ready_at", { mode: "timestamp_ms" }),
+    reopenedAt: integer("reopened_at", { mode: "timestamp_ms" }),
+    firstReviewRequestedAt: integer("first_review_requested_at", { mode: "timestamp_ms" }),
+    firstReviewAt: integer("first_review_at", { mode: "timestamp_ms" }),
+    firstApprovalAt: integer("first_approval_at", { mode: "timestamp_ms" }),
+    seenAt: integer("seen_at", { mode: "timestamp_ms" }).notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("pull_flows_pull").on(t.reviewRepoId, t.number),
+    index("pull_flows_account_seen").on(t.accountId, t.seenAt),
+  ],
+);
+
+// A review someone other than the author submitted on an enrolled
+// repository's pull request, once per platform review (an approval on
+// GitLab, once per approver), for reviewer load.
+export const pullReviews = sqliteTable(
+  "pull_reviews",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    reviewRepoId: text("review_repo_id")
+      .notNull()
+      .references(() => reviewRepos.id, { onDelete: "cascade" }),
+    number: integer("number").notNull(),
+    reviewKey: text("review_key").notNull(),
+    reviewer: text("reviewer").notNull(),
+    approved: integer("approved", { mode: "boolean" }).notNull(),
+    submittedAt: integer("submitted_at", { mode: "timestamp_ms" }).notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("pull_reviews_review").on(t.reviewRepoId, t.reviewKey),
+    index("pull_reviews_account_submitted").on(t.accountId, t.submittedAt),
+  ],
+);
+
 // One review of a pull request's head, from queued to done; a newer head
 // of the same pull request supersedes the queued ones.
 export const reviewJobs = sqliteTable(
@@ -841,6 +898,8 @@ export const accountTables = {
   reviewJobs,
   notifyChannels,
   closedPulls,
+  pullFlows,
+  pullReviews,
   replyJobs,
   reviewWalkthroughs,
   generateJobs,

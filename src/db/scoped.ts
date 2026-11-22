@@ -42,6 +42,7 @@ import { learningUsage } from "./learning-usage.js";
 import { accountMergeChecks } from "./merge-checks.js";
 import { accountNotify } from "./notify.js";
 import { type PreferencesSave, savePreferences } from "./preferences.js";
+import { accountPullFlows } from "./pull-flows.js";
 import { addPullView } from "./pull-views.js";
 import { accountReplyJobs } from "./reply-jobs.js";
 import { accountReports } from "./reports.js";
@@ -427,6 +428,7 @@ export function scoped(db: Db, accountId: string) {
     notify: accountNotify(db, accountId),
     reports: accountReports(db, accountId),
     closedPulls: accountClosedPulls(db, accountId),
+    pullFlows: accountPullFlows(db, accountId),
     replies: accountReplyJobs(db, accountId),
     chat: accountReviewChat(db, accountId),
     generations: accountGenerateJobs(db, accountId),

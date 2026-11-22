@@ -100,6 +100,24 @@ export const rows = {
     closedAt: new Date(),
   }),
   // The enrolled repository it belongs to is made in beforeEach (the foreign key needs one).
+  pullFlows: (id: string) => ({
+    id,
+    reviewRepoId: "review-repo-of-a",
+    number: 1,
+    title: `pull ${id}`,
+    seenAt: new Date(),
+  }),
+  // The enrolled repository it belongs to is made in beforeEach (the foreign key needs one).
+  pullReviews: (id: string) => ({
+    id,
+    reviewRepoId: "review-repo-of-a",
+    number: 1,
+    reviewKey: `github:${id}`,
+    reviewer: "mona",
+    approved: true,
+    submittedAt: new Date(),
+  }),
+  // The enrolled repository it belongs to is made in beforeEach (the foreign key needs one).
   replyJobs: (id: string) => ({
     id,
     reviewRepoId: "review-repo-of-a",

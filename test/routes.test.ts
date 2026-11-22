@@ -75,6 +75,7 @@ const ACCESS: Record<string, Access> = {
   "GET /api/email/unsubscribe": "public",
   "POST /api/email/unsubscribe": "public",
   "GET /api/insights/cycle": "web",
+  "GET /api/insights/flow": "web",
   "GET /api/platforms/repos": "web",
   "POST /api/platforms/sync-names": "web",
   "GET /api/platforms/gitlab/connect": "web",

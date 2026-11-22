@@ -69,6 +69,8 @@ const TABLE: Record<string, string> = {
   reviewJobs: "review_jobs",
   notifyChannels: "notify_channels",
   closedPulls: "closed_pulls",
+  pullFlows: "pull_flows",
+  pullReviews: "pull_reviews",
   replyJobs: "reply_jobs",
   generateJobs: "generate_jobs",
   reviewWalkthroughs: "review_walkthroughs",
@@ -276,6 +278,28 @@ describe("the weekly report", () => {
   });
 });
 
+describe("the review flow", () => {
+  it("reads flows, merges and reviews through an index, never a whole table", async () => {
+    const seen: Captured[] = [];
+    const d = scoped(drizzle(recording(seen)), "acct");
+    for (const repos of [null, ["r1", "r2"]]) {
+      await d.pullFlows.flowsSince(new Date(0), repos, 10);
+      await d.pullFlows.mergedSince(new Date(0), repos, 10);
+      await d.pullFlows.waiting(repos, 5);
+      await d.pullFlows.reviewersSince(new Date(0), repos, 20);
+    }
+    expect(seen).toHaveLength(8);
+    for (const q of seen) {
+      const p = await plan(q);
+      // By the account's index, or by the enrolled repositories asked for.
+      expect(p, q.sql).toMatch(
+        /SEARCH \w+ USING (COVERING )?INDEX (pull_flows_account_seen|closed_pulls_account_closed|pull_reviews_account_submitted|pull_flows_pull|closed_pulls_pull|pull_reviews_review|sqlite_autoindex_review_repos_1)/,
+      );
+      expect(p, q.sql).not.toMatch(/SCAN (pull_flows|closed_pulls|pull_reviews|review_repos)/);
+    }
+  });
+});
+
 describe("retention", () => {
   it("finds each table's old rows through an index, never reading the whole table (audit C3)", async () => {
     const seen: Captured[] = [];
@@ -291,6 +315,8 @@ describe("retention", () => {
       "closed_pulls",
       "device_codes",
       "gateway_calls",
+      "pull_flows",
+      "pull_reviews",
       "rate_windows",
       "reviews",
       "service_counters",

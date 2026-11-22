@@ -18,14 +18,12 @@ export const cycles = new Hono<AppEnv>();
 
 const MAX_DAYS = 90;
 const SEGMENT = /^(?!\.{1,2}$)[\w.-]+$/;
-const query = z.object({
-  platform: z.enum(CODE_PLATFORMS),
-  repo: z
-    .string()
-    .max(255)
-    .refine((n) => n.split("/").length >= 2 && n.split("/").every((p) => SEGMENT.test(p)))
-    .optional(),
-});
+/** A repository's full name, owner/name or a GitLab group path. */
+export const repoName = z
+  .string()
+  .max(255)
+  .refine((n) => n.split("/").length >= 2 && n.split("/").every((p) => SEGMENT.test(p)));
+const query = z.object({ platform: z.enum(CODE_PLATFORMS), repo: repoName.optional() });
 
 /** The value at fraction q of the sorted values, nearest rank. */
 export function quantile(sorted: readonly number[], q: number): number | null {
@@ -33,7 +31,7 @@ export function quantile(sorted: readonly number[], q: number): number | null {
   return sorted[Math.min(sorted.length - 1, Math.ceil(q * sorted.length) - 1)] ?? null;
 }
 
-const spread = (values: number[]): Spread => {
+export const spread = (values: readonly number[]): Spread => {
   const sorted = [...values].sort((a, b) => a - b);
   return { median: quantile(sorted, 0.5), p90: quantile(sorted, 0.9) };
 };
