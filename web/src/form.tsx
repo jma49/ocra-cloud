@@ -1,5 +1,6 @@
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { CloseGlyph } from "./glyphs.js";
 import { useResets } from "./prefs.js";
 
@@ -104,14 +105,11 @@ export function TriSwitch(props: {
           Reset
         </Button>
       )}
-      <button
-        type="button"
-        role="switch"
-        className="switch"
+      <Switch
         aria-label={props.label}
-        aria-checked={on}
+        checked={on}
         data-inherit={props.value === undefined}
-        onClick={() => props.onChange(!on)}
+        onCheckedChange={() => props.onChange(!on)}
       />
     </>
   );

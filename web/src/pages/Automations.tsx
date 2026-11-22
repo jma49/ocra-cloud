@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import type {
   AutomationRuleView,
   AutomationRunView,
@@ -126,14 +127,11 @@ export function Automations(props: { me: Me }) {
                 <div key={r.id}>{form(r)}</div>
               ) : (
                 <div className="list-row" key={r.id}>
-                  <button
-                    type="button"
-                    role="switch"
-                    className="switch"
+                  <Switch
                     aria-label={`${r.name} on`}
-                    aria-checked={r.enabled}
+                    checked={r.enabled}
                     disabled={toggle.busy}
-                    onClick={() => after(toggle.run(r))}
+                    onCheckedChange={() => after(toggle.run(r))}
                   />
                   <div className={r.enabled ? "grow" : "grow rule-off"}>
                     <div className="strong">{r.name}</div>

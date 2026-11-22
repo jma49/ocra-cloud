@@ -1,5 +1,6 @@
 import { type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import {
   NOTIFY_KINDS,
   NOTIFY_WHEN,
@@ -136,28 +137,22 @@ export function Notifications() {
                       <span className="cell-name" aria-hidden="true">
                         Digest
                       </span>
-                      <button
-                        type="button"
-                        role="switch"
-                        className="switch"
+                      <Switch
                         aria-label={`Daily digest to ${c.name}`}
-                        aria-checked={c.digest}
+                        checked={c.digest}
                         disabled={change.busy}
-                        onClick={() => after(change.run(c.id, { digest: !c.digest }))}
+                        onCheckedChange={() => after(change.run(c.id, { digest: !c.digest }))}
                       />
                     </td>
                     <td>
                       <span className="cell-name" aria-hidden="true">
                         Weekly
                       </span>
-                      <button
-                        type="button"
-                        role="switch"
-                        className="switch"
+                      <Switch
                         aria-label={`Weekly report to ${c.name}`}
-                        aria-checked={c.weekly}
+                        checked={c.weekly}
                         disabled={change.busy}
-                        onClick={() => after(change.run(c.id, { weekly: !c.weekly }))}
+                        onCheckedChange={() => after(change.run(c.id, { weekly: !c.weekly }))}
                       />
                     </td>
                     <td>
