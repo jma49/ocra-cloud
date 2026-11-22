@@ -84,6 +84,23 @@ describe("Review settings", () => {
   });
 });
 
+describe("The linked-tasks switch", () => {
+  it("starts on as the default and saves false when turned off", async () => {
+    const puts = fakeApi();
+    render(
+      <PrefsProvider>
+        <ReviewSettings />
+      </PrefsProvider>,
+    );
+    const toggle = await screen.findByRole("switch", { name: "Give reviewers linked tasks" });
+    expect(toggle.getAttribute("aria-checked")).toBe("true");
+    fireEvent.click(toggle);
+    fireEvent.click(await screen.findByRole("button", { name: "Save changes" }));
+    await waitFor(() => expect(puts).toHaveLength(1));
+    expect(puts[0]).toMatchObject({ settings: { linkedTasks: false, maxTasks: 20 } });
+  });
+});
+
 describe("Saving from a stale tab", () => {
   it("sends the base version, and on a 409 offers Reload, which drops the draft without a leave prompt", async () => {
     const puts: unknown[] = [];
