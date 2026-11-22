@@ -5,6 +5,7 @@ import { api, type Reviews } from "../api.js";
 import { useCached } from "../cache.js";
 import { count, num, period, usd } from "../format.js";
 import { Cycle } from "../insights/cycle.js";
+import { FlowSection } from "../insights/flow.js";
 import { daily, quantile } from "../insights/series.js";
 import { Link } from "../router.js";
 import { EmptyState, LoadError, Loading, PageHead, Seg } from "../ui.js";
@@ -155,6 +156,7 @@ export function Insights() {
           <Breakdown title="By category (top 20)" rows={data.byCategory} none="No category" />
         </>
       )}
+      <FlowSection days={days} />
       <Cycle days={days} />
     </>
   );
