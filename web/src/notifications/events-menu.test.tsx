@@ -26,7 +26,7 @@ const names = (group: HTMLElement) =>
 
 it("sets apart the events quiet hours hold back, with the hours", async () => {
   const group = await quietGroup({ start: 22, end: 8 });
-  expect(within(group).getByText("Not sent from 22:00 to 08:00")).toBeTruthy();
+  expect(within(group).getByText("Held from 22:00 to 08:00, sent together after")).toBeTruthy();
   expect(names(group)).toEqual([
     "Someone comments on my pull request",
     "Someone mentions me in a pull request",
