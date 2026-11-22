@@ -115,6 +115,7 @@ describe("a pull request's files", () => {
       {
         base: BASE,
         head: HEAD,
+        updatedAt: null,
         truncated: false,
         files: [file("a", "@@\n+1234"), file("b", "@@\n+56789"), file("c", "@@\n+0")],
       },

@@ -36,6 +36,7 @@ export const EXPORTED = {
   budgets: "budgets",
   platformLinks: "platforms",
   pullViews: "pullViews",
+  pullSeen: "pullSeen",
   graphRepos: "graphRepos",
   graphBuilds: "graphBuilds",
   reviewRepos: "reviewRepos",

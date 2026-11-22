@@ -128,6 +128,7 @@ pullPage.get("/files", requireSession(["web"]), perMinute("platform"), async (c)
     number: ref.data.number,
     base: patches.base,
     head: patches.head,
+    updatedAt: patches.updatedAt,
     files: patches.files.map((f) => ({
       path: f.path,
       oldPath: f.oldPath,

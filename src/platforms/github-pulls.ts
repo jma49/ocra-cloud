@@ -24,6 +24,7 @@ ${pullFragment(checks)}`;
 
 export const pullFragment = (checks: boolean) => `fragment P on PullRequest {
   id number title url isDraft state createdAt updatedAt mergedAt additions deletions reviewDecision
+  headRefOid
   author { login }
   repository { nameWithOwner }
   labels(first: ${MAX_LABELS}) { nodes { name } }
@@ -43,6 +44,7 @@ export type PullNode = {
   additions: number;
   deletions: number;
   reviewDecision: "APPROVED" | "CHANGES_REQUESTED" | "REVIEW_REQUIRED" | null;
+  headRefOid?: string | null;
   author: { login: string } | null;
   repository: { nameWithOwner: string };
   labels?: { nodes: ({ name: string } | null)[] } | null;
@@ -83,6 +85,7 @@ export function pullNodeItem(n: PullNode): ListedPull {
     labels: labelsOf((n.labels?.nodes ?? []).flatMap((l) => (l ? [l.name] : []))),
     additions: n.additions,
     deletions: n.deletions,
+    head: n.headRefOid ?? null,
   };
 }
 

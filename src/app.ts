@@ -33,6 +33,7 @@ import { platformsRoute } from "./platform-routes.js";
 import type { BotTokens } from "./platforms/bot.js";
 import { preferences } from "./preferences.js";
 import { pullPage } from "./pull-page.js";
+import { pullSeenRoute } from "./pull-seen.js";
 import { pullStack } from "./pull-stack.js";
 import { pullViewsRoute } from "./pull-views.js";
 import { repoConfigRoute } from "./repo-config.js";
@@ -132,6 +133,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
   app.route("/pulls", pullStack);
   app.route("/pulls", reviewers);
   app.route("/pulls", reviewNow);
+  app.route("/pulls", pullSeenRoute);
   app.route("/learnings", learningsRoute);
   app.route("/repo-config", repoConfigRoute);
   app.route("/merge-checks", mergeChecksRoute);

@@ -63,6 +63,7 @@ const TABLE: Record<string, string> = {
   budgets: "budgets",
   platformLinks: "platform_links",
   pullViews: "pull_views",
+  pullSeen: "pull_seen",
   graphRepos: "graph_repos",
   graphBuilds: "graph_builds",
   reviewRepos: "review_repos",
@@ -162,6 +163,16 @@ describe("query plans", () => {
     const p = await plan(seen[0] as Captured);
     expect(p).toMatch(/SEARCH reviews USING INDEX reviews_account_pull/);
     expect(p).not.toMatch(/SCAN reviews|TEMP B-TREE/);
+  });
+
+  it("the inbox reads its read marks through the (account_id, platform, repo, number) index", async () => {
+    const seen: Captured[] = [];
+    const d = scoped(drizzle(recording(seen)), "acct");
+    await d.pullSeen.markers([{ platform: "github", repo: "octo/api", number: 7 }]);
+    expect(seen).toHaveLength(1);
+    const p = await plan(seen[0] as Captured);
+    expect(p).toMatch(/SEARCH s USING INDEX pull_seen_account_pull/);
+    expect(p).not.toMatch(/SCAN s\b|SCAN pull_seen/);
   });
 
   it("the daily digest reads reviews and findings through their account indexes", async () => {
@@ -360,6 +371,7 @@ describe("retention", () => {
       "notify_sends",
       "pull_flows",
       "pull_reviews",
+      "pull_seen",
       "rate_windows",
       "reviews",
       "service_counters",

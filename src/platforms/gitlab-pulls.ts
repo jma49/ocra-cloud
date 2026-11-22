@@ -23,6 +23,7 @@ export type MergeRequest = {
   merged_at?: string | null;
   author: { username: string } | null;
   labels?: string[];
+  sha?: string | null;
   references?: { full?: string };
 };
 
@@ -51,6 +52,7 @@ export const mergeRequestItem = (mr: MergeRequest): ListedPull => ({
   labels: labelsOf(mr.labels ?? []),
   additions: null,
   deletions: null,
+  head: mr.sha ?? null,
 });
 
 export async function gitlabPulls(

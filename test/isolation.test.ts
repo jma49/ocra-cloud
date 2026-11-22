@@ -27,6 +27,7 @@ const changes = {
   budgets: { dailyCalls: 7 },
   platformLinks: { ciphertext: "changed" },
   pullViews: { name: "changed" },
+  pullSeen: { unread: true },
   graphRepos: { branch: "trunk" },
   graphBuilds: { state: "done" as const },
   reviewRepos: { fullName: "octo/renamed" },

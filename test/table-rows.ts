@@ -57,6 +57,14 @@ export const rows = {
     filters: { roles: ["author" as const] },
     position: 0,
   }),
+  pullSeen: (id: string) => ({
+    id,
+    platform: "github" as const,
+    repo: `octo/${id}`,
+    number: 1,
+    updatedAt: new Date(),
+    seenAt: new Date(),
+  }),
   graphRepos: (id: string) => ({
     id,
     platform: "github" as const,

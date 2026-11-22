@@ -16,11 +16,14 @@ const identityOf = (platform: CodePlatform, repo: string) => {
   }
 };
 
-/** Reads the verdicts in one query; answers each listed pull's. */
+type OfReviews = { verdict: PullAiVerdict; reviewedAt: number | null };
+const NONE: OfReviews = { verdict: null, reviewedAt: null };
+
+/** Reads the verdicts in one query; answers each listed pull's, and when its newest review was made. */
 export async function pullVerdicts(
   data: AppEnv["Variables"]["data"],
   listed: readonly { platform: CodePlatform; pulls: readonly PlatformPull[] }[],
-): Promise<(platform: CodePlatform, pull: PlatformPull) => PullAiVerdict> {
+): Promise<(platform: CodePlatform, pull: PlatformPull) => OfReviews> {
   const key = (repo: string, number: number) => `${repo}#${number}`;
   const wanted = new Map<string, { repo: string; number: number }>();
   for (const { platform, pulls } of listed) {
@@ -30,16 +33,18 @@ export async function pullVerdicts(
     }
   }
   const found = new Map(
-    (await data.pullViews.verdicts([...wanted.values()])).map((v) => [
-      key(v.repo, v.number),
-      v.verdict,
-    ]),
+    (await data.pullViews.verdicts([...wanted.values()])).map((v) => [key(v.repo, v.number), v]),
   );
   return (platform, pull) => {
     const repo = identityOf(platform, pull.repo);
-    const verdict = repo ? found.get(key(repo, pull.number)) : undefined;
-    if (!verdict) return null;
+    const row = repo ? found.get(key(repo, pull.number)) : undefined;
+    if (!row) return NONE;
     // significant_concerns is the verdict that blocks a merge.
-    return verdict === "significant_concerns" ? "blocking" : "not_blocking";
+    const verdict = row.verdict
+      ? row.verdict === "significant_concerns"
+        ? "blocking"
+        : "not_blocking"
+      : null;
+    return { verdict, reviewedAt: row.reviewedAt };
   };
 }
