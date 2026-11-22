@@ -57,8 +57,12 @@ account.put(
     if (refused) return refused;
     await setSharing(c.var.db, c.var.session.account.id, body.enabled);
     const deleted = deletes ? await c.var.data.removeWhere("findings", {}) : 0;
-    // Walkthroughs are shared with the findings and go with them.
-    if (deletes) await c.var.data.removeWhere("reviewWalkthroughs", {});
+    // Walkthroughs are shared with the findings and go with them, and so do
+    // the "Ask ocra" conversations, whose answers quote them.
+    if (deletes) {
+      await c.var.data.removeWhere("reviewWalkthroughs", {});
+      await c.var.data.removeWhere("reviewChatMessages", {});
+    }
     await audit(c.var.data, "sharing.changed", { shareFindings: body.enabled, deleted });
     return c.json({ shareFindings: body.enabled, deleted });
   },

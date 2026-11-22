@@ -24,7 +24,7 @@ const EDGE = 16 * 1024;
  * reasoning model's whole answer can come before its headers when the
  * client does not stream. Once it starts, the answer may take its time.
  */
-const HEADERS_TIMEOUT_MS = 5 * 60_000;
+export const HEADERS_TIMEOUT_MS = 5 * 60_000;
 
 export const gateway = new Hono<AppEnv>().use(requireSession(["web", "cli"]), perMinute("gateway"));
 
@@ -117,11 +117,11 @@ gateway.post("/:provider/*", async (c) => {
 });
 
 /** The status of a call still being forwarded. */
-const PENDING = 0;
+export const PENDING = 0;
 /** Recorded when the client went away (499) or upstream broke off (502) mid-answer. */
-const END_STATUS = { cancelled: 499, failed: 502 } as const;
+export const END_STATUS = { cancelled: 499, failed: 502 } as const;
 /** Recorded when the provider did not start answering within HEADERS_TIMEOUT_MS. */
-const TIMED_OUT = 504;
+export const TIMED_OUT = 504;
 
 export type Usage = { tokensIn: number; tokensOut: number };
 

@@ -36,6 +36,7 @@ import {
   NOTIFY_KINDS,
   NOTIFY_WHEN,
   type PullFilters,
+  REVIEW_CHAT_ROLES,
   REVIEW_JOB_STATES,
   type ReviewerCounts,
   type ReviewSettings,
@@ -760,6 +761,29 @@ export const mergeCheckRuns = sqliteTable(
   ],
 );
 
+// "Ask ocra" about a review: the account's questions and the answers, kept
+// as long as the review (deleted with it, by the user or retention) and at
+// most MAX_CHAT_MESSAGES of them (./review-chat.ts).
+export const reviewChatMessages = sqliteTable(
+  "review_chat_messages",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    reviewId: text("review_id")
+      .notNull()
+      .references(() => reviews.id, { onDelete: "cascade" }),
+    role: text("role", { enum: REVIEW_CHAT_ROLES }).notNull(),
+    text: text("text").notNull(),
+    createdAt: createdAt(),
+  },
+  // review_id first for the delete's cascade; the account's reads go by
+  // (account_id, review_id, created_at).
+  (t) => [
+    index("review_chat_messages_review").on(t.reviewId),
+    index("review_chat_messages_account_review").on(t.accountId, t.reviewId, t.createdAt),
+  ],
+);
+
 /** The tables scoped by account, by the name scoped() uses. */
 export const accountTables = {
   sessions,
@@ -788,4 +812,5 @@ export const accountTables = {
   automationRuns,
   mergeChecks,
   mergeCheckRuns,
+  reviewChatMessages,
 } as const;

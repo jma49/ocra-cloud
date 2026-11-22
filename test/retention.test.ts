@@ -99,6 +99,20 @@ describe("retention", () => {
     expect((await d.list("findings")).map((f) => f.id)).toEqual(["f-new"]);
   });
 
+  it("deletes an old review's conversation with it", async () => {
+    const { account } = await signIn(1, "octo");
+    const d = scoped(db, account.id);
+    for (const [id, days] of [
+      ["old", 91],
+      ["new", 1],
+    ] as const) {
+      await d.insert("reviews", { ...rows.reviews(id), createdAt: ago(days) });
+      await d.insert("reviewChatMessages", { ...rows.reviewChatMessages(`m-${id}`), reviewId: id });
+    }
+    await enforceRetention(db, now);
+    expect((await d.list("reviewChatMessages")).map((m) => m.id)).toEqual(["m-new"]);
+  });
+
   it("runs every delete when one fails, logs only its own message, then throws", async () => {
     const { account } = await signIn(1, "octo");
     const d = scoped(db, account.id);

@@ -78,6 +78,13 @@
       "when": 1795349230106,
       "tag": "0010_closed_pulls_weekly_reports",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1795354567717,
+      "tag": "0011_review_chat_messages",
+      "breakpoints": true
     }
   ]
 }
