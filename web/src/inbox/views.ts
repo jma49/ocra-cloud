@@ -1,4 +1,4 @@
-import type { PullFilters, PullView } from "../../../src/shared/index.js";
+import type { PullFilters, PullView, PullViewsAnswer } from "../../../src/shared/index.js";
 import { api } from "../api.js";
 import { useCached } from "../cache.js";
 
@@ -42,12 +42,29 @@ export function forgetSharedView() {
 
 const json = (body: unknown) => ({ body: JSON.stringify(body) });
 
-/** The account's own sections; each change shows at once and rolls back if refused. */
+const DEFAULT_ID = "default:";
+
+const inOrder = (views: PullView[]) => [...views].sort((a, b) => a.position - b.position);
+
+/**
+ * The inbox's sections: the account's own, or the server's defaults while it
+ * has none. Each change shows at once and rolls back if refused; the first
+ * change to the defaults keeps them as the account's own.
+ */
 export function usePullViews() {
   const { data, change, reload } = useCached("/pull-views", () =>
-    api<{ views: PullView[] }>("/pull-views"),
+    api<PullViewsAnswer>("/pull-views"),
   );
-  const views = data?.views ?? [];
+  const kept = data?.views ?? [];
+  const views: PullView[] =
+    kept.length > 0
+      ? inOrder(kept)
+      : (data?.defaults ?? []).map((d, position) => ({
+          id: `${DEFAULT_ID}${position}`,
+          position,
+          hidden: false,
+          ...d,
+        }));
 
   const attempt = async (undo: () => void, call: () => Promise<unknown>) => {
     try {
@@ -60,27 +77,71 @@ export function usePullViews() {
     }
   };
 
+  /** The account's own views, the defaults kept first when it has none. */
+  const own = async (): Promise<PullView[]> => {
+    if (kept.length > 0 || views.length === 0) return inOrder(kept);
+    const answer = await api<{ views: PullView[] }>("/pull-views/defaults", { method: "POST" });
+    change(() => ({ views: answer.views, defaults: [] }));
+    return inOrder(answer.views);
+  };
+  /** A shown view among the account's own: a default is found by its name once kept. */
+  const ownOf = (all: PullView[], view: PullView) =>
+    all.find((v) => (view.id.startsWith(DEFAULT_ID) ? v.name === view.name : v.id === view.id));
+
+  const update = async (view: PullView, next: Partial<PullView>) => {
+    const target = ownOf(await own(), view);
+    if (!target) return;
+    const { name, filters, hidden } = { ...target, ...next };
+    await attempt(
+      change((d) => ({
+        ...d,
+        views: d.views.map((v) => (v.id === target.id ? { ...v, ...next } : v)),
+      })),
+      () => api(`/pull-views/${target.id}`, { method: "PUT", ...json({ name, filters, hidden }) }),
+    );
+  };
+
   return {
+    ready: data !== undefined,
     views,
-    add: (draft: ViewDraft) =>
-      attempt(
+    add: async (draft: ViewDraft) => {
+      const all = await own();
+      await attempt(
         change((d) => ({
+          ...d,
           views: [
             ...d.views,
-            { id: `new-${d.views.length}`, position: d.views.length, hidden: false, ...draft },
+            { id: `new-${all.length}`, position: all.length, hidden: false, ...draft },
           ],
         })),
         () => api<PullView>("/pull-views", { method: "POST", ...json(draft) }),
-      ),
-    save: (id: string, draft: ViewDraft) =>
-      attempt(
-        change((d) => ({ views: d.views.map((v) => (v.id === id ? { ...v, ...draft } : v)) })),
-        () => api(`/pull-views/${id}`, { method: "PUT", ...json(draft) }),
-      ),
-    remove: (id: string) =>
-      attempt(
-        change((d) => ({ views: d.views.filter((v) => v.id !== id) })),
-        () => api(`/pull-views/${id}`, { method: "DELETE" }),
-      ),
+      );
+    },
+    save: (view: PullView, draft: ViewDraft) => update(view, draft),
+    setHidden: (view: PullView, hidden: boolean) => update(view, { hidden }),
+    remove: async (view: PullView) => {
+      const target = ownOf(await own(), view);
+      if (!target) return;
+      await attempt(
+        change((d) => ({ ...d, views: d.views.filter((v) => v.id !== target.id) })),
+        () => api(`/pull-views/${target.id}`, { method: "DELETE" }),
+      );
+    },
+    /** Trades places with the shown section before (-1) or after (1) it. */
+    move: async (view: PullView, step: -1 | 1) => {
+      const all = await own();
+      const target = ownOf(all, view);
+      const shown = all.filter((v) => !v.hidden);
+      const other = target && shown[shown.indexOf(target) + step];
+      if (!target || !other) return;
+      const ids = all.map((v) => (v === target ? other.id : v === other ? target.id : v.id));
+      await attempt(
+        change((d) => ({
+          ...d,
+          views: d.views.map((v) => ({ ...v, position: ids.indexOf(v.id) })),
+        })),
+        () => api("/pull-views/order", { method: "PUT", ...json({ ids }) }),
+      );
+    },
   };
 }

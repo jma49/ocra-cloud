@@ -1081,3 +1081,10 @@ td.finding-cell {
 .linked-task-title {
   flex-basis: 100%;
 }
+.inbox-hidden {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin: 12px 0 0;
+}

@@ -17,29 +17,12 @@ type PlatformPulls = {
 export type InboxAnswer = { platforms: PlatformPulls[] };
 export type Row = PullItem & { host: string; platform: CodePlatformKind };
 
-export type SectionId = "review" | "approved" | "returned" | "merged" | "drafts" | "waiting";
-type Section = { id: SectionId; title: string };
-
-const SECTIONS: readonly Section[] = [
-  { id: "review", title: "Needs your review" },
-  { id: "approved", title: "Approved" },
-  { id: "returned", title: "Returned to you" },
-  { id: "merged", title: "Merged this week" },
-  { id: "drafts", title: "Drafts" },
-  { id: "waiting", title: "Waiting for review" },
-];
-
-/** Each pull belongs to one section; null when it waits on no one (a draft asking your review). */
-export function sectionOf(p: PullItem): SectionId | null {
-  const mine = p.roles.includes("author");
-  if (p.state === "merged") return mine ? "merged" : null;
-  if (p.roles.includes("reviewer") && !p.draft && !mine) return "review";
-  if (!mine) return null;
-  if (p.draft) return "drafts";
-  if (p.review === "changes_requested") return "returned";
-  if (p.review === "approved") return "approved";
-  return "waiting";
-}
+/** Open pull requests of others asking the user's review: the count the tab's title carries. */
+export const reviewAsked = (rows: Row[]): number =>
+  rows.filter(
+    (r) =>
+      r.state === "open" && !r.draft && r.roles.includes("reviewer") && !r.roles.includes("author"),
+  ).length;
 
 export type Filters = { text: string; repo: string };
 
@@ -56,41 +39,24 @@ export const rowsOf = (answer: InboxAnswer): Row[] =>
     p.pulls.map((pull) => ({ ...pull, host: p.host, platform: p.platform })),
   );
 
-export type ShownSection = {
-  key: string;
-  title: string;
-  rows: Row[];
-  view?: PullView;
-};
+export type ShownSection = { key: string; title: string; rows: Row[]; view: PullView };
 
-/** The fixed sections, then the account's own, each with its rows. */
-export function inboxSections(rows: Row[], f: Filters, views: PullView[] = []): ShownSection[] {
-  const by = new Map<SectionId, Row[]>(SECTIONS.map((s) => [s.id, []]));
-  for (const r of rows) {
-    const id = sectionOf(r);
-    if (id && matches(r, f)) by.get(id)?.push(r);
-  }
-  return [
-    ...SECTIONS.map((s) => ({
-      key: s.id,
-      title: s.title,
-      rows: by.get(s.id) ?? [],
-    })),
-    ...views
-      .filter((view) => !view.hidden)
-      .map((view) => ({
-        key: `view:${view.id}`,
-        title: view.name,
-        rows: rows.filter((r) => matchesView(r, view.filters) && matches(r, f)),
-        view,
-      })),
-  ];
+/** The views that are not hidden, in their order, each with the rows it matches. */
+export function inboxSections(rows: Row[], f: Filters, views: PullView[]): ShownSection[] {
+  return views
+    .filter((view) => !view.hidden)
+    .map((view) => ({
+      key: `view:${view.id}`,
+      title: view.name,
+      rows: rows.filter((r) => matchesView(r, view.filters) && matches(r, f)),
+      view,
+    }));
 }
 
 /** Every repository with a pull in the inbox, by its platform host. */
 export const reposOf = (rows: Row[]) =>
   [...new Set(rows.map((r) => `${r.host}/${r.repo}`))].sort((a, b) => a.localeCompare(b));
 
-/** Whether a pull belongs in an account's own section: the server's rule (src/shared/pulls.ts). */
+/** Whether a pull belongs in a section: the server's rule (src/shared/pulls.ts). */
 export const matchesView = (r: Row, f: PullFilters): boolean =>
   matchesPullFilters(r, f, Date.now());
