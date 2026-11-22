@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import type {
   CodePlatformKind,
   LineComment,
@@ -202,14 +203,9 @@ function ReviewBox(props: {
             ? "1 line comment goes with it."
             : `${props.pending.length} line comments go with it.`}
       </span>
-      <button
-        type="button"
-        className="btn btn-primary"
-        disabled={send.busy || empty}
-        onClick={submit}
-      >
+      <Button disabled={send.busy || empty} onClick={submit}>
         Submit review
-      </button>
+      </Button>
       {send.error !== null && (
         <p className="error" role="alert">
           Could not send the review: {why(send.error)}.
@@ -250,22 +246,17 @@ function MergeBox(props: {
       </select>
       {asking ? (
         <div className="row-gap">
-          <button
-            type="button"
-            className="btn btn-primary grow"
-            disabled={merge.busy}
-            onClick={confirm}
-          >
+          <Button className="grow" disabled={merge.busy} onClick={confirm}>
             Confirm: {METHOD[method].toLowerCase()}
-          </button>
-          <button type="button" className="btn" onClick={() => setAsking(false)}>
+          </Button>
+          <Button variant="outline" onClick={() => setAsking(false)}>
             Cancel
-          </button>
+          </Button>
         </div>
       ) : (
-        <button type="button" className="btn" onClick={() => setAsking(true)}>
+        <Button variant="outline" onClick={() => setAsking(true)}>
           Merge pull request
-        </button>
+        </Button>
       )}
       {merge.error !== null && (
         <p className="error" role="alert">

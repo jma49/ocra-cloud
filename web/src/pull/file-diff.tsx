@@ -1,4 +1,5 @@
 import { Fragment, useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
 import type { LineComment, PullFilesView } from "../../../src/shared/index.js";
 import { anchorOf, type DiffLine, parsePatch, splitPath } from "./diff.js";
 
@@ -84,13 +85,9 @@ export function FileDiff(props: {
                           <td colSpan={3}>
                             <div className="diff-comment">
                               <span className="pre-wrap">{c.body}</span>
-                              <button
-                                type="button"
-                                className="btn btn-sm"
-                                onClick={() => props.onDrop(c)}
-                              >
+                              <Button variant="outline" size="sm" onClick={() => props.onDrop(c)}>
                                 Remove
-                              </button>
+                              </Button>
                             </div>
                           </td>
                         </tr>
@@ -107,21 +104,16 @@ export function FileDiff(props: {
                                 onChange={(e) => setDraft(e.target.value)}
                               />
                               <div className="row-gap">
-                                <button
-                                  type="button"
-                                  className="btn btn-sm btn-primary"
+                                <Button
+                                  size="sm"
                                   disabled={!draft.trim()}
                                   onClick={() => add(line)}
                                 >
                                   Add to review
-                                </button>
-                                <button
-                                  type="button"
-                                  className="btn btn-sm"
-                                  onClick={() => setOpen(null)}
-                                >
+                                </Button>
+                                <Button variant="outline" size="sm" onClick={() => setOpen(null)}>
                                   Cancel
-                                </button>
+                                </Button>
                               </div>
                             </div>
                           </td>
