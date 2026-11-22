@@ -24,7 +24,10 @@ it("names its dialog and form, submits from the foot, and closes on Escape, the 
   expect(onSubmit).toHaveBeenCalledTimes(1);
 
   fireEvent.keyDown(document, { key: "Escape" });
-  fireEvent.click(container.querySelector(".scrim") as Element);
+  fireEvent.click(document.querySelector(".scrim") as Element);
   fireEvent.click(screen.getByRole("button", { name: "Close" }));
   expect(onClose).toHaveBeenCalledTimes(3);
+  // Inside a sticky column it would stack under the top bar.
+  expect(container.contains(dialog)).toBe(false);
+  expect(dialog.parentElement).toBe(document.body);
 });
