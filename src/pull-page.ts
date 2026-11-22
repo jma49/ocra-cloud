@@ -116,13 +116,29 @@ const viewedBody = z.object({
 
 type Ref = z.output<typeof filesQuery>;
 
-/** One merge as the user, of the head they saw; a method the platform has not is refused unsent. */
+/** What the repository allows, its default first; the platform's own list where its settings are unreadable. */
+export async function mergeMethodsOf(
+  platform: CodePlatform,
+  token: string,
+  repo: string,
+): Promise<readonly MergeMethod[]> {
+  return (await platform.actions.allowedMergeMethods(token, repo)) ?? platform.actions.mergeMethods;
+}
+
+/** The refusal of a method the repository does not allow, before anything is sent. */
+export const methodNotAllowed = (c: Context<AppEnv>) =>
+  apiError(c, "invalid_body", {
+    issues: [{ path: ["method"], message: "not a merge method this repository allows" }],
+  });
+
+/** One merge as the user, of the head they saw; a method not in `allowed` is refused unsent. */
 export async function mergeOne(
   platform: CodePlatform,
   token: string,
   pull: { repo: string; number: number; method: MergeMethod; head: string },
+  allowed: readonly MergeMethod[],
 ): Promise<PullActionOutcome | null> {
-  if (!platform.actions.mergeMethods.includes(pull.method)) return "refused";
+  if (!allowed.includes(pull.method)) return "refused";
   const { method, head } = pull;
   return platform.actions.merge(token, pull.repo, pull.number, { method, head });
 }
@@ -148,9 +164,10 @@ pullPage.get("/files", requireSession(["web"]), perMinute("platform"), async (c)
   if ("refusal" in reached) return reached.refusal;
   const { platform, token } = reached;
   const { repo, number } = ref.data;
-  const [patches, kept] = await Promise.all([
+  const [patches, kept, methods] = await Promise.all([
     platform.changes.patches(token, repo, number),
     platform.viewed?.list(token, repo, number) ?? null,
+    mergeMethodsOf(platform, token, repo),
   ]);
   if (!patches) return apiError(c, "not_found");
   const viewed = await viewedOf(c.var.data, platform, ref.data, patches, kept);
@@ -180,7 +197,7 @@ pullPage.get("/files", requireSession(["web"]), perMinute("platform"), async (c)
     verdicts: settled
       ? platform.actions.verdicts.filter((v) => v === "comment")
       : [...platform.actions.verdicts],
-    mergeMethods: settled ? [] : [...platform.actions.mergeMethods],
+    mergeMethods: settled ? [] : [...methods],
   } satisfies PullFilesView);
 });
 
@@ -223,7 +240,10 @@ pullPage.post(
     const body = c.req.valid("json");
     const reached = await reach(c, byKind(body));
     if ("refusal" in reached) return reached.refusal;
-    return answer(c, await mergeOne(reached.platform, reached.token, body));
+    const { platform, token } = reached;
+    const allowed = await mergeMethodsOf(platform, token, body.repo);
+    if (!allowed.includes(body.method)) return methodNotAllowed(c);
+    return answer(c, await mergeOne(platform, token, body, allowed));
   },
 );
 

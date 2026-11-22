@@ -7,7 +7,7 @@ import type { Outbox } from "../notify/notify.js";
 import { tellOwnPullEvent } from "../notify/pull-events.js";
 import { accessToken } from "../platforms/links.js";
 import type { CodePlatform } from "../platforms/platform.js";
-import { mergeOne } from "../pull-page.js";
+import { mergeMethodsOf, mergeOne } from "../pull-page.js";
 import type { MergeIntentReason, MergeIntentState } from "../shared/index.js";
 import type { AppBindings } from "../types.js";
 
@@ -126,12 +126,19 @@ export async function advance(
         if (blocked === "head_moved") await moved(pull.head);
         else if (blocked) await wait(blocked);
         else {
-          const merged = await mergeOne(platform, token, {
-            repo: intent.fullName,
-            number: intent.number,
-            method: intent.method,
-            head: intent.head,
-          });
+          // The repository's settings may have changed since the intent was armed.
+          const allowed = await mergeMethodsOf(platform, token, intent.fullName);
+          const merged = await mergeOne(
+            platform,
+            token,
+            {
+              repo: intent.fullName,
+              number: intent.number,
+              method: intent.method,
+              head: intent.head,
+            },
+            allowed,
+          );
           if (merged === "done") await end("merged", null);
           else if (merged === "head_moved") await wait("waiting_platform");
           else if (merged === "refused") await end("failed", "refused");

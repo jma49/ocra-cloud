@@ -6,7 +6,7 @@ import { apiError, jsonBody } from "../http.js";
 import { publicOutbox } from "../notify/notify.js";
 import type { CodePlatform } from "../platforms/platform.js";
 import { platformsOf } from "../platforms/registry.js";
-import { byKind, pullRef, reach, sha } from "../pull-page.js";
+import { byKind, mergeMethodsOf, methodNotAllowed, pullRef, reach, sha } from "../pull-page.js";
 import { perMinute } from "../rate.js";
 import { requireSession } from "../session.js";
 import {
@@ -93,7 +93,9 @@ mergeWhenReady.post(
     const reached = await reach(c, byKind(body));
     if ("refusal" in reached) return reached.refusal;
     const { platform, token } = reached;
-    if (!platform.actions.mergeMethods.includes(body.method)) return answer(c, "refused", null);
+    if (!(await mergeMethodsOf(platform, token, body.repo)).includes(body.method)) {
+      return methodNotAllowed(c);
+    }
     const data = c.var.data;
     const native = await platform.autoMerge.enable(token, body.repo, body.number, body);
     if (native === null) return apiError(c, "upstream_unreachable");
