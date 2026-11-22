@@ -23,6 +23,7 @@ export * from "./pull-threads.js";
 export * from "./pulls.js";
 export * from "./repo-config.js";
 export * from "./review-chat.js";
+export * from "./review-load.js";
 export * from "./reviewers.js";
 export * from "./search.js";
 export * from "./sign-in.js";
