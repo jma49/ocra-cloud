@@ -408,6 +408,25 @@ describe("the review flow", () => {
   });
 });
 
+describe("review threads", () => {
+  it("finds a thread by its key and the inbox's waiting replies through an index", async () => {
+    const seen: Captured[] = [];
+    const d = scoped(drizzle(recording(seen)), "acct");
+    await d.reviewThreads.reply({ reviewRepoId: "r1", threadKey: "1", byId: "7", at: new Date() });
+    await d.reviewThreads.waiting({ kind: "github", host: "github.com" }, "42", [
+      { repo: "octo/api", number: 5 },
+    ]);
+    expect(seen).toHaveLength(2);
+    for (const q of seen) {
+      const p = await plan(q);
+      expect(p, q.sql).toMatch(
+        /SEARCH (review_threads|th) USING (COVERING )?INDEX (review_threads_thread|review_threads_pull)/,
+      );
+      expect(p, q.sql).not.toMatch(/SCAN (review_threads|th|review_repos|rr)\b/);
+    }
+  });
+});
+
 describe("reviewer workload", () => {
   it("reads asks, reviews, open asks, authors and waits through an index, never a whole table", async () => {
     const seen: Captured[] = [];
