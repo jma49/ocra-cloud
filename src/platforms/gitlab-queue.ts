@@ -66,6 +66,9 @@ export function gitlabQueue(origin: string): MergeQueue {
       });
     },
     async dequeue(token, fullName, number) {
+      const car = await get(token, `${project(fullName)}/merge_trains/merge_requests/${number}`);
+      if (car?.status === 404) return "done";
+      if (car?.status !== 200) return null;
       const url = `${mergeRequestUrl(origin, fullName, number)}/cancel_merge_when_pipeline_succeeds`;
       return outcomeOf(await send(token, url, {}));
     },

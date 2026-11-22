@@ -171,8 +171,11 @@ describe("GitLab's merge trains", () => {
 
   it("adds the head the user saw to the train, and takes it off again", async () => {
     const answers = [new Response("{}", { status: 201 }), new Response("{}", { status: 409 })];
-    const sent = fake((url) => {
-      if (url === `${PROJECT}/merge_trains/merge_requests/3`) return answers.shift();
+    const cars = [Response.json(car(3, "idle")), new Response("{}", { status: 404 })];
+    const sent = fake((url, body) => {
+      if (url === `${PROJECT}/merge_trains/merge_requests/3`) {
+        return body === null ? cars.shift() : answers.shift();
+      }
       if (url === `${PROJECT}/merge_requests/3/cancel_merge_when_pipeline_succeeds`) {
         return new Response("{}", { status: 201 });
       }
@@ -183,11 +186,11 @@ describe("GitLab's merge trains", () => {
     const added = await a.send("/api/pulls/enqueue", json({ ...ref, head: HEAD }));
     const moved = await a.send("/api/pulls/enqueue", json({ ...ref, head: MOVED }));
     const left = await a.send("/api/pulls/dequeue", json(ref));
-    expect([await added.json(), await moved.json(), await left.json()]).toEqual([
-      { outcome: "done" },
-      { outcome: "head_moved" },
-      { outcome: "done" },
-    ]);
+    const again = await a.send("/api/pulls/dequeue", json(ref));
+    expect([await added.json(), await moved.json(), await left.json(), await again.json()]).toEqual(
+      [{ outcome: "done" }, { outcome: "head_moved" }, { outcome: "done" }, { outcome: "done" }],
+    );
+    // Off the train already: nothing is cancelled a second time.
     expect(sent.map((s) => s.body)).toEqual([{ sha: HEAD }, { sha: MOVED }, {}]);
   });
 });
