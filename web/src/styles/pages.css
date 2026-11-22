@@ -712,3 +712,29 @@ td.finding-cell {
   margin: 8px 0 0;
   padding-left: 18px;
 }
+
+/* Notifications: the add form's fields on one line, wrapping on a narrow screen. */
+.notify-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.notify-add {
+  margin-bottom: 12px;
+}
+.notify-fields .input.grow {
+  min-width: 260px;
+}
+
+/* Insights: the user's pull requests, three figures over the slowest ones. */
+.cycle-figures {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-bottom: 0.5px solid var(--hair);
+}
+.cycle-figure {
+  padding: 12px 16px;
+}
+.cycle-figure + .cycle-figure {
+  border-left: 0.5px solid var(--hair);
+}

@@ -2,6 +2,7 @@ import { lazy, Suspense, useMemo, useState } from "react";
 import { api, type Reviews } from "../api.js";
 import { useCached } from "../cache.js";
 import { num, usd } from "../format.js";
+import { Cycle } from "../insights/cycle.js";
 import { daily, quantile } from "../insights/series.js";
 import { LoadError, Loading, PageHead, Seg } from "../ui.js";
 
@@ -37,7 +38,7 @@ type Insights = {
 const REASON: Record<string, string> = {
   false_positive: "False positive",
   not_important: "Not important",
-  wrong_fix: "Suggested fix is wrong",
+  wrong_fix: "Wrong fix",
   already_known: "Already known",
 };
 const rate = (r: number | null) => (r === null ? "–" : `${Math.round(r * 100)}%`);
@@ -55,9 +56,9 @@ function Breakdown(props: { title: string; rows: Row[]; none: string }) {
             <tr>
               <th />
               <th className="num">Findings</th>
-              <th className="num">Open</th>
+              <th className="num hide-narrow">Open</th>
               <th className="num">Fixed</th>
-              <th className="num">Dismissed</th>
+              <th className="num hide-narrow">Dismissed</th>
               <th className="num">Accepted</th>
             </tr>
           </thead>
@@ -66,9 +67,9 @@ function Breakdown(props: { title: string; rows: Row[]; none: string }) {
               <tr key={r.key ?? ""}>
                 <td>{r.key ?? <span className="subtle">{props.none}</span>}</td>
                 <td className="num">{num(r.total)}</td>
-                <td className="num">{num(r.open)}</td>
+                <td className="num hide-narrow">{num(r.open)}</td>
                 <td className="num">{num(r.fixed)}</td>
-                <td className="num">{num(r.dismissed)}</td>
+                <td className="num hide-narrow">{num(r.dismissed)}</td>
                 <td className="num">{rate(r.acceptanceRate)}</td>
               </tr>
             ))}
@@ -153,6 +154,7 @@ export function Insights() {
           <Breakdown title="By category (top 20)" rows={data.byCategory} none="No category" />
         </>
       )}
+      <Cycle days={days} />
     </>
   );
 }

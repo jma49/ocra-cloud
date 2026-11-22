@@ -78,7 +78,7 @@ describe("the routes", () => {
     expect(settingsGroups(m).map((g) => [g.label, paths(g.routes)])).toEqual([
       ["Review", ["/agents", "/review-settings", "/rules", "/plugins", "/defaults"]],
       ["Models & spend", ["/keys", "/budget"]],
-      ["Account", ["/settings", "/sessions"]],
+      ["Account", ["/settings", "/notifications", "/sessions"]],
     ]);
     expect(placeHome("settings")).toBe("/agents");
   });

@@ -272,6 +272,15 @@
   color: var(--t1);
   background: var(--fill2);
 }
+/* The icons' soft variant mixes the text colour with white, which turns the
+   dark theme's translucent text into a white blob: idle icons take an opaque grey. */
+@media (prefers-color-scheme: dark) {
+  .rail-link svg,
+  .rail-docs svg,
+  .settings-link svg {
+    color: var(--icon);
+  }
+}
 .content {
   position: relative;
   flex: 1;
