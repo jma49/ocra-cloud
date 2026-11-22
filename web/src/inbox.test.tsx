@@ -241,6 +241,35 @@ describe("the inbox page", () => {
     expect(regions()).toHaveLength(5);
   });
 
+  it("edits who opened it, ocra's verdict, labels and how lately it changed, keeping what it had", async () => {
+    const sent = serve();
+    render(<Inbox />);
+    await waitFor(() => expect(screen.getByText("Change 1")).toBeTruthy());
+    await choose("Needs my review", "Edit");
+    expect((screen.getByLabelText("Opened by") as HTMLSelectElement).value).toBe("others");
+    fireEvent.change(screen.getByLabelText("Opened by"), { target: { value: "" } });
+    fireEvent.click(screen.getByLabelText("Blocking"));
+    fireEvent.change(screen.getByLabelText("Labels"), { target: { value: "bug, Urgent ," } });
+    fireEvent.change(screen.getByLabelText("Updated"), { target: { value: "7" } });
+    await act(async () => void fireEvent.click(screen.getByRole("button", { name: "Save" })));
+    expect(sent.at(-1)).toEqual({
+      method: "PUT",
+      url: "/api/pull-views/v0",
+      body: {
+        name: "Needs my review",
+        hidden: false,
+        filters: {
+          roles: ["reviewer"],
+          states: ["open"],
+          drafts: "exclude",
+          verdicts: ["blocking"],
+          labels: ["bug", "Urgent"],
+          updatedWithinDays: 7,
+        },
+      },
+    });
+  });
+
   it("moves a section, hides it and shows it again", async () => {
     const sent = serve();
     render(<Inbox />);
