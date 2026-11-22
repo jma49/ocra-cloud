@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import type { MergeQueueView, PullActionOutcome, QueueState } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
 import { useAction } from "../ui.js";
@@ -52,14 +53,9 @@ export function QueueBox(props: {
               <span className="subtle"> · #{entry.position} in line</span>
             )}
           </span>
-          <button
-            type="button"
-            className="btn"
-            disabled={write.busy}
-            onClick={() => send("dequeue")}
-          >
+          <Button variant="outline" disabled={write.busy} onClick={() => send("dequeue")}>
             Remove from queue
-          </button>
+          </Button>
         </>
       ) : (
         <>
@@ -68,22 +64,17 @@ export function QueueBox(props: {
           </span>
           {asking ? (
             <div className="row-gap">
-              <button
-                type="button"
-                className="btn btn-primary grow"
-                disabled={write.busy}
-                onClick={() => send("enqueue")}
-              >
+              <Button className="grow" disabled={write.busy} onClick={() => send("enqueue")}>
                 Confirm: add to queue
-              </button>
-              <button type="button" className="btn" onClick={() => setAsking(false)}>
+              </Button>
+              <Button variant="outline" onClick={() => setAsking(false)}>
                 Cancel
-              </button>
+              </Button>
             </div>
           ) : (
-            <button type="button" className="btn" onClick={() => setAsking(true)}>
+            <Button variant="outline" onClick={() => setAsking(true)}>
               Add to merge queue
-            </button>
+            </Button>
           )}
         </>
       )}
