@@ -659,7 +659,7 @@ td.finding-cell {
   flex: none;
   width: 36px;
   text-align: right;
-  color: var(--t4);
+  color: var(--t3);
   font-variant-numeric: tabular-nums;
 }
 @media (max-width: 900px) {
@@ -844,7 +844,7 @@ td.finding-cell {
   min-width: 44px;
   padding: 0 8px;
   text-align: right;
-  color: var(--t4);
+  color: var(--t3);
   user-select: none;
 }
 .diff-add-comment {
