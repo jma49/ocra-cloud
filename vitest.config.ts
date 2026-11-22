@@ -56,7 +56,12 @@ export default defineConfig({
           environment: "node",
           include: ["test/**/*.test.ts"],
           exclude: POSTGRES_EXCLUDE,
-          setupFiles: ["./test-pg/scheduler.ts", "./test/apply-migrations.ts"],
+          setupFiles: [
+            "./test-pg/scheduler.ts",
+            "./test-pg/fresh.ts",
+            "./test/apply-migrations.ts",
+          ],
+          isolate: false,
         },
       },
       {

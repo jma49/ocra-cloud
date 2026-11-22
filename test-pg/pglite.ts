@@ -11,8 +11,14 @@ export async function openPglite(client: PGlite, migrations: string) {
   client.query = ((...args: Parameters<PGlite["query"]>) =>
     (inBatch.getStore()?.query ?? query)(...args)) as PGlite["query"];
   const db = drizzle(client);
-  await migrate(db, { migrationsFolder: migrations });
+  const reset = async () => {
+    await client.exec(
+      "DROP SCHEMA IF EXISTS drizzle CASCADE; DROP SCHEMA public CASCADE; CREATE SCHEMA public;",
+    );
+    await migrate(db, { migrationsFolder: migrations });
+  };
+  await reset();
   const transact: Transact = <T>(work: () => Promise<T>) =>
     client.transaction((tx) => inBatch.run(tx, work)) as Promise<T>;
-  return asDb(db, transact);
+  return { db: asDb(db, transact), reset };
 }
