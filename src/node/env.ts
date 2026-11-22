@@ -16,6 +16,7 @@ const SIGN_IN = {
 
 const OPTIONAL = [
   ...SIGN_IN.GitHub,
+  "GITHUB_APP_SLUG",
   ...SIGN_IN["OpenID Connect"],
   "OIDC_NAME",
   "MASTER_KEY_PREVIOUS",

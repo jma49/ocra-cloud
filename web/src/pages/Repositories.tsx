@@ -29,6 +29,8 @@ type PlatformRepos = {
     host: string;
     linked: boolean;
     failed: boolean;
+    /** Where the user chooses the repositories the platform's app reaches. */
+    installUrl: string | null;
     more: boolean;
     repositories: { id: string; fullName: string; private: boolean; repoHash: string | null }[];
   }[];
@@ -168,7 +170,16 @@ function PlatformsSection(props: { me: Me; data: PlatformRepos }) {
 
 function Connect(props: { me: Me; p: PlatformRepos["platforms"][number] }) {
   const { p } = props;
-  if (p.linked && !p.failed) return null;
+  if (p.linked && !p.failed)
+    return p.installUrl ? (
+      <Button
+        variant="outline"
+        size="sm"
+        render={<a href={p.installUrl} target="_blank" rel="noopener noreferrer" />}
+      >
+        Choose repositories
+      </Button>
+    ) : null;
   if (p.platform === "gitlab")
     return (
       <Button variant="outline" size="sm" render={<a href="/api/platforms/gitlab/connect" />}>
@@ -206,8 +217,8 @@ function PlatformState(props: { p: PlatformRepos["platforms"][number] }) {
   if (p.repositories.length === 0)
     return (
       <p className="muted small">
-        The ocra Cloud app is not installed on any repository you can reach. Install it on the
-        repositories you want here.
+        The ocra Cloud app is not installed on any repository you can reach. Choose the repositories
+        it may read, then reload this page.
       </p>
     );
   return (

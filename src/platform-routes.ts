@@ -58,6 +58,7 @@ platformsRoute.get("/repos", requireSession(), async (c) => {
         host: l.platform.host,
         linked: l.linked,
         failed: l.failed,
+        installUrl: l.platform.install ?? null,
         more: l.more,
         repositories: await Promise.all(
           l.repositories.map(async (r) => ({

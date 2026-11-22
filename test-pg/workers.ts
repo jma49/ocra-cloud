@@ -12,6 +12,7 @@ export const rateLimits = () => ({
 // with the rate limits in memory.
 export const env = {
   GITHUB_CLIENT_ID: "Iv23liQIb7RBK0JvrxbN",
+  GITHUB_APP_SLUG: "ocra-cloud-dev",
   ...TEST_BINDINGS,
   DB: {},
   TEST_MIGRATIONS: [],

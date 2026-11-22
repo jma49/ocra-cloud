@@ -1,5 +1,5 @@
 import type { AppBindings } from "../types.js";
-import { github } from "./github.js";
+import { type GithubClient, github } from "./github.js";
 import { type GitlabClient, gitlab } from "./gitlab.js";
 import type { CodePlatform } from "./platform.js";
 
@@ -7,15 +7,20 @@ type Settings = Pick<
   AppBindings,
   | "GITHUB_CLIENT_ID"
   | "GITHUB_CLIENT_SECRET"
+  | "GITHUB_APP_SLUG"
   | "GITLAB_CLIENT_ID"
   | "GITLAB_CLIENT_SECRET"
   | "GITLAB_URL"
 >;
 
 /** This deployment's GitHub App, when it has one: then people also sign in with it. */
-export function githubClientOf(env: Settings): { id: string; secret: string } | undefined {
+export function githubClientOf(env: Settings): GithubClient | undefined {
   if (!env.GITHUB_CLIENT_ID || !env.GITHUB_CLIENT_SECRET) return undefined;
-  return { id: env.GITHUB_CLIENT_ID, secret: env.GITHUB_CLIENT_SECRET };
+  return {
+    id: env.GITHUB_CLIENT_ID,
+    secret: env.GITHUB_CLIENT_SECRET,
+    ...(env.GITHUB_APP_SLUG ? { slug: env.GITHUB_APP_SLUG } : {}),
+  };
 }
 
 /** This deployment's GitLab application, when it has one. */

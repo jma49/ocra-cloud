@@ -28,7 +28,9 @@ const MAX_INSTALLATIONS = 10;
 type Installation = { id: number };
 type Repo = { id: number; full_name: string; private: boolean; html_url: string };
 
-export function github(client: { id: string; secret: string }): CodePlatform {
+export type GithubClient = { id: string; secret: string; slug?: string };
+
+export function github(client: GithubClient): CodePlatform {
   const get = <T>(token: string, path: string) =>
     platformCall<T>(`${API}${path}`, {
       headers: {
@@ -56,6 +58,9 @@ export function github(client: { id: string; secret: string }): CodePlatform {
     kind: "github",
     host: "github.com",
     url: "https://github.com",
+    ...(client.slug
+      ? { install: `https://github.com/apps/${encodeURIComponent(client.slug)}/installations/new` }
+      : {}),
     refresh: (refreshToken) =>
       platformCall<TokenAnswer>("https://github.com/login/oauth/access_token", {
         method: "POST",

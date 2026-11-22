@@ -31,6 +31,7 @@ Without Docker: `npm ci && npm run build:web && npm run build:node`, then `node 
 | Variable | Required | Meaning |
 |---|---|---|
 | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | one way to sign in | Your own GitHub App's client, with expiring user tokens and the repository permissions Contents and Pull requests set to read and write (the console comments, reviews, merges, commits a finding's fix or review suggestions and resolves threads as the user), and Issues set to read and write to open an issue from a finding; its callback URL is `<PUBLIC_URL>/api/auth/github/callback` |
+| `GITHUB_APP_SLUG` | no | That App's slug (`github.com/apps/<slug>`): Repositories then links to where people choose the repositories it reaches |
 | `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` | one way to sign in | An OpenID Connect provider: the company's SSO (Keycloak, Azure AD, Okta) or a self-hosted GitLab, which is one. A confidential client with the scopes `openid profile email` and the redirect URI `<PUBLIC_URL>/api/auth/oidc/callback`; the issuer is the URL its discovery document names, such as `https://gitlab.example.com`. With the same client and address as `GITLAB_CLIENT_ID` and `GITLAB_URL`, the sign-in also asks for `api` and connects GitLab (gitlab.md) |
 | `OIDC_NAME` | no | the provider's name on the sign-in button, "SSO" when unset |
 | `MASTER_KEY` | yes | base64 of 32 random bytes (`openssl rand -base64 32`); wraps every stored key. Losing it loses them |

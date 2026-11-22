@@ -52,6 +52,11 @@ export interface CodePlatform {
   readonly host: string;
   /** Its web address, with the relative root of an instance installed under a path. */
   readonly url: string;
+  /**
+   * Where the user chooses the repositories the platform's app reaches;
+   * absent where connecting already reaches every repository the user can.
+   */
+  readonly install?: string;
   /** A new token pair for a refresh token; null when it was refused. */
   refresh(refreshToken: string): Promise<TokenAnswer | null>;
   /** The repositories the user reaches; null when the platform refused the token. */
