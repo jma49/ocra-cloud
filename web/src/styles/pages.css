@@ -113,6 +113,20 @@
 .tier-label {
   width: 150px;
 }
+.list-row.row-top > .grow {
+  flex: 1 1 0;
+  min-width: 0;
+}
+/* On a phone a tier's name sits over its models, which then have the row. */
+@media (max-width: 760px) {
+  .tier-label {
+    width: 100%;
+  }
+  .chain-model {
+    min-width: 0;
+    flex-basis: 140px;
+  }
+}
 /* An agent turned off fades, but its switch stays legible. */
 .agent-off td:not(:nth-child(2)) {
   opacity: 0.5;
