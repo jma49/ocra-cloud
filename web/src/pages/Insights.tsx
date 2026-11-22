@@ -38,8 +38,10 @@ const rate = (r: number | null) => (r === null ? "–" : `${Math.round(r * 100)}
 function Breakdown(props: { title: string; rows: Row[]; none: string }) {
   if (props.rows.length === 0) return null;
   return (
-    <div className="card">
-      <h3>{props.title}</h3>
+    <div className="section card">
+      <div className="card-head">
+        <h3>{props.title}</h3>
+      </div>
       <div className="table-wrap">
         <table>
           <thead>
@@ -104,20 +106,32 @@ export function Insights() {
         </div>
       ) : (
         <>
-          <div className="card">
-            <p>
-              {num(data.total.total)} findings, {num(data.total.open)} open, {num(data.total.fixed)}{" "}
-              fixed, {num(data.total.dismissed)} dismissed. Accepted:{" "}
-              {rate(data.total.acceptanceRate)}.
-            </p>
-            {data.dismissReasons.length > 0 && (
-              <p className="muted">
-                Dismissed because:{" "}
-                {data.dismissReasons
-                  .map((r) => `${REASON[r.key ?? ""] ?? r.key} ${num(r.n)}`)
-                  .join(", ")}
-              </p>
-            )}
+          <div className="stats">
+            <div className="card stat">
+              <div className="stat-label">Findings</div>
+              <div className="stat-value">{num(data.total.total)}</div>
+              <div className="stat-note">{num(data.total.open)} open</div>
+            </div>
+            <div className="card stat">
+              <div className="stat-label">Fixed</div>
+              <div className="stat-value">{num(data.total.fixed)}</div>
+            </div>
+            <div className="card stat">
+              <div className="stat-label">Dismissed</div>
+              <div className="stat-value">{num(data.total.dismissed)}</div>
+              {data.dismissReasons.length > 0 && (
+                <div className="stat-note">
+                  {data.dismissReasons
+                    .map((r) => `${REASON[r.key ?? ""] ?? r.key} ${num(r.n)}`)
+                    .join(", ")}
+                </div>
+              )}
+            </div>
+            <div className="card stat">
+              <div className="stat-label">Accepted</div>
+              <div className="stat-value">{rate(data.total.acceptanceRate)}</div>
+              <div className="stat-note">of decided findings</div>
+            </div>
           </div>
           <Breakdown title="By reviewer" rows={data.byReviewer} none="(none)" />
           <Breakdown title="By severity" rows={data.bySeverity} none="(none)" />
