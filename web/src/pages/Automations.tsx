@@ -1,3 +1,4 @@
+import Zap from "lucide-react/icons/zap";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -14,7 +15,15 @@ import { DryRun } from "../automations/dry-run.js";
 import { type Choice, RuleForm } from "../automations/rule-form.js";
 import { Runs } from "../automations/runs.js";
 import { AddGlyph } from "../glyphs.js";
-import { ActionError, LoadError, Loading, PageHead, useAction, useLoad } from "../ui.js";
+import {
+  ActionError,
+  EmptyState,
+  LoadError,
+  Loading,
+  PageHead,
+  useAction,
+  useLoad,
+} from "../ui.js";
 
 // Rules the account sets for its pull requests: when one is queued or
 // reviewed, and it matches, ocra labels it, asks reviewers, comments,
@@ -110,12 +119,11 @@ export function Automations(props: { me: Me }) {
       ) : !rules.data ? (
         <Loading what="rules" />
       ) : list.length === 0 ? (
-        <div className="card empty-hero">
-          <h3>No rules yet</h3>
-          <p>
+        <div className="card">
+          <EmptyState icon={Zap} title="No rules yet">
             A rule checks each pull request against its conditions and acts when they all hold, for
             example notifying #payments when a review finds something critical.
-          </p>
+          </EmptyState>
         </div>
       ) : (
         list.length > 0 && (

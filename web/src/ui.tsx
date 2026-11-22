@@ -1,4 +1,7 @@
+import MapPinOff from "lucide-react/icons/map-pin-off";
+import TriangleAlert from "lucide-react/icons/triangle-alert";
 import { Component, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { SignInMethod } from "../../src/shared/index.js";
@@ -153,6 +156,8 @@ export function useSignInMethods(): SignInMethod[] | undefined {
 export const signInHref = (method: SignInMethod, next?: string) =>
   `/api/auth/${method.id}/login${next ? `?next=${encodeURIComponent(next)}` : ""}`;
 
+export { EmptyState };
+
 /** Shown while a page's data is on its way, so "nothing yet" is never a guess. */
 export function Loading(props: { what: string }) {
   return (
@@ -168,12 +173,19 @@ export function Loading(props: { what: string }) {
 /** A load that failed: what, why, and a way to try again. */
 export function LoadError(props: { what: string; error: unknown; retry: () => void }) {
   return (
-    <div className="card empty-hero" role="alert">
-      <h3>Could not load {props.what}</h3>
-      <p>{capital(why(props.error))}.</p>
-      <Button type="button" variant="outline" onClick={props.retry}>
-        Try again
-      </Button>
+    <div className="card">
+      <EmptyState
+        role="alert"
+        icon={TriangleAlert}
+        title={`Could not load ${props.what}`}
+        action={
+          <Button type="button" variant="outline" onClick={props.retry}>
+            Try again
+          </Button>
+        }
+      >
+        {capital(why(props.error))}.
+      </EmptyState>
     </div>
   );
 }
@@ -200,18 +212,25 @@ export function ActionError(props: { what: string; error: unknown }) {
   );
 }
 
-const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+// The product name starts lower case ("ocra Cloud had an error").
+const capital = (s: string) => (s.startsWith("ocra") ? s : s.charAt(0).toUpperCase() + s.slice(1));
 
 export function NotFound() {
   return (
     <>
       <PageHead title="Page not found" />
-      <div className="card empty-hero">
-        <h3>There is no page at this address</h3>
-        <p>The link may be mistyped, or the page has moved.</p>
-        <Button variant="outline" render={<Link to="/" />}>
-          Back to overview
-        </Button>
+      <div className="card">
+        <EmptyState
+          icon={MapPinOff}
+          title="There is no page at this address"
+          action={
+            <Button variant="outline" render={<Link to="/" />}>
+              Back to overview
+            </Button>
+          }
+        >
+          The link may be mistyped, or the page has moved.
+        </EmptyState>
       </div>
     </>
   );
@@ -228,12 +247,19 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { failed: 
     return (
       <>
         <PageHead title="Something went wrong" />
-        <div className="card empty-hero" role="alert">
-          <h3>This page could not be shown</h3>
-          <p>Reload to try again. The rest of the console still works.</p>
-          <Button type="button" variant="outline" onClick={() => location.reload()}>
-            Reload
-          </Button>
+        <div className="card">
+          <EmptyState
+            role="alert"
+            icon={TriangleAlert}
+            title="This page could not be shown"
+            action={
+              <Button type="button" variant="outline" onClick={() => location.reload()}>
+                Reload
+              </Button>
+            }
+          >
+            Reload to try again. The rest of the console still works.
+          </EmptyState>
         </div>
       </>
     );

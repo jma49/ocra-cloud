@@ -1,7 +1,8 @@
+import ListChecks from "lucide-react/icons/list-checks";
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { type Rule, useSettings } from "../prefs.js";
-import { PageHead } from "../ui.js";
+import { EmptyState, PageHead } from "../ui.js";
 
 // Path-scoped instructions for the reviewers (ADR-0027). They apply
 // alongside a repository's .ocra/rules.json and AGENTS.md, never instead.
@@ -49,21 +50,25 @@ export function Rules() {
         }
       />
       {rules.length === 0 ? (
-        <div className="card empty-hero">
-          <h3>No rules yet</h3>
-          <p>
+        <div className="card">
+          <EmptyState
+            icon={ListChecks}
+            title="No rules yet"
+            action={
+              <Button
+                type="button"
+                onClick={() => {
+                  set("rules", [{ path: "**", rule: "" }]);
+                  setEditing(0);
+                }}
+              >
+                Write your first rule
+              </Button>
+            }
+          >
             A rule is a sentence the reviewers check every matching file against, such as "Every
             write to the billing service carries an idempotency key."
-          </p>
-          <Button
-            type="button"
-            onClick={() => {
-              set("rules", [{ path: "**", rule: "" }]);
-              setEditing(0);
-            }}
-          >
-            Write your first rule
-          </Button>
+          </EmptyState>
         </div>
       ) : (
         <div className="card">

@@ -1,3 +1,4 @@
+import Lightbulb from "lucide-react/icons/lightbulb";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import type {
@@ -13,7 +14,16 @@ import { LearningCard } from "../learnings/learning-card.js";
 import { LearningForm } from "../learnings/learning-form.js";
 import { ChangeOutcome } from "../learnings/outcome.js";
 import { Proposals } from "../learnings/proposals.js";
-import { ActionError, LoadError, Loading, PageHead, useAction, useLoad } from "../ui.js";
+import { Link } from "../router.js";
+import {
+  ActionError,
+  EmptyState,
+  LoadError,
+  Loading,
+  PageHead,
+  useAction,
+  useLoad,
+} from "../ui.js";
 
 // A repository's learnings, read live from its default branch as the user,
 // with the pull requests proposing more. Every change is a commit of the
@@ -80,9 +90,18 @@ export function Learnings() {
       ) : !listed.data ? (
         <Loading what="your repositories" />
       ) : !repo ? (
-        <div className="card empty-hero">
-          <h3>No repository to read</h3>
-          <p>Connect GitHub or GitLab under Repositories, and its repositories show up here.</p>
+        <div className="card">
+          <EmptyState
+            icon={Lightbulb}
+            title="No repository to read"
+            action={
+              <Button variant="outline" render={<Link to="/repositories" />}>
+                Connect under Repositories
+              </Button>
+            }
+          >
+            Connect GitHub or GitLab under Repositories, and its repositories show up here.
+          </EmptyState>
         </div>
       ) : (
         <RepoLearnings key={keyOf(repo)} at={repo} />

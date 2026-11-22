@@ -1,3 +1,4 @@
+import KeyRound from "lucide-react/icons/key-round";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { forgetKeys, loadKeys } from "../account-keys.js";
@@ -5,7 +6,7 @@ import { api, type CheckStatus, type Key, type ProviderInfo, why } from "../api.
 import { ago, date, num } from "../format.js";
 import { AddGlyph } from "../glyphs.js";
 import { anyProvider } from "../site.js";
-import { PageHead, ProviderLogo, useLoad, useProviders } from "../ui.js";
+import { EmptyState, PageHead, ProviderLogo, useLoad, useProviders } from "../ui.js";
 import { AddKeyDrawer, formats, POPULAR } from "./KeyDrawer.js";
 
 // Like the channel pages of API relays: the page lists the keys you have;
@@ -37,31 +38,41 @@ export function Keys() {
       />
       {keysError ? <p className="error">Could not load keys: {why(keysError)}.</p> : null}
       {keys && list.length === 0 ? (
-        <div className="card empty-hero">
-          <h3>No provider keys yet</h3>
-          <p>
+        <div className="card">
+          <EmptyState
+            icon={KeyRound}
+            title="No provider keys yet"
+            action={
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setDrawer({ provider: null })}
+                >
+                  Add your first key
+                </Button>
+                <div className="quick">
+                  {POPULAR.slice(0, 6)
+                    .map((n) => info.get(n))
+                    .filter((p): p is ProviderInfo => !!p)
+                    .map((p) => (
+                      <button
+                        key={p.name}
+                        type="button"
+                        className="chip"
+                        onClick={() => setDrawer({ provider: p.name })}
+                      >
+                        <ProviderLogo label={p.label} size={22} />
+                        {p.label}
+                      </button>
+                    ))}
+                </div>
+              </>
+            }
+          >
             Add a key from {anyProvider(providers?.length)}. It is encrypted at rest and never shown
             again.
-          </p>
-          <Button type="button" onClick={() => setDrawer({ provider: null })}>
-            Add your first key
-          </Button>
-          <div className="quick">
-            {POPULAR.slice(0, 6)
-              .map((n) => info.get(n))
-              .filter((p): p is ProviderInfo => !!p)
-              .map((p) => (
-                <button
-                  key={p.name}
-                  type="button"
-                  className="chip"
-                  onClick={() => setDrawer({ provider: p.name })}
-                >
-                  <ProviderLogo label={p.label} size={22} />
-                  {p.label}
-                </button>
-              ))}
-          </div>
+          </EmptyState>
         </div>
       ) : (
         <div className="card">

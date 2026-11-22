@@ -1,3 +1,4 @@
+import Flag from "lucide-react/icons/flag";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import type {
@@ -10,7 +11,7 @@ import { api, why } from "../api.js";
 import { useCached } from "../cache.js";
 import { ago } from "../format.js";
 import { Link } from "../router.js";
-import { LoadError, Loading, PageHead, Seg, useAction } from "../ui.js";
+import { EmptyState, LoadError, Loading, PageHead, Seg, useAction } from "../ui.js";
 
 // Every shared finding of the account, across its reviews: filter them,
 // mark them fixed, dismiss them with a reason (and remember them for the
@@ -304,13 +305,18 @@ export function Findings() {
         ) : !data ? (
           <Loading what="findings" />
         ) : rows.length === 0 ? (
-          <div className="empty-hero">
-            <h3>No findings here</h3>
-            <p>
-              Findings appear once you turn on sharing in Settings and a signed-in review uploads
-              them.
-            </p>
-          </div>
+          <EmptyState
+            icon={Flag}
+            title="No findings here"
+            action={
+              <Button variant="outline" render={<Link to="/settings" />}>
+                Open settings
+              </Button>
+            }
+          >
+            Findings appear once you turn on sharing in Settings and a signed-in review uploads
+            them.
+          </EmptyState>
         ) : (
           <div className="table-wrap">
             <table>

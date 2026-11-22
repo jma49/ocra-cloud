@@ -1,3 +1,5 @@
+import Flag from "lucide-react/icons/flag";
+import SearchX from "lucide-react/icons/search-x";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { ReviewSource, ReviewWalkthroughView, Verdict } from "../../../src/shared/index.js";
@@ -8,7 +10,7 @@ import { type FocusedFinding, ImpactRail } from "../impact/rail.js";
 import { useImpact } from "../impact/use-impact.js";
 import { pullPath } from "../pull/path.js";
 import { Link } from "../router.js";
-import { LoadError, Loading, PageHead, Seg } from "../ui.js";
+import { EmptyState, LoadError, Loading, PageHead, Seg } from "../ui.js";
 import { type Finding, FindingEvent } from "./review-finding.js";
 import { Walkthrough } from "./review-walkthrough.js";
 
@@ -75,12 +77,18 @@ export function ReviewDetail(props: { id: string; graphs: boolean }) {
     return (
       <>
         <PageHead title="Review" />
-        <div className="card empty-hero">
-          <h3>Review not found</h3>
-          <p>It may have passed the 90-day retention, or been deleted.</p>
-          <Button variant="outline" render={<Link to="/reviews" />}>
-            Back to reviews
-          </Button>
+        <div className="card">
+          <EmptyState
+            icon={SearchX}
+            title="Review not found"
+            action={
+              <Button variant="outline" render={<Link to="/reviews" />}>
+                Back to reviews
+              </Button>
+            }
+          >
+            It may have passed the 90-day retention, or been deleted.
+          </EmptyState>
         </div>
       </>
     );
@@ -152,15 +160,19 @@ export function ReviewDetail(props: { id: string; graphs: boolean }) {
           ))}
         </ol>
         {data.findings.length === 0 && (
-          <div className="card empty-hero">
-            <h3>No findings stored for this review</h3>
-            <p>
+          <div className="card">
+            <EmptyState
+              icon={Flag}
+              title="No findings stored for this review"
+              action={
+                <Button variant="outline" render={<Link to="/settings" />}>
+                  Open settings
+                </Button>
+              }
+            >
               Findings are kept only when you share them (Settings). Counts are always kept; turn
               sharing on to see findings of later reviews here.
-            </p>
-            <Button variant="outline" render={<Link to="/settings" />}>
-              Open settings
-            </Button>
+            </EmptyState>
           </div>
         )}
       </section>

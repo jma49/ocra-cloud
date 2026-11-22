@@ -1,10 +1,13 @@
+import ChartColumn from "lucide-react/icons/chart-column";
 import { lazy, Suspense, useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { api, type Reviews } from "../api.js";
 import { useCached } from "../cache.js";
 import { num, usd } from "../format.js";
 import { Cycle } from "../insights/cycle.js";
 import { daily, quantile } from "../insights/series.js";
-import { LoadError, Loading, PageHead, Seg } from "../ui.js";
+import { Link } from "../router.js";
+import { EmptyState, LoadError, Loading, PageHead, Seg } from "../ui.js";
 
 // How the reviews went: what they found, what they cost and how long they
 // took, from the uploaded reviews; and what the decisions in the findings
@@ -116,12 +119,19 @@ export function Insights() {
       ) : !(data && runs.data && series) ? (
         <Loading what="insights" />
       ) : runs.data.summary.reviews === 0 && data.total.total === 0 ? (
-        <div className="card empty-hero">
-          <h3>No reviews in this period</h3>
-          <p>
+        <div className="card">
+          <EmptyState
+            icon={ChartColumn}
+            title="No reviews in this period"
+            action={
+              <Button variant="outline" render={<Link to="/settings" />}>
+                Open settings
+              </Button>
+            }
+          >
             Reviews signed in to ocra Cloud upload their results; turn on sharing in Settings to see
             their findings.
-          </p>
+          </EmptyState>
         </div>
       ) : (
         <>
