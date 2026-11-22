@@ -109,7 +109,7 @@ const threads = {
 };
 
 describe("a pull request's page", () => {
-  const show = (queue: unknown = { enabled: false, entry: null }) => {
+  const show = (queue: unknown = { enabled: false, entry: null }, listed: unknown = files) => {
     const sent: { url: string; body: unknown }[] = [];
     vi.stubGlobal(
       "fetch",
@@ -121,7 +121,7 @@ describe("a pull request's page", () => {
         if (url.startsWith("/api/pulls/stack")) return Response.json({ trunk: "", pulls: [] });
         if (url.startsWith("/api/pulls/reviewers")) return Response.json(noReviewers);
         if (url.startsWith("/api/pulls/threads")) return Response.json(threads);
-        return Response.json(url.startsWith("/api/pulls/queue") ? queue : files);
+        return Response.json(url.startsWith("/api/pulls/queue") ? queue : listed);
       }),
     );
     render(<PullPage platform="github" repo="octo/api" number="7" />);
@@ -178,6 +178,20 @@ describe("a pull request's page", () => {
     expect(await screen.findByText(/1 of 1 files viewed/)).toBeTruthy();
     expect((box as HTMLInputElement).checked).toBe(true);
     expect(screen.queryByRole("button", { name: "Comment on line 11" })).toBeNull();
+  });
+
+  it("opens a file already viewed folded, with its tick in the file list", async () => {
+    show(undefined, {
+      ...files,
+      files: files.files.map((f) => ({ ...f, viewed: true })),
+    });
+    const box = await screen.findByRole("checkbox", { name: "Viewed src/refund.ts" });
+    expect((box as HTMLInputElement).checked).toBe(true);
+    expect(screen.getByText(/1 of 1 files viewed/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Comment on line 11" })).toBeNull();
+    expect(screen.getByTitle("src/refund.ts (viewed)")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { expanded: false, name: /refund\.ts/ }));
+    expect(screen.getByRole("button", { name: "Comment on line 11" })).toBeTruthy();
   });
 
   it("writes a suggestion on a new line into the review", async () => {
