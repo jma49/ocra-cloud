@@ -385,6 +385,30 @@ describe("the review flow", () => {
   });
 });
 
+describe("reviewer workload", () => {
+  it("reads asks, reviews, open asks, authors and waits through an index, never a whole table", async () => {
+    const seen: Captured[] = [];
+    const d = scoped(drizzle(recording(seen)), "acct");
+    for (const repos of [null, ["r1", "r2"]]) {
+      await d.reviewLoad.asksSince(new Date(0), repos, 10);
+      await d.reviewLoad.reviewsSince(new Date(0), repos, 10);
+      await d.reviewLoad.openAsks(repos, 10);
+      await d.reviewLoad.authoredSince(new Date(0), repos, 10);
+      await d.reviewLoad.waitsSince(new Date(0), repos, 10);
+    }
+    expect(seen).toHaveLength(10);
+    for (const q of seen) {
+      const p = await plan(q);
+      expect(p, q.sql).toMatch(
+        /SEARCH (review_requests|pull_reviews|pull_flows) USING (COVERING )?INDEX (review_requests_account_requested|pull_reviews_account_submitted|pull_flows_account_seen)/,
+      );
+      expect(p, q.sql).not.toMatch(
+        /SCAN (review_requests|pull_flows|pull_reviews|closed_pulls|review_repos)/,
+      );
+    }
+  });
+});
+
 describe("review reminders", () => {
   it("reads the asks and the unreviewed pull requests through an index, never a whole table", async () => {
     const seen: Captured[] = [];

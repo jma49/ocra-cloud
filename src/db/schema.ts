@@ -817,6 +817,8 @@ export const reviewRequests = sqliteTable(
       .references(() => reviewRepos.id, { onDelete: "cascade" }),
     number: integer("number").notNull(),
     reviewerId: text("reviewer_id").notNull(),
+    // The reviewer's login when asked, where the event names it.
+    reviewer: text("reviewer"),
     requestedAt: integer("requested_at", { mode: "timestamp_ms" }).notNull(),
     doneAt: integer("done_at", { mode: "timestamp_ms" }),
     createdAt: createdAt(),

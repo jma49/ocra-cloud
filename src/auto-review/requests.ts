@@ -15,7 +15,7 @@ function timeOf(text: string | null | undefined, now: Date): Date {
   return Number.isFinite(ms) ? new Date(ms) : now;
 }
 
-const githubUser = z.object({ id: z.number() });
+const githubUser = z.object({ id: z.number(), login: z.string().optional() });
 
 const githubPullEvent = z.object({
   action: z.string(),
@@ -49,6 +49,7 @@ export async function recordGithubRequest(
       reviewRepoId: repo.id,
       number: pull.number,
       reviewerId: String(review.user.id),
+      reviewer: review.user.login ?? null,
       at: timeOf(review.submitted_at, now),
     });
     return true;
@@ -65,6 +66,7 @@ export async function recordGithubRequest(
     reviewRepoId: repo.id,
     number,
     reviewerId: String(reviewer.id),
+    reviewer: reviewer.login ?? null,
     at: timeOf(pull.updated_at, now),
   };
   const requests = scoped(db, repo.accountId).reviewRequests;
@@ -72,7 +74,7 @@ export async function recordGithubRequest(
   return true;
 }
 
-const gitlabUser = z.object({ id: z.number() });
+const gitlabUser = z.object({ id: z.number(), username: z.string().optional() });
 
 const gitlabEvent = z.object({
   object_attributes: z.object({
@@ -83,6 +85,7 @@ const gitlabEvent = z.object({
     reviewer_ids: z.array(z.number()).optional(),
   }),
   user: gitlabUser.optional(),
+  reviewers: z.array(gitlabUser).nullish(),
   changes: z
     .object({
       reviewers: z
@@ -106,7 +109,15 @@ export async function recordGitlabRequests(
 ): Promise<number> {
   const parsed = gitlabEvent.safeParse(body);
   if (!parsed.success) return 0;
-  const { object_attributes: a, user, changes } = parsed.data;
+  const { object_attributes: a, user, reviewers, changes } = parsed.data;
+  const logins = new Map<number, string>();
+  for (const u of [
+    ...(reviewers ?? []),
+    ...(changes?.reviewers?.previous ?? []),
+    ...(changes?.reviewers?.current ?? []),
+    ...(user ? [user] : []),
+  ])
+    if (u.username) logins.set(u.id, u.username);
   const before = (changes?.reviewers?.previous ?? []).map((u) => u.id);
   const after = (changes?.reviewers?.current ?? []).map((u) => u.id);
   const asked = after.filter((id) => !before.includes(id));
@@ -116,7 +127,13 @@ export async function recordGitlabRequests(
   if (a.action && APPROVALS.has(a.action) && user && user.id !== a.author_id) removed.push(user.id);
   const requests = scoped(db, repo.accountId).reviewRequests;
   const at = a.action === "open" ? timeOf(a.created_at, now) : now;
-  const of = (id: number) => ({ reviewRepoId: repo.id, number: a.iid, reviewerId: String(id), at });
+  const of = (id: number) => ({
+    reviewRepoId: repo.id,
+    number: a.iid,
+    reviewerId: String(id),
+    reviewer: logins.get(id) ?? null,
+    at,
+  });
   for (const id of asked) await requests.asked(of(id));
   for (const id of removed) await requests.done(of(id));
   return asked.length + removed.length;

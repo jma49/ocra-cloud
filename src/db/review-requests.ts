@@ -23,6 +23,16 @@ export type Waiting = {
   since: number;
 };
 
+/** An ask, or its end, of reviewerId: the platform's id, and the login where the event names it. */
+export type Ask = {
+  reviewRepoId: string;
+  number: number;
+  reviewerId: string;
+  reviewer?: string | null;
+  at: Date;
+};
+
+const MAX_LOGIN = 255;
 const r = reviewRequests;
 const f = pullFlows;
 const c = closedPulls;
@@ -42,13 +52,21 @@ export function accountReviewRequests(db: Db, accountId: string) {
 
   return {
     /** Records that a review of the pull request was asked of reviewerId at; the latest ask is kept. */
-    async asked(e: { reviewRepoId: string; number: number; reviewerId: string; at: Date }) {
+    async asked(e: Ask) {
+      const { at, reviewer, ...ask } = e;
       await db
         .insert(r)
-        .values({ id: crypto.randomUUID(), accountId, ...e, requestedAt: e.at })
+        .values({
+          id: crypto.randomUUID(),
+          accountId,
+          ...ask,
+          reviewer: reviewer?.slice(0, MAX_LOGIN) ?? null,
+          requestedAt: at,
+        })
         .onConflictDoUpdate({
           target: [r.reviewRepoId, r.number, r.reviewerId],
           set: {
+            reviewer: sql`coalesce(excluded.reviewer, ${r.reviewer})`,
             requestedAt: sql`CASE WHEN excluded.requested_at > ${r.requestedAt} THEN excluded.requested_at ELSE ${r.requestedAt} END`,
           },
           setWhere: eq(r.accountId, accountId),
@@ -56,10 +74,11 @@ export function accountReviewRequests(db: Db, accountId: string) {
     },
 
     /** Records that reviewerId reviewed the pull request, or was no longer asked, at; the latest is kept. */
-    async done(e: { reviewRepoId: string; number: number; reviewerId: string; at: Date }) {
+    async done(e: Ask) {
       await db
         .update(r)
         .set({
+          ...(e.reviewer ? { reviewer: e.reviewer.slice(0, MAX_LOGIN) } : {}),
           doneAt: sql`CASE WHEN ${r.doneAt} IS NULL OR ${r.doneAt} < ${e.at.getTime()} THEN ${e.at.getTime()} ELSE ${r.doneAt} END`,
         })
         .where(
