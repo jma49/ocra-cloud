@@ -113,7 +113,8 @@
 .tier-label {
   width: 150px;
 }
-.agent-off {
+/* An agent turned off fades, but its switch stays legible. */
+.agent-off td:not(:nth-child(2)) {
   opacity: 0.5;
 }
 .chain-cell {
@@ -131,6 +132,10 @@
 .chain-model {
   flex: 1;
   min-width: 180px;
+}
+.chain-row .btn-danger {
+  background: transparent;
+  box-shadow: none;
 }
 
 /* Device sign-in */

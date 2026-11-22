@@ -42,7 +42,7 @@ export function Settings(props: { me: Me }) {
   };
   return (
     <>
-      <PageHead title="Settings" />
+      <PageHead title="Account & privacy" />
       <div className="card">
         <div className="card-head">
           <h3>Account</h3>
