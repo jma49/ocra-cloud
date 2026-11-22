@@ -23,6 +23,7 @@ import { platformConnect } from "./platform-connect.js";
 import { platformsRoute } from "./platform-routes.js";
 import { preferences } from "./preferences.js";
 import { pullPage } from "./pull-page.js";
+import { pullStack } from "./pull-stack.js";
 import { pullViewsRoute } from "./pull-views.js";
 import { repositoriesRoute } from "./repositories.js";
 import { reviews } from "./reviews.js";
@@ -103,6 +104,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
   app.route("/platforms", platformConnect);
   app.route("/pull-views", pullViewsRoute);
   app.route("/pulls", pullPage);
+  app.route("/pulls", pullStack);
   app.route("/notifications", notifyRoute);
   app.route("/insights/cycle", cycles);
   const hook = githubWebhook(host);

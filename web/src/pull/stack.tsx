@@ -1,0 +1,180 @@
+import { useState } from "react";
+import type {
+  CodePlatformKind,
+  MergeMethod,
+  PullStackView,
+  StackedPull,
+  StackMergeView,
+  StackStepOutcome,
+} from "../../../src/shared/index.js";
+import { api, why } from "../api.js";
+import { Link } from "../router.js";
+import { useAction, useLoad } from "../ui.js";
+import { OUTCOME } from "./outcome.js";
+import { pullPath } from "./path.js";
+
+// The pull request's stack, read from the platform's branches (ADR-0052):
+// each one links to its page, and the stack merges from the bottom up to
+// this one, each with the head this page read.
+
+type Ref = { platform: CodePlatformKind; repo: string; number: number };
+
+const CHECKS = {
+  passing: { label: "Checks pass", cls: "ok" },
+  failing: { label: "Checks fail", cls: "fail" },
+  pending: { label: "Checks running", cls: "wait" },
+} as const;
+
+const METHOD: Record<MergeMethod, string> = {
+  merge: "Merge commits",
+  squash: "Squash each",
+  rebase: "Rebase each",
+};
+
+const STEP: Record<StackStepOutcome, string> = {
+  ...OUTCOME,
+  unreached: "The platform did not answer.",
+};
+
+const depthOf = (pulls: StackedPull[], p: StackedPull) => {
+  let depth = 0;
+  for (let up = p.parent; up !== null && depth < pulls.length; depth++) {
+    up = pulls.find((q) => q.number === up)?.parent ?? null;
+  }
+  return depth;
+};
+
+/** From the bottom up to `number`. */
+const chainTo = (pulls: StackedPull[], number: number) => {
+  const chain: StackedPull[] = [];
+  for (let p = pulls.find((q) => q.number === number); p && !chain.includes(p); ) {
+    chain.unshift(p);
+    const parent = p.parent;
+    p = pulls.find((q) => q.number === parent);
+  }
+  return chain;
+};
+
+export function StackPanel(props: { pull: Ref; mergeMethods: MergeMethod[] }) {
+  const { platform, repo, number } = props.pull;
+  const query = new URLSearchParams({ platform, repo, number: String(number) }).toString();
+  const { data } = useLoad(() => api<PullStackView>(`/pulls/stack?${query}`), [query]);
+  if (!data || data.pulls.length < 2) return null;
+  const chain = chainTo(data.pulls, number);
+  return (
+    <section className="card card-pad stack" aria-label="Stack">
+      <div className="strong">
+        Stack <span className="subtle small">onto {data.trunk}</span>
+      </div>
+      <ol className="pull-stack-list">
+        {data.pulls.map((p) => {
+          const checks = p.checks && CHECKS[p.checks];
+          return (
+            <li key={p.number} style={{ paddingInlineStart: `${depthOf(data.pulls, p) * 10}px` }}>
+              <Link
+                to={pullPath(platform, repo, p.number)}
+                className="pull-stack-link"
+                current={p.number === number}
+              >
+                {checks ? (
+                  <span className={`chk ${checks.cls}`} role="img" aria-label={checks.label} />
+                ) : (
+                  <span className="chk" aria-hidden="true" />
+                )}
+                <span className="mono subtle">#{p.number}</span>
+                <span className="pull-stack-title" title={p.title}>
+                  {p.title}
+                </span>
+                {p.draft && <span className="subtle small">draft</span>}
+              </Link>
+            </li>
+          );
+        })}
+      </ol>
+      {chain.length > 1 && props.mergeMethods.length > 0 && (
+        <MergeStack pull={props.pull} chain={chain} methods={props.mergeMethods} />
+      )}
+    </section>
+  );
+}
+
+function MergeStack(props: { pull: Ref; chain: StackedPull[]; methods: MergeMethod[] }) {
+  const [asking, setAsking] = useState(false);
+  const [method, setMethod] = useState<MergeMethod>(props.methods[0] ?? "merge");
+  const [steps, setSteps] = useState<StackMergeView["steps"] | null>(null);
+  const merge = useAction(() =>
+    api<StackMergeView>("/pulls/merge-stack", {
+      method: "POST",
+      body: JSON.stringify({
+        ...props.pull,
+        method,
+        heads: props.chain.map((p) => ({ number: p.number, head: p.headSha })),
+      }),
+    }),
+  );
+  const confirm = async () => {
+    const r = await merge.run();
+    setAsking(false);
+    if (r) setSteps(r.steps);
+  };
+  const n = props.chain.length;
+  return (
+    <>
+      {asking ? (
+        <>
+          <span className="small">
+            Merges {n} pull requests bottom first, each retargeted to the trunk.
+          </span>
+          {props.methods.length > 1 && (
+            <select
+              className="input"
+              aria-label="Stack merge method"
+              value={method}
+              onChange={(e) => setMethod(e.target.value as MergeMethod)}
+            >
+              {props.methods.map((m) => (
+                <option key={m} value={m}>
+                  {METHOD[m]}
+                </option>
+              ))}
+            </select>
+          )}
+          <div className="row-gap">
+            <button
+              type="button"
+              className="btn btn-primary grow"
+              disabled={merge.busy}
+              onClick={confirm}
+            >
+              Confirm: merge {n}
+            </button>
+            <button type="button" className="btn" onClick={() => setAsking(false)}>
+              Cancel
+            </button>
+          </div>
+        </>
+      ) : (
+        <button type="button" className="btn" onClick={() => setAsking(true)}>
+          Merge stack up to here
+        </button>
+      )}
+      {steps && (
+        <ul className="pull-stack-steps small" role="status">
+          {props.chain.map((p) => {
+            const step = steps.find((s) => s.number === p.number);
+            return (
+              <li key={p.number} className={step && step.outcome !== "done" ? "error" : undefined}>
+                <span className="mono">#{p.number}</span> {step ? STEP[step.outcome] : "Not tried."}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {merge.error !== null && (
+        <p className="error" role="alert">
+          Could not merge the stack: {why(merge.error)}.
+        </p>
+      )}
+    </>
+  );
+}

@@ -65,3 +65,61 @@
   flex: none;
   vertical-align: -3px;
 }
+.with-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Placeholder lines while data loads. They appear only after a beat, so a
+   fast answer never flashes them, and shimmer unless motion is reduced. */
+.skeleton {
+  display: grid;
+  gap: 10px;
+  padding: 20px;
+  opacity: 0;
+  animation: skeleton-in 200ms var(--e-std) 300ms forwards;
+}
+.skeleton-bar {
+  height: 12px;
+  border-radius: var(--r-tag);
+  background:
+    linear-gradient(90deg, var(--fill) 0%, var(--fill2) 50%, var(--fill) 100%) 0 0 / 200% 100%;
+  animation: skeleton-shimmer 1.4s linear infinite;
+}
+.skeleton-bar:nth-child(2) {
+  width: 72%;
+}
+.skeleton-bar:nth-child(3) {
+  width: 88%;
+}
+.skeleton-bar:nth-child(4) {
+  width: 56%;
+}
+@keyframes skeleton-in {
+  to {
+    opacity: 1;
+  }
+}
+@keyframes skeleton-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+    opacity: 1;
+  }
+  .skeleton-bar {
+    animation: none;
+  }
+}

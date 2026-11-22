@@ -9,11 +9,13 @@ import type {
   PullVerdict,
 } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
+import { PlatformMark } from "../platform-mark.js";
 import { splitPath } from "../pull/diff.js";
 import { FileDiff } from "../pull/file-diff.js";
 import { GenerateBox } from "../pull/generate-box.js";
 import { OUTCOME } from "../pull/outcome.js";
 import { QueueBox } from "../pull/queue-box.js";
+import { StackPanel } from "../pull/stack.js";
 import { LoadError, Loading, PageHead, Seg, useAction, useLoad } from "../ui.js";
 
 // A pull request in the console: its changed files read live from the
@@ -85,9 +87,9 @@ export function PullPage(props: {
         title={title}
         sub={
           <>
-            {data.files.length} files · <span className="add-n">+{total.add}</span>{" "}
-            <span className="del-n">−{total.del}</span> · head{" "}
-            <span className="mono">{data.head.slice(0, 7)}</span>
+            <PlatformMark platform={platform} size={14} /> {data.files.length} files ·{" "}
+            <span className="add-n">+{total.add}</span> <span className="del-n">−{total.del}</span>{" "}
+            · head <span className="mono">{data.head.slice(0, 7)}</span>
           </>
         }
       />
@@ -103,6 +105,7 @@ export function PullPage(props: {
       )}
       <div className="pull-frame">
         <aside className="pull-side">
+          <StackPanel pull={ref} mergeMethods={data.mergeMethods} />
           <nav className="card file-list" aria-label="Changed files">
             {data.files.map((f) => {
               const { dir, name } = splitPath(f.path);

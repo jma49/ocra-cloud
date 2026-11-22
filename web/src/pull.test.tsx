@@ -75,6 +75,7 @@ describe("a pull request's page", () => {
           sent.push({ url, body: JSON.parse(String(init.body)) });
           return Response.json({ outcome: url.endsWith("/merge") ? "head_moved" : "done" });
         }
+        if (url.startsWith("/api/pulls/stack")) return Response.json({ trunk: "", pulls: [] });
         return Response.json(url.startsWith("/api/pulls/queue") ? queue : files);
       }),
     );

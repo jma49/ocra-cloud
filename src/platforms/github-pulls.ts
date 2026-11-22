@@ -45,14 +45,14 @@ type Node = {
 type Search = { issueCount: number; nodes: (Node | null)[] };
 type Answer = { data?: Partial<Record<List, Search>>; errors?: unknown[] };
 
-const CHECKS: Record<string, PullChecks> = {
+export const CHECKS: Record<string, PullChecks> = {
   SUCCESS: "passing",
   FAILURE: "failing",
   ERROR: "failing",
   PENDING: "pending",
   EXPECTED: "pending",
 };
-const REVIEW: Record<string, PullReview> = {
+export const REVIEW: Record<string, PullReview> = {
   APPROVED: "approved",
   CHANGES_REQUESTED: "changes_requested",
   REVIEW_REQUIRED: "required",

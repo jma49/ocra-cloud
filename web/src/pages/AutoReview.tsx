@@ -6,6 +6,7 @@ import {
 } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
 import { ago } from "../format.js";
+import { PlatformMark } from "../platform-mark.js";
 import { pullPath } from "../pull/path.js";
 import { Link } from "../router.js";
 import { ActionError, LoadError, Loading, PageHead, useAction, useLoad } from "../ui.js";
@@ -74,7 +75,10 @@ export function AutoReview() {
                 {data.repos.map((r) => (
                   <tr key={r.id}>
                     <td className="text">
-                      <div className="mono">{r.fullName}</div>
+                      <div className="mono with-mark">
+                        <PlatformMark platform={r.platform} size={14} />
+                        {r.fullName}
+                      </div>
                       <div className="subtle small">
                         {PLATFORM[r.platform]} · {r.host}
                       </div>
