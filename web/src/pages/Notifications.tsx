@@ -67,7 +67,7 @@ export function Notifications() {
         <p className="subtle small">No channels yet.</p>
       ) : (
         <div className="card">
-          <div className="table-wrap">
+          <div className="table-wrap stack">
             <table>
               <thead>
                 <tr>

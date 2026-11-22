@@ -70,7 +70,7 @@ export function Keys() {
         </div>
       ) : (
         <div className="card">
-          <div className="table-wrap">
+          <div className="table-wrap stack">
             <table>
               <thead>
                 <tr>

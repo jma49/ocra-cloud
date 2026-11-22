@@ -168,7 +168,7 @@ export function Agents() {
             The verifier and judge never inherit a reviewer's model.
           </span>
         </div>
-        <div className="table-wrap">
+        <div className="table-wrap stack">
           <table>
             <thead>
               <tr>
