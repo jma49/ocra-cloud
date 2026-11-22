@@ -6,7 +6,7 @@ import { plain } from "./channels.js";
 import { bySpecificity, githubCommentEvents, gitlabCommentEvents } from "./comment-hooks.js";
 import type { Outbox } from "./notify.js";
 import { type EventRepo, type PullEvent, tellPullEvent } from "./pull-events.js";
-import { keepGithubThread, keepGitlabThread } from "./thread-hooks.js";
+import { keepGithubThread, keepGitlabThread, type StartOf } from "./thread-hooks.js";
 
 // The pull request events of the platforms' webhooks that may concern the
 // account's own user (./pull-events.ts): a review asked of them, and on a
@@ -231,11 +231,12 @@ export async function tellGitlabNote(
   out: Outbox,
   repo: EventRepo & { accountId: string },
   body: unknown,
+  startOf?: StartOf,
 ): Promise<number> {
   const data = scoped(db, repo.accountId);
   const events = bySpecificity([
     ...gitlabCommentEvents(body, repo.id),
-    ...(await keepGitlabThread(data, body, repo.id)),
+    ...(await keepGitlabThread(data, body, repo.id, startOf)),
   ]);
   if (events.length === 0) return 0;
   return (await tellPullEvent(db, data, out, repo, events)).length;

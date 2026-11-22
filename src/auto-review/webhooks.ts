@@ -9,6 +9,7 @@ import { MAX_HOOK_BODY } from "../graph/webhooks.js";
 import { apiError, jsonBody } from "../http.js";
 import { gitlabSignal, moveIntents } from "../merge-when-ready/hooks.js";
 import { runnerOf } from "../merge-when-ready/routes.js";
+import { gitlabStartOf } from "../notify/gitlab-starts.js";
 import { publicOutbox } from "../notify/notify.js";
 import { tellGitlabHook, tellGitlabNote } from "../notify/pull-hooks.js";
 import { COMMIT_ID } from "../platforms/contents.js";
@@ -141,7 +142,8 @@ export function autoReviewWebhooks(service: AutoReviewService) {
     // The secret proves this project only: its intents are moved, whatever path the body names.
     if (signal) defer(c, moveIntents(runnerOf(c), repo, repo.fullName, signal.signal));
     if (note?.data) {
-      defer(c, tellGitlabNote(c.var.db, publicOutbox(c), repo, body));
+      const startOf = gitlabStartOf(pathReaderOf(c), repo);
+      defer(c, tellGitlabNote(c.var.db, publicOutbox(c), repo, body, startOf));
       return c.json({ queued: await queueGitlabNote(c.var.db, service, repo, note.data) }, 202);
     }
     if (mr) {

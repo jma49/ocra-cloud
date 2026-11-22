@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { Scoped } from "../db/scoped.js";
+import type { DiscussionStart } from "../platforms/gitlab-discussion.js";
 import { isBotLogin } from "../platforms/reviewers.js";
 import { plain } from "./channels.js";
 import { isBot, user } from "./comment-hooks.js";
@@ -11,10 +12,11 @@ import type { PullEvent } from "./pull-events.js";
 // event of a reply by someone else. On GitHub a review comment with no
 // in_reply_to_id starts its thread, and a reply names the thread's first
 // comment. A GitLab note names its discussion but not whether it is the
-// first note: only a plain comment (a note with no type, which opens its own
-// discussion) is known to start one, so a diff or "start a thread"
-// discussion is never guessed at. A thread started before ocra kept them,
-// or by a bot, is not on record, and a reply in it tells nobody. A bot's
+// first note: a plain comment (a note with no type) opens its own; a diff
+// or discussion note of a discussion not on record is looked up once
+// (./gitlab-starts.ts) and its first note kept as the start, never guessed
+// at. A thread whose start is not found, or was a bot's, is not on record,
+// and a reply in it tells nobody. A bot's
 // reply is not kept. The event shares its comment's key, so the comment is
 // one notice; comment text goes out only as a plain excerpt, never logged.
 
@@ -25,6 +27,7 @@ type ThreadNote = {
   number: number;
   title: string;
   threadKey: string;
+  noteId: string;
   /** Whether the note starts its thread; else it replies in one, which may not be on record. */
   starts: boolean;
   by: { id: string; login: string };
@@ -62,6 +65,7 @@ function githubNote(event: string | undefined, body: unknown, repoId: string, no
     number: pull.number,
     title: pull.title,
     threadKey: String(c.in_reply_to_id ?? c.id),
+    noteId: String(c.id),
     starts: c.in_reply_to_id == null,
     by: { id: String(c.user.id), login: c.user.login },
     at: timeOf(c.created_at, now),
@@ -95,6 +99,7 @@ function gitlabThreadNote(body: unknown, repoId: string, now: Date) {
     number: mr.iid,
     title: mr.title,
     threadKey: n.discussion_id,
+    noteId: String(n.id),
     starts: n.type == null,
     by: { id: String(u.id), login: u.username },
     at: timeOf(n.created_at, now),
@@ -104,30 +109,43 @@ function gitlabThreadNote(body: unknown, repoId: string, now: Date) {
   } satisfies ThreadNote;
 }
 
+/** The first note of a merge request's discussion, from the platform; null when it does not say. */
+export type StartOf = (number: number, threadKey: string) => Promise<DiscussionStart | null>;
+
 /** Keeps the note's start or reply; the thread_replied event of a reply by someone other than the starter. */
 async function keep(
   data: Scoped,
   reviewRepoId: string,
   note: ThreadNote | null,
   now: Date,
+  startOf?: StartOf,
 ): Promise<PullEvent[]> {
   if (!note) return [];
-  if (note.starts) {
-    await data.reviewThreads.start(
+  const start = (by: ThreadNote["by"], at: Date) =>
+    data.reviewThreads.start(
       {
         reviewRepoId,
         number: note.number,
         threadKey: note.threadKey,
-        starterId: note.by.id,
-        starterLogin: note.by.login,
-        startedAt: note.at,
+        starterId: by.id,
+        starterLogin: by.login,
+        startedAt: at,
       },
       now,
     );
+  if (note.starts) {
+    await start(note.by, note.at);
     return [];
   }
   const reply = { reviewRepoId, threadKey: note.threadKey, byId: note.by.id, at: note.at };
-  const thread = await data.reviewThreads.reply(reply, now);
+  let thread = await data.reviewThreads.reply(reply, now);
+  if (!thread && startOf) {
+    const first = await startOf(note.number, note.threadKey);
+    if (!first || first.system || isBotLogin(first.login)) return [];
+    await start({ id: first.authorId, login: first.login }, timeOf(first.createdAt, now));
+    if (first.noteId === note.noteId) return [];
+    thread = await data.reviewThreads.reply(reply, now);
+  }
   if (!thread) return [];
   if (thread.starterId === note.by.id) return [];
   const excerpt = excerptOf(note.body);
@@ -155,12 +173,16 @@ export function keepGithubThread(
   return keep(data, reviewRepoId, githubNote(event, body, reviewRepoId, now), now);
 }
 
-/** Keeps a GitLab note hook's discussion start or reply; its thread_replied event. */
+/**
+ * Keeps a GitLab note hook's discussion start or reply; its thread_replied
+ * event. `startOf` looks up the start of a discussion not on record.
+ */
 export function keepGitlabThread(
   data: Scoped,
   body: unknown,
   reviewRepoId: string,
+  startOf?: StartOf,
   now = new Date(),
 ): Promise<PullEvent[]> {
-  return keep(data, reviewRepoId, gitlabThreadNote(body, reviewRepoId, now), now);
+  return keep(data, reviewRepoId, gitlabThreadNote(body, reviewRepoId, now), now, startOf);
 }
