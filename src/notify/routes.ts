@@ -6,6 +6,7 @@ import { masterKeys } from "../keyring.js";
 import { perMinute } from "../rate.js";
 import { requireSession } from "../session.js";
 import {
+  NOTIFY_EVENTS,
   NOTIFY_WHEN,
   type NotifyChannelAdded,
   type NotifyChannelsView,
@@ -32,11 +33,17 @@ const MAX_CHANNELS = 10;
 const DAILY_CONFIRMATIONS = 10;
 
 const name = z.string().trim().min(1).max(64);
+/** Each event once, in NOTIFY_EVENTS' order. */
+const events = z
+  .array(z.enum(NOTIFY_EVENTS))
+  .max(NOTIFY_EVENTS.length)
+  .transform((list) => NOTIFY_EVENTS.filter((e) => list.includes(e)));
 const common = {
   name,
   when: z.enum(NOTIFY_WHEN),
   digest: z.boolean().optional(),
   weekly: z.boolean().optional(),
+  events: events.optional(),
 };
 const addBody = z.discriminatedUnion("kind", [
   z.object({ kind: z.enum(["slack", "wecom"]), url: z.string().max(512), ...common }),
@@ -48,6 +55,7 @@ const changeBody = z
     when: z.enum(NOTIFY_WHEN).optional(),
     digest: z.boolean().optional(),
     weekly: z.boolean().optional(),
+    events: events.optional(),
   })
   .refine((b) => Object.values(b).some((v) => v !== undefined), "nothing to change");
 const scheduleBody = z.object({
@@ -65,6 +73,7 @@ const channelView = (r: Row<"notifyChannels">) =>
     confirmed: r.confirmedAt !== null,
     digest: r.digest,
     weekly: r.weekly,
+    events: r.events,
     lastStatus: r.lastStatus,
     lastSentAt: r.lastSentAt?.toISOString() ?? null,
     createdAt: r.createdAt.toISOString(),
@@ -132,6 +141,7 @@ notifyRoute.post("/channels", perMinute("settings"), jsonBody(addBody), async (c
     when: body.when,
     digest: body.digest ?? false,
     weekly: body.weekly ?? false,
+    events: body.events ?? [],
     ...sealed,
     last4: address.slice(-4),
     // A webhook address is its chat's own credential: whoever has it may post there.
@@ -161,13 +171,14 @@ notifyRoute.post("/channels/:id/confirm", perMinute("settings"), async (c) => {
 
 notifyRoute.patch("/channels/:id", perMinute("settings"), jsonBody(changeBody), async (c) => {
   const id = c.req.param("id");
-  const { name: newName, when, digest, weekly } = c.req.valid("json");
+  const { name: newName, when, digest, weekly, events: newEvents } = c.req.valid("json");
   await c.var.data.batch((w) => [
     w.update("notifyChannels", id, {
       ...(newName !== undefined ? { name: newName } : {}),
       ...(when !== undefined ? { when } : {}),
       ...(digest !== undefined ? { digest } : {}),
       ...(weekly !== undefined ? { weekly } : {}),
+      ...(newEvents !== undefined ? { events: newEvents } : {}),
     }),
   ]);
   const stored = await c.var.data.get("notifyChannels", id);

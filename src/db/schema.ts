@@ -42,6 +42,7 @@ import {
   type ModelChains,
   NOTIFY_KINDS,
   NOTIFY_WHEN,
+  type NotifyEvent,
   type PullFilters,
   REVIEW_CHAT_ROLES,
   REVIEW_JOB_STATES,
@@ -453,6 +454,9 @@ export const platformLinks = sqliteTable(
     host: text("host").notNull(),
     wrappedKey: text("wrapped_key").notNull(),
     ciphertext: text("ciphertext").notNull(),
+    // The platform's id of the user the token is of (GitLab), which says
+    // which pull request events are this account's own.
+    userId: text("user_id"),
     accessExpiresAt: integer("access_expires_at", { mode: "timestamp_ms" }),
     refreshExpiresAt: integer("refresh_expires_at", { mode: "timestamp_ms" }),
     createdAt: createdAt(),
@@ -600,8 +604,27 @@ export const notifyChannels = sqliteTable(
     confirmExpiresAt: integer("confirm_expires_at", { mode: "timestamp_ms" }),
     digest: integer("digest", { mode: "boolean" }).notNull().default(false),
     weekly: integer("weekly", { mode: "boolean" }).notNull().default(false),
+    events: text("events", { mode: "json" }).$type<NotifyEvent[]>().notNull().default([]),
   },
   (t) => [index("notify_channels_account").on(t.accountId)],
+);
+
+// A pull request event a channel was told of (src/notify/pull-events.ts),
+// kept so that a webhook delivered twice tells it once: the event is
+// claimed here before its message goes. Kept a month.
+export const notifySends = sqliteTable(
+  "notify_sends",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    channelId: text("channel_id").notNull(),
+    eventKey: text("event_key").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("notify_sends_channel_event").on(t.channelId, t.eventKey),
+    index("notify_sends_account_created").on(t.accountId, t.createdAt),
+  ],
 );
 
 // An enrolled repository's pull request as its platform said it ended:
@@ -643,6 +666,8 @@ export const pullFlows = sqliteTable(
     number: integer("number").notNull(),
     title: text("title").notNull(),
     author: text("author"),
+    // The platform's id of the author, which outlives a renamed login.
+    authorId: text("author_id"),
     draft: integer("draft", { mode: "boolean" }).notNull().default(false),
     // Lines added plus deleted, where the platform says (GitHub).
     size: integer("size"),
@@ -1007,6 +1032,7 @@ export const accountTables = {
   reviewRepos,
   reviewJobs,
   notifyChannels,
+  notifySends,
   closedPulls,
   pullFlows,
   pullReviews,

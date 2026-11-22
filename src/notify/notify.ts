@@ -39,6 +39,12 @@ export const outboxOf = (c: Context<AppEnv>): Outbox => ({
   origin: new URL(c.req.url).origin,
 });
 
+/** The outbox of a request whose links point to PUBLIC_URL where it is set (a webhook's). */
+export function publicOutbox(c: Context<AppEnv>): Outbox {
+  const out = outboxOf(c);
+  return c.env.PUBLIC_URL ? { ...out, origin: new URL(c.env.PUBLIC_URL).origin } : out;
+}
+
 const binding = (accountId: string, channelId: string) =>
   `ocra-notify-channel:v1|${accountId}|${channelId}`;
 
@@ -114,15 +120,18 @@ async function noticeOf(
   };
 }
 
-/** Announces the review in each of the account's confirmed channels that takes it. */
+/** Announces the review in each of the account's confirmed channels that takes it, but those told already. */
 export async function notifyReview(
   data: Scoped,
   out: Outbox,
   review: Row<"reviews">,
   platforms: readonly CodePlatform[],
   consoleUrl: string,
+  told: readonly string[] = [],
 ): Promise<void> {
-  const channels = await data.notify.listening(whensFor(review));
+  const channels = (await data.notify.listening(whensFor(review))).filter(
+    (ch) => !told.includes(ch.id),
+  );
   if (channels.length === 0) return;
   const m = reviewMessage(await noticeOf(data, review, platforms, consoleUrl));
   await Promise.all(channels.map((ch) => send(data, out, ch, m)));

@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { deleteCookie, getSignedCookie, setSignedCookie } from "hono/cookie";
 import { randomToken } from "./crypto.js";
 import { apiError } from "./http.js";
-import { gitlab, gitlabToken } from "./platforms/gitlab.js";
+import { gitlab, gitlabToken, gitlabUserId } from "./platforms/gitlab.js";
 import { saveToken } from "./platforms/links.js";
 import { gitlabCallback, gitlabClientOf } from "./platforms/registry.js";
 import { perMinute } from "./rate.js";
@@ -58,6 +58,14 @@ platformConnect.get("/gitlab/callback", requireSession(), async (c) => {
     redirect_uri: redirectUri,
   });
   if (!answer?.access_token) return apiError(c, "upstream_unreachable");
-  await saveToken(c.var.data, c.env, gitlab(client, redirectUri), answer);
+  const userId = await gitlabUserId(client.url, answer.access_token);
+  await saveToken(
+    c.var.data,
+    c.env,
+    gitlab(client, redirectUri),
+    answer,
+    Date.now(),
+    userId ?? undefined,
+  );
   return c.redirect("/repositories", 302);
 });

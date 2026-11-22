@@ -31,6 +31,14 @@ export const gitlabToken = (client: GitlabClient, grant: Record<string, string>)
     body: JSON.stringify({ client_id: client.id, client_secret: client.secret, ...grant }),
   });
 
+/** The id of the user the token is of; null when GitLab does not say. */
+export async function gitlabUserId(url: string, token: string): Promise<string | null> {
+  const user = await platformCall<{ id?: unknown }>(`${url}/api/v4/user`, {
+    headers: { authorization: `Bearer ${token}`, accept: "application/json" },
+  });
+  return typeof user?.id === "number" && Number.isSafeInteger(user.id) ? String(user.id) : null;
+}
+
 export function gitlab(client: GitlabClient, redirectUri: string): CodePlatform {
   return {
     kind: "gitlab",

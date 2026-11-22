@@ -82,7 +82,12 @@ export async function openHost(options: HostOptions) {
   const graphs = options.graphs && startGraphs(options.graphs, shared, bindings, options.publicUrl);
   const reviews =
     options.autoReview && options.publicUrl
-      ? startAutoReview(options.autoReview, shared, bindings, options.publicUrl)
+      ? startAutoReview(
+          { ...options.autoReview, ...(options.mailer ? { mailer: options.mailer } : {}) },
+          shared,
+          bindings,
+          options.publicUrl,
+        )
       : undefined;
   const bots = options.autoReview
     ? (options.autoReview.tokens ?? botTokens(options.autoReview.bots))

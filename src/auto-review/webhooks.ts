@@ -7,6 +7,8 @@ import { scoped } from "../db/scoped.js";
 import { defer } from "../defer.js";
 import { MAX_HOOK_BODY } from "../graph/webhooks.js";
 import { apiError, jsonBody } from "../http.js";
+import { publicOutbox } from "../notify/notify.js";
+import { tellGitlabHook } from "../notify/pull-hooks.js";
 import { COMMIT_ID } from "../platforms/contents.js";
 import { gitlabClientOf } from "../platforms/registry.js";
 import type { AppEnv } from "../types.js";
@@ -130,7 +132,10 @@ export function autoReviewWebhooks(service: AutoReviewService) {
     if (note?.data) {
       return c.json({ queued: await queueGitlabNote(c.var.db, service, repo, note.data) }, 202);
     }
-    if (mr) await recordGitlabFlow(c.var.db, repo, body);
+    if (mr) {
+      await recordGitlabFlow(c.var.db, repo, body);
+      defer(c, tellGitlabHook(c.var.db, publicOutbox(c), repo, body));
+    }
     if (mr && (await recordGitlabClose(c.var.db, repo, body))) return c.json({ queued: 0 }, 202);
     const event = mr?.data;
     if (event && gitlabEdited(event.object_attributes)) {

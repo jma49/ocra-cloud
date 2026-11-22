@@ -72,6 +72,15 @@ describe("retention", () => {
     expect(ids).not.toContain("web-dead");
   });
 
+  it("forgets a pull request event a channel was told of after 30 days", async () => {
+    const { account } = await signIn(1, "octo");
+    const d = scoped(db, account.id);
+    await d.insert("notifySends", { ...rows.notifySends("old"), createdAt: ago(31) });
+    await d.insert("notifySends", { ...rows.notifySends("new"), createdAt: ago(29) });
+    await enforceRetention(db, now);
+    expect((await d.list("notifySends")).map((r) => r.id)).toEqual(["new"]);
+  });
+
   it("deletes a pull request's flow 90 days after its last event, and reviews by when they were submitted", async () => {
     const { account } = await signIn(1, "octo");
     const d = scoped(db, account.id);

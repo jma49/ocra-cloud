@@ -15,6 +15,8 @@ export type FlowEvent = {
   number: number;
   title: string;
   author: string | null;
+  /** The platform's id of the author, where the event names it. */
+  authorId?: string | null;
   draft: boolean;
   size: number | null;
   openedAt?: Date | null;
@@ -57,6 +59,7 @@ export function accountPullFlows(db: Db, accountId: string) {
         number: e.number,
         title: [...e.title].slice(0, MAX_TITLE).join(""),
         author: e.author?.slice(0, MAX_LOGIN) ?? null,
+        authorId: e.authorId ?? null,
         draft: e.draft,
         size: e.size,
         openedAt: e.openedAt ?? null,
@@ -72,6 +75,7 @@ export function accountPullFlows(db: Db, accountId: string) {
         set: {
           title: sql`excluded.title`,
           author: sql`coalesce(excluded.author, ${t.author})`,
+          authorId: sql`coalesce(excluded.author_id, ${t.authorId})`,
           size: sql`coalesce(excluded.size, ${t.size})`,
           // The newest event says whether it is a draft now.
           draft: sql`CASE WHEN ${name(t.seenAt)} >= ${t.seenAt} THEN excluded.draft ELSE ${t.draft} END`,

@@ -41,6 +41,7 @@ export const EXPORTED = {
   reviewRepos: "reviewRepos",
   reviewJobs: "reviewJobs",
   notifyChannels: "notifyChannels",
+  notifySends: "notifySends",
   closedPulls: "closedPulls",
   pullFlows: "pullFlows",
   pullReviews: "pullReviews",
@@ -64,12 +65,14 @@ const SHAPES: Partial<Record<Table, (row: never) => unknown>> = {
   platformLinks: (g: {
     platform: string;
     host: string;
+    userId: string | null;
     accessExpiresAt: Date | null;
     refreshExpiresAt: Date | null;
     createdAt: Date;
   }) => ({
     platform: g.platform,
     host: g.host,
+    userId: g.userId,
     accessExpiresAt: g.accessExpiresAt,
     refreshExpiresAt: g.refreshExpiresAt,
     createdAt: g.createdAt,

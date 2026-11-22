@@ -2,10 +2,12 @@ import { type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import {
+  NOTIFY_EVENTS,
   NOTIFY_KINDS,
   NOTIFY_WHEN,
   type NotifyChannelsView,
   type NotifyChannelView,
+  type NotifyEvent,
   type NotifyKind,
   type NotifyWhen,
 } from "../../../src/shared/index.js";
@@ -17,7 +19,8 @@ import { ActionError, LoadError, Loading, PageHead, useAction, useLoad } from ".
 // The chats and email addresses that hear about reviews: a Slack or WeCom
 // incoming webhook, or an address confirmed by the link mailed to it, each
 // with which reviews it hears about and whether it gets the daily digest and
-// the weekly report, whose UTC day and hour the account picks.
+// the weekly report, whose UTC day and hour the account picks, and whether
+// it hears about the events of the user's own pull requests (all of them).
 // The address is sent once and never shown again.
 
 const KIND_LABEL: Record<NotifyKind, string> = { slack: "Slack", wecom: "WeCom", email: "Email" };
@@ -41,8 +44,10 @@ export function Notifications() {
   const [tested, setTested] = useState<{ id: string; delivered: boolean } | null>(null);
   const [linkSent, setLinkSent] = useState<string | null>(null);
   const change = useAction(
-    (id: string, body: { when?: NotifyWhen; digest?: boolean; weekly?: boolean }) =>
-      api(`/notifications/channels/${id}`, json("PATCH", body)),
+    (
+      id: string,
+      body: { when?: NotifyWhen; digest?: boolean; weekly?: boolean; events?: NotifyEvent[] },
+    ) => api(`/notifications/channels/${id}`, json("PATCH", body)),
   );
   const remove = useAction((id: string) => api(`/notifications/channels/${id}`, json("DELETE")));
   const resend = useAction((id: string) =>
@@ -103,6 +108,7 @@ export function Notifications() {
                   <th>Sends</th>
                   <th>Digest</th>
                   <th>Weekly</th>
+                  <th>My pull requests</th>
                   <th>Last message</th>
                   <th />
                 </tr>
@@ -153,6 +159,23 @@ export function Notifications() {
                         checked={c.weekly}
                         disabled={change.busy}
                         onCheckedChange={() => after(change.run(c.id, { weekly: !c.weekly }))}
+                      />
+                    </td>
+                    <td>
+                      <span className="cell-name" aria-hidden="true">
+                        My pull requests
+                      </span>
+                      <Switch
+                        aria-label={`My pull requests' events to ${c.name}`}
+                        checked={c.events.length > 0}
+                        disabled={change.busy}
+                        onCheckedChange={() =>
+                          after(
+                            change.run(c.id, {
+                              events: c.events.length > 0 ? [] : [...NOTIFY_EVENTS],
+                            }),
+                          )
+                        }
                       />
                     </td>
                     <td>

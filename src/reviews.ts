@@ -8,7 +8,8 @@ import type { Row, Scoped } from "./db/scoped.js";
 import { defer } from "./defer.js";
 import { parseFindings } from "./findings.js";
 import { apiError, jsonBody, queryDays } from "./http.js";
-import { notifyReview, outboxOf } from "./notify/notify.js";
+import { notifyReview, outboxOf, publicOutbox } from "./notify/notify.js";
+import { tellReviewBlocking } from "./notify/pull-events.js";
 import { platformsOf } from "./platforms/registry.js";
 import { perMinute, retryTomorrow } from "./rate.js";
 import { repoNames } from "./repositories.js";
@@ -145,7 +146,17 @@ async function announce(c: Context<AppEnv>, id: string) {
   if (!review) return;
   const consoleUrl = new URL(`/reviews/${encodeURIComponent(id)}`, c.req.url).toString();
   const platforms = platformsOf(c.env, c.req.url);
-  await notifyReview(c.var.data, outboxOf(c), review, platforms, consoleUrl);
+  // Its author hears of it once: as their own pull request's, where that went.
+  const share = c.var.session.account.shareFindings;
+  const told = await tellReviewBlocking(
+    c.var.db,
+    c.var.data,
+    publicOutbox(c),
+    review,
+    platforms,
+    share,
+  );
+  await notifyReview(c.var.data, outboxOf(c), review, platforms, consoleUrl, told);
   const event = await reviewedEvent(c.var.data, review, platforms, consoleUrl);
   if (event) await (await automate(c, c.var.data, event)).run;
 }
