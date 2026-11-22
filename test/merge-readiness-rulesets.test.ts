@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetDb } from "./helpers.js";
 import { signInWithGithub } from "./platform-fakes.js";
 import {
+  BRANCH,
   byKind,
   type GithubPull,
   githubPull,
@@ -144,5 +145,47 @@ describe("merge readiness from GitHub rulesets", () => {
       expect(items.required_checks).toEqual(["met", "No check is required"]);
       expect(view.otherRules).toEqual([]);
     }
+  });
+
+  it("reads the branch itself when its rule is refused: unprotected, or a floor of its checks", async () => {
+    const unprotected = await read({
+      ruleRefused: true,
+      protection: REFUSED,
+      decision: null,
+      contexts: [],
+      branch: { status: 200, body: { name: "main", protected: false } },
+    });
+    expect(unprotected.calls).toEqual([
+      "POST https://api.github.com/graphql",
+      PROTECTION,
+      RULESETS_CALL,
+      BRANCH,
+    ]);
+    expect(unprotected.items.approvals).toEqual(["met", "No approval is required (0 given)"]);
+    expect(unprotected.items.required_checks).toEqual(["met", "No check is required"]);
+    vi.restoreAllMocks();
+    const checks = await read({
+      ruleRefused: true,
+      protection: REFUSED,
+      decision: null,
+      contexts: [run("ci", "COMPLETED", "SUCCESS", false)],
+      branch: {
+        status: 200,
+        body: {
+          name: "main",
+          protected: true,
+          protection: {
+            enabled: true,
+            required_status_checks: {
+              enforcement_level: "everyone",
+              contexts: ["ci"],
+              checks: [{ context: "build", app_id: null }],
+            },
+          },
+        },
+      },
+    });
+    expect(checks.items.approvals).toEqual(["unknown", "0 approvals; branch rule not readable"]);
+    expect(checks.items.required_checks).toEqual(["pending", "Waiting for build"]);
   });
 });

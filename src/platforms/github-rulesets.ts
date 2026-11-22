@@ -33,6 +33,18 @@ type Protection = {
   required_conversation_resolution?: { enabled?: boolean };
 };
 
+/** The branch as anyone who reads the repository sees it: protected or not, and its required checks. */
+type BranchSummary = {
+  protected?: boolean;
+  protection?: {
+    required_status_checks?: {
+      enforcement_level?: string;
+      contexts?: string[];
+      checks?: { context: string }[];
+    };
+  };
+};
+
 type BranchRule = {
   type?: string;
   parameters?: {
@@ -143,7 +155,40 @@ export async function protectionOf(
   if (sent?.status === 403 && PLAN_WITHOUT_RULES.test(message)) {
     return { read: "unavailable", rule: null };
   }
-  return { read: "unreadable", rule: null };
+  return summaryOf(token, fullName, branch);
+}
+
+/**
+ * The full rule needs Administration read and an admin, so a user token
+ * of the App is often refused it. The branch itself, which Contents read
+ * answers, still says whether it is protected and which checks it requires:
+ * those are a floor, and the rest of the rule stays not known.
+ */
+async function summaryOf(
+  token: string,
+  fullName: string,
+  branch: string,
+): Promise<{ read: BranchRuleRead; rule: GithubRule | null }> {
+  const sent = await platformSend<BranchSummary>(
+    `${API}/repos/${githubRepoPath(fullName)}/branches/${githubRepoPath(branch)}`,
+    { headers: githubHeaders(token) },
+  );
+  const summary = sent?.status === 200 ? sent.body : null;
+  if (summary?.protected === false) return { read: "none", rule: null };
+  const checks = summary?.protection?.required_status_checks;
+  if (!checks || (checks.enforcement_level ?? "off") === "off") {
+    return { read: "unreadable", rule: null };
+  }
+  return {
+    read: "unreadable",
+    rule: {
+      ...NO_RULE,
+      requiresStatusChecks: true,
+      requiredStatusCheckContexts: [
+        ...new Set([...(checks.contexts ?? []), ...(checks.checks ?? []).map((c) => c.context)]),
+      ],
+    },
+  };
 }
 
 /** The active ruleset rules on a branch, in one page; any refusal reads as unreadable. */
