@@ -6,6 +6,7 @@ import type { Row } from "../db/scoped.js";
 import { apiError, jsonBody } from "../http.js";
 import { COMMIT_ID } from "../platforms/contents.js";
 import { accessToken } from "../platforms/links.js";
+import { type CodePlatform, repoIdentity } from "../platforms/platform.js";
 import { platformsOf } from "../platforms/registry.js";
 import { perMinute } from "../rate.js";
 import { requireSession } from "../session.js";
@@ -36,12 +37,20 @@ const addSchema = z.object({
   consent: z.boolean().optional(),
 });
 
-const repoView = (r: Row<"graphRepos">, latest: BuildSummary | undefined) =>
-  ({
+const repoView = (
+  r: Row<"graphRepos">,
+  latest: BuildSummary | undefined,
+  platforms: readonly CodePlatform[],
+) => {
+  const base =
+    platforms.find((p) => p.kind === r.platform && p.host === r.host)?.url ?? `https://${r.host}`;
+  return {
     id: r.id,
     platform: r.platform,
     host: r.host,
     fullName: r.fullName,
+    url: `${base}/${r.fullName}`,
+    identity: repoIdentity({ url: base }, r.fullName),
     branch: r.branch,
     latest: latest
       ? {
@@ -54,7 +63,8 @@ const repoView = (r: Row<"graphRepos">, latest: BuildSummary | undefined) =>
           finishedAt: latest.finishedAt?.toISOString() ?? null,
         }
       : null,
-  }) satisfies GraphRepoView;
+  } satisfies GraphRepoView;
+};
 
 export function graphsRoute(service: GraphService) {
   const route = new Hono<AppEnv>();
@@ -69,7 +79,8 @@ export function graphsRoute(service: GraphService) {
       graphs.latestBuilds(),
     ]);
     const byRepo = new Map(latest.map((b) => [b.graphRepoId, b]));
-    return c.json({ repos: repos.map((r) => repoView(r, byRepo.get(r.id))) });
+    const platforms = platformsOf(c.env, c.req.url);
+    return c.json({ repos: repos.map((r) => repoView(r, byRepo.get(r.id), platforms)) });
   });
 
   route.post("/repos", requireSession(), perMinute("settings"), jsonBody(addSchema), async (c) => {
@@ -115,6 +126,7 @@ export function graphsRoute(service: GraphService) {
       repo: repoView(
         repo,
         latest.find((b) => b.graphRepoId === id),
+        [platform],
       ),
       webhook: {
         url: new URL(
@@ -153,6 +165,7 @@ export function graphsRoute(service: GraphService) {
       repo: repoView(
         repo,
         latest.find((b) => b.graphRepoId === repo.id),
+        [platform],
       ),
     });
   });

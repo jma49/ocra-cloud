@@ -4,13 +4,13 @@ import type { GraphRepoView, ImpactSymbol, ImpactView } from "../../../src/share
 // pull request is read from, which changed symbols a finding is about, and
 // what the rail says about the graph it shows.
 
-/** The graph repository of a pull request's repository, written `https://host/path` (ADR-0038). */
+/** The graph repository of a pull request's repository, as the CLI names it (ADR-0038). */
 export function graphRepoOf(
   repos: readonly GraphRepoView[],
   repository: string,
 ): GraphRepoView | undefined {
   const wanted = repository.toLowerCase();
-  return repos.find((r) => `https://${r.host}/${r.fullName}`.toLowerCase() === wanted);
+  return repos.find((r) => r.identity === wanted);
 }
 
 type Placed = { file: string; lineStart: number | null };
@@ -50,7 +50,7 @@ export function noticesOf(view: ImpactView): RailNotice[] {
 export function lineUrl(repo: GraphRepoView, commit: string, path: string, line: number): string {
   const file = path.split("/").map(encodeURIComponent).join("/");
   const blob = repo.platform === "gitlab" ? "-/blob" : "blob";
-  return `https://${repo.host}/${repo.fullName}/${blob}/${commit}/${file}#L${line}`;
+  return `${repo.url}/${blob}/${commit}/${file}#L${line}`;
 }
 
 export const short = (commit: string) => commit.slice(0, 7);
