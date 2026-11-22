@@ -1,3 +1,4 @@
+import { createPrivateKey } from "node:crypto";
 import { graphPolicy } from "../graph/policy.js";
 import { startingModels } from "../preferences.js";
 import type { AppBindings } from "../types.js";
@@ -83,6 +84,22 @@ function isAesKey(value: string): boolean {
   return /^[A-Za-z0-9+/]{43}=?$/.test(value) && Buffer.from(value, "base64").length === 32;
 }
 
+// Checked at start: a wrong id or key would otherwise surface as a failed
+// first review, after a pull request was already waiting on it.
+function checkGithubApp(id: string | undefined, key: string | undefined): void {
+  if (!id || !key) {
+    throw new Error("GitHub auto review needs both GITHUB_APP_ID and GITHUB_APP_PRIVATE_KEY");
+  }
+  if (!/^\d+$/.test(id)) throw new Error(`GITHUB_APP_ID must be the App's number, not ${id}`);
+  try {
+    createPrivateKey(key);
+  } catch {
+    throw new Error(
+      "GITHUB_APP_PRIVATE_KEY is not a PEM private key (\\n for line breaks on one line)",
+    );
+  }
+}
+
 /** TRUSTED_PROXY_HOPS: a whole number of proxies, 0 when unset; throws on anything else. */
 export function trustedProxyHops(value: string | undefined): number {
   if (!value) return 0;
@@ -122,7 +139,8 @@ export function autoReviewSettingsFrom(vars: Record<string, string | undefined>)
     githubAppPrivateKey: vars.GITHUB_APP_PRIVATE_KEY?.replace(/\\n/g, "\n") || undefined,
     gitlabBotToken: vars.GITLAB_BOT_TOKEN || undefined,
   };
-  const github = !!bots.githubAppId && !!bots.githubAppPrivateKey;
+  const github = !!bots.githubAppId || !!bots.githubAppPrivateKey;
+  if (github) checkGithubApp(bots.githubAppId, bots.githubAppPrivateKey);
   if (!github && !bots.gitlabBotToken) return undefined;
   const workers = vars.AUTO_REVIEW_WORKERS || "1";
   if (!/^\d+$/.test(workers)) {

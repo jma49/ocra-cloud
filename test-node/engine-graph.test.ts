@@ -1,3 +1,4 @@
+import { generateKeyPairSync } from "node:crypto";
 import { parseGraph } from "@open-cr-agent/code-graph";
 import { describe, expect, it } from "vitest";
 import { engineGraphBuilder } from "../src/node/engine-graph.js";
@@ -61,17 +62,33 @@ describe("the graph settings", () => {
 });
 
 describe("the auto review settings", () => {
+  const key = generateKeyPairSync("rsa", { modulusLength: 2048 })
+    .privateKey.export({ type: "pkcs1", format: "pem" })
+    .toString();
+
   it("are off without a bot, take one worker by default, and refuse a bad count", () => {
-    expect(autoReviewSettingsFrom({ GITHUB_APP_ID: "1" })).toBeUndefined();
+    expect(autoReviewSettingsFrom({})).toBeUndefined();
     expect(autoReviewSettingsFrom({ GITLAB_BOT_TOKEN: "t" })).toMatchObject({ workers: 1 });
     const one = autoReviewSettingsFrom({
       GITHUB_APP_ID: "1",
-      GITHUB_APP_PRIVATE_KEY: "-----BEGIN\\nKEY",
+      GITHUB_APP_PRIVATE_KEY: key.replaceAll("\n", "\\n"),
       AUTO_REVIEW_WORKERS: "0",
     });
-    expect(one).toMatchObject({ workers: 0, bots: { githubAppPrivateKey: "-----BEGIN\nKEY" } });
+    expect(one).toMatchObject({ workers: 0, bots: { githubAppPrivateKey: key } });
     expect(() =>
       autoReviewSettingsFrom({ GITLAB_BOT_TOKEN: "t", AUTO_REVIEW_WORKERS: "x" }),
     ).toThrow("AUTO_REVIEW_WORKERS");
+  });
+
+  it("refuse a GitHub App that would fail its first review", () => {
+    expect(() => autoReviewSettingsFrom({ GITHUB_APP_ID: "1" })).toThrow(
+      "needs both GITHUB_APP_ID and GITHUB_APP_PRIVATE_KEY",
+    );
+    expect(() =>
+      autoReviewSettingsFrom({ GITHUB_APP_ID: "ocra-bot", GITHUB_APP_PRIVATE_KEY: key }),
+    ).toThrow("GITHUB_APP_ID must be the App's number");
+    expect(() =>
+      autoReviewSettingsFrom({ GITHUB_APP_ID: "1", GITHUB_APP_PRIVATE_KEY: "-----BEGIN\\nKEY" }),
+    ).toThrow("GITHUB_APP_PRIVATE_KEY is not a PEM private key");
   });
 });

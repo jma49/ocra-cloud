@@ -88,6 +88,31 @@ Without Docker: `npm ci && npm run build:web && npm run build:node`, then `node 
 
 Serve it over HTTPS: session cookies are `__Host-` cookies, which browsers keep only on secure origins.
 
+## A GitHub App of your own
+
+On GitHub, one App of the company's own does three things: people sign in with it, the console acts as each person through it (comments, reviews, merges, fixes, issues), and its installation is the bot that reviews. Create it under the organization: Settings, Developer settings, GitHub Apps, New GitHub App.
+
+- **Callback URL** `<PUBLIC_URL>/api/auth/github/callback`, with "Expire user authorization tokens" on.
+- **Webhook** active, URL `<PUBLIC_URL>/api/webhooks/github`, and a secret of your choosing: `GITHUB_WEBHOOK_SECRET`. The server refuses webhooks without it, and a delivery whose signature does not match answers 401.
+- **Repository permissions**, each needed by what follows it:
+
+| Permission | Access | Used for |
+|---|---|---|
+| Contents | Read and write | reading the code to review; committing a finding's fix, applied suggestions, learnings and configuration as the person; generated tests and docstrings as the bot |
+| Pull requests | Read and write | the inbox and pull request page; comments, reviews and merges as the person; the bot's reviews and answers |
+| Issues | Read and write | opening an issue from a finding |
+| Checks | Read and write | the `ocra / pre-merge` check run; merge when ready reading check runs |
+| Commit statuses | Read | merge when ready reading statuses |
+| Administration | Read | the merge readiness checklist's branch rule; without it those rows read unknown |
+| Metadata | Read | required by GitHub |
+
+- **Organization permission** Members: Read, for team code owners in the readiness checklist.
+- **Events**: Push, Pull request, Pull request review, Pull request review comment, Issue comment, Check suite, Check run and Status.
+- Then set `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` (the App's client), `GITHUB_APP_SLUG`, `GITHUB_APP_ID` (its number), and `GITHUB_APP_PRIVATE_KEY`: a private key generated on the App's page, on one line with `\n` for its line breaks (`awk '{printf "%s\\n", $0}' key.pem`). The server refuses to start with only one of the id and the key, or a key it cannot read.
+- Install the App on the repositories it should review. Each review then gets an installation token limited to its repository.
+
+Adding a permission later makes GitHub ask each installation, and each person on their next sign-in, to accept it.
+
 ## Company models
 
 `MODEL_ENDPOINTS` declares the company's own model endpoints, such as an internal gateway in front of vLLM or a hosted model, as a JSON list:
@@ -152,6 +177,7 @@ A pull request's impact (`/api/graphs/repos/<id>/impact?pull=<number>`) is compu
 
 ## Limits of this first version
 
+- GitHub means github.com: GitHub Enterprise Server is not supported yet.
 - Set GitHub, OpenID Connect or both; the server refuses to start with neither. An account belongs to the identity it signed in with: the same person through GitHub and through SSO is two accounts.
 - Back up the `/data` volume, or the Postgres database; there is no Time Travel as on D1.
 
