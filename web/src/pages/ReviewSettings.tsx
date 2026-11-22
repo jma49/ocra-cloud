@@ -108,6 +108,24 @@ export function ReviewSettings() {
 
       <div className="section card">
         <div className="card-head">
+          <h3>Context</h3>
+          <span className="subtle small">What reviewers read besides the change.</span>
+        </div>
+        <Row
+          label="Linked tasks"
+          desc="The issues a pull request closes, and Jira or TAPD tasks it names, so reviewers can check it does what was asked."
+        >
+          <TriSwitch
+            label="Give reviewers linked tasks"
+            value={settings.linkedTasks}
+            fallback={true}
+            onChange={(v) => set("linkedTasks", v)}
+          />
+        </Row>
+      </div>
+
+      <div className="section card">
+        <div className="card-head">
           <h3>Files</h3>
           <span className="subtle small">Globs, matched against paths in the change.</span>
         </div>
