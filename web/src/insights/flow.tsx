@@ -19,7 +19,7 @@ const SIZE_LABEL: Record<keyof Flow["sizes"], string> = {
   unknown: "Size not known",
 };
 
-const week = (iso: string) =>
+export const week = (iso: string) =>
   new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" });
 
 const empty = (f: Flow) =>
@@ -57,7 +57,7 @@ export function FlowSection(props: { days: number }) {
   );
 }
 
-function Figure(props: { label: string; spread: FlowSpread }) {
+export function Figure(props: { label: string; spread: FlowSpread }) {
   return (
     <div className="cycle-figure">
       <div className="stat-label">{props.label}</div>
@@ -69,7 +69,7 @@ function Figure(props: { label: string; spread: FlowSpread }) {
   );
 }
 
-function Bar(props: { n: number; of: number; tone: string; label: string }) {
+export function Bar(props: { n: number; of: number; tone: string; label: string }) {
   return (
     <span className="flow-bar">
       <span className="flow-track">

@@ -1,0 +1,161 @@
+import type { ImpactCounts, InsightsImpactView } from "../../../src/shared/index.js";
+import { api } from "../api.js";
+import { useCached } from "../cache.js";
+import { count, num } from "../format.js";
+import { LoadError, Loading } from "../ui.js";
+import { Bar, Figure, week } from "./flow.js";
+
+// What ocra's reviews changed in the enrolled repositories: how much it
+// reviewed, what it found and what became of that, and whether reviewed
+// pull requests merged sooner.
+
+type Impact = InsightsImpactView;
+
+const SEVERITIES = [
+  { key: "critical", label: "Critical", tone: "critical" },
+  { key: "warning", label: "Warning", tone: "warning" },
+  { key: "suggestion", label: "Suggestion", tone: "opened" },
+] as const;
+
+const found = (c: ImpactCounts) => c.findings.critical + c.findings.warning + c.findings.suggestion;
+const share = (n: number, of: number) => (of ? `${Math.round((n / of) * 100)}%` : "–");
+
+export function ImpactSection(props: { days: number }) {
+  const path = `/insights/impact?days=${props.days}`;
+  const { data, error, reload } = useCached(path, () => api<Impact>(path));
+  return (
+    <section className="section card" aria-label="What ocra changed">
+      <div className="card-head">
+        <h3>
+          What ocra changed{" "}
+          <span className="subtle">in enrolled repositories, {props.days} days</span>
+        </h3>
+      </div>
+      {error && !data ? (
+        <div className="card-pad">
+          <LoadError what="what ocra changed" error={error} retry={reload} />
+        </div>
+      ) : !data ? (
+        <div className="card-pad">
+          <Loading what="what ocra changed" />
+        </div>
+      ) : data.total.pulls === 0 && data.total.reviews === 0 ? (
+        <p className="card-pad subtle small m-0">
+          Nothing recorded in this period. This counts ocra's reviews of pull requests in
+          repositories enrolled for auto review, from the day each was enrolled.
+        </p>
+      ) : (
+        <ImpactBody data={data} />
+      )}
+    </section>
+  );
+}
+
+function Stat(props: { label: string; value: string; note: string }) {
+  return (
+    <div className="cycle-figure">
+      <div className="stat-label">{props.label}</div>
+      <div className="stat-value">{props.value}</div>
+      <div className="stat-note">{props.note}</div>
+    </div>
+  );
+}
+
+function ImpactBody(props: { data: Impact }) {
+  const { data } = props;
+  const t = data.total;
+  const findings = found(t);
+  const most = Math.max(1, ...data.weeks.map((w) => w.pulls));
+  const { fromReview, reviewed, unreviewed } = data.toMerge;
+  return (
+    <>
+      <div className="cycle-figures">
+        <Stat
+          label="Pull requests reviewed"
+          value={share(t.reviewedPulls, t.pulls)}
+          note={`${num(t.reviewedPulls)} of ${num(t.pulls)} opened · ${count(t.reviews, "review")}`}
+        />
+        <Stat
+          label="Findings"
+          value={num(findings)}
+          note={`${num(t.findings.critical)} critical · ${num(t.findings.warning)} warning`}
+        />
+        <Stat
+          label="Fixed in the code"
+          value={num(t.fixedOnRereview)}
+          note={`not found again on a later review · ${num(t.dismissedOnRereview)} dismissed by a reviewer`}
+        />
+      </div>
+      {reviewed.count > 0 && unreviewed.count > 0 && (
+        <div className="cycle-figures">
+          <Figure label="Opened to merge, reviewed by ocra" spread={reviewed} />
+          <Figure label="Opened to merge, not reviewed" spread={unreviewed} />
+          <Figure label="First ocra review to merge" spread={fromReview} />
+        </div>
+      )}
+      {data.capped && (
+        <p className="card-pad muted small m-0">
+          This period held more than one reading counts: these are the newest.
+        </p>
+      )}
+      <div className="flow-grid">
+        <div>
+          <div className="stat-label">Opened and reviewed, by week</div>
+          <ul className="flow-rows">
+            {data.weeks.map((w) => (
+              <li key={w.start}>
+                <span className="muted">{week(w.start)}</span>
+                <Bar n={w.pulls} of={most} tone="opened" label="opened" />
+                <Bar n={w.reviewedPulls} of={most} tone="merged" label="reviewed" />
+              </li>
+            ))}
+          </ul>
+        </div>
+        {findings > 0 && (
+          <div>
+            <div className="stat-label">Findings, by severity</div>
+            <ul className="flow-rows sizes">
+              {SEVERITIES.map((s) => (
+                <li key={s.key}>
+                  <span className="muted">{s.label}</span>
+                  <Bar n={t.findings[s.key]} of={findings} tone={s.tone} label="" />
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+      <p className="card-pad subtle small m-0">
+        {t.actedOn
+          ? `In the console: ${num(t.actedOn.fixed)} marked fixed, ${num(t.actedOn.dismissed)} dismissed, ${num(t.actedOn.open)} open, ${count(t.actedOn.issueOpened, "issue")} opened from a finding.`
+          : "Share findings in Settings to count what was marked fixed or dismissed in the console."}
+      </p>
+      {data.repos.length > 1 && (
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Repository</th>
+                <th className="num">Opened</th>
+                <th className="num">Reviewed</th>
+                <th className="num">Findings</th>
+                <th className="num hide-narrow">Fixed</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.repos.map((r) => (
+                <tr key={r.repo}>
+                  <td className="mono">{r.repo}</td>
+                  <td className="num">{num(r.pulls)}</td>
+                  <td className="num">{share(r.reviewedPulls, r.pulls)}</td>
+                  <td className="num">{num(found(r))}</td>
+                  <td className="num hide-narrow">{num(r.fixedOnRereview)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </>
+  );
+}

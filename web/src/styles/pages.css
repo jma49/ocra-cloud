@@ -862,6 +862,12 @@ td.finding-cell {
 .flow-track .merged {
   background: var(--primary);
 }
+.flow-track .critical {
+  background: var(--red);
+}
+.flow-track .warning {
+  background: var(--amber);
+}
 /* Reviewer workload: a week per row, its median over its p90 on one track. */
 .load-weeks {
   padding: 12px 16px 16px;
