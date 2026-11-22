@@ -22,6 +22,8 @@ export type GithubPull = {
   ruleRefused?: boolean;
   /** GitHub's REST answer for the branch rule, asked when GraphQL gives none. */
   protection?: { status: number; body: Record<string, unknown> };
+  /** GitHub's REST answer for the base branch itself, asked when its rule is refused. */
+  branch?: { status: number; body: Record<string, unknown> };
   /** GitHub's REST answer for the rules on the base branch; none by default. */
   rulesets?: { status: number; body: unknown };
   decision?: string | null;
@@ -42,6 +44,12 @@ export const PLAN = {
   body: { message: "Upgrade to GitHub Pro or make this repository public to enable this feature." },
 };
 
+const PROTECTED_BRANCH = {
+  name: "main",
+  protected: true,
+  protection: { enabled: true, required_status_checks: { enforcement_level: "off", contexts: [] } },
+};
+export const BRANCH = "GET https://api.github.com/repos/octo/api/branches/main";
 export const PROTECTION = "GET https://api.github.com/repos/octo/api/branches/main/protection";
 const RULESETS = "https://api.github.com/repos/octo/api/rules/branches/main?per_page=100";
 export const RULESETS_CALL = `GET ${RULESETS}`;
@@ -75,6 +83,10 @@ export function githubPull(p: GithubPull = {}) {
       calls.push(`${req.method} ${req.url}`);
       if (req.url === "https://api.github.com/repos/octo/api/branches/main/protection") {
         const answer = p.protection ?? REFUSED;
+        return Response.json(answer.body, { status: answer.status });
+      }
+      if (req.url === "https://api.github.com/repos/octo/api/branches/main") {
+        const answer = p.branch ?? { status: 200, body: PROTECTED_BRANCH };
         return Response.json(answer.body, { status: answer.status });
       }
       if (req.url === RULESETS) {
