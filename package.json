@@ -27,41 +27,45 @@
     "@open-cr-agent/cloud-contract": "0.9.0",
     "@open-cr-agent/code-graph": "0.9.0",
     "drizzle-orm": "^0.45.4",
-    "hono": "^4.13.13",
+    "hono": "^4.13.19",
     "pg": "^8.23.1",
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.15",
-    "@cloudflare/vitest-pool-workers": "^0.22.0",
-    "@electric-sql/pglite": "^0.3.16",
-    "@electric-sql/pglite-socket": "^0.0.22",
+    "@biomejs/biome": "^2.6.8",
+    "@cloudflare/vitest-pool-workers": "^0.23.0",
+    "@electric-sql/pglite": "^0.5.16",
+    "@electric-sql/pglite-socket": "^0.2.19",
     "@fontsource-variable/inter": "^5.3.0",
     "@fontsource-variable/jetbrains-mono": "^5.3.0",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/react": "^16.3.3",
-    "@types/node": "^26.6.5",
+    "@types/node": "^26.6.6",
     "@types/pg": "^8.23.1",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "@vitejs/plugin-react": "^6.1.1",
+    "@vitejs/plugin-react": "^6.3.0",
     "drizzle-kit": "^0.31.11",
     "esbuild": "^0.28.2",
-    "happy-dom": "^20.14.5",
-    "knip": "^6.42.1",
+    "happy-dom": "^21.0.4",
+    "knip": "^6.45.1",
     "kubai-icons-react": "^0.13.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "typescript": "^7.0.2",
-    "vite": "^8.3.2",
-    "vitest": "^4.1.11",
-    "wrangler": "^4.151.2"
+    "vite": "^8.3.8",
+    "vitest": "^4.1.12",
+    "wrangler": "^4.162.0"
   },
-  "packageManager": "npm@10.9.9",
+  "packageManager": "npm@11.21.3",
   "overrides": {
     "@cloudflare/vitest-pool-workers": {
       "wrangler": "$wrangler",
-      "miniflare": "5.20261006.1-alpha"
+      "miniflare": {
+        ".": "5.20261006.1-alpha",
+        "undici": "^7.30.2"
+      },
+      "zod": "$zod"
     },
     "@esbuild-kit/core-utils": {
       "esbuild": "^0.25.4"

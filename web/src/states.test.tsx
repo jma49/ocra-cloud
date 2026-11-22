@@ -256,6 +256,10 @@ describe("loading and load errors", () => {
   });
 });
 
+const Boom = () => {
+  throw new Error("boom");
+};
+
 describe("addresses and crashes", () => {
   it("a malformed review id is a 404 page, not a crash", () => {
     fakeApi(never);
@@ -272,9 +276,6 @@ describe("addresses and crashes", () => {
 
   it("a page that throws is caught, not a blank app", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const Boom = () => {
-      throw new Error("boom");
-    };
     render(
       <ErrorBoundary>
         <Boom />
