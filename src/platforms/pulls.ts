@@ -1,7 +1,10 @@
 import type { PullItem, PullRole } from "../shared/index.js";
 
 /** A pull request as a platform lists it, before the account's own reviews say anything of it. */
-export type PlatformPull = Omit<PullItem, "verdict" | "unread" | "unreadReason">;
+export type PlatformPull = Omit<PullItem, "verdict" | "unread" | "unreadReason" | "stack"> & {
+  /** Its branch names, which stack it; null when its head is in a fork. */
+  branches: { head: string; base: string } | null;
+};
 
 export type PullListing = {
   pulls: PlatformPull[];

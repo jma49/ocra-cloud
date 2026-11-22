@@ -11,7 +11,7 @@ import { pullVerdicts } from "./pull-verdicts.js";
 import { perMinute } from "./rate.js";
 import { MAX_NAMED } from "./repositories.js";
 import { requireSession } from "./session.js";
-import { type PullItem, pullUnread } from "./shared/index.js";
+import { type PullItem, pullUnread, stackPlaces } from "./shared/index.js";
 import type { AppEnv } from "./types.js";
 
 // What the signed-in user reaches on each connected code platform, read
@@ -79,7 +79,8 @@ platformsRoute.get("/repos", requireSession(), async (c) => {
 // or since its inbox baseline when it never did.
 // With group=views it also answers the account's visible views (or the
 // defaults while it has none), each with the pulls it holds, evaluated here
-// over this same listing.
+// over this same listing. Open pulls stacked on one another in a repository
+// carry their place in the stack, read from this listing's branches alone.
 platformsRoute.get("/pulls", requireSession(), async (c) => {
   const group = c.req.query("group");
   if (group !== undefined && group !== "views") {
@@ -102,14 +103,28 @@ platformsRoute.get("/pulls", requireSession(), async (c) => {
     pullSeenStates(c.var.data, listed),
     c.var.data.pullSeen.baseline(c.var.session.account.inboxSince),
   ]);
-  const platforms = listed.map(({ platform, head, pulls, ...rest }) => ({
-    ...head,
-    ...rest,
-    pulls: pulls.map((p): PullItem => {
-      const { verdict, reviewedAt } = reviewsOf(platform, p);
-      return { ...p, verdict, ...pullUnread(p, seenOf(platform, p), reviewedAt, since) };
-    }),
-  }));
+  const platforms = listed.map(({ platform, head, pulls, ...rest }) => {
+    const stacked = pulls.flatMap((p) =>
+      p.state === "open" && p.branches ? [{ repo: p.repo, number: p.number, ...p.branches }] : [],
+    );
+    const places = stackPlaces(stacked);
+    const placeOf = new Map(stacked.map((p, i) => [`${p.repo}#${p.number}`, places[i]]));
+    return {
+      ...head,
+      ...rest,
+      pulls: pulls.map((pull): PullItem => {
+        const { branches: _, ...p } = pull;
+        const { verdict, reviewedAt } = reviewsOf(platform, pull);
+        const stack = placeOf.get(`${p.repo}#${p.number}`);
+        return {
+          ...p,
+          verdict,
+          ...pullUnread(p, seenOf(platform, pull), reviewedAt, since),
+          ...(stack ? { stack } : {}),
+        };
+      }),
+    };
+  });
   if (group !== "views") return c.json({ platforms });
   return c.json({ platforms, sections: await sectionsOf(c.var.data, platforms, Date.now()) });
 });
