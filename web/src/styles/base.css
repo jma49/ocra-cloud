@@ -70,6 +70,18 @@
   --r-ctl: 8px;
   --r-sheet: 10px;
 
+  /* The type scale: every size the console sets, 13px body. */
+  --text-2xs: 10px;
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-base: 13px;
+  --text-md: 14px;
+  --text-lg: 16px;
+  --text-xl: 18px;
+  --text-2xl: 20px;
+  --text-3xl: 24px;
+  --text-4xl: 30px;
+
   --font: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
   --display: var(--font);
   --mono: "JetBrains Mono Variable", ui-monospace, monospace;
@@ -151,7 +163,7 @@ body {
   min-height: 100vh;
   background: var(--ground);
   color: var(--fg);
-  font: 400 13px / 20px var(--font);
+  font: 400 var(--text-base) / 20px var(--font);
   font-feature-settings: "cv11", "ss01";
   font-kerning: normal;
   -webkit-font-smoothing: antialiased;
@@ -165,7 +177,7 @@ a {
 code,
 .mono {
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 h1,
 h2,
@@ -201,10 +213,10 @@ input {
   color: var(--fg-subtle);
 }
 .small {
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 .caps {
-  font-size: 10px;
+  font-size: var(--text-2xs);
   line-height: 16px;
   font-weight: 500;
   letter-spacing: 0.5px;

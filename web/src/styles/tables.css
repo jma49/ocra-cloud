@@ -6,7 +6,7 @@
 table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: var(--text-base);
 }
 th {
   text-align: left;
@@ -15,7 +15,7 @@ th {
   padding: 8px 12px;
   border-bottom: 0.5px solid var(--hair2);
   white-space: nowrap;
-  font-size: 10px;
+  font-size: var(--text-2xs);
   letter-spacing: 0.5px;
   text-transform: uppercase;
   background: transparent;
@@ -61,7 +61,7 @@ th.num {
   border-radius: var(--r-ctl);
   display: grid;
   place-items: center;
-  font: 600 12px var(--font);
+  font: 600 var(--text-sm) var(--font);
   flex: none;
   border: 0;
   background: var(--fill2);
@@ -74,7 +74,7 @@ th.num {
 }
 .error {
   color: var(--critical);
-  font-size: 13px;
+  font-size: var(--text-base);
 }
 tr.selected td {
   background: var(--tint);
