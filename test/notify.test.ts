@@ -125,6 +125,12 @@ describe("the channels", () => {
     const b = await signIn(2, "hubot");
     const res = await add(a.auth, { kind: "slack", name: "team", when: "every", url: SLACK });
     const { channel } = (await res.json()) as { channel: { id: string } };
+    const rename = await call(`/api/notifications/channels/${channel.id}`, {
+      method: "PATCH",
+      auth: b.auth,
+      json: { name: "taken" },
+    });
+    expect(rename.status).toBe(404);
     const theirs = await call("/api/notifications/channels", { auth: b.auth });
     expect(await theirs.json()).toEqual({ channels: [] });
     const test = await call(`/api/notifications/channels/${channel.id}/test`, {
