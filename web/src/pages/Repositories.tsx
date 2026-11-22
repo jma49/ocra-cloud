@@ -3,6 +3,7 @@ import type { CodePlatformKind } from "../../../src/shared/index.js";
 import { api, type Me, why } from "../api.js";
 import { useCached } from "../cache.js";
 import { ago, num } from "../format.js";
+import { PlatformMark } from "../platform-mark.js";
 import { LoadError, Loading, PageHead, useAction, useLoad } from "../ui.js";
 
 // The repositories the account's reviews came from, by name: the one the
@@ -34,7 +35,7 @@ type PlatformRepos = {
 
 const PLATFORM_NAME: Record<CodePlatformKind, string> = { github: "GitHub", gitlab: "GitLab" };
 
-type Known = { name: string; where: string | null };
+type Known = { name: string; platform: CodePlatformKind | null; where: string | null };
 
 /** What the page knows a repository as, and on which platform; null when only its hash is known. */
 function knownAs(r: Repo, platforms: PlatformRepos["platforms"]): Known | null {
@@ -50,7 +51,8 @@ function knownAs(r: Repo, platforms: PlatformRepos["platforms"]): Known | null {
         : r.pulledFrom.host
       : null;
   const name = r.name ?? listed?.x.fullName ?? r.pulledFrom?.repo;
-  return name ? { name, where } : null;
+  const platform = listed?.p.platform ?? pulledOn?.platform ?? null;
+  return name ? { name, platform, where } : null;
 }
 
 function NameField(props: { repo: Repo; current: string; done: (saved: boolean) => void }) {
@@ -112,7 +114,10 @@ function RepoName(props: { repo: Repo; known: Known | null; saved: () => void })
   return (
     <div className="repo-name">
       <div>
-        <div className={known ? "mono strong" : "muted"}>{known?.name ?? "Unknown repository"}</div>
+        <div className={known ? "mono strong with-mark" : "muted"}>
+          {known?.platform && <PlatformMark platform={known.platform} size={14} />}
+          {known?.name ?? "Unknown repository"}
+        </div>
         <div className="subtle small">
           {known?.where ? `${known.where} · ` : ""}
           <span className="mono">{repo.repo}</span>

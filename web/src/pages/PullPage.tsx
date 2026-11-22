@@ -9,6 +9,7 @@ import type {
   PullVerdict,
 } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
+import { PlatformMark } from "../platform-mark.js";
 import { splitPath } from "../pull/diff.js";
 import { FileDiff } from "../pull/file-diff.js";
 import { OUTCOME } from "../pull/outcome.js";
@@ -78,9 +79,9 @@ export function PullPage(props: { platform: string; repo: string; number: string
         title={title}
         sub={
           <>
-            {data.files.length} files · <span className="add-n">+{total.add}</span>{" "}
-            <span className="del-n">−{total.del}</span> · head{" "}
-            <span className="mono">{data.head.slice(0, 7)}</span>
+            <PlatformMark platform={platform} size={14} /> {data.files.length} files ·{" "}
+            <span className="add-n">+{total.add}</span> <span className="del-n">−{total.del}</span>{" "}
+            · head <span className="mono">{data.head.slice(0, 7)}</span>
           </>
         }
       />
