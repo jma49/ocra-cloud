@@ -9,5 +9,6 @@ export * from "./efforts.js";
 export * from "./graphs.js";
 export * from "./impact.js";
 export * from "./models.js";
+export * from "./pull-page.js";
 export * from "./pulls.js";
 export * from "./sign-in.js";

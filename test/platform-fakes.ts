@@ -94,7 +94,7 @@ export async function connectGitlab(a: Awaited<ReturnType<typeof signInWithGithu
   expect(start.status).toBe(302);
   const to = new URL(start.headers.get("location") ?? "");
   expect(to.origin + to.pathname).toBe(`${GITLAB}/oauth/authorize`);
-  expect(to.searchParams.get("scope")).toBe("read_api");
+  expect(to.searchParams.get("scope")).toBe("api");
   const state = to.searchParams.get("state") ?? "";
   const stateCookie = `__Host-ocra_gitlab_state=${cookieValue(start, "__Host-ocra_gitlab_state")}`;
   return (query: string, cookie = a.cookie) =>
