@@ -14,7 +14,7 @@ import {
 // where it is at the reviewed head, its text, and the pull request it was
 // found on. The finding's text came from the reviewed change through the
 // CLI, so it may be hostile: each line goes through `inline` (no HTML, no
-// Markdown syntax), and every @ is broken so no mention reaches anyone.
+// Markdown syntax, every @ broken), and the title through `unmentioned`.
 
 const SEVERITY: Record<Severity, string> = {
   critical: "Critical",
