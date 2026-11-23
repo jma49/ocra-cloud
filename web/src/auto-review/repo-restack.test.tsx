@@ -100,3 +100,24 @@ describe("a repository's restacks", () => {
     expect(rows[2]?.textContent).toContain("The branch already holds its new base");
   });
 });
+
+describe("an open restack panel", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("shows a restack queued after it opened, and follows it to its end", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    let jobs: RestackJobView[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ restack: true, jobs })),
+    );
+    render(<RepoRestack r={{ ...repo, restack: true }} onChanged={() => {}} />);
+    expect(await screen.findByText("No restacks yet.")).toBeTruthy();
+    jobs = [job({ state: "queued", outcome: null, to: null, finishedAt: null })];
+    await act(() => vi.advanceTimersByTimeAsync(15_000));
+    expect(screen.getByRole("listitem").textContent).toContain("Queued");
+    jobs = [job({})];
+    await act(() => vi.advanceTimersByTimeAsync(4_000));
+    expect(screen.getByRole("listitem").textContent).toContain("Restacked");
+  });
+});
