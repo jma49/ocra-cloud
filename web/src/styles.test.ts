@@ -65,3 +65,25 @@ describe("control heights", () => {
     expect(fixed.map((rule) => rule.trim().split("{")[0]?.trim())).toEqual([]);
   });
 });
+
+describe("spacing scale", () => {
+  const scale = new Set([0, 0.5, 1, 2, 4, 6, 8, 12, 16, 24, 32, 48, 64]);
+  // A margin under 8px is an optical nudge (a dot centred on a line of text), not a step of the layout.
+  const offScale = (property: string, px: number) =>
+    !scale.has(px) && !(property.startsWith("margin") && px < 8);
+  it.each(sheets.filter((sheet) => sheet !== "signin.css"))(
+    "%s sets paddings, gaps and margins on the scale",
+    (sheet) => {
+      const declarations =
+        css(sheet)
+          .replace(/\/\*[\s\S]*?\*\//g, "")
+          .match(/(?<![a-z-])(?:padding|margin|gap|row-gap|column-gap)[a-z-]*:[^;{}]+;/g) ?? [];
+      const off = declarations.filter((declaration) => {
+        const property = declaration.split(":")[0] ?? "";
+        const lengths = declaration.replace(/var\([^)]*\)/g, "").match(/\d*\.?\d+(?=px)/g) ?? [];
+        return lengths.some((px) => offScale(property, Number(px)));
+      });
+      expect(off).toEqual([]);
+    },
+  );
+});
