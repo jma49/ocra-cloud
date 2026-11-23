@@ -4,7 +4,7 @@ import { type ReportSchedule, reportAccounts } from "../db/reports.js";
 import { scoped } from "../db/scoped.js";
 import { DAY, HOUR, MINUTE, utcDay, utcDayStart } from "../time.js";
 import { type Message, plain } from "./channels.js";
-import { forAccounts, type Merges, mergedLines, plural } from "./digest.js";
+import { forAccounts, type Merges, mergedLines, periodWhens, plural } from "./digest.js";
 import { type Outbox, send } from "./notify.js";
 
 // The weekly report: the seven days before each account's slot (a UTC
@@ -118,7 +118,7 @@ async function sendReport(
     data.closedPulls.mergeTimes(from, to, MAX_MERGE_TIMES),
   ]);
   if (digest.reviews === 0 && merges.merged === 0) return false;
-  const channels = await data.notify.reporting();
+  const channels = await data.notify.reporting(periodWhens(digest, merges));
   const m = reportMessage(
     {
       from: utcDay(from),

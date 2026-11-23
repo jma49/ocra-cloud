@@ -29,6 +29,9 @@ const DIGEST_TITLES = 5;
 
 export type DigestNumbers = {
   reviews: number;
+  /** Of those, the reviews with a critical finding, and those with any. */
+  blocking: number;
+  withFindings: number;
   pulls: number;
   critical: number;
   warning: number;
@@ -160,20 +163,20 @@ export function accountNotify(db: Db, accountId: string) {
       await db.update(accounts).set({ timeZone }).where(eq(accounts.id, accountId));
     },
 
-    /** The confirmed channels that get the digest. */
-    digesting() {
+    /** The confirmed channels set to one of whens that get the digest. */
+    digesting(whens: readonly NotifyWhen[]) {
       return db
         .select()
         .from(t)
-        .where(and(own, eq(t.digest, true), isNotNull(t.confirmedAt)));
+        .where(and(own, eq(t.digest, true), inArray(t.when, [...whens]), isNotNull(t.confirmedAt)));
     },
 
-    /** The confirmed channels that get the weekly report. */
-    reporting() {
+    /** The confirmed channels set to one of whens that get the weekly report. */
+    reporting(whens: readonly NotifyWhen[]) {
       return db
         .select()
         .from(t)
-        .where(and(own, eq(t.weekly, true), isNotNull(t.confirmedAt)));
+        .where(and(own, eq(t.weekly, true), inArray(t.when, [...whens]), isNotNull(t.confirmedAt)));
     },
 
     /** A new link for an unconfirmed address; false once it is confirmed or gone. */
@@ -225,6 +228,8 @@ export function accountNotify(db: Db, accountId: string) {
         db
           .select({
             reviews: sql<number>`count(*)`,
+            blocking: sql<number>`coalesce(sum(CASE WHEN ${r.critical} > 0 THEN 1 ELSE 0 END), 0)`,
+            withFindings: sql<number>`coalesce(sum(CASE WHEN ${r.findings} > 0 THEN 1 ELSE 0 END), 0)`,
             pulls: sql<number>`count(DISTINCT ${r.prRepository} || '#' || ${r.prNumber})`,
             critical: sql<number>`coalesce(sum(${r.critical}), 0)`,
             warning: sql<number>`coalesce(sum(${r.warning}), 0)`,
@@ -256,6 +261,8 @@ export function accountNotify(db: Db, accountId: string) {
       ]);
       return {
         reviews: Number(counts?.reviews ?? 0),
+        blocking: Number(counts?.blocking ?? 0),
+        withFindings: Number(counts?.withFindings ?? 0),
         pulls: Number(counts?.pulls ?? 0),
         critical: Number(counts?.critical ?? 0),
         warning: Number(counts?.warning ?? 0),
