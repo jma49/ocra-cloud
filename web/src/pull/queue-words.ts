@@ -28,6 +28,16 @@ export const QUEUE_STATE: Record<QueueState, { label: string; tone: string; says
   },
 };
 
+/** With nothing ahead of it there are no others to wait for. */
+const FIRST: Partial<Record<QueueState, string>> = {
+  waiting: "Waiting for the queue to start on it.",
+  ready: "Its checks passed in the queue. It merges next.",
+};
+
+/** What happens to an entry in its state, said for its place in the line. */
+export const queueSays = (entry: QueueEntry): string =>
+  (entry.position === 1 && FIRST[entry.state]) || QUEUE_STATE[entry.state].says;
+
 const ordinal = (n: number) => {
   const tens = n % 100;
   const ending = tens > 10 && tens < 14 ? "th" : (["th", "st", "nd", "rd"][n % 10] ?? "th");

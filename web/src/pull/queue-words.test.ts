@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { queuePlace, queueRemoval, queueSize } from "./queue-words.js";
+import { queuePlace, queueRemoval, queueSays, queueSize } from "./queue-words.js";
 
 const entry = {
   state: "checking" as const,
@@ -50,5 +50,17 @@ describe("a merge queue entry in words", () => {
     expect(queueSize(0)).toBe("The queue is empty now.");
     expect(queueSize(1)).toBe("1 pull request in the queue now.");
     expect(queueSize(4)).toBe("4 pull requests in the queue now.");
+  });
+});
+
+describe("what happens to a queue entry", () => {
+  const at = (state: "waiting" | "ready" | "checking", position: number) =>
+    queueSays({ state, position, enqueuedAt: null, enqueuedBy: null, estimate: null });
+
+  it("names no pull requests ahead of the one at the front", () => {
+    expect(at("waiting", 2)).toBe("Waiting for the pull requests ahead of it.");
+    expect(at("waiting", 1)).toBe("Waiting for the queue to start on it.");
+    expect(at("ready", 1)).toBe("Its checks passed in the queue. It merges next.");
+    expect(at("checking", 1)).toBe("The queue is running the checks on it as it would land.");
   });
 });

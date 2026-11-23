@@ -147,6 +147,27 @@ describe("GitHub's merge queue", () => {
     expect((await read()).removed).toBeNull();
   });
 
+  it("gives no reason for a removal a person asked for: who took it out says it", async () => {
+    const removal = {
+      __typename: "RemovedFromMergeQueueEvent",
+      createdAt: "2026-11-23T10:05:00Z",
+      reason: "manual",
+      actor: { login: "octo" },
+    };
+    fake((url, body) =>
+      url === GRAPHQL && isStanding(body)
+        ? standingNode({
+            mergeQueue: { entries: { totalCount: 0, nodes: [] } },
+            mergeQueueEntry: null,
+            timelineItems: { nodes: [removal] },
+          })
+        : undefined,
+    );
+    const a = await signInWithGithub();
+    const view = (await (await a.send(status)).json()) as { removed: unknown };
+    expect(view.removed).toEqual({ at: "2026-11-23T10:05:00Z", by: "octo", reason: null });
+  });
+
   it("still says where it stands when the platform refuses the fuller read, and whether the branch has a queue", async () => {
     const answers = [pullNode({ state: "AWAITING_CHECKS", position: 2 }), pullNode(null, false)];
     fake((url, body) => {
