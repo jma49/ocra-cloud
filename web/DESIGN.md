@@ -99,6 +99,7 @@ A new shared control comes from coss ui first, then from a small component in `w
 ## Accessibility
 
 - Focus is always visible, drawn only in `--focus` **(test, `styles.test.ts`)**.
+- **The page bar's crumb:** a page under a place (a pull request, a review) names itself after the place, and the place is a link back. A pull request opened from the inbox also shows where it stands there ("2 of 8") with previous and next, `[` and `]` (`web/src/inbox/queue-nav.tsx`); the inbox's order is kept only while the console is open.
 - **A page's commands** (`usePageCommands`, `web/src/page-commands.ts`): what a work page does is said once, as a label, an action and at most one unmodified key. The command menu lists them first under the page's name with the key beside each, and the key runs the same action on the page, never while typing or in a drawer. Keys keep one meaning everywhere: `j`/`k` next and previous, `o` open on the platform, `r` review or refresh, `c` code, `m` merge.
 - Every control is reachable and usable by keyboard; menus and the command menu follow the ARIA menu and combobox patterns (from Base UI).
 - Touch targets are at least 32 px; tone contrast as above.

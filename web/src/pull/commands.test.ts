@@ -11,6 +11,7 @@ const page = (over: Partial<PullFilesView>) => ({
   } as PullFilesView,
   code: { current: null },
   review: vi.fn(),
+  beside: null,
 });
 const keys = (over: Partial<PullFilesView>) => pullCommands(page(over)).map((c) => c.key);
 
@@ -20,6 +21,9 @@ describe("a pull request's commands", () => {
     expect(keys({ state: "merged" })).toEqual(["r", "c", "j", "k", "o"]);
     expect(keys({ verdicts: [], url: null })).toEqual(["c", "j", "k", "m"]);
     expect(pullCommands({ ...page({}), data: undefined })).toEqual([]);
+    const beside = { at: 1, total: 2, previous: null, next: "/pull/github/octo%2Fapi/8" };
+    expect(pullCommands({ ...page({}), beside }).map((c) => c.key)).toContain("]");
+    expect(pullCommands({ ...page({}), beside }).map((c) => c.key)).not.toContain("[");
   });
 
   it("opens the review on r", () => {

@@ -7,6 +7,7 @@ import { api, why } from "../api.js";
 import { useCached } from "../cache.js";
 import { useCollapsed } from "../inbox/collapsed.js";
 import { useListKeys } from "../inbox/keys.js";
+import { rememberQueue } from "../inbox/queue.js";
 import { PullRow } from "../inbox/row.js";
 import { SectionMenu } from "../inbox/section-menu.js";
 import {
@@ -60,6 +61,10 @@ export function Inbox() {
     setFailed(null);
     change.catch(setFailed);
   };
+
+  useEffect(() => {
+    rememberQueue(visible.map((r) => pullPath(r.platform, r.repo, r.number)));
+  });
 
   useEffect(() => {
     list.current

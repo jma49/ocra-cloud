@@ -1,6 +1,8 @@
 import type { RefObject } from "react";
 import type { PullFilesView } from "../../../src/shared/index.js";
+import type { Beside } from "../inbox/queue.js";
 import type { PageCommand } from "../page-commands.js";
+import { navigate } from "../router.js";
 
 export const MERGE_ID = "merge";
 
@@ -12,11 +14,16 @@ function fileBeside(code: HTMLElement | null, step: 1 | -1): Element | undefined
   return step === 1 ? files.find((f) => top(f) > 1) : files.findLast((f) => top(f) < -1);
 }
 
+const step = (label: string, key: string, to: string | null | undefined): PageCommand[] =>
+  to ? [{ label, key, run: () => navigate(to) }] : [];
+
 /** What a pull request's page does from the keyboard and the command menu. */
 export function pullCommands(page: {
   data: PullFilesView | undefined;
   code: RefObject<HTMLElement | null>;
   review: () => void;
+  /** The pull requests beside this one in the inbox it was opened from. */
+  beside: Beside | null;
 }): PageCommand[] {
   const { data, code } = page;
   if (!data) return [];
@@ -40,5 +47,7 @@ export function pullCommands(page: {
           },
         ]
       : []),
+    ...step("Previous pull request", "[", page.beside?.previous),
+    ...step("Next pull request", "]", page.beside?.next),
   ];
 }

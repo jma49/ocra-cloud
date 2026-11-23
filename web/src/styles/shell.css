@@ -496,3 +496,26 @@
   flex: none;
   margin-left: auto;
 }
+.crumb-link {
+  text-decoration: none;
+  border-radius: var(--r-tab);
+}
+.crumb-link:hover {
+  color: var(--t1);
+}
+.queue-nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.queue-at {
+  margin-right: 6px;
+  color: var(--t3);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+.queue-nav .is-off {
+  color: var(--t4);
+  cursor: default;
+  pointer-events: none;
+}
