@@ -131,9 +131,11 @@ export function fakeBuilder(behaviour: { fail?: boolean; hang?: boolean } = {}) 
     calls.push(input);
     if (behaviour.fail) throw new Error("parser crashed");
     if (behaviour.hang) {
-      await new Promise((_, reject) =>
-        input.signal.addEventListener("abort", () => reject(input.signal.reason)),
-      );
+      // The lease may lapse before the builder is called, and then no abort event follows.
+      await new Promise((_, reject) => {
+        if (input.signal.aborted) reject(input.signal.reason);
+        input.signal.addEventListener("abort", () => reject(input.signal.reason), { once: true });
+      });
     }
     const before = input.previous
       ? (JSON.parse(input.previous) as { files: Record<string, string> }).files
