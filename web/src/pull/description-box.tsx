@@ -56,7 +56,7 @@ export function DescriptionBox(props: {
     <details className="pull-part" open>
       <summary className="pull-part-head">
         <span className="fold" aria-hidden="true" />
-        <span className="strong grow">Description</span>
+        <h2 className="card-title grow">Description</h2>
         {props.editable && (
           <Button
             type="button"

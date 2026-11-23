@@ -25,7 +25,7 @@ export function OcraReviewBox(props: {
   return (
     <section className="card card-pad stack" aria-label="ocra review">
       <div className="row-gap checks-head">
-        <span className="strong grow">ocra review</span>
+        <h2 className="card-title grow">ocra review</h2>
         {review && <span className={standing.tone}>{standing.text}</span>}
       </div>
       {review && unfinished && (

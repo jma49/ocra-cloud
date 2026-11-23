@@ -134,7 +134,7 @@ export function ReadinessBox(props: {
   return (
     <section className="card card-pad stack" aria-label="Merge readiness">
       <div className="row-gap checks-head">
-        <span className="strong grow">Merge readiness</span>
+        <h2 className="card-title grow">Merge readiness</h2>
         {/* The page's head carries the standing; here it is said only when the head is silent. */}
         {data.ready === "unknown" ? (
           <span className="badge">Nothing in the way</span>

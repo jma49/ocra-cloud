@@ -125,7 +125,7 @@ export function ThreadsPanel(props: { pull: Pull; onDone: (o: PullActionOutcome)
   return (
     <section className="stack" aria-label="Review threads">
       <div className="row-gap checks-head">
-        <span className="strong grow">Review threads</span>
+        <h2 className="card-title grow">Review threads</h2>
         <span className="subtle small">
           {[open > 0 ? `${open} open` : "", resolved > 0 ? `${resolved} resolved` : ""]
             .filter(Boolean)

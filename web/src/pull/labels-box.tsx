@@ -46,7 +46,7 @@ export function LabelsBox(props: { pull: Pull; onDone: (o: PullActionOutcome) =>
   return (
     <section className="card card-pad stack" aria-label="Labels">
       <div className="row-gap checks-head">
-        <span className="strong grow">Labels</span>
+        <h2 className="card-title grow">Labels</h2>
         {data.available.length > 0 && (
           <Menu>
             <MenuTrigger render={<Button type="button" variant="outline" size="sm" />}>
