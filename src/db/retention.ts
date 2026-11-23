@@ -33,6 +33,7 @@ import {
   pullSeen,
   rateWindows,
   replyJobs,
+  restackJobs,
   reviewJobs,
   reviewRequests,
   reviews,
@@ -92,7 +93,12 @@ export async function enforceRetention(db: Db, now = new Date()): Promise<void> 
     inArray(column, db.select({ id: accounts.id }).from(accounts));
   // A job that ended, by when it did; one queued or running is never deleted.
   const ended = (
-    job: typeof reviewJobs | typeof replyJobs | typeof generateJobs | typeof learnJobs,
+    job:
+      | typeof reviewJobs
+      | typeof replyJobs
+      | typeof generateJobs
+      | typeof learnJobs
+      | typeof restackJobs,
   ) =>
     db.delete(job).where(
       and(
@@ -219,6 +225,7 @@ export async function enforceRetention(db: Db, now = new Date()): Promise<void> 
     ["reply_jobs", () => ended(replyJobs)],
     ["generate_jobs", () => ended(generateJobs)],
     ["learn_jobs", () => ended(learnJobs)],
+    ["restack_jobs", () => ended(restackJobs)],
     [
       "pull_commands",
       () =>

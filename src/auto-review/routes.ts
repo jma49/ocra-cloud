@@ -29,6 +29,7 @@ import { groupRoute } from "./group-routes.js";
 import { enrolledGitlabHook, gitlabHookRoute, removeEnrolledHook } from "./hook-routes.js";
 import { pullCommandRoute } from "./pull-command-routes.js";
 import { repoTokenRoute } from "./repo-token-routes.js";
+import { restackRoute } from "./restack-routes.js";
 import { autoReviewWebhooks } from "./webhooks.js";
 
 /** What a host that runs reviews itself gives the API (ADR-0046). */
@@ -68,6 +69,7 @@ const repoView = (r: Row<"reviewRepos">, latest: ReviewJobSummary | undefined) =
     profile: r.reviewProfile,
     automatic: r.automatic,
     learn: r.learn,
+    restack: r.restack,
     hasAccessToken: !!r.accessTokenCiphertext,
     accessTokenBot: r.accessTokenCiphertext ? r.accessTokenBot : null,
     webhookManaged: r.webhookId !== null,
@@ -93,6 +95,7 @@ export function autoReviewRoute(service: AutoReviewService) {
   route.route("/", gitlabHookRoute());
   route.route("/", enrollRoute(repoView));
   route.route("/", groupRoute());
+  route.route("/", restackRoute());
 
   route.get("/repos", requireSession(), async (c) => {
     const [repos, latest] = await Promise.all([

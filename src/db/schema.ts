@@ -61,6 +61,7 @@ import {
   type PullReview,
   REPO_PAUSES,
   REPORT_CADENCES,
+  RESTACK_OUTCOMES,
   REVIEW_CHAT_ROLES,
   REVIEW_JOB_STATES,
   REVIEW_PROFILES,
@@ -868,6 +869,11 @@ export const reviewRepos = sqliteTable(
     pullsIndexedAt: integer("pulls_indexed_at", { mode: "timestamp_ms" }),
     /** Why its jobs are paused (src/auto-review/lifecycle.ts); null while it runs. */
     paused: text("paused", { enum: REPO_PAUSES }),
+    /**
+     * Whether the bot rebases and force-pushes the pull requests stacked on
+     * one that merged (src/stack-merge/restack.ts); off, it only moves their base.
+     */
+    restack: integer("restack", { mode: "boolean" }).notNull().default(false),
   },
   (t) => [
     uniqueIndex("review_repos_platform_repo").on(t.platform, t.host, t.platformRepoId),
@@ -1435,6 +1441,50 @@ export const generateJobs = sqliteTable(
   ],
 );
 
+// A pull request rebased by the bot onto its new base after the one it was
+// stacked on merged (src/stack-merge/restack.ts): one per pull request and
+// merge, by the unique index, so the merge's webhook and the stack merge
+// that made it queue it once. `parentMerge` is the merge's commit, or the
+// merged head where the platform names none; a layer further up is queued
+// with the same one once the layer below it was restacked.
+export const restackJobs = sqliteTable(
+  "restack_jobs",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    reviewRepoId: text("review_repo_id")
+      .notNull()
+      .references(() => reviewRepos.id, { onDelete: "cascade" }),
+    number: integer("number").notNull(),
+    parentMerge: text("parent_merge").notNull(),
+    /** The pull request it was stacked on. */
+    parent: integer("parent").notNull(),
+    branch: text("branch").notNull(),
+    /** Its head when queued: the push's lease. */
+    head: text("head").notNull(),
+    /** What it is rebased onto: the branch, at `ontoCommit` when one is named. */
+    ontoBranch: text("onto_branch").notNull(),
+    ontoCommit: text("onto_commit"),
+    /** The parent's head before it merged or was restacked: its commits are dropped. */
+    upstream: text("upstream").notNull(),
+    state: text("state", { enum: REVIEW_JOB_STATES }).notNull().default("queued"),
+    outcome: text("outcome", { enum: RESTACK_OUTCOMES }),
+    /** The head it pushed. */
+    restackedTo: text("restacked_to"),
+    attempts: integer("attempts").notNull().default(0),
+    notBefore: integer("not_before", { mode: "timestamp_ms" }),
+    leaseUntil: integer("lease_until", { mode: "timestamp_ms" }),
+    error: text("error"),
+    finishedAt: integer("finished_at", { mode: "timestamp_ms" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("restack_jobs_pull_merge").on(t.reviewRepoId, t.number, t.parentMerge),
+    index("restack_jobs_state").on(t.state, t.createdAt),
+    index("restack_jobs_account_repo").on(t.accountId, t.reviewRepoId, t.createdAt),
+  ],
+);
+
 // The declined findings of a pull request of an enrolled repository, to be
 // drafted into learnings by `ocra learn feedback` in the runner
 // (src/db/learn-jobs.ts): one row per pull request, queued again by each
@@ -1955,6 +2005,7 @@ export const accountTables = {
   replyJobs,
   reviewWalkthroughs,
   generateJobs,
+  restackJobs,
   learnJobs,
   pullCommands,
   pausedPulls,

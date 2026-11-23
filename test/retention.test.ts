@@ -169,7 +169,13 @@ describe("retention", () => {
     const d = scoped(db, account.id);
     await d.insert("reviewRepos", rows.reviewRepos("review-repo-of-a"));
     let made = 0;
-    for (const table of ["reviewJobs", "replyJobs", "generateJobs", "learnJobs"] as const) {
+    for (const table of [
+      "reviewJobs",
+      "replyJobs",
+      "generateJobs",
+      "learnJobs",
+      "restackJobs",
+    ] as const) {
       const job = (id: string, state: "queued" | "running" | "done" | "failed", days: number) =>
         d.insert(table, {
           ...rows[table](id),
@@ -472,6 +478,7 @@ describe("export and deletion", () => {
         "mergeChecks",
         "mergeCheckRuns",
         "generateJobs",
+        "restackJobs",
         "learnJobs",
         "pullCommands",
         "pausedPulls",
@@ -525,6 +532,7 @@ describe("export and deletion", () => {
       "mergeChecks",
       "mergeCheckRuns",
       "generateJobs",
+      "restackJobs",
       "learnJobs",
       "pullCommands",
       "pausedPulls",

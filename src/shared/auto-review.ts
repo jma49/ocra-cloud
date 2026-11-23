@@ -81,6 +81,8 @@ export type AutoReviewRepoView = {
   /** Whether pull requests are reviewed as they open or gain commits; off, only when a person asks. */
   automatic: boolean;
   learn: LearnMode;
+  /** Whether the bot rebases and force-pushes the pull requests stacked on one that merged. */
+  restack: boolean;
   /** Whether the account gave the GitLab project its own access token, never the token itself. */
   hasAccessToken: boolean;
   /** The username of that token's bot user; null without one. */

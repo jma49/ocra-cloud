@@ -7,7 +7,13 @@ import type { GraphService } from "../graph/routes.js";
 import { assignBuild, type GraphAssignment, graphRunnerApi } from "../graph/runner-api.js";
 import { apiError, jsonBody } from "../http.js";
 import type { BotTokens } from "../platforms/bot.js";
+import { COMMIT_ID } from "../platforms/contents.js";
 import { platformsOf } from "../platforms/registry.js";
+import {
+  assignRestack,
+  type RestackAssignment,
+  settleRestack,
+} from "../stack-merge/restack-work.js";
 import type { AppEnv } from "../types.js";
 import { type Assignment, assign, RUN_FAILURES, settle, WORK_KINDS } from "./work.js";
 
@@ -29,6 +35,8 @@ const hello = z.object({
   version: z.string().min(1).max(40),
   /** Whether it builds code graphs: one that does not is never given a build. */
   graphs: z.boolean().optional(),
+  /** Whether it restacks: one from before restacks is never given one. */
+  restack: z.boolean().optional(),
 });
 
 const outcome = z.object({
@@ -37,6 +45,19 @@ const outcome = z.object({
   accountId: z.string().min(1).max(100),
   attempts: z.number().int().min(1),
   failure: z.enum(RUN_FAILURES).nullable(),
+});
+
+const SKIPPED_BY_RUN = ["up_to_date", "push_refused"] as const;
+const restackOutcome = z.object({
+  id: z.string().min(1).max(100),
+  accountId: z.string().min(1).max(100),
+  attempts: z.number().int().min(1),
+  result: z.union([
+    z.object({ outcome: z.literal("restacked"), head: z.string().regex(COMMIT_ID) }),
+    z.object({ outcome: z.enum(["conflict", "lease_lost"]) }),
+    z.object({ outcome: z.literal("skipped"), reason: z.enum(SKIPPED_BY_RUN) }),
+    z.object({ failure: z.enum(RUN_FAILURES) }),
+  ]),
 });
 
 const proven = (token: string): MiddlewareHandler<AppEnv> => {
@@ -52,7 +73,7 @@ export function runnerApi(access: RunnerAccess) {
   const route = new Hono<AppEnv>().use(proven(access.token));
 
   route.post("/claim", jsonBody(hello), async (c) => {
-    const { name, version, graphs } = c.req.valid("json");
+    const { name, version, graphs, restack } = c.req.valid("json");
     await runnerSeen(c.var.db, name, version, new Date());
     const source = {
       db: c.var.db,
@@ -67,6 +88,15 @@ export function runnerApi(access: RunnerAccess) {
         const work = await assign(source, kind);
         if (!work) break;
         if (work !== "refused") return c.json({ assignment: work satisfies Assignment });
+      }
+    }
+    if (restack) {
+      for (let refused = 0; refused < MAX_REFUSED; refused++) {
+        const work = await assignRestack(source);
+        if (!work) break;
+        if (work !== "refused") {
+          return c.json({ assignment: null, restack: work satisfies RestackAssignment });
+        }
       }
     }
     const graph = graphs && access.graphs?.remote ? await assignBuild(source) : undefined;
@@ -85,6 +115,14 @@ export function runnerApi(access: RunnerAccess) {
       failure,
       new Date(),
     );
+    return c.json({ ok: true });
+  });
+
+  route.post("/settle-restack", jsonBody(restackOutcome), async (c) => {
+    const { result, ...ref } = c.req.valid("json");
+    const source = { db: c.var.db, platforms: platformsOf(c.env, c.req.url), bots: access.bots };
+    // Recorded only while the restack is still this attempt's, under its own account.
+    await settleRestack(source, ref, result, new Date());
     return c.json({ ok: true });
   });
 

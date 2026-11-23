@@ -14,6 +14,8 @@ import { rows } from "./table-rows.js";
 const API = "https://api.github.com";
 export const REPO = `${API}/repos/octo/api`;
 export const sha = (n: number, v = 0) => `${n}${v}`.repeat(40).slice(0, 40);
+/** The squash commit a merged pull request landed as. */
+export const mergeOf = (n: number) => `f${n}`.repeat(40).slice(0, 40);
 
 export type Fake = {
   number: number;
@@ -45,6 +47,7 @@ export function github(pulls: Fake[], options: { refuseRetarget?: boolean } = {}
     reviewDecision: null,
     state: p.state,
     mergeStateStatus: p.mergeState,
+    mergeCommit: p.state === "MERGED" ? { oid: mergeOf(p.number) } : null,
     commits: { nodes: [{ commit: { statusCheckRollup: p.checks ? { state: p.checks } : null } }] },
   });
   const rest = (p: Fake) => ({
@@ -95,6 +98,13 @@ export function github(pulls: Fake[], options: { refuseRetarget?: boolean } = {}
         const base = url.searchParams.get("base");
         const open = [...byNumber.values()].filter((p) => p.state === "OPEN" && p.base === base);
         return Response.json(open.map(rest));
+      }
+      const comment = path.match(
+        /^https:\/\/api\.github\.com\/repos\/octo\/api\/issues\/(\d+)\/comments$/,
+      );
+      if (comment && req.method === "POST") {
+        sent.push({ method: req.method, url: path, body: await req.json() });
+        return Response.json({ id: 1 }, { status: 201 });
       }
       const m = path.match(
         /^https:\/\/api\.github\.com\/repos\/octo\/api\/pulls\/(\d+)(\/\w[\w-]*)?$/,
