@@ -9,6 +9,7 @@ import {
   type Verification,
 } from "../../../src/shared/index.js";
 import { api } from "../api.js";
+import { FindingText } from "../finding-text.js";
 import { FixDiff } from "../fixes/fix-diff.js";
 import { CommitFixNote } from "../fixes/fix-proposal.js";
 import { useCommitFix } from "../fixes/use-commit-fix.js";
@@ -21,7 +22,8 @@ import { CodeBlock } from "../ui.js";
 import { FindingIssue } from "./finding-issue.js";
 
 // A finding as an event on the review's timeline: what it says, where, and
-// the code it quotes. Every text is plain text: findings quote untrusted code.
+// the code it quotes. Findings quote untrusted code: what a model wrote is
+// drawn as Markdown without links, everything else as plain text.
 
 export type Finding = {
   id: string;
@@ -185,13 +187,7 @@ export function FindingEvent(props: {
         <CommitFixNote state={fixed} />
         {open && (
           <div className="finding-body">
-            <p className="m-0 pre-wrap">{f.body}</p>
-            {f.suggestion && (
-              <div>
-                <div className="quiet-label finding-label">Suggestion</div>
-                <p className="m-0 pre-wrap">{f.suggestion}</p>
-              </div>
-            )}
+            <FindingText body={f.body} suggestion={f.suggestion} />
             {f.platformDismissal && <PlatformThread d={f.platformDismissal} />}
             <div className="inline-form">
               {state === "saved" ? (
