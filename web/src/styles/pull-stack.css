@@ -298,7 +298,6 @@
 }
 .thread-evidence > summary {
   width: fit-content;
-  cursor: pointer;
 }
 .thread-evidence > .md {
   margin-top: 4px;

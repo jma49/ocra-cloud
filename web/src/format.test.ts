@@ -1,11 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { ago, count, elapsed, period, since } from "./format.js";
+import { ago, count, elapsed, period, since, time } from "./format.js";
 
 describe("how counts and times read", () => {
   it("counts work under way in seconds, then minutes", () => {
     expect(elapsed(-400)).toBe("0s");
     expect(elapsed(59_900)).toBe("59s");
     expect(elapsed(125_000)).toBe("2m 05s");
+  });
+
+  it("reads a time of day without a leading zero on the hour", () => {
+    const at = new Date(2026, 0, 5, 4, 5).toISOString();
+    expect(time(at)).toMatch(/\b4:05/);
+    expect(time(at)).not.toMatch(/\b04:05/);
   });
 
   it("puts a count's noun in the right number", () => {

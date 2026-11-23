@@ -1,4 +1,5 @@
 import { dailyCallLimit, type SpendView } from "../../../src/shared/index.js";
+import { clock } from "../format.js";
 
 // The account's gateway calls for the UTC day and what its reviews cost, as /api/budget answers.
 
@@ -33,7 +34,7 @@ function monthResetsAt(now = Date.now()): Date {
  */
 export const resetLabel = (window: "daily" | "monthly", now = Date.now()): string =>
   window === "daily"
-    ? resetsAt(now).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
+    ? clock(resetsAt(now))
     : monthResetsAt(now).toLocaleDateString(undefined, {
         month: "short",
         day: "numeric",

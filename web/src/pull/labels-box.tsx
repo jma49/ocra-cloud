@@ -47,6 +47,7 @@ export function LabelsBox(props: { pull: Pull; onDone: (o: PullActionOutcome) =>
     <section className="card card-pad stack" aria-label="Labels">
       <div className="row-gap checks-head">
         <h2 className="card-title grow">Labels</h2>
+        {applied.length === 0 && <span className="subtle small">None yet</span>}
         {data.available.length > 0 && (
           <Menu>
             <MenuTrigger render={<Button type="button" variant="outline" size="sm" />}>
@@ -71,9 +72,7 @@ export function LabelsBox(props: { pull: Pull; onDone: (o: PullActionOutcome) =>
           </Menu>
         )}
       </div>
-      {applied.length === 0 ? (
-        <span className="subtle small">None yet.</span>
-      ) : (
+      {applied.length > 0 && (
         <ul className="label-list">
           {applied.map((l) => (
             <li key={l.name} className="badge" title={l.description ?? undefined}>

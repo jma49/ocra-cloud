@@ -127,7 +127,10 @@ export function ThreadEvidence(props: { said: Said }) {
   if (!props.said.evidence) return null;
   return (
     <details className="thread-evidence">
-      <summary className="subtle">Evidence</summary>
+      <summary className="subtle">
+        <span className="fold" aria-hidden="true" />
+        Evidence
+      </summary>
       <Markdown text={props.said.evidence} />
     </details>
   );

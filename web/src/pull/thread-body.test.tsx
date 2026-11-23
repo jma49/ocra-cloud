@@ -83,6 +83,7 @@ describe("a review comment's body", () => {
     );
     const evidence = container.querySelector("details.thread-evidence");
     expect(evidence?.querySelector("summary")?.textContent).toBe("Evidence");
+    expect(evidence?.querySelector("summary > .fold")).not.toBeNull();
     expect([...(evidence?.querySelectorAll("li") ?? [])].map((li) => li.textContent)).toEqual([
       "app.ts drops the clamp.",
       "No caller checks the sign.",
