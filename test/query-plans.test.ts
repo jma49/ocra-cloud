@@ -3,6 +3,7 @@ import { env } from "cloudflare:workers";
 import { drizzle } from "drizzle-orm/d1";
 import { describe, expect, it, vi } from "vitest";
 import { apiTokenByHash } from "../src/db/api-tokens.js";
+import { accountsWithRules } from "../src/db/automations.js";
 import { claimInboundRetry } from "../src/db/inbound-events.js";
 import { recoverJobs } from "../src/db/job-recovery.js";
 import { enforceRetention } from "../src/db/retention.js";
@@ -119,6 +120,26 @@ describe("query plans", () => {
     const p = await plan(seen[0] as Captured);
     expect(p).toMatch(/SEARCH api_tokens USING INDEX api_tokens_token_hash_unique/);
     expect(p).not.toMatch(/SCAN api_tokens/);
+  });
+
+  it("the stale sweep finds its accounts, quiet pull requests and runs through indexes", async () => {
+    const seen: Captured[] = [];
+    const recorded = drizzle(recording(seen));
+    await accountsWithRules(recorded, "stale");
+    const d = scoped(recorded, "acct");
+    await d.pullFlows.quiet(new Date(0), new Date(1), 10);
+    await d.automations.ranOn(["r1"], ["stale:x#1@0"]);
+    const [accounts, quiet, ran] = await Promise.all(seen.map(plan));
+    expect(accounts).toMatch(
+      /SEARCH automation_rules USING (COVERING )?INDEX automation_rules_trigger/,
+    );
+    expect(quiet).toMatch(
+      /SEARCH t USING INDEX pull_flows_account_seen|SEARCH pull_flows USING INDEX pull_flows_account_seen/,
+    );
+    expect(ran).toMatch(
+      /SEARCH automation_runs USING (COVERING )?INDEX automation_runs_rule_event/,
+    );
+    for (const p of [accounts, quiet, ran]) expect(p).not.toMatch(/\bSCAN\b/);
   });
 
   it.each(names)("list(%s) searches an index on account_id", async (name) => {

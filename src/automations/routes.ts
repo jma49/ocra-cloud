@@ -17,6 +17,7 @@ import {
   MAX_ASSIGN_COUNT,
   MAX_ASSIGN_LOGINS,
   MAX_AUTOMATION_PATHS,
+  MAX_STALE_HOURS,
 } from "../shared/index.js";
 import type { AppEnv } from "../types.js";
 import { triggerConflict } from "./rules.js";
@@ -86,6 +87,7 @@ const conditions = z.strictObject({
   critical: z.boolean().optional(),
   verdicts: list(z.enum(VERDICTS), VERDICTS.length).optional(),
   paths: paths.optional(),
+  staleHours: z.number().int().min(1).max(MAX_STALE_HOURS).optional(),
 });
 
 const action = z.discriminatedUnion("kind", [
@@ -129,6 +131,7 @@ const dryRunBody = z.object({
     labels: z.array(z.string().max(50)).max(50).optional(),
     critical: z.boolean().optional(),
     verdict: z.enum(VERDICTS).optional(),
+    quietHours: z.number().int().min(0).max(100_000).optional(),
     paths: z.array(z.string().max(1024)).max(MAX_AUTOMATION_PATHS).optional(),
   }),
 });
@@ -168,7 +171,7 @@ const issue = (path: (string | number)[], message: string) => ({ issues: [{ path
 /** Why the rule cannot be saved, as invalid_body's issue; undefined when it can. */
 async function refusal(data: AppEnv["Variables"]["data"], body: RuleBody) {
   const conflict = triggerConflict(body.trigger, body.conditions, body.actions);
-  if (conflict) return issue(conflict, `not for a rule on ${body.trigger}`);
+  if (conflict) return issue(conflict.path, conflict.message);
   for (const [i, id] of (body.conditions.repoIds ?? []).entries()) {
     if (!(await data.get("reviewRepos", id))) {
       return issue(["conditions", "repoIds", i], "not a repository this account enrolled");

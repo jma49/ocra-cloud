@@ -1,28 +1,68 @@
 import type { Verdict } from "./domain.js";
 
 // Rules an account sets for its pull requests: conditions, all of which
-// must hold, and the actions taken when they do. A rule runs when a pull
-// request of an enrolled repository is queued for review, or when a pull
-// request's review is uploaded.
+// must hold, and the actions taken when they do. A rule runs on one event
+// of a pull request of an enrolled repository, as its platform's webhooks
+// say (or, for stale, the hourly run reads what they stored): queued for
+// review, its review uploaded, out of draft, approved, its CI failed, a
+// label added, merged, or no event for some hours.
 
-export const AUTOMATION_TRIGGERS = ["queued", "reviewed"] as const;
+export const AUTOMATION_TRIGGERS = [
+  "queued",
+  "reviewed",
+  "ready_for_review",
+  "approved",
+  "checks_failed",
+  "labeled",
+  "merged",
+  "stale",
+] as const;
 export type AutomationTrigger = (typeof AUTOMATION_TRIGGERS)[number];
+
+export type AutomationConditionKey = keyof AutomationConditions;
+
+/**
+ * The conditions a rule on each trigger may set: those its event answers.
+ * labeled requires labels (the label added is any of them), stale requires
+ * staleHours.
+ */
+export const TRIGGER_CONDITIONS: Record<AutomationTrigger, readonly AutomationConditionKey[]> = {
+  queued: ["repoIds", "authors", "baseBranches", "title", "labels", "paths"],
+  reviewed: ["repoIds", "critical", "verdicts", "paths"],
+  ready_for_review: ["repoIds", "authors", "baseBranches", "title", "labels", "paths"],
+  approved: ["repoIds", "authors", "baseBranches", "title", "labels", "paths"],
+  checks_failed: ["repoIds", "authors", "title", "paths"],
+  labeled: ["repoIds", "authors", "baseBranches", "title", "labels", "paths"],
+  merged: ["repoIds", "authors", "baseBranches", "title", "labels", "paths"],
+  stale: ["repoIds", "authors", "title", "paths", "staleHours"],
+};
+
+/** The condition a rule on the trigger must set. */
+export const REQUIRED_CONDITIONS: Partial<Record<AutomationTrigger, AutomationConditionKey>> = {
+  labeled: "labels",
+  stale: "staleHours",
+};
+
+/** A stale rule waits this many hours at most (30 days). */
+export const MAX_STALE_HOURS = 720;
 
 export type AutomationConditions = {
   /** Enrolled repositories (their ids); any of them. */
   repoIds?: string[] | undefined;
-  /** The pull request's author's login, any of them; queued only. */
+  /** The pull request's author's login, any of them; see TRIGGER_CONDITIONS for each. */
   authors?: string[] | undefined;
-  /** The branch it merges into, any of them; queued only. */
+  /** The branch it merges into, any of them. */
   baseBranches?: string[] | undefined;
-  /** A pattern for its title, case-insensitive: `*` any text, `?` one character; queued only. */
+  /** A pattern for its title, case-insensitive: `*` any text, `?` one character. */
   title?: string | undefined;
-  /** Any of these labels on it; queued only. */
+  /** Any of these labels on it; on labeled, the label added is any of them. */
   labels?: string[] | undefined;
   /** Whether the review found something critical; reviewed only. */
   critical?: boolean | undefined;
   /** The review's verdict, any of them; reviewed only. */
   verdicts?: Verdict[] | undefined;
+  /** Hours, 1 to MAX_STALE_HOURS, with no event on the open pull request; stale only. */
+  staleHours?: number | undefined;
   /** The files it changes, read from the platform when the rule is tried. */
   paths?: AutomationPaths | undefined;
 };
@@ -176,6 +216,8 @@ export type AutomationPullFacts = {
   labels?: string[] | undefined;
   critical?: boolean | undefined;
   verdict?: Verdict | undefined;
+  /** Whole hours since its last event, for staleHours. */
+  quietHours?: number | undefined;
   /** The files it changes; a rule on paths is skipped without them. */
   paths?: string[] | undefined;
 };

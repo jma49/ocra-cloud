@@ -4,6 +4,7 @@ import { createApp } from "./app.js";
 import { sweepGroupsRun } from "./auto-review/group-sweep.js";
 import { remoteReviews } from "./auto-review/remote.js";
 import { retryAutomations } from "./automations/retry.js";
+import { runStale } from "./automations/stale.js";
 import { type CronJob, type CronJobName, runScheduled } from "./cron-calls.js";
 import { pruneGraphBuilds } from "./db/graphs.js";
 import { recoverJobs } from "./db/job-recovery.js";
@@ -67,11 +68,6 @@ export default {
           calls,
         );
       jobs.inbound = (calls) => retryInbound({ db, env, bots }, undefined, calls);
-      // The bot's writes for the automation rules that the platform did not answer.
-      if (bots) {
-        jobs.automations = (calls) => retryAutomations({ db, bots, platforms }, undefined, calls);
-      }
-      // An armed intent's webhooks move it too; this reads again one they left armed.
       const out = {
         keys: masterKeys(env),
         mailer: undefined,
@@ -79,6 +75,13 @@ export default {
         slack: env.SLACK_BOT_TOKEN,
         origin: new URL(env.PUBLIC_URL || "https://localhost").origin,
       };
+      // The bot's writes for the automation rules that the platform did not answer,
+      // then the rules on pull requests gone stale (their links need PUBLIC_URL).
+      jobs.automations = async (calls) => {
+        if (bots) await retryAutomations({ db, bots, platforms }, undefined, calls);
+        if (env.PUBLIC_URL) await runStale({ db, bots, platforms, out, env }, undefined, calls);
+      };
+      // An armed intent's webhooks move it too; this reads again one they left armed.
       jobs.mergeIntents = (calls) =>
         sweepMergeIntents({ db, env, platforms, out }, undefined, calls);
       // A stack merge's webhooks move it; this picks up one whose webhooks did not come.

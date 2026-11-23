@@ -1,8 +1,11 @@
-import type {
-  AutomationAction,
-  AutomationConditions,
-  AutomationPullFacts,
-  AutomationTrigger,
+import {
+  type AutomationAction,
+  type AutomationConditionKey,
+  type AutomationConditions,
+  type AutomationPullFacts,
+  type AutomationTrigger,
+  REQUIRED_CONDITIONS,
+  TRIGGER_CONDITIONS,
 } from "../shared/index.js";
 
 // Whether a rule's conditions hold for a pull request: each one set must,
@@ -63,28 +66,38 @@ export function conditionsHold(c: AutomationConditions, f: AutomationPullFacts):
   if (c.verdicts) {
     checks.push(() => f.verdict !== undefined && c.verdicts?.includes(f.verdict) === true);
   }
+  if (c.staleHours !== undefined) {
+    const hours = c.staleHours;
+    checks.push(() => f.quietHours !== undefined && f.quietHours >= hours);
+  }
   return checks.every((check) => check());
 }
 
-/** The conditions only a pull request's own fields answer, which an upload does not carry. */
-const PULL_CONDITIONS = ["authors", "baseBranches", "title", "labels"] as const;
-/** The conditions only a review answers. */
-const REVIEW_CONDITIONS = ["critical", "verdicts"] as const;
+/** Actions only a pull request queued for review takes. */
+const QUEUED_ACTIONS: readonly AutomationAction["kind"][] = ["skip_review", "assign_reviewers"];
+
+type Conflict = { path: (string | number)[]; message: string };
 
 /** Why a rule cannot run on its trigger, as the field at fault; undefined when it can. */
 export function triggerConflict(
   trigger: AutomationTrigger,
   conditions: AutomationConditions,
   actions: readonly AutomationAction[],
-): (string | number)[] | undefined {
-  const wrong = trigger === "queued" ? REVIEW_CONDITIONS : PULL_CONDITIONS;
-  const condition = wrong.find((k) => conditions[k] !== undefined);
-  if (condition) return ["conditions", condition];
-  if (trigger === "reviewed") {
-    const queuedOnly = actions.findIndex(
-      (a) => a.kind === "skip_review" || a.kind === "assign_reviewers",
-    );
-    if (queuedOnly >= 0) return ["actions", queuedOnly];
+): Conflict | undefined {
+  const not = (path: (string | number)[]) => ({ path, message: `not for a rule on ${trigger}` });
+  const allowed = TRIGGER_CONDITIONS[trigger];
+  const set = Object.keys(conditions).filter(
+    (k) => conditions[k as AutomationConditionKey] !== undefined,
+  ) as AutomationConditionKey[];
+  const wrong = set.find((k) => !allowed.includes(k));
+  if (wrong) return not(["conditions", wrong]);
+  const required = REQUIRED_CONDITIONS[trigger];
+  if (required && conditions[required] === undefined) {
+    return { path: ["conditions", required], message: `required for a rule on ${trigger}` };
+  }
+  if (trigger !== "queued") {
+    const queuedOnly = actions.findIndex((a) => QUEUED_ACTIONS.includes(a.kind));
+    if (queuedOnly >= 0) return not(["actions", queuedOnly]);
   }
   return undefined;
 }

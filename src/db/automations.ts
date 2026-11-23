@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, isNotNull, lt, lte, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, isNotNull, lt, lte, sql } from "drizzle-orm";
 import type { AutomationRetry, AutomationRunView } from "../shared/index.js";
 import { changedRows, type Db, first } from "./client.js";
 import { automationAssignments, automationRules, automationRuns } from "./schema.js";
@@ -46,6 +46,21 @@ export function accountAutomations(db: Db, accountId: string) {
         .onConflictDoNothing({ target: [r.ruleId, r.eventKey] });
       return changedRows(result) > 0;
     },
+    /** The (rule, event) pairs of these that ran already, as `rule event` keys. */
+    async ranOn(ruleIds: readonly string[], eventKeys: readonly string[]): Promise<Set<string>> {
+      if (ruleIds.length === 0 || eventKeys.length === 0) return new Set();
+      const rows = await db
+        .select({ ruleId: r.ruleId, eventKey: r.eventKey })
+        .from(r)
+        .where(
+          and(
+            eq(r.accountId, accountId),
+            inArray(r.ruleId, [...ruleIds]),
+            inArray(r.eventKey, [...eventKeys]),
+          ),
+        );
+      return new Set(rows.map((row) => `${row.ruleId} ${row.eventKey}`));
+    },
     /** Claims the rule's assignment on the pull request; its id, or undefined when taken. */
     async claimAssignment(ruleId: string, reviewRepoId: string, number: number) {
       const a = automationAssignments;
@@ -90,6 +105,16 @@ export function accountAutomations(db: Db, accountId: string) {
         .where(and(eq(r.accountId, accountId), eq(r.id, id), eq(r.attempts, attempts)));
     },
   };
+}
+
+/** The accounts with an enabled rule on the trigger, read across accounts by the hourly run. */
+export async function accountsWithRules(db: Db, trigger: "stale"): Promise<string[]> {
+  const t = automationRules;
+  const rows = await db
+    .selectDistinct({ accountId: t.accountId })
+    .from(t)
+    .where(and(eq(t.trigger, trigger), eq(t.enabled, true)));
+  return rows.map((row) => row.accountId);
 }
 
 export type ClaimedRetry = {
