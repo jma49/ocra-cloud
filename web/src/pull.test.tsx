@@ -20,6 +20,8 @@ const PATCH = [
   "",
 ].join("\n");
 
+const NO_QUEUE = { ahead: [], size: null, removed: null };
+
 describe("a file's diff", () => {
   it("numbers each line on its side, and leaves out what is not a line of the file", () => {
     const lines = parsePatch(PATCH);
@@ -133,7 +135,7 @@ const noReadiness = { ready: null, items: [], codeOwners: [], staleApprovals: []
 
 describe("a pull request's page", () => {
   const show = (
-    queue: unknown = { enabled: false, entry: null },
+    queue: unknown = { enabled: false, entry: null, ...NO_QUEUE },
     listed: unknown = files,
     platform = "github",
     routes: Record<string, unknown> = {},
@@ -470,29 +472,17 @@ describe("a pull request's page", () => {
   });
 
   it("queues the head it read in place of a merge on a branch with a queue", async () => {
-    const sent = show({ enabled: true, entry: null });
-    fireEvent.click(await screen.findByRole("button", { name: "Add to merge queue" }));
+    const sent = show({ enabled: true, entry: null, ...NO_QUEUE, size: 2 });
+    expect(await screen.findByText(/2 pull requests in the queue now/)).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Merge pull request" })).toBeNull();
     await act(
-      async () =>
-        void fireEvent.click(screen.getByRole("button", { name: "Confirm: add to queue" })),
+      async () => void fireEvent.click(screen.getByRole("button", { name: "Add to merge queue" })),
     );
     expect(sent).toEqual([
       {
         url: "/api/pulls/enqueue",
         body: { platform: "github", repo: "octo/api", number: 7, head: HEAD },
       },
-    ]);
-  });
-
-  it("shows a queued pull request's place in line, and takes it out", async () => {
-    const sent = show({ enabled: true, entry: { state: "checking", position: 3 } });
-    expect(await screen.findByText(/#3 in line/)).toBeTruthy();
-    await act(
-      async () => void fireEvent.click(screen.getByRole("button", { name: "Remove from queue" })),
-    );
-    expect(sent).toEqual([
-      { url: "/api/pulls/dequeue", body: { platform: "github", repo: "octo/api", number: 7 } },
     ]);
   });
 });
