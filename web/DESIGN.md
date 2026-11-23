@@ -14,9 +14,9 @@ The rules every page of the web console follows. Values live in `web/src/styles/
 
 Pages and components style only through the custom properties in `base.css`.
 
-- **Colour (test):** no colour literal (`#…`, `rgb()`, `hsl()`, `oklch()`) in any stylesheet but `base.css`. Mix tokens with `color-mix()` where a tint is needed.
+- **Colour (test):** no colour literal (`#…`, `rgb()`, `hsl()`, `oklch()`) in any stylesheet but `base.css`. Mix tokens with `color-mix()` where a tint is needed. No component or inline style names one either: no hex or `rgb()` value and no Tailwind palette class in a `.ts` or `.tsx` file **(test)**.
 - **Text tones:** `--t1` body and headings, `--t2` secondary text, `--t3` labels and metadata, `--t4` placeholders and disabled text only. `--t1` to `--t3` keep 4.5:1 contrast on the panel and the ground, in both themes **(test, `contrast.test.ts`)**.
-- **Surfaces:** `--ground` behind everything, `--panel` for the page, `--raised` for cards, menus and inputs. Depth comes from `--shadow` (resting) and `--float` (menus, drawers, dialogs), never from borders.
+- **Surfaces:** `--ground` behind everything, `--panel` for the page, `--raised` for cards and menus, `--field` for inputs and selects. Depth has three levels and no others: flat on the panel with a hairline, `--shadow` (resting: cards), `--float` (above the page: menus, drawers, dialogs), never from borders. A field's edge is `--field-edge`: the resting shadow in light; in dark, where a field would vanish into the card it sits on, a surface one step lighter with an outline button's edge.
 - **Lines:** `--hair` between rows, `--hair2` under headers and around groups. Lines are 0.5 px.
 - **Fills:** `--fill` at rest, `--fill2` for hover and selected.
 - **Status tones:** `--critical` for critical findings, errors and destructive actions, `--warning` for warnings; pages name these semantic tokens, not `--red` and `--amber`, which are the palette behind them. `--green` is ok, `--blue` running or informational. Use them on text and soft fills (badges, notes), never as large backgrounds. Each reads at 4.5:1 as text on its own badge fill (an 8% tint), on the panel, on a card and inside a selected row, in both themes **(test, `contrast.test.ts`)**.
@@ -108,7 +108,7 @@ A new shared control comes from coss ui first, then from a small component in `w
 ## Motion
 
 - **Easings:** `--e-std` for state changes, `--e-enter` for things that appear, `--e-settle` for things that move into place.
-- **Durations:** 80 ms for press feedback, 120–160 ms for everything else that moves (hover, colour, menus, toasts, the drawer). Nothing longer, except the skeleton's fade-in and its shimmer, work under way (`.shimmer-text` on its label with the seconds beside it, a task's ring), and the coss ui components' own tuned motion (a toast's stack settles over half a second), which pages leave as it is.
+- **Durations (test, `styles.test.ts`):** three tokens, `--d-press` (80 ms, press feedback), `--d-fast` (120 ms, what changes colour: hover, selection) and `--d-move` (160 ms, what changes place or size: a fold's chevron, the drawer, a menu). No stylesheet writes a duration in a transition or animation. Nothing longer, except the skeleton's fade-in and its shimmer, work under way (`.shimmer-text` on its label with the seconds beside it, a task's ring), and the coss ui components' own tuned motion (a toast's stack settles over half a second), which pages leave as it is.
 - **Hover and press:** every hover and press a page draws itself takes one rule (`web/src/styles/motion.css`): colours fade over 120 ms, and an icon button or tile gives way (scale 0.96) over 80 ms on press. A new hoverable class joins that list rather than setting its own transition.
 - **What moves:** hover and selected states fade; menus, tooltips and toasts scale or rise in from their anchor; drawers slide from the right; nothing animates on scroll and nothing loops but loading.
 - **Continuity:** an element that stays on screen keeps its position across a state change (optimistic updates, no reflow flashes); the open place and tab stay highlighted.

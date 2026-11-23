@@ -89,8 +89,13 @@
 
   --float:
     0 0 0 0.5px rgb(0 0 0 / 0.08), 0 8px 24px -6px rgb(0 0 0 / 0.16), 0 2px 6px rgb(0 0 0 / 0.05);
+  --field: var(--raised);
+  --field-edge: var(--shadow);
   --scrim: rgb(0 0 0 / 0.28);
   --focus: var(--blue);
+  --d-press: 80ms;
+  --d-fast: 120ms;
+  --d-move: 160ms;
   --e-std: cubic-bezier(0.4, 0, 0.2, 1);
   --e-enter: cubic-bezier(0.22, 1, 0.36, 1);
   --e-settle: cubic-bezier(0.2, 0.75, 0.15, 1);
@@ -147,6 +152,9 @@
     --violet: #b79bff;
     --shadow: 0 0 0 0.5px rgb(255 255 255 / 0.08), 0 8px 24px -8px rgb(0 0 0 / 0.6);
     --float: 0 0 0 0.5px rgb(255 255 255 / 0.1), 0 12px 32px -8px rgb(0 0 0 / 0.7);
+    /* A field on a card: the card's own surface and drop shadow would hide it, so it is a step lighter with an outline button's edge. */
+    --field: color-mix(in srgb, var(--white) 4%, var(--raised));
+    --field-edge: 0 0 0 1px var(--hair2);
     --scrim: rgb(0 0 0 / 0.5);
     --bg-subtle: color-mix(in srgb, var(--white) 3%, var(--panel));
     --border-strong: rgb(255 255 255 / 0.2);
