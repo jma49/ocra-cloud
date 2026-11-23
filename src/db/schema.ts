@@ -1449,7 +1449,11 @@ export const automationRules = sqliteTable(
     updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
     createdAt: createdAt(),
   },
-  (t) => [index("automation_rules_account_trigger").on(t.accountId, t.trigger)],
+  (t) => [
+    index("automation_rules_account_trigger").on(t.accountId, t.trigger),
+    // The hourly run finds the accounts with a stale rule (src/automations/stale.ts).
+    index("automation_rules_trigger").on(t.trigger, t.accountId),
+  ],
 );
 
 // A rule's assign_reviewers action on one pull request, claimed by the

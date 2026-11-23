@@ -428,6 +428,13 @@
       "when": 1795455458270,
       "tag": "0060_auto_enroll_groups",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1795456758591,
+      "tag": "0061_automation_rules_trigger",
+      "breakpoints": true
     }
   ]
 }

@@ -53,7 +53,7 @@ export type AutomationEvent = {
   consoleUrl: string;
 };
 
-type Runner = {
+export type Runner = {
   data: Scoped;
   out: Outbox;
   bots: BotTokens | undefined;
@@ -80,8 +80,9 @@ export async function matchingRules(
   facts: AutomationPullFacts,
   changed: () => Promise<ChangedPaths | null>,
   acts = true,
+  only?: readonly Rule[],
 ): Promise<Matched> {
-  const rules = await data.find("automationRules", { trigger, enabled: true }, MAX_RULES);
+  const rules = only ?? (await data.find("automationRules", { trigger, enabled: true }, MAX_RULES));
   const matched: Matched = { rules: [], skipped: [] };
   for (const rule of rules) {
     if (!acts && !rule.actions.some((a) => a.kind === "skip_review")) continue;
@@ -98,25 +99,37 @@ export async function matchingRules(
  * Matches the account's rules to the event: whether one of them skips the
  * review, and the run of their actions, which the caller awaits or defers.
  */
-export async function automate(
+export function automate(
   c: Context<AppEnv>,
   data: Scoped,
   event: AutomationEvent,
 ): Promise<{ skipped: boolean; run: Promise<void> }> {
-  const runner: Runner = {
-    data,
-    out: outboxOf(c),
-    bots: c.var.bots,
-    platforms: platformsOf(c.env, c.req.url),
-    env: c.env,
-  };
+  return automateWith(
+    {
+      data,
+      out: outboxOf(c),
+      bots: c.var.bots,
+      platforms: platformsOf(c.env, c.req.url),
+      env: c.env,
+    },
+    event,
+  );
+}
+
+/** The same outside a request (the hourly run), on `only` of the trigger's rules where given. */
+export async function automateWith(
+  runner: Runner,
+  event: AutomationEvent,
+  only?: readonly Rule[],
+): Promise<{ skipped: boolean; run: Promise<void> }> {
+  const { data } = runner;
   const bot = botOf(runner, event.repo);
   let read: Promise<ChangedPaths | null> | undefined;
   const changed = () => {
     read ??= changedPaths(runner, event, bot);
     return read;
   };
-  const matched = await matchingRules(data, event.trigger, event.facts, changed, event.acts);
+  const matched = await matchingRules(data, event.trigger, event.facts, changed, event.acts, only);
   return {
     skipped:
       event.trigger === "queued" &&

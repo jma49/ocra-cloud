@@ -8,6 +8,7 @@ import { type ExecutionContext, Hono } from "hono";
 import { createApp } from "../app.js";
 import { sweepGroupsRun } from "../auto-review/group-sweep.js";
 import { retryAutomations } from "../automations/retry.js";
+import { runStale } from "../automations/stale.js";
 import { CallBudget } from "../calls.js";
 import type { Db } from "../db/client.js";
 import { retryInbound } from "../inbound/run.js";
@@ -180,7 +181,8 @@ export async function openHost(options: HostOptions) {
     },
     /**
      * Sends the daily digests, weekly reports, review reminders, quiet
-     * hours' held notices and pull requests at risk not sent yet; needs
+     * hours' held notices and pull requests at risk not sent yet, and runs
+     * the automation rules on pull requests gone stale; needs
      * publicUrl, which their links point to.
      */
     digests: async () => {
@@ -199,6 +201,13 @@ export async function openHost(options: HostOptions) {
         runReminders(shared, out, githubHostOf(bindings).host),
         runHeld(shared, out),
         runAtRisk(shared, out),
+        runStale({
+          db: shared,
+          bots,
+          platforms: platformsOf(bindings, origin),
+          out,
+          env: bindings,
+        }),
       ]);
     },
     /** Tries again the automations' writes the platform did not answer; only with a bot. */

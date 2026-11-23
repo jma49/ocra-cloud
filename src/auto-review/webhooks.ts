@@ -1,5 +1,6 @@
 import { type Context, Hono } from "hono";
 import { z } from "zod";
+import { automatePullEvents, gitlabPullEvents } from "../automations/pull-events.js";
 import { automate } from "../automations/run.js";
 import { sameText, sha256Hex } from "../crypto.js";
 import { touchPulls } from "../db/pull-changes.js";
@@ -28,7 +29,8 @@ import type { AutoReviewService } from "./routes.js";
 // A pull request of an enrolled repository is queued for review when it
 // opens, reopens, leaves draft or gains commits (ADR-0046, 2). A draft is
 // not. Its pre-merge checks are evaluated then, and again when its title or
-// description is edited. GitLab's note hook, on the same address, queues
+// description is edited; its later events run the automation rules on it
+// (src/automations/pull-events.ts). GitLab's note hook, on the same address, queues
 // answers (./replies.ts); its merge request and pipeline hooks also move
 // the intents armed to merge when ready (src/merge-when-ready/), and a
 // failed merge request pipeline tells its author (src/notify/ci-hooks.ts).
@@ -191,6 +193,7 @@ export function autoReviewWebhooks(service: AutoReviewService) {
         received.reviewed(await recordGitlabFlow(c.var.db, repo, body));
         await recordGitlabRequests(c.var.db, repo, body);
       }
+      await automatePullEvents(c, await gitlabPullEvents(c.var.db, repo, kind, body));
       if (mr && (await recordGitlabClose(c.var.db, repo, body))) return 0;
       const event = mr?.data;
       if (event && gitlabEdited(event.object_attributes)) {

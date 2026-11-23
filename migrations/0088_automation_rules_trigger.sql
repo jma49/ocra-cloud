@@ -1,0 +1,1 @@
+CREATE INDEX `automation_rules_trigger` ON `automation_rules` (`trigger`,`account_id`);

@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, inArray, isNull, lt, or, type SQL, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, lt, lte, or, type SQL, sql } from "drizzle-orm";
 import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
 import type { Db } from "./client.js";
 import { countWhere } from "./dialect.js";
@@ -198,6 +198,46 @@ export function accountPullFlows(db: Db, accountId: string) {
         )
         .orderBy(asc(since))
         .limit(limit);
+    },
+
+    /**
+     * The open pull requests out of draft whose last event was in [from, to],
+     * quiet longest last, up to cap; with their repository.
+     */
+    quiet(from: Date, to: Date, cap: number) {
+      const c = closedPulls;
+      return db
+        .select({
+          reviewRepoId: t.reviewRepoId,
+          number: t.number,
+          title: t.title,
+          author: t.author,
+          seenAt: t.seenAt,
+        })
+        .from(t)
+        .innerJoin(
+          reviewRepos,
+          and(eq(reviewRepos.id, t.reviewRepoId), eq(reviewRepos.accountId, accountId)),
+        )
+        .leftJoin(
+          c,
+          and(
+            eq(c.reviewRepoId, t.reviewRepoId),
+            eq(c.number, t.number),
+            eq(c.accountId, accountId),
+          ),
+        )
+        .where(
+          and(
+            eq(t.accountId, accountId),
+            gte(t.seenAt, from),
+            lte(t.seenAt, to),
+            eq(t.draft, false),
+            or(isNull(c.id), lt(c.closedAt, t.reopenedAt)),
+          ),
+        )
+        .orderBy(desc(t.seenAt))
+        .limit(cap);
     },
 
     /** One repository's pull requests the console holds open (no close, or one before a reopen), at most limit. */
