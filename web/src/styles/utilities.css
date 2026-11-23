@@ -182,3 +182,19 @@
 .glyph {
   flex: none;
 }
+
+/* A copy button's icon as it turns into a check, and back. */
+.copy-mark {
+  animation: copy-mark var(--d-move) var(--e-enter);
+}
+@keyframes copy-mark {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .copy-mark {
+    animation: none;
+  }
+}

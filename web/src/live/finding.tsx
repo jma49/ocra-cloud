@@ -1,5 +1,7 @@
 import type { LiveFinding } from "@open-cr-agent/cloud-contract";
 import type { LiveCommentView } from "../../../src/shared/index.js";
+import { splitPath } from "../pull/diff.js";
+import { FileTypeIcon } from "../pull/file-icon.js";
 import { SeverityBadge } from "../severity.js";
 import { CodeBlock } from "../ui.js";
 import { type CommentActions, CommentThread } from "./comments.js";
@@ -13,6 +15,21 @@ const linesOf = (f: LiveFinding) =>
     : f.lineEnd && f.lineEnd !== f.lineStart
       ? `L${f.lineStart}–${f.lineEnd}`
       : `L${f.lineStart}`;
+
+/** Where a finding is: the file's icon, its path with the name in front, its lines. */
+function FileChip(props: { path: string; lines: string }) {
+  const { dir, name } = splitPath(props.path);
+  return (
+    <span className="file-chip mono" title={props.path}>
+      <FileTypeIcon name={name} />
+      <span className="file-chip-path">
+        <span className="subtle">{dir}</span>
+        {name}
+      </span>
+      {props.lines && <span className="subtle">{props.lines}</span>}
+    </span>
+  );
+}
 
 export function LiveFindingEvent(props: {
   f: LiveFinding;
@@ -34,12 +51,7 @@ export function LiveFindingEvent(props: {
           </span>
         </div>
         <p className="event-text finding-title">{f.title}</p>
-        <div className="code-card">
-          <div className="code-card-head">
-            <span className="mono">{f.file}</span>
-            <span className="mono subtle">{linesOf(f)}</span>
-          </div>
-        </div>
+        <FileChip path={f.file} lines={linesOf(f)} />
         <p className="event-text live-finding-body">{f.body}</p>
         {f.suggestion && <CodeBlock label="Suggested change">{f.suggestion}</CodeBlock>}
         <CommentThread

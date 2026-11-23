@@ -2,6 +2,7 @@ import { type FormEvent, type ReactNode, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { PullFilters, PullRole } from "../../../src/shared/index.js";
 import { why } from "../api.js";
+import { CopyButton } from "../copy-button.js";
 import { Drawer } from "../drawer.js";
 import { shareLink, type ViewDraft } from "./views.js";
 
@@ -71,7 +72,6 @@ export function ViewDrawer(props: {
   const [authors, setAuthors] = useState((props.initial.filters.authors ?? []).join(", "));
   const [labels, setLabels] = useState((props.initial.filters.labels ?? []).join(", "));
   const [error, setError] = useState<unknown>(null);
-  const [copied, setCopied] = useState(false);
 
   const draft = (): ViewDraft => {
     return {
@@ -91,10 +91,6 @@ export function ViewDrawer(props: {
   const submit = (e: FormEvent) => {
     e.preventDefault();
     void run(() => props.onSave(draft()));
-  };
-  const share = async () => {
-    await navigator.clipboard?.writeText(shareLink(draft())).catch(() => {});
-    setCopied(true);
   };
 
   // A view made elsewhere may hold a span the list does not offer: it stays choosable.
@@ -130,9 +126,7 @@ export function ViewDrawer(props: {
               Delete
             </Button>
           )}
-          <Button type="button" variant="outline" onClick={share}>
-            {copied ? "Link copied" : "Copy link"}
-          </Button>
+          <CopyButton text={() => shareLink(draft())} label="Copy link" said="Link copied" />
           <Button type="submit">Save</Button>
         </>
       }

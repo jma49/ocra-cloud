@@ -8,10 +8,10 @@ import {
 } from "../../../src/shared/index.js";
 import { ApiError, api, why } from "../api.js";
 import { useRead } from "../cache.js";
+import { CopyButton } from "../copy-button.js";
 import { PublishDraft } from "../release-notes/publish.js";
 import { ReleasePulls } from "../release-notes/pulls.js";
 import { Link } from "../router.js";
-import { useToast } from "../toast.js";
 import { EmptyNote, EmptyState, LoadError, Loading, PageHead, useAction } from "../ui.js";
 
 type Platforms = {
@@ -38,7 +38,6 @@ export function ReleaseNotes() {
   /** What the notes were drafted with, so the list matches them and not the form. */
   const [drafted, setDrafted] = useState<Range | null>(null);
   const [body, setBody] = useState("");
-  const toast = useToast();
   const draft = useAction((r: Range) => {
     const [platform = "", repo = ""] = r.repo.split(SEP);
     const query = new URLSearchParams({
@@ -202,17 +201,7 @@ export function ReleaseNotes() {
                   Back to the draft
                 </Button>
               )}
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={async () => {
-                  await navigator.clipboard.writeText(body);
-                  toast("Markdown copied");
-                }}
-              >
-                Copy Markdown
-              </Button>
+              <CopyButton text={body} label="Copy Markdown" said="Markdown copied" size="sm" />
             </div>
             <textarea
               className="input mono release-body"

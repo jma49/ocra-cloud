@@ -54,3 +54,17 @@ export function usePickedGlide(ref: RefObject<HTMLElement | null>, selector: str
     return () => watch.disconnect();
   }, [ref, selector]);
 }
+
+/** The highlight follows the item carrying `attribute`, set by a pointer or by keys. */
+export function useMarkedGlide(ref: RefObject<HTMLElement | null>, attribute: string) {
+  useEffect(() => {
+    const box = ref.current;
+    if (!box) return;
+    const selector = `[${attribute}]`;
+    const follow = () => place(box, box.querySelector(selector));
+    follow();
+    const watch = new MutationObserver(follow);
+    watch.observe(box, { attributes: true, attributeFilter: [attribute], subtree: true });
+    return () => watch.disconnect();
+  }, [ref, attribute]);
+}

@@ -1,7 +1,7 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useRef, useState } from "react";
 import { afterEach, describe, expect, it } from "vitest";
-import { useHoverGlide, usePickedGlide } from "./glide.js";
+import { useHoverGlide, useMarkedGlide, usePickedGlide } from "./glide.js";
 
 afterEach(cleanup);
 
@@ -27,6 +27,17 @@ function Choices() {
           {c}
         </button>
       ))}
+    </div>
+  );
+}
+
+function Items() {
+  const list = useRef<HTMLDivElement>(null);
+  useMarkedGlide(list, "data-highlighted");
+  return (
+    <div ref={list} data-testid="items">
+      <span>First</span>
+      <span>Second</span>
     </div>
   );
 }
@@ -59,5 +70,15 @@ describe("the gliding highlight", () => {
     expect(group.dataset.glide).toBe("off");
     fireEvent.click(screen.getByText("B"));
     expect(group.dataset.glide).toBe("on");
+  });
+
+  it("follows the item that carries the mark, however it got it", async () => {
+    render(<Items />);
+    const list = screen.getByTestId("items");
+    expect(list.dataset.glide).toBe("off");
+    screen.getByText("Second").setAttribute("data-highlighted", "");
+    await waitFor(() => expect(list.dataset.glide).toBe("on"));
+    screen.getByText("Second").removeAttribute("data-highlighted");
+    await waitFor(() => expect(list.dataset.glide).toBe("off"));
   });
 });
