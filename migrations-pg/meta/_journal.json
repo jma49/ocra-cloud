@@ -421,6 +421,13 @@
       "when": 1795453553668,
       "tag": "0059_review_repo_paused",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1795455458270,
+      "tag": "0060_auto_enroll_groups",
+      "breakpoints": true
     }
   ]
 }

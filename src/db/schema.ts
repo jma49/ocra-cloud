@@ -874,6 +874,33 @@ export const autoEnrollInstallations = sqliteTable(
   ],
 );
 
+// A GitLab group whose new projects one account enrolls for auto review
+// (src/auto-review/group-sweep.ts): GitLab tells no hook of a new project
+// on every tier, so a daily sweep lists the group's projects newer than
+// the newest it saw. One account per group, as one per repository.
+export const autoEnrollGroups = sqliteTable(
+  "auto_enroll_groups",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    host: text("host").notNull(),
+    groupId: text("group_id").notNull(),
+    /** The group's path, as GitLab names it. */
+    fullPath: text("full_path").notNull(),
+    automatic: integer("automatic", { mode: "boolean" }).notNull().default(false),
+    /** The highest project id seen: only projects above it are new. */
+    lastProjectId: integer("last_project_id").notNull().default(0),
+    /** When the sweep last claimed it; null before the first. */
+    sweptAt: integer("swept_at", { mode: "timestamp_ms" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("auto_enroll_groups_group").on(t.host, t.groupId),
+    index("auto_enroll_groups_account").on(t.accountId),
+    index("auto_enroll_groups_swept").on(t.sweptAt),
+  ],
+);
+
 // A chat or an email address the account's reviews are announced in: the
 // webhook's address or the email address, encrypted like a model key (a
 // webhook is the chat's credential). An email address gets nothing until
@@ -1780,6 +1807,7 @@ export const accountTables = {
   pullImpacts,
   reviewRepos,
   autoEnrollInstallations,
+  autoEnrollGroups,
   reviewJobs,
   notifyChannels,
   notifySends,

@@ -1,6 +1,7 @@
 import { env } from "cloudflare:workers";
 import { drizzle } from "drizzle-orm/d1";
 import { createApp } from "./app.js";
+import { sweepGroupsRun } from "./auto-review/group-sweep.js";
 import { remoteReviews } from "./auto-review/remote.js";
 import { retryAutomations } from "./automations/retry.js";
 import { type CronJob, type CronJobName, runScheduled } from "./cron-calls.js";
@@ -83,7 +84,12 @@ export default {
       // A stack merge's webhooks move it; this picks up one whose webhooks did not come.
       jobs.stackMerges = (calls) => sweepStackMerges({ db, env, platforms }, undefined, calls);
       // What webhooks missed, each enrolled repository read once a day (src/reconcile.ts).
-      jobs.reconcile = reconcileRun({ db, env, platforms, bots });
+      // And the new projects of the GitLab groups an account enrolls, swept first (src/auto-review/group-sweep.ts).
+      const repos = reconcileRun({ db, env, platforms, bots });
+      const groups = env.PUBLIC_URL
+        ? sweepGroupsRun({ db, env, platforms, bots, origin: env.PUBLIC_URL })
+        : undefined;
+      jobs.reconcile = async (calls) => (groups ? await groups(calls) : 0) + (await repos(calls));
     }
     if (env.PUBLIC_URL) {
       const out = {

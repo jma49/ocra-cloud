@@ -45,6 +45,7 @@ export const EXPORTED = {
   pullImpacts: "pullImpacts",
   reviewRepos: "reviewRepos",
   autoEnrollInstallations: "autoEnrollInstallations",
+  autoEnrollGroups: "autoEnrollGroups",
   reviewJobs: "reviewJobs",
   notifyChannels: "notifyChannels",
   notifySends: "notifySends",

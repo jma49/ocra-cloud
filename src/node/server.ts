@@ -132,7 +132,10 @@ setInterval(stackMerges, 60_000).unref();
 // Hourly: each enrolled repository is read once a UTC day, a few per run within
 // NODE_RECONCILE_CALLS platform calls (src/reconcile.ts).
 const reconcile = () =>
-  host.reconcile().catch((err) => logError("reconcile_failed", { error: errorName(err) }));
+  Promise.all([
+    host.groupSweep().catch((err) => logError("group_sweep_failed", { error: errorName(err) })),
+    host.reconcile().catch((err) => logError("reconcile_failed", { error: errorName(err) })),
+  ]);
 setInterval(reconcile, HOUR_MS).unref();
 void reconcile();
 

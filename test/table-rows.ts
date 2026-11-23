@@ -114,6 +114,12 @@ export const rows = {
     installationId: `i-${id}`,
     owner: "octo",
   }),
+  autoEnrollGroups: (id: string) => ({
+    id,
+    host: "gitlab.com",
+    groupId: `g-${id}`,
+    fullPath: "group",
+  }),
   // The enrolled repository it belongs to is made in beforeEach (the foreign key needs one).
   reviewJobs: (id: string) => ({
     id,

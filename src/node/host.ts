@@ -6,6 +6,7 @@ import { drizzle } from "drizzle-orm/libsql";
 import { migrate } from "drizzle-orm/libsql/migrator";
 import { type ExecutionContext, Hono } from "hono";
 import { createApp } from "../app.js";
+import { sweepGroupsRun } from "../auto-review/group-sweep.js";
 import { retryAutomations } from "../automations/retry.js";
 import { CallBudget } from "../calls.js";
 import type { Db } from "../db/client.js";
@@ -248,6 +249,17 @@ export async function openHost(options: HostOptions) {
         bots,
         calls: new CallBudget(NODE_RECONCILE_CALLS),
       }),
+    /** Enrolls the new projects of the GitLab groups due their daily sweep; how many groups it claimed. */
+    groupSweep: (calls = new CallBudget(NODE_RECONCILE_CALLS)) =>
+      origin
+        ? sweepGroupsRun({
+            db: shared,
+            env: bindings,
+            platforms: platformsOf(bindings, origin),
+            bots,
+            origin,
+          })(calls)
+        : Promise.resolve(0),
     /** Tries again the channels' deliveries due, of every kind; how many it tried. */
     deliveryRetries: () =>
       retryNotifications(shared, {
