@@ -1,4 +1,6 @@
+import History from "lucide-react/icons/history";
 import { type KeyboardEvent, useState } from "react";
+import { Status } from "@/components/status";
 import { Button } from "@/components/ui/button";
 import {
   MAX_THREAD_REPLY_CHARS,
@@ -179,8 +181,12 @@ export function ThreadItem(
             {t.line !== null && <span className="subtle">:{t.line}</span>}
           </span>
         </span>
-        {t.outdated && <span className="badge">Outdated</span>}
-        {t.resolved && <span className="badge badge-ok">Resolved</span>}
+        {t.outdated && (
+          <Status tone="quiet" icon={History}>
+            Outdated
+          </Status>
+        )}
+        {t.resolved && <Status tone="ok">Resolved</Status>}
         {t.canResolve && (
           <Button variant="outline" size="sm" onClick={props.resolve}>
             {t.resolved ? "Reopen" : "Resolve"}

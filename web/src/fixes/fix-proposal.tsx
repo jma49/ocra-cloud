@@ -1,4 +1,5 @@
 import Wrench from "lucide-react/icons/wrench";
+import { Status } from "@/components/status";
 import { Button } from "@/components/ui/button";
 import type { FixProposalView, PullActionOutcome } from "../../../src/shared/index.js";
 import { BatchPick } from "../pull/batch.js";
@@ -40,7 +41,7 @@ export function FixProposal(props: {
         <SeverityBadge severity={fix.severity} />
         <span className="fix-proposal-title">{fix.title}</span>
         {state === "done" ? (
-          <span className="badge badge-ok">Committed</span>
+          <Status tone="ok">Committed</Status>
         ) : (
           <>
             <BatchPick pick={{ kind: "finding", id: fix.finding, label: fix.title }}>

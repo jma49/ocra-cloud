@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Status } from "@/components/status";
 import { Button } from "@/components/ui/button";
 import type {
   AutoReviewRepoView,
@@ -67,7 +68,7 @@ function Commands(props: { repo: AutoReviewRepoView; number: number }) {
       {pausable && (
         <div className="row-gap checks-head">
           <span className="subtle small grow" role="status">
-            {paused && <span className="badge badge-warn">Paused</span>}{" "}
+            {paused && <Status tone="warn">Paused</Status>}{" "}
             {paused
               ? "ocra does not review new commits here until it is resumed."
               : "ocra reviews new commits here as they arrive."}

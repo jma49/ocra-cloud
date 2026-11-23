@@ -3,6 +3,7 @@ import EyeOff from "lucide-react/icons/eye-off";
 import Radio from "lucide-react/icons/radio";
 import Share2 from "lucide-react/icons/share-2";
 import { useMemo, useState } from "react";
+import { Status } from "@/components/status";
 import { Button } from "@/components/ui/button";
 import type { LiveCommentView, LiveRunView } from "../../../src/shared/index.js";
 import { ApiError, api } from "../api.js";
@@ -24,9 +25,9 @@ import { ActionError, EmptyState, LoadError, Loading, PageHead, useAction } from
 const RANK = { critical: 0, warning: 1, suggestion: 2 } as const;
 
 const STATE = {
-  running: { label: "Running", cls: "badge-run" },
-  finished: { label: "Finished", cls: "badge-ok" },
-  failed: { label: "Stopped", cls: "badge-err" },
+  running: { label: "Running", tone: "run" },
+  finished: { label: "Finished", tone: "ok" },
+  failed: { label: "Stopped", tone: "err" },
 } as const;
 
 export function LivePage(props: { id: string }) {
@@ -87,7 +88,7 @@ export function LivePage(props: { id: string }) {
     <div className="live-frame">
       <aside className="live-side" aria-label="Progress">
         <div className="live-state">
-          <span className={`badge ${state.cls}`}>{state.label}</span>
+          <Status tone={state.tone}>{state.label}</Status>
           {progress.ending?.kind === "finished" && (
             <span className="capitalize">{progress.ending.verdict.replaceAll("_", " ")}</span>
           )}

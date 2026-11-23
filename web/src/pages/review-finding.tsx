@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Status } from "@/components/status";
 import { Button } from "@/components/ui/button";
 import {
   type FindingIssueView,
@@ -179,9 +180,7 @@ export function FindingEvent(props: {
               Commit fix
             </Button>
           )}
-          {(f.status === "fixed" || fixed === "done") && (
-            <span className="badge badge-ok">Fixed</span>
-          )}
+          {(f.status === "fixed" || fixed === "done") && <Status tone="ok">Fixed</Status>}
           {props.canFix && <FindingIssue findingId={f.id} issue={f.issue} />}
         </div>
         <CommitFixNote state={fixed} />

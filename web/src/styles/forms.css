@@ -66,16 +66,17 @@ select.input {
 .seg [data-slot="toggle"][data-pressed] {
   background: transparent;
 }
-/* A pill: a soft fill in its tone. */
+/* A tag in a row: a soft fill in its tone, smaller and squarer than a control so it never reads as one. */
 .badge {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  height: 22px;
+  height: 20px;
   font-size: var(--text-sm);
+  line-height: 16px;
   font-weight: 500;
   padding: 0 8px;
-  border-radius: var(--r-tab);
+  border-radius: var(--r-tag);
   border: 0;
   color: var(--t2);
   background: var(--fill);
@@ -97,6 +98,29 @@ select.input {
 .badge-err {
   color: var(--critical);
   background: color-mix(in srgb, var(--critical) 8%, transparent);
+}
+/* A standing beside actions or in a head: a mark and a word in its tone, no fill (`Status`). */
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-sm);
+  line-height: 16px;
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--t2);
+}
+.status-ok {
+  color: var(--green);
+}
+.status-warn {
+  color: var(--warning);
+}
+.status-run {
+  color: var(--blue);
+}
+.status-err {
+  color: var(--critical);
 }
 .dot {
   width: 6px;
