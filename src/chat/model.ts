@@ -1,28 +1,14 @@
 import { parseUsage, type Usage } from "../gateway.js";
-import type { AuthStyle, Provider } from "../providers.js";
+import type { Wire } from "../shared/index.js";
 
 // One streamed model call in the two wire formats the providers speak: an
 // OpenAI-compatible chat completion, or Anthropic's messages. Reads the
 // answer's text and token counts from the events; never logs either.
 
-export type Wire = "openai" | "anthropic";
-export type ChatRoute = { path: string; auth: AuthStyle; wire: Wire };
 export type Turn = { role: "user" | "assistant"; text: string };
 
 /** Anthropic's messages need a cap; the answer is also cut at MAX_ANSWER_CHARS as it streams. */
 const MAX_ANSWER_TOKENS = 2_048;
-
-/** The provider's chat route, an OpenAI-compatible one first; undefined when it has neither. */
-export function chatRoute(p: Provider): ChatRoute | undefined {
-  const fixed = p.routes.filter(
-    (r): r is typeof r & { path: string } => typeof r.path === "string",
-  );
-  const openai = fixed.find((r) => r.path.endsWith("/chat/completions"));
-  if (openai) return { path: openai.path, auth: openai.auth, wire: "openai" };
-  const messages = fixed.find((r) => r.path.endsWith("/messages"));
-  if (messages) return { path: messages.path, auth: messages.auth, wire: "anthropic" };
-  return undefined;
-}
 
 /** The request's body and the headers its format needs. */
 export function chatRequest(

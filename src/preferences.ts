@@ -8,9 +8,10 @@ import {
 } from "@open-cr-agent/cloud-contract";
 import { Hono } from "hono";
 import type { z } from "zod";
-import { type Catalog, catalogOf, hasChatRoute } from "./catalog.js";
+import { type Catalog, catalogOf } from "./catalog.js";
 import { newId, type Scoped } from "./db/scoped.js";
 import { apiError, jsonBody } from "./http.js";
+import { chatRoute } from "./providers.js";
 import { perMinute } from "./rate.js";
 import { requireSession } from "./session.js";
 import { parseModelId } from "./shared/index.js";
@@ -31,13 +32,13 @@ preferences.get("/models", requireSession(["web", "cli"]), async (c) => {
 });
 
 /**
- * The provider of an ocra-<provider>/<model> name the gateway has an
- * OpenAI-compatible chat route for: the CLI can use no other (audit K-models).
- * The contract checks the name's form; only the server knows the routes.
+ * The provider of an ocra-<provider>/<model> name the gateway has a chat
+ * route for: the CLI can use no other (audit K-models). The contract checks
+ * the name's form; only the server knows the routes.
  */
 function chatModel(catalog: Catalog, model: string): boolean {
   const ref = parseModelId(model);
-  return ref !== null && hasChatRoute(catalog.get(ref.provider));
+  return ref !== null && chatRoute(catalog.get(ref.provider)) !== undefined;
 }
 
 /** PUT /api/preferences and a restored version: the contract's shape, and models the gateway can serve. */
@@ -62,7 +63,7 @@ export const preferencesBody = (catalog: Catalog) =>
           ctx.addIssue({
             code: "custom",
             path: [...path, i],
-            message: "the gateway has no OpenAI-compatible chat route for this provider",
+            message: "the gateway has no chat completions or Messages route for this provider",
           });
         }
       }

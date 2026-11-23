@@ -5,6 +5,7 @@ import { Switch } from "@/components/ui/switch";
 import {
   type AgentRole,
   BUILT_IN_REVIEWERS,
+  chatPath,
   effortLevels,
   formatModelId,
   parseModelId,
@@ -58,9 +59,7 @@ export function Agents() {
 
   const usable = useMemo(() => {
     const have = new Set((keys?.keys ?? []).map((k) => k.provider));
-    return (providers ?? []).filter(
-      (p) => have.has(p.name) && p.paths.some((x) => x.endsWith("/chat/completions")),
-    );
+    return (providers ?? []).filter((p) => have.has(p.name) && chatPath(p.paths) !== undefined);
   }, [providers, keys]);
   const names = useMemo(() => usable.map((p) => p.name), [usable]);
   const info = useModelInfo(names);
@@ -82,8 +81,8 @@ export function Agents() {
             title="Add a provider key first"
             action={<Button render={<Link to="/keys" />}>Add a key</Button>}
           >
-            Agents run on your own keys. Add a key from a provider with an OpenAI-compatible
-            endpoint.
+            Agents run on your own keys. Add a key from a provider the gateway can hold a
+            conversation with.
           </EmptyState>
         </div>
       </>
@@ -97,6 +96,7 @@ export function Agents() {
   const setAgents = (change: (prev: AgentPrefs) => AgentPrefs) =>
     set((prev) => ({ ...prev, agents: change(prev.agents) }));
   const tierEffort = (t: Tier) => draft.agents.effort?.[t];
+  const needsDirect = draft.runtime !== "direct" ? messagesOnly(draft, usable) : [];
   return (
     <>
       <PageHead
@@ -129,6 +129,22 @@ export function Agents() {
             }
           />
         </div>
+        {needsDirect.length > 0 && (
+          <p className="note small center mb-0" role="status">
+            <span className="grow">
+              {needsDirect.join(", ")} {needsDirect.length === 1 ? "speaks" : "speak"} only the
+              Messages protocol, which the Direct runtime handles and OpenCode does not.
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => set((prev) => ({ ...prev, runtime: "direct" }))}
+            >
+              Use Direct
+            </Button>
+          </p>
+        )}
       </div>
 
       <div className="section card">
@@ -280,6 +296,19 @@ export function Agents() {
       </p>
     </>
   );
+}
+
+/** The chosen providers that only the Direct runtime can call, by label. */
+function messagesOnly(p: Prefs, usable: ProviderInfo[]): string[] {
+  const chains = [
+    ...Object.values(p.models),
+    ...Object.values(p.agents.reviewers ?? {}).map((r) => r?.models),
+    ...Object.values(p.agents.roles ?? {}).map((r) => r?.models),
+  ];
+  const chosen = new Set(chains.flatMap((c) => c ?? []).map((m) => split(m).provider));
+  return usable
+    .filter((u) => chosen.has(u.name) && chatPath(u.paths)?.wire === "anthropic")
+    .map((u) => u.label);
 }
 
 // Drops models whose id is not filled in yet, so a half-edited row is not sent.

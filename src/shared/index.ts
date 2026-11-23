@@ -8,6 +8,7 @@ export * from "./api-tokens.js";
 export * from "./audit.js";
 export * from "./auto-review.js";
 export * from "./automations.js";
+export * from "./chat-path.js";
 export * from "./cycles.js";
 export * from "./domain.js";
 export * from "./efforts.js";

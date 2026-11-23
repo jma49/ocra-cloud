@@ -45,18 +45,6 @@ export function catalogOf(env: CatalogSettings): Catalog {
 }
 
 /**
- * Whether the provider has an OpenAI-compatible chat route, the one the CLI
- * declares a gateway provider with (packages/cli/src/cloud/providers.ts).
- */
-export function hasChatRoute(provider: Provider | undefined): boolean {
-  return (
-    provider?.routes.some(
-      (r) => typeof r.path === "string" && r.path.endsWith("/chat/completions"),
-    ) ?? false
-  );
-}
-
-/**
  * GET /api/providers: the providers and paths the gateway forwards, for the
  * web app and the CLI. It needs no session and changes only with a deploy,
  * so a browser keeps it an hour instead of asking the server on every page
