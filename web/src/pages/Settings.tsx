@@ -50,7 +50,10 @@ export function Settings(props: { me: Me }) {
   };
   return (
     <>
-      <PageHead title="Account & privacy" />
+      <PageHead
+        title="Account & privacy"
+        sub="Who you are signed in as, what ocra Cloud keeps for you, and how to take it with you or delete it."
+      />
       <div className="card">
         <div className="card-head">
           <h3>Account</h3>

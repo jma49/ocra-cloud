@@ -46,7 +46,7 @@ describe("the Agents page", () => {
         <Agents />
       </PrefsProvider>,
     );
-    await screen.findByRole("heading", { name: "Agents" });
+    await screen.findByRole("heading", { name: "Agents & models" });
     await waitFor(() => expect(asked).toHaveLength(PROVIDERS.length));
     await new Promise((r) => setTimeout(r, 100));
     expect(asked.sort()).toEqual(PROVIDERS.map((p) => `/keys/${p.name}/models`).sort());

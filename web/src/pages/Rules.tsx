@@ -1,4 +1,5 @@
 import ListChecks from "lucide-react/icons/list-checks";
+import Plus from "lucide-react/icons/plus";
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { type Rule, useSettings } from "../prefs.js";
@@ -31,21 +32,19 @@ export function Rules() {
       "rules",
       rules.map((x, j) => (j === i ? r : x)),
     );
+  const add = (at: number) => {
+    set("rules", [...rules, { path: "**", rule: "" }]);
+    setEditing(at);
+  };
   return (
     <>
       <PageHead
         title="Rules"
         sub="Tell reviewers what your code must do, by path. They apply alongside a repository's own rules and AGENTS.md."
         actions={
-          <Button
-            type="button"
-            disabled={rules.length >= MAX}
-            onClick={() => {
-              set("rules", [...rules, { path: "**", rule: "" }]);
-              setEditing(rules.length);
-            }}
-          >
-            + Add rule
+          <Button type="button" disabled={rules.length >= MAX} onClick={() => add(rules.length)}>
+            <Plus aria-hidden="true" />
+            Add rule
           </Button>
         }
       />
@@ -55,13 +54,7 @@ export function Rules() {
             icon={ListChecks}
             title="No rules yet"
             action={
-              <Button
-                type="button"
-                onClick={() => {
-                  set("rules", [{ path: "**", rule: "" }]);
-                  setEditing(0);
-                }}
-              >
+              <Button type="button" variant="outline" onClick={() => add(0)}>
                 Write your first rule
               </Button>
             }

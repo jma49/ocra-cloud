@@ -1,3 +1,4 @@
+import History from "lucide-react/icons/history";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { formatModelId, parseModelId } from "../../../src/shared/index.js";
@@ -6,7 +7,7 @@ import { ApiError, api, why } from "../api.js";
 import { ago } from "../format.js";
 import { type Prefs, type Settings, usePrefs } from "../prefs.js";
 import { useToast } from "../toast.js";
-import { PageHead, useLoad } from "../ui.js";
+import { EmptyState, PageHead, useLoad } from "../ui.js";
 
 // Your defaults as files, an import from a repository's file, and every
 // saved version (ADR-0027). The web cannot see a repository's own file, so
@@ -251,7 +252,10 @@ export function Defaults() {
           </Button>
         </div>
         {versions && versions.versions.length === 0 && (
-          <div className="empty">No saved versions yet.</div>
+          <EmptyState icon={History} title="No saved versions yet">
+            Each time you save a change to your review settings, the version before it is listed
+            here to restore.
+          </EmptyState>
         )}
         {(versions?.versions ?? []).map((v, i) => (
           <div className="list-row" key={v.id}>

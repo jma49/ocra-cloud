@@ -64,6 +64,19 @@
   background: var(--primary);
   border-radius: 3px;
 }
+.meter > span[data-tone="warn"] {
+  background: var(--warning);
+}
+.budget-use {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.budget-note {
+  margin: 8px 0 0;
+}
 
 /* Chart */
 .chart {
@@ -162,6 +175,15 @@
 }
 .kv dd {
   margin: 0;
+}
+@media (max-width: 560px) {
+  .kv {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+  .kv dd + dt {
+    margin-top: 12px;
+  }
 }
 
 @media (max-width: 900px) {

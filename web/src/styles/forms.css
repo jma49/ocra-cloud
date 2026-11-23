@@ -213,8 +213,8 @@ select.input {
   border-bottom: 0;
 }
 .form-row .label {
-  font-weight: 600;
-  font-size: var(--text-md);
+  font-weight: 500;
+  font-size: var(--text-base);
 }
 .form-row .desc {
   color: var(--fg-subtle);
