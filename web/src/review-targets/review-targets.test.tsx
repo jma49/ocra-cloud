@@ -131,14 +131,14 @@ describe("the pull requests at risk", () => {
     expect(within(past).getByText("Past")).toBeTruthy();
     expect(within(past).getByText("First review")).toBeTruthy();
     expect(within(past).getByText("lena")).toBeTruthy();
-    expect(within(past).getByText("5.0h overdue")).toBeTruthy();
+    expect(within(past).getByText("5h overdue")).toBeTruthy();
     expect(within(past).getByRole("link", { name: "Change 1" }).getAttribute("href")).toBe(
       "/pull/github/octo%2Fapi/1",
     );
     const near = screen.getByText("Change 2").closest("tr") as HTMLElement;
     expect(within(near).getByText("Near")).toBeTruthy();
     expect(within(near).getByText("Merge")).toBeTruthy();
-    expect(within(near).getByText(/^due in (3\.0|2\.9)h$/)).toBeTruthy();
+    expect(within(near).getByText(/^due in (3|2\.9)h$/)).toBeTruthy();
   });
 
   it("asks for one repository when it is picked", async () => {
