@@ -1,9 +1,15 @@
-import { MAX_REVIEWERS, REVIEWER_ID, reviewUploadSchema } from "@open-cr-agent/cloud-contract";
+import {
+  MAX_FINDINGS,
+  MAX_REVIEWERS,
+  REVIEWER_ID,
+  reviewUploadSchema,
+} from "@open-cr-agent/cloud-contract";
 import { type Context, Hono } from "hono";
 import type { z } from "zod";
 import { reviewedEvent } from "./automations/reviewed.js";
 import { automate } from "./automations/run.js";
 import { config } from "./config.js";
+import type { FindingsOnPull } from "./db/finding-outcomes.js";
 import type { Row, Scoped } from "./db/scoped.js";
 import { defer } from "./defer.js";
 import { parseFindings } from "./findings.js";
@@ -92,6 +98,22 @@ export function reviewRow(u: Upload) {
   };
 }
 
+/**
+ * The earlier findings on the upload's pull request it saw fixed, each once
+ * and at most the contract's MAX_FINDINGS. Its dismissed ones are not kept:
+ * a dismissal on the platform names no reason, and the account's own
+ * dismissals always do.
+ */
+function fixedOnPull(u: Upload): FindingsOnPull | null {
+  const fingerprints = (u.outcomes?.fixedFingerprints ?? []).filter((f) => f !== null);
+  if (!u.pullRequest || fingerprints.length === 0) return null;
+  return {
+    identity: u.pullRequest.repository.toLowerCase(),
+    number: u.pullRequest.number,
+    fingerprints: [...new Set(fingerprints)].slice(0, MAX_FINDINGS),
+  };
+}
+
 // Counts are small; findings, sent only when the account shares them, are
 // bounded to 256 KB of text (ADR-0028). Past MAX_UPLOAD bytes: 413.
 const uploadBody = jsonBody(reviewUploadSchema, { max: MAX_UPLOAD });
@@ -130,6 +152,8 @@ reviews.post("/", requireSession(["web", "cli"]), perMinute("upload"), uploadBod
   const { id, findingsSkipped } = stored;
   // A retry of the run answers duplicate above, so this runs once per review.
   if (walkthrough) await c.var.data.insert("reviewWalkthroughs", { ...walkthrough, reviewId: id });
+  const fixed = sharing ? fixedOnPull(upload) : null;
+  if (fixed) await c.var.data.findingOutcomes.markFixedOnRereview(fixed);
   defer(c, announce(c, id));
   defer(c, recheckPull(c, id));
   return c.json({
