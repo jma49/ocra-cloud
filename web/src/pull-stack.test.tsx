@@ -17,6 +17,7 @@ const stacked = (number: number, parent: number | null) => ({
   base: parent === null ? "main" : `step-${parent}`,
   headSha: sha(number),
   parent,
+  behind: parent === null ? null : 0,
   checks: number === 1 ? "passing" : null,
   review: null,
 });
@@ -81,6 +82,7 @@ function show(
       pull={{ platform: "github", repo: "octo/api", number: 2 }}
       mergeMethods={["squash", "merge"]}
       onMerged={onMerged}
+      restack={<button type="button">Update branch</button>}
     />,
   );
   return { sent, onMerged };
@@ -149,7 +151,7 @@ describe("a pull request's stack", () => {
     expect(status.textContent).toContain("#2Step 2Waiting for its checks.");
     expect(screen.getByText("Waiting").className).toBe("badge");
     expect(screen.getByRole("img", { name: "1 of 2 merged" })).toBeTruthy();
-    expect(screen.getByText(/Started by octo/).textContent).toContain("runs on the server");
+    expect(screen.getByText(/Started by octo/).textContent).toContain("keeps going on the server");
     expect(onMerged).toHaveBeenCalledOnce();
   });
 
@@ -201,6 +203,62 @@ describe("a pull request's stack", () => {
     show([stacked(1, null), stacked(2, 1)], undefined, job(0, "cancelled"));
     expect(await screen.findByRole("button", { name: "Merge stack up to here" })).toBeTruthy();
     expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  it("says where the last merge stopped, why, and what gets it going again", async () => {
+    show([stacked(1, null), stacked(2, 1)], undefined, job(1, "failed", "conflicts"));
+    const said = (await screen.findByRole("status")).textContent;
+    expect(said).toContain("stopped at #2");
+    expect(said).toContain("it conflicts with the trunk. Resolve the conflicts on its branch");
+    expect(screen.getByRole("button", { name: "Merge stack up to here" })).toBeTruthy();
+  });
+
+  it("drops a stopped merge's note once the layer it stopped at has left the stack", async () => {
+    show([stacked(1, null), stacked(2, 1)], undefined, {
+      ...job(1, "failed", "closed"),
+      chain: [
+        { number: 1, head: sha(1) },
+        { number: 7, head: sha(7) },
+      ],
+    });
+    await screen.findByRole("region", { name: "Stack" });
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  it("marks a layer whose branch lacks commits of the one under it, and offers to bring this one's in", async () => {
+    show([stacked(1, null), { ...stacked(2, 1), behind: 2 }, { ...stacked(3, 2), behind: 1 }]);
+    const marks = await screen.findAllByText("Needs restack");
+    expect(marks.map((m) => m.getAttribute("title"))).toEqual([
+      "Its branch lacks 2 commits of #1",
+      "Its branch lacks 1 commit of #2",
+    ]);
+    expect(screen.getByText(/This branch lacks 2 commits of #1/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Update branch" })).toBeTruthy();
+  });
+
+  it("offers no update while this branch has all of the one under it", async () => {
+    show([stacked(1, null), stacked(2, 1), { ...stacked(3, 2), behind: 4 }]);
+    await screen.findByText("Needs restack");
+    expect(screen.queryByRole("button", { name: "Update branch" })).toBeNull();
+  });
+
+  it("says how each layer's review stands", async () => {
+    show([
+      { ...stacked(1, null), review: "approved" },
+      { ...stacked(2, 1), draft: true },
+    ]);
+    expect(await screen.findByText("Approved")).toBeTruthy();
+    expect(screen.getByText("Draft")).toBeTruthy();
+  });
+
+  it("goes back to the stack from a merge that ended", async () => {
+    show([stacked(1, null), stacked(2, 1)], {
+      outcome: "started",
+      job: job(0, "failed", "closed"),
+    });
+    await confirm();
+    fireEvent.click(await screen.findByRole("button", { name: "Show the stack" }));
+    expect(await screen.findByRole("button", { name: "Merge stack up to here" })).toBeTruthy();
   });
 
   it("says the stack changed when the server would not start on what the page read", async () => {

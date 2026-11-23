@@ -1,17 +1,39 @@
-/* A pull request's stack, first in the pull request page's sidebar. */
+/* A pull request's stack, first in its overview: a layer a line, joined down their marks. */
+.pull-stack-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  align-items: baseline;
+}
 .pull-stack-list {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 2px;
-  margin: 0;
+  margin: 0 -8px;
   padding: 0;
   list-style: none;
+}
+.pull-stack-list li {
+  position: relative;
+  padding-inline-start: calc(var(--lane, 0) * 16px);
+}
+/* From the mark of the layer under it to its own: 16 px marks, centred on rows a control high and 2 px apart. */
+.pull-stack-list li.joined::before {
+  content: "";
+  position: absolute;
+  inset-block-start: calc(var(--ctl-h) / 2 - 21px);
+  inset-inline-start: calc(15.5px + var(--lane, 0) * 16px);
+  width: 1px;
+  height: calc(var(--ctl-h) - 16px);
+  background: var(--t4);
+  pointer-events: none;
 }
 .pull-stack-link {
   display: flex;
   align-items: center;
   gap: 6px;
   min-width: 0;
+  min-height: var(--ctl-h);
   padding: 4px 8px;
   border-radius: var(--r-tab);
   color: var(--t1);
@@ -31,6 +53,60 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.pull-stack-notes {
+  display: flex;
+  flex: none;
+  gap: 12px;
+  color: var(--t3);
+  font-weight: 400;
+  white-space: nowrap;
+}
+.pull-stack-notes .ok {
+  color: var(--green);
+}
+.pull-stack-notes .warn {
+  color: var(--warning);
+}
+/* What needs doing before the stack can merge: said beside the button that does it. */
+.pull-stack-restack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+  justify-content: space-between;
+}
+.pull-stack-restack .update-branch {
+  padding-top: 0;
+  border-top: 0;
+}
+.pull-stack-stop {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 8px;
+  margin: 0;
+}
+.pull-stack-merge {
+  justify-self: start;
+}
+@media (max-width: 560px) {
+  /* Rows wrap to two lines here, so the marks are no longer a fixed step apart. */
+  .pull-stack-list li.joined::before {
+    display: none;
+  }
+  .pull-stack-link {
+    flex-wrap: wrap;
+  }
+  .pull-stack-title {
+    flex-basis: 60%;
+  }
+  .pull-stack-notes {
+    flex-basis: 100%;
+    padding-inline-start: 24px;
+  }
+  .pull-stack-notes:empty {
+    display: none;
+  }
 }
 /* A layer of a stack merge: its number and title lead to its page. */
 .stack-merge-layer {

@@ -142,6 +142,10 @@ export function PullPage(props: {
     if (outcome === "done" && (what === "Fix" || what === "Merge")) reload();
   };
   const settled = data.state === "merged" || data.state === "closed";
+  const refresh = () => {
+    reload();
+    setReadinessRev((n) => n + 1);
+  };
   const narrowed = sinceFiles(since);
   const shown = narrowed ?? data.files;
   const step = nextStep(readiness, data.mergeMethods.length > 0 && !queue.data?.enabled);
@@ -197,7 +201,17 @@ export function PullPage(props: {
       )}
       <div className="pull-overview">
         <div className="pull-about">
-          <StackPanel pull={ref} mergeMethods={data.mergeMethods} onMerged={reload} />
+          <StackPanel
+            pull={ref}
+            mergeMethods={data.mergeMethods}
+            onMerged={reload}
+            restack={
+              !settled &&
+              !readiness?.canUpdateBranch && (
+                <UpdateBranch pull={ref} head={data.head} onChanged={refresh} bare />
+              )
+            }
+          />
           <DescriptionBox
             pull={ref}
             view={description.data}
@@ -213,14 +227,7 @@ export function PullPage(props: {
           {!settled && (
             <ReadinessBox view={readiness}>
               {readiness?.canUpdateBranch && (
-                <UpdateBranch
-                  pull={ref}
-                  head={data.head}
-                  onChanged={() => {
-                    reload();
-                    setReadinessRev((n) => n + 1);
-                  }}
-                />
+                <UpdateBranch pull={ref} head={data.head} onChanged={refresh} />
               )}
             </ReadinessBox>
           )}
