@@ -1,12 +1,14 @@
 import { and, asc, eq, gte, isNotNull, lt, lte, sql } from "drizzle-orm";
 import type { AutomationRetry, AutomationRunView } from "../shared/index.js";
 import { changedRows, type Db, first } from "./client.js";
-import { automationRules, automationRuns } from "./schema.js";
+import { automationAssignments, automationRules, automationRuns } from "./schema.js";
 
 // The account's automation rules and their runs (reached through scoped()):
 // a rule is added in one statement under the cap, a run claims its rule's
 // event by the unique index before any action is taken, and each attempt
 // after the first is claimed by a compare-and-set on the run's attempts.
+// An assignment claims its rule's pull request by the unique index, and a
+// round robin moves its rule's cursor by compare-and-set.
 
 type NewRule = Omit<typeof automationRules.$inferInsert, "accountId" | "createdAt" | "updatedAt">;
 type NewRun = Omit<
@@ -32,7 +34,7 @@ export function accountAutomations(db: Db, accountId: string) {
       // A boolean is 0 or 1 on every database (./pg/tables.ts); a parameter is not cast.
       const inserted = await db.insert(t).select(sql`
         SELECT ${row.id}, ${accountId}, ${row.name}, ${row.enabled === false ? 0 : 1}, ${row.trigger},
-          ${JSON.stringify(row.conditions)}, ${JSON.stringify(row.actions)}, ${now}, ${now}
+          ${JSON.stringify(row.conditions)}, ${JSON.stringify(row.actions)}, 0, ${now}, ${now}
         WHERE (SELECT count(*) FROM ${t} WHERE ${eq(t.accountId, accountId)}) < ${cap}`);
       return changedRows(inserted) > 0;
     },
@@ -43,6 +45,32 @@ export function accountAutomations(db: Db, accountId: string) {
         .values({ ...row, accountId })
         .onConflictDoNothing({ target: [r.ruleId, r.eventKey] });
       return changedRows(result) > 0;
+    },
+    /** Claims the rule's assignment on the pull request; its id, or undefined when taken. */
+    async claimAssignment(ruleId: string, reviewRepoId: string, number: number) {
+      const a = automationAssignments;
+      const [claimed] = await db
+        .insert(a)
+        .values({ id: crypto.randomUUID(), accountId, ruleId, reviewRepoId, number, logins: [] })
+        .onConflictDoNothing({ target: [a.ruleId, a.reviewRepoId, a.number] })
+        .returning({ id: a.id });
+      return claimed?.id;
+    },
+    /** Keeps who was asked, or gives the claim up so a later event tries again (logins null). */
+    async settleAssignment(id: string, logins: string[] | null): Promise<void> {
+      const a = automationAssignments;
+      const mine = and(eq(a.accountId, accountId), eq(a.id, id));
+      if (logins) await db.update(a).set({ logins }).where(mine);
+      else await db.delete(a).where(mine);
+    },
+    /** Moves the rule's round-robin cursor from where it was read; whether it still was there. */
+    async moveCursor(ruleId: string, from: number, to: number): Promise<boolean> {
+      const t = automationRules;
+      const moved = await db
+        .update(t)
+        .set({ assignCursor: to })
+        .where(and(eq(t.accountId, accountId), eq(t.id, ruleId), eq(t.assignCursor, from)));
+      return changedRows(moved) > 0;
     },
     /** Records the attempt, only while it is still the one that claimed the run. */
     async finish(id: string, attempts: number, result: RunResult): Promise<void> {

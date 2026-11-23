@@ -57,6 +57,7 @@ export const EXPORTED = {
   generateJobs: "generateJobs",
   automationRules: "automationRules",
   automationRuns: "automationRuns",
+  automationAssignments: "automationAssignments",
   mergeChecks: "mergeChecks",
   mergeCheckRuns: "mergeCheckRuns",
   mergeIntents: "mergeIntents",

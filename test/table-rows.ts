@@ -220,6 +220,14 @@ export const rows = {
     eventKey: `review:${id}`,
     actions: [],
   }),
+  // The enrolled repository it belongs to is made in beforeEach (the foreign key needs one).
+  automationAssignments: (id: string) => ({
+    id,
+    ruleId: `rule-${id}`,
+    reviewRepoId: "review-repo-of-a",
+    number: 7,
+    logins: ["mona"],
+  }),
   // The enrolled repository they belong to is made in beforeEach (the foreign key needs one).
   mergeChecks: (id: string) => ({
     id,

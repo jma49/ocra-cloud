@@ -62,13 +62,43 @@ export type AutomationAction =
   /** One of the account's notification channels. */
   | { kind: "notify"; channelId: string }
   /** Queued only: the pull request's head is not reviewed. */
-  | { kind: "skip_review" };
+  | { kind: "skip_review" }
+  /** Queued only: asks reviewers chosen when it opens or leaves draft, once per pull request. */
+  | AssignReviewers;
+
+/**
+ * How reviewers are chosen: `suggested` the best of those the console
+ * suggests (code owners, recent and same-directory reviewers, fewer open
+ * requests), `round_robin` the configured logins in turn, `least_loaded`
+ * those of them with the fewest open review requests.
+ */
+export const ASSIGN_STRATEGIES = ["suggested", "round_robin", "least_loaded"] as const;
+export type AssignStrategy = (typeof ASSIGN_STRATEGIES)[number];
+export const MAX_ASSIGN_COUNT = 5;
+/** Logins a round_robin or least_loaded rule chooses from. */
+export const MAX_ASSIGN_LOGINS = 20;
+
+/**
+ * Asks up to `count` reviewers, fewer by those already asked, never the
+ * author or a bot; nothing when `count` are asked already.
+ */
+export type AssignReviewers = {
+  kind: "assign_reviewers";
+  strategy: AssignStrategy;
+  /** 1 to MAX_ASSIGN_COUNT. */
+  count: number;
+  /** round_robin and least_loaded only (and required): who to choose from, in turn order. */
+  logins?: string[] | undefined;
+  /** Owners of changed files in CODEOWNERS at the base are chosen before the rest. */
+  codeOwnersFirst?: boolean | undefined;
+};
 
 /** The actions written on the pull request as the ocra bot, which only a self-hosted server has. */
 export const BOT_ACTIONS: readonly AutomationActionKind[] = [
   "add_labels",
   "request_reviewers",
   "comment",
+  "assign_reviewers",
 ];
 
 export type AutomationRuleView = {
@@ -87,10 +117,16 @@ export type AutomationRuleView = {
 /**
  * How an action went: `needs_self_hosted` when the server has no bot,
  * `not_enrolled` when the pull request's repository is not one the account
- * enrolled, `unreached` when the platform or the chat did not answer.
+ * enrolled, `unreached` when the platform or the chat did not answer. An
+ * assignment is `enough_reviewers` when the pull request had its count
+ * asked already, `already_assigned` when the rule assigned on it before
+ * (it opened again), `no_candidates` when no one was left to ask.
  */
 export type AutomationActionOutcome =
   | "done"
+  | "enough_reviewers"
+  | "already_assigned"
+  | "no_candidates"
   | "refused"
   | "unreached"
   | "needs_self_hosted"

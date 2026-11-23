@@ -1,18 +1,11 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import {
-  CODEOWNERS_PATHS,
-  MAX_CODEOWNERS_BYTES,
-  type Owner,
-  ownersOfPath,
-  parseCodeOwners,
-} from "./codeowners.js";
+import type { Owner } from "./codeowners.js";
 import { apiError, jsonBody } from "./http.js";
 import { LOGIN } from "./platforms/reviewers.js";
 import { byKind, pullRef, reach } from "./pull-page.js";
 import { perMinute } from "./rate.js";
-import { pathPrefixes } from "./review-paths.js";
-import { rankReviewers, withLoad } from "./reviewer-rank.js";
+import { HISTORY_DAYS, suggestReviewers } from "./reviewer-suggest.js";
 import { requireSession } from "./session.js";
 import type {
   CodeOwnerMatch,
@@ -22,26 +15,12 @@ import type {
 } from "./shared/index.js";
 import type { AppEnv } from "./types.js";
 
-// Reviewers suggested for a pull request, read as the signed-in user: the
-// changed files' owners in CODEOWNERS at the base, and who reviewed the
-// enrolled repository's pull requests in the last 90 days (pull_reviews),
-// more for those changing the directories this one changes (pull_paths,
-// kept from the review webhooks: src/auto-review/paths.ts). Nothing read
-// here is stored.
+// Reviewers suggested for a pull request, read as the signed-in user
+// (./reviewer-suggest.ts), and asked for as them.
 
 export const reviewers = new Hono<AppEnv>();
 
-const MAX_SUGGESTIONS = 5;
-/** Candidates whose open review requests are read before the last cut. */
-const LOAD_POOL = 8;
-/** Changed files matched against CODEOWNERS. */
-const MAX_FILES = 300;
-const HISTORY_DAYS = 90;
-const MAX_HISTORY = 50;
-/** Rows of reviewer and changed directory read. */
-const MAX_PATH_ROWS = 200;
 const MAX_REQUESTED = 10;
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 const suggestQuery = z.object(pullRef);
 const requestBody = z.object({
@@ -83,56 +62,19 @@ reviewers.get("/reviewers", requireSession(["web"]), perMinute("platform"), asyn
   if ("refusal" in reached) return reached.refusal;
   const { platform, token } = reached;
   const { repo, number } = ref.data;
-  const [people, changes] = await Promise.all([
-    platform.reviewers.people(token, repo, number),
-    platform.changes.changes(token, repo, number, MAX_FILES),
-  ]);
-  if (!people || !changes) return apiError(c, "not_found");
-  const repoRef = { platformRepoId: people.platformRepoId, fullName: repo };
-  const locations = CODEOWNERS_PATHS[platform.kind];
-  const [reads, enrolled] = await Promise.all([
-    platform.files.read(token, repoRef, people.base, [...locations], MAX_CODEOWNERS_BYTES),
-    c.var.data.findOne("reviewRepos", {
-      platform: platform.kind,
-      host: platform.host,
-      platformRepoId: people.platformRepoId,
-    }),
-  ]);
-  if (!reads) return apiError(c, "upstream_unreachable");
-  const found = reads.find((r) => r.blobId !== null);
-  const file = found?.bytes
-    ? parseCodeOwners(new TextDecoder().decode(found.bytes), platform.kind)
-    : null;
-  const perFile = file ? changes.files.map((f) => ownersOfPath(file, f.path)) : [];
-  const since = new Date(Date.now() - HISTORY_DAYS * DAY_MS);
-  const prefixes = pathPrefixes(changes.files.flatMap((f) => [f.path, f.oldPath]));
-  const [history, paths] = enrolled
-    ? await Promise.all([
-        c.var.data.pullFlows.reviewersSince(since, [enrolled.id], MAX_HISTORY),
-        c.var.data.pullPaths.reviewersIn(since, enrolled.id, prefixes, MAX_PATH_ROWS),
-      ])
-    : [[], []];
-  const pool = rankReviewers({
-    author: people.author,
-    requested: people.requested,
-    owners: perFile,
-    history,
-    paths,
-  }).slice(0, LOAD_POOL);
-  const load = await platform.reviewers.load(
-    token,
-    pool.map((p) => p.login),
-  );
+  const found = await suggestReviewers(c.var.data, platform, token, repo, number);
+  if (found === "not_found") return apiError(c, "not_found");
+  if (found === "unreachable") return apiError(c, "upstream_unreachable");
   return c.json({
     platform: platform.kind,
     repo,
     number,
-    suggestions: withLoad(pool, load).slice(0, MAX_SUGGESTIONS).map(suggestionDto),
-    owners: ownerMatches(perFile),
-    codeowners: found ? { path: found.path, read: file !== null } : null,
-    history: enrolled ? "repository" : "not_enrolled",
+    suggestions: found.suggestions.map(suggestionDto),
+    owners: ownerMatches(found.perFile),
+    codeowners: found.codeowners,
+    history: found.enrolled ? "repository" : "not_enrolled",
     historyDays: HISTORY_DAYS,
-    truncated: changes.truncated,
+    truncated: found.truncated,
   } satisfies PullReviewersView);
 });
 

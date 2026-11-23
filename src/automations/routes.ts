@@ -7,12 +7,15 @@ import { apiError, jsonBody } from "../http.js";
 import { perMinute } from "../rate.js";
 import { requireSession } from "../session.js";
 import {
+  ASSIGN_STRATEGIES,
   AUTOMATION_TRIGGERS,
   type AutomationMatchView,
   type AutomationRuleView,
   type AutomationRunView,
   type AutomationSkipView,
   BOT_ACTIONS,
+  MAX_ASSIGN_COUNT,
+  MAX_ASSIGN_LOGINS,
   MAX_AUTOMATION_PATHS,
 } from "../shared/index.js";
 import type { AppEnv } from "../types.js";
@@ -94,6 +97,18 @@ const action = z.discriminatedUnion("kind", [
   }),
   z.strictObject({ kind: z.literal("notify"), channelId: z.string().max(64) }),
   z.strictObject({ kind: z.literal("skip_review") }),
+  z
+    .strictObject({
+      kind: z.literal("assign_reviewers"),
+      strategy: z.enum(ASSIGN_STRATEGIES),
+      count: z.number().int().min(1).max(MAX_ASSIGN_COUNT),
+      logins: list(login, MAX_ASSIGN_LOGINS).optional(),
+      codeOwnersFirst: z.boolean().optional(),
+    })
+    .refine((a) => (a.strategy === "suggested") === (a.logins === undefined), {
+      path: ["logins"],
+      message: "logins for round_robin and least_loaded, none for suggested",
+    }),
 ]);
 
 const ruleBody = z.object({
@@ -158,6 +173,10 @@ async function refusal(data: AppEnv["Variables"]["data"], body: RuleBody) {
     if (!(await data.get("reviewRepos", id))) {
       return issue(["conditions", "repoIds", i], "not a repository this account enrolled");
     }
+  }
+  const assigns = body.actions.flatMap((a, i) => (a.kind === "assign_reviewers" ? [i] : []));
+  if (assigns.length > 1) {
+    return issue(["actions", assigns[1] ?? 0], "one assign_reviewers action a rule");
   }
   for (const [i, a] of body.actions.entries()) {
     if (a.kind === "notify" && !(await data.get("notifyChannels", a.channelId))) {

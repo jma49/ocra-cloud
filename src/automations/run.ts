@@ -10,16 +10,17 @@ import { platformsOf } from "../platforms/registry.js";
 import { pullPageUrl } from "../review-pull.js";
 import {
   type AutomationAction,
+  type AutomationActionKind,
   type AutomationActionOutcome,
   type AutomationPullFacts,
   type AutomationRetry,
   type AutomationRunView,
   type AutomationSkipReason,
   type AutomationTrigger,
-  BOT_ACTIONS,
   MAX_AUTOMATION_PATHS,
 } from "../shared/index.js";
 import type { AppEnv } from "../types.js";
+import { assignReviewers } from "./assign.js";
 import { type ChangedPaths, pathsHold } from "./paths.js";
 import { conditionsHold } from "./rules.js";
 
@@ -177,20 +178,22 @@ async function runRules(runner: Runner, event: AutomationEvent, matched: Matched
     });
     if (!claimed) continue;
     const done: AutomationRunView["actions"] = [];
-    for (const action of actions) {
-      done.push({ kind: action.kind, outcome: await perform(runner, event, rule, action, bot) });
+    const tried: AutomationRetry["actions"] = [];
+    for (const [index, action] of actions.entries()) {
+      const { outcome, again } = await perform(runner, event, rule, action, bot);
+      done.push({ kind: action.kind, outcome });
+      tried.push({ index, action: again ?? action });
     }
-    const retry = event.repo
-      ? retryOf(
-          event.repo.id,
-          event.pull.number,
-          actions.map((action, index) => ({ index, action })),
-          done,
-        )
-      : null;
+    const retry = event.repo ? retryOf(event.repo.id, event.pull.number, tried, done) : null;
     await runner.data.automations.finish(id, 1, resultOf(done, retry, 1, new Date()));
   }
 }
+
+type BotWrite = Extract<AutomationAction, { kind: "add_labels" | "request_reviewers" | "comment" }>;
+const RETRIED: readonly AutomationActionKind[] = ["add_labels", "request_reviewers", "comment"];
+
+/** A write tried again; an assignment is too, as the request of the logins it chose. */
+export const isRetried = (a: AutomationAction): a is BotWrite => RETRIED.includes(a.kind);
 
 /** The bot's writes the platform did not answer, to try again; null when there are none. */
 export function retryOf(
@@ -200,10 +203,13 @@ export function retryOf(
   done: AutomationRunView["actions"],
 ): AutomationRetry | null {
   const actions = tried.filter(
-    (t) => BOT_ACTIONS.includes(t.action.kind) && done[t.index]?.outcome === "unreached",
+    (t) => isRetried(t.action) && done[t.index]?.outcome === "unreached",
   );
   return actions.length > 0 ? { reviewRepoId, number, actions } : null;
 }
+
+/** Outcomes of an action that did what it had to: an assignment with nothing to do did. */
+const OK: readonly AutomationActionOutcome[] = ["done", "enough_reviewers", "already_assigned"];
 
 /** The attempt's result: its retry due after its backoff, unless it was the last. */
 export function resultOf(
@@ -212,7 +218,7 @@ export function resultOf(
   attempts: number,
   now: Date,
 ): RunResult {
-  const ok = actions.filter((d) => d.outcome === "done").length;
+  const ok = actions.filter((d) => OK.includes(d.outcome)).length;
   const delay = RETRY_DELAYS_MS[attempts - 1];
   const again = retry && attempts < MAX_ATTEMPTS && delay !== undefined ? retry : null;
   return {
@@ -251,7 +257,7 @@ export async function botWrite(
   bot: Bot,
   fullName: string,
   n: number,
-  action: Extract<AutomationAction, { kind: "add_labels" | "request_reviewers" | "comment" }>,
+  action: BotWrite,
 ): Promise<AutomationActionOutcome> {
   const writer = await bot();
   if (!writer) return "refused";
@@ -266,17 +272,23 @@ export async function botWrite(
   return sent === "done" ? "done" : "refused";
 }
 
+type Performed = {
+  outcome: AutomationActionOutcome;
+  /** What a retry sends in its place: an assignment asks the logins it chose. */
+  again?: AutomationAction;
+};
+
 async function perform(
   runner: Runner,
   event: AutomationEvent,
   rule: Rule,
   action: AutomationAction,
   bot: Bot,
-): Promise<AutomationActionOutcome> {
-  if (action.kind === "skip_review") return "done";
+): Promise<Performed> {
+  if (action.kind === "skip_review") return { outcome: "done" };
   if (action.kind === "notify") {
     const channel = await runner.data.get("notifyChannels", action.channelId);
-    if (!channel) return "channel_gone";
+    if (!channel) return { outcome: "channel_gone" };
     const platform = runner.platforms.find((p) => p.host === event.pull.host);
     const pull = { repo: event.pull.fullName, number: event.pull.number };
     const message = ruleMessage({
@@ -287,9 +299,23 @@ async function perform(
       },
       consoleUrl: event.consoleUrl,
     });
-    return (await send(runner.data, runner.out, channel, message)) ? "done" : "unreached";
+    const sent = await send(runner.data, runner.out, channel, message);
+    return { outcome: sent ? "done" : "unreached" };
   }
-  if (!event.repo) return "not_enrolled";
-  if (!runner.bots) return "needs_self_hosted";
-  return botWrite(bot, event.repo.fullName, event.pull.number, action);
+  if (!event.repo) return { outcome: "not_enrolled" };
+  if (!runner.bots) return { outcome: "needs_self_hosted" };
+  if (action.kind === "assign_reviewers") {
+    const { outcome, logins } = await assignReviewers(
+      runner.data,
+      bot,
+      rule,
+      event.repo,
+      event.pull.number,
+      action,
+    );
+    return logins.length > 0
+      ? { outcome, again: { kind: "request_reviewers", reviewers: logins } }
+      : { outcome };
+  }
+  return { outcome: await botWrite(bot, event.repo.fullName, event.pull.number, action) };
 }

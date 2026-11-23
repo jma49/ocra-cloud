@@ -1,4 +1,5 @@
 import type {
+  AssignStrategy,
   AutomationAction,
   AutomationActionKind,
   AutomationActionOutcome,
@@ -18,6 +19,13 @@ export const ACTION_LABEL: Record<AutomationActionKind, string> = {
   comment: "Comment",
   notify: "Notify a channel",
   skip_review: "Skip the review",
+  assign_reviewers: "Assign reviewers",
+};
+
+const STRATEGY_LABEL: Record<AssignStrategy, string> = {
+  suggested: "suggested",
+  round_robin: "in turn",
+  least_loaded: "least loaded",
 };
 
 /** The vocabulary's verdicts; listed here because the web takes only the contract's types. */
@@ -36,6 +44,9 @@ export const OUTCOME_LABEL: Record<AutomationActionOutcome, string> = {
   needs_self_hosted: "Needs a self-hosted server",
   not_enrolled: "Repository not enrolled",
   channel_gone: "Channel removed",
+  enough_reviewers: "Enough reviewers already",
+  already_assigned: "Assigned before",
+  no_candidates: "No one to assign",
 };
 
 export const RUN_LABEL: Record<AutomationRunView["outcome"], string> = {
@@ -54,7 +65,9 @@ export const SKIP_LABEL: Record<AutomationSkipReason, string> = {
 /** The actions a rule on this trigger may take; the server refuses the others. */
 export function actionsFor(trigger: AutomationTrigger): AutomationActionKind[] {
   const all = Object.keys(ACTION_LABEL) as AutomationActionKind[];
-  return trigger === "queued" ? all : all.filter((k) => k !== "skip_review");
+  return trigger === "queued"
+    ? all
+    : all.filter((k) => k !== "skip_review" && k !== "assign_reviewers");
 }
 
 type Names = { repo: (id: string) => string; channel: (id: string) => string };
@@ -93,6 +106,10 @@ function actionText(a: AutomationAction, names: Names): string {
       return `notify ${names.channel(a.channelId)}`;
     case "skip_review":
       return "skip the review";
+    case "assign_reviewers":
+      return a.strategy === "suggested"
+        ? `assign ${a.count} suggested`
+        : `assign ${a.count} of ${a.logins?.join(", ") ?? ""}, ${STRATEGY_LABEL[a.strategy]}`;
   }
 }
 

@@ -7,6 +7,7 @@ import { HELD_FOR } from "./notify.js";
 import {
   accounts,
   auditEvents,
+  automationAssignments,
   automationRuns,
   closedPulls,
   deviceCodes,
@@ -30,7 +31,7 @@ import {
 } from "./schema.js";
 
 // What the data policy (web /privacy) promises: review records, live runs, gateway call
-// records, merged and closed pull requests, their review flow and review threads, the inbox's read marks, the daily counts and the audit log are deleted after
+// records, merged and closed pull requests, their review flow and review threads, who a rule assigned to review them, the inbox's read marks, the daily counts and the audit log are deleted after
 // RETENTION_DAYS; expired login codes and sessions go at once; a notice held in
 // quiet hours after HELD_FOR. Runs daily
 // from the cron trigger.
@@ -155,6 +156,18 @@ export async function enforceRetention(db: Db, now = new Date()): Promise<void> 
             and(
               ofEachAccount(automationRuns.accountId),
               lt(automationRuns.createdAt, new Date(now.getTime() - AUTOMATION_RUN_DAYS * DAY)),
+            ),
+          ),
+    ],
+    [
+      "automation_assignments",
+      () =>
+        db
+          .delete(automationAssignments)
+          .where(
+            and(
+              ofEachAccount(automationAssignments.accountId),
+              lt(automationAssignments.createdAt, cutoff),
             ),
           ),
     ],

@@ -1,6 +1,7 @@
 import { type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type {
+  AssignReviewers,
   AutomationAction,
   AutomationActionKind,
   AutomationConditions,
@@ -21,19 +22,22 @@ import { PathsRow, pathsDraft, pathsOf } from "./paths-row.js";
 // trigger allows, since the server refuses the rest.
 
 export type Choice = { id: string; label: string };
-type Draft = { key: number; kind: AutomationActionKind; text: string };
+/** `assign` keeps an assignment's strategy and logins, which the form does not edit yet; its text is the count. */
+type Draft = { key: number; kind: AutomationActionKind; text: string; assign?: AssignReviewers };
 
 const MAX_ACTIONS = 5;
 const HINT: Partial<Record<AutomationActionKind, string>> = {
   add_labels: "needs-review, payments",
   request_reviewers: "octocat, hubot",
   comment: "Plain text, posted as the ocra bot",
+  assign_reviewers: "How many suggested reviewers, 1 to 5",
 };
 
 let nextKey = 0;
 const draftOf = (a: AutomationAction): Draft => ({
   key: nextKey++,
   kind: a.kind,
+  ...(a.kind === "assign_reviewers" ? { assign: a } : {}),
   text:
     a.kind === "add_labels"
       ? a.labels.join(", ")
@@ -43,7 +47,9 @@ const draftOf = (a: AutomationAction): Draft => ({
           ? a.body
           : a.kind === "notify"
             ? a.channelId
-            : "",
+            : a.kind === "assign_reviewers"
+              ? String(a.count)
+              : "",
 });
 
 function actionOf(d: Draft): AutomationAction {
@@ -58,6 +64,8 @@ function actionOf(d: Draft): AutomationAction {
       return { kind: d.kind, channelId: d.text };
     case "skip_review":
       return { kind: d.kind };
+    case "assign_reviewers":
+      return { ...(d.assign ?? { strategy: "suggested" }), kind: d.kind, count: Number(d.text) };
   }
 }
 

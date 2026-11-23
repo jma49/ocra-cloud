@@ -1054,10 +1054,37 @@ export const automationRules = sqliteTable(
     trigger: text("trigger", { enum: AUTOMATION_TRIGGERS }).notNull(),
     conditions: text("conditions", { mode: "json" }).$type<AutomationConditions>().notNull(),
     actions: text("actions", { mode: "json" }).$type<AutomationAction[]>().notNull(),
+    // Where an assign_reviewers action on round_robin takes its next login,
+    // moved by compare-and-set (./automations.ts); read modulo the list.
+    assignCursor: integer("assign_cursor").notNull().default(0),
     updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
     createdAt: createdAt(),
   },
   (t) => [index("automation_rules_account_trigger").on(t.accountId, t.trigger)],
+);
+
+// A rule's assign_reviewers action on one pull request, claimed by the
+// unique index before reviewers are chosen, so a pull request that opens
+// again or leaves draft later is not assigned twice; logins are those asked.
+// Kept after its rule is deleted, as its runs are, until retention.
+export const automationAssignments = sqliteTable(
+  "automation_assignments",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    ruleId: text("rule_id").notNull(),
+    reviewRepoId: text("review_repo_id")
+      .notNull()
+      .references(() => reviewRepos.id, { onDelete: "cascade" }),
+    number: integer("number").notNull(),
+    logins: text("logins", { mode: "json" }).$type<string[]>().notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("automation_assignments_rule_pull").on(t.ruleId, t.reviewRepoId, t.number),
+    index("automation_assignments_account_created").on(t.accountId, t.createdAt),
+    index("automation_assignments_repo").on(t.reviewRepoId),
+  ],
 );
 
 // One run of a rule on one event: a webhook delivered twice, or an upload
@@ -1327,6 +1354,7 @@ export const accountTables = {
   generateJobs,
   automationRules,
   automationRuns,
+  automationAssignments,
   mergeChecks,
   mergeCheckRuns,
   mergeIntents,
