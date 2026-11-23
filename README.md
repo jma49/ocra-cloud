@@ -9,6 +9,7 @@ The hosted service of [ocra](https://github.com/jma49/Open-CR-Agent): sign-in, t
 | `src/app.ts` | The API under `/api` (Hono), the same on every host: `createApp(openDb)` |
 | `src/index.ts` | The Worker: the app on D1 and the rate limiting bindings, the daily cron; everything else is the web app's static assets |
 | `src/node/` | The self-hosted server: the app on Node with Postgres or libSQL (SQLite), rate limits in memory or the database, the web app from disk (`docs/self-hosting.md`, `Dockerfile`) |
+| `src/auto-review/` | Pull requests reviewed by the deployment itself: the queue, the server's half of a job (`work.ts`) and the API remote runners take jobs through (`runner-api.ts`); the machine's half is `src/node/review-runner.ts`, run in the self-hosted server or by a remote runner (`src/node/runner.ts`, `docs/runner.md`), which is how the Worker reviews |
 | `src/db/client.ts` | `Db`, the database every query takes (D1 or libSQL), and `changedRows` |
 | `src/db/schema.ts` | D1 tables (Drizzle, SQLite dialect; the same ORM targets Postgres) |
 | `src/db/scoped.ts` | The only way to touch an account's rows: every query filters by the account |
