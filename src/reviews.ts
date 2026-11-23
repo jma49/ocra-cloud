@@ -156,7 +156,7 @@ async function announce(c: Context<AppEnv>, id: string) {
     platforms,
     share,
   );
-  await notifyReview(c.var.data, outboxOf(c), review, platforms, consoleUrl, told);
+  await notifyReview(c.var.data, outboxOf(c), review, platforms, consoleUrl, told, share);
   const event = await reviewedEvent(c.var.data, review, platforms, consoleUrl);
   if (event) await (await automate(c, c.var.data, event)).run;
 }

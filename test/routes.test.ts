@@ -97,6 +97,8 @@ const ACCESS: Record<string, Access> = {
   "PATCH /api/notifications/channels/:id": "web",
   "DELETE /api/notifications/channels/:id": "web",
   "POST /api/notifications/channels/:id/test": "web",
+  "POST /api/notifications/channels/:id/secret": "web",
+  "GET /api/notifications/channels/:id/deliveries": "web",
   "GET /api/automations/rules": "web",
   "POST /api/automations/rules": "web",
   "PUT /api/automations/rules/:id": "web",

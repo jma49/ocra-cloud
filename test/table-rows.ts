@@ -126,6 +126,14 @@ export const rows = {
     number: 1,
     line: "hubot commented on your pull request",
   }),
+  webhookDeliveries: (id: string) => ({
+    id,
+    channelId: "channel",
+    event: "review_completed" as const,
+    state: "delivered" as const,
+    attempts: 1,
+    status: 200,
+  }),
   // The enrolled repository it belongs to is made in beforeEach (the foreign key needs one).
   closedPulls: (id: string) => ({
     id,

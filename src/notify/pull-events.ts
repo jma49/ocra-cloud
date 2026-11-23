@@ -5,10 +5,11 @@ import type { Row, Scoped } from "../db/scoped.js";
 import { consolePullUrl } from "../merge-checks/run.js";
 import type { CodePlatform } from "../platforms/platform.js";
 import { pullOfReview, pullOnPlatform } from "../review-pull.js";
-import { type NotifyEvent, QUIET_EVENTS } from "../shared/index.js";
+import { type NotifyEvent, QUIET_EVENTS, type WebhookFinding } from "../shared/index.js";
 import { type Message, plain } from "./channels.js";
 import { type Outbox, send } from "./notify.js";
 import { hourIn, isQuiet } from "./reminders.js";
+import type { HookEvent } from "./webhooks.js";
 
 // Telling the account about an event of an enrolled repository's pull
 // request that concerns its own platform user: known by the platform's id
@@ -40,6 +41,8 @@ export type PullEvent = {
   what: string;
   /** Lines after it: the platform's title, finding titles when shared. */
   more?: string[];
+  /** A webhook's: the critical findings, only when the account shares them. */
+  findings?: WebhookFinding[];
 };
 
 type OwnUser = { id: string; login: string | null };
@@ -112,8 +115,22 @@ function pullEventMessage(repo: EventRepo, e: PullEvent, origin: string): Messag
       ...(e.more ?? []).map((line) => [line]),
       [{ label: "Open in ocra", url }],
     ],
+    hooks: [pullEventHook(repo, e, url)],
   };
 }
+
+/** The event as a webhook gets it: the pull request and ocra's line, never the platform's text. */
+function pullEventHook(repo: EventRepo, e: PullEvent, consoleUrl: string): HookEvent {
+  const data = {
+    pull: { platform: repo.platform, repo: repo.fullName, number: e.number, consoleUrl },
+    summary: e.what,
+    ...(e.findings ? { findings: e.findings } : {}),
+  };
+  // Reminders and pull_at_risk list their pull requests (./reminders.ts, ./at-risk.ts).
+  return { event: e.kind as Exclude<NotifyEvent, PulledEvents>, data };
+}
+
+type PulledEvents = "review_waiting" | "pull_waiting" | "pull_at_risk";
 
 /**
  * Tells each channel that hears about the event, or holds it for one in its
@@ -230,12 +247,10 @@ export async function tellReviewBlocking(
   if (!repo) return [];
   const author = await authorIdOf(data, repo.id, on.pull.number);
   if (author === null) return [];
-  const titles = shareFindings
-    ? (await data.findingsOf(review.id))
-        .filter((f) => f.severity === "critical")
-        .slice(0, 3)
-        .map((f) => `• ${plain(f.title)} (${plain(f.file)})`)
+  const critical = shareFindings
+    ? (await data.findingsOf(review.id)).filter((f) => f.severity === "critical").slice(0, 3)
     : [];
+  const titles = critical.map((f) => `• ${plain(f.title)} (${plain(f.file)})`);
   const found = `${review.critical} critical finding${review.critical === 1 ? "" : "s"}`;
   return tellPullEvent(db, data, out, repo, [
     {
@@ -245,6 +260,15 @@ export async function tellReviewBlocking(
       concerns: author,
       what: `ocra found ${found} in your pull request`,
       more: titles,
+      ...(shareFindings
+        ? {
+            findings: critical.map((f) => ({
+              severity: "critical" as const,
+              title: plain(f.title),
+              file: f.file,
+            })),
+          }
+        : {}),
     },
   ]);
 }

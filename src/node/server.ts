@@ -86,6 +86,11 @@ const automationRetries = () =>
     .catch((err) => logError("automation_retry_failed", { error: errorName(err) }));
 setInterval(automationRetries, 60_000).unref();
 
+// A minute apart too: a webhook delivery's first retry is due a minute after it failed.
+const webhookRetries = () =>
+  host.webhookRetries().catch((err) => logError("webhook_retry_failed", { error: errorName(err) }));
+setInterval(webhookRetries, 60_000).unref();
+
 const port = Number(process.env.PORT || 8787);
 const server = serve({ fetch: host.fetch, port });
 console.log({ level: "info", event: "listening", port });

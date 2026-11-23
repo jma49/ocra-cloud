@@ -32,6 +32,7 @@ import { mergeWhenReady } from "./merge-when-ready/routes.js";
 import type { Mailer } from "./notify/email.js";
 import { emailLinks } from "./notify/links.js";
 import { notifyRoute } from "./notify/routes.js";
+import type { WebhookPost } from "./notify/webhooks.js";
 import { oidc } from "./oidc.js";
 import { platformConnect } from "./platform-connect.js";
 import { platformLimits } from "./platform-limits.js";
@@ -91,6 +92,8 @@ export type Host<E extends AppBindings> = {
   bots?: BotTokens;
   /** Email, where the host sends it (SMTP on Node); without it email channels are refused. */
   mailer?: Mailer;
+  /** How webhooks are posted, where the host checks more than fetch can (src/node/webhook-transport.ts). */
+  webhookPost?: WebhookPost;
 };
 
 export function createApp<E extends AppBindings>(host: Host<E>) {
@@ -107,6 +110,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
     c.set("bots", host.bots);
     if (host.autoReview) c.set("autoReview", host.autoReview);
     c.set("mailer", host.mailer);
+    c.set("webhookPost", host.webhookPost);
     await next();
   });
   app.use(platformLimits);

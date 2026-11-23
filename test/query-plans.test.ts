@@ -74,6 +74,7 @@ const TABLE: Record<string, string> = {
   notifyChannels: "notify_channels",
   notifySends: "notify_sends",
   notifyHeld: "notify_held",
+  webhookDeliveries: "webhook_deliveries",
   closedPulls: "closed_pulls",
   pullFlows: "pull_flows",
   pullReviews: "pull_reviews",
@@ -581,6 +582,7 @@ describe("retention", () => {
       "service_counters",
       "sessions",
       "usage_counters",
+      "webhook_deliveries",
     ]);
     for (const [table, p] of plans) {
       // DEVICE_DAILY_CODES a day at most.

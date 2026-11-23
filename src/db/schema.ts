@@ -57,6 +57,9 @@ import {
   type ReviewSettings,
   type ReviewWalkthroughView,
   SIGN_IN_PROVIDERS,
+  WEBHOOK_DELIVERY_STATES,
+  WEBHOOK_ERRORS,
+  type WebhookEvent,
 } from "../shared/index.js";
 
 // Every table but accounts carries accountId, and is read and written only
@@ -784,6 +787,34 @@ export const notifyHeld = sqliteTable(
   ],
 );
 
+// A delivery to a webhook channel (src/notify/webhooks.ts): how its last
+// attempt went, never what the endpoint answered. Its body is kept only
+// while a retry is due (retryAt; a runner claims an attempt by moving it
+// past its lease, compare-and-set on attempts) and cleared once it is
+// delivered or given up. A channel keeps its newest deliveries only.
+export const webhookDeliveries = sqliteTable(
+  "webhook_deliveries",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    channelId: text("channel_id").notNull(),
+    event: text("event").$type<WebhookEvent>().notNull(),
+    state: text("state", { enum: WEBHOOK_DELIVERY_STATES }).notNull().default("pending"),
+    attempts: integer("attempts").notNull().default(0),
+    status: integer("status"),
+    error: text("error", { enum: WEBHOOK_ERRORS }),
+    latencyMs: integer("latency_ms"),
+    payload: text("payload"),
+    retryAt: integer("retry_at", { mode: "timestamp_ms" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("webhook_deliveries_channel_created").on(t.accountId, t.channelId, t.createdAt),
+    index("webhook_deliveries_account_created").on(t.accountId, t.createdAt),
+    index("webhook_deliveries_retry").on(t.retryAt),
+  ],
+);
+
 // An enrolled repository's pull request as its platform said it ended:
 // merged or closed, one row per pull request; a later close (after a
 // reopen) replaces an earlier one. The title is the platform's, as sent.
@@ -1363,6 +1394,7 @@ export const accountTables = {
   notifyChannels,
   notifySends,
   notifyHeld,
+  webhookDeliveries,
   closedPulls,
   pullFlows,
   pullReviews,

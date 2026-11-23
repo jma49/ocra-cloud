@@ -29,12 +29,13 @@ import {
   serviceCounters,
   sessions,
   usageCounters,
+  webhookDeliveries,
 } from "./schema.js";
 
 // What the data policy (web /privacy) promises: review records, live runs, gateway call
 // records, merged and closed pull requests, their review flow and review threads, who a rule assigned to review them, the inbox's read marks, the daily counts and the audit log are deleted after
 // RETENTION_DAYS; expired login codes, sessions and API tokens go at once; a notice held in
-// quiet hours after HELD_FOR. Runs daily
+// quiet hours after HELD_FOR; a webhook delivery's record after WEBHOOK_DELIVERY_DAYS. Runs daily
 // from the cron trigger.
 
 export const RETENTION_DAYS = 90;
@@ -44,6 +45,8 @@ export const AUTOMATION_RUN_DAYS = 30;
 const MERGE_INTENT_DAYS = 30;
 /** A pull request event's claim, long past any webhook's redelivery. */
 const NOTIFY_SEND_DAYS = 30;
+/** A webhook delivery's record: its retries end within hours. */
+const WEBHOOK_DELIVERY_DAYS = 30;
 
 /**
  * Runs every delete, each on its own: one that fails is logged and the rest
@@ -193,6 +196,21 @@ export async function enforceRetention(db: Db, now = new Date()): Promise<void> 
             and(
               ofEachAccount(notifyHeld.accountId),
               lt(notifyHeld.createdAt, new Date(now.getTime() - HELD_FOR)),
+            ),
+          ),
+    ],
+    [
+      "webhook_deliveries",
+      () =>
+        db
+          .delete(webhookDeliveries)
+          .where(
+            and(
+              ofEachAccount(webhookDeliveries.accountId),
+              lt(
+                webhookDeliveries.createdAt,
+                new Date(now.getTime() - WEBHOOK_DELIVERY_DAYS * DAY),
+              ),
             ),
           ),
     ],

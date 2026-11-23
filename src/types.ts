@@ -3,6 +3,7 @@ import type { SessionAccount } from "./db/accounts.js";
 import type { Db } from "./db/client.js";
 import type { Scoped } from "./db/scoped.js";
 import type { Mailer } from "./notify/email.js";
+import type { WebhookPost } from "./notify/webhooks.js";
 import type { BotTokens } from "./platforms/bot.js";
 
 /**
@@ -30,5 +31,7 @@ export type AppEnv = {
     autoReview?: AutoReviewService;
     /** The host's mailer; undefined where it sends no email (the Worker). */
     mailer: Mailer | undefined;
+    /** How the host posts webhooks; fetch where it gives none (the Worker). */
+    webhookPost: WebhookPost | undefined;
   };
 };
