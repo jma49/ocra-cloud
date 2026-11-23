@@ -10,7 +10,8 @@ const LMH: Effort[] = ["low", "medium", "high"];
 const PATTERNS: [RegExp, Effort[]][] = [
   // OpenAI reasoning models: o-series and GPT-5.
   [/(^|\/)(o[1-9](-mini|-pro)?|gpt-5[\w.-]*)$/, ["minimal", "low", "medium", "high"]],
-  // Anthropic models with extended thinking (budgets mapped from the level).
+  // Anthropic models that reason: the level goes as the API's effort, and
+  // the model sets its own thinking (the engine sends none as low).
   [/claude-[\w.-]*(opus|sonnet|haiku)-?[4-9]|claude-(opus|sonnet|haiku)-[4-9]/, LMH],
   // Gemini 2.5 and 3: Flash can also turn thinking off.
   [/gemini-(2\.5|3)[\w.-]*flash/, ["none", ...LMH]],
