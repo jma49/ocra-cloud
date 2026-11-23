@@ -6,30 +6,38 @@ The same API and web app as app.ocracloud.com, on Node with Postgres or a SQLite
 
 ## Run it
 
-With Docker Compose on one machine: the server, Postgres, and Caddy in front of them ending TLS (`selfhost/`). A trial can leave Postgres out and keep its data in a SQLite file (Postgres, below).
+With Docker Compose on one machine: Postgres, the server, and Caddy in front of them ending TLS (`selfhost/`).
 
-1. **Settings.** From `selfhost/`:
-
-   ```sh
-   cp .env.example .env            # OCRA_DOMAIN, OCRA_TLS, COMPOSE_FILE
-   echo "OCRA_DB_PASSWORD=$(openssl rand -hex 24)" >> .env
-   cp ocra.env.example ocra.env    # the server's variables, below
-   ```
-
-   In `ocra.env`, set at least `MASTER_KEY` and `SESSION_SECRET` (`openssl rand -base64 32` each; keep a copy of the master key, without it the stored keys are lost), one way to sign in (`OIDC_ISSUER`, `OIDC_CLIENT_ID` and `OIDC_CLIENT_SECRET` for a client whose redirect URI is `https://<OCRA_DOMAIN>/api/auth/oidc/callback`, or a GitHub App), and the company's models: `MODEL_ENDPOINTS`, `BUILTIN_PROVIDERS=off` and `DEFAULT_MODELS` (Company models).
-
-2. **Start.**
+1. **Start.** From `selfhost/`:
 
    ```sh
-   docker compose up -d --build
-   docker compose ps
+   docker compose up -d
    ```
 
-   `COMPOSE_FILE` in `.env` names the Compose files, so every `docker compose` command in this folder runs the same services. A one-off `migrate` run applies the migrations, then the server starts, then Caddy, once the server answers its health check. A setting that is missing or malformed stops the server with a message naming it: `docker compose logs ocra`.
+   Nothing needs filling in first. The first start makes the secrets (the master key, the session secret and Postgres's password, in the `secrets` and `db-password` volumes), a one-off `migrate` run applies the migrations, the server starts, then Caddy, once the server answers its health check. It answers at `https://localhost`; to serve another name, copy `.env.example` to `.env` and set `OCRA_DOMAIN` (and `OCRA_TLS`, below) before starting.
 
-3. **Sign in** at `https://<OCRA_DOMAIN>`. Each account starts with `DEFAULT_MODELS` until it saves its own on the Models page.
+2. **Open the setup page.** Until someone can sign in, every page of the server is its setup page. It opens with the setup code the server prints in its log:
 
-4. **Connect the CLI.** Each developer points the `ocra` CLI at this server and signs in once, confirming a code in the browser:
+   ```sh
+   docker compose logs ocra | grep setup_needed
+   docker compose exec ocra node dist/setup-code.mjs   # at any time
+   ```
+
+   The code is made from the session secret: whoever can read the server's log or run a command in its container is its administrator. The page stays at `https://<OCRA_DOMAIN>/setup` after the first hour, behind the same code.
+
+3. **Go through its steps.** Each one tests its connection with what is typed before it is saved, and says in plain words what failed and what to change:
+
+   - **Network:** the company's certificate authority (PEM) and proxy, when GitLab, the sign-in provider or the model gateway sit behind them. The tests of the other steps go through them.
+   - **Sign-in:** the company's OpenID Connect provider (issuer, client id and secret), with the redirect URI to register shown beside the fields, and who may sign in (Who may sign in).
+   - **Code host:** a self-managed GitLab (its application and the review bot's token, [gitlab.md](gitlab.md)), or a GitHub App on github.com or a GitHub Enterprise Server.
+   - **Models:** the company's model gateway (OpenAI chat completions or Anthropic messages), its key, and the model of each tier; the test lists the gateway's models and names any tier's model it does not list.
+   - **Health:** every part tested as the server runs now (below).
+
+   Saving keeps the settings in the database, secrets sealed under the master key. **Start again now** applies them: the server starts again in the same process, in a few seconds, and the page waits for it.
+
+4. **Sign in** at `https://<OCRA_DOMAIN>`. Each account starts with the setup page's models until it saves its own on the Models page.
+
+5. **Connect the CLI.** Each developer points the `ocra` CLI at this server and signs in once, confirming a code in the browser:
 
    ```sh
    export OCRA_CLOUD_URL=https://ocra.example.com
@@ -37,11 +45,34 @@ With Docker Compose on one machine: the server, Postgres, and Caddy in front of 
    ocra review     # in a repository with changes
    ```
 
-   The review's model calls go through this server's gateway, metered and capped per account; the CLI never holds the model's key. To connect GitLab and have a bot review every merge request, see [gitlab.md](gitlab.md).
+   The review's model calls go through this server's gateway, metered and capped per account; the CLI never holds the model's key. To have a bot review every merge request, see [gitlab.md](gitlab.md).
 
-`OCRA_TLS` says where the certificate comes from: `internal` (Caddy's own CA, for a trial), an email for a public name that Let's Encrypt can reach, or `/certs/<cert>.pem /certs/<key>.pem` with the company's certificate placed in `selfhost/certs/`. With `internal`, browsers and the CLI trust the server only once they trust Caddy's root: export it with `docker compose cp caddy:/data/caddy/pki/authorities/local/root.crt ocra-root.crt`, add it to the machine's trust store, and give it to the CLI as `NODE_EXTRA_CA_CERTS=ocra-root.crt` (without it, `ocra login` fails with `fetch failed`). Compose sets `PUBLIC_URL` and `TRUSTED_PROXY_HOPS` for you. Data lives in the `postgres-data` volume, or `ocra-data` for the SQLite file.
+A variable in the server's environment (`selfhost/ocra.env`, read when it exists, or the variables below) wins over the setup page, which then shows its field locked: settings that belong in configuration management stay there. A setting the page does not hold (email, Slack, metrics, limits) is a variable only. `MASTER_KEY_FILE`, `SESSION_SECRET_FILE` and any other `<NAME>_FILE` read `<NAME>` from a file, as Docker gives secrets.
 
-**Upgrade** with `git pull` and the same `docker compose up -d --build`: the image is rebuilt, and the `migrate` run applies new migrations before the server restarts. Without `--build`, Compose keeps running the image it built before. Back up first (Limits of this first version).
+`OCRA_TLS` says where the certificate comes from: `internal` (Caddy's own CA, the default, for a trial), an email for a public name that Let's Encrypt can reach, or `/certs/<cert>.pem /certs/<key>.pem` with the company's certificate placed in `selfhost/certs/`. With `internal`, browsers and the CLI trust the server only once they trust Caddy's root: export it with `docker compose cp caddy:/data/caddy/pki/authorities/local/root.crt ocra-root.crt`, add it to the machine's trust store, and give it to the CLI as `NODE_EXTRA_CA_CERTS=ocra-root.crt` (without it, `ocra login` fails with `fetch failed`). Compose sets `PUBLIC_URL` and `TRUSTED_PROXY_HOPS` for you; when Caddy cannot have ports 80 and 443, set `OCRA_HTTP_PORT`, `OCRA_HTTPS_PORT` and `OCRA_PUBLIC_URL` in `.env`.
+
+### Upgrades
+
+```sh
+./upgrade.sh
+```
+
+It asks whether to back up first (yes by default; `--yes` backs up without asking, `--no-backup` skips it), pulls the checkout's newest commit, builds the image, and runs `docker compose up -d --wait`: the `migrate` run applies the new migrations before the server starts again. The Health step then says whether every part answers.
+
+### Backups
+
+```sh
+./backup.sh
+```
+
+writes `selfhost/backups/<UTC time>/`: `ocra.dump` (`pg_dump`) and `secrets.tar`, the `secrets` and `db-password` volumes. Keep both, and a copy somewhere else: the database's model and platform keys open only with that master key. To restore into a fresh deployment, start it once (`docker compose up -d`), then:
+
+```sh
+docker compose stop ocra
+docker compose run --rm --no-deps -T secrets sh -c 'cd / && tar -xf -' < backups/<time>/secrets.tar
+docker compose exec -T postgres pg_restore -U ocra -d ocra --clean --if-exists < backups/<time>/ocra.dump
+docker compose restart postgres && docker compose up -d
+```
 
 Behind your own load balancer instead, run the image alone:
 
@@ -50,7 +81,7 @@ docker build -t ocra-cloud .
 docker run -p 8787:8787 -v ocra-data:/data --env-file ocra.env ocra-cloud
 ```
 
-Without Docker: `npm ci && npm run build:web && npm run build:node`, then `node dist/server.mjs` with the variables below. Migrations are applied at start.
+Without Docker: `npm ci && npm run build:web && npm run build:node`, then `node dist/server.mjs` with the variables below and `MASTER_KEY` and `SESSION_SECRET` set (`openssl rand -base64 32` each). Migrations are applied at start. A trial may keep its data in a SQLite file (`DATABASE_URL=file:ocra-cloud.db`, the default); a deployment uses Postgres, since there is no moving from one to the other.
 
 ## Variables
 
@@ -63,9 +94,10 @@ Without Docker: `npm ci && npm run build:web && npm run build:node`, then `node 
 | `OIDC_NAME` | no | the provider's name on the sign-in button, "SSO" when unset |
 | `SIGN_IN_ALLOW` | no; the server warns at start when a `MODEL_ENDPOINTS` entry has a `key` and it is unset | who may sign in, as a comma list of `org:`, `user:`, `domain:` and `group:` entries (Who may sign in below); anyone the sign-in providers vouch for when unset |
 | `INSTANCE_ADMINS` | no | who may read the deployment's state (`GET /api/admin/instance`, Instance status below), as a comma list of `github:<numeric user id>` and `oidc:<subject>` entries; nobody when unset |
-| `MASTER_KEY` | yes | base64 of 32 random bytes (`openssl rand -base64 32`); wraps every stored key. Losing it loses them |
+| `MASTER_KEY` | yes (Compose makes it) | base64 of 32 random bytes (`openssl rand -base64 32`); wraps every stored key and the setup page's secrets. Losing it loses them |
 | `MASTER_KEY_PREVIOUS` | during a rotation | the key `MASTER_KEY` replaces: rows sealed under it still open until they are re-wrapped (Rotating the master key below) |
-| `SESSION_SECRET` | yes | signs the sign-in state cookie |
+| `SESSION_SECRET` | yes (Compose makes it) | signs the sign-in state cookie; the setup code is made from it, so a new one changes the code |
+| `<NAME>_FILE` | no | reads `<NAME>` from that file, unless `<NAME>` is set itself: `MASTER_KEY_FILE`, `SESSION_SECRET_FILE`, `PGPASSWORD_FILE` (the Postgres password, when `DATABASE_URL` has none) |
 | `GITLAB_CLIENT_ID`, `GITLAB_CLIENT_SECRET` | to connect GitLab | a GitLab OAuth application (scope `api`: the console comments, approves, merges, applies suggestions and resolves threads as the user); its redirect URI is `<PUBLIC_URL>/api/platforms/gitlab/callback` |
 | `GITLAB_URL` | for a self-hosted GitLab | the instance, such as `https://gitlab.example.com`, or `https://example.com/gitlab` for one installed under a relative URL root; `https://gitlab.com` when unset |
 | `PUBLIC_URL` | behind a TLS proxy | the address people open, such as `https://ocra.example.com` |
@@ -86,8 +118,8 @@ Without Docker: `npm ci && npm run build:web && npm run build:node`, then `node 
 | `SMTP_URL` | for email notifications | the mail server, as `smtp://user:password@host:587` (STARTTLS when the server offers it) or `smtps://user:password@host:465`; without it email channels are refused |
 | `SMTP_FROM` | with `SMTP_URL` | the address email is sent from, such as `ocra@example.com` |
 | `SLACK_BOT_TOKEN` | for Slack direct messages | a Slack app's bot token (`xoxb-…`), which sends members their own notifications (see Notifications); without it `slack_dm` channels are refused |
-| `NODE_EXTRA_CA_CERTS` | for a company certificate authority | its certificate (PEM), which the server and each review's CLI then trust; git reads the system's store or `GIT_SSL_CAINFO` (gitlab.md, Certificates and proxy) |
-| `HTTPS_PROXY`, `HTTP_PROXY`, `NO_PROXY` | behind a proxy | passed, with the certificate variables, to each review's git and CLI |
+| `NODE_EXTRA_CA_CERTS` | for a company certificate authority | its certificate (PEM), which the server and each review's CLI then trust; git reads the system's store or `GIT_SSL_CAINFO` (gitlab.md, Certificates and proxy). Or paste it on the setup page (Network): the server then trusts it, and gives git a bundle of it with the system's |
+| `HTTPS_PROXY`, `HTTP_PROXY`, `NO_PROXY` | behind a proxy | the server's own calls go through it, except to the hosts `NO_PROXY` lists; passed, with the certificate variables, to each review's git and CLI. Or set it on the setup page (Network) |
 | `METRICS_TOKEN` | for `/metrics` | the bearer token a Prometheus scrape sends (`openssl rand -hex 32`; at least 32 characters, no spaces); `/metrics` answers 404 without it (Health and metrics) |
 | `RETENTION_DAYS` | no | how many days the daily retention keeps an account's records (reviews, gateway calls, the audit log, finished jobs, read marks and the rest of Retention below): a whole number from 30 to 3650, 90 when unset. The server refuses to start with any other value. The `days` a listing accepts and the window `REVIEW_MAX_FINDINGS` counts follow it |
 | `PORT` | no | 8787 |
@@ -197,11 +229,11 @@ With `DEFAULT_MODELS` naming them, a colleague who signs in for the first time r
 
 ## Postgres
 
-For a team, keep the data in Postgres (13 or later): `DATABASE_URL=postgres://…`. Run it names `docker-compose.postgres.yml` in `COMPOSE_FILE`, which runs Postgres 17 in a container beside the server, its data in the `postgres-data` volume, and a one-off `migrate` run that applies `migrations-pg/` before the server starts. For a trial on a SQLite file instead, set `COMPOSE_FILE=docker-compose.yml` in `.env`. To use the company's own Postgres, leave that file out and set `DATABASE_URL` in `ocra.env`. The tables and values are those of the SQLite schema: times are milliseconds in `bigint` columns, JSON is text. Back up with `pg_dump`.
+For a team, keep the data in Postgres (13 or later): `DATABASE_URL=postgres://…`. Compose runs Postgres 17 in a container beside the server, its data in the `postgres-data` volume, and a one-off `migrate` run that applies `migrations-pg/` before the server starts. To use the company's own Postgres, set `DATABASE_URL` (with its password, or `PGPASSWORD`) in `ocra.env`, and run only the `migrate`, `ocra` and `caddy` services. The tables and values are those of the SQLite schema: times are milliseconds in `bigint` columns, JSON is text. Back up with `pg_dump`.
 
 ## Several processes
 
-`docker-compose.replicas.yml` runs several ocra processes on this machine against its database, behind the same Caddy: add it to `COMPOSE_FILE` in `.env` (`docker-compose.yml:docker-compose.postgres.yml:docker-compose.replicas.yml`) and run `docker compose up -d --build`.
+`docker-compose.replicas.yml` runs several ocra processes on this machine against its database, behind the same Caddy: add it to `COMPOSE_FILE` in `.env` (`docker-compose.yml:docker-compose.replicas.yml`) and run `docker compose up -d --build`. Saving on the setup page starts again only the process that answered: run `docker compose restart ocra` after it.
 
 A one-off `migrate` run (`MIGRATE=only`) applies the migrations first; the replicas (`OCRA_REPLICAS` in `.env`, 2 by default) start after it with `MIGRATE=off` and `RATE_LIMITS=database`. Caddy sends requests to each in turn and skips one that fails its health check. The SQLite file runs in WAL mode, so readers do not wait for the writer. For processes on several machines, point `DATABASE_URL` at Postgres or a libSQL server, with the same two settings. The inbox's live updates reach every process only on Postgres (see the inbox's stream, `GET /api/platforms/pulls/changed/stream`, below).
 
@@ -234,6 +266,8 @@ The Workers Free plan fails an invocation that makes more than 50 external subre
 Then each job that wanted more runs again, one after another in that order, on what the others left. The work that can wait is last, so it yields first: an armed merge-when-ready intent's and a stack merge's webhooks move them and the sweeps only pick up what they missed, and a repository not reconciled this hour is in a later one. A job checks its budget before it claims the next piece of work, so what it does not reach stays as it was, unclaimed, for the next run. Work its budget cuts short gives its claim back by compare-and-set, so nothing is lost or sent twice: a delivery's attempt that was refused is due again at once and not counted as an attempt (a digest, report, reminder or held notice so cut goes with the next run's deliveries); a platform webhook's side effects go back with the steps left, due at once; an automation rule's retry goes back uncounted and due at once, keeping the writes the platform answered; a merge-when-ready intent goes back armed as it was (what it waited on, when it was last read), so the next run reads it first, and is never ended or said to wait on an answer that was not read; a stack merge waits as when the platform did not answer, keeping the pull requests it already moved; a repository's reconciliation is given back as above. A request is never counted, and the Node server's timers have no budget but the reconciliation's.
 
 ## Health and metrics
+
+The setup page's Health step (`GET /api/setup/health`, behind the setup code) tests every part as the server runs now, in plain words, with what to change under each failure: the database and its migrations, the sign-in provider's discovery document, GitLab or GitHub and the review bot's token, each company model endpoint's model list with its key and the tiers' models in it, whether reviews run here and their runners report in, the public address and email.
 
 `GET /api/health` answers `{"ok":true}` without reading anything: Docker's health check, Caddy and deploys call it, so it stays cheap. It says the process answers, nothing more.
 
@@ -382,18 +416,19 @@ No scope writes anything, nor reaches tokens, keys, channels, sessions, settings
 
 The image carries the re-wrap tool beside the server: `node dist/rewrap-master-key.mjs` reads the server's own `DATABASE_URL`, the old key from `MASTER_KEY_PREVIOUS` and the new one from `MASTER_KEY`, and re-wraps every sealed row as on Workers (`docs/rotation.md`):
 
-1. Make the new key (`openssl rand -base64 32`). In `ocra.env`, set `MASTER_KEY_PREVIOUS` to the current key and `MASTER_KEY` to the new one, then `docker compose up -d`. New rows are sealed with the new key; old rows still open with the previous one.
+1. Make the new key (`openssl rand -base64 32`). In `ocra.env`, set `MASTER_KEY_PREVIOUS` to the current key (the one Compose made: `docker compose exec ocra cat /secrets/master_key`) and `MASTER_KEY` to the new one, which wins over the secrets volume's, then `docker compose up -d`. New rows are sealed with the new key; old rows still open with the previous one.
 2. Check, with no change: `docker compose exec ocra node dist/rewrap-master-key.mjs`. It reports each table: rows to re-wrap, rows already under the new key, rows that failed.
 3. Re-wrap: the same command with `--apply`. It writes nothing when a row opens with neither key, writes in batches, each update only while the row still holds the wrapped key it read, then reads every table back and fails unless each row opens with the new key. Run it again until it does; a second run re-wraps only what is left.
-4. Remove `MASTER_KEY_PREVIOUS` from `ocra.env` and `docker compose up -d`. Keep the old key until a review through the gateway has worked, then destroy it.
+4. Remove `MASTER_KEY_PREVIOUS` from `ocra.env` and `docker compose up -d`. Keep the old key until a review through the gateway has worked, then destroy it. `MASTER_KEY` stays in `ocra.env`, which `backup.sh` does not copy: keep a copy of it with the backups.
 
 Without Docker, run `node dist/rewrap-master-key.mjs` after `npm run build:node`, with the same variables. Neither key, nor anything a row seals, is printed. Back up the database first.
 
 ## Limits of this first version
 
 - One GitHub per server: github.com or one GitHub Enterprise Server (`GITHUB_URL`), not both.
-- Set GitHub, OpenID Connect or both; the server refuses to start with neither. An account belongs to the identity it signed in with: the same person through GitHub and through SSO is two accounts.
-- Back up the `/data` volume, or the Postgres database; there is no Time Travel as on D1.
+- Until GitHub or OpenID Connect is set, nobody can sign in and the server opens on its setup page. An account belongs to the identity it signed in with: the same person through GitHub and through SSO is two accounts.
+- Back up the database and the secrets with `selfhost/backup.sh` (Backups); there is no Time Travel as on D1.
+- The setup page holds one model gateway. Several, or prices per model, are `MODEL_ENDPOINTS` (Company models), which then locks the page's Models step.
 
 ## Auto review
 

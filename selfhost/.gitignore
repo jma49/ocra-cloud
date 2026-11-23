@@ -1,3 +1,4 @@
 .env
 ocra.env
 certs/
+backups/

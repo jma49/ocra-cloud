@@ -20,7 +20,7 @@ COPY --from=build /app/dist ./dist
 COPY --from=build /app/web/dist ./web/dist
 COPY migrations ./migrations
 COPY migrations-pg ./migrations-pg
-RUN mkdir /data && chown node:node /data
+RUN mkdir /data /secrets /db-password && chown node:node /data /secrets /db-password
 USER node
 ENV DATABASE_URL=file:/data/ocra-cloud.db PORT=8787
 VOLUME /data
