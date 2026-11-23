@@ -52,6 +52,7 @@ export const KIND_GROUPS: { label: string; kinds: [AuditKind, string][] }[] = [
     kinds: [
       ["auto_review.enrolled", "Repository enrolled"],
       ["auto_review.profile_changed", "Profile changed"],
+      ["auto_review.automatic_changed", "Automatic review switched"],
       ["auto_review.unenrolled", "Repository unenrolled"],
     ],
   },
@@ -169,6 +170,8 @@ export function describe(e: AuditEventView): string {
       return `Enrolled ${named(e.detail.repo, "a repository")} in automatic review`;
     case "auto_review.profile_changed":
       return `Set the review profile of ${named(e.detail.repo, "a repository")}${noted(e.detail.profile, " to ", "")}`;
+    case "auto_review.automatic_changed":
+      return `Turned automatic review ${e.detail.automatic === false ? "off" : "on"} for ${named(e.detail.repo, "a repository")}`;
     case "auto_review.unenrolled":
       return `Stopped automatic review of ${named(e.detail.repo, "a repository")}`;
     case "live.link_changed":

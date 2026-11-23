@@ -748,6 +748,8 @@ export const reviewRepos = sqliteTable(
     holdUnreviewed: integer("hold_unreviewed", { mode: "boolean" }).notNull().default(true),
     /** How much its hosted reviews say (src/shared/review-profiles.ts). */
     reviewProfile: text("review_profile", { enum: REVIEW_PROFILES }).notNull().default("balanced"),
+    /** Whether a pull request is reviewed when it opens or gains commits; off leaves only reviews a person asks for. */
+    automatic: integer("automatic", { mode: "boolean" }).notNull().default(true),
   },
   (t) => [
     uniqueIndex("review_repos_platform_repo").on(t.platform, t.host, t.platformRepoId),

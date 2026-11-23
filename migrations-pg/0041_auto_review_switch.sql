@@ -1,0 +1,1 @@
+ALTER TABLE "review_repos" ADD COLUMN "automatic" bigint DEFAULT 1 NOT NULL;

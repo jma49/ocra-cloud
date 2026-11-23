@@ -211,7 +211,8 @@ async function queue(
   defer(c, run);
   // A pull request a rule skips the review of still has its checks.
   service.checkPull?.(repo.accountId, repo.id, change.number);
-  if (skipped) return 0;
+  // Switched off, a review runs only when a person asks for one (review-now.ts).
+  if (skipped || !repo.automatic) return 0;
   const queued = await data.autoReview.queue(repo.id, change.number, change.head, new Date());
   if (queued) service.kick();
   return queued ? 1 : 0;
