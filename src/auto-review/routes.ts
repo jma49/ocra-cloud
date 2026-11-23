@@ -44,6 +44,8 @@ const enrollSchema = z.object({
     .max(400)
     .regex(/^[\w.-]+(?:\/[\w.-]+)+$/, "a repository path")
     .refine((p) => !p.split("/").some((s) => s === "." || s === ".."), "a repository path"),
+  // Off unless asked for: every pull request reviewed is the account's spend.
+  automatic: z.boolean().default(false),
 });
 
 const profileBody = z.object({ profile: z.enum(REVIEW_PROFILES) });
@@ -119,6 +121,7 @@ export function autoReviewRoute(service: AutoReviewService) {
           platformRepoId: head.platformRepoId,
           fullName: head.fullName,
           webhookSecretHash: secret ? await sha256Hex(secret) : null,
+          automatic: body.automatic,
         },
         MAX_REVIEW_REPOS,
       );
