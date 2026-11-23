@@ -182,6 +182,7 @@ export const DEFAULT_PULL_VIEWS: readonly PullViewDraft[] = [
       reviews: ["required", "none"],
     },
   },
+  { name: "Assigned to me", filters: { roles: ["assignee"], states: ["open"] } },
   { name: "Recently merged", filters: { authoredBy: "me", states: ["merged"] } },
 ];
 
