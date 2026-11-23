@@ -257,6 +257,34 @@ describe("calling with a token", () => {
     expect(keys).toEqual([`token:${token.id}`]);
   });
 
+  it("is limited across all the account's tokens together", async () => {
+    const me = await signIn(1, "octo");
+    const { secret } = await made(me.auth);
+    const other = await made(me.auth);
+    const keys: string[] = [];
+    const ACCOUNT_CALLS = {
+      limit: async ({ key }: { key: string }) => {
+        keys.push(key);
+        return { success: !key.startsWith("token-account:") };
+      },
+    };
+    for (const s of [secret, other.secret]) {
+      const ctx = createExecutionContext();
+      const res = await app.fetch(
+        request("/api/reviews", { auth: bearer(s) }),
+        { ...env, ACCOUNT_CALLS },
+        ctx,
+      );
+      await waitOnExecutionContext(ctx);
+      expect(res.status).toBe(429);
+      expect(res.headers.get("retry-after")).toBe("60");
+    }
+    expect(keys.filter((k) => k.startsWith("token-account:"))).toEqual([
+      `token-account:${me.account.id}`,
+      `token-account:${me.account.id}`,
+    ]);
+  });
+
   it("is deleted by retention once expired", async () => {
     const me = await signIn(1, "octo");
     await made(me.auth, { expiresInDays: 1 });

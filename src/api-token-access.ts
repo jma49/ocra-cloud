@@ -30,11 +30,20 @@ function scopeFor(c: Context<AppEnv>): ApiTokenScope | undefined {
     : undefined;
 }
 
+async function allowed(c: Context<AppEnv>, ...keys: string[]) {
+  for (const key of keys) {
+    if (!(await c.env.ACCOUNT_CALLS.limit({ key })).success) return false;
+  }
+  return true;
+}
+
 /**
  * requireSession's way for a personal API token: an unexpired token of
  * that hash (401 otherwise), a route its scopes reach (403 otherwise), and
- * the token's allowance per minute (429). Its use is written at most every
- * API_TOKEN_TOUCH_MS, and its first use is audited once.
+ * the token's allowance per minute and the account's for all its tokens
+ * together (429), so that more tokens buy no more calls. Its use is
+ * written at most every API_TOKEN_TOUCH_MS, and its first use is audited
+ * once.
  */
 export async function tokenAccess(c: Context<AppEnv>, next: Next, secret: string) {
   const now = new Date();
@@ -48,8 +57,7 @@ export async function tokenAccess(c: Context<AppEnv>, next: Next, secret: string
   if (!scope || !token.scopes.includes(scope)) {
     return apiError(c, "forbidden_for_session", scope ? { scope } : {});
   }
-  const { success } = await c.env.ACCOUNT_CALLS.limit({ key: `token:${token.id}` });
-  if (!success) {
+  if (!(await allowed(c, `token:${token.id}`, `token-account:${token.account.id}`))) {
     c.header("retry-after", "60");
     return apiError(c, "slow_down", {}, 429);
   }

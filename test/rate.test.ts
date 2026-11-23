@@ -161,3 +161,15 @@ describe("the per-minute limit on keys and settings", () => {
     expect(rate.keys).toEqual([`settings:${account.id}`]);
   });
 });
+
+describe("the per-minute limit on the inbox", () => {
+  it("refuses the pull listing past it, without calling the platform", async () => {
+    const { auth, account } = await signIn(1, "octo");
+    const upstream = vi.spyOn(globalThis, "fetch").mockClear();
+    const rate = limiter(0);
+    const refused = await send("/api/platforms/pulls", { auth }, rate.binding);
+    expect(refused).toMatchObject({ status: 429, retryAfter: "60", body: { error: "slow_down" } });
+    expect(rate.keys).toEqual([`platform:${account.id}`]);
+    expect(upstream).not.toHaveBeenCalled();
+  });
+});
