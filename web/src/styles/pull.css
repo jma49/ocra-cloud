@@ -122,14 +122,14 @@
   align-content: start;
 }
 .pull-about {
-  gap: 28px;
+  gap: 32px;
   padding-right: 32px;
 }
 /* The rail is one quiet column of sections, not a pile of cards: a hairline
    sets it apart from the read, and one between each section. */
 .pull-rail {
   align-self: stretch;
-  padding-left: 28px;
+  padding-left: 32px;
   box-shadow: -0.5px 0 0 var(--hair);
 }
 .pull-overview .card {
@@ -140,7 +140,7 @@
 }
 .pull-rail > .card,
 .pull-merge > .card {
-  padding: 20px 0;
+  padding: 16px 0;
   box-shadow: 0 -0.5px 0 var(--hair);
 }
 .pull-rail > .card:first-child {
@@ -193,7 +193,7 @@
 }
 .pull-description {
   margin-top: 8px;
-  padding: 20px 24px;
+  padding: 24px;
   border-radius: var(--r-sheet);
   background: var(--raised);
   box-shadow: var(--shadow);
@@ -251,7 +251,7 @@
 @media (max-width: 1100px) {
   .pull-overview {
     grid-template-columns: minmax(0, 1fr);
-    gap: 28px;
+    gap: 32px;
   }
   .pull-about {
     padding-right: 0;
@@ -259,7 +259,7 @@
   /* What it waits on comes before the long read on a narrow window. */
   .pull-rail {
     order: -1;
-    padding: 0 0 20px;
+    padding: 0 0 24px;
     box-shadow: 0 0.5px 0 var(--hair);
   }
 }

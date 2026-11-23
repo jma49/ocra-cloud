@@ -48,21 +48,119 @@ const pullNode = (entry: unknown, queue = true) =>
     },
   });
 
+const none = { ahead: [], size: null, removed: null };
+const unsaid = { enqueuedAt: null, enqueuedBy: null, estimate: null };
+
+const isStanding = (body: unknown) =>
+  String((body as { query: string }).query).includes("timelineItems");
+
+const standingNode = (pull: unknown) =>
+  Response.json({ data: { repository: { pullRequest: pull } } });
+
 const isQuery = (body: unknown) => String((body as { query: string }).query).startsWith("query");
 
 describe("GitHub's merge queue", () => {
   const ref = { platform: "github", repo: "octo/api", number: 7 };
   const status = "/api/pulls/queue?platform=github&repo=octo/api&number=7";
 
-  it("shows where the pull request stands, and whether the branch has a queue", async () => {
-    const answers = [pullNode({ state: "AWAITING_CHECKS", position: 2 }), pullNode(null, false)];
-    fake((url, body) => (url === GRAPHQL && isQuery(body) ? answers.shift() : undefined));
+  const queued = (number: number, position: number, state = "QUEUED") => ({
+    state,
+    position,
+    pullRequest: { number, title: `Step ${number}` },
+  });
+
+  it("shows where the pull request stands, who is ahead of it and when it should merge", async () => {
+    const asked: unknown[] = [];
+    fake((url, body) => {
+      if (url !== GRAPHQL || !isStanding(body)) return undefined;
+      asked.push((body as { variables: unknown }).variables);
+      return standingNode({
+        mergeQueue: {
+          entries: {
+            totalCount: 4,
+            nodes: [queued(5, 2, "AWAITING_CHECKS"), queued(4, 1, "MERGEABLE"), queued(7, 3), null],
+          },
+        },
+        mergeQueueEntry: {
+          state: "AWAITING_CHECKS",
+          position: 3,
+          enqueuedAt: "2026-11-23T10:00:00Z",
+          estimatedTimeToMerge: 420,
+          enqueuer: { login: "octo" },
+        },
+        timelineItems: { nodes: [{ __typename: "AddedToMergeQueueEvent" }] },
+      });
+    });
     const a = await signInWithGithub();
     expect(await (await a.send(status)).json()).toEqual({
       enabled: true,
-      entry: { state: "checking", position: 2 },
+      entry: {
+        state: "checking",
+        position: 3,
+        enqueuedAt: "2026-11-23T10:00:00Z",
+        enqueuedBy: "octo",
+        estimate: 420,
+      },
+      ahead: [
+        { number: 4, title: "Step 4", state: "ready" },
+        { number: 5, title: "Step 5", state: "checking" },
+      ],
+      size: 4,
+      removed: null,
     });
-    expect(await (await a.send(status)).json()).toEqual({ enabled: false, entry: null });
+    expect(asked).toEqual([{ owner: "octo", name: "api", number: 7, ahead: 10 }]);
+  });
+
+  it("says why the pull request last left the queue, in the platform's words, until it is queued again", async () => {
+    const removal = {
+      __typename: "RemovedFromMergeQueueEvent",
+      createdAt: "2026-11-23T10:05:00Z",
+      reason: " CI checks failed ",
+      actor: null,
+    };
+    const entry = {
+      state: "QUEUED",
+      position: 1,
+      enqueuedAt: "2026-11-23T10:06:00Z",
+      estimatedTimeToMerge: null,
+      enqueuer: null,
+    };
+    const answers = [
+      { mergeQueueEntry: null, timelineItems: { nodes: [removal] } },
+      { mergeQueueEntry: entry, timelineItems: { nodes: [removal] } },
+      {
+        mergeQueueEntry: null,
+        timelineItems: { nodes: [{ __typename: "AddedToMergeQueueEvent" }] },
+      },
+    ].map((p) => ({ mergeQueue: { entries: { totalCount: 0, nodes: [] } }, ...p }));
+    fake((url, body) =>
+      url === GRAPHQL && isStanding(body) ? standingNode(answers.shift()) : undefined,
+    );
+    const a = await signInWithGithub();
+    const read = async () => (await (await a.send(status)).json()) as { removed: unknown };
+    expect((await read()).removed).toEqual({
+      at: "2026-11-23T10:05:00Z",
+      by: null,
+      reason: "CI checks failed",
+    });
+    expect((await read()).removed).toBeNull();
+    expect((await read()).removed).toBeNull();
+  });
+
+  it("still says where it stands when the platform refuses the fuller read, and whether the branch has a queue", async () => {
+    const answers = [pullNode({ state: "AWAITING_CHECKS", position: 2 }), pullNode(null, false)];
+    fake((url, body) => {
+      if (url !== GRAPHQL || !isQuery(body)) return undefined;
+      if (isStanding(body)) return Response.json({ data: null, errors: [{ type: "INVALID" }] });
+      return answers.shift();
+    });
+    const a = await signInWithGithub();
+    expect(await (await a.send(status)).json()).toEqual({
+      enabled: true,
+      entry: { state: "checking", position: 2, ...unsaid },
+      ...none,
+    });
+    expect(await (await a.send(status)).json()).toEqual({ enabled: false, entry: null, ...none });
   });
 
   it("queues the head the user saw, and only that head", async () => {
@@ -133,7 +231,9 @@ describe("GitLab's merge trains", () => {
   const car = (iid: number, status: string) => ({
     status,
     target_branch: "main",
-    merge_request: { iid },
+    created_at: `2026-11-23T10:0${iid}:00Z`,
+    user: { username: "lab" },
+    merge_request: { iid, title: `Step ${iid}` },
   });
 
   it("finds the merge request's car and its place in the train", async () => {
@@ -150,7 +250,16 @@ describe("GitLab's merge trains", () => {
     await (await connectGitlab(a))("code=c&state=STATE");
     expect(await (await a.send(status)).json()).toEqual({
       enabled: true,
-      entry: { state: "checking", position: 2 },
+      entry: {
+        state: "checking",
+        position: 2,
+        enqueuedAt: "2026-11-23T10:03:00Z",
+        enqueuedBy: "lab",
+        estimate: null,
+      },
+      ahead: [{ number: 9, title: "Step 9", state: "checking" }],
+      size: 2,
+      removed: null,
     });
   });
 
@@ -165,8 +274,8 @@ describe("GitLab's merge trains", () => {
     });
     const a = await signInWithGithub();
     await (await connectGitlab(a))("code=c&state=STATE");
-    expect(await (await a.send(status)).json()).toEqual({ enabled: false, entry: null });
-    expect(await (await a.send(status)).json()).toEqual({ enabled: true, entry: null });
+    expect(await (await a.send(status)).json()).toEqual({ enabled: false, entry: null, ...none });
+    expect(await (await a.send(status)).json()).toEqual({ enabled: true, entry: null, ...none });
   });
 
   it("adds the head the user saw to the train, and takes it off again", async () => {

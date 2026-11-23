@@ -1,6 +1,6 @@
 # ocra Cloud
 
-The hosted service of [ocra](https://github.com/jma49/Open-CR-Agent): sign-in, the user's model keys (encrypted), a gateway that forwards model calls with them, and a web view of reviews. Private. The design and its conditions are ADR-0024 in the open repository.
+The hosted service of [ocra](https://github.com/ocrahq/Open-CR-Agent): sign-in, the user's model keys (encrypted), a gateway that forwards model calls with them, and a web view of reviews. Private. The design and its conditions are ADR-0024 in the open repository.
 
 ## Layout
 

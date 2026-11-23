@@ -15,13 +15,13 @@
 /* A select draws its own chevron, in the text colour, so it matches the inputs. */
 select.input {
   appearance: none;
-  padding-right: 26px;
+  padding-right: 24px;
   background-image:
     linear-gradient(45deg, transparent 50%, var(--t3) 50%),
     linear-gradient(135deg, var(--t3) 50%, transparent 50%);
   background-position:
-    right 13px top 50%,
-    right 9px top 50%;
+    right 12px top 50%,
+    right 8px top 50%;
   background-size: 4px 4px;
   background-repeat: no-repeat;
 }
@@ -51,7 +51,7 @@ select.input {
   color: var(--fg-muted);
 }
 .toolbar.bulk {
-  gap: 8px 10px;
+  gap: 8px;
   background: var(--bg-subtle);
 }
 .toolbar.bulk input[type="text"] {
@@ -66,7 +66,7 @@ select.input {
 .badge {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   height: 22px;
   font-size: var(--text-sm);
   font-weight: 500;
@@ -105,7 +105,7 @@ select.input {
   display: flex;
   gap: 8px;
   align-items: center;
-  padding: 12px 20px 16px 66px;
+  padding: 12px var(--gutter) 16px;
   border-bottom: 0.5px solid var(--hair2);
   background: var(--bg-subtle);
   flex-wrap: wrap;
@@ -115,16 +115,10 @@ select.input {
   min-width: 200px;
 }
 
-@media (max-width: 900px) {
-  .inline-form {
-    padding-left: 20px;
-  }
-}
-
 .field {
   display: grid;
   gap: 6px;
-  margin-top: 18px;
+  margin-top: 16px;
 }
 .field label {
   font-weight: 500;
@@ -137,14 +131,14 @@ select.input {
 
 .note {
   display: flex;
-  gap: 10px;
-  padding: 12px 14px;
+  gap: 8px;
+  padding: 12px;
   border-radius: var(--r-chip);
-  font-size: var(--text-md);
+  font-size: var(--text-base);
   border: 0.5px solid var(--hair2);
   background: var(--bg-subtle);
   color: var(--fg-muted);
-  margin-top: 18px;
+  margin-top: 16px;
 }
 .note.ok {
   border-color: var(--border-strong);
@@ -165,13 +159,13 @@ select.input {
   flex-wrap: wrap;
   gap: 8px;
   justify-content: center;
-  margin-top: 18px;
+  margin-top: 16px;
 }
 .chip {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 5px 12px 5px 5px;
+  padding: 4px 12px 4px 4px;
   border: 0.5px solid var(--hair2);
   border-radius: var(--r-ctl);
   background: transparent;
@@ -227,11 +221,12 @@ select.input {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 3px 4px 3px 10px;
+  padding: 2px 4px 2px 8px;
   border-radius: var(--r-chip);
   border: 0.5px solid var(--hair2);
   background: var(--bg-subtle);
   font: var(--text-sm) var(--mono);
+  line-height: 16px;
 }
 .chip-x button {
   border: 0;
@@ -263,7 +258,7 @@ select.input {
 }
 textarea.input {
   height: auto;
-  padding: 8px 10px;
+  padding: 8px var(--ctl-pad);
   resize: vertical;
   font-family: inherit;
   line-height: 1.5;

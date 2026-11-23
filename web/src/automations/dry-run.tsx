@@ -54,7 +54,7 @@ export function DryRun(props: { queued: boolean; repos: Choice[] | null }) {
   };
   return (
     <form className="card card-pad stack section" onSubmit={submit} aria-label="Try the rules">
-      <div className="strong">Try the rules</div>
+      <h2 className="card-title">Try the rules</h2>
       <p className="subtle small m-0">
         Describe a pull request and see which rules would act on it. Nothing is done.
       </p>
@@ -151,7 +151,7 @@ export function DryRun(props: { queued: boolean; repos: Choice[] | null }) {
           value={paths}
           onChange={(e) => setPaths(e.target.value)}
         />
-        <Button type="submit" variant="outline" disabled={run.busy}>
+        <Button type="submit" size="sm" variant="outline" disabled={run.busy}>
           Try
         </Button>
       </div>

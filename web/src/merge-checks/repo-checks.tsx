@@ -32,7 +32,7 @@ export function RepoChecks(props: { repoId: string; fullName: string }) {
   };
   return (
     <section className="repo-checks stack" aria-label={`Pre-merge checks of ${props.fullName}`}>
-      <div className="strong">Pre-merge checks</div>
+      <h2 className="card-title">Pre-merge checks</h2>
       {change.error !== null && <ActionError what="change the check" error={change.error} />}
       {remove.error !== null && <ActionError what="remove the check" error={remove.error} />}
       {hold.error !== null && <ActionError what="change when checks wait" error={hold.error} />}
