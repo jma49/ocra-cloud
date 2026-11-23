@@ -9,6 +9,7 @@ import { recordGithubRequest } from "./auto-review/requests.js";
 import type { AutoReviewService } from "./auto-review/routes.js";
 import { queueGithubPull } from "./auto-review/webhooks.js";
 import { hmacHex, sameText } from "./crypto.js";
+import { touchPulls } from "./db/pull-changes.js";
 import type { GraphService } from "./graph/routes.js";
 import { MAX_HOOK_BODY, queueGithubPush } from "./graph/webhooks.js";
 import { signedBody } from "./http.js";
@@ -18,6 +19,7 @@ import { githubSteps } from "./inbound/steps.js";
 import { rerunGithubChecks } from "./merge-checks/rerun.js";
 import { githubCiFailure } from "./notify/ci-hooks.js";
 import { githubHostOf } from "./platforms/registry.js";
+import { githubTouchesPulls } from "./pull-changes.js";
 import type { AppEnv } from "./types.js";
 
 // The GitHub App's one webhook, proven by its signature: a push queues
@@ -29,7 +31,9 @@ import type { AppEnv } from "./types.js";
 // where the host does them. A pull request's change, review, check or status also moves the
 // intents armed to merge it when ready, and a failed check suite tells the
 // author of its pull request; the repositories added to an installation
-// are enrolled where an account asked for that. Each delivery with something to
+// are enrolled where an account asked for that; one that changes a pull
+// request of an enrolled repository moves its change time, which the inbox
+// watches. Each delivery with something to
 // run after the answer is acted on once, and that is tried again when it
 // fails (src/inbound/).
 // GitLab's hooks are per repository, with secrets of their own.
@@ -77,6 +81,9 @@ export function githubWebhook(host: WebhookHost) {
       });
       if (!received) return c.json({ queued: 0, duplicate: true }, 202);
       const queued = await received.answer(async () => {
+        if (repo.success && githubTouchesPulls(event, body)) {
+          await touchPulls(c.var.db, "github", github, String(repo.data.repository.id), new Date());
+        }
         // A close is kept wherever the repository is enrolled, reviews or not.
         if (event === "pull_request") await recordGithubClose(c.var.db, github, body);
         received.reviewed(await recordGithubFlow(c.var.db, github, event, body));

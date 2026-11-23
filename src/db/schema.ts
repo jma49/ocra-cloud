@@ -836,6 +836,8 @@ export const reviewRepos = sqliteTable(
     accessTokenBot: text("access_token_bot"),
     /** The GitLab project hook ocra added itself (src/auto-review/gitlab-hook.ts), removed on unenroll. */
     webhookId: text("webhook_id"),
+    /** When a webhook last said one of its pull requests changed (src/db/pull-changes.ts), for the inbox's refresh. */
+    pullsChangedAt: integer("pulls_changed_at", { mode: "timestamp_ms" }),
   },
   (t) => [
     uniqueIndex("review_repos_platform_repo").on(t.platform, t.host, t.platformRepoId),

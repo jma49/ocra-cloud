@@ -55,6 +55,7 @@ import { accountMergeIntents } from "./merge-intents.js";
 import { accountNotify } from "./notify.js";
 import { accountNotifyDeliveries } from "./notify-deliveries.js";
 import { type PreferencesSave, savePreferences } from "./preferences.js";
+import { pullsChangedAt } from "./pull-changes.js";
 import { accountPullFileViews } from "./pull-file-views.js";
 import { accountPullFlows } from "./pull-flows.js";
 import { accountPullPaths } from "./pull-paths.js";
@@ -462,6 +463,8 @@ export function scoped(db: Db, accountId: string) {
     apiTokens: accountApiTokens(db, accountId),
     pullViews: accountPullViews(db, accountId),
     pullSeen: accountPullSeen(db, accountId),
+    /** When the pulls the account sees last changed, as webhooks and its reviews say (./pull-changes.ts). */
+    pullsChangedAt: () => pullsChangedAt(db, accountId),
     pullFileViews: accountPullFileViews(db, accountId),
     findingIssues: accountFindingIssues(db, accountId),
     graphs: accountGraphs(db, accountId),

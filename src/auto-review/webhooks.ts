@@ -2,6 +2,7 @@ import { type Context, Hono } from "hono";
 import { z } from "zod";
 import { automate } from "../automations/run.js";
 import { sameText, sha256Hex } from "../crypto.js";
+import { touchPulls } from "../db/pull-changes.js";
 import { reviewRepoFor } from "../db/review-jobs.js";
 import { scoped } from "../db/scoped.js";
 import { defer } from "../defer.js";
@@ -14,6 +15,7 @@ import { gitlabSignal } from "../merge-when-ready/hooks.js";
 import { gitlabCiFailure } from "../notify/ci-hooks.js";
 import { COMMIT_ID } from "../platforms/contents.js";
 import { githubHostOf, gitlabClientOf } from "../platforms/registry.js";
+import { gitlabTouchesPulls } from "../pull-changes.js";
 import { gitlabMerged } from "../stack-merge/hooks.js";
 import type { AppEnv } from "../types.js";
 import { recordGitlabClose } from "./closes.js";
@@ -168,6 +170,9 @@ export function autoReviewWebhooks(service: AutoReviewService) {
     });
     if (!received) return c.json({ queued: 0, duplicate: true }, 202);
     const queued = await received.answer(async () => {
+      if (gitlabTouchesPulls(kind, body)) {
+        await touchPulls(c.var.db, "gitlab", host, String(projectId), new Date());
+      }
       if (note?.data) return queueGitlabNote(c.var.db, service, repo, note.data);
       if (mr) {
         received.reviewed(await recordGitlabFlow(c.var.db, repo, body));
