@@ -75,6 +75,7 @@ export default defineConfig({
           name: "node",
           environment: "node",
           include: ["test-node/**/*.test.ts"],
+          globalSetup: ["./test-node/pglite-cluster.ts"],
           testTimeout: SHARED_RUNNER_TIMEOUT,
         },
       },
