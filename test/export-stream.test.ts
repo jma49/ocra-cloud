@@ -29,7 +29,7 @@ describe("the export", () => {
       detail: { n },
       createdAt: new Date(at + n),
     }));
-    // A statement per row took most of the test's time on PGlite.
+    // Many rows a statement: one each took most of the test's time on PGlite.
     const [head, ...tail] = Array.from({ length: Math.ceil(EVENTS / ROWS_PER_INSERT) }, (_, i) =>
       db
         .insert(schema.auditEvents)
