@@ -1,21 +1,80 @@
-# ocra Cloud on one machine: the server and Caddy in front of it, ending TLS
-# (docs/self-hosting.md). From this folder: cp .env.example .env and
-# cp ocra.env.example ocra.env, fill them in, then docker compose up -d --build.
+# ocra Cloud on one machine (docs/self-hosting.md): from this folder,
+# `docker compose up -d`. Its first start makes the secrets, then Postgres,
+# the server and Caddy in front ending TLS come up at https://localhost, or
+# at the address .env names. The server's log gives the setup code:
+# `docker compose logs ocra`.
 
 name: ocra-cloud
 
+x-server: &server
+  build: ..
+  image: ocra-cloud
+  # Settings the setup page does not hold, and any it should not (docs/self-hosting.md, Variables).
+  env_file:
+    - path: ocra.env
+      required: false
+  volumes:
+    - secrets:/secrets:ro
+    - db-password:/db-password:ro
+    - ./certs:/certs:ro
+
+x-database: &database
+  DATABASE_URL: postgres://ocra@postgres:5432/ocra
+  PGPASSWORD_FILE: /db-password/db_password
+
 services:
-  ocra:
+  secrets:
     build: ..
     image: ocra-cloud
-    restart: unless-stopped
-    env_file: ocra.env
-    environment:
-      PUBLIC_URL: https://${OCRA_DOMAIN:?set OCRA_DOMAIN in .env}
-      TRUSTED_PROXY_HOPS: "1"
+    command: ["node", "dist/make-secrets.mjs", "/secrets", "/db-password"]
     volumes:
-      - ocra-data:/data
-      - ./certs:/certs:ro
+      - secrets:/secrets
+      - db-password:/db-password
+    restart: "no"
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ocra
+      POSTGRES_DB: ocra
+      POSTGRES_PASSWORD_FILE: /db-password/db_password
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - db-password:/db-password:ro
+    depends_on:
+      secrets:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "ocra", "-d", "ocra"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Applies the migrations, once, before the server starts: on every `up`, so an upgrade needs no step of its own.
+  migrate:
+    <<: *server
+    environment:
+      <<: *database
+      MIGRATE: only
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  ocra:
+    <<: *server
+    restart: unless-stopped
+    environment:
+      <<: *database
+      MIGRATE: "off"
+      MASTER_KEY_FILE: /secrets/master_key
+      SESSION_SECRET_FILE: /secrets/session_secret
+      PUBLIC_URL: ${OCRA_PUBLIC_URL:-https://${OCRA_DOMAIN:-localhost}}
+      TRUSTED_PROXY_HOPS: "1"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
     expose:
       - "8787"
 
@@ -26,11 +85,11 @@ services:
       ocra:
         condition: service_healthy
     environment:
-      OCRA_DOMAIN: ${OCRA_DOMAIN}
+      OCRA_DOMAIN: ${OCRA_DOMAIN:-localhost}
       OCRA_TLS: ${OCRA_TLS:-internal}
     ports:
-      - "80:80"
-      - "443:443"
+      - "${OCRA_HTTP_PORT:-80}:80"
+      - "${OCRA_HTTPS_PORT:-443}:443"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - ./certs:/certs:ro
@@ -38,6 +97,8 @@ services:
       - caddy-config:/config
 
 volumes:
-  ocra-data:
+  secrets:
+  db-password:
+  postgres-data:
   caddy-data:
   caddy-config:

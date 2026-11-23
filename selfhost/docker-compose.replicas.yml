@@ -1,26 +1,11 @@
 # Several ocra processes on this machine, sharing its database, behind the
 # same Caddy (docs/self-hosting.md, Several processes), added to COMPOSE_FILE
-# in .env. One run applies the migrations first; the replicas then count the rate
-# limits in the database, so each limit holds for the whole deployment.
+# in .env. They count the rate limits in the database, so each limit holds
+# for the whole deployment.
 
 services:
-  migrate:
-    build: ..
-    image: ocra-cloud
-    env_file: ocra.env
-    environment:
-      MIGRATE: only
-    volumes:
-      - ocra-data:/data
-      - ./certs:/certs:ro
-    restart: "no"
-
   ocra:
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
     environment:
-      MIGRATE: "off"
       RATE_LIMITS: database
     deploy:
       replicas: ${OCRA_REPLICAS:-2}
