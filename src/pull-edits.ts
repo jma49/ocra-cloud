@@ -1,8 +1,9 @@
 import { Hono } from "hono";
 import { z } from "zod";
+import { audit } from "./audit.js";
 import { apiError, jsonBody } from "./http.js";
 import { sameLabel } from "./platforms/edits.js";
-import { byKind, pullRef, reach } from "./pull-page.js";
+import { byKind, pullRef, reach, sha } from "./pull-page.js";
 import { perMinute } from "./rate.js";
 import { requireSession } from "./session.js";
 import {
@@ -13,11 +14,14 @@ import {
   type PullDraftView,
   type PullLabelsRequest,
   type PullLabelsView,
+  type PullUpdateBranchAnswer,
+  type PullUpdateBranchRequest,
 } from "./shared/index.js";
 import type { AppEnv } from "./types.js";
 
 // A pull request's labels and draft state on its page, read live as the
-// signed-in user and changed as them. Nothing read or sent is kept.
+// signed-in user and changed as them, and its branch brought up to date
+// with its base as them. Nothing read or sent is kept but the audit entry.
 
 export const pullEdits = new Hono<AppEnv>();
 
@@ -39,6 +43,7 @@ const labelsBody = z
   .refine((e) => e.add.length + e.remove.length > 0, "no label to change")
   .refine((e) => distinct([...e.add, ...e.remove]), "a label twice");
 const draftBody = z.object({ ...pullRef, draft: z.boolean() });
+const updateBranchBody = z.object({ ...pullRef, head: z.string().trim().toLowerCase().pipe(sha) });
 
 const answer = (outcome: PullActionOutcome) => ({ outcome });
 
@@ -101,5 +106,31 @@ pullEdits.post(
     const outcome = await platform.edits.setDraft(token, edit.repo, edit.number, edit.draft);
     if (!outcome) return apiError(c, "upstream_unreachable");
     return c.json(answer(outcome));
+  },
+);
+
+pullEdits.post(
+  "/update-branch",
+  requireSession(["web"]),
+  perMinute("platform"),
+  jsonBody(updateBranchBody),
+  async (c) => {
+    const update: PullUpdateBranchRequest = c.req.valid("json");
+    const reached = await reach(c, byKind(update));
+    if ("refusal" in reached) return reached.refusal;
+    const { platform, token } = reached;
+    const outcome = await platform.edits.updateBranch(
+      token,
+      update.repo,
+      update.number,
+      update.head,
+    );
+    if (!outcome) return apiError(c, "upstream_unreachable");
+    if (outcome === "head_moved") return apiError(c, "stale");
+    if (outcome === "updating") {
+      const pull = `${update.repo}#${update.number}`;
+      await audit(c.var.data, "pull.branch_updated", { pull, head: update.head });
+    }
+    return c.json({ outcome } satisfies PullUpdateBranchAnswer);
   },
 );

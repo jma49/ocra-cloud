@@ -47,3 +47,32 @@ export type PullDraftRequest = {
   number: number;
   draft: boolean;
 };
+
+/**
+ * What updating a pull request's branch from its base answered: `updating`
+ * when the platform took it (it works asynchronously, a new head follows),
+ * `up_to_date` when the base has nothing new, `conflicts` when only a
+ * manual merge resolves it, `forbidden` when the user may not push to the
+ * branch, `not_open` for one merged or closed.
+ */
+export type BranchUpdateOutcome =
+  | "updating"
+  | "up_to_date"
+  | "conflicts"
+  | "forbidden"
+  | "not_open";
+
+/**
+ * POST /api/pulls/update-branch: GitHub merges the base into the branch,
+ * GitLab rebases it. `head` is the head the user saw; one that moved since
+ * is refused as `stale` (409), a used-up platform allowance as
+ * `upstream_unreachable` with reason `platform_rate_limited`.
+ */
+export type PullUpdateBranchRequest = {
+  platform: CodePlatformKind;
+  repo: string;
+  number: number;
+  head: string;
+};
+
+export type PullUpdateBranchAnswer = { outcome: BranchUpdateOutcome };

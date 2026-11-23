@@ -65,4 +65,10 @@ export type PullReadinessView = {
    * required_signatures, ...); empty when there are none or none were read.
    */
   otherRules: string[];
+  /**
+   * Whether the branch is behind its base in a way that holds the merge
+   * back and an update can fix: not when it conflicts, which takes a
+   * manual merge (POST /api/pulls/update-branch).
+   */
+  canUpdateBranch: boolean;
 };

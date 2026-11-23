@@ -40,6 +40,7 @@ export type AuditDetails = {
   "pull.fix_applied": Pull & { finding: string };
   "pull.reviewers_changed": Pull & People;
   "pull.assignees_changed": Pull & People;
+  "pull.branch_updated": Pull & { head: string };
   "merge_when_ready.armed": Pull & {
     mode: string;
     method: string;
@@ -87,6 +88,7 @@ export const AUDIT_FIELDS: { readonly [K in AuditKind]: readonly (keyof AuditDet
   "pull.fix_applied": ["pull", "finding"],
   "pull.reviewers_changed": ["pull", "added", "removed"],
   "pull.assignees_changed": ["pull", "added", "removed"],
+  "pull.branch_updated": ["pull", "head"],
   "merge_when_ready.armed": ["pull", "mode", "method", "head", "keepOnPush"],
   "merge_when_ready.cancelled": ["pull", "mode", "method", "head", "reason"],
   "merge_when_ready.merged": ["pull", "mode", "method", "head", "reason"],

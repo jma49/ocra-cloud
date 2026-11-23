@@ -46,6 +46,12 @@ export type ReadinessFacts = {
   draft: boolean;
   /** null while the platform is still working it out. */
   conflicts: boolean | null;
+  /**
+   * Whether the platform holds the merge back until the branch has its
+   * base's new commits (GitHub: required up to date; GitLab: a rebase
+   * needed); null while it is still working it out or did not say.
+   */
+  behind: boolean | null;
   /** GitHub's branch protection rule; null where approvals are read without one (GitLab). */
   branchRule: BranchRuleRead | null;
   /** GitHub's rulesets; null on GitLab. */
