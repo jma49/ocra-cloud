@@ -305,14 +305,22 @@ export function scoped(db: Db, accountId: string) {
       const [first, ...rest] = build(writes);
       if (first) await db.batch([first, ...rest]);
     },
-    /** Returns whether a row of this account changed. */
-    async update<N extends IdName>(name: N, id: string, changes: Changes<N>): Promise<boolean> {
+    /**
+     * Returns whether a row of this account changed; with where, only while
+     * its columns still equal where's values (compare-and-set).
+     */
+    async update<N extends IdName>(
+      name: N,
+      id: string,
+      changes: Changes<N>,
+      where: Where<N> = {},
+    ): Promise<boolean> {
       const { accountId: _ignored, ...rest } = changes as Record<string, unknown>;
       if (Object.keys(rest).length === 0) return false;
       const result = await db
         .update(accountTables[name])
         .set(rest as never)
-        .where(byId(name, id));
+        .where(and(byId(name, id), matching(name, where)));
       return changedRows(result) > 0;
     },
     /**

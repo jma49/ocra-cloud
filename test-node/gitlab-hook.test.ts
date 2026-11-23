@@ -89,6 +89,9 @@ async function enroll(auth: Record<string, string>) {
 const setUp = (auth: Record<string, string>, id: string) =>
   s.call(`/api/auto-review/repos/${id}/webhook`, { method: "POST", headers: auth });
 
+const newSecret = (auth: Record<string, string>, id: string) =>
+  s.call(`/api/auto-review/repos/${id}/webhook/secret`, { method: "POST", headers: auth });
+
 /** Whether the GitLab webhook endpoint takes a delivery proven by `secret`. */
 async function delivers(secret: string) {
   const res = await s.call("/api/auto-review/webhooks/gitlab", {
@@ -166,6 +169,7 @@ describe("a GitLab project's webhook", () => {
     expect(body.error).toBe("invalid_body");
     expect(body.issues[0]?.message).toContain("Maintainer");
     expect(body.issues[0]?.message).toContain(HOOK_URL);
+    expect(body.issues[0]?.message).toContain(`/api/auto-review/repos/${repo.id}/webhook/secret`);
     // The secret the hook added by hand proves itself with is kept.
     expect(await delivers(webhook.secret)).toBe(true);
     expect((await storedRepo())?.webhookId).toBeNull();
@@ -204,6 +208,50 @@ describe("a GitLab project's webhook", () => {
       repo: "group/api",
       removed: false,
     });
+  });
+
+  it("gets a new secret to be added by hand with, and the old one is no longer accepted", async () => {
+    refuse = 403;
+    const { auth } = await s.signIn(1);
+    const { repo, webhook } = await enroll(auth);
+    const before = calls.length;
+    const res = await newSecret(auth, repo.id);
+    expect(res.status).toBe(200);
+    const view = (await res.json()) as { url: string; secret: string; events: string[] };
+    expect(view).toEqual({
+      url: HOOK_URL,
+      secret: expect.stringMatching(/^ocra_hook_/),
+      events: ["Merge request events", "Comments", "Pipeline events"],
+    });
+    expect(view.secret).not.toBe(webhook.secret);
+    // Nothing is asked of GitLab: the hook is added by hand.
+    expect(calls).toHaveLength(before);
+    expect((await storedRepo())?.webhookSecretHash).toBe(await sha256Hex(view.secret));
+    expect(await delivers(view.secret)).toBe(true);
+    expect(await delivers(webhook.secret)).toBe(false);
+
+    const audit = (await (await s.call("/api/audit", { headers: auth })).json()) as {
+      events: { kind: string; detail: Record<string, unknown> }[];
+    };
+    expect(
+      audit.events.find((e) => e.kind === "auto_review.webhook_secret_rotated")?.detail,
+    ).toEqual({ repo: "group/api" });
+    for (const path of ["/api/audit", "/api/auto-review/repos", "/api/export"]) {
+      const text = await (await s.call(path, { headers: auth })).text();
+      expect(text).not.toContain(view.secret);
+      expect(text).not.toContain(await sha256Hex(view.secret));
+    }
+  });
+
+  it("gets a new secret only for the account that enrolled the project", async () => {
+    const first = await s.signIn(1);
+    const second = await s.signIn(2);
+    const { repo, webhook } = await enroll(first.auth);
+    const theirs = await newSecret(second.auth, repo.id);
+    expect(theirs.status).toBe(404);
+    expect(await delivers(webhook.secret)).toBe(true);
+    const audit = await (await s.call("/api/audit", { headers: first.auth })).text();
+    expect(audit).not.toContain("auto_review.webhook_secret_rotated");
   });
 
   it("is set up only by the account that enrolled the project", async () => {

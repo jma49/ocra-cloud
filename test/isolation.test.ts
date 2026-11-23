@@ -218,6 +218,11 @@ describe.each(withIds)("%s", (name) => {
     expect(await b.remove(name, "row-1")).toBe(false);
     expect(await a.get(name, "row-1")).toMatchObject({ id: "row-1", accountId: A });
     expect(await a.get(name, "row-1")).not.toMatchObject(changes[name]);
+    // A compare-and-set whose expected values no longer hold changes nothing.
+    expect(await a.update(name, "row-1", changes[name] as never, { id: "row-0" } as never)).toBe(
+      false,
+    );
+    expect(await a.get(name, "row-1")).not.toMatchObject(changes[name]);
     expect(await a.update(name, "row-1", changes[name] as never)).toBe(true);
     expect(await a.get(name, "row-1")).toMatchObject(changes[name]);
     expect(await b.countSince(name, new Date(0))).toBe(0);
