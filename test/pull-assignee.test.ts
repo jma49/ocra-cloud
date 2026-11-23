@@ -103,6 +103,9 @@ describe("pull requests assigned to the user", () => {
       [1, ["reviewer"]],
     ]);
     expect(assignedAsks.map((q) => [q.get("scope"), q.get("state")])).toEqual([["all", "opened"]]);
+    // Three assigned of a page of 50 leave none unlisted.
+    expect(lab?.more).toBe(false);
+    expect(assignedAsks[0]?.get("per_page")).toBe("50");
   });
 
   it("filters a view by the assignee role, and the views route keeps it", async () => {
