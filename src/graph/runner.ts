@@ -49,7 +49,8 @@ export async function runNextBuild(runner: GraphRunner): Promise<boolean> {
     const built = await buildGraph(runner, build, signal);
     await graphs.finishBuild(build.id, build.attempts, built, now());
   } catch (e) {
-    const reason = e instanceof BuildFailure ? e.reason : "build_failed";
+    // A platform read cut short by the lease returns null, which would read as an unreadable tree.
+    const reason = !signal.aborted && e instanceof BuildFailure ? e.reason : "build_failed";
     const retry = RETRIED.has(reason) && build.attempts < MAX_ATTEMPTS;
     logError("graph_build_failed", { build: build.id, reason, error: errorName(e), retry });
     const retryAt = retry ? new Date(now().getTime() + RETRY_AFTER_MS * build.attempts) : null;
