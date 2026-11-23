@@ -155,6 +155,29 @@ describe("the hourly run's sweep of armed intents", () => {
     expect((await intents()).map((i) => i.state)).toEqual(["armed", "armed", "merging"]);
   });
 
+  it("ends a native intent whose close is on record, with no platform call", async () => {
+    const data = await armed(3, { mode: "native" });
+    const armedAt = new Date(Date.now() - 2 * HOUR);
+    await db.update(schema.mergeIntents).set({ createdAt: armedAt });
+    const closed = (repo: string, merged: boolean, closedAt: Date) =>
+      data.insert("closedPulls", {
+        ...rows.closedPulls(`close-${repo}`),
+        reviewRepoId: repo,
+        merged,
+        closedAt,
+      });
+    await closed("repo-0", true, new Date(Date.now() - HOUR));
+    await closed("repo-1", false, new Date(Date.now() - HOUR));
+    // Closed before it was armed again (reopened since): still armed.
+    await closed("repo-2", true, new Date(Date.now() - 3 * HOUR));
+    const seen = github({ state: "OPEN", mergeState: "CLEAN" });
+    await hourly();
+    expect(seen.calls()).toBe(0);
+    expect((await intents()).map((i) => i.state)).toEqual(["merged", "closed", "armed"]);
+    const kinds = (await data.list("auditEvents")).map((e) => e.kind).sort();
+    expect(kinds).toEqual(["merge_when_ready.closed", "merge_when_ready.merged"]);
+  });
+
   it("takes over a merge whose claim lapsed", async () => {
     await armed(1, { state: "merging", claimedAt: new Date(Date.now() - HOUR) });
     const seen = github({ state: "OPEN", mergeState: "CLEAN" });

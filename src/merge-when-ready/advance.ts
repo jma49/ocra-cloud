@@ -1,7 +1,7 @@
 import { audit } from "../audit.js";
 import { type CallBudget, callsRefused, uncapped } from "../calls.js";
 import type { Db } from "../db/client.js";
-import { dueMergeIntents, type MergeIntent } from "../db/merge-intents.js";
+import { closedNativeIntents, dueMergeIntents, type MergeIntent } from "../db/merge-intents.js";
 import { type Row, type Scoped, scoped } from "../db/scoped.js";
 import { errorName, logError } from "../log.js";
 import { evaluatePull, headReview } from "../merge-checks/run.js";
@@ -160,6 +160,28 @@ export async function advance(
   return intents.of(intent, intent.number);
 }
 
+/**
+ * Ends the platform-kept intents whose close webhook never came but whose
+ * close is on record, as that webhook would have, with no platform call.
+ * Only the audit log hears of it: the platform told the user of its own
+ * merge, and a notice sent this late would cost the run's calls.
+ */
+async function endClosedNative(db: Db, now: Date): Promise<void> {
+  for (const { intent, merged } of await closedNativeIntents(db, PER_SWEEP)) {
+    const data = scoped(db, intent.accountId);
+    const state = merged ? "merged" : "closed";
+    if (await data.mergeIntents.settle(intent.id, intent.head, { state, reason: null }, now)) {
+      await audit(data, `merge_when_ready.${state}`, {
+        pull: `${intent.fullName}#${intent.number}`,
+        mode: intent.mode,
+        method: intent.method,
+        head: intent.head,
+        reason: null,
+      });
+    }
+  }
+}
+
 /** Intents a sweep reads; the rest wait for the next. */
 const PER_SWEEP = 20;
 /** An armed intent the webhooks have not moved for this long is read again. */
@@ -168,8 +190,9 @@ const SWEEP_IDLE_MS = 15 * 60_000;
 const FEWEST_CALLS = 4;
 
 /**
- * Reads again the armed intents untouched longest, across accounts, while
- * `calls` has room for one more; how many it tried. One its calls cut short
+ * Ends the native intents a close on record ended, then reads again the
+ * armed intents untouched longest, across accounts, while `calls` has room
+ * for one more; how many it read. One its calls cut short
  * is given back as it was, and ends the sweep.
  */
 export async function sweepMergeIntents(
@@ -177,6 +200,7 @@ export async function sweepMergeIntents(
   now = new Date(),
   calls: CallBudget = uncapped(),
 ): Promise<number> {
+  await endClosedNative(runner.db, now);
   const due = await dueMergeIntents(runner.db, now, SWEEP_IDLE_MS, PER_SWEEP);
   let tried = 0;
   for (const intent of due) {
