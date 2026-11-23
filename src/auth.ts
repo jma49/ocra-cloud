@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { audit } from "./audit.js";
-import { githubIdentity, upsertAccount } from "./db/accounts.js";
+import { githubIdentity, refuseIdentity, upsertAccount } from "./db/accounts.js";
 import { scoped } from "./db/scoped.js";
 import { deadline } from "./deadline.js";
 import { apiError } from "./http.js";
@@ -11,6 +11,8 @@ import type { TokenAnswer } from "./platforms/platform.js";
 import { githubClientOf } from "./platforms/registry.js";
 import { clearSessionCookie, requireSession, signInBrowser } from "./session.js";
 import type { SignInMethod } from "./shared/index.js";
+import { allowListFor, recordAdmission, signInRefused } from "./sign-in-gate.js";
+import { githubAllowed } from "./sign-in-github.js";
 import { finishSignIn, startSignIn } from "./sign-in-state.js";
 import type { AppEnv } from "./types.js";
 
@@ -57,7 +59,9 @@ auth.get("/github/login", async (c) => {
   url.searchParams.set("client_id", client.id);
   url.searchParams.set("redirect_uri", callbackUrl(c.req.url));
   url.searchParams.set("state", state);
-  url.searchParams.set("allow_signup", "true");
+  // A server that lists who may sign in sends nobody to make a GitHub account.
+  const list = await allowListFor(c);
+  url.searchParams.set("allow_signup", list ? "false" : "true");
   return c.redirect(url.toString(), 302);
 });
 
@@ -89,7 +93,24 @@ auth.get("/github/callback", async (c) => {
   if (typeof user?.id !== "number" || typeof user.login !== "string") {
     return apiError(c, "github_user");
   }
-  const account = await upsertAccount(c.var.db, githubIdentity(user.id), user.login);
+  const identity = githubIdentity(user.id);
+  const list = await allowListFor(c);
+  if (list) {
+    const verdict = await githubAllowed(list, {
+      api: client.host.api,
+      token: tokenBody.access_token,
+      login: user.login,
+      fresh: true,
+      bots: c.var.bots,
+    });
+    if (verdict === undefined) return apiError(c, "upstream_unreachable");
+    if (!verdict) {
+      await refuseIdentity(c.var.db, identity, { key: list.key, allowed: false, at: new Date() });
+      return signInRefused(c);
+    }
+  }
+  const account = await upsertAccount(c.var.db, identity, user.login);
+  if (list) await recordAdmission(c, account.id, list);
   // Kept so the console can read what the user reaches on GitHub
   // (./platforms/links.ts).
   await saveToken(scoped(c.var.db, account.id), c.env, github(client), tokenBody);

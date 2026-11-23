@@ -7,6 +7,7 @@ import { scoped } from "./db/scoped.js";
 import { defer } from "./defer.js";
 import { apiError } from "./http.js";
 import { API_TOKEN_PREFIX, API_TOKEN_ROUTES, type ApiTokenScope } from "./shared/index.js";
+import { checkAccount } from "./sign-in-gate.js";
 import { MINUTE } from "./time.js";
 import type { AppEnv } from "./types.js";
 
@@ -53,6 +54,8 @@ export async function tokenAccess(c: Context<AppEnv>, next: Next, secret: string
   // lookup that matched loosely (a collation, a prefix index) from letting
   // a different secret in.
   if (!token || !sameText(token.tokenHash, hash)) return apiError(c, "unauthenticated");
+  const refused = await checkAccount(c, token.account);
+  if (refused) return refused;
   const scope = scopeFor(c);
   if (!scope || !token.scopes.includes(scope)) {
     return apiError(c, "forbidden_for_session", scope ? { scope } : {});
