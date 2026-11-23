@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import type { Review } from "../api.js";
 import { Reviews } from "./Reviews.js";
@@ -49,4 +49,27 @@ it("names each review by what it was of, and links it to the review", async () =
   const local = screen.getByRole("link", { name: "abc12345" });
   expect(local.getAttribute("href")).toBe("/reviews/r2");
   expect(local.closest(".review-of")?.textContent).not.toContain("#");
+});
+
+it("moves through the history by key, and opens the review it is on", async () => {
+  const reviews = [
+    review({ name: "octo/api", prNumber: 7 }),
+    review({ id: "r2", name: "octo/web" }),
+  ];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => Response.json({ days: 30, summary: {}, reviewers: {}, reviews })),
+  );
+  render(<Reviews />);
+  const first = (await screen.findByRole("link", { name: "octo/api #7" })).closest("tr");
+  const second = screen.getByRole("link", { name: "octo/web" }).closest("tr");
+  const press = (key: string) => fireEvent.keyDown(document.body, { key });
+  expect(first?.className).toBe("");
+  press("j");
+  expect(first?.className).toBe("is-current");
+  press("j");
+  expect(second?.className).toBe("is-current");
+  expect(first?.className).toBe("");
+  press("Enter");
+  expect(location.pathname).toBe("/reviews/r2");
 });

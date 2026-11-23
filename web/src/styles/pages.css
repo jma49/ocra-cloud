@@ -452,6 +452,12 @@ td.finding-cell {
   border: 0;
   border-radius: var(--r-ctl);
 }
+.finding-text {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  overflow-wrap: anywhere;
+}
 .finding-label {
   margin-bottom: 4px;
 }

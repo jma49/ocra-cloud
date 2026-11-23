@@ -1,13 +1,13 @@
 import type { LiveFinding } from "@open-cr-agent/cloud-contract";
 import type { LiveCommentView } from "../../../src/shared/index.js";
+import { FindingText } from "../finding-text.js";
 import { splitPath } from "../pull/diff.js";
 import { FileTypeIcon } from "../pull/file-icon.js";
 import { SeverityBadge } from "../severity.js";
-import { CodeBlock } from "../ui.js";
 import { type CommentActions, CommentThread } from "./comments.js";
 
-// A finding as it arrives in a live run, with its comments. Plain text
-// throughout: findings quote untrusted code.
+// A finding as it arrives in a live run, with its comments. Findings quote
+// untrusted code: its text is Markdown without links, the rest plain text.
 
 const linesOf = (f: LiveFinding) =>
   f.lineStart === undefined
@@ -52,8 +52,7 @@ export function LiveFindingEvent(props: {
         </div>
         <p className="event-text finding-title">{f.title}</p>
         <FileChip path={f.file} lines={linesOf(f)} />
-        <p className="event-text live-finding-body">{f.body}</p>
-        {f.suggestion && <CodeBlock label="Suggested change">{f.suggestion}</CodeBlock>}
+        <FindingText body={f.body} suggestion={f.suggestion ?? null} />
         <CommentThread
           comments={props.comments}
           findingId={f.id}

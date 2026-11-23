@@ -12,7 +12,7 @@ import { api } from "../api.js";
 import { useCached } from "../cache.js";
 import { count, time } from "../format.js";
 import { AddGlyph } from "../glyphs.js";
-import { ActionError, LoadError, useAction, useLoad } from "../ui.js";
+import { ActionError, LoadError, Loading, useAction, useLoad } from "../ui.js";
 import { ReportEditor, reportBody, whenOf } from "./report-editor.js";
 
 // Reports the account defines itself: each goes on its own cadence, counts
@@ -101,6 +101,8 @@ export function ScheduledReports(props: {
       )}
       {list.error && !list.data ? (
         <LoadError what="your reports" error={list.error} retry={list.reload} inCard />
+      ) : !list.data ? (
+        <Loading what="reports" inCard />
       ) : reports.length === 0 ? (
         <p className="subtle small card-pad m-0">
           {channels.length === 0

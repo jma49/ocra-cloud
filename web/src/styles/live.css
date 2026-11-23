@@ -139,11 +139,6 @@
     animation: none;
   }
 }
-.live-finding-body {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  color: var(--t2);
-}
 .live-thread {
   display: grid;
   gap: 8px;

@@ -1,11 +1,13 @@
 import GitPullRequest from "lucide-react/icons/git-pull-request";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { api, type Review, type Reviews as ReviewsData, why } from "../api.js";
 import { useCached } from "../cache.js";
 import { compact, count, num, period, since, sourceLabel, time } from "../format.js";
 import { CloseGlyph } from "../glyphs.js";
-import { Link } from "../router.js";
+import { useListCursor } from "../list-cursor.js";
+import { usePageCommands } from "../page-commands.js";
+import { Link, navigate } from "../router.js";
 import { StackTable } from "../stack-table.js";
 import { EmptyState, LoadError, Loading, PageHead, Seg, useAction } from "../ui.js";
 
@@ -59,6 +61,28 @@ export function Reviews(props: {
   };
   const failed = del.error ? `Could not delete the record: ${why(del.error)}.` : "";
   const s = data?.summary;
+  const history = useRef<HTMLTableSectionElement>(null);
+  const rows = data?.reviews ?? [];
+  const cursor = useListCursor(rows.length, history);
+  const row = rows[cursor.current];
+  usePageCommands(
+    "These reviews",
+    rows.length > 0
+      ? [
+          { label: "Next review", key: "j", run: () => cursor.move(1) },
+          { label: "Previous review", key: "k", run: () => cursor.move(-1) },
+          ...(row
+            ? [
+                {
+                  label: "Open the review",
+                  key: "Enter",
+                  run: () => navigate(`/reviews/${row.id}`),
+                },
+              ]
+            : []),
+        ]
+      : [],
+  );
   return (
     <>
       <PageHead
@@ -68,7 +92,17 @@ export function Reviews(props: {
             ? "Each review ocra ran on a pull request here, or from the CLI while signed in: its counts, and its findings."
             : "Each review the CLI ran while signed in: its counts, and its findings when you share them in Settings."
         }
-        actions={<Seg label="Time range" value={days} options={RANGES} onChange={setDays} />}
+        actions={
+          <Seg
+            label="Time range"
+            value={days}
+            options={RANGES}
+            onChange={(d) => {
+              setDays(d);
+              cursor.reset();
+            }}
+          />
+        }
       />
       {failed && (
         <p className="error" role="alert">
@@ -183,9 +217,13 @@ export function Reviews(props: {
                   </th>
                 </tr>
               </thead>
-              <tbody>
-                {data.reviews.map((r) => (
-                  <tr key={r.id}>
+              <tbody ref={history}>
+                {data.reviews.map((r, i) => (
+                  <tr
+                    key={r.id}
+                    data-row={i}
+                    className={cursor.shown && i === cursor.current ? "is-current" : undefined}
+                  >
                     <td>
                       <ReviewOf r={r} />
                     </td>
