@@ -217,6 +217,7 @@ describe("ocra Cloud with GitHub Enterprise Server", () => {
       const enrolled = await send("/api/auto-review/repos", "POST", {
         platform: "github",
         fullName: REPO.fullName,
+        automatic: true,
       });
       expect(enrolled.status, await enrolled.clone().text()).toBe(200);
       const payload = JSON.stringify({
