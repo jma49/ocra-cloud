@@ -11,3 +11,10 @@
   Strict-Transport-Security: max-age=31536000; includeSubDomains
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
   Cross-Origin-Opener-Policy: same-origin
+
+# Vite names every file under /assets by its content, so a name never
+# changes meaning: the browser keeps it a year without asking again. A
+# deploy uploads a version's assets before it serves the index that names
+# them, and an old tab's missing chunk reloads the page (stale-build.ts).
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable

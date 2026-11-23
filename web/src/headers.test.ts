@@ -7,13 +7,13 @@ import viteConfig from "../vite.config.ts?raw";
 // and inline code, nosniff and no referrer (Workers static assets read
 // web/public/_headers).
 
-function rules(): Map<string, string> {
+function rules(path = "/*"): Map<string, string> {
   const out = new Map<string, string>();
   let inAll = false;
   for (const raw of headers.split("\n")) {
     if (raw.startsWith("#") || raw.trim() === "") continue;
     if (!/^\s/.test(raw)) {
-      inAll = raw.trim() === "/*";
+      inAll = raw.trim() === path;
       continue;
     }
     if (!inAll) continue;
@@ -40,6 +40,10 @@ describe("web app headers", () => {
   it("serve every asset from 'self', never inlined as a data: URL", () => {
     expect(csp().get("font-src")).toEqual(["'self'"]);
     expect(viteConfig).toMatch(/assetsInlineLimit:\s*0\b/);
+  });
+  it("keep the build's content-named files without asking again, and nothing else", () => {
+    expect(rules("/assets/*").get("cache-control")).toBe("public, max-age=31536000, immutable");
+    expect(rules().get("cache-control")).toBeUndefined();
   });
   it("send nosniff and no referrer on every path", () => {
     expect(rules().get("x-content-type-options")).toBe("nosniff");
