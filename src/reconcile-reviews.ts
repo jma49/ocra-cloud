@@ -23,7 +23,7 @@ import type { ReconciledPull, ReconciledReview, Spent } from "./platforms/reconc
 
 /** Open pull requests read per repository, the most lately changed first: one call each. */
 const REVIEW_PULLS = 10;
-/** Asks on record read per pull request. */
+/** Asks on record read per pull request: far more than a pull request is asked of. */
 const ASKS_CAP = 200;
 
 type Pass = {
