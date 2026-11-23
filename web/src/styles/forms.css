@@ -160,19 +160,6 @@ select.input {
   gap: 6px;
   justify-content: flex-end;
 }
-.empty-hero {
-  padding: 48px 24px;
-  text-align: center;
-}
-.empty-hero h2 {
-  font-size: var(--text-lg);
-  font-weight: 600;
-}
-.empty-hero p {
-  color: var(--fg-muted);
-  margin: 6px auto 20px;
-  max-width: 420px;
-}
 .quick {
   display: flex;
   flex-wrap: wrap;

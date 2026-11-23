@@ -180,7 +180,6 @@ export const signInHref = (method: SignInMethod, next?: string) =>
 
 export { EmptyState };
 
-/** Shown while a page's data is on its way, so "nothing yet" is never a guess. */
 /** Code shown as typed; it scrolls sideways, so the keyboard can reach and scroll it. */
 export function CodeBlock(props: { label: string; children: string }) {
   return (
@@ -193,15 +192,30 @@ export function CodeBlock(props: { label: string; children: string }) {
   );
 }
 
-export function Loading(props: { what: string }) {
-  return (
+/**
+ * Shown while data is on its way, in the frame the data will fill, so
+ * nothing moves when it lands and "nothing yet" is never a guess. Inside a
+ * card already (`inCard`), it adds no card of its own, as `LoadError`.
+ */
+export function Loading(props: { what: string; inCard?: boolean; rows?: number }) {
+  const state = (
     <div className="skeleton" role="status" aria-busy="true">
       <span className="sr-only">Loading {props.what}…</span>
-      <span className="skeleton-bar" />
-      <span className="skeleton-bar" />
-      <span className="skeleton-bar" />
+      {Array.from({ length: props.rows ?? 3 }, (_, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: placeholder rows have no identity
+        <span key={i} className="skeleton-row">
+          <span className="skeleton-bar" />
+          <span className="skeleton-bar" />
+        </span>
+      ))}
     </div>
   );
+  return props.inCard ? state : <div className="card">{state}</div>;
+}
+
+/** A part of a card with nothing in it yet: one quiet line, where a whole view gets `EmptyState`. */
+export function EmptyNote(props: { children: ReactNode }) {
+  return <p className="empty">{props.children}</p>;
 }
 
 /**
@@ -225,7 +239,7 @@ export function LoadError(props: {
         </Button>
       }
     >
-      {capital(why(props.error))}.
+      {capital(why(props.error).replace(/; try again$/, ""))}.
     </EmptyState>
   );
   return props.inCard ? state : <div className="card">{state}</div>;

@@ -67,11 +67,6 @@ th.num {
   background: var(--fill2);
   color: var(--fg);
 }
-.empty {
-  padding: 40px 20px;
-  text-align: center;
-  color: var(--fg-muted);
-}
 .error {
   color: var(--critical);
   font-size: var(--text-base);
