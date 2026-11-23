@@ -1,0 +1,1 @@
+ALTER TABLE "notify_deliveries" ADD COLUMN "whens" text;

@@ -162,6 +162,7 @@ export async function send(
     channel,
     await attemptOn(out, channel),
     await outgoingOf(out, channel, m),
+    m.whens,
   );
   await data.batch((w) => [
     w.update("notifyChannels", channel.id, {
@@ -263,11 +264,10 @@ export async function notifyReview(
   told: readonly string[] = [],
   share = false,
 ): Promise<void> {
-  const channels = (await data.notify.listening(whensFor(review))).filter(
-    (ch) => !told.includes(ch.id),
-  );
+  const whens = whensFor(review);
+  const channels = (await data.notify.listening(whens)).filter((ch) => !told.includes(ch.id));
   if (channels.length === 0) return;
-  const m = reviewMessage(await noticeOf(data, review, platforms, consoleUrl));
+  const m = { ...reviewMessage(await noticeOf(data, review, platforms, consoleUrl)), whens };
   if (channels.some((ch) => ch.kind === "webhook")) {
     m.hooks = [await reviewHook(data, out, review, platforms, consoleUrl, share)];
   }

@@ -3,13 +3,15 @@ import { env } from "cloudflare:workers";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import before from "../migrations/0065_webhook_deliveries.sql?raw";
 import migration from "../migrations/0072_notify_deliveries.sql?raw";
+import whens from "../migrations/0075_notify_delivery_whens.sql?raw";
 import { scoped } from "../src/db/scoped.js";
 import { call, db, resetDb, signIn } from "./helpers.js";
 import { rows } from "./table-rows.js";
 
 // Migration 0072 renames webhook_deliveries to notify_deliveries in place:
 // applied, as D1 applies it, in one transaction to the table as 0065 made it,
-// it keeps every delivery and every row of the tables around it. A message
+// it keeps every delivery and every row of the tables around it (0075,
+// which adds a column the code reads, after it). A message
 // still goes out when its delivery cannot be recorded.
 
 beforeEach(resetDb);
@@ -54,6 +56,7 @@ it("keeps every delivery, channel and account, with the rows' values", async () 
   const channels = await count("notify_channels");
 
   await env.DB.batch(statementsOf(migration).map((s) => env.DB.prepare(s)));
+  await env.DB.batch(statementsOf(whens).map((s) => env.DB.prepare(s)));
 
   expect(await count("notify_deliveries")).toBe(3);
   expect(await count("accounts")).toBe(accounts);
@@ -64,7 +67,13 @@ it("keeps every delivery, channel and account, with the rows' values", async () 
   ).all<{ name: string }>();
   expect(tables.results.map((t) => t.name)).toEqual(["notify_deliveries"]);
   const pending = await scoped(db, a.account.id).get("notifyDeliveries", "d1");
-  expect(pending).toMatchObject({ state: "pending", attempts: 1, status: 503, payload: "{}" });
+  expect(pending).toMatchObject({
+    state: "pending",
+    attempts: 1,
+    status: 503,
+    payload: "{}",
+    whens: null,
+  });
   expect(await scoped(db, b.account.id).count("notifyDeliveries")).toBe(1);
   const plan = await env.DB.prepare(
     "EXPLAIN QUERY PLAN SELECT id FROM notify_deliveries WHERE retry_at <= 5 ORDER BY retry_at",

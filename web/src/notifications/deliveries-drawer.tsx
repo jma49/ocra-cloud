@@ -30,6 +30,7 @@ const ERROR: Record<NotifyDeliveryError, string> = {
   network: "Could not connect",
   status: "No 2xx answer",
   rejected: "Refused by the chat",
+  unwanted: "No longer wanted by this channel",
 };
 // A webhook's endpoint reads the event's id, so its list keeps it; people read these.
 const EVENT: Record<NotifyDeliveryEvent, string> = {

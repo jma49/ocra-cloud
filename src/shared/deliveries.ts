@@ -15,8 +15,9 @@ export type NotifyDeliveryState = (typeof NOTIFY_DELIVERY_STATES)[number];
  * Why the last attempt failed: refused (an address ocra will not use, or
  * none it can open), a redirect, no answer in time, no connection, an
  * answer that is not a success (`status` holds the HTTP status, or the
- * SMTP reply code for email), or rejected (a chat answered success but
- * refused the message in its body).
+ * SMTP reply code for email), rejected (a chat answered success but
+ * refused the message in its body), or unwanted (a retry the channel's
+ * `when`, narrowed since, no longer takes; it is not sent).
  */
 export const NOTIFY_DELIVERY_ERRORS = [
   "refused",
@@ -25,6 +26,7 @@ export const NOTIFY_DELIVERY_ERRORS = [
   "network",
   "status",
   "rejected",
+  "unwanted",
 ] as const;
 export type NotifyDeliveryError = (typeof NOTIFY_DELIVERY_ERRORS)[number];
 

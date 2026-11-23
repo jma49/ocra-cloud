@@ -95,8 +95,9 @@ async function sendDigest(
   ]);
   // A day without reviews or merges says nothing worth an email.
   if (numbers.reviews === 0 && merges.merged === 0) return false;
-  const channels = await data.notify.digesting(periodWhens(numbers, merges));
-  const m = digestMessage(day, numbers, merges, out.origin);
+  const whens = periodWhens(numbers, merges);
+  const channels = await data.notify.digesting(whens);
+  const m = { ...digestMessage(day, numbers, merges, out.origin), whens };
   await Promise.all(channels.map((ch) => send(data, out, ch, m)));
   return channels.length > 0;
 }

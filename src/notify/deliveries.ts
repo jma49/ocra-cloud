@@ -3,7 +3,7 @@ import type { Db } from "../db/client.js";
 import { type AttemptResult, claimDeliveryRetry } from "../db/notify-deliveries.js";
 import { type Row, type Scoped, scoped } from "../db/scoped.js";
 import { errorName, logError } from "../log.js";
-import type { NotifyDeliveryError, NotifyDeliveryEvent } from "../shared/index.js";
+import type { NotifyDeliveryError, NotifyDeliveryEvent, NotifyWhen } from "../shared/index.js";
 
 // Every channel's deliveries, whatever its kind: one row per message or
 // webhook event, its id the same on every attempt. An attempt the channel's
@@ -11,7 +11,9 @@ import type { NotifyDeliveryError, NotifyDeliveryEvent } from "../shared/index.j
 // rate limit) is tried again after its backoff until MAX_ATTEMPTS, by the
 // retry sweep (retryDeliveries); a permanent one is given up at once. The
 // body is kept only until then, and a channel keeps only its newest
-// KEPT_DELIVERIES, pending or not. A body, an address or what came back is
+// KEPT_DELIVERIES, pending or not. A message only some settings of `when`
+// take keeps them, and a retry the channel's setting no longer takes is
+// given up as unwanted, not sent. A body, an address or what came back is
 // never logged; a failed write to the log is logged by its error's name only.
 
 /** How one attempt went: error null when it was taken. */
@@ -51,6 +53,8 @@ const REFUSED_RESULT: AttemptResult = {
   state: "failed",
   retryAt: null,
 };
+/** A retry the channel's `when` no longer takes: given up, not sent. */
+const UNWANTED: AttemptResult = { ...REFUSED_RESULT, error: "unwanted" };
 
 async function attemptOnce(
   attempt: Attempt,
@@ -84,12 +88,17 @@ async function record(write: () => Promise<unknown>): Promise<boolean> {
 /** A message for the queue: its event, and its body made once its id is known. */
 export type Outgoing = { event: NotifyDeliveryEvent; payload: (id: string, at: Date) => string };
 
-/** Records each as a delivery to the channel and makes its first attempt; whether every one was taken. */
+/**
+ * Records each as a delivery to the channel and makes its first attempt;
+ * whether every one was taken. whens, the settings of `when` that take it,
+ * where only some do.
+ */
 export async function deliver(
   data: Scoped,
   channel: Row<"notifyChannels">,
   attempt: Attempt,
   outgoing: readonly Outgoing[],
+  whens?: readonly NotifyWhen[],
 ): Promise<boolean> {
   let ok = true;
   for (const out of outgoing) {
@@ -101,6 +110,7 @@ export async function deliver(
         ...delivery,
         channelId: channel.id,
         leaseUntil: new Date(now.getTime() + LEASE_MS),
+        whens,
       }),
     );
     // A delivery the database could not record still goes once, without a retry or a log row.
@@ -124,7 +134,9 @@ export async function deliver(
  * that one account's failing address cannot take a whole sweep from
  * everyone else's. attemptFor gives how the channel's kind is sent to, or
  * undefined when this host cannot send it (the delivery is given up as
- * refused). One the calls ran out before is given back, due again.
+ * refused). One the calls ran out before is given back, due again. One
+ * the channel's `when` no longer takes is given up as unwanted, and the
+ * channel's last status stays as it was.
  */
 export async function retryDeliveries(
   db: Db,
@@ -144,6 +156,10 @@ export async function retryDeliveries(
     round.add(due.channelId);
     const data = scoped(db, due.accountId);
     const channel = await data.get("notifyChannels", due.channelId);
+    if (channel && due.whens && !due.whens.includes(channel.when)) {
+      await data.deliveries.finish(due.id, due.attempts, UNWANTED);
+      continue;
+    }
     const attempt = channel && (await attemptFor(channel));
     const sent = attempt
       ? await item(() => attemptOnce(attempt, due, due.attempts, now()))
