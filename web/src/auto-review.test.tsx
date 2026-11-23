@@ -234,7 +234,7 @@ describe("the auto review page", () => {
     render(<AutoReview platforms={["github"]} />);
     expect(
       await screen.findByText(
-        "The repository's .ocra/config.json could not be read or is not valid, so this review ran without it.",
+        "The repository's .ocra/config.json could not be read, is not valid, or loosens a limit this review sets, so the review ran without what it could not use.",
       ),
     ).toBeTruthy();
     expect(screen.queryByText("repo_config_ignored")).toBeNull();

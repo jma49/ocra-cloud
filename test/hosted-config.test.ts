@@ -57,9 +57,14 @@ function fakePlatform(files: Record<string, string>) {
   return { platform, reads };
 }
 
-async function review(files: Record<string, string>, depth?: "quick") {
+async function review(
+  files: Record<string, string>,
+  depth?: "quick" | "deep",
+  settings?: Record<string, unknown>,
+) {
   const accountId = (await signIn(1, "me")).account.id;
   const data = scoped(db, accountId);
+  if (settings) await data.insert("preferences", { settings } as never);
   const id =
     (await data.autoReview.enroll(
       { platform: "github", host: "github.com", platformRepoId: "11", fullName: "octo/api" },
@@ -80,7 +85,7 @@ async function review(files: Record<string, string>, depth?: "quick") {
   if (!work || work === "refused") throw new Error("no assignment");
   await settle(source, work, null, now);
   const [job] = await data.autoReview.latestJobs();
-  return { config: work.config, reads, job };
+  return { config: work.config, args: work.args, reads, job };
 }
 
 const at = (commit: string, config: unknown) => ({
@@ -199,5 +204,62 @@ describe("a hosted review and the repository's configuration", () => {
     const { config, job } = await review(at(DEFAULT_HEAD, big));
     expect(config).not.toHaveProperty("include");
     expect(job).toMatchObject({ state: "done", error: "repo_config_ignored" });
+  });
+
+  it("takes inline comment limits and ultra off that hold the review tighter", async () => {
+    const { config, args, job } = await review(
+      at(DEFAULT_HEAD, { minInlineSeverity: "critical", maxInlineComments: 3, ultra: false }),
+      "deep",
+    );
+    expect(config).toMatchObject({
+      minInlineSeverity: "critical",
+      maxInlineComments: 3,
+      ultra: false,
+    });
+    expect(args).not.toContain("--ultra");
+    expect(job).toMatchObject({ state: "done", error: null });
+  });
+
+  it("refuses limits looser than the depth's, notes it, and applies the rest", async () => {
+    const { config, args, job } = await review(
+      at(DEFAULT_HEAD, {
+        minInlineSeverity: "suggestion",
+        maxInlineComments: 50,
+        ultra: true,
+        verify: false,
+      }),
+      "quick",
+    );
+    expect(config).toMatchObject({
+      minInlineSeverity: "warning",
+      maxInlineComments: 10,
+      ultra: false,
+      verify: false,
+    });
+    expect(args).not.toContain("--ultra");
+    expect(job).toMatchObject({ state: "done", error: "repo_config_ignored" });
+  });
+
+  it("refuses limits looser than the account's where the depth sets none", async () => {
+    const { config, args, job } = await review(
+      at(DEFAULT_HEAD, { minInlineSeverity: "warning", maxInlineComments: 20, ultra: true }),
+      undefined,
+      { minInlineSeverity: "critical", maxInlineComments: 5 },
+    );
+    expect(config).not.toHaveProperty("minInlineSeverity");
+    expect(config).not.toHaveProperty("maxInlineComments");
+    expect(config).not.toHaveProperty("ultra");
+    expect(args).not.toContain("--ultra");
+    expect(job).toMatchObject({ state: "done", error: "repo_config_ignored" });
+  });
+
+  it("lets the file say ultra where the account already runs it, and turn it off", async () => {
+    const on = await review(at(DEFAULT_HEAD, { ultra: true }), undefined, { ultra: true });
+    expect(on.config).not.toHaveProperty("ultra");
+    expect(on.job).toMatchObject({ state: "done", error: null });
+    await resetDb();
+    const off = await review(at(DEFAULT_HEAD, { ultra: false }), undefined, { ultra: true });
+    expect(off.config).toMatchObject({ ultra: false });
+    expect(off.job).toMatchObject({ state: "done", error: null });
   });
 });

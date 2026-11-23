@@ -27,7 +27,7 @@ import {
 import { spendOf } from "../spend.js";
 import { nextUtcDay, utcDay } from "../time.js";
 import { depthRun } from "./depths.js";
-import { readHostedConfig, underServer } from "./hosted-config.js";
+import { readHostedConfig, tightenedBy, underServer } from "./hosted-config.js";
 
 // The server's half of a hosted job (ADR-0046, 4): claiming the next queued
 // review, answer to an @ocra comment, request for tests or docstrings or
@@ -243,16 +243,22 @@ export async function assign(
   const mergeChecks = command.mergeChecks
     ? await engineMergeChecks(await checksOf(data, repo.id))
     : [];
-  const depth = command.depth
-    ? depthRun(claimed.depth ?? repo.reviewDepth)
-    : { config: {}, flags: [] };
-  const repoConfig = command.depth
+  const repoFile = command.depth
     ? await readHostedConfig(platform, bot.token, repo.fullName)
     : { config: {}, ignored: false };
-  if (repoConfig.ignored) await data.autoReview.noteJob(claimed.id, claimed.attempts);
+  const saved = await data.findOne("preferences", {});
+  const {
+    repo: repoConfig,
+    depth,
+    refused,
+  } = tightenedBy(
+    repoFile.config,
+    command.depth ? depthRun(claimed.depth ?? repo.reviewDepth) : { config: {}, flags: [] },
+    saved?.settings ?? undefined,
+  );
+  if (repoFile.ignored || refused) await data.autoReview.noteJob(claimed.id, claimed.attempts);
   // The CLI's own default is OpenCode, which waits out a refused call where
   // Direct stops at once; the account's saved runtime, below this file, wins.
-  const saved = await data.findOne("preferences", {});
   const runtime = saved?.runtime ? {} : { runtime: "direct" as const };
   const maxCostUsd =
     kind === "review" ? await reviewSpendCap(data, saved?.settings?.maxCostUsd, now()) : undefined;
@@ -289,7 +295,7 @@ export async function assign(
     },
     uploadSalt: await accountSalt(source.db, claimed.accountId),
     args: [...command.args(pull, repo), ...depth.flags],
-    config: underServer(repoConfig.config, {
+    config: underServer(repoConfig, {
       ...runtime,
       ...depth.config,
       ...(bot.login ? { github: { botLogin: bot.login } } : {}),
