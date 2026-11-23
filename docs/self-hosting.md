@@ -202,7 +202,7 @@ Send it as `Authorization: Bearer ocra_pat_…`. A token reaches only `GET` rout
 | `insights:read` | `GET /api/insights/cycle`, `/flow`, `/impact`, `/reviewers`, `GET /api/findings/insights` |
 | `pulls:read` | `GET /api/platforms/pulls`, `GET /api/pulls/files`, `/threads`, `/readiness` |
 
-No scope writes anything, nor reaches tokens, keys, channels, sessions, settings or the account. The `pulls:read` and cycle-time routes read the platform live as the account's linked user, as the console does. Each token has its own allowance of `ACCOUNT_CALLS` per minute (`429 slow_down` past it), apart from the account's. The audit log records a token's creation (its first characters, scopes and expiry), its revocation and its first use, never the secret.
+No scope writes anything, nor reaches tokens, keys, channels, sessions, settings or the account. The `pulls:read` and cycle-time routes read the platform live as the account's linked user, as the console does, so a `pulls:read` token reads private source: the diffs, review threads and pull requests of every repository that user can see, private ones included. Each token has its own allowance of `ACCOUNT_CALLS` per minute, and all the account's tokens together one more, apart from the account's own calls (`429 slow_down` past either). Signing out, ending sessions or a new sign-in does not revoke a token: revoke it from a web session (`DELETE /api/tokens/<id>`), or delete the account. The audit log records a token's creation (its first characters, scopes and expiry), its revocation and its first use, never the secret.
 
 ## Limits of this first version
 
