@@ -1346,6 +1346,18 @@ td.finding-cell {
 }
 
 /* A channel's deliveries drawer */
+/* The ghost button's text lines up with the column's heading. */
+.channel-status {
+  margin-left: -8px;
+  font-weight: inherit;
+}
+/* A button's own grey shows through the ghost variant, which sets no fill at rest. */
+.channel-status:not(:hover) {
+  background: transparent;
+}
+.channel-status svg {
+  color: var(--fg-subtle);
+}
 .channel-deliveries:not(:first-child) {
   margin-top: 28px;
 }
