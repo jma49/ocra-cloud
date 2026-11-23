@@ -7,6 +7,7 @@ import { ago, date, num } from "../format.js";
 import { AddGlyph } from "../glyphs.js";
 import { ProviderLogo } from "../provider-logo.js";
 import { anyProvider } from "../site.js";
+import { StackTable } from "../stack-table.js";
 import { EmptyState, PageHead, useLoad, useProviders } from "../ui.js";
 import { AddKeyDrawer, formats, POPULAR } from "./KeyDrawer.js";
 
@@ -77,7 +78,7 @@ export function Keys() {
         </div>
       ) : (
         <div className="card">
-          <div className="table-wrap stack">
+          <StackTable>
             <table>
               <thead>
                 <tr>
@@ -102,7 +103,7 @@ export function Keys() {
                 ))}
               </tbody>
             </table>
-          </div>
+          </StackTable>
         </div>
       )}
       <p className="subtle small keys-foot">

@@ -9,6 +9,7 @@ import {
 import { api } from "../api.js";
 import { ago, date } from "../format.js";
 import { AddGlyph } from "../glyphs.js";
+import { StackTable } from "../stack-table.js";
 import { useToast } from "../toast.js";
 import { SCOPE_LABEL, TokenDrawer } from "../tokens/token-drawer.js";
 import {
@@ -87,7 +88,7 @@ export function ApiTokens() {
         </div>
       ) : (
         <div className="card">
-          <div className="table-wrap stack">
+          <StackTable>
             <table>
               <thead>
                 <tr>
@@ -154,7 +155,7 @@ export function ApiTokens() {
                 ))}
               </tbody>
             </table>
-          </div>
+          </StackTable>
           {full && (
             <p className="subtle small card-pad m-0">
               {API_TOKEN_MAX} tokens is the most an account holds. Revoke one to make another.

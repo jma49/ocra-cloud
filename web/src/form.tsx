@@ -99,7 +99,7 @@ export function TriSwitch(props: {
   return (
     <>
       {props.value === undefined ? (
-        <span className="default-tag">default</span>
+        <span className="default-tag">Default</span>
       ) : (
         <Button type="button" variant="outline" size="sm" onClick={() => props.onChange(undefined)}>
           Reset

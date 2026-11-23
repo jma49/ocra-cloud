@@ -77,48 +77,47 @@ th.num {
 tr.selected td {
   background: var(--tint);
 }
-/* A table whose rows a phone stacks: each row becomes a block, its first
-   cell a full-width title and the rest flowing after it. A cell whose
-   meaning was only in its column head carries the head as .cell-name. */
+/* A table too wide for its card (StackTable) stacks its rows: each row
+   becomes a block, its first cell a full-width title and the rest flowing
+   after it. A cell whose meaning was only in its column head carries the
+   head as .cell-name. */
 .cell-name {
   display: none;
 }
-@media (max-width: 560px) {
-  .table-wrap.stack td:has(> .cell-name) {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .table-wrap.stack .cell-name {
-    display: inline;
-    color: var(--t3);
-    font-size: var(--text-xs);
-  }
-  .table-wrap.stack thead {
-    display: none;
-  }
-  .table-wrap.stack tr {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 6px 12px;
-    padding: 12px 16px;
-    border-bottom: 0.5px solid var(--hair);
-  }
-  .table-wrap.stack tr:last-child {
-    border-bottom: 0;
-  }
-  .table-wrap.stack td {
-    padding: 0;
-    border: 0;
-    white-space: normal;
-  }
-  .table-wrap.stack td:first-child {
-    flex-basis: 100%;
-  }
-  .table-wrap.stack td:last-child {
-    margin-left: auto;
-  }
+.table-wrap[data-stacked] td:has(> .cell-name) {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.table-wrap[data-stacked] .cell-name {
+  display: inline;
+  color: var(--t3);
+  font-size: var(--text-xs);
+}
+.table-wrap[data-stacked] thead {
+  display: none;
+}
+.table-wrap[data-stacked] tr {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  padding: 12px 16px;
+  border-bottom: 0.5px solid var(--hair);
+}
+.table-wrap[data-stacked] tr:last-child {
+  border-bottom: 0;
+}
+.table-wrap[data-stacked] td {
+  padding: 0;
+  border: 0;
+  white-space: normal;
+}
+.table-wrap[data-stacked] td:first-child {
+  flex-basis: 100%;
+}
+.table-wrap[data-stacked] td:last-child {
+  margin-left: auto;
 }
 
 /* The audit log: a time and a line per event. */

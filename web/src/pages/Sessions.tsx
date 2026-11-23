@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { api, type Session, why } from "../api.js";
 import { ago, date } from "../format.js";
+import { StackTable } from "../stack-table.js";
 import { LoadError, Loading, PageHead, useAction, useLoad } from "../ui.js";
 
 export function Sessions() {
@@ -44,7 +45,7 @@ export function Sessions() {
         <Loading what="sessions" />
       ) : (
         <div className="card">
-          <div className="table-wrap stack">
+          <StackTable>
             <table>
               <thead>
                 <tr>
@@ -84,7 +85,7 @@ export function Sessions() {
                 ))}
               </tbody>
             </table>
-          </div>
+          </StackTable>
         </div>
       )}
     </>
