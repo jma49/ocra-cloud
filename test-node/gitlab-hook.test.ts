@@ -243,7 +243,7 @@ describe("a GitLab project's webhook", () => {
     }
   });
 
-  it("leaves the hook ocra added to the user once it gets a new secret by hand", async () => {
+  it("leaves the hook ocra added to the user once it is given a new secret", async () => {
     const { auth } = await s.signIn(1);
     const { repo } = await enroll(auth);
     expect(repo.webhookManaged).toBe(true);
