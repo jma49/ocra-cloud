@@ -40,13 +40,15 @@ export type GithubPerson = {
   api: string;
   /** The user's own token: at sign-in, or the one kept for the account. */
   token: string | null;
-  /** The login to use when there is no token to read it with. */
+  /** The login to use when there is no token to read it with, or when it is `fresh`. */
   login: string;
+  /** The login was just read with the token (at sign-in), so it is not read again. */
+  fresh?: boolean;
   bots?: BotTokens | undefined;
 };
 
 async function loginOf(p: GithubPerson): Promise<string | undefined> {
-  if (!p.token) return p.login.toLowerCase();
+  if (!p.token || p.fresh) return p.login.toLowerCase();
   const user = await get(`${p.api}/user`, p.token);
   const login = (user?.body as { login?: unknown } | null)?.login;
   return user?.status === 200 && typeof login === "string" ? login.toLowerCase() : undefined;

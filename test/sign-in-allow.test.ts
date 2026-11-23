@@ -149,6 +149,8 @@ describe("sessions and tokens once the account no longer matches", () => {
     const world: GithubWorld = { user: { id: 1, login: "ada" }, orgs: { acme: "active" } };
     const calls = githubFake(world);
     const { cookie } = await githubSignIn("org:acme");
+    // Sign-in reads the user once, and the membership with the same token.
+    expect(calls).toEqual(["/user", "/user/memberships/orgs/acme"]);
     calls.length = 0;
     expect((await call("/api/me", { headers: cookie }, env)).status).toBe(200);
     expect(calls).toEqual([]);
