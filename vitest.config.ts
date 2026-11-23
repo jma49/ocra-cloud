@@ -6,7 +6,8 @@ import { TEST_BINDINGS } from "./test/bindings.js";
 
 // Tests of D1 itself (its query plans, migrations written for it, its
 // binding replaced to count or fail statements) and of workerd's own
-// request streams and timers.
+// request streams and timers, and one that loads the Worker's module again
+// (with a bot), which here would open a second database.
 const POSTGRES_EXCLUDE = [
   "test/query-plans.test.ts",
   "test/preferences-backfill.test.ts",
@@ -18,6 +19,7 @@ const POSTGRES_EXCLUDE = [
   "test/health.test.ts",
   "test/body-limits.test.ts",
   "test/timeouts.test.ts",
+  "test/automation-retry-cron.test.ts",
 ];
 
 // Four projects in one run: the Worker's tests in workerd, with a local D1;

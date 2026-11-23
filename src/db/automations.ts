@@ -72,6 +72,16 @@ export function accountAutomations(db: Db, accountId: string) {
         .where(and(eq(t.accountId, accountId), eq(t.id, ruleId), eq(t.assignCursor, from)));
       return changedRows(moved) > 0;
     },
+    /**
+     * Gives back an attempt the run's calls cut short, with what it did get
+     * answered: it is not counted, and the run is due again at `result.retryAt`.
+     */
+    async giveBack(id: string, attempts: number, result: RunResult): Promise<void> {
+      await db
+        .update(r)
+        .set({ ...result, attempts: attempts - 1 })
+        .where(and(eq(r.accountId, accountId), eq(r.id, id), eq(r.attempts, attempts)));
+    },
     /** Records the attempt, only while it is still the one that claimed the run. */
     async finish(id: string, attempts: number, result: RunResult): Promise<void> {
       await db
