@@ -20,6 +20,11 @@ export const DEFAULT_LEARN_MODE: LearnMode = "merge";
 
 /** A queued job's error while it waits for the account's daily gateway calls to reset. */
 export const DAILY_LIMIT_WAIT = "daily_limit";
+/**
+ * A done job's note that the repository's .ocra/config.json could not be
+ * read or is not valid, so its review ran without it.
+ */
+export const REPO_CONFIG_IGNORED = "repo_config_ignored";
 
 export type AutoReviewRepoView = {
   id: string;

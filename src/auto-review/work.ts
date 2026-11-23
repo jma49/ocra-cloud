@@ -24,6 +24,7 @@ import {
 } from "../shared/index.js";
 import { spendOf } from "../spend.js";
 import { nextUtcDay, utcDay } from "../time.js";
+import { readHostedConfig, underServer } from "./hosted-config.js";
 import { profileRun } from "./profiles.js";
 
 // The server's half of a hosted job (ADR-0046, 4): claiming the next queued
@@ -108,7 +109,10 @@ type Command = {
   settled?: number[];
   access?: BotAccess;
   mergeChecks?: true;
-  /** Whether the repository's review profile applies (src/shared/review-profiles.ts). */
+  /**
+   * Whether the repository's review profile (src/shared/review-profiles.ts)
+   * and the settings of its default branch's .ocra/config.json (./hosted-config.ts) apply.
+   */
   profile?: true;
 };
 
@@ -231,6 +235,10 @@ export async function assign(
     ? await engineMergeChecks(await checksOf(data, repo.id))
     : [];
   const profile = command.profile ? profileRun(repo.reviewProfile) : { config: {}, flags: [] };
+  const repoConfig = command.profile
+    ? await readHostedConfig(platform, bot.token, repo.fullName)
+    : { config: {}, ignored: false };
+  if (repoConfig.ignored) await data.autoReview.noteJob(claimed.id, claimed.attempts);
   // The CLI's own default is OpenCode, which waits out a refused call where
   // Direct stops at once; the account's saved runtime, below this file, wins.
   const saved = await data.findOne("preferences", {});
@@ -270,13 +278,13 @@ export async function assign(
     },
     uploadSalt: await accountSalt(source.db, claimed.accountId),
     args: [...command.args(pull, repo), ...profile.flags],
-    config: {
+    config: underServer(repoConfig.config, {
       ...runtime,
       ...profile.config,
       ...(bot.login ? { github: { botLogin: bot.login } } : {}),
       ...(mergeChecks.length > 0 ? { mergeChecks } : {}),
       ...(maxCostUsd !== undefined ? { maxCostUsd } : {}),
-    },
+    }),
     ok: command.ok,
     settled: command.settled ?? [],
     ...(graphRepoId ? { graph: { repoId: graphRepoId, pull: claimed.number } } : {}),
