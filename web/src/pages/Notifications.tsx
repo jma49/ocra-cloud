@@ -26,6 +26,7 @@ import {
   reminderSummary,
 } from "../notifications/reminders-drawer.js";
 import { ReportSlot } from "../notifications/report-slot.js";
+import { StackTable } from "../stack-table.js";
 import {
   ActionError,
   EmptyState,
@@ -135,7 +136,7 @@ export function Notifications(props: { platforms: readonly CodePlatformKind[] })
         </div>
       ) : (
         <div className="card">
-          <div className="table-wrap stack">
+          <StackTable>
             <table>
               <thead>
                 <tr>
@@ -287,7 +288,7 @@ export function Notifications(props: { platforms: readonly CodePlatformKind[] })
                 ))}
               </tbody>
             </table>
-          </div>
+          </StackTable>
           {data.channels.some((c) => c.events.length > 0) && (
             <p className="subtle small card-pad m-0">
               A channel that hears of ocra's critical findings in your pull requests gets that

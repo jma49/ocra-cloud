@@ -17,6 +17,7 @@ import { loadKeys } from "../account-keys.js";
 import { api, type ProviderInfo } from "../api.js";
 import { type AgentPrefs, type Effort, type Prefs, type Tier, usePrefs } from "../prefs.js";
 import { Link } from "../router.js";
+import { StackTable } from "../stack-table.js";
 import { EmptyState, PageHead, Seg, useLoad, useProviders } from "../ui.js";
 
 // The runtime, the tier defaults and each agent's model and reasoning effort
@@ -191,7 +192,7 @@ export function Agents() {
             The verifier and judge never inherit a reviewer's model.
           </span>
         </div>
-        <div className="table-wrap stack">
+        <StackTable>
           <table>
             <thead>
               <tr>
@@ -290,7 +291,7 @@ export function Agents() {
               })}
             </tbody>
           </table>
-        </div>
+        </StackTable>
       </div>
       <ModelLists usable={usable} info={info} />
       <p className="subtle small footnote">
