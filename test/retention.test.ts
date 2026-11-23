@@ -112,6 +112,15 @@ describe("retention", () => {
     expect((await d.list("notifySends")).map((r) => r.id)).toEqual(["new"]);
   });
 
+  it("forgets a notification centre's notice after 30 days", async () => {
+    const { account } = await signIn(1, "octo");
+    const d = scoped(db, account.id);
+    await d.insert("notificationFeed", { ...rows.notificationFeed("old"), createdAt: ago(31) });
+    await d.insert("notificationFeed", { ...rows.notificationFeed("new"), createdAt: ago(29) });
+    await enforceRetention(db, now);
+    expect((await d.list("notificationFeed")).map((r) => r.id)).toEqual(["new"]);
+  });
+
   it("drops a notice held in quiet hours after two days", async () => {
     const { account } = await signIn(1, "octo");
     const d = scoped(db, account.id);

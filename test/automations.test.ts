@@ -232,6 +232,18 @@ describe("a pull request's uploaded review", () => {
         ],
       }),
     ]);
+    const listed = await call("/api/notifications/feed", { auth: web.auth });
+    expect(listed.status).toBe(200);
+    const feed = (await listed.json()) as {
+      items: { kind: string; title: string; link: string; repo?: string; pull?: number }[];
+    };
+    expect(feed.items.map(({ kind, title, repo, pull }) => ({ kind, title, repo, pull }))).toEqual(
+      expect.arrayContaining([
+        { kind: "automation", title: "Rule “label risky” ran", repo: "octo/api", pull: 7 },
+        { kind: "review_finished", title: "ocra reviewed octo/api#7", repo: "octo/api", pull: 7 },
+      ]),
+    );
+    expect(feed.items).toHaveLength(2);
   });
 });
 

@@ -1,6 +1,7 @@
 import { and, eq, inArray, lt, notInArray, or, sql } from "drizzle-orm";
 import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
 import { errorName, logError } from "../log.js";
+import { FEED_DAYS } from "../shared/index.js";
 import { DAY, utcDay } from "../time.js";
 import type { Db } from "./client.js";
 import { expireUnconfirmed, HELD_FOR } from "./notify.js";
@@ -20,6 +21,7 @@ import {
   liveRuns,
   mergeCheckRuns,
   mergeIntents,
+  notificationFeed,
   notifyDeliveries,
   notifyHeld,
   notifySends,
@@ -52,7 +54,8 @@ import { scoped } from "./scoped.js";
 // RETENTION_DAYS; expired login codes, sessions and API tokens go at once; a notice held in
 // quiet hours after HELD_FOR; a channel's delivery record after DELIVERY_DAYS, a platform's
 // delivery to us after INBOUND_EVENT_DAYS, a team's members TEAM_DAYS after
-// they were read, a channel never confirmed UNCONFIRMED_DAYS after its last link. Runs daily
+// they were read, a channel never confirmed UNCONFIRMED_DAYS after its last link, a
+// notification centre's notice after FEED_DAYS. Runs daily
 // from the cron trigger.
 
 export const RETENTION_DAYS = 90;
@@ -308,6 +311,18 @@ export async function enforceRetention(db: Db, now = new Date()): Promise<void> 
             and(
               ofEachAccount(notifySends.accountId),
               lt(notifySends.createdAt, new Date(now.getTime() - NOTIFY_SEND_DAYS * DAY)),
+            ),
+          ),
+    ],
+    [
+      "notification_feed",
+      () =>
+        db
+          .delete(notificationFeed)
+          .where(
+            and(
+              ofEachAccount(notificationFeed.accountId),
+              lt(notificationFeed.createdAt, new Date(now.getTime() - FEED_DAYS * DAY)),
             ),
           ),
     ],

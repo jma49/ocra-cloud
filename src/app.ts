@@ -32,6 +32,7 @@ import { mergeChecksRoute, pullChecksRoute } from "./merge-checks/routes.js";
 import { pullReadiness } from "./merge-readiness/routes.js";
 import { mergeWhenReady } from "./merge-when-ready/routes.js";
 import type { Mailer } from "./notify/email.js";
+import { feedRoute } from "./notify/feed-routes.js";
 import { emailLinks } from "./notify/links.js";
 import { notifyRoute } from "./notify/routes.js";
 import { scheduledReportsRoute } from "./notify/scheduled-report-routes.js";
@@ -179,6 +180,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
   app.route("/repo-config", repoConfigRoute);
   app.route("/release-notes", releaseNotesRoute);
   app.route("/merge-checks", mergeChecksRoute);
+  app.route("/notifications/feed", feedRoute);
   app.route("/notifications", notifyRoute);
   app.route("/automations", automationsRoute);
   app.route("/scheduled-reports", scheduledReportsRoute);

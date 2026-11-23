@@ -141,6 +141,10 @@ export function Privacy() {
           after it was last read.
         </li>
         <li>
+          The notices in your notification centre (what happened, the pull request's title, a short
+          redacted excerpt of a comment, and whether you read it): deleted 30 days after they came.
+        </li>
+        <li>
           Your account, keys, settings and memory: until you delete them. The newest 50 versions of
           your settings are kept.
         </li>

@@ -51,6 +51,7 @@ export const EXPORTED = {
   notifySends: "notifySends",
   notifyHeld: "notifyHeld",
   notifyDeliveries: "notifyDeliveries",
+  notificationFeed: "notificationFeed",
   closedPulls: "closedPulls",
   pullFlows: "pullFlows",
   pullIndex: "pullIndex",
