@@ -20,7 +20,7 @@ const queued: MergeQueueView = {
   removed: null,
 };
 
-function show(view: MergeQueueView, primary = false) {
+function show(view: MergeQueueView, primary = false, unmet = false) {
   const sent: { url: string; body: unknown }[] = [];
   vi.stubGlobal(
     "fetch",
@@ -31,7 +31,7 @@ function show(view: MergeQueueView, primary = false) {
   );
   const calls = { onDone: vi.fn(), reload: vi.fn(), onLeft: vi.fn() };
   const box = (v: MergeQueueView) => (
-    <QueueBox view={v} pull={pull} head={HEAD} primary={primary} {...calls} />
+    <QueueBox view={v} pull={pull} head={HEAD} primary={primary} unmet={unmet} {...calls} />
   );
   const { rerender } = render(box(view));
   return { sent, ...calls, to: (v: MergeQueueView) => rerender(box(v)) };
@@ -81,4 +81,15 @@ it("sends the head the page read, as the primary button only once queueing is th
   expect(add().className).not.toBe(quiet);
   await act(async () => void fireEvent.click(add()));
   expect(sent).toEqual([{ url: "/api/pulls/enqueue", body: { ...pull, head: HEAD } }]);
+});
+
+it("says the queue takes it once its requirements are met, while one is known not to be", () => {
+  show(out);
+  expect(screen.queryByText(/once what Merge readiness lists is met/)).toBeNull();
+  cleanup();
+  show(out, false, true);
+  expect(screen.getByText(/once what Merge readiness lists is met/)).toBeTruthy();
+  cleanup();
+  show(queued, false, true);
+  expect(screen.queryByText(/once what Merge readiness lists is met/)).toBeNull();
 });
