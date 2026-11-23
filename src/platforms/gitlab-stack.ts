@@ -55,6 +55,9 @@ const openPull = (mr: MergeRequest): OpenPull => ({
   review: null,
 });
 
+/** Commits one comparison lists at most, so a count that reaches it is a lower bound. */
+type Comparison = { commits?: unknown[] };
+
 export function gitlabStacks(origin: string): PullStacks {
   const listed = (token: string, fullName: string, query: Record<string, string>) => {
     const project = `${origin}/api/v4/projects/${encodeURIComponent(fullName)}`;
@@ -93,6 +96,18 @@ export function gitlabStacks(origin: string): PullStacks {
         base: mr.target_branch,
         blocker: blockerOf(mr),
       };
+    },
+    behind(token, fullName, pairs) {
+      const compare = `${origin}/api/v4/projects/${encodeURIComponent(fullName)}/repository/compare`;
+      return Promise.all(
+        pairs.map(async (p) => {
+          const params = new URLSearchParams({ from: p.head, to: p.base });
+          const compared = await platformCall<Comparison>(`${compare}?${params}`, {
+            headers: gitlabHeaders(token),
+          });
+          return compared?.commits?.length ?? null;
+        }),
+      );
     },
     async retarget(token, fullName, number, base) {
       return outcomeOf(

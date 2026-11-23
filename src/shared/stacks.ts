@@ -17,6 +17,11 @@ export type StackedPull = {
   headSha: string;
   /** The pull request it is stacked on; null for the bottom. */
   parent: number | null;
+  /**
+   * How many of its parent's commits its branch lacks, so it needs a restack
+   * when above 0; null for the bottom, or when the platform did not say.
+   */
+  behind: number | null;
   checks: PullChecks;
   review: PullReview;
 };
@@ -198,9 +203,12 @@ export function stackPlaces(pulls: readonly StackBranches[]): (PullStackPlace | 
 }
 
 /** The pull requests from the bottom of the stack up to and including `number`. */
-export function chainTo(pulls: StackedPull[], number: number): StackedPull[] {
+export function chainTo<T extends Pick<StackedPull, "number" | "parent">>(
+  pulls: readonly T[],
+  number: number,
+): T[] {
   const byNumber = new Map(pulls.map((p) => [p.number, p]));
-  const chain: StackedPull[] = [];
+  const chain: T[] = [];
   for (
     let p = byNumber.get(number);
     p;
