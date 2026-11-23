@@ -10,7 +10,7 @@ import {
 import { api } from "../api.js";
 import { AccessToken } from "../auto-review/access-token.js";
 import { type Added, AddRepo, type ListedRepos, listedOn } from "../auto-review/add-repo.js";
-import { AutoEnroll } from "../auto-review/auto-enroll.js";
+import { AutoEnroll, GroupEnroll } from "../auto-review/auto-enroll.js";
 import { AutomaticSwitch } from "../auto-review/automatic-switch.js";
 import { BulkEnroll } from "../auto-review/bulk-enroll.js";
 import { Hook } from "../auto-review/hook-card.js";
@@ -85,8 +85,24 @@ export function AutoReview(props: { platforms: readonly CodePlatformKind[] }) {
       />
       {props.platforms.includes("github") && (
         <>
-          <BulkEnroll listed={listed} enrolled={data?.repos ?? []} onAdded={reload} />
+          <BulkEnroll
+            platform="github"
+            listed={listed}
+            enrolled={data?.repos ?? []}
+            onAdded={reload}
+          />
           <AutoEnroll />
+        </>
+      )}
+      {props.platforms.includes("gitlab") && (
+        <>
+          <BulkEnroll
+            platform="gitlab"
+            listed={listed}
+            enrolled={data?.repos ?? []}
+            onAdded={reload}
+          />
+          <GroupEnroll />
         </>
       )}
       {added && <Hook added={added} onDone={() => setAdded(null)} />}
