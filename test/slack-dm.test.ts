@@ -133,6 +133,27 @@ describe("Slack direct messages", () => {
     expect(sent?.params.get("text")).toContain("this channel is connected");
   });
 
+  it("send a new link on request, and the old one no longer confirms", async () => {
+    const { auth, account } = await signIn(1, "ann");
+    const calls = slack();
+    const res = await add(auth, "ann@example.com");
+    const id = ((await res.json()) as { channel: { id: string } }).channel.id;
+    const first = confirmLink(calls.at(-1));
+    const again = await call(
+      `/api/notifications/channels/${id}/confirm`,
+      { method: "POST", auth },
+      SLACK,
+    );
+    expect(await again.json()).toEqual({ confirmationSent: true });
+    const sent = calls.at(-1);
+    expect(sent?.params.get("channel")).toBe("D024BE91L");
+    const second = confirmLink(sent);
+    expect(second).not.toBe(first);
+    expect((await call(first, { method: "POST" })).status).toBe(404);
+    expect((await call(second, { method: "POST" })).status).toBe(200);
+    expect((await scoped(db, account.id).get("notifyChannels", id))?.confirmedAt).not.toBeNull();
+  });
+
   it("find a member by their member ID", async () => {
     const { auth } = await signIn(1, "ann");
     const calls = slack();
