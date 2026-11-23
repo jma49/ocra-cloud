@@ -10,7 +10,7 @@ import { CloseGlyph } from "../glyphs.js";
 import { Link } from "../router.js";
 import { useAction, usePoll } from "../ui.js";
 import { pullPath } from "./path.js";
-import { QUEUE_STATE, queuePlace, queueRemoval, queueSize } from "./queue-words.js";
+import { QUEUE_STATE, queuePlace, queueRemoval, queueSays, queueSize } from "./queue-words.js";
 
 // The base branch's own merge queue in place of a direct merge: the queue
 // runs the checks on the pull request as it would land, then merges it.
@@ -68,7 +68,7 @@ export function QueueBox(props: {
       </div>
       {entry && state ? (
         <>
-          <span className="small">{state.says}</span>
+          <span className="small">{queueSays(entry)}</span>
           {queuePlace(entry, view.size).length > 0 && (
             <span className="subtle small">{queuePlace(entry, view.size).join(" · ")}</span>
           )}
