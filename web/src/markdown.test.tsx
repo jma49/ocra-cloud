@@ -77,6 +77,23 @@ describe("Markdown", () => {
     expect(container.textContent).toContain("![z](https://example.com/p.png)");
   });
 
+  it("runs emphasis around a link or code that has the mark in it", () => {
+    const { container } = render(
+      <Markdown
+        links
+        text={
+          "_By **Ada** in [the thread](https://example.com/t?id=a_b_c) and `snake_case`_ then a_b"
+        }
+      />,
+    );
+    const em = container.querySelector("em");
+    expect(em?.textContent).toBe("By Ada in the thread and snake_case");
+    expect(em?.querySelector("strong")?.textContent).toBe("Ada");
+    expect(em?.querySelector("a")?.getAttribute("href")).toBe("https://example.com/t?id=a_b_c");
+    expect(em?.querySelector("code")?.textContent).toBe("snake_case");
+    expect(container.textContent).toContain(" then a_b");
+  });
+
   it("draws a table, and a heading at the level it was written", () => {
     const { container } = render(
       <Markdown

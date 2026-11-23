@@ -78,8 +78,15 @@ function blocks(source: string): Block[] {
   return out;
 }
 
-const INLINE =
-  /(`[^`\n]+`|(?<!!)\[[^\]\n]+\]\([^)\s]+\)|\*\*(?!\s)[^*\n]+(?<!\s)\*\*|(?<![\w*])\*(?!\s)[^*\n]+(?<!\s)\*(?![\w*])|(?<![\w_])_(?!\s)[^_\n]+(?<!\s)_(?![\w_]))/;
+// Code and a link keep their own `_` and `*`: emphasis runs around them, not into them.
+const A_CODE = "`[^`\\n]+`";
+const A_LINK = "\\[[^\\]\\n]+\\]\\([^)\\s]+\\)";
+const within = (mark: string) => `(?:${A_CODE}|${A_LINK}|[^${mark}\\n])+`;
+const INLINE = new RegExp(
+  `(${A_CODE}|(?<!!)${A_LINK}|\\*\\*(?!\\s)[^*\\n]+(?<!\\s)\\*\\*` +
+    `|(?<![\\w*])\\*(?!\\s)${within("*")}(?<!\\s)\\*(?![\\w*])` +
+    `|(?<![\\w_])_(?!\\s)${within("_")}(?<!\\s)_(?![\\w_]))`,
+);
 const LINK = /^\[([^\]\n]+)\]\(([^)\s]+)\)$/;
 
 /** The address a link opens: https only, as `URL` reads it, never what was written. */
