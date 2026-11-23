@@ -1,4 +1,6 @@
 import {
+  avatarOf,
+  branchesOf,
   type ChangedFile,
   hunksOf,
   MAX_CHANGED_FILES,
@@ -14,12 +16,12 @@ const PER_PAGE = 100;
 
 type Pull = {
   title?: string;
-  user?: { login: string } | null;
+  user?: { login: string; avatar_url?: string } | null;
   html_url?: string;
   state?: "open" | "closed";
   merged?: boolean;
-  base: { sha: string };
-  head: { sha: string };
+  base: { sha: string; ref?: string };
+  head: { sha: string; ref?: string };
   changed_files: number;
   updated_at?: string;
 };
@@ -85,6 +87,8 @@ async function listFiles(
     base: pull.base.sha,
     head: pull.head.sha,
     updatedAt: pull.updated_at ?? null,
+    branches: branchesOf(pull.head.ref, pull.base.ref),
+    authorAvatar: avatarOf(pull.user?.avatar_url),
     files: files.slice(0, max),
     truncated: pull.changed_files > Math.min(files.length, max),
   };

@@ -164,6 +164,8 @@ body {
   color: var(--fg);
   font: 400 var(--text-base) / 20px var(--font);
   font-kerning: normal;
+  /* Code reads as typed: `!==` and `=>` never join into one glyph. */
+  font-variant-ligatures: none;
   -webkit-font-smoothing: antialiased;
 }
 #root {

@@ -48,7 +48,7 @@ export function ReviewNowBox(props: { pull: Pull; head: string }) {
           ocra reviews pull requests on this server for repositories with auto review on. This one
           is not among them.
         </span>
-        <Link to="/auto-review" className="rail-link">
+        <Link to="/auto-review" className="status-link">
           Set up auto review
         </Link>
       </div>

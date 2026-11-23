@@ -16,6 +16,21 @@ export type ChangedFile = {
   hunks: Hunk[] | null;
 };
 
+type PullBranches = { head: string; base: string };
+
+/** The one host of pictures the console's Content-Security-Policy allows (`web/public/_headers`). */
+const AVATAR_HOST = "avatars.githubusercontent.com";
+
+/** A picture's address when the console may load it, null otherwise. */
+export function avatarOf(url: string | null | undefined): string | null {
+  if (!url || !URL.canParse(url)) return null;
+  const at = new URL(url);
+  return at.protocol === "https:" && at.host === AVATAR_HOST ? at.href : null;
+}
+
+export const branchesOf = (head: string | undefined, base: string | undefined) =>
+  head && base ? { head, base } : null;
+
 export type PullChanges = {
   /** What the platform says the pull request is: null where it did not say. */
   title: string | null;
@@ -27,6 +42,10 @@ export type PullChanges = {
   head: string;
   /** The platform's updated_at of the pull request, where it said. */
   updatedAt: string | null;
+  /** The branch it merges and the one it merges into, where the platform named both. */
+  branches: PullBranches | null;
+  /** The author's picture, only from a host the console's content policy lets it load. */
+  authorAvatar: string | null;
   files: ChangedFile[];
   /** True when the pull request has more files than were read. */
   truncated: boolean;

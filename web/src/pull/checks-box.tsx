@@ -8,6 +8,7 @@ import { ago } from "../format.js";
 import { CloseGlyph, DoneGlyph } from "../glyphs.js";
 import { KIND_LABEL } from "../merge-checks/describe.js";
 import { useLoad } from "../ui.js";
+import { Tally } from "./tally.js";
 
 // The repository's pre-merge checks on this head, evaluated live: what
 // passed, what blocks the merge, what only warns.
@@ -50,12 +51,23 @@ export function ChecksBox(props: { pull: Pull; head: string }) {
   const report = data?.report;
   if (!report) return null;
   const c = CONCLUSION[report.conclusion];
+  const n = (pick: (r: MergeCheckResultView) => boolean) => report.results.filter(pick).length;
+  const passed = n((r) => r.outcome === "passed");
   return (
     <section className="card card-pad stack" aria-label="Pre-merge checks">
       <div className="row-gap checks-head">
         <span className="strong grow">Pre-merge checks</span>
         <span className={c.tone}>{c.text}</span>
       </div>
+      <Tally
+        label={`${passed} of ${report.results.length} passed`}
+        parts={[
+          { tone: "ok", n: passed },
+          { tone: "err", n: n((r) => r.outcome === "failed" && r.mode === "block") },
+          { tone: "warn", n: n((r) => r.outcome === "failed" && r.mode !== "block") },
+          { tone: "wait", n: n((r) => r.outcome !== "passed" && r.outcome !== "failed") },
+        ]}
+      />
       <ul className="check-results">
         {report.results.map((r) => (
           <li key={r.id}>
