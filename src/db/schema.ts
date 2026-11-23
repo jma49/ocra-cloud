@@ -56,7 +56,9 @@ import {
   type NotifyDeliveryEvent,
   type NotifyEvent,
   type NotifyWhen,
+  type PullChecks,
   type PullFilters,
+  type PullReview,
   REPO_PAUSES,
   REVIEW_CHAT_ROLES,
   REVIEW_JOB_STATES,
@@ -71,6 +73,18 @@ import {
   type StackMergeStep,
   THREAD_DISMISSAL_STATES,
 } from "../shared/index.js";
+
+const PULL_INDEX_STATES = ["open", "closed", "merged"] as const;
+const PULL_CHECK_STATES = [
+  "passing",
+  "failing",
+  "pending",
+] as const satisfies NonNullable<PullChecks>[];
+const PULL_REVIEW_STATES = [
+  "approved",
+  "changes_requested",
+  "required",
+] as const satisfies NonNullable<PullReview>[];
 
 // Every table but accounts carries accountId, and is read and written only
 // through scoped() in ./scoped.ts, which filters by it. The isolation test
@@ -606,6 +620,12 @@ export const platformLinks = sqliteTable(
     userId: text("user_id"),
     // That user's login (GitLab), which says whom a comment's @-mention names.
     login: text("login"),
+    // When a live inbox listing last matched what pull_index answers for the
+    // user, and when a webhook last changed what it cannot hold
+    // (src/pull-index/inbox.ts): the inbox is read from the index only
+    // while the first is newer and recent.
+    pullsVerifiedAt: integer("pulls_verified_at", { mode: "timestamp_ms" }),
+    pullsStaleAt: integer("pulls_stale_at", { mode: "timestamp_ms" }),
     accessExpiresAt: integer("access_expires_at", { mode: "timestamp_ms" }),
     refreshExpiresAt: integer("refresh_expires_at", { mode: "timestamp_ms" }),
     createdAt: createdAt(),
@@ -841,6 +861,8 @@ export const reviewRepos = sqliteTable(
     webhookId: text("webhook_id"),
     /** When a webhook last said one of its pull requests changed (src/db/pull-changes.ts), for the inbox's refresh. */
     pullsChangedAt: integer("pulls_changed_at", { mode: "timestamp_ms" }),
+    /** When the reconciliation last read all its open pull requests into pull_index. */
+    pullsIndexedAt: integer("pulls_indexed_at", { mode: "timestamp_ms" }),
     /** Why its jobs are paused (src/auto-review/lifecycle.ts); null while it runs. */
     paused: text("paused", { enum: REPO_PAUSES }),
   },
@@ -1068,6 +1090,57 @@ export const pullFlows = sqliteTable(
   (t) => [
     uniqueIndex("pull_flows_pull").on(t.reviewRepoId, t.number),
     index("pull_flows_account_seen").on(t.accountId, t.seenAt),
+  ],
+);
+
+// The open pull requests of an enrolled repository, and those that closed
+// lately, as its webhooks, the daily reconciliation and the account's own
+// live inbox listings last said (src/pull-index/), so the inbox can be
+// answered without asking the platform (src/pull-index/inbox.ts). A source
+// older than the row (its platform update time, changedAt) changes nothing;
+// every write compares revision, so two never interleave. Checks and the
+// review decision are only ever the live listing's.
+export const pullIndex = sqliteTable(
+  "pull_index",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    reviewRepoId: text("review_repo_id")
+      .notNull()
+      .references(() => reviewRepos.id, { onDelete: "cascade" }),
+    number: integer("number").notNull(),
+    /** The platform's own id of it: GitHub's node id, GitLab's global id. */
+    pullId: text("pull_id"),
+    title: text("title").notNull(),
+    url: text("url").notNull(),
+    author: text("author"),
+    authorId: text("author_id"),
+    authorAvatar: text("author_avatar"),
+    draft: integer("draft", { mode: "boolean" }).notNull().default(false),
+    state: text("state", { enum: PULL_INDEX_STATES }).notNull(),
+    openedAt: integer("opened_at", { mode: "timestamp_ms" }).notNull(),
+    /** When the platform says it last changed: what orders the sources. */
+    changedAt: integer("changed_at", { mode: "timestamp_ms" }).notNull(),
+    mergedAt: integer("merged_at", { mode: "timestamp_ms" }),
+    closedAt: integer("closed_at", { mode: "timestamp_ms" }),
+    labels: text("labels", { mode: "json" }).notNull().$type<string[]>(),
+    additions: integer("additions"),
+    deletions: integer("deletions"),
+    head: text("head"),
+    /** Its branch names; null when its head is in a fork. */
+    headBranch: text("head_branch"),
+    baseBranch: text("base_branch"),
+    /** The platform's ids of the users whose review it asks now. */
+    reviewerIds: text("reviewer_ids", { mode: "json" }).notNull().$type<string[]>(),
+    assigneeIds: text("assignee_ids", { mode: "json" }).notNull().$type<string[]>(),
+    checks: text("checks", { enum: PULL_CHECK_STATES }),
+    review: text("review", { enum: PULL_REVIEW_STATES }),
+    revision: integer("revision").notNull().default(0),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("pull_index_pull").on(t.reviewRepoId, t.number),
+    index("pull_index_account_state").on(t.accountId, t.state, t.changedAt),
   ],
 );
 
@@ -1819,6 +1892,7 @@ export const accountTables = {
   notifyDeliveries,
   closedPulls,
   pullFlows,
+  pullIndex,
   pullReviews,
   reviewThreads,
   findingThreads,

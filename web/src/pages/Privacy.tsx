@@ -130,6 +130,12 @@ export function Privacy() {
           sessions last 90 from sign-in, however often they refresh.
         </li>
         <li>
+          The inbox's copy of the open pull requests of repositories you enrolled (title, link,
+          author, labels, branches, head commit, who is asked to review and assigned, and the checks
+          and review state your inbox last read): kept while they are open and deleted 8 days after
+          they close, or 90 days after an open one last changed.
+        </li>
+        <li>
           Who is on a team a review was asked of on a repository you enrolled, as GitHub listed them
           (their platform ids): read again after a day when a new ask comes, and deleted 30 days
           after it was last read.

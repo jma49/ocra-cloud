@@ -462,6 +462,7 @@ describe("export and deletion", () => {
         "replyJobs",
         "closedPulls",
         "pullFlows",
+        "pullIndex",
         "pullReviews",
         "reviewThreads",
         "findingThreads",
@@ -514,6 +515,7 @@ describe("export and deletion", () => {
     for (const table of [
       "closedPulls",
       "pullFlows",
+      "pullIndex",
       "pullReviews",
       "reviewThreads",
       "findingThreads",

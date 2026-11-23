@@ -1,4 +1,4 @@
-import { and, inArray, lt, notInArray, or, sql } from "drizzle-orm";
+import { and, eq, inArray, lt, notInArray, or, sql } from "drizzle-orm";
 import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
 import { errorName, logError } from "../log.js";
 import { DAY, utcDay } from "../time.js";
@@ -27,6 +27,7 @@ import {
   pullFileViews,
   pullFlows,
   pullImpacts,
+  pullIndex,
   pullPaths,
   pullReviews,
   pullSeen,
@@ -45,7 +46,7 @@ import {
 import { scoped } from "./scoped.js";
 
 // What the data policy (web /privacy) promises: review records, live runs, gateway call
-// records, merged and closed pull requests, their review flow, review threads and the threads of ocra's findings, who a rule assigned to review them, the inbox's read marks, the finished jobs of auto review (reviews, answers, generated
+// records, merged and closed pull requests, their review flow, the inbox's index of pull requests (closed ones after PULL_INDEX_CLOSED_DAYS), review threads and the threads of ocra's findings, who a rule assigned to review them, the inbox's read marks, the finished jobs of auto review (reviews, answers, generated
 // tests and docs), the pre-merge checks' results, the daily counts and the audit log are deleted after
 // RETENTION_DAYS; expired login codes, sessions and API tokens go at once; a notice held in
 // quiet hours after HELD_FOR; a channel's delivery record after DELIVERY_DAYS, a platform's
@@ -65,6 +66,13 @@ const DELIVERY_DAYS = 30;
 
 /** A team's members as read: a newer ask reads them again after a day (src/auto-review/teams.ts). */
 const TEAM_DAYS = 30;
+
+/**
+ * A closed pull request in the inbox's index: past the week of merges the
+ * inbox lists. An open one untouched for RETENTION_DAYS goes too; the
+ * reconciliation reads it in again while it is open.
+ */
+const PULL_INDEX_CLOSED_DAYS = 8;
 
 /** A platform's delivery: its retries end within the hour, and platforms redeliver within days. */
 const INBOUND_EVENT_DAYS = 7;
@@ -138,6 +146,24 @@ export async function enforceRetention(db: Db, now = new Date()): Promise<void> 
         db
           .delete(pullFlows)
           .where(and(ofEachAccount(pullFlows.accountId), lt(pullFlows.seenAt, cutoff))),
+    ],
+    [
+      "pull_index",
+      () =>
+        db
+          .delete(pullIndex)
+          .where(
+            and(
+              ofEachAccount(pullIndex.accountId),
+              or(
+                and(
+                  inArray(pullIndex.state, ["closed", "merged"]),
+                  lt(pullIndex.changedAt, new Date(now.getTime() - PULL_INDEX_CLOSED_DAYS * DAY)),
+                ),
+                and(eq(pullIndex.state, "open"), lt(pullIndex.changedAt, cutoff)),
+              ),
+            ),
+          ),
     ],
     [
       "pull_reviews",
