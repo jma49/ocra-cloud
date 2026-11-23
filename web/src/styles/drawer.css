@@ -25,7 +25,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
+  padding: 16px 24px;
   border-bottom: 0.5px solid var(--hair2);
 }
 .drawer-head h2 {
@@ -35,10 +35,10 @@
 .drawer-body {
   flex: 1;
   overflow-y: auto;
-  padding: 20px;
+  padding: 24px;
 }
 .drawer-foot {
-  padding: 14px 20px;
+  padding: 12px 24px;
   border-top: 0.5px solid var(--hair2);
   display: flex;
   justify-content: flex-end;
@@ -55,7 +55,7 @@
 .drawer-body .form-row {
   grid-template-columns: minmax(0, 1fr);
   gap: 8px;
-  padding: 14px 0;
+  padding: 12px 0;
 }
 .drawer-body .form-row:first-child {
   padding-top: 0;
@@ -68,7 +68,7 @@
   flex-wrap: wrap;
 }
 .drawer-option {
-  margin-top: 14px;
+  margin-top: 12px;
 }
 .icon-btn {
   width: var(--ctl-h);
@@ -111,8 +111,8 @@
 .tile {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
+  gap: 8px;
+  padding: 8px 12px;
   border: 0.5px solid var(--hair2);
   border-radius: var(--r-ctl);
   background: transparent;
@@ -138,7 +138,7 @@
 .group-label {
   font: 400 var(--text-sm) var(--mono);
   color: var(--fg-muted);
-  margin: 20px 0 8px;
+  margin: 24px 0 8px;
 }
 .pick-list {
   border: 0.5px solid var(--hair2);
@@ -148,9 +148,9 @@
 .pick {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
-  padding: 9px 12px;
+  padding: 8px 12px;
   border: 0;
   border-bottom: 0.5px solid var(--hair2);
   background: transparent;
@@ -173,7 +173,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 14px;
+  padding: 12px;
   border: 0.5px solid var(--hair2);
   border-radius: var(--r-chip);
   background: var(--bg-subtle);

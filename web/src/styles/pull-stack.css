@@ -196,7 +196,7 @@
 .thread-comment {
   display: grid;
   grid-template-columns: 24px minmax(0, 1fr);
-  gap: 10px;
+  gap: 12px;
   padding: 12px;
 }
 .thread-comment + .thread-comment {
@@ -212,10 +212,10 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 6px;
-  padding-top: 3px;
+  padding-top: 4px;
 }
 .thread-foot {
-  padding: 8px 12px 12px 46px;
+  padding: 8px 12px 12px 48px;
 }
 /* A reply on its way: in place at once, quiet until the platform has it. */
 .thread-comment.is-sending {
@@ -309,7 +309,7 @@
   width: 100%;
   height: auto;
   min-height: 60vh;
-  padding: 10px 12px;
+  padding: 12px;
   resize: vertical;
   font-family: var(--mono);
   font-size: var(--text-sm);

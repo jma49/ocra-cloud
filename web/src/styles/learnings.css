@@ -38,7 +38,7 @@
 }
 .learning.removed,
 .learning.invalid {
-  padding: 10px 16px;
+  padding: 8px 16px;
 }
 .proposal + .proposal {
   border-top: 0.5px solid var(--hair);
@@ -49,7 +49,7 @@
 .learning-body {
   display: grid;
   gap: 6px;
-  padding: 14px 0;
+  padding: 12px 0;
   border-bottom: 0.5px solid var(--hair2);
 }
 .learning-body .label {
@@ -58,7 +58,7 @@
 }
 .learning-body textarea {
   height: auto;
-  padding: 8px 10px;
+  padding: 8px var(--ctl-pad);
   resize: vertical;
 }
 @media (max-width: 560px) {

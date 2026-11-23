@@ -171,7 +171,7 @@
   font-size: var(--text-4xl);
   font-weight: 500;
   letter-spacing: 0.14em;
-  margin: 10px 0 16px;
+  margin: 8px 0 16px;
 }
 .device-submit {
   margin-top: 16px;
@@ -179,24 +179,24 @@
 .device-actions {
   display: flex;
   gap: 8px;
-  margin-top: 18px;
+  margin-top: 16px;
 }
 
 /* Keys */
 .key-name {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 .keys-foot {
   margin-top: 12px;
 }
 .provider-search {
   width: 100%;
-  height: 38px;
+  height: var(--ctl-h-lg);
 }
 .key-input {
-  height: 38px;
+  height: var(--ctl-h-lg);
 }
 .pick.static {
   cursor: default;
@@ -234,7 +234,7 @@
 /* Defaults */
 .import-form {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 .import-note {
   margin-top: 0;
@@ -242,7 +242,7 @@
 }
 .import-note ul {
   margin: 6px 0 0;
-  padding-left: 18px;
+  padding-left: 16px;
 }
 
 /* Memory */
@@ -282,7 +282,7 @@ td.finding-cell {
 .prop-list {
   display: grid;
   grid-template-columns: 96px minmax(0, 1fr);
-  gap: 10px 12px;
+  gap: 8px 12px;
   margin: 0;
 }
 .prop-list dt {
@@ -324,8 +324,8 @@ td.finding-cell {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 8px;
-  margin: 20px 0 8px;
-  padding-bottom: 10px;
+  margin: 24px 0 8px;
+  padding-bottom: 8px;
   box-shadow: inset 0 -0.5px 0 var(--hair);
 }
 /* The timeline: a mark per event on a hairline. */
@@ -338,7 +338,7 @@ td.finding-cell {
   position: relative;
   display: flex;
   gap: 12px;
-  padding-bottom: 20px;
+  padding-bottom: 24px;
 }
 .event::before {
   content: "";
@@ -409,7 +409,7 @@ td.finding-cell {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  padding: 7px 12px;
+  padding: 8px 12px;
   font-size: var(--text-sm);
 }
 .code-card-head > :first-child {
@@ -417,7 +417,7 @@ td.finding-cell {
   overflow-wrap: anywhere;
 }
 .code-card .codeblock {
-  padding: 10px 12px;
+  padding: 12px;
   border-radius: 0;
   font-size: var(--text-sm);
 }
@@ -428,10 +428,10 @@ td.finding-cell {
 }
 .finding-body {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 .finding-body .inline-form {
-  padding: 10px 12px;
+  padding: 12px;
   border: 0;
   border-radius: var(--r-ctl);
 }
@@ -456,7 +456,7 @@ td.finding-cell {
   margin-top: 6px;
 }
 .chip-x.static {
-  padding-right: 10px;
+  padding-right: 8px;
 }
 
 /* Settings */
@@ -570,8 +570,9 @@ td.finding-cell {
   rotate: -45deg;
   margin-top: 0;
 }
+/* The glyph, not the button's hover box, ends on the keyline. */
 .inbox-group-head .icon-btn {
-  margin-right: 10px;
+  margin-right: calc(var(--gutter) - (var(--ctl-h) - 16px) / 2);
 }
 .inbox-group.is-empty h2 {
   color: var(--t3);
@@ -590,12 +591,12 @@ td.finding-cell {
   position: relative;
 }
 .pull-line .pull-row {
-  padding-left: 28px;
+  padding-left: 32px;
 }
 .unread-mark {
   position: absolute;
   inset: 0 auto 0 0;
-  width: 28px;
+  width: 32px;
   padding: 0;
   border: 0;
   background: none;
@@ -805,7 +806,7 @@ td.finding-cell {
   .pull-row {
     flex-wrap: wrap;
     gap: 4px 8px;
-    padding: 10px 16px;
+    padding: 8px 16px;
   }
   .pull-title {
     flex: 1 0 calc(100% - 24px);
@@ -824,10 +825,10 @@ td.finding-cell {
 .view-group {
   border: 0;
   padding: 0;
-  margin: 18px 0 0;
+  margin: 16px 0 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 18px;
+  gap: 6px 16px;
   font-size: var(--text-base);
 }
 .view-group legend {
@@ -847,7 +848,7 @@ td.finding-cell {
 }
 .repo-list {
   margin: 8px 0 0;
-  padding-left: 18px;
+  padding-left: 16px;
 }
 
 /* An add form (Notifications, Auto review): its fields on one line, wrapping on a narrow screen. */
@@ -865,7 +866,7 @@ td.finding-cell {
 .add-extras {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 20px;
+  gap: 8px 16px;
 }
 
 /* Notifications: the weekly report's day and hour, read as one sentence. */
@@ -1159,7 +1160,7 @@ td.finding-cell {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  padding: 8px 10px;
+  padding: 8px 12px;
   border-radius: var(--r-tab);
   background: var(--raised);
   box-shadow: var(--shadow);
@@ -1171,7 +1172,7 @@ td.finding-cell {
 .diff-comment-box textarea,
 .review-note {
   height: auto;
-  padding: 8px 10px;
+  padding: 8px 12px;
   resize: vertical;
 }
 @media (max-width: 900px) {
@@ -1193,7 +1194,7 @@ td.finding-cell {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 16px;
+  padding: 8px 16px;
   cursor: pointer;
   list-style: none;
 }
@@ -1358,7 +1359,7 @@ td.finding-cell {
 .token-secret code {
   flex: 1 1 280px;
   min-width: 0;
-  padding: 8px 10px;
+  padding: 8px 12px;
   border: 0.5px solid var(--hair2);
   border-radius: var(--r-chip);
   background: var(--bg-subtle);
@@ -1406,7 +1407,7 @@ td.finding-cell {
   color: var(--fg-subtle);
 }
 .channel-deliveries:not(:first-child) {
-  margin-top: 28px;
+  margin-top: 32px;
 }
 .channel-deliveries-head {
   align-items: center;
