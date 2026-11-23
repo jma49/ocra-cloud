@@ -13,6 +13,7 @@ import {
   RECENT_SIGN_IN,
   RECENT_SIGN_IN_MINUTES,
 } from "../../src/shared/index.js";
+import { clock } from "./format.js";
 
 export type Me = {
   login: string;
@@ -243,10 +244,7 @@ export function why(e: unknown): string {
     }
     if (e.reason === PLATFORM_RATE_LIMITED) {
       const at = e.retryAt ? new Date(e.retryAt) : null;
-      const time =
-        at && !Number.isNaN(at.getTime())
-          ? at.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-          : null;
+      const time = at && !Number.isNaN(at.getTime()) ? clock(at) : null;
       return `the code platform's hourly allowance of requests for your account is used up; try again${time ? ` after ${time}` : " later"}`;
     }
     if (e.code) return MESSAGES[e.code];

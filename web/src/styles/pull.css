@@ -415,3 +415,10 @@
 :root:has(.batch-bar) .pull-frame {
   margin-bottom: 64px;
 }
+/* Both things ocra can write, side by side, each with where its job stands under it. */
+.generate-kinds {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  align-items: start;
+}

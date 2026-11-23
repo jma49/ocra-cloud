@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import type { AuditEventView, AuditKind, AuditPage } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
 import { describe, KIND_GROUPS } from "../audit/describe.js";
-import { period } from "../format.js";
+import { clock, period } from "../format.js";
 import { EmptyState, LoadError, Loading, PageHead, Seg } from "../ui.js";
 
 const RANGES = [7, 30, 90].map(period);
@@ -17,8 +17,6 @@ const day = (iso: string) =>
     month: "long",
     day: "numeric",
   });
-const clock = (iso: string) =>
-  new Date(iso).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 
 type Filter = { days: number; kind: AuditKind | "" };
 type Log = {
@@ -135,7 +133,7 @@ export function AuditLog() {
                 {d.events.map((e) => (
                   <li key={e.id}>
                     <time className="muted num" dateTime={e.createdAt}>
-                      {clock(e.createdAt)}
+                      {clock(new Date(e.createdAt))}
                     </time>
                     <span>{describe(e)}</span>
                   </li>

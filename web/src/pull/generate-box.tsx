@@ -60,33 +60,35 @@ export function GenerateBox(props: { pull: Pull; head: string }) {
         ocra commits what it writes to this branch. It does not run the tests: read them before you
         merge.
       </span>
-      {KINDS.map((kind) => {
-        const job = ofHead(kind);
-        return (
-          <div key={kind} className="stack">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={ask.busy || job !== undefined}
-              onClick={() => send(kind)}
-            >
-              {KIND[kind].ask}
-            </Button>
-            {job && (
-              <span
-                className={job.state === "failed" ? "error small" : "subtle small"}
-                role="status"
+      <div className="generate-kinds">
+        {KINDS.map((kind) => {
+          const job = ofHead(kind);
+          return (
+            <div key={kind} className="stack">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={ask.busy || job !== undefined}
+                onClick={() => send(kind)}
               >
-                {KIND[kind].noun} for this head: {STATE[job.state]}
-                {job.error === "not_committed"
-                  ? " (the branch moved, or ocra cannot push to it)"
-                  : givenUp(job.error) && ` (${givenUp(job.error)?.toLowerCase()})`}
-                .
-              </span>
-            )}
-          </div>
-        );
-      })}
+                {KIND[kind].ask}
+              </Button>
+              {job && (
+                <span
+                  className={job.state === "failed" ? "error small" : "subtle small"}
+                  role="status"
+                >
+                  {KIND[kind].noun} for this head: {STATE[job.state]}
+                  {job.error === "not_committed"
+                    ? " (the branch moved, or ocra cannot push to it)"
+                    : givenUp(job.error) && ` (${givenUp(job.error)?.toLowerCase()})`}
+                  .
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
       {ask.error !== null && (
         <p className="error" role="alert">
           Could not ask for it: {why(ask.error)}.

@@ -90,9 +90,10 @@ export function PeopleCard(props: {
     reload();
     if (list === "reviewers") props.onChanged?.();
   };
-  const head = (list: List, title: string) => (
+  const head = (list: List, title: string, none: string | false) => (
     <div className="row-gap checks-head">
       <h2 className="card-title grow">{title}</h2>
+      {none && <span className="subtle small">{none}</span>}
       {props.editable && adding !== list && (
         <Button
           type="button"
@@ -119,11 +120,13 @@ export function PeopleCard(props: {
   const reviewers = data.reviewers.map((r) => r.login);
   return (
     <section className="card card-pad stack" aria-label="Reviewers and assignees">
-      {head("reviewers", "Reviewers")}
+      {head(
+        "reviewers",
+        "Reviewers",
+        data.reviewers.length + data.teams.length === 0 && "No one asked",
+      )}
       {picker("reviewers", data.author ? [...reviewers, data.author] : reviewers)}
-      {data.reviewers.length + data.teams.length === 0 ? (
-        <span className="subtle small">No one is asked yet.</span>
-      ) : (
+      {data.reviewers.length + data.teams.length > 0 && (
         <ul className="people-list">
           {data.reviewers.map((r) => (
             <Person
@@ -151,11 +154,9 @@ export function PeopleCard(props: {
         </span>
       )}
       <div className="people-part stack">
-        {head("assignees", "Assignees")}
+        {head("assignees", "Assignees", data.assignees.length === 0 && "No one assigned")}
         {picker("assignees", data.assignees)}
-        {data.assignees.length === 0 ? (
-          <span className="subtle small">No one is assigned.</span>
-        ) : (
+        {data.assignees.length > 0 && (
           <ul className="people-list">
             {data.assignees.map((login) => (
               <Person

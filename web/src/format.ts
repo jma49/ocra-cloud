@@ -48,11 +48,14 @@ export function ago(iso: string | null): string {
 export const period = (days: number) => ({ value: days, label: `${days} days` });
 export const date = (iso: string) =>
   new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+/** A time of day as the viewer's clock reads it, the hour without a leading zero ("4:00 PM"). */
+export const clock = (at: Date) =>
+  at.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 export const time = (iso: string) =>
   new Date(iso).toLocaleString(undefined, {
     month: "short",
     day: "numeric",
-    hour: "2-digit",
+    hour: "numeric",
     minute: "2-digit",
   });
 
