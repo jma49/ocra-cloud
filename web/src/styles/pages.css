@@ -1366,7 +1366,7 @@ td.finding-cell {
   align-items: center;
   margin: 12px 0 0;
 }
-/* A review profile in its menu: the name over what it does, the tick beside the name. */
+/* A setting chosen from a menu: each choice its name over what it does, the tick beside the name. */
 .profile-menu {
   display: flex;
   flex-direction: column;

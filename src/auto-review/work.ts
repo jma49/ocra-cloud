@@ -21,12 +21,13 @@ import {
   DAILY_LIMIT_WAIT,
   dailyCallLimit,
   MIN_REVIEW_SPEND_USD,
+  type ReviewDepth,
   spendLeftUsd,
 } from "../shared/index.js";
 import { spendOf } from "../spend.js";
 import { nextUtcDay, utcDay } from "../time.js";
+import { depthRun } from "./depths.js";
 import { readHostedConfig, underServer } from "./hosted-config.js";
-import { profileRun } from "./profiles.js";
 
 // The server's half of a hosted job (ADR-0046, 4): claiming the next queued
 // review, answer to an @ocra comment, request for tests or docstrings or
@@ -103,7 +104,14 @@ export type WorkSource = {
   now?: () => Date;
 };
 
-type Claimed = { id: string; accountId: string; reviewRepoId: string; number: number };
+type Claimed = {
+  id: string;
+  accountId: string;
+  reviewRepoId: string;
+  number: number;
+  /** A review's own depth, chosen when a person asked for it. */
+  depth?: ReviewDepth | null;
+};
 type Command = {
   args: (pull: string[], repo: Row<"reviewRepos">) => string[];
   ok: number[];
@@ -111,10 +119,10 @@ type Command = {
   access?: BotAccess;
   mergeChecks?: true;
   /**
-   * Whether the repository's review profile (src/shared/review-profiles.ts)
+   * Whether the review's depth (src/shared/review-depths.ts), else its repository's,
    * and the settings of its default branch's .ocra/config.json (./hosted-config.ts) apply.
    */
-  profile?: true;
+  depth?: true;
 };
 
 type ClaimedWork = Claimed & { attempts: number; leaseUntil: Date };
@@ -134,7 +142,7 @@ async function claim(
           // The CLI's exit codes for a review it finished and posted: ok, blocking, incomplete.
           ok: [0, 1, 3],
           mergeChecks: true,
-          profile: true,
+          depth: true,
         },
       }
     );
@@ -235,8 +243,10 @@ export async function assign(
   const mergeChecks = command.mergeChecks
     ? await engineMergeChecks(await checksOf(data, repo.id))
     : [];
-  const profile = command.profile ? profileRun(repo.reviewProfile) : { config: {}, flags: [] };
-  const repoConfig = command.profile
+  const depth = command.depth
+    ? depthRun(claimed.depth ?? repo.reviewDepth)
+    : { config: {}, flags: [] };
+  const repoConfig = command.depth
     ? await readHostedConfig(platform, bot.token, repo.fullName)
     : { config: {}, ignored: false };
   if (repoConfig.ignored) await data.autoReview.noteJob(claimed.id, claimed.attempts);
@@ -278,10 +288,10 @@ export async function assign(
       lifetime_ms: tokens.expires_in * 1000,
     },
     uploadSalt: await accountSalt(source.db, claimed.accountId),
-    args: [...command.args(pull, repo), ...profile.flags],
+    args: [...command.args(pull, repo), ...depth.flags],
     config: underServer(repoConfig.config, {
       ...runtime,
-      ...profile.config,
+      ...depth.config,
       ...(bot.login ? { github: { botLogin: bot.login } } : {}),
       ...(mergeChecks.length > 0 ? { mergeChecks } : {}),
       ...(maxCostUsd !== undefined ? { maxCostUsd } : {}),

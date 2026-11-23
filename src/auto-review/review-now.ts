@@ -6,7 +6,7 @@ import { COMMIT_ID } from "../platforms/contents.js";
 import { byKind, pullRef, reach } from "../pull-page.js";
 import { perMinute } from "../rate.js";
 import { requireSession } from "../session.js";
-import type { PullReviewJobView, PullReviewNowView } from "../shared/index.js";
+import { type PullReviewJobView, type PullReviewNowView, REVIEW_DEPTHS } from "../shared/index.js";
 import type { AppEnv } from "../types.js";
 
 // "Review now" on a pull request's page: a review of its current head by
@@ -16,7 +16,12 @@ import type { AppEnv } from "../types.js";
 export const reviewNow = new Hono<AppEnv>();
 
 const pullQuery = z.object(pullRef);
-const requestBody = z.object({ ...pullRef, force: z.boolean().default(false) });
+const requestBody = z.object({
+  ...pullRef,
+  force: z.boolean().default(false),
+  // This review only; the repository's depth otherwise.
+  depth: z.enum(REVIEW_DEPTHS).nullable().default(null),
+});
 type Pull = z.output<typeof pullQuery>;
 
 const jobView = (job: ReviewJobSummary): PullReviewJobView => ({
@@ -25,6 +30,7 @@ const jobView = (job: ReviewJobSummary): PullReviewJobView => ({
   jobId: job.id,
   head: job.head,
   queuedAt: job.createdAt.toISOString(),
+  depth: job.depth,
 });
 
 /** The account's enrolled repository the user reaches the pull request in, or the refusal. */
@@ -51,7 +57,10 @@ reviewNow.get("/review-now", requireSession(["web"]), perMinute("platform"), asy
   const found = await enrolledPull(c, pull.data);
   if ("refusal" in found) return found.refusal;
   const job = await c.var.data.autoReview.latestPullJob(found.enrolled.id, pull.data.number);
-  return c.json({ job: job ? jobView(job) : null } satisfies PullReviewNowView);
+  return c.json({
+    job: job ? jobView(job) : null,
+    depth: found.enrolled.reviewDepth,
+  } satisfies PullReviewNowView);
 });
 
 reviewNow.post(
@@ -75,10 +84,14 @@ reviewNow.post(
       body.number,
       facts.head,
       body.force,
+      body.depth,
       new Date(),
     );
     if (!job) return apiError(c, "not_found");
     if (job.state === "queued") found.service.kick();
-    return c.json({ job: jobView(job) } satisfies PullReviewNowView);
+    return c.json({
+      job: jobView(job),
+      depth: found.enrolled.reviewDepth,
+    } satisfies PullReviewNowView);
   },
 );

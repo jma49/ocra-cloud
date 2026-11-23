@@ -14,7 +14,7 @@ const REPO: AutoReviewRepoView = {
   platform: "gitlab",
   host: "gitlab.example.com",
   fullName: "pay/api",
-  profile: "balanced",
+  depth: "standard",
   automatic: false,
   learn: "merge",
   restack: false,

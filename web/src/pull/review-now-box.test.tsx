@@ -15,6 +15,7 @@ const job = (over: Partial<PullReviewJobView> = {}): PullReviewJobView => ({
   jobId: "j1",
   head: HEAD,
   queuedAt: new Date().toISOString(),
+  depth: null,
   ...over,
 });
 
@@ -48,11 +49,11 @@ function serve(
       if (init?.method === "POST") {
         sent.push(JSON.parse(String(init.body)));
         current = asked;
-        return Response.json({ job: asked });
+        return Response.json({ job: asked, depth: "standard" });
       }
       return current === "not_enrolled"
         ? Response.json({ error: "not_found" }, { status: 404 })
-        : Response.json({ job: current });
+        : Response.json({ job: current, depth: "standard" });
     }),
   );
   return sent;
@@ -69,6 +70,15 @@ describe("the AI review card on a pull request", () => {
     expect(sent).toEqual([{ ...pull, force: false }]);
     expect(await screen.findByText(/A review of this head is queued/)).toBeTruthy();
     expect(button("Review now").disabled).toBe(true);
+  });
+
+  it("asks for a review at another depth than the repository's", async () => {
+    const sent = serve(null);
+    render(<ReviewNowBox pull={pull} head={HEAD} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Depth of this review: Standard" }));
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: /^Deep/ }));
+    await act(async () => void fireEvent.click(button("Review now")));
+    expect(sent).toEqual([{ ...pull, force: false, depth: "deep" }]);
   });
 
   it("forces a second review of a head already reviewed", async () => {

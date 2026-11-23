@@ -1,6 +1,15 @@
+import ChevronDown from "lucide-react/icons/chevron-down";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import type { PullReviewJobView, PullReviewNowView } from "../../../src/shared/index.js";
+import { Menu, MenuPopup, MenuTrigger } from "@/components/ui/menu";
+import type {
+  PullReviewJobView,
+  PullReviewNowView,
+  ReviewDepth,
+} from "../../../src/shared/index.js";
 import { ApiError, api, why } from "../api.js";
+import { DepthChoices } from "../auto-review/depth-menu.js";
+import { DEPTH } from "../auto-review/depths.js";
 import { useLimitReached } from "../auto-review/limit-reached.js";
 import { useRead } from "../cache.js";
 import { ago } from "../format.js";
@@ -11,6 +20,7 @@ import { useAction, usePoll } from "../ui.js";
 // An AI review of the pull request's current head by the server's runner,
 // asked for inside the ocra review card. The server answers only for a
 // repository this account enrolled for reviews; any other leads to enrolling it.
+// The review takes the repository's depth unless the person picks another for it.
 
 const STATE: Record<PullReviewJobView["state"], string> = {
   queued: "A review of this head is queued",
@@ -31,10 +41,16 @@ export function ReviewNowBox(props: { pull: Pull; head: string }) {
     number: String(props.pull.number),
   }).toString();
   const { data, error, reload } = useRead<PullReviewNowView>(`/pulls/review-now?${query}`);
+  const [picked, setPicked] = useState<ReviewDepth | null>(null);
+  const depth = picked ?? data?.depth ?? "standard";
   const ask = useAction((force: boolean) =>
     api<PullReviewNowView>("/pulls/review-now", {
       method: "POST",
-      body: JSON.stringify({ ...props.pull, force }),
+      body: JSON.stringify({
+        ...props.pull,
+        force,
+        ...(picked && picked !== data?.depth ? { depth: picked } : {}),
+      }),
     }),
   );
   const limit = useLimitReached();
@@ -88,9 +104,30 @@ export function ReviewNowBox(props: { pull: Pull; head: string }) {
           waits and starts {limit.resumes}. <Link to="/budget">Budget</Link>
         </span>
       )}
-      <Button type="button" variant="outline" disabled={active} loading={ask.busy} onClick={send}>
-        {reviewed ? "Review again" : "Review now"}
-      </Button>
+      <div className="row-gap">
+        <Button
+          type="button"
+          variant="outline"
+          className="grow"
+          disabled={active}
+          loading={ask.busy}
+          onClick={send}
+        >
+          {reviewed ? "Review again" : "Review now"}
+        </Button>
+        <Menu>
+          <MenuTrigger
+            render={<Button type="button" variant="ghost" disabled={active} />}
+            aria-label={`Depth of this review: ${DEPTH[depth].name}`}
+          >
+            {DEPTH[depth].name}
+            <ChevronDown aria-hidden="true" />
+          </MenuTrigger>
+          <MenuPopup align="start">
+            <DepthChoices value={depth} onChange={setPicked} />
+          </MenuPopup>
+        </Menu>
+      </div>
       {ask.error !== null && (
         <p className="error" role="alert">
           Could not ask for a review: {why(ask.error)}.

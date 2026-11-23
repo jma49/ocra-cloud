@@ -17,8 +17,8 @@ import {
   type AutoReviewSwitchView,
   CODE_PLATFORMS,
   LEARN_MODES,
-  REVIEW_PROFILES,
-  type ReviewProfileView,
+  REVIEW_DEPTHS,
+  type ReviewDepthView,
   type ReviewRunnersView,
 } from "../shared/index.js";
 import type { AppEnv } from "../types.js";
@@ -56,7 +56,7 @@ const enrollSchema = z.object({
   automatic: z.boolean().default(false),
 });
 
-const profileBody = z.object({ profile: z.enum(REVIEW_PROFILES) });
+const depthBody = z.object({ depth: z.enum(REVIEW_DEPTHS) });
 const automaticBody = z.object({ automatic: z.boolean() });
 const learnBody = z.object({ learn: z.enum(LEARN_MODES) });
 
@@ -66,7 +66,7 @@ const repoView = (r: Row<"reviewRepos">, latest: ReviewJobSummary | undefined) =
     platform: r.platform,
     host: r.host,
     fullName: r.fullName,
-    profile: r.reviewProfile,
+    depth: r.reviewDepth,
     automatic: r.automatic,
     learn: r.learn,
     restack: r.restack,
@@ -159,28 +159,25 @@ export function autoReviewRoute(service: AutoReviewService) {
     },
   );
 
-  route.get("/repos/:id/profile", requireSession(), async (c) => {
+  route.get("/repos/:id/depth", requireSession(), async (c) => {
     const repo = await c.var.data.get("reviewRepos", c.req.param("id"));
     if (!repo) return apiError(c, "not_found");
-    return c.json({ profile: repo.reviewProfile } satisfies ReviewProfileView);
+    return c.json({ depth: repo.reviewDepth } satisfies ReviewDepthView);
   });
 
   route.put(
-    "/repos/:id/profile",
+    "/repos/:id/depth",
     requireSession(["web"]),
     perMinute("settings"),
-    jsonBody(profileBody),
+    jsonBody(depthBody),
     async (c) => {
-      const { profile } = c.req.valid("json");
+      const { depth } = c.req.valid("json");
       const repo = await c.var.data.get("reviewRepos", c.req.param("id"));
       const changed =
-        repo &&
-        (await c.var.data.update("reviewRepos", repo.id, {
-          reviewProfile: profile,
-        }));
+        repo && (await c.var.data.update("reviewRepos", repo.id, { reviewDepth: depth }));
       if (!repo || !changed) return apiError(c, "not_found");
-      await audit(c.var.data, "auto_review.profile_changed", { repo: repo.fullName, profile });
-      return c.json({ profile } satisfies ReviewProfileView);
+      await audit(c.var.data, "auto_review.depth_changed", { repo: repo.fullName, depth });
+      return c.json({ depth } satisfies ReviewDepthView);
     },
   );
 

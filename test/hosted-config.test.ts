@@ -57,7 +57,7 @@ function fakePlatform(files: Record<string, string>) {
   return { platform, reads };
 }
 
-async function review(files: Record<string, string>, profile?: "quiet") {
+async function review(files: Record<string, string>, depth?: "quick") {
   const accountId = (await signIn(1, "me")).account.id;
   const data = scoped(db, accountId);
   const id =
@@ -65,7 +65,7 @@ async function review(files: Record<string, string>, profile?: "quiet") {
       { platform: "github", host: "github.com", platformRepoId: "11", fullName: "octo/api" },
       100,
     )) ?? "";
-  if (profile) await data.update("reviewRepos", id, { reviewProfile: profile });
+  if (depth) await data.update("reviewRepos", id, { reviewDepth: depth });
   await data.autoReview.queue(id, 7, PR_HEAD, now);
   const { platform, reads } = fakePlatform(files);
   const source = {
@@ -165,7 +165,7 @@ describe("a hosted review and the repository's configuration", () => {
         showPreExisting: true,
         reviewers: { performance: { enabled: true, minTier: "lite" } },
       }),
-      "quiet",
+      "quick",
     );
     expect(config).toMatchObject({
       maxCostUsd: 10,

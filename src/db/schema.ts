@@ -64,8 +64,8 @@ import {
   REPORT_CADENCES,
   RESTACK_OUTCOMES,
   REVIEW_CHAT_ROLES,
+  REVIEW_DEPTHS,
   REVIEW_JOB_STATES,
-  REVIEW_PROFILES,
   type ReportSection,
   type ReviewerCounts,
   type ReviewSettings,
@@ -846,8 +846,8 @@ export const reviewRepos = sqliteTable(
     createdAt: createdAt(),
     /** Whether a blocking check that waits on the head's review keeps the merge pending. */
     holdUnreviewed: integer("hold_unreviewed", { mode: "boolean" }).notNull().default(true),
-    /** How much its hosted reviews say (src/shared/review-profiles.ts). */
-    reviewProfile: text("review_profile", { enum: REVIEW_PROFILES }).notNull().default("balanced"),
+    /** How thorough its hosted reviews are (src/shared/review-depths.ts). */
+    reviewDepth: text("review_depth", { enum: REVIEW_DEPTHS }).notNull().default("standard"),
     /** Whether a pull request is reviewed when it opens or gains commits; off leaves only reviews a person asks for. */
     automatic: integer("automatic", { mode: "boolean" }).notNull().default(true),
     /** What becomes of the findings people decline in their threads (src/shared/auto-review.ts). */
@@ -1428,6 +1428,8 @@ export const reviewJobs = sqliteTable(
     reviewId: text("review_id"),
     finishedAt: integer("finished_at", { mode: "timestamp_ms" }),
     createdAt: createdAt(),
+    /** The depth the person chose when asking for this review; null takes the repository's. */
+    depth: text("depth", { enum: REVIEW_DEPTHS }),
   },
   (t) => [
     uniqueIndex("review_jobs_pull_head_run").on(t.reviewRepoId, t.number, t.head, t.run),

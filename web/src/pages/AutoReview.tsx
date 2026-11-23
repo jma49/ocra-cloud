@@ -13,11 +13,11 @@ import { type Added, AddRepo, type ListedRepos, listedOn } from "../auto-review/
 import { AutoEnroll, GroupEnroll } from "../auto-review/auto-enroll.js";
 import { AutomaticSwitch } from "../auto-review/automatic-switch.js";
 import { BulkEnroll } from "../auto-review/bulk-enroll.js";
+import { DepthMenu } from "../auto-review/depth-menu.js";
 import { Hook } from "../auto-review/hook-card.js";
 import { jobError, pausedWhy } from "../auto-review/job-error.js";
 import { LimitReachedNotice } from "../auto-review/limit-reached.js";
 import { NoKeyNotice } from "../auto-review/no-key.js";
-import { ProfileMenu } from "../auto-review/profile-menu.js";
 import { RepoRestack } from "../auto-review/repo-restack.js";
 import { RepoWebhook } from "../auto-review/repo-webhook.js";
 import { RunnerStatus } from "../auto-review/runner-status.js";
@@ -127,7 +127,7 @@ export function AutoReview(props: { platforms: readonly CodePlatformKind[] }) {
                 <tr>
                   <th>Repository</th>
                   <th>Automatic</th>
-                  <th>Profile</th>
+                  <th>Depth</th>
                   <th>Last review</th>
                   <th>
                     <span className="sr-only">Actions</span>
@@ -158,7 +158,7 @@ export function AutoReview(props: { platforms: readonly CodePlatformKind[] }) {
                         <AutomaticSwitch r={r} />
                       </td>
                       <td>
-                        <ProfileMenu r={r} />
+                        <DepthMenu r={r} />
                       </td>
                       <td>
                         <LastJob r={r} />
