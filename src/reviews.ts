@@ -20,6 +20,7 @@ import { notifyReview, outboxOf, publicOutbox } from "./notify/notify.js";
 import { tellReviewBlocking } from "./notify/pull-events.js";
 import { tellSpend } from "./notify/spend.js";
 import { platformsOf } from "./platforms/registry.js";
+import { publishReview } from "./pull-events/publish.js";
 import { perMinute, retryTomorrow } from "./rate.js";
 import { repoNames } from "./repositories.js";
 import { pullOfReview, pullOnPlatform } from "./review-pull.js";
@@ -156,6 +157,7 @@ reviews.post("/", requireSession(["web", "cli"]), perMinute("upload"), uploadBod
   if (walkthrough) await c.var.data.insert("reviewWalkthroughs", { ...walkthrough, reviewId: id });
   const fixed = sharing ? fixedOnPull(upload) : null;
   if (fixed) await c.var.data.findingOutcomes.markFixedOnRereview(fixed);
+  publishReview(c, id);
   defer(c, announce(c, id));
   if (row.costUsd > 0) defer(c, tellSpend(c.var.data, outboxOf(c)));
   defer(c, recheckPull(c, id));

@@ -11,7 +11,6 @@ import type { AutoReviewService } from "./auto-review/routes.js";
 import { queueGithubPull } from "./auto-review/webhooks.js";
 import { automatePullEvents, githubPullEvents } from "./automations/pull-events.js";
 import { hmacHex, sameText } from "./crypto.js";
-import { touchPulls } from "./db/pull-changes.js";
 import type { GraphService } from "./graph/routes.js";
 import { MAX_HOOK_BODY, queueGithubPush } from "./graph/webhooks.js";
 import { signedBody } from "./http.js";
@@ -22,7 +21,7 @@ import { rerunGithubChecks } from "./merge-checks/rerun.js";
 import { githubCiFailure } from "./notify/ci-hooks.js";
 import { githubHostOf } from "./platforms/registry.js";
 import { githubPullsTouched } from "./pull-changes.js";
-import { publishPulls } from "./pull-events/stream.js";
+import { touchAndPublish } from "./pull-events/publish.js";
 import { githubMovesChecks, indexGithubEvent } from "./pull-index/hooks.js";
 import type { AppEnv } from "./types.js";
 
@@ -92,7 +91,7 @@ export function githubWebhook(host: WebhookHost) {
         const touched = githubPullsTouched(event, body);
         if (repo.success && touched) {
           const id = String(repo.data.repository.id);
-          publishPulls(c, await touchPulls(c.var.db, "github", github, id, new Date()), touched);
+          await touchAndPublish(c, "github", github, id, touched);
         }
         if (repo.success && (touched || githubMovesChecks(event))) {
           await indexGithubEvent(c.var.db, github, event, body);

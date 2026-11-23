@@ -1,5 +1,6 @@
 import { createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
 import { env } from "cloudflare:workers";
+import uploaded from "@open-cr-agent/cloud-contract/fixtures/upload.json";
 import { drizzle } from "drizzle-orm/d1";
 import { beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
@@ -107,6 +108,41 @@ describe("the inbox's stream of changes", () => {
       repository: { id: 11, full_name: "octo/api" },
     });
     expect(await next(reader, "pulls", 500)).toBeNull();
+    await reader.cancel();
+    await theirReader.cancel();
+  });
+
+  it("pushes an uploaded review to the account's open stream only", async () => {
+    const me = await signIn(1, "octo");
+    const other = await signIn(2, "ada");
+    const repoId = await scoped(db, me.account.id).insert("reviewRepos", rows.reviewRepos("app"));
+    const reader = readerOf(await open(me.auth));
+    const theirReader = readerOf(await open(other.auth));
+    expect(await next(reader, "ready")).toBe("");
+    expect(await next(theirReader, "ready")).toBe("");
+
+    const upload = async (auth: Record<string, string>, json: unknown) => {
+      const ctx = createExecutionContext();
+      const res = await app.fetch(
+        request("/api/reviews", { method: "POST", auth, json }),
+        env,
+        ctx,
+      );
+      expect(res.status).toBe(200);
+      await res.text();
+      await waitOnExecutionContext(ctx);
+    };
+    const cli = (await signInCli(1, "octo")).auth;
+    await upload(cli, uploaded);
+    const heard = JSON.parse((await next(reader, "pulls", 2_000)) ?? "null") as PullsChangedEvent[];
+    expect(heard).toEqual([{ repoId, number: uploaded.pullRequest.number, kind: "review" }]);
+    // A review of no enrolled repository's pull request moves the change time all the same.
+    const { pullRequest: _, ...local } = uploaded;
+    await upload(cli, { ...local, runId: "run-local" });
+    expect(JSON.parse((await next(reader, "pulls")) ?? "null")).toEqual([
+      { repoId: null, number: null, kind: "review" },
+    ]);
+    expect(await next(theirReader, "pulls", 500)).toBeNull();
     await reader.cancel();
     await theirReader.cancel();
   });
