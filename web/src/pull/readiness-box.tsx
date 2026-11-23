@@ -27,13 +27,6 @@ const LABEL: Record<ReadinessKind, string> = {
   premerge_checks: "Pre-merge checks",
 };
 
-const SUMMARY: Record<ReadinessState, { text: string; tone: string }> = {
-  met: { text: "Ready to merge", tone: "badge badge-ok" },
-  unmet: { text: "Not ready", tone: "badge badge-err" },
-  pending: { text: "Waiting", tone: "badge" },
-  unknown: { text: "Nothing in the way", tone: "badge" },
-};
-
 const MARK: Record<ReadinessState, { label: string; cls: string }> = {
   met: { label: "Met", cls: "ok" },
   unmet: { label: "Not met", cls: "err" },
@@ -134,7 +127,6 @@ export function ReadinessBox(props: {
 }) {
   const data = props.view;
   if (!data?.ready) return null;
-  const s = SUMMARY[data.ready];
   const items = ORDER.flatMap((state) => data.items.filter((i) => i.state === state));
   const open = items.filter((i) => i.state !== "met");
   const met = items.filter((i) => i.state === "met");
@@ -143,7 +135,14 @@ export function ReadinessBox(props: {
     <section className="card card-pad stack" aria-label="Merge readiness">
       <div className="row-gap checks-head">
         <span className="strong grow">Merge readiness</span>
-        <span className={s.tone}>{s.text}</span>
+        {/* The page's head carries the standing; here it is said only when the head is silent. */}
+        {data.ready === "unknown" ? (
+          <span className="badge">Nothing in the way</span>
+        ) : (
+          <span className="subtle small">
+            {met.length} of {data.items.length} met
+          </span>
+        )}
       </div>
       <Tally
         label={`${met.length} of ${data.items.length} met`}
@@ -167,7 +166,7 @@ export function ReadinessBox(props: {
         <details className="readiness-met" open={open.length === 0}>
           <summary className="subtle small">
             <span className="fold" aria-hidden="true" />
-            {met.length} of {data.items.length} met
+            {met.length} met
             {unread > 0 && `, ${unread} not readable with your sign-in`}
           </summary>
           <ul className="check-results">
