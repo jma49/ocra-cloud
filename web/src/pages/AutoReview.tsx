@@ -10,10 +10,12 @@ import { api } from "../api.js";
 import { AccessToken } from "../auto-review/access-token.js";
 import { type Added, AddRepo, type ListedRepos, listedOn } from "../auto-review/add-repo.js";
 import { AutomaticSwitch } from "../auto-review/automatic-switch.js";
+import { Hook } from "../auto-review/hook-card.js";
 import { jobError } from "../auto-review/job-error.js";
 import { LimitReachedNotice } from "../auto-review/limit-reached.js";
 import { NoKeyNotice } from "../auto-review/no-key.js";
 import { ProfileMenu } from "../auto-review/profile-menu.js";
+import { RepoWebhook } from "../auto-review/repo-webhook.js";
 import { RunnerStatus } from "../auto-review/runner-status.js";
 import { useRead } from "../cache.js";
 import { ago } from "../format.js";
@@ -33,7 +35,7 @@ import { ActionError, EmptyState, LoadError, Loading, PageHead, useAction } from
 type Repos = { repos: AutoReviewRepoView[] };
 type Job = NonNullable<AutoReviewRepoView["latest"]>;
 /** What a repository's row opens under itself. */
-type Panel = "checks" | "token";
+type Panel = "checks" | "token" | "webhook";
 
 const STATE: Record<Job["state"], { label: string; tone: string }> = {
   queued: { label: "Queued", tone: "badge-run" },
@@ -150,6 +152,15 @@ export function AutoReview(props: { platforms: readonly CodePlatformKind[] }) {
                             >
                               Token
                             </Button>{" "}
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              aria-expanded={shows(r.id, "webhook")}
+                              onClick={() => toggle(r.id, "webhook")}
+                            >
+                              Webhook
+                            </Button>{" "}
                           </>
                         )}
                         <Button
@@ -174,6 +185,13 @@ export function AutoReview(props: { platforms: readonly CodePlatformKind[] }) {
                       <tr className="checks-row">
                         <td colSpan={5}>
                           <AccessToken r={r} onChanged={reload} />
+                        </td>
+                      </tr>
+                    )}
+                    {shows(r.id, "webhook") && (
+                      <tr className="checks-row">
+                        <td colSpan={5}>
+                          <RepoWebhook r={r} onChanged={reload} />
                         </td>
                       </tr>
                     )}
@@ -209,41 +227,5 @@ function LastJob(props: { r: AutoReviewRepoView }) {
         job.error && <span className="error-inline small job-error">{jobError(job.error)}</span>
       )}
     </div>
-  );
-}
-
-function Hook(props: { added: Added; onDone: () => void }) {
-  const { repo, webhook } = props.added;
-  return (
-    <section className="card card-pad stack hook-card" aria-label="Webhook">
-      <h2 className="card-title">One step on {PLATFORM_NAME[repo.platform]}</h2>
-      {repo.platform === "gitlab" ? (
-        <p className="m-0">
-          In <span className="mono">{repo.fullName}</span>, open Settings, Webhooks, and add this
-          address with the secret token below. Turn on Merge request events and Comments. The secret
-          is shown only now.
-        </p>
-      ) : (
-        <p className="m-0">
-          Install this server's GitHub App on <span className="mono">{repo.fullName}</span>. The
-          App's webhook sends pull request events to this address.
-        </p>
-      )}
-      <label className="stack-tight">
-        <span className="subtle small">Address</span>
-        <input className="input mono" readOnly value={webhook.url} aria-label="Webhook address" />
-      </label>
-      {webhook.secret && (
-        <label className="stack-tight">
-          <span className="subtle small">Secret token</span>
-          <input className="input mono" readOnly value={webhook.secret} aria-label="Secret token" />
-        </label>
-      )}
-      <div>
-        <Button type="button" variant="outline" onClick={props.onDone}>
-          Done
-        </Button>
-      </div>
-    </section>
   );
 }
