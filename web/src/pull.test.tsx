@@ -146,7 +146,10 @@ describe("a pull request's page", () => {
       vi.fn(async (url: string, init?: RequestInit) => {
         if (init?.method === "POST") {
           sent.push({ url, body: JSON.parse(String(init.body)) });
-          return Response.json({ outcome: url.endsWith("/merge") ? "head_moved" : "done" });
+          return Response.json({
+            outcome: url.endsWith("/merge") ? "head_moved" : "done",
+            items: [],
+          });
         }
         const routed = Object.entries(routes).find(([path]) => url.startsWith(path));
         if (routed) return Response.json(routed[1]);
@@ -308,27 +311,27 @@ describe("a pull request's page", () => {
     });
   });
 
-  it("commits the picked suggestions against the head the threads were read at, and resolves", async () => {
+  it("commits the picked suggestions with the page's other chosen changes, and resolves", async () => {
     const sent = show();
     const panel = await screen.findByRole("region", { name: "Review threads" });
     const [apply, outdated] = within(panel).getAllByRole("checkbox");
     expect((outdated as HTMLInputElement).disabled).toBe(true);
     fireEvent.click(apply as HTMLElement);
     await act(
-      async () => void fireEvent.click(screen.getByRole("button", { name: "Commit suggestion" })),
+      async () => void fireEvent.click(screen.getByRole("button", { name: "Commit 1 change" })),
     );
     await act(
       async () => void fireEvent.click(within(panel).getByRole("button", { name: "Resolve" })),
     );
     expect(sent).toEqual([
       {
-        url: "/api/pulls/apply-suggestions",
+        url: "/api/pulls/apply-batch",
         body: {
           platform: "github",
           repo: "octo/api",
           number: 7,
           head: HEAD,
-          suggestions: ["C1:0"],
+          items: [{ kind: "suggestion", id: "C1:0" }],
         },
       },
       {
