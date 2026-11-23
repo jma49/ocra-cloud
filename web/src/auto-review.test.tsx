@@ -1,5 +1,6 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { offeredRepos } from "./auto-review/add-repo.js";
 import { AutoReview } from "./pages/AutoReview.js";
 
 afterEach(() => {
@@ -61,6 +62,86 @@ describe("the auto review page", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "Done" }));
     expect(screen.queryByLabelText("Secret token")).toBeNull();
+  });
+
+  it("offers a platform's listed repositories but the ones already under review", () => {
+    const listed = {
+      platforms: [
+        {
+          platform: "github" as const,
+          repositories: [{ fullName: "acme/api" }, { fullName: "Acme/Web" }],
+        },
+        { platform: "gitlab" as const, repositories: [{ fullName: "pay/api" }] },
+      ],
+    };
+    const enrolled = [{ ...REPO, platform: "github" as const, fullName: "ACME/api" }];
+    expect(offeredRepos(listed, "github", enrolled)).toEqual(["Acme/Web"]);
+    expect(offeredRepos(listed, "gitlab", enrolled)).toEqual(["pay/api"]);
+    expect(offeredRepos(undefined, "github", [])).toEqual([]);
+  });
+
+  it("asks nothing more on GitHub for a repository the App already covers", async () => {
+    const added = { ...REPO, id: "r2", platform: "github", fullName: "acme/web", latest: null };
+    let repos: unknown[] = [{ ...REPO, platform: "github", fullName: "acme/api" }];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (init?.method === "POST") {
+          repos = [...repos, added];
+          return Response.json({
+            repo: added,
+            webhook: { url: "https://ocra.example.com/api/webhooks/github" },
+          });
+        }
+        if (url.startsWith("/api/platforms/repos")) {
+          return Response.json({
+            platforms: [
+              {
+                platform: "github",
+                repositories: [{ fullName: "acme/api" }, { fullName: "Acme/Web" }],
+              },
+            ],
+          });
+        }
+        if (url.startsWith("/api/review-targets")) {
+          return Response.json({ default: { firstReviewHours: null, mergeDays: null }, repos: [] });
+        }
+        return Response.json({ repos });
+      }),
+    );
+    render(<AutoReview platforms={["github"]} />);
+    await screen.findByText("acme/api");
+    const field = screen.getByLabelText("Repository");
+    fireEvent.change(field, { target: { value: "acme/web" } });
+    await act(async () => void fireEvent.click(screen.getByRole("button", { name: "Add" })));
+    expect(await screen.findByText("acme/web")).toBeTruthy();
+    expect(screen.queryByLabelText("Webhook")).toBeNull();
+  });
+
+  it("shows the one step on GitHub for a repository the App does not reach yet", async () => {
+    const added = { ...REPO, id: "r2", platform: "github", fullName: "acme/web", latest: null };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (init?.method === "POST") {
+          return Response.json({
+            repo: added,
+            webhook: { url: "https://ocra.example.com/api/webhooks/github" },
+          });
+        }
+        if (url.startsWith("/api/platforms/repos")) {
+          return Response.json({ platforms: [{ platform: "github", repositories: [] }] });
+        }
+        if (url.startsWith("/api/review-targets")) {
+          return Response.json({ default: { firstReviewHours: null, mergeDays: null }, repos: [] });
+        }
+        return Response.json({ repos: [] });
+      }),
+    );
+    render(<AutoReview platforms={["github"]} />);
+    fireEvent.change(await screen.findByLabelText("Repository"), { target: { value: "acme/web" } });
+    await act(async () => void fireEvent.click(screen.getByRole("button", { name: "Add" })));
+    expect(await screen.findByLabelText("Webhook")).toBeTruthy();
   });
 
   it("says the day's model calls are used and which review waits for the reset", async () => {

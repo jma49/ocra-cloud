@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import type { PullReviewJobView, PullReviewNowView } from "../../../src/shared/index.js";
 import { ApiError, api, why } from "../api.js";
+import { useDailyLimitReached } from "../auto-review/daily-limit.js";
 import { ago } from "../format.js";
 import { Link } from "../router.js";
 import { useAction, useLoad, usePoll } from "../ui.js";
@@ -37,6 +38,7 @@ export function ReviewNowBox(props: { pull: Pull; head: string }) {
       body: JSON.stringify({ ...props.pull, force }),
     }),
   );
+  const limit = useDailyLimitReached();
   const job = data?.job ?? null;
   const active = job?.state === "queued" || job?.state === "running";
   usePoll(active, reload, POLL_MS);
@@ -69,6 +71,13 @@ export function ReviewNowBox(props: { pull: Pull; head: string }) {
             ? `The last review here was of ${job.head.slice(0, 7)}, before the newest commits.`
             : "ocra has not reviewed this pull request on this server."}
       </span>
+      {limit && (
+        <span className="small" role="status">
+          <span className="badge badge-warn">Daily limit reached</span> Today's model calls are
+          used. A review asked now waits until the limit resets at {limit.reset}.{" "}
+          <Link to="/budget">Budget</Link>
+        </span>
+      )}
       <Button type="button" variant="outline" disabled={active} loading={ask.busy} onClick={send}>
         {reviewed ? "Review again" : "Review now"}
       </Button>

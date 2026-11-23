@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import type { PullView } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
 import { useCached } from "../cache.js";
+import { ago } from "../format.js";
 import { useCollapsed } from "../inbox/collapsed.js";
 import { KeyHints } from "../inbox/key-hints.js";
 import { useListKeys } from "../inbox/keys.js";
@@ -33,8 +34,14 @@ import { EmptyState, LoadError, Loading, PageHead } from "../ui.js";
 type Editing = { draft: ViewDraft; view?: PullView };
 const BLANK: ViewDraft = { name: "", filters: { roles: ["author"], states: ["open"] } };
 
+/** A list read a while ago may show a pull request as it was then, not as it is. */
+const readBefore = (at: number | undefined) =>
+  at !== undefined && Date.now() - at > 60_000
+    ? `This list was read ${ago(new Date(at).toISOString())}.`
+    : "";
+
 export function Inbox() {
-  const { data, error, reload, stale, change } = useCached("/platforms/pulls", () =>
+  const { data, error, reload, stale, change, readAt } = useCached("/platforms/pulls", () =>
     api<InboxAnswer>("/platforms/pulls"),
   );
   const views = usePullViews();
@@ -165,7 +172,7 @@ export function Inbox() {
           </select>
         </label>
         <span className="muted small grow" role="status">
-          {data && stale ? "Refreshing…" : ""}
+          {data && stale ? `Refreshing… ${readBefore(readAt)}` : ""}
         </span>
         {unread.length > 0 && (
           <Button
@@ -178,6 +185,16 @@ export function Inbox() {
           </Button>
         )}
       </div>
+      {error && data ? (
+        <p className="error small row-gap inbox-old" role="alert">
+          <span className="grow">
+            Could not refresh: {why(error)}. {readBefore(readAt)}
+          </span>
+          <Button type="button" variant="outline" size="sm" onClick={reload}>
+            Try again
+          </Button>
+        </p>
+      ) : null}
       <PlatformNotes data={data} retry={reload} />
       {error && !data ? (
         <LoadError what="pull requests" error={error} retry={reload} />
@@ -279,7 +296,6 @@ export function Inbox() {
           Could not mark the pull requests: {why(marks.failed)}.
         </p>
       )}
-      {error && data ? <p className="error">Could not refresh: {why(error)}.</p> : null}
       {editing && (
         <ViewDrawer
           initial={editing.draft}

@@ -80,11 +80,13 @@ export function useCached<T>(key: string, load: () => Promise<T>) {
   const [state, setState] = useState<{
     key: string;
     data: T | undefined;
+    /** When the data shown was read from the server. */
+    at: number | undefined;
     error: unknown;
     stale: boolean;
   }>(() => {
     const hit = memory.get(key);
-    return { key, data: hit?.data as T | undefined, error: null, stale: true };
+    return { key, data: hit?.data as T | undefined, at: hit?.at, error: null, stale: true };
   });
   const [n, setN] = useState(0);
   const loadRef = useRef(load);
@@ -94,7 +96,13 @@ export function useCached<T>(key: string, load: () => Promise<T>) {
   const current =
     state.key === key
       ? state
-      : { key, data: memory.get(key)?.data as T | undefined, error: null, stale: true };
+      : {
+          key,
+          data: memory.get(key)?.data as T | undefined,
+          at: memory.get(key)?.at,
+          error: null,
+          stale: true,
+        };
   if (current !== state) setState(current);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: n asks for a reload
@@ -105,14 +113,14 @@ export function useCached<T>(key: string, load: () => Promise<T>) {
     stored(key).then((hit) => {
       if (mine() && hit) {
         setState((s) =>
-          s.key === key && s.data === undefined ? { ...s, data: hit.data as T } : s,
+          s.key === key && s.data === undefined ? { ...s, data: hit.data as T, at: hit.at } : s,
         );
       }
     });
     loadRef.current().then(
       (data) => {
         keep(key, data);
-        if (mine()) setState({ key, data, error: null, stale: false });
+        if (mine()) setState({ key, data, at: Date.now(), error: null, stale: false });
       },
       (error) => {
         if (mine()) setState((s) => ({ ...s, error, stale: false }));
@@ -147,6 +155,7 @@ export function useCached<T>(key: string, load: () => Promise<T>) {
   );
   return {
     data: current.data,
+    readAt: current.at,
     error: current.error,
     loading: current.data === undefined && current.error === null,
     stale: current.stale,

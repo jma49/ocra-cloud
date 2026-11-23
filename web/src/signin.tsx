@@ -11,6 +11,10 @@ const GITHUB_PATH =
 
 const points = (providers: number | undefined): [string, string][] => [
   [
+    "Reviews on your pull requests.",
+    "Read what ocra found beside the diff, reply to it, apply a fix and merge.",
+  ],
+  [
     "Your keys, encrypted.",
     `Bring a key from ${anyProvider(providers)}; it is encrypted and never shown again.`,
   ],
@@ -48,7 +52,7 @@ export function SignIn(props: { next?: string | undefined }) {
             </>
           ) : (
             <>
-              <span>Code review agents,</span> <span>with your own keys.</span>
+              <span>Code review agents</span> <span>on your pull requests.</span>
             </>
           )}
         </h1>
@@ -61,7 +65,7 @@ export function SignIn(props: { next?: string | undefined }) {
         <p className="si-lead">
           {device
             ? "After signing in you will confirm the code shown by ocra login."
-            : "Sign in to manage provider keys and see what ocra does with them."}
+            : "Sign in to review pull requests with ocra, on model keys that stay yours."}
         </p>
         {methods?.map((method) => (
           <a key={method.id} className="si-btn" href={signInHref(method, props.next)}>
