@@ -27,8 +27,8 @@ const POSTGRES_EXCLUDE = [
 // itself; the self-hosted server's on Node, with a SQLite file; the web
 // app's in a simulated browser.
 
-// CI runs node and web in one job with postgres, every core busy, where a
-// test that starts PGlite or imports the whole app can pass five seconds,
+// A CI job keeps every core of its runner busy, where a test that starts
+// PGlite or imports the whole app can pass five seconds,
 // and a hook that starts PGlite from the run's cluster and migrates it
 // took up to 8.7 s with twice as many busy loops as cores.
 const SHARED_RUNNER_TIMEOUT = 15_000;
