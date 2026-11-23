@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, isNotNull, lte, ne, notInArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, lte, notInArray } from "drizzle-orm";
 import type { WebhookDeliveryState, WebhookError, WebhookEvent } from "../shared/index.js";
 import { changedRows, type Db, first } from "./client.js";
 import { webhookDeliveries } from "./schema.js";
@@ -7,7 +7,7 @@ import { webhookDeliveries } from "./schema.js";
 // taken by one sender, a compare-and-set that moves attempts and retryAt
 // (past its lease) together, so that the request that made it and two
 // retry sweeps never send it twice at once; and the sweep, across accounts,
-// takes the due one waiting longest.
+// takes the due one waiting longest of the channels it has not tried yet.
 
 export type AttemptResult = {
   state: WebhookDeliveryState;
@@ -66,7 +66,11 @@ export function accountWebhookDeliveries(db: Db, accountId: string) {
         .limit(limit);
     },
 
-    /** Deletes the channel's finished deliveries past its newest keep. */
+    /**
+     * Deletes the channel's deliveries past its newest keep, pending ones
+     * too: an endpoint that keeps failing must not pile up bodies and
+     * retries without bound.
+     */
     async prune(channelId: string, keep: number): Promise<void> {
       const newest = db
         .select({ id: d.id })
@@ -74,11 +78,7 @@ export function accountWebhookDeliveries(db: Db, accountId: string) {
         .where(and(own, eq(d.channelId, channelId)))
         .orderBy(desc(d.createdAt), desc(d.id))
         .limit(keep);
-      await db
-        .delete(d)
-        .where(
-          and(own, eq(d.channelId, channelId), ne(d.state, "pending"), notInArray(d.id, newest)),
-        );
+      await db.delete(d).where(and(own, eq(d.channelId, channelId), notInArray(d.id, newest)));
     },
 
     /** Gives up the channel's pending deliveries: it was removed or its address changed. */
@@ -98,17 +98,28 @@ export type ClaimedDelivery = {
   attempts: number;
 };
 
-/** Takes the next attempt of the delivery due longest, or undefined when none is due. */
+/**
+ * Takes the next attempt of the delivery due longest, of a channel not in
+ * skip, or undefined when none is due.
+ */
 export async function claimWebhookRetry(
   db: Db,
   now: Date,
   leaseMs: number,
+  skip: readonly string[] = [],
 ): Promise<ClaimedDelivery | undefined> {
   const d = webhookDeliveries;
   const due = await db
     .select({ id: d.id, attempts: d.attempts })
     .from(d)
-    .where(and(eq(d.state, "pending"), isNotNull(d.retryAt), lte(d.retryAt, now)))
+    .where(
+      and(
+        eq(d.state, "pending"),
+        isNotNull(d.retryAt),
+        lte(d.retryAt, now),
+        skip.length > 0 ? notInArray(d.channelId, [...skip]) : undefined,
+      ),
+    )
     .orderBy(asc(d.retryAt))
     .limit(1)
     .then(first);

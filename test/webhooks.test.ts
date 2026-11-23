@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { scoped } from "../src/db/scoped.js";
 import { retryOutbox } from "../src/notify/notify.js";
-import { retryWebhooks, webhookSignature } from "../src/notify/webhooks.js";
+import { KEPT_DELIVERIES, retryWebhooks, webhookSignature } from "../src/notify/webhooks.js";
 import { TEST_BINDINGS } from "./bindings.js";
 import { finding, upload } from "./finding-uploads.js";
 import { call, db, resetDb, signIn, signInCli } from "./helpers.js";
@@ -79,6 +79,9 @@ describe("a webhook channel's address", () => {
       "https://localhost/x",
       "https://app.localhost/x",
       "https://metadata.google.internal/computeMetadata/v1/",
+      "https://localhost../x",
+      "https://metadata.google.internal../computeMetadata/v1/",
+      "https://app.internal../x",
       "https://intranet/x",
       "https://user:pw@hooks.example.com/x",
       "https://hooks.example.com:22/x",
@@ -227,6 +230,42 @@ describe("a webhook delivery", () => {
     const [row] = await scoped(db, web.account.id).list("webhookDeliveries");
     expect(row?.payload).toBeNull();
     expect(await retryWebhooks(db, out, () => new Date(Date.now() + 86_400_000))).toBe(0);
+  });
+
+  it("keeps only the channel's newest deliveries, a pending one included", async () => {
+    const { auth, account } = await signIn(1, "octo");
+    const { channel } = await addHook(auth);
+    endpoint(() => new Response("busy", { status: 503 }));
+    for (let i = 0; i < 25; i++) {
+      await call(`/api/notifications/channels/${channel.id}/test`, { method: "POST", auth });
+    }
+    const rows = await scoped(db, account.id).list("webhookDeliveries");
+    expect(rows).toHaveLength(KEPT_DELIVERIES);
+    expect(rows.every((r) => r.state === "pending")).toBe(true);
+  });
+
+  it("is retried in turn across channels, so one channel cannot take a whole sweep", async () => {
+    const a = await signIn(1, "octo");
+    const b = await signIn(2, "hubot");
+    const noisy = await addHook(a.auth);
+    const quiet = await addHook(b.auth);
+    const start = (accountId: string, channelId: string, at: number) =>
+      scoped(db, accountId).webhooks.start({
+        id: crypto.randomUUID(),
+        channelId,
+        event: "ping",
+        payload: "{}",
+        leaseUntil: new Date(at),
+      });
+    const base = Date.now() - 60 * 60_000;
+    for (let i = 0; i < 60; i++) await start(a.account.id, noisy.channel.id, base + i);
+    await start(b.account.id, quiet.channel.id, base + 1_000);
+    endpoint();
+    const out = retryOutbox({ keys: { current: TEST_BINDINGS.MASTER_KEY } });
+    expect(await retryWebhooks(db, out)).toBe(50);
+    expect(
+      await scoped(db, b.account.id).find("webhookDeliveries", { state: "delivered" }),
+    ).toHaveLength(1);
   });
 
   it("is given up after a 4xx", async () => {
