@@ -1,4 +1,5 @@
 import type { z } from "zod";
+import { GITLAB_FINDING_THREAD_FIELDS } from "../auto-review/finding-threads.js";
 import { GITHUB_SIGNAL_FIELDS } from "../merge-when-ready/hooks.js";
 import { GITHUB_COMMENT_FIELDS, GITLAB_COMMENT_FIELDS } from "../notify/comment-hooks.js";
 import { GITHUB_HOOK_FIELDS, GITLAB_HOOK_FIELDS } from "../notify/pull-hooks.js";
@@ -22,6 +23,7 @@ const GITLAB: readonly z.ZodType[] = [
   ...GITLAB_HOOK_FIELDS,
   ...GITLAB_COMMENT_FIELDS,
   ...GITLAB_THREAD_FIELDS,
+  ...GITLAB_FINDING_THREAD_FIELDS,
 ];
 
 const isRecord = (v: unknown): v is Record<string, unknown> =>

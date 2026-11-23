@@ -210,6 +210,11 @@ describe("retention", () => {
         reviewRepoId: "repo",
         seenAt: ago(days),
       });
+      await d.insert("findingThreads", {
+        ...rows.findingThreads(id),
+        reviewRepoId: "repo",
+        seenAt: ago(days),
+      });
       await d.insert("automationAssignments", {
         ...rows.automationAssignments(id),
         reviewRepoId: "repo",
@@ -221,6 +226,7 @@ describe("retention", () => {
     expect((await d.list("pullReviews")).map((r) => r.id)).toEqual(["new"]);
     expect((await d.list("pullPaths")).map((r) => r.id)).toEqual(["new"]);
     expect((await d.list("reviewThreads")).map((r) => r.id)).toEqual(["new"]);
+    expect((await d.list("findingThreads")).map((r) => r.id)).toEqual(["new"]);
     expect((await d.list("automationAssignments")).map((r) => r.id)).toEqual(["new"]);
   });
 
@@ -404,6 +410,7 @@ describe("export and deletion", () => {
         "pullFlows",
         "pullReviews",
         "reviewThreads",
+        "findingThreads",
         "pullPaths",
         "reviewRequests",
         "automationAssignments",
@@ -439,6 +446,7 @@ describe("export and deletion", () => {
       "pullFlows",
       "pullReviews",
       "reviewThreads",
+      "findingThreads",
       "pullPaths",
       "reviewRequests",
       "automationAssignments",

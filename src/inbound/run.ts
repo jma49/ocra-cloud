@@ -1,3 +1,4 @@
+import { keepGitlabFindingThread, onceEach } from "../auto-review/finding-threads.js";
 import { keepReviewedPaths, type PathReader } from "../auto-review/paths.js";
 import { type CallBudget, item, uncapped } from "../calls.js";
 import type { Db } from "../db/client.js";
@@ -24,7 +25,8 @@ import { type MergedPull, moveGithubStacks, moveStacks } from "../stack-merge/ho
 import type { AppBindings } from "../types.js";
 
 // A delivery's side effects after its answer: telling the account's
-// channels, moving merge-when-ready intents and stack merges (and the
+// channels (and, of a GitLab note, keeping what it says of a finding's
+// discussion), moving merge-when-ready intents and stack merges (and the
 // pull requests stacked on a merged one), and reading a reviewed pull
 // request's directories. Each is safe to run again (the notices' keys, the
 // intents' compare-and-set, the paths' head), so a step that throws is
@@ -111,7 +113,10 @@ async function runStep(
     if (work.signal) await moveIntents(merges, repo, work.signal.fullName, work.signal.signal);
     await moveStacks(merges, repo, repo.fullName, work.signal?.signal, work.merged);
   } else if (row.event === "Note Hook") {
-    await tellGitlabNote(db, out, repo, body, gitlabStartOf(reader, repo));
+    const startOf = onceEach(gitlabStartOf(reader, repo));
+    await tellGitlabNote(db, out, repo, body, startOf);
+    const lab = reader.platforms.find((p) => p.kind === "gitlab" && p.host === repo.host);
+    if (lab) await keepGitlabFindingThread(db, repo, lab.url, body, startOf);
   } else {
     await tellGitlabHook(db, out, repo, body, reader);
   }

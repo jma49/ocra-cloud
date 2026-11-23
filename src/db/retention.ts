@@ -12,6 +12,7 @@ import {
   automationRuns,
   closedPulls,
   deviceCodes,
+  findingThreads,
   gatewayCalls,
   inboundEvents,
   liveRuns,
@@ -36,7 +37,7 @@ import {
 } from "./schema.js";
 
 // What the data policy (web /privacy) promises: review records, live runs, gateway call
-// records, merged and closed pull requests, their review flow and review threads, who a rule assigned to review them, the inbox's read marks, the daily counts and the audit log are deleted after
+// records, merged and closed pull requests, their review flow, review threads and the threads of ocra's findings, who a rule assigned to review them, the inbox's read marks, the daily counts and the audit log are deleted after
 // RETENTION_DAYS; expired login codes, sessions and API tokens go at once; a notice held in
 // quiet hours after HELD_FOR; a channel's delivery record after DELIVERY_DAYS, a platform's
 // delivery to us after INBOUND_EVENT_DAYS, a team's members TEAM_DAYS after
@@ -129,6 +130,13 @@ export async function enforceRetention(db: Db, now = new Date()): Promise<void> 
         db
           .delete(reviewThreads)
           .where(and(ofEachAccount(reviewThreads.accountId), lt(reviewThreads.seenAt, cutoff))),
+    ],
+    [
+      "finding_threads",
+      () =>
+        db
+          .delete(findingThreads)
+          .where(and(ofEachAccount(findingThreads.accountId), lt(findingThreads.seenAt, cutoff))),
     ],
     [
       "review_requests",

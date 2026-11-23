@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { recordGithubClose } from "./auto-review/closes.js";
+import { recordGithubFindingThread } from "./auto-review/finding-threads.js";
 import { recordGithubFlow } from "./auto-review/flows.js";
 import { queueGithubComment } from "./auto-review/replies.js";
 import { recordGithubRequest } from "./auto-review/requests.js";
@@ -20,7 +21,8 @@ import type { AppEnv } from "./types.js";
 // The GitHub App's one webhook, proven by its signature: a push queues
 // graph builds, a pull request's change queues its review (its merge or
 // close is recorded, as are its steps toward review and the directories a
-// reviewed one changes, and its user told of what concerns them), an @ocra
+// reviewed one changes, and its user told of what concerns them; what
+// people do to the thread of a finding's comment is kept), an @ocra
 // comment its answer and a re-run of the pre-merge check its evaluation,
 // where the host does them. A pull request's change, review, check or status also moves the
 // intents armed to merge it when ready. Each delivery with something to
@@ -51,7 +53,7 @@ export function githubWebhook(host: WebhookHost) {
       const body = c.req.valid("json");
       const event = c.req.header("x-github-event") ?? "";
       const review = host.autoReview;
-      const github = githubHostOf(c.env).host;
+      const { host: github, url: githubUrl } = githubHostOf(c.env);
       const repo = z.object({ repository: z.object({ id: z.number() }) }).safeParse(body);
       const steps = await githubSteps(c.var.db, github, event, body);
       const received = await receive(c, {
@@ -68,6 +70,7 @@ export function githubWebhook(host: WebhookHost) {
         if (event === "pull_request") await recordGithubClose(c.var.db, github, body);
         received.reviewed(await recordGithubFlow(c.var.db, github, event, body));
         await recordGithubRequest(c.var.db, github, event, body);
+        await recordGithubFindingThread(c.var.db, github, githubUrl, event, body);
         return event === "push" && host.graphs
           ? await queueGithubPush(c.var.db, github, host.graphs, body)
           : event === "pull_request" && review

@@ -73,6 +73,33 @@ export type FindingStatus = (typeof FINDING_STATUSES)[number];
 export const FIXED_VIA = ["applied", "suggestion", "manual", "rereview"] as const;
 export type FixedVia = (typeof FIXED_VIA)[number];
 
+/** Whether a person resolved a finding's thread on its platform, or opened it again. */
+export const THREAD_DISMISSAL_STATES = ["resolved", "unresolved"] as const;
+export type ThreadDismissalState = (typeof THREAD_DISMISSAL_STATES)[number];
+
+/** Characters of a person's reply kept as a platform dismissal's reason. */
+export const MAX_DISMISSAL_REASON_CHARS = 2000;
+
+/**
+ * What people did on the platform to the thread of ocra's comment of a
+ * finding, from the enrolled repository's webhooks: who resolved it or
+ * opened it again (a platform login) and when, and the newest reply a
+ * person wrote in it, as the reason. Times are ISO strings. `state` is null
+ * for a thread only replied to; `reason` is null without a reply, or when
+ * the account keeps no findings.
+ */
+export type PlatformDismissal = {
+  state: ThreadDismissalState | null;
+  by: string | null;
+  at: string | null;
+  reason: string | null;
+  reasonBy: string | null;
+  reasonAt: string | null;
+  /** The server replaced a secret-looking string of the reason, or cut it. */
+  redacted: boolean;
+  truncated: boolean;
+};
+
 /** Why a finding was dismissed; a dismissal always names one. */
 export const DISMISS_REASONS = [
   "false_positive",

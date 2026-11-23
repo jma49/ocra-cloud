@@ -65,6 +65,7 @@ import {
   STACK_MERGE_STATES,
   type StackMergeLayer,
   type StackMergeStep,
+  THREAD_DISMISSAL_STATES,
 } from "../shared/index.js";
 
 // Every table but accounts carries accountId, and is read and written only
@@ -1001,6 +1002,48 @@ export const reviewThreads = sqliteTable(
   ],
 );
 
+// A review thread that ocra's comment of a finding started on an enrolled
+// repository's pull request, from its platform's webhooks
+// (src/notify/finding-thread-hooks.ts): the finding's fingerprint, read
+// from the comment's marker, whether a person resolved the thread or opened
+// it again (who, by platform login, and when), and the newest reply a
+// person wrote in it, the reason the engine's learnings read. One row per
+// platform thread; the reply's text is redacted and cut like a finding's,
+// kept only when the account keeps that finding, and dropped when the
+// account deletes its findings. Kept like review_threads (seenAt).
+export const findingThreads = sqliteTable(
+  "finding_threads",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    reviewRepoId: text("review_repo_id")
+      .notNull()
+      .references(() => reviewRepos.id, { onDelete: "cascade" }),
+    // The repository as a review's prRepository names it, lower case.
+    repository: text("repository").notNull(),
+    number: integer("number").notNull(),
+    threadKey: text("thread_key").notNull(),
+    fingerprint: text("fingerprint").notNull(),
+    // The platform's id of who wrote the comment: its own replies and resolutions are not a person's.
+    starterId: text("starter_id").notNull(),
+    state: text("state", { enum: THREAD_DISMISSAL_STATES }),
+    stateBy: text("state_by"),
+    stateAt: integer("state_at", { mode: "timestamp_ms" }),
+    reason: text("reason"),
+    reasonBy: text("reason_by"),
+    reasonAt: integer("reason_at", { mode: "timestamp_ms" }),
+    reasonRedacted: integer("reason_redacted", { mode: "boolean" }).notNull().default(false),
+    reasonTruncated: integer("reason_truncated", { mode: "boolean" }).notNull().default(false),
+    seenAt: integer("seen_at", { mode: "timestamp_ms" }).notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("finding_threads_thread").on(t.reviewRepoId, t.threadKey),
+    index("finding_threads_pull").on(t.accountId, t.repository, t.number),
+    index("finding_threads_account_seen").on(t.accountId, t.seenAt),
+  ],
+);
+
 // The directories a reviewed pull request of an enrolled repository
 // changes, top-level and second-level, at most MAX_PULL_PREFIXES of them,
 // as read at the head its latest review saw, for suggested reviewers
@@ -1541,6 +1584,7 @@ export const accountTables = {
   pullFlows,
   pullReviews,
   reviewThreads,
+  findingThreads,
   pullPaths,
   reviewRequests,
   reviewTeams,

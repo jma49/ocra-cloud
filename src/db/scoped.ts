@@ -30,6 +30,7 @@ import {
 import { countWhere, jsonMembers, jsonNumber, jsonRecords, utcDayOf } from "./dialect.js";
 import { accountFindingIssues } from "./finding-issues.js";
 import { accountFindingOutcomes } from "./finding-outcomes.js";
+import { accountFindingThreads } from "./finding-threads.js";
 import { accountGenerateJobs } from "./generate-jobs.js";
 import { accountGraphs } from "./graphs.js";
 import { accountImpact } from "./impact.js";
@@ -459,6 +460,7 @@ export function scoped(db: Db, accountId: string) {
     reviewLoad: accountReviewLoad(db, accountId),
     impact: accountImpact(db, accountId),
     findingOutcomes: accountFindingOutcomes(db, accountId),
+    findingThreads: accountFindingThreads(db, accountId),
     replies: accountReplyJobs(db, accountId),
     chat: accountReviewChat(db, accountId),
     generations: accountGenerateJobs(db, accountId),
