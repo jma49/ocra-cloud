@@ -40,7 +40,7 @@ function Mark(props: { state: ReadinessState }) {
     <span className={`check-mark ${mark.cls}`} role="img" aria-label={mark.label}>
       {props.state === "met" && <DoneGlyph size={14} />}
       {props.state === "unmet" && <CloseGlyph size={14} />}
-      {props.state === "pending" && <Clock size={13} aria-hidden="true" />}
+      {props.state === "pending" && <Clock size={14} aria-hidden="true" />}
     </span>
   );
 }

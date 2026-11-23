@@ -67,7 +67,7 @@ const SETTINGS_ICONS: Record<string, LucideIcon> = {
 
 function NavIcon(props: { icon: LucideIcon; size: number }) {
   const Icon = props.icon;
-  return <Icon className="nav-icon" size={props.size} strokeWidth={1.75} aria-hidden="true" />;
+  return <Icon className="nav-icon" size={props.size} aria-hidden="true" />;
 }
 
 // Below this width the rail is a row across the top (shell.css).

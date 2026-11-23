@@ -7,13 +7,7 @@ import X from "lucide-react/icons/x";
 // imported alone: the package's index loads every icon it has.
 function glyph(Icon: LucideIcon) {
   return (props: { size?: number }) => (
-    <Icon
-      className="glyph"
-      size={props.size ?? 16}
-      strokeWidth={1.75}
-      aria-hidden="true"
-      focusable="false"
-    />
+    <Icon className="glyph" size={props.size ?? 16} aria-hidden="true" focusable="false" />
   );
 }
 

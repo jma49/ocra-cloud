@@ -237,6 +237,46 @@ input:is([type="checkbox"], [type="radio"]) {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
+/* A row, tab or tree link reaches the edge of what holds it, and that clips
+   a ring drawn outside: these draw it inside. */
+:is(
+  .section-toggle,
+  .pull-row,
+  .list-row,
+  .diff-head,
+  .diff-add-comment,
+  .unread-mark,
+  .learning-toggle,
+  .walkthrough-head,
+  .place-tab,
+  .settings-link,
+  .file-link,
+  .codeblock,
+  .inbox-group-head .icon-btn
+):focus-visible {
+  outline-offset: -2px;
+}
+:is(
+  .section-toggle,
+  .pull-row,
+  .list-row,
+  .diff-head,
+  .learning-toggle,
+  .walkthrough-head
+):focus-visible {
+  border-radius: var(--r-ctl);
+}
+a:not([class]):focus-visible {
+  border-radius: var(--r-tag);
+}
+/* Line icons at one weight, whatever their size. */
+.lucide {
+  stroke-width: 1.75;
+}
+/* A 12 px mark keeps the line of a 16 px icon. */
+.lucide[width="12"] {
+  stroke-width: 2.25;
+}
 ::selection {
   background: color-mix(in srgb, var(--blue) 24%, transparent);
 }

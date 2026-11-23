@@ -187,10 +187,6 @@
 .pull-part-head::-webkit-details-marker {
   display: none;
 }
-.pull-part:not([open]) .fold {
-  rotate: -45deg;
-  margin-top: 0;
-}
 .pull-description {
   margin-top: 8px;
   padding: 24px;
@@ -214,10 +210,6 @@
 }
 .readiness-met > summary::-webkit-details-marker {
   display: none;
-}
-.readiness-met:not([open]) .fold {
-  rotate: -45deg;
-  margin-top: 0;
 }
 .readiness-met[open] > summary {
   margin-bottom: 8px;
