@@ -9,11 +9,16 @@ import type {
 import { api } from "../api.js";
 import { useRead } from "../cache.js";
 import { ago } from "../format.js";
-import { ActionError, EmptyNote, LoadError, Loading, useAction } from "../ui.js";
+import { ActionError, EmptyNote, LoadError, Loading, useAction, usePoll } from "../ui.js";
 
 // A repository's restacks: once the pull request below one merges, the
 // server rebases the ones stacked on it and force-pushes them as the ocra
 // bot. Off until the repository turns it on, since it rewrites branches.
+
+/** How often the open panel reads its history: a merge elsewhere queues a job at any moment. */
+const WATCH_MS = 15_000;
+/** And while a job is queued or running, whose end is near. */
+const ACTIVE_MS = 4_000;
 
 const SKIPPED: Record<string, string> = {
   switched_off: "Restacking was switched off before it ran",
@@ -92,6 +97,8 @@ export function RepoRestack(props: { r: AutoReviewRepoView; onChanged: () => voi
     if (saved) props.onChanged();
   };
   const jobs = history.data?.jobs;
+  const active = jobs?.some((j) => j.state === "queued" || j.state === "running") === true;
+  usePoll(true, history.reload, active ? ACTIVE_MS : WATCH_MS);
   return (
     <section className="repo-token stack" aria-label={`Restacking in ${r.fullName}`}>
       <div className="strong">Restack after a merge</div>
