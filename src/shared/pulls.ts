@@ -14,6 +14,14 @@ export type PullReview = "approved" | "changes_requested" | "required" | null;
 /** The account's newest ocra review of the pull request: blocking when its verdict blocks a merge; null before any. */
 export type PullAiVerdict = "blocking" | "not_blocking" | null;
 
+/**
+ * GET /api/platforms/pulls/changed, and the inbox listing's own: when a
+ * webhook last said a pull request of the account's enrolled repositories
+ * changed, or one of its reviews arrived; null before any. A value newer
+ * than the listing's means the listing may be out of date.
+ */
+export type PullsChange = { changedAt: string | null };
+
 export type PullItem = {
   id: string;
   number: number;

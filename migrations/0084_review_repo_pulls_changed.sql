@@ -1,0 +1,1 @@
+ALTER TABLE `review_repos` ADD `pulls_changed_at` integer;

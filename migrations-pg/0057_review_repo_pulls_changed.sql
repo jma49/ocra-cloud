@@ -1,0 +1,1 @@
+ALTER TABLE "review_repos" ADD COLUMN "pulls_changed_at" bigint;

@@ -16,7 +16,7 @@ import { pullVerdicts } from "./pull-verdicts.js";
 import { perMinute } from "./rate.js";
 import { MAX_NAMED } from "./repositories.js";
 import { requireSession } from "./session.js";
-import { type PullItem, pullUnread, stackPlaces } from "./shared/index.js";
+import { type PullItem, type PullsChange, pullUnread, stackPlaces } from "./shared/index.js";
 import type { AppEnv } from "./types.js";
 
 // What the signed-in user reaches on each connected code platform, read
@@ -33,6 +33,9 @@ type Listed = {
   more: boolean;
   failed: boolean;
 };
+
+const changeOf = (at: Date | null) =>
+  ({ changedAt: at?.toISOString() ?? null }) satisfies PullsChange;
 
 async function listAll(c: {
   var: AppEnv["Variables"];
@@ -98,6 +101,8 @@ platformsRoute.get("/pulls", requireSession(), perMinute("platform"), timing(), 
       issues: [{ path: ["group"], message: "group is views or left out" }],
     });
   }
+  // Read before the listing, so a change during it still reads as newer.
+  const change = changeOf(await c.var.data.pullsChangedAt());
   startTime(c, "list", "platform listing");
   const listed = await Promise.all(
     platformsOf(c.env, c.req.url).map(async (platform) => {
@@ -156,9 +161,20 @@ platformsRoute.get("/pulls", requireSession(), perMinute("platform"), timing(), 
       }),
     };
   });
-  if (group !== "views") return c.json({ platforms });
-  return c.json({ platforms, sections: await sectionsOf(c.var.data, platforms, Date.now()) });
+  if (group !== "views") return c.json({ platforms, ...change });
+  return c.json({
+    platforms,
+    ...change,
+    sections: await sectionsOf(c.var.data, platforms, Date.now()),
+  });
 });
+
+// What the open inbox asks every little while in place of the listing
+// above: no platform call, so it costs none of the user's allowance, and
+// the console reads the listing again only when this moved past its own.
+platformsRoute.get("/pulls/changed", requireSession(), async (c) =>
+  c.json(changeOf(await c.var.data.pullsChangedAt())),
+);
 
 // Names every repository the user reaches with its platform name, so the
 // console shows it in place of the hash. Needs sharing: only then does the

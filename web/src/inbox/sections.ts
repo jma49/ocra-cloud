@@ -3,6 +3,7 @@ import {
   matchesPullFilters,
   type PullFilters,
   type PullItem,
+  type PullsChange,
   type PullView,
 } from "../../../src/shared/index.js";
 
@@ -14,7 +15,7 @@ type PlatformPulls = {
   more: boolean;
   pulls: PullItem[];
 };
-export type InboxAnswer = { platforms: PlatformPulls[] };
+export type InboxAnswer = { platforms: PlatformPulls[] } & Partial<PullsChange>;
 export type Row = PullItem & { host: string; platform: CodePlatformKind };
 
 /** Open pull requests of others asking the user's review: the count the tab's title carries. */

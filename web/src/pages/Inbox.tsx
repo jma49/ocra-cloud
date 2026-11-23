@@ -7,6 +7,7 @@ import { api, type Me, why } from "../api.js";
 import { useCached } from "../cache.js";
 import { GetStarted } from "../first-run/get-started.js";
 import { ago } from "../format.js";
+import { usePullsChanged } from "../inbox/changes.js";
 import { useCollapsed } from "../inbox/collapsed.js";
 import { inboxCommands } from "../inbox/commands.js";
 import { KeyHints } from "../inbox/key-hints.js";
@@ -47,6 +48,7 @@ export function Inbox(props: { me?: Me }) {
   const { data, error, reload, stale, change, readAt } = useCached("/platforms/pulls", () =>
     api<InboxAnswer>("/platforms/pulls"),
   );
+  usePullsChanged(data && !stale ? (data.changedAt ?? null) : undefined, reload);
   const views = usePullViews();
   const marks = useUnreadMarks(change);
   const [filters, setFilters] = useState<Filters>({ text: "", repo: "" });

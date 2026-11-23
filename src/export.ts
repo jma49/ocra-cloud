@@ -116,11 +116,12 @@ const SHAPES: Partial<Record<Table, (row: never) => unknown>> = {
   // Never the hook secret's hash.
   graphRepos: ({ webhookSecretHash: _hash, accountId: _account, ...r }: Record<string, unknown>) =>
     r,
-  // Nor when the daily reconciliation last read it, which is the server's bookkeeping,
-  // nor its own GitLab access token: only its bot's username.
+  // Nor when the daily reconciliation last read it or a webhook last touched it, which
+  // is the server's bookkeeping, nor its own GitLab access token: only its bot's username.
   reviewRepos: ({
     webhookSecretHash: _hash,
     reconciledAt: _reconciled,
+    pullsChangedAt: _changed,
     accessTokenWrappedKey: _w,
     accessTokenCiphertext: _c,
     accountId: _account,
