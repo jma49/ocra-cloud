@@ -71,6 +71,7 @@ describe("a webhook channel", () => {
           attempts: 3,
           status: 503,
           error: "status",
+          retryAt: new Date(Date.now() + 200_000).toISOString(),
         }),
         delivery("d3", { state: "failed", status: null, error: "timeout", latencyMs: null }),
       ],
@@ -81,7 +82,7 @@ describe("a webhook channel", () => {
     const rows = within(list).getAllByRole("row").slice(1);
     expect(rows.map((r) => r.textContent)).toEqual([
       "review_completedDeliveredHTTP 200, 84 ms1h ago",
-      "pingWill retryHTTP 503, 84 ms, 3 attempts1h ago",
+      "pingWill retryHTTP 503, 84 ms, 3 attempts, next in 4m1h ago",
       "review_completedFailedTimed out1h ago",
     ]);
   });
@@ -112,13 +113,20 @@ describe("a webhook channel", () => {
   it("is not the only kind with deliveries: a chat's show, without a signing secret", async () => {
     serve(
       [channel({ id: "n2", kind: "slack", name: "#reviews" })],
-      [delivery("d1", { state: "failed", status: 404, error: "status", latencyMs: 12 })],
+      [
+        delivery("d1", { state: "failed", status: 404, error: "status", latencyMs: 12 }),
+        delivery("d2", { event: "held_notices" }),
+      ],
     );
     render(<Notifications platforms={["github"]} />);
     fireEvent.click(await screen.findByRole("button", { name: "Deliveries to #reviews" }));
     const list = await screen.findByRole("region", { name: "Recent deliveries" });
     const rows = within(list).getAllByRole("row").slice(1);
-    expect(rows.map((r) => r.textContent)).toEqual(["review_completedFailedHTTP 404, 12 ms1h ago"]);
+    expect(rows.map((r) => r.textContent)).toEqual([
+      "Review finishedFailedHTTP 404, 12 ms1h ago",
+      "Notices held in quiet hoursDeliveredHTTP 200, 84 ms1h ago",
+    ]);
+    expect(screen.getByRole("heading", { name: "#reviews" })).toBeTruthy();
     expect(screen.queryByRole("region", { name: "Signing secret" })).toBeNull();
   });
 
