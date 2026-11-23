@@ -2,6 +2,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testi
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PullPage } from "./pages/PullPage.js";
 import { anchorOf, parsePatch } from "./pull/diff.js";
+import { ToastProvider } from "./toast.js";
 
 afterEach(() => {
   cleanup();
@@ -159,7 +160,11 @@ describe("a pull request's page", () => {
         return Response.json(url.startsWith("/api/pulls/queue") ? queue : listed);
       }),
     );
-    render(<PullPage platform={platform} repo="octo/api" number="7" />);
+    render(
+      <ToastProvider>
+        <PullPage platform={platform} repo="octo/api" number="7" />
+      </ToastProvider>,
+    );
     return sent;
   };
 
@@ -203,7 +208,7 @@ describe("a pull request's page", () => {
         },
       },
     ]);
-    expect(await screen.findByText(/Review: Done/)).toBeTruthy();
+    expect(await screen.findByText("Review sent")).toBeTruthy();
     expect(screen.queryByRole("dialog", { name: "Your review" })).toBeNull();
     expect(screen.queryByText("Why log?")).toBeNull();
   });
@@ -445,7 +450,11 @@ describe("a pull request's page", () => {
         return Response.json(files);
       }),
     );
-    render(<PullPage platform="github" repo="octo/api" number="7" runner />);
+    render(
+      <ToastProvider>
+        <PullPage platform="github" repo="octo/api" number="7" runner />
+      </ToastProvider>,
+    );
     const generate = await screen.findByRole("button", { name: "Generate unit tests" });
     await act(async () => void fireEvent.click(generate));
     expect(sent).toEqual([

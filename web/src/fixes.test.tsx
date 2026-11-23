@@ -4,6 +4,7 @@ import type { FixProposalView } from "../../src/shared/index.js";
 import { FixDiff } from "./fixes/fix-diff.js";
 import { PullPage } from "./pages/PullPage.js";
 import { parsePatch, placeOnLines } from "./pull/diff.js";
+import { ToastProvider } from "./toast.js";
 
 afterEach(() => {
   cleanup();
@@ -117,7 +118,11 @@ describe("a fix on the pull request's page", () => {
         });
       }),
     );
-    render(<PullPage platform="github" repo="octo/api" number="7" />);
+    render(
+      <ToastProvider>
+        <PullPage platform="github" repo="octo/api" number="7" />
+      </ToastProvider>,
+    );
     const card = await screen.findByLabelText("ocra's fix: Refund can exceed what was captured");
     expect(within(card).getByText("if (amount > left || amount <= 0) {")).toBeTruthy();
     expect(reads).toContain(
@@ -128,7 +133,7 @@ describe("a fix on the pull request's page", () => {
       async () => void fireEvent.click(within(card).getByRole("button", { name: "Commit fix" })),
     );
     expect(sent).toEqual([{ url: "/api/pulls/apply-fix", body: { finding: "f1" } }]);
-    expect(await screen.findByText(/Fix: Done/)).toBeTruthy();
+    expect(await screen.findByText("Fix committed")).toBeTruthy();
     expect(reads.filter((u) => u.startsWith("/api/pulls/files")).length).toBe(before + 1);
   });
 });

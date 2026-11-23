@@ -75,7 +75,8 @@ Shared controls are coss ui (Base UI + Tailwind), copied into `web/src/component
 | Text entry | `input.input`, `textarea.input` |
 | Name of an icon-only control | `Tooltip` (the rail's `RailTip`); `aria-label` always |
 | A few actions behind a button | `Menu` |
-| A short note after something happened | `useToast()(message, tone)` (coss Toast), `"success"` or `"error"` when it is one |
+| A short note after something happened | `useToast()(message, tone, action?)` (coss Toast), `"success"` or `"error"` when it is one; never a line in the page that pushes content down. A step that can be taken back offers `{ label: "Undo", run }`, and the toast stays 6 s |
+| A write the platform will almost surely take (resolve, reopen, reply) | shown at once, before the answer; taken back with an error toast if refused (`web/src/pull/threads.tsx`) |
 | Go anywhere | the command menu (`Command`) |
 | A finding's checked fix | `FixProposal` on a diff, `FixDiff` in a finding (`web/src/fixes/`): the lines it replaces, then what it writes, and Commit fix |
 | ocra's open finding on a pull request's diff | `FindingNote` (`web/src/pull/findings.tsx`): under the last line it is about, above that line's fix, with its severity, title, text and a link into the review; only for the review of the head shown |

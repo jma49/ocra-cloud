@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type KeyboardEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   MAX_THREAD_REPLY_CHARS,
@@ -6,6 +6,7 @@ import {
   type ThreadSuggestion,
 } from "../../../src/shared/index.js";
 import { ago } from "../format.js";
+import { KeyCaps } from "../shortcuts/keys.js";
 import { splitPath } from "./diff.js";
 import { FileTypeIcon } from "./file-icon.js";
 import { SuggestionText } from "./suggestion.js";
@@ -53,16 +54,24 @@ type ItemProps = {
   toggle: (id: string) => void;
 };
 
+/** A reply this page sent and the platform has not been read back with yet. */
+const isSending = (id: string) => id.startsWith("sending:");
+
 function Comments(props: ItemProps) {
   return props.t.comments.map((c) => (
-    <div key={c.id} className="thread-comment small">
+    <div
+      key={c.id}
+      className={`thread-comment small${isSending(c.id) ? " is-sending" : ""}`}
+      aria-busy={isSending(c.id) || undefined}
+    >
       <span className="avatar thread-avatar" aria-hidden="true">
-        {(c.author ?? "?").slice(0, 1).toUpperCase()}
+        {(c.author ?? (isSending(c.id) ? "Y" : "?")).slice(0, 1).toUpperCase()}
       </span>
       <div className="thread-said">
         <div>
-          <span className="strong">{c.author ?? "Someone"}</span>
+          <span className="strong">{c.author ?? (isSending(c.id) ? "You" : "Someone")}</span>
           {c.createdAt && <span className="subtle"> {ago(c.createdAt)}</span>}
+          {isSending(c.id) && <span className="subtle"> sending…</span>}
         </div>
         <ThreadBody body={c.body} />
         {c.suggestions.map((s) => (
@@ -79,47 +88,65 @@ function Comments(props: ItemProps) {
   ));
 }
 
-/** A reply to the thread, kept while it is being written and until the platform took it. */
-function Reply(props: { busy: boolean; send: (body: string) => Promise<boolean> }) {
+/**
+ * A reply to the thread. It shows in the thread the moment it is sent; the
+ * box keeps the words while closed, and gets them back if the platform refuses.
+ */
+function Reply(props: { send: (body: string) => Promise<boolean> }) {
   const [open, setOpen] = useState(false);
   const [body, setBody] = useState("");
-  const [sending, setSending] = useState(false);
   if (!open) {
     return (
       <div className="thread-foot">
         <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
-          Reply
+          {body.trim() ? "Continue reply" : "Reply"}
         </Button>
       </div>
     );
   }
   const send = async () => {
-    setSending(true);
-    const took = await props.send(body.trim());
-    setSending(false);
-    if (!took) return;
+    const words = body.trim();
+    if (!words) return;
     setBody("");
     setOpen(false);
+    if (!(await props.send(words))) {
+      setBody(words);
+      setOpen(true);
+    }
+  };
+  const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      void send();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      setOpen(false);
+    }
   };
   return (
     <div className="stack-tight thread-foot">
       <textarea
         className="input"
         aria-label="Reply"
+        aria-keyshortcuts="Control+Enter Meta+Enter Escape"
         rows={3}
         maxLength={MAX_THREAD_REPLY_CHARS}
         value={body}
         // biome-ignore lint/a11y/noAutofocus: the box opens because the person asked to reply
         autoFocus
+        onFocus={(e) => e.currentTarget.setSelectionRange(body.length, body.length)}
         onChange={(e) => setBody(e.target.value)}
+        onKeyDown={onKeyDown}
       />
       <div className="row-gap">
-        <Button size="sm" loading={sending} disabled={props.busy || !body.trim()} onClick={send}>
+        <Button size="sm" disabled={!body.trim()} onClick={send}>
           Send reply
         </Button>
-        <Button variant="outline" size="sm" disabled={sending} onClick={() => setOpen(false)}>
+        <Button variant="outline" size="sm" onClick={() => setOpen(false)}>
           Cancel
         </Button>
+        <KeyCaps keys="Mod+Enter" />
       </div>
     </div>
   );
@@ -128,8 +155,6 @@ function Reply(props: { busy: boolean; send: (body: string) => Promise<boolean> 
 /** One review thread: where it is, its comments and suggestions, a reply, and its resolve switch. */
 export function ThreadItem(
   props: ItemProps & {
-    resolving: boolean;
-    busy: boolean;
     resolve: () => void;
     /** Sends a reply as the user; true once the platform took it. */
     reply: (body: string) => Promise<boolean>;
@@ -151,13 +176,7 @@ export function ThreadItem(
         {t.outdated && <span className="badge">Outdated</span>}
         {t.resolved && <span className="badge badge-ok">Resolved</span>}
         {t.canResolve && (
-          <Button
-            variant="outline"
-            size="sm"
-            loading={props.resolving}
-            disabled={props.busy}
-            onClick={props.resolve}
-          >
+          <Button variant="outline" size="sm" onClick={props.resolve}>
             {t.resolved ? "Reopen" : "Resolve"}
           </Button>
         )}
@@ -172,7 +191,7 @@ export function ThreadItem(
       ) : (
         <>
           <Comments {...props} />
-          <Reply busy={props.busy} send={props.reply} />
+          <Reply send={props.reply} />
         </>
       )}
     </li>
