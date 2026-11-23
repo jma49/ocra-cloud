@@ -51,24 +51,40 @@ export function linesAt(
 }
 
 /**
- * The file with the fixes in its own line endings, or undefined when it is not
- * UTF-8 text, is too large, has no such lines, or the fixes overlap.
+ * Why a fix was left out of a file: `stale` when its lines are not as it
+ * expects them, `not_applicable` when the file is not UTF-8 text, is too
+ * large, has no such lines, or an earlier fix in the list overlaps them.
  */
-export function fixedFile(
-  bytes: Uint8Array,
-  fixes: LineFix | readonly LineFix[],
-): Uint8Array | undefined {
-  const text = textOf(bytes);
-  if (!text) return undefined;
+export type FixSkip = "stale" | "not_applicable";
+
+/**
+ * The file with each fix that can be applied, in its own line endings, and
+ * per fix why it was left out (null when applied). Of overlapping fixes the
+ * first in the list is applied. undefined when no fix was applied.
+ */
+export function fixEach(
+  bytes: Uint8Array | undefined,
+  fixes: readonly LineFix[],
+): { content: Uint8Array | undefined; skipped: (FixSkip | null)[] } {
+  const text = bytes && textOf(bytes);
+  if (!text) return { content: undefined, skipped: fixes.map(() => "not_applicable") };
   const { lines, eol, bom } = text;
-  // From the bottom up, so each fix's line numbers still hold when it is applied.
-  const ordered = [fixes].flat().sort((a, b) => b.startLine - a.startLine);
-  let floor = text.count + 1;
-  for (const fix of ordered) {
-    if (fix.startLine < 1 || fix.endLine < fix.startLine || fix.endLine >= floor) return undefined;
-    floor = fix.startLine;
+  const kept: LineFix[] = [];
+  const skipped = fixes.map((fix): FixSkip | null => {
+    if (fix.startLine < 1 || fix.endLine < fix.startLine || fix.endLine > text.count) {
+      return "not_applicable";
+    }
+    if (kept.some((k) => k.startLine <= fix.endLine && fix.startLine <= k.endLine)) {
+      return "not_applicable";
+    }
     const found = lines.slice(fix.startLine - 1, fix.endLine);
-    if (fix.expected && !sameLines(found, fix.expected)) return undefined;
+    if (fix.expected && !sameLines(found, fix.expected)) return "stale";
+    kept.push(fix);
+    return null;
+  });
+  if (kept.length === 0) return { content: undefined, skipped };
+  // From the bottom up, so each fix's line numbers still hold when it is applied.
+  for (const fix of kept.sort((a, b) => b.startLine - a.startLine)) {
     lines.splice(
       fix.startLine - 1,
       fix.endLine - fix.startLine + 1,
@@ -76,11 +92,23 @@ export function fixedFile(
     );
   }
   const body = new TextEncoder().encode(lines.join(eol));
-  if (!bom) return body;
-  const out = new Uint8Array(BOM.length + body.byteLength);
-  out.set(BOM);
-  out.set(body, BOM.length);
-  return out;
+  if (!bom) return { content: body, skipped };
+  const content = new Uint8Array(BOM.length + body.byteLength);
+  content.set(BOM);
+  content.set(body, BOM.length);
+  return { content, skipped };
+}
+
+/**
+ * The file with the fixes in its own line endings, or undefined when it is not
+ * UTF-8 text, is too large, has no such lines, or the fixes overlap.
+ */
+export function fixedFile(
+  bytes: Uint8Array,
+  fixes: LineFix | readonly LineFix[],
+): Uint8Array | undefined {
+  const each = fixEach(bytes, [fixes].flat());
+  return each.skipped.every((s) => s === null) ? each.content : undefined;
 }
 
 // A diff shows a CRLF file's lines with their CR; the file is split on CRLF.

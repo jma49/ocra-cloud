@@ -1,4 +1,5 @@
 import type { LineSide, PullActionOutcome } from "../shared/index.js";
+import type { LineFix } from "./fix.js";
 
 // A pull request's review threads, read and acted on as the signed-in user:
 // listed with their comments and suggestions, suggestions applied as one
@@ -17,6 +18,9 @@ export type Suggestion = {
   replacement: string;
   applicable: boolean;
   applied: boolean;
+  /** The file it changes, and the change as a commit of several applies it. */
+  path: string;
+  fix: LineFix;
 };
 
 export type Comment = {

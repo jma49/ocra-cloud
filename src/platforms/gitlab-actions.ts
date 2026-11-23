@@ -1,6 +1,6 @@
 import type { LineComment, MergeMethod } from "../shared/index.js";
-import { outcomeOf, type PullActions } from "./actions.js";
-import { fixedFile, fromBase64, MAX_FIX_FILE_BYTES, toBase64 } from "./fix.js";
+import { outcomeOf, type PullActions, plannedFixes, unsent } from "./actions.js";
+import { fromBase64, MAX_FIX_FILE_BYTES, toBase64 } from "./fix.js";
 import { type DiffRefs, gitlabHeaders, mergeRequestUrl } from "./gitlab-changes.js";
 import { gitlabUserIds } from "./gitlab-roster.js";
 import { platformCall, platformSend } from "./http.js";
@@ -137,37 +137,48 @@ export function gitlabActions(origin: string): PullActions {
         { 405: "not_mergeable", 406: "not_mergeable", 409: "head_moved" },
       );
     },
-    async applyFix(token, fullName, number, commit) {
+    async applyFixes(token, fullName, number, commit) {
       const headers = { headers: gitlabHeaders(token) };
       const url = mergeRequestUrl(origin, fullName, number);
       const mr = await platformCall<MergeRequest>(url, headers);
       if (!mr) return null;
-      if (mr.sha !== commit.head) return "head_moved";
+      if (mr.sha !== commit.head) return unsent("head_moved", commit.files);
       // The branch is in the project the merge request came from, a fork's included.
       const project = `${origin}/api/v4/projects/${mr.source_project_id}/repository`;
-      const path = encodeURIComponent(commit.path);
-      const read = await platformCall<File>(`${project}/files/${path}?ref=${commit.head}`, headers);
-      if (!read) return null;
-      if (read.encoding !== "base64" || read.size > MAX_FIX_FILE_BYTES) return "not_applicable";
-      const bytes = fromBase64(read.content);
-      const fixed = bytes && fixedFile(bytes, commit.fixes);
-      if (!fixed) return "not_applicable";
-      // last_commit_id: GitLab refuses the commit when the file changed since it was read.
-      return outcomeOf(
+      const reads: (File | null)[] = [];
+      for (const f of commit.files) {
+        const path = encodeURIComponent(f.path);
+        reads.push(
+          await platformCall<File>(`${project}/files/${path}?ref=${commit.head}`, headers),
+        );
+      }
+      if (reads.some((r) => r === null)) return null;
+      const plan = plannedFixes(
+        reads.map((read) =>
+          read?.encoding === "base64" && read.size <= MAX_FIX_FILE_BYTES
+            ? fromBase64(read.content)
+            : undefined,
+        ),
+        commit,
+      );
+      const { skipped } = plan;
+      if (!plan.send) return { outcome: "not_applicable", skipped };
+      const lastCommit = new Map(commit.files.map((f, i) => [f.path, reads[i]?.last_commit_id]));
+      // last_commit_id: GitLab refuses the commit when a file changed since it was read.
+      const outcome = outcomeOf(
         await send(token, "POST", `${project}/commits`, {
           branch: mr.source_branch,
-          commit_message: commit.message,
-          actions: [
-            {
-              action: "update",
-              file_path: commit.path,
-              content: toBase64(fixed),
-              encoding: "base64",
-              last_commit_id: read.last_commit_id,
-            },
-          ],
+          commit_message: plan.message,
+          actions: plan.changed.map((f) => ({
+            action: "update",
+            file_path: f.path,
+            content: toBase64(f.content),
+            encoding: "base64",
+            last_commit_id: lastCommit.get(f.path),
+          })),
         }),
       );
+      return outcome && { outcome, skipped };
     },
     description,
     async setDescription(token, fullName, number, edit) {

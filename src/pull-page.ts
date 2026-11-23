@@ -345,12 +345,12 @@ pullPage.post(
     const pull = pullOnPlatform([platform], reviewed)?.pull ?? reviewed;
     // The fix's lines are the reviewed head's: a pull request that moved since is head_moved,
     // which also keeps a second click from committing it twice.
-    const outcome = await platform.actions.applyFix(token, pull.repo, pull.number, {
-      path,
+    const commit = await platform.actions.applyFixes(token, pull.repo, pull.number, {
       head: pull.head,
-      fixes: [fix],
-      message: fixMessage(finding.title),
+      files: [{ path, fixes: [fix] }],
+      message: () => fixMessage(finding.title),
     });
+    const outcome = commit?.outcome ?? null;
     if (outcome === "done") {
       await data.findingOutcomes.markFixed([finding.id], "applied");
       const at = `${pull.repo}#${pull.number}`;
