@@ -112,6 +112,8 @@
   align-items: center;
   gap: 6px;
   padding: 4px 0;
+  --glide-fill: var(--fill2);
+  --glide-r: var(--r-ctl);
 }
 .rail-brand {
   display: grid;
@@ -129,9 +131,6 @@
   border-radius: var(--r-ctl);
   color: var(--t2);
   transition: background-color var(--d-fast) var(--e-std);
-}
-.rail-link:hover {
-  background: var(--fill2);
 }
 .rail-link.on {
   background: var(--raised);
@@ -384,7 +383,8 @@
     flex-direction: column;
   }
   .settings-nav {
-    position: static;
+    position: relative;
+    top: 0;
     align-self: stretch;
     min-width: 0;
     flex: none;

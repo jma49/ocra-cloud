@@ -3,8 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import type { LiveRole, LiveShareView } from "../../../src/shared/index.js";
 import { api } from "../api.js";
+import { CopyButton } from "../copy-button.js";
 import { Drawer } from "../drawer.js";
-import { useToast } from "../toast.js";
 import { ActionError, Seg, useAction } from "../ui.js";
 
 // Who besides the owner may watch a run: people by their sign-in name, and
@@ -23,7 +23,6 @@ export function ShareDrawer(props: {
   onClose: () => void;
 }) {
   const { id, share, onChange } = props;
-  const toast = useToast();
   const [login, setLogin] = useState("");
   const [role, setRole] = useState<LiveRole>("comment");
   const send = useAction(async (path: string, method: string, body?: unknown) => {
@@ -37,10 +36,6 @@ export function ShareDrawer(props: {
   const add = async (e: FormEvent) => {
     e.preventDefault();
     if (await send.run("/people", "POST", { login: login.trim(), role })) setLogin("");
-  };
-  const copy = async (url: string) => {
-    await navigator.clipboard.writeText(url);
-    toast("Link copied");
   };
 
   return (
@@ -147,9 +142,12 @@ export function ShareDrawer(props: {
             />
             <div className="share-link-row">
               <input className="input mono" aria-label="Link" readOnly value={share.link.url} />
-              <Button type="button" onClick={() => share.link && copy(share.link.url)}>
-                Copy link
-              </Button>
+              <CopyButton
+                text={share.link.url}
+                label="Copy link"
+                said="Link copied"
+                variant="default"
+              />
             </div>
             <div className="share-link-row">
               <p className="subtle small m-0 grow">A new link stops the old one from working.</p>

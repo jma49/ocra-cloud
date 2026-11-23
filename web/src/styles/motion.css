@@ -45,8 +45,11 @@
 /* One highlight that glides to the item under the pointer or the picked one
    (glide.ts), in place of a fill on each item. */
 .glide {
-  position: relative;
   isolation: isolate;
+}
+/* A list that places itself (the sticky rail) keeps its own position. */
+:where(.glide) {
+  position: relative;
 }
 .glide::before {
   content: "";
@@ -56,7 +59,7 @@
   left: 0;
   width: var(--glide-w, 0);
   height: var(--glide-h, 0);
-  border-radius: var(--r-tab);
+  border-radius: var(--glide-r, var(--r-tab));
   background: var(--glide-fill, var(--fill));
   transform: translate(var(--glide-x, 0), var(--glide-y, 0));
   opacity: 0;

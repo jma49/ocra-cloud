@@ -114,9 +114,11 @@ function RailLink(props: { to: string; label: string; on: boolean; icon: LucideI
 
 function Rail(props: { me: Me; place: Place | undefined }) {
   const row = useRailRow();
+  const nav = useRef<HTMLElement>(null);
+  useHoverGlide(nav, ".rail-link");
   return (
     <TooltipProvider delay={300}>
-      <nav className="rail" aria-label="Console">
+      <nav className="rail glide" aria-label="Console" ref={nav}>
         <Link to="/" className="rail-brand" label="ocra">
           <EyesMark size={22} />
         </Link>

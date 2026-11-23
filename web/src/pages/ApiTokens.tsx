@@ -8,10 +8,10 @@ import {
 } from "../../../src/shared/index.js";
 import { api } from "../api.js";
 import { useRead } from "../cache.js";
+import { CopyButton } from "../copy-button.js";
 import { ago, date } from "../format.js";
 import { AddGlyph } from "../glyphs.js";
 import { StackTable } from "../stack-table.js";
-import { useToast } from "../toast.js";
 import { SCOPE_LABEL, TokenDrawer } from "../tokens/token-drawer.js";
 import { ActionError, EmptyState, LoadError, Loading, PageHead, useAction } from "../ui.js";
 
@@ -24,13 +24,8 @@ export function ApiTokens() {
   const [made, setMade] = useState<ApiTokenCreated | null>(null);
   const [confirming, setConfirming] = useState<string | null>(null);
   const revoke = useAction((id: string) => api(`/tokens/${id}`, { method: "DELETE" }));
-  const toast = useToast();
   const full = (data?.tokens.length ?? 0) >= API_TOKEN_MAX;
 
-  const copy = async (secret: string) => {
-    await navigator.clipboard.writeText(secret);
-    toast("Token copied");
-  };
   const remove = async (id: string) => {
     if ((await revoke.run(id)) === undefined) return;
     setConfirming(null);
@@ -59,9 +54,7 @@ export function ApiTokens() {
           </p>
           <div className="token-secret">
             <code className="mono">{made.secret}</code>
-            <Button type="button" variant="outline" size="sm" onClick={() => copy(made.secret)}>
-              Copy
-            </Button>
+            <CopyButton text={made.secret} size="sm" said="Token copied" />
             <Button type="button" variant="outline" size="sm" onClick={() => setMade(null)}>
               Done
             </Button>

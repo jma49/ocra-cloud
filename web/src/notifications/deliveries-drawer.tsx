@@ -10,10 +10,10 @@ import type {
 } from "../../../src/shared/index.js";
 import { api } from "../api.js";
 import { useRead } from "../cache.js";
+import { CopyButton } from "../copy-button.js";
 import { Drawer } from "../drawer.js";
 import { ago } from "../format.js";
 import { WEBHOOK_DOCS } from "../site.js";
-import { useToast } from "../toast.js";
 import { ActionError, LoadError, Loading, useAction } from "../ui.js";
 
 // A channel up close: how its last deliveries went, and a webhook's signing
@@ -75,23 +75,12 @@ const answer = (d: NotifyDeliveryView, email: boolean) =>
 
 /** A secret the server answers once: shown with Copy until the page lets go of it. */
 export function SecretOnce(props: { secret: string; what: string }) {
-  const toast = useToast();
   return (
     <div className="stack-tight" role="status">
       <span className="small">{props.what}, shown only now:</span>
       <div className="token-secret">
         <code className="mono">{props.secret}</code>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={async () => {
-            await navigator.clipboard.writeText(props.secret);
-            toast("Secret copied");
-          }}
-        >
-          Copy
-        </Button>
+        <CopyButton text={props.secret} size="sm" said="Secret copied" />
       </div>
     </div>
   );

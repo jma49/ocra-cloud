@@ -5,6 +5,7 @@ import { formatModelId, parseModelId } from "../../../src/shared/index.js";
 import { loadKeys } from "../account-keys.js";
 import { ApiError, api, why } from "../api.js";
 import { useRead } from "../cache.js";
+import { CopyButton } from "../copy-button.js";
 import { ago } from "../format.js";
 import { type Prefs, PrefsPending, type Settings, usePrefs } from "../prefs.js";
 import { useToast } from "../toast.js";
@@ -156,10 +157,6 @@ export function Defaults() {
   const rules = draft.settings.rules?.length
     ? JSON.stringify({ rules: draft.settings.rules }, null, 2)
     : null;
-  const copy = async (text: string) => {
-    await navigator.clipboard.writeText(text).catch(() => {});
-    toast("Copied", "success");
-  };
   const restore = async (id: string) => {
     try {
       await api(`/preferences/versions/${id}/restore`, { method: "POST" });
@@ -178,9 +175,7 @@ export function Defaults() {
       <div className="card">
         <div className="card-head">
           <h2>.ocra/config.json</h2>
-          <Button type="button" variant="outline" size="sm" onClick={() => copy(config)}>
-            Copy
-          </Button>
+          <CopyButton text={config} size="sm" />
         </div>
         <CodeBlock label=".ocra/config.json">{config}</CodeBlock>
       </div>
@@ -188,9 +183,7 @@ export function Defaults() {
         <div className="section card">
           <div className="card-head">
             <h2>.ocra/rules.json</h2>
-            <Button type="button" variant="outline" size="sm" onClick={() => copy(rules)}>
-              Copy
-            </Button>
+            <CopyButton text={rules} size="sm" />
           </div>
           <CodeBlock label=".ocra/rules.json">{rules}</CodeBlock>
         </div>

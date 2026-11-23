@@ -126,6 +126,8 @@ describe("the live page", () => {
     });
     const [kept] = fold(emptyProgress(), events).findings.values();
     expect(await screen.findByText(kept?.title ?? "")).toBeTruthy();
+    const file = kept?.file ?? "";
+    expect(screen.getByTitle(file).textContent).toContain(file);
     act(() => source.emit("end", "finished"));
     expect(source.closed).toBe(true);
   });
