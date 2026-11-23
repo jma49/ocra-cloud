@@ -592,6 +592,18 @@ td.finding-cell {
     rotate var(--d-move) var(--e-std),
     border-color var(--d-fast) var(--e-std);
 }
+/* A fold that opens with its own chevron in place of the browser's marker. */
+/* Below any class's rule, so a fold's own head keeps its layout. */
+:where(summary:has(> .fold)) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  list-style: none;
+}
+:where(summary:has(> .fold))::-webkit-details-marker {
+  display: none;
+}
 :is(button, summary):hover > .fold {
   border-color: var(--t1);
 }

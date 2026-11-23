@@ -190,6 +190,7 @@ export function ThreadItem(
       {t.resolved ? (
         <details className="thread-folded">
           <summary className="subtle small">
+            <span className="fold" aria-hidden="true" />
             {t.comments.length} {t.comments.length === 1 ? "comment" : "comments"}
           </summary>
           <Comments {...props} />
