@@ -1,3 +1,4 @@
+import { modelPriceSchema } from "@open-cr-agent/cloud-contract";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type AuthStyle, matchRoute, providers } from "../src/providers.js";
 import { call, resetDb, signIn } from "./helpers.js";
@@ -101,6 +102,17 @@ describe("routes", () => {
     };
     expect(body.providers.find((p) => p.name === "openrouter")?.effort).toBe("openrouter");
     expect(body.providers.filter((p) => p.effort).map((p) => p.name)).toEqual(["openrouter"]);
+  });
+  it("lists the prices it knows by model, so the CLI counts a review's cost", async () => {
+    const body = (await (await call("/api/providers")).json()) as {
+      providers: { name: string; prices?: Record<string, unknown> }[];
+    };
+    expect(body.providers.filter((p) => p.prices).map((p) => p.name)).toEqual(["anthropic"]);
+    const prices = body.providers.find((p) => p.name === "anthropic")?.prices ?? {};
+    expect(prices["claude-sonnet-5-5"]).toEqual({ input: 2, output: 10, cachedInput: 0.1 });
+    for (const price of Object.values(prices)) {
+      expect(modelPriceSchema.safeParse(price).success).toBe(true);
+    }
   });
 });
 

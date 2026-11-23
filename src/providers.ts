@@ -1,4 +1,5 @@
-import type { EffortStyle, ProviderId } from "@open-cr-agent/cloud-contract";
+import type { EffortStyle, ModelPrice, ProviderId } from "@open-cr-agent/cloud-contract";
+import { anthropicPrices } from "./model-prices.js";
 import { chatPath, type ProviderGroup, type Wire } from "./shared/index.js";
 
 // The built-in model providers the gateway forwards to, one record each: how the web
@@ -46,6 +47,8 @@ export type Provider = {
   models?: KeyCall;
   /** How the CLI's direct runtime sends a reasoning effort; absent, OpenAI's `reasoning_effort`. */
   effort?: EffortStyle;
+  /** What its models cost, by model id, for the CLI's reported cost and spend limit. */
+  prices?: Readonly<Record<string, ModelPrice>>;
   /** The server's own key, which every account's calls use (a self-hosted MODEL_ENDPOINTS entry). */
   sharedKey?: string;
 };
@@ -77,6 +80,7 @@ export const providers: Readonly<Record<ProviderId, Provider>> = {
       messages("/v1/messages/count_tokens", "x-api-key"),
     ],
     verify: keyCall("/v1/models", "x-api-key"),
+    prices: anthropicPrices,
   },
   openrouter: {
     label: "OpenRouter",

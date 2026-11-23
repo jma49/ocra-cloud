@@ -61,6 +61,7 @@ export const providersRoute = new Hono<AppEnv>().get("/", (c) =>
         base: p.base,
         paths: p.routes.map((r) => (typeof r.path === "string" ? r.path : r.path.source)),
         ...(p.effort ? { effort: p.effort } : {}),
+        ...(p.prices ? { prices: p.prices } : {}),
         ...(p.sharedKey ? { managed: true } : {}),
       })),
     },
