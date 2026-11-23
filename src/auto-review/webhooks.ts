@@ -11,6 +11,7 @@ import { gitlabFields } from "../inbound/fields.js";
 import { receive } from "../inbound/receive.js";
 import { gitlabSteps } from "../inbound/steps.js";
 import { gitlabSignal } from "../merge-when-ready/hooks.js";
+import { gitlabCiFailure } from "../notify/ci-hooks.js";
 import { COMMIT_ID } from "../platforms/contents.js";
 import { githubHostOf, gitlabClientOf } from "../platforms/registry.js";
 import { gitlabMerged } from "../stack-merge/hooks.js";
@@ -26,7 +27,8 @@ import type { AutoReviewService } from "./routes.js";
 // not. Its pre-merge checks are evaluated then, and again when its title or
 // description is edited. GitLab's note hook, on the same address, queues
 // answers (./replies.ts); its merge request and pipeline hooks also move
-// the intents armed to merge when ready (src/merge-when-ready/).
+// the intents armed to merge when ready (src/merge-when-ready/), and a
+// failed merge request pipeline tells its author (src/notify/ci-hooks.ts).
 
 type PullChange = {
   fullName: string;
@@ -144,8 +146,9 @@ export function autoReviewWebhooks(service: AutoReviewService) {
     }
     const signal = gitlabSignal(kind, body);
     const merged = gitlabMerged(kind, body);
+    const ci = gitlabCiFailure(kind, body);
     const tells = !!note?.data || !!mr;
-    const steps = await gitlabSteps(c.var.db, repo, tells, signal?.signal, merged);
+    const steps = await gitlabSteps(c.var.db, repo, tells || !!ci, signal?.signal, merged);
     const received = await receive(c, {
       platform: "gitlab",
       host,
@@ -160,6 +163,7 @@ export function autoReviewWebhooks(service: AutoReviewService) {
           ? { signal: { fullName: repo.fullName, signal: signal.signal } }
           : {}),
         ...(merged && steps.includes("intents") ? { merged } : {}),
+        ...(ci ? { ci } : {}),
       },
     });
     if (!received) return c.json({ queued: 0, duplicate: true }, 202);

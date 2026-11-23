@@ -10,10 +10,12 @@ import {
   type InboundOutcome,
 } from "../db/inbound-events.js";
 import { reviewRepoFor } from "../db/review-jobs.js";
+import { scoped } from "../db/scoped.js";
 import { masterKeys } from "../keyring.js";
 import { errorName, logError } from "../log.js";
 import type { MergeRunner } from "../merge-when-ready/advance.js";
 import { moveGithubIntents, moveIntents, type PullSignal } from "../merge-when-ready/hooks.js";
+import { type CiFailure, tellCiFailed, tellGithubCi } from "../notify/ci-hooks.js";
 import type { Mailer } from "../notify/email.js";
 import { gitlabStartOf } from "../notify/gitlab-starts.js";
 import type { Outbox } from "../notify/notify.js";
@@ -48,6 +50,8 @@ export type InboundWork = {
   signal?: { fullName: string; signal: PullSignal };
   /** GitLab's: the merge request that merged, whose stacked ones move onto its base. */
   merged?: MergedPull;
+  /** The repository's CI failed on a pull request's head, read when it arrived (src/notify/ci-hooks.ts). */
+  ci?: CiFailure;
 };
 
 /** What a host gives the side effects, in a request or in its sweep. */
@@ -96,6 +100,7 @@ async function runStep(
   const body = work.body ?? {};
   if (row.platform === "github" && step === "tell") {
     await tellGithubHook(db, row.host, out, row.event, body, runner.bots);
+    if (work.ci) await tellGithubCi(db, row.host, out, row.repo, work.ci);
     return;
   }
   if (row.platform === "github" && step === "intents") {
@@ -112,6 +117,8 @@ async function runStep(
   } else if (step === "intents") {
     if (work.signal) await moveIntents(merges, repo, work.signal.fullName, work.signal.signal);
     await moveStacks(merges, repo, repo.fullName, work.signal?.signal, work.merged);
+  } else if (row.event === "Pipeline Hook") {
+    if (work.ci) await tellCiFailed(db, scoped(db, repo.accountId), out, repo, work.ci);
   } else if (row.event === "Note Hook") {
     const startOf = onceEach(gitlabStartOf(reader, repo));
     await tellGitlabNote(db, out, repo, body, startOf);

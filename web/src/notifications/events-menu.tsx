@@ -27,7 +27,7 @@ const EVENT_LABEL: Record<MenuEvent, string> = {
   review_requested: "A review is asked of me",
   pull_reviewed: "My pull request is reviewed",
   pull_closed: "My pull request is merged or closed",
-  checks_failed: "Pre-merge checks fail on my pull request",
+  checks_failed: "Checks or CI fail on my pull request",
   review_blocking: "ocra finds something critical in my pull request",
   merge_when_ready: "A pull request I set to merge when ready merges or stops",
   stack_merge: "A stack merge I started finishes or stops",
