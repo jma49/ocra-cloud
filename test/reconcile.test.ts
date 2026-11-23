@@ -147,10 +147,10 @@ async function heldOpen(a: Awaited<ReturnType<typeof account>>, name: string, nu
   return numbers.map((number): Pull => ({ number, state: "closed", merged, updated: merged }));
 }
 
-const range = (from: number, count: number) => Array.from({ length: count }, (_, i) => from + i);
+/** The Worker's calls per scheduled run (WORKER_CALLS, src/cron-calls.ts), which the reconciliation shares. */
+const WORKER_CALLS = 45;
 
-/** The Worker's calls per run (WORKER_RECONCILE_CALLS), which the Free plan's 50 must hold beside the cron's other work. */
-const WORKER_BUDGET = 20;
+const range = (from: number, count: number) => Array.from({ length: count }, (_, i) => from + i);
 
 describe("the daily reconciliation", () => {
   it("never makes more platform calls in a run than its budget", async () => {
@@ -172,13 +172,14 @@ describe("the daily reconciliation", () => {
     platformsWith(pulls);
     await hourly();
     expect(calls).toBeGreaterThan(0);
-    expect(calls).toBeLessThanOrEqual(WORKER_BUDGET);
+    expect(calls).toBeLessThanOrEqual(WORKER_CALLS);
   });
 
   it("reads a repository its budget cut short again on the next run, and finishes it", async () => {
     const pulls: Record<string, Pull[]> = {};
     const accounts: Awaited<ReturnType<typeof account>>[] = [];
-    for (const n of [1, 2]) {
+    // Thirteen calls each: a token, two listings and ten pull requests read one by one.
+    for (const n of [1, 2, 3, 4]) {
       const a = await account(n, [{ name: `org${n}/app` }]);
       accounts.push(a);
       pulls[`org${n}/app`] = await heldOpen(a, `org${n}/app`, range(1, 10));
@@ -188,11 +189,11 @@ describe("the daily reconciliation", () => {
 
     const reads = platformsWith(pulls);
     await hourly();
-    expect(calls).toBeLessThanOrEqual(WORKER_BUDGET);
-    expect((await closes()).sort()).not.toEqual([10, 10]);
+    expect(calls).toBeLessThanOrEqual(WORKER_CALLS);
+    expect(await closes()).not.toEqual([10, 10, 10, 10]);
 
     await hourly();
-    expect(await closes()).toEqual([10, 10]);
+    expect(await closes()).toEqual([10, 10, 10, 10]);
     const listed = reads.length;
     await hourly();
     // Both finished for the day: nothing is read again.

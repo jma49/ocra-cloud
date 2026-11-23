@@ -1,3 +1,4 @@
+import { outboundFetch } from "../calls.js";
 import { deadline } from "../deadline.js";
 import { boundedBytes } from "../platforms/http.js";
 import type { NotifyDeliveryEvent, NotifyKind, NotifyWhen, WebhookPull } from "../shared/index.js";
@@ -205,7 +206,7 @@ export function chatAttempt(kind: HookKind, address: string): Attempt {
     if (!url) return REFUSED;
     const clock = deadline(TIMEOUT_MS);
     try {
-      const res = await fetch(url, {
+      const res = await outboundFetch(url, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: delivery.payload,

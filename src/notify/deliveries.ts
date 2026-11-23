@@ -1,3 +1,4 @@
+import { type CallBudget, item, uncapped } from "../calls.js";
 import type { Db } from "../db/client.js";
 import { type AttemptResult, claimDeliveryRetry } from "../db/notify-deliveries.js";
 import { type Row, type Scoped, scoped } from "../db/scoped.js";
@@ -43,6 +44,13 @@ const LEASE_MS = 2 * 60_000;
 export const KEPT_DELIVERIES = 20;
 /** Deliveries one sweep tries; the rest wait for the next. */
 const PER_SWEEP = 50;
+
+const REFUSED_RESULT: AttemptResult = {
+  ...REFUSED,
+  latencyMs: 0,
+  state: "failed",
+  retryAt: null,
+};
 
 async function attemptOnce(
   attempt: Attempt,
@@ -96,29 +104,37 @@ export async function deliver(
       }),
     );
     // A delivery the database could not record still goes once, without a retry or a log row.
-    const result = await attemptOnce(attempt, delivery, 1, now);
-    if (recorded) await record(() => data.deliveries.finish(id, 1, result));
-    ok &&= result.state === "delivered";
+    const sent = await item(() => attemptOnce(attempt, delivery, 1, now));
+    if (sent.cut) {
+      // The run's calls ran out first: nothing went, and the retry sweep sends it.
+      if (recorded) await record(() => data.deliveries.giveBack(id, 1, new Date()));
+      ok = false;
+      continue;
+    }
+    if (recorded) await record(() => data.deliveries.finish(id, 1, sent.value));
+    ok &&= sent.value.state === "delivered";
   }
   await record(() => data.deliveries.prune(channel.id, KEPT_DELIVERIES));
   return ok;
 }
 
 /**
- * Tries the deliveries due again; how many it tried. It goes round the
- * channels, one delivery each in turn, so that one account's failing
- * address cannot take a whole sweep from everyone else's. attemptFor gives
- * how the channel's kind is sent to, or undefined when this host cannot
- * send it (the delivery is given up as refused).
+ * Tries the deliveries due again, while `calls` has room for one more; how
+ * many it tried. It goes round the channels, one delivery each in turn, so
+ * that one account's failing address cannot take a whole sweep from
+ * everyone else's. attemptFor gives how the channel's kind is sent to, or
+ * undefined when this host cannot send it (the delivery is given up as
+ * refused). One the calls ran out before is given back, due again.
  */
 export async function retryDeliveries(
   db: Db,
   attemptFor: (channel: Row<"notifyChannels">) => Promise<Attempt | undefined>,
   now = () => new Date(),
+  calls: CallBudget = uncapped(),
 ): Promise<number> {
   let tried = 0;
   const round = new Set<string>();
-  for (; tried < PER_SWEEP; tried++) {
+  for (; tried < PER_SWEEP && calls.has(); tried++) {
     let due = await claimDeliveryRetry(db, now(), LEASE_MS, [...round]);
     if (!due && round.size > 0) {
       round.clear();
@@ -129,9 +145,14 @@ export async function retryDeliveries(
     const data = scoped(db, due.accountId);
     const channel = await data.get("notifyChannels", due.channelId);
     const attempt = channel && (await attemptFor(channel));
-    const result: AttemptResult = attempt
-      ? await attemptOnce(attempt, due, due.attempts, now())
-      : { ...REFUSED, latencyMs: 0, state: "failed", retryAt: null };
+    const sent = attempt
+      ? await item(() => attemptOnce(attempt, due, due.attempts, now()))
+      : ({ value: REFUSED_RESULT, cut: false } as const);
+    if (sent.cut) {
+      await data.deliveries.giveBack(due.id, due.attempts, now());
+      break;
+    }
+    const result = sent.value;
     await data.deliveries.finish(due.id, due.attempts, result);
     if (channel && result.state !== "pending") {
       await data.update("notifyChannels", channel.id, {

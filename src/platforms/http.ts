@@ -1,3 +1,4 @@
+import { outboundFetch } from "../calls.js";
 import { deadline } from "../deadline.js";
 import { type CacheOptions, cachedFetch } from "./answer-cache.js";
 import { notePlatformLimit } from "./rate-limit.js";
@@ -12,7 +13,7 @@ async function send(url: string, init: RequestInit, options?: CacheOptions): Pro
     (u, i) => {
       // The deadline may pass while the cache reads its key, before the call starts.
       i.signal?.throwIfAborted();
-      return fetch(u, { ...i, redirect: "manual" });
+      return outboundFetch(u, { ...i, redirect: "manual" });
     },
     options,
   );

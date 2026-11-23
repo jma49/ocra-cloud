@@ -86,6 +86,25 @@ export async function finishInbound(
   return changedRows(result) > 0;
 }
 
+/**
+ * Gives back an attempt the run's calls ran out during: due again now with
+ * the steps it left, the attempt not counted, unless another runner took it.
+ */
+export async function giveBackInbound(
+  db: Db,
+  id: string,
+  attempts: number,
+  work: unknown,
+  now: Date,
+): Promise<boolean> {
+  const t = inboundEvents;
+  const result = await db
+    .update(t)
+    .set({ attempts: attempts - 1, work, retryAt: now })
+    .where(and(eq(t.id, id), eq(t.attempts, attempts), eq(t.state, "pending")));
+  return changedRows(result) > 0;
+}
+
 /** Takes the next attempt of the delivery due longest, of a repository not in skip; undefined when none is due. */
 export async function claimInboundRetry(
   db: Db,

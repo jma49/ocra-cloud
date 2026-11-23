@@ -7,6 +7,7 @@ import { migrate } from "drizzle-orm/libsql/migrator";
 import { Hono } from "hono";
 import { createApp } from "../app.js";
 import { retryAutomations } from "../automations/retry.js";
+import { CallBudget } from "../calls.js";
 import type { Db } from "../db/client.js";
 import { retryInbound } from "../inbound/run.js";
 import { masterKeys } from "../keyring.js";
@@ -205,7 +206,7 @@ export async function openHost(options: HostOptions) {
         env: bindings,
         platforms: platformsOf(bindings, options.publicUrl ?? "http://localhost"),
         bots,
-        calls: NODE_RECONCILE_CALLS,
+        calls: new CallBudget(NODE_RECONCILE_CALLS),
       }),
     /** Tries again the channels' deliveries due, of every kind; how many it tried. */
     deliveryRetries: () =>

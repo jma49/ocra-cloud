@@ -60,6 +60,19 @@ export function accountNotifyDeliveries(db: Db, accountId: string) {
       return changedRows(res) > 0;
     },
 
+    /**
+     * Gives back an attempt the run's calls ran out before, so nothing was
+     * sent: due again now, the attempt not counted, unless another sender
+     * took it since.
+     */
+    async giveBack(id: string, attempts: number, now: Date): Promise<boolean> {
+      const res = await db
+        .update(d)
+        .set({ attempts: attempts - 1, retryAt: now })
+        .where(and(own, eq(d.id, id), eq(d.attempts, attempts), eq(d.state, "pending")));
+      return changedRows(res) > 0;
+    },
+
     /** The channel's newest deliveries. */
     recent(channelId: string, limit: number) {
       return db

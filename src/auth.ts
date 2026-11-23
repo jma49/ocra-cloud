@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { audit } from "./audit.js";
+import { outboundFetch } from "./calls.js";
 import { githubIdentity, refuseIdentity, upsertAccount } from "./db/accounts.js";
 import { scoped } from "./db/scoped.js";
 import { deadline } from "./deadline.js";
@@ -41,7 +42,7 @@ const GITHUB_TIMEOUT_MS = 10_000;
 async function githubCall<T>(url: string, init: RequestInit): Promise<T | null> {
   const clock = deadline(GITHUB_TIMEOUT_MS);
   try {
-    const res = await fetch(url, { ...init, signal: clock.signal });
+    const res = await outboundFetch(url, { ...init, signal: clock.signal });
     const body = (await res.json()) as T;
     return res.ok ? body : null;
   } catch {

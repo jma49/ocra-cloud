@@ -1,3 +1,4 @@
+import { type CallBudget, uncapped } from "../calls.js";
 import type { Db } from "../db/client.js";
 import type { MergedPull } from "../db/closed-pulls.js";
 import { type DigestNumbers, digestAccounts } from "../db/notify.js";
@@ -23,13 +24,18 @@ export type Merges = { merged: number; newest: MergedPull[] };
 
 export const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
-/** Every account's run of fn, a few at a time; one that fails is logged as event and the rest still go. */
+/**
+ * Every account's run of fn, a few at a time, while `calls` has room for
+ * one more: the accounts after wait for the next run, their work not
+ * claimed. One that fails is logged as event and the rest still go.
+ */
 export async function forAccounts<T>(
   accounts: readonly T[],
   event: string,
   fn: (account: T) => Promise<unknown>,
+  calls: CallBudget = uncapped(),
 ): Promise<void> {
-  for (let i = 0; i < accounts.length; i += ACCOUNTS_AT_ONCE) {
+  for (let i = 0; i < accounts.length && calls.has(); i += ACCOUNTS_AT_ONCE) {
     await Promise.all(
       accounts
         .slice(i, i + ACCOUNTS_AT_ONCE)
@@ -96,8 +102,16 @@ async function sendDigest(
 }
 
 /** Every account's digest; one that fails is logged and the rest still go. */
-export async function runDigests(db: Db, out: Outbox, now = new Date()): Promise<void> {
-  await forAccounts(await digestAccounts(db), "digest_failed", (id) =>
-    sendDigest(db, out, id, now),
+export async function runDigests(
+  db: Db,
+  out: Outbox,
+  now = new Date(),
+  calls?: CallBudget,
+): Promise<void> {
+  await forAccounts(
+    await digestAccounts(db),
+    "digest_failed",
+    (id) => sendDigest(db, out, id, now),
+    calls,
   );
 }

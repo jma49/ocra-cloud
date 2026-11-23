@@ -1,3 +1,4 @@
+import type { CallBudget } from "../calls.js";
 import type { Db } from "../db/client.js";
 import { targetAccounts } from "../db/review-targets.js";
 import { scoped } from "../db/scoped.js";
@@ -95,8 +96,16 @@ async function sendAtRisk(db: Db, out: Outbox, accountId: string, now: Date): Pr
 }
 
 /** Every account's pull requests newly at risk; one that fails is logged and the rest still go. */
-export async function runAtRisk(db: Db, out: Outbox, now = new Date()): Promise<void> {
-  await forAccounts(await targetAccounts(db), "at_risk_failed", (id) =>
-    sendAtRisk(db, out, id, now),
+export async function runAtRisk(
+  db: Db,
+  out: Outbox,
+  now = new Date(),
+  calls?: CallBudget,
+): Promise<void> {
+  await forAccounts(
+    await targetAccounts(db),
+    "at_risk_failed",
+    (id) => sendAtRisk(db, out, id, now),
+    calls,
   );
 }

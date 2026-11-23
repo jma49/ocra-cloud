@@ -1,4 +1,5 @@
 import type { Context } from "hono";
+import type { CallBudget } from "../calls.js";
 import { decryptWithAny, encryptSecret, type MasterKeys } from "../crypto.js";
 import type { Db } from "../db/client.js";
 import type { Row, Scoped } from "../db/scoped.js";
@@ -122,9 +123,9 @@ async function attemptOn(out: Transports, channel: Row<"notifyChannels">): Promi
 
 const refused: Attempt = async () => REFUSED;
 
-/** Tries again every account's deliveries due; how many it tried. */
-export const retryNotifications = (db: Db, out: Transports, now?: () => Date) =>
-  retryDeliveries(db, (channel) => attemptOn(out, channel), now);
+/** Tries again every account's deliveries due, within `calls`; how many it tried. */
+export const retryNotifications = (db: Db, out: Transports, now?: () => Date, calls?: CallBudget) =>
+  retryDeliveries(db, (channel) => attemptOn(out, channel), now, calls);
 
 /** What the channel's kind is sent: a webhook's events, or the message as its medium shows it. */
 async function outgoingOf(

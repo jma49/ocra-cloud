@@ -1,9 +1,11 @@
 // What the daily reconciliation (src/reconcile.ts) reads of an enrolled
 // repository: its pull requests as the platform has them now, so a close or
 // an open state a webhook missed is filled in. Read as the bot or the
-// enrolling account's link; nothing is written to the platform. Every call
-// is taken from the run's budget first, and a reader the budget refuses
-// answers `spent` without calling.
+// enrolling account's link; nothing is written to the platform. A reader
+// checks the run's budget before each call, which counts it as it goes out
+// (src/calls.ts), and answers `spent` without calling when none is left.
+
+import type { CallBudget } from "../calls.js";
 
 /** One page of a listing: as many as the platform answers in one call. */
 export const RECONCILE_PER_PAGE = 100;
@@ -28,23 +30,6 @@ export type ReconcileListing = {
   /** True when the page cap stopped the listing before its end. */
   more: boolean;
 };
-
-/** The platform calls one run may still make; a reader takes one before each. */
-export class CallBudget {
-  private spent = 0;
-  constructor(readonly limit: number) {}
-
-  get left(): number {
-    return this.limit - this.spent;
-  }
-
-  /** Takes `n` calls; false, taking none, when fewer are left. */
-  take(n = 1): boolean {
-    if (this.left < n) return false;
-    this.spent += n;
-    return true;
-  }
-}
 
 /** The budget ran out before the reader finished. */
 export type Spent = "spent";
