@@ -12,12 +12,15 @@ import { LoadError, Loading, Seg } from "../ui.js";
 
 const HOUR = 3_600_000;
 
+// A whole number reads without ".0", so "9h" sits beside "30h" in one column.
+const tenths = (n: number, digits: number) => n.toFixed(digits).replace(/\.0$/, "");
+
 /** A duration in the unit a person reads it in: minutes, hours or days. */
 export function span(ms: number | null): string {
   if (ms === null) return "–";
   if (ms < HOUR) return `${Math.max(1, Math.round(ms / 60_000))}m`;
-  if (ms < 48 * HOUR) return `${(ms / HOUR).toFixed(ms < 10 * HOUR ? 1 : 0)}h`;
-  return `${(ms / (24 * HOUR)).toFixed(1)}d`;
+  if (ms < 48 * HOUR) return `${tenths(ms / HOUR, ms < 10 * HOUR ? 1 : 0)}h`;
+  return `${tenths(ms / (24 * HOUR), 1)}d`;
 }
 
 const SLOWEST = 8;

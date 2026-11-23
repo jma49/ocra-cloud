@@ -1302,7 +1302,7 @@ td.finding-cell {
 .target-repos li {
   display: grid;
   gap: 8px;
-  padding: 10px 0;
+  padding: 12px 0;
   border-top: 0.5px solid var(--hair);
 }
 .at-risk-repo {

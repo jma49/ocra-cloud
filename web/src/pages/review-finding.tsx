@@ -141,7 +141,7 @@ export function FindingEvent(props: {
             <p className="m-0 pre-wrap">{f.body}</p>
             {f.suggestion && (
               <div>
-                <div className="caps finding-label">Suggestion</div>
+                <div className="quiet-label finding-label">Suggestion</div>
                 <p className="m-0 pre-wrap">{f.suggestion}</p>
               </div>
             )}

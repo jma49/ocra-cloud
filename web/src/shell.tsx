@@ -154,7 +154,7 @@ function SettingsNav(props: { me: Me; path: string }) {
     <nav className="settings-nav" aria-label="Settings" ref={nav}>
       {settingsGroups(props.me).map((g) => (
         <div key={g.label} className="settings-group">
-          <div className="caps">{g.label}</div>
+          <div className="quiet-label">{g.label}</div>
           {g.routes.map((r) => {
             const Icon = SETTINGS_ICONS[r.path] ?? Settings;
             const on = r.path === props.path;

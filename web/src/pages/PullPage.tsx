@@ -180,7 +180,13 @@ export function PullPage(props: {
           <ReviewersPanel pull={ref} />
           <LabelsBox pull={ref} onDone={(o) => done("Labels", o)} />
           <FileList files={shown} isViewed={isViewed} />
-          <ReviewBox data={data} pull={ref} pending={pending} onDone={(o) => done("Review", o)} />
+          <ReviewBox
+            data={data}
+            pull={ref}
+            pending={pending}
+            wholeDiff={narrowed === null}
+            onDone={(o) => done("Review", o)}
+          />
           {!settled && <DescriptionBox pull={ref} onDone={(o) => done("Description", o)} />}
           <ThreadsPanel pull={ref} onDone={(o) => done("Review threads", o)} />
           {!settled && <ReadinessBox pull={ref} head={data.head} />}
@@ -238,6 +244,8 @@ function ReviewBox(props: {
   data: PullFilesView;
   pull: Ref;
   pending: LineComment[];
+  /** Whether the diff shown is the whole one, whose lines take comments. */
+  wholeDiff: boolean;
   onDone: (o: PullActionOutcome) => void;
 }) {
   const verdicts = props.data.verdicts;
@@ -283,7 +291,9 @@ function ReviewBox(props: {
       />
       <span className="subtle small">
         {props.pending.length === 0
-          ? "Click a line number in the diff to comment on that line."
+          ? props.wholeDiff
+            ? "Click a line number in the diff to comment on that line."
+            : "Line comments are made on the whole diff."
           : props.pending.length === 1
             ? "1 line comment goes with it."
             : `${props.pending.length} line comments go with it.`}
