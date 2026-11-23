@@ -18,6 +18,7 @@ import { jobError, pausedWhy } from "../auto-review/job-error.js";
 import { LimitReachedNotice } from "../auto-review/limit-reached.js";
 import { NoKeyNotice } from "../auto-review/no-key.js";
 import { ProfileMenu } from "../auto-review/profile-menu.js";
+import { RepoRestack } from "../auto-review/repo-restack.js";
 import { RepoWebhook } from "../auto-review/repo-webhook.js";
 import { RunnerStatus } from "../auto-review/runner-status.js";
 import { useRead } from "../cache.js";
@@ -38,7 +39,7 @@ import { ActionError, EmptyState, LoadError, Loading, PageHead, useAction } from
 type Repos = { repos: AutoReviewRepoView[] };
 type Job = NonNullable<AutoReviewRepoView["latest"]>;
 /** What a repository's row opens under itself. */
-type Panel = "checks" | "token" | "webhook";
+type Panel = "checks" | "restack" | "token" | "webhook";
 
 const STATE: Record<Job["state"], { label: string; tone: string }> = {
   queued: { label: "Queued", tone: "badge-run" },
@@ -172,6 +173,15 @@ export function AutoReview(props: { platforms: readonly CodePlatformKind[] }) {
                         >
                           Checks
                         </Button>{" "}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          aria-expanded={shows(r.id, "restack")}
+                          onClick={() => toggle(r.id, "restack")}
+                        >
+                          Restack
+                        </Button>{" "}
                         {r.platform === "gitlab" && (
                           <>
                             <Button
@@ -209,6 +219,13 @@ export function AutoReview(props: { platforms: readonly CodePlatformKind[] }) {
                       <tr className="checks-row">
                         <td colSpan={5}>
                           <RepoChecks repoId={r.id} fullName={r.fullName} />
+                        </td>
+                      </tr>
+                    )}
+                    {shows(r.id, "restack") && (
+                      <tr className="checks-row">
+                        <td colSpan={5}>
+                          <RepoRestack r={r} onChanged={reload} />
                         </td>
                       </tr>
                     )}
