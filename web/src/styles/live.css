@@ -36,7 +36,7 @@
   align-items: center;
   gap: 8px;
   color: var(--t3);
-  transition: color 160ms var(--e-std);
+  transition: color var(--d-move) var(--e-std);
 }
 .live-stage.is-done {
   color: var(--t2);
@@ -51,8 +51,8 @@
   border-radius: 50%;
   box-shadow: inset 0 0 0 1px var(--t4);
   transition:
-    background-color 160ms var(--e-std),
-    box-shadow 160ms var(--e-std);
+    background-color var(--d-move) var(--e-std),
+    box-shadow var(--d-move) var(--e-std);
 }
 .live-stage.is-done .live-stage-dot {
   background: var(--t3);
@@ -113,7 +113,7 @@
   stroke-dasharray: 28 72;
 }
 .task-mark:is(.is-done, .is-failed) {
-  animation: task-settle 160ms var(--e-enter) both;
+  animation: task-settle var(--d-move) var(--e-enter) both;
 }
 .task-mark.is-done {
   color: var(--green);
@@ -195,7 +195,7 @@
 .live-list .list-row {
   color: inherit;
   text-decoration: none;
-  transition: background-color 120ms var(--e-std);
+  transition: background-color var(--d-fast) var(--e-std);
 }
 .live-list .list-row:hover {
   background: var(--fill);

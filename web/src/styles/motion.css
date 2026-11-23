@@ -26,15 +26,15 @@
   tr
 ) {
   transition:
-    background-color 120ms var(--e-std),
-    color 120ms var(--e-std),
-    border-color 120ms var(--e-std),
-    box-shadow 120ms var(--e-std),
-    transform 120ms var(--e-std);
+    background-color var(--d-fast) var(--e-std),
+    color var(--d-fast) var(--e-std),
+    border-color var(--d-fast) var(--e-std),
+    box-shadow var(--d-fast) var(--e-std),
+    transform var(--d-fast) var(--e-std);
 }
 :is(.icon-btn, .tile, .chip-x button):active {
   transform: scale(0.96);
-  transition-duration: 80ms;
+  transition-duration: var(--d-press);
 }
 @media (prefers-reduced-motion: reduce) {
   :is(.icon-btn, .tile, .chip-x button):active {

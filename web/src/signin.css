@@ -76,7 +76,7 @@
   font-size: var(--text-lg);
   text-decoration: none;
   transition:
-    background-color 150ms var(--e-std),
+    background-color var(--d-move) var(--e-std),
     transform 200ms var(--e-std);
 }
 
@@ -154,7 +154,7 @@
   text-decoration: underline;
   text-decoration-color: var(--border-strong);
   text-underline-offset: 4px;
-  transition: text-decoration-color 150ms var(--e-std);
+  transition: text-decoration-color var(--d-fast) var(--e-std);
 }
 
 .si-fine a:hover {

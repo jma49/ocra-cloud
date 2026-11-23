@@ -37,6 +37,29 @@ describe("colour", () => {
   });
 });
 
+describe("colour in components", () => {
+  const sources = readdirSync(root, { recursive: true, encoding: "utf8" }).filter(
+    (f) => /\.tsx?$/.test(f) && !/\.test\.tsx?$/.test(f),
+  );
+  it("no component or inline style names a colour itself", () => {
+    const literal =
+      /(?:["'`\s:]#[0-9a-f]{3,8}\b|\b(?:rgba?|hsla?|oklch|oklab)\()|\b(?:bg|text|border|ring|fill|stroke)-(?:red|green|blue|amber|yellow|orange|gray|zinc|neutral|slate|stone|emerald|sky|violet|purple|pink)-\d/i;
+    expect(sources.filter((f) => literal.test(readFileSync(join(root, f), "utf8")))).toEqual([]);
+  });
+});
+
+describe("motion", () => {
+  // The skeleton and the chat caret loop or wait on purpose (DESIGN.md, Motion); the sign-in page has its own look.
+  const paced = (declaration: string) => /infinite|skeleton-in/.test(declaration);
+  it.each(sheets.filter((sheet) => sheet !== "signin.css"))(
+    "%s times its transitions and animations with the duration tokens",
+    (sheet) => {
+      const timed = css(sheet).match(/(?:transition|animation)[a-z-]*:[^;]+;/g) ?? [];
+      expect(timed.filter((d) => /\b[\d.]+m?s\b/.test(d) && !paced(d))).toEqual([]);
+    },
+  );
+});
+
 describe("icons", () => {
   const sources = readdirSync(root, { recursive: true, encoding: "utf8" }).filter((f) =>
     /\.tsx?$/.test(f),

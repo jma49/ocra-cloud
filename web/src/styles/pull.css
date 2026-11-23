@@ -236,7 +236,7 @@
   translate: -50% 0;
   border-radius: var(--r-ctl);
   box-shadow: var(--float);
-  animation: jump-in 160ms var(--e-enter);
+  animation: jump-in var(--d-move) var(--e-enter);
 }
 /* Out of the way while someone writes: it would sit over a reply box at the window's foot. */
 :root:has(textarea:focus) .jump-to-code {
