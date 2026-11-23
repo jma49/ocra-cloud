@@ -22,6 +22,8 @@ export type LayerStanding = {
   head: string;
   headBranch: string;
   base: string;
+  /** A merged one's merge commit (or squash), where the platform names it. */
+  mergeCommit?: string | null;
   blocker: "behind" | "conflicts" | "checks_pending" | "checks_failed" | "waiting" | null;
 };
 

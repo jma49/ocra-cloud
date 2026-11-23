@@ -14,6 +14,7 @@ import { type BotSettings, botTokens } from "../platforms/bot-tokens.js";
 import { platformsOf } from "../platforms/registry.js";
 import type { AppBindings } from "../types.js";
 import type { Exec } from "./checkout.js";
+import { runNextRestack } from "./restack-run.js";
 import {
   runNextGeneration,
   runNextLearning,
@@ -87,7 +88,8 @@ export function startAutoReview(
         ((await runNextReview(runner)) ||
           (await runNextReply(runner)) ||
           (await runNextGeneration(runner)) ||
-          (await runNextLearning(runner)))
+          (await runNextLearning(runner)) ||
+          (await runNextRestack(runner)))
       );
     } catch (e) {
       logError("review_worker_failed", { error: errorName(e) });

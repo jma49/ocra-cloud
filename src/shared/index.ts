@@ -38,6 +38,7 @@ export * from "./pull-threads.js";
 export * from "./pulls.js";
 export * from "./release-notes.js";
 export * from "./repo-config.js";
+export * from "./restacks.js";
 export * from "./review-chat.js";
 export * from "./review-load.js";
 export * from "./review-profiles.js";

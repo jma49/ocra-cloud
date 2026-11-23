@@ -25,6 +25,8 @@ type Standing = {
   target_branch: string;
   detailed_merge_status?: string;
   head_pipeline?: { status: string } | null;
+  merge_commit_sha?: string | null;
+  squash_commit_sha?: string | null;
 };
 
 const CONFLICTS = new Set(["conflict", "broken_status"]);
@@ -94,6 +96,7 @@ export function gitlabStacks(origin: string): PullStacks {
         head: mr.sha,
         headBranch: mr.source_branch,
         base: mr.target_branch,
+        mergeCommit: mr.squash_commit_sha ?? mr.merge_commit_sha ?? null,
         blocker: blockerOf(mr),
       };
     },

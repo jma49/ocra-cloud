@@ -32,7 +32,7 @@ const query = (
 const STANDING = (checks: boolean) => `query($owner: String!, $name: String!, $number: Int!) {
   repository(owner: $owner, name: $name) {
     pullRequest(number: $number) {
-      state headRefOid headRefName baseRefName mergeStateStatus
+      state headRefOid headRefName baseRefName mergeStateStatus mergeCommit { oid }
       ${checks ? ROLLUP : ""}
     }
   }
@@ -77,6 +77,7 @@ type Layer = Rollup & {
   headRefName: string;
   baseRefName: string;
   mergeStateStatus: string;
+  mergeCommit?: { oid: string } | null;
 };
 type LayerAnswer = {
   data?: { repository: { pullRequest: Layer | null } | null };
@@ -188,6 +189,7 @@ export function githubStacks(host: GithubHost, post: GithubGraphql): PullStacks 
         head: layer.headRefOid,
         headBranch: layer.headRefName,
         base: layer.baseRefName,
+        mergeCommit: layer.mergeCommit?.oid ?? null,
         blocker: blockerOf(layer),
       };
     },

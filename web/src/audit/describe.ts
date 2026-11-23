@@ -66,6 +66,7 @@ export const KIND_GROUPS: { label: string; kinds: [AuditKind, string][] }[] = [
       ["auto_review.profile_changed", "Profile changed"],
       ["auto_review.automatic_changed", "Automatic review switched"],
       ["auto_review.learn_changed", "Learning from declined findings changed"],
+      ["auto_review.restack_changed", "Restacking after merges switched"],
       ["auto_review.unenrolled", "Repository unenrolled"],
       ["auto_review.renamed", "Repository renamed"],
       ["auto_review.paused", "Repository paused"],
@@ -107,6 +108,7 @@ export const KIND_GROUPS: { label: string; kinds: [AuditKind, string][] }[] = [
       ["stack_merge.merged", "Stack merged"],
       ["stack_merge.failed", "Stack merge stopped"],
       ["stack.retargeted", "Moved onto a merged base"],
+      ["stack.force_pushed", "Restacked and force-pushed"],
     ],
   },
 ];
@@ -231,6 +233,8 @@ export function describe(e: AuditEventView): string {
       return `Turned automatic review ${e.detail.automatic === false ? "off" : "on"} for ${named(e.detail.repo, "a repository")}`;
     case "auto_review.learn_changed":
       return `Set learning from declined findings${noted(e.detail.learn, " to ", "")} for ${named(e.detail.repo, "a repository")}`;
+    case "auto_review.restack_changed":
+      return `Turned restacking after merges ${e.detail.restack === false ? "off" : "on"} for ${named(e.detail.repo, "a repository")}`;
     case "auto_review.unenrolled":
       return `Stopped automatic review of ${named(e.detail.repo, "a repository")}`;
     case "auto_review.renamed":
@@ -297,5 +301,7 @@ export function describe(e: AuditEventView): string {
       return `The stack merge from ${named(e.detail.pull, "a pull request")} stopped${noted(e.detail.reason, ": ", "")}`;
     case "stack.retargeted":
       return `Moved ${named(e.detail.pull, "a pull request")} onto ${e.detail.base ?? "the merged base"}`;
+    case "stack.force_pushed":
+      return `Rebased ${named(e.detail.pull, "a pull request")} onto ${e.detail.base ?? "its new base"} and force-pushed it`;
   }
 }

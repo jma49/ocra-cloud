@@ -9,8 +9,11 @@ import type { GraphAssignment } from "../graph/runner-api.js";
 import { errorName, logError } from "../log.js";
 import { COMMIT_ID } from "../platforms/contents.js";
 import { CODE_PLATFORMS } from "../shared/index.js";
+import type { RestackAssignment } from "../stack-merge/restack-work.js";
+import { spawnExec } from "./checkout.js";
 import { type GraphMachine, runGraphBuild } from "./graph-job.js";
 import type { GitRead } from "./local-graph.js";
+import { runRestack } from "./restack-run.js";
 import { type Machine, run } from "./review-runner.js";
 import { serverGraphs } from "./runner-graphs.js";
 
@@ -73,7 +76,21 @@ const graphBuild = z.object({
   graphRepoId: z.string(),
   commit: z.string().regex(COMMIT_ID),
 });
-const claimed = z.object({ assignment: assignment.nullable(), graph: graphBuild.optional() });
+const branch = z.string().min(1).max(250);
+const restackJob = z.object({
+  ...claim,
+  restack: z.object({
+    branch,
+    head: z.string().regex(COMMIT_ID),
+    onto: z.object({ branch, commit: z.string().regex(COMMIT_ID).nullable() }),
+    upstream: z.string().regex(COMMIT_ID),
+  }),
+});
+const claimed = z.object({
+  assignment: assignment.nullable(),
+  graph: graphBuild.optional(),
+  restack: restackJob.optional(),
+});
 
 const sleep = (ms: number, stop: AbortSignal) =>
   new Promise<void>((resolve) => {
@@ -118,12 +135,22 @@ export async function runRunner(options: RunnerOptions, stop: AbortSignal): Prom
   let backoff = pollMs;
   while (!stop.aborted) {
     try {
-      const { assignment: work, graph } = claimed.parse(
-        await call("claim", { name: options.name, version: options.version, graphs: true }),
+      const {
+        assignment: work,
+        graph,
+        restack,
+      } = claimed.parse(
+        await call("claim", {
+          name: options.name,
+          version: options.version,
+          graphs: true,
+          restack: true,
+        }),
       );
       backoff = pollMs;
       if (!work) {
-        if (!graph) await sleep(pollMs, stop);
+        if (restack) await runRestackJob(options, restack satisfies RestackAssignment, call, stop);
+        else if (!graph) await sleep(pollMs, stop);
         else await buildGraph(machine, graph satisfies GraphAssignment, stop);
         continue;
       }
@@ -140,6 +167,34 @@ export async function runRunner(options: RunnerOptions, stop: AbortSignal): Prom
       backoff = Math.min(backoff * 2, MAX_BACKOFF_MS);
     }
   }
+}
+
+type Call = (path: string, body: unknown) => Promise<unknown>;
+
+async function runRestackJob(
+  options: RunnerOptions,
+  work: RestackAssignment,
+  call: Call,
+  stop: AbortSignal,
+) {
+  const event = { kind: "restack", job: work.id };
+  console.log(JSON.stringify({ level: "info", event: "runner_job_started", ...event }));
+  const result = await runRestack(options.exec ?? spawnExec, work, new Date(), stop);
+  const { id, accountId, attempts } = work;
+  for (let tries = 1; ; tries++) {
+    try {
+      await call("settle-restack", { id, accountId, attempts, result });
+      break;
+    } catch (e) {
+      if (tries === SETTLE_TRIES) throw e;
+      await sleep(2_000 * tries, new AbortController().signal);
+    }
+  }
+  const failure = "failure" in result ? result.failure : null;
+  const outcome = "outcome" in result ? result.outcome : null;
+  console.log(
+    JSON.stringify({ level: "info", event: "runner_job_ended", ...event, failure, outcome }),
+  );
 }
 
 async function buildGraph(machine: GraphMachine, build: GraphAssignment, stop: AbortSignal) {

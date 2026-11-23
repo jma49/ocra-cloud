@@ -69,6 +69,7 @@ import { accountReplyJobs } from "./reply-jobs.js";
 import { accountRepoLifecycle } from "./repo-lifecycle.js";
 import { accountReports } from "./reports.js";
 import { nameRepo, nameRepos, pulledRepos, reviewedRepos } from "./repos.js";
+import { accountRestackJobs } from "./restack-jobs.js";
 import { accountReviewChat } from "./review-chat.js";
 import { accountReviewJobs } from "./review-jobs.js";
 import { accountReviewLoad } from "./review-load.js";
@@ -498,6 +499,7 @@ export function scoped(db: Db, accountId: string) {
     replies: accountReplyJobs(db, accountId),
     chat: accountReviewChat(db, accountId),
     generations: accountGenerateJobs(db, accountId),
+    restacks: accountRestackJobs(db, accountId),
     learning: accountLearnJobs(db, accountId),
     commands: accountPullCommands(db, accountId),
     audit: accountAuditEvents(db, accountId),

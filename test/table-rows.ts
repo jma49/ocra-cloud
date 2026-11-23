@@ -274,6 +274,18 @@ export const rows = {
     kind: "tests" as const,
   }),
   // The enrolled repository it belongs to is made in beforeEach (the foreign key needs one).
+  restackJobs: (id: string) => ({
+    id,
+    reviewRepoId: "review-repo-of-a",
+    number: 2,
+    parentMerge: `m-${id}`,
+    parent: 1,
+    branch: "feature/two",
+    head: "a".repeat(40),
+    ontoBranch: "main",
+    upstream: "b".repeat(40),
+  }),
+  // The enrolled repository it belongs to is made in beforeEach (the foreign key needs one).
   learnJobs: (id: string) => ({ id, reviewRepoId: "review-repo-of-a", number: 1 }),
   // The enrolled repository it belongs to is made in beforeEach (the foreign key needs one).
   pullCommands: (id: string) => ({
