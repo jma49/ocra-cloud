@@ -5,7 +5,8 @@ import { apiError } from "../http.js";
 import type { AppEnv } from "../types.js";
 
 // The two links an email carries, opened without signing in: confirming an
-// added address (a random token, kept only as its hash, for a day) and
+// added address or Slack member, whose direct message carries the same link
+// (a random token, kept only as its hash, for a day), and
 // unsubscribing it (signed, never expiring, one per channel). Each names
 // its account and channel, so the lookup goes through scoped() like any
 // other. A GET only shows a button: mail scanners open links, and must not
@@ -63,8 +64,8 @@ emailLinks.get("/confirm", (c) => {
   if (!partsOf(c.req.query("t"))) return apiError(c, "unknown_or_expired");
   return c.html(
     page(
-      "Confirm this address",
-      `<p>ocra will email this address about an account's reviews.</p>${button("Confirm")}`,
+      "Confirm notifications",
+      `<p>ocra will send notifications about an account's reviews here.</p>${button("Confirm")}`,
     ),
   );
 });
@@ -75,7 +76,7 @@ emailLinks.post("/confirm", async (c) => {
   const data = scoped(c.var.db, parts.accountId);
   const ok = await data.notify.confirm(parts.channelId, await sha256Hex(parts.secret), new Date());
   if (!ok) return apiError(c, "unknown_or_expired");
-  return c.html(page("Address confirmed", "<p>This address now gets ocra's notifications.</p>"));
+  return c.html(page("Confirmed", "<p>ocra's notifications now come here.</p>"));
 });
 
 emailLinks.get("/unsubscribe", (c) => {

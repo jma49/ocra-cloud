@@ -177,6 +177,7 @@ export async function openHost(options: HostOptions) {
         keys: masterKeys(bindings),
         mailer: options.mailer,
         linkSecret: bindings.SESSION_SECRET,
+        slack: bindings.SLACK_BOT_TOKEN,
         origin,
         webhooks: webhookPost,
       };
@@ -204,6 +205,7 @@ export async function openHost(options: HostOptions) {
           keys: masterKeys(bindings),
           mailer: options.mailer,
           linkSecret: bindings.SESSION_SECRET,
+          slack: bindings.SLACK_BOT_TOKEN,
           origin: origin ?? "http://localhost",
           webhooks: webhookPost,
         },
@@ -220,6 +222,7 @@ export async function openHost(options: HostOptions) {
               keys: masterKeys(bindings),
               mailer: options.mailer,
               linkSecret: bindings.SESSION_SECRET,
+              slack: bindings.SLACK_BOT_TOKEN,
               origin,
               webhooks: webhookPost,
             }
@@ -240,6 +243,7 @@ export async function openHost(options: HostOptions) {
         keys: masterKeys(bindings),
         mailer: options.mailer,
         webhooks: webhookPost,
+        slack: bindings.SLACK_BOT_TOKEN,
       }),
     /** Runs again the side effects of platform webhooks that failed and are due; how many it tried. */
     inboundRetries: () =>

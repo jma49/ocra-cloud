@@ -59,7 +59,12 @@ export default {
       const bots = "bots" in remote ? remote.bots : undefined;
       const platforms = platformsOf(env, env.PUBLIC_URL || "https://localhost");
       jobs.deliveries = (calls) =>
-        retryNotifications(db, { keys: masterKeys(env), mailer: undefined }, undefined, calls);
+        retryNotifications(
+          db,
+          { keys: masterKeys(env), mailer: undefined, slack: env.SLACK_BOT_TOKEN },
+          undefined,
+          calls,
+        );
       jobs.inbound = (calls) => retryInbound({ db, env, bots }, undefined, calls);
       // The bot's writes for the automation rules that the platform did not answer.
       if (bots) {
@@ -70,6 +75,7 @@ export default {
         keys: masterKeys(env),
         mailer: undefined,
         linkSecret: env.SESSION_SECRET,
+        slack: env.SLACK_BOT_TOKEN,
         origin: new URL(env.PUBLIC_URL || "https://localhost").origin,
       };
       jobs.mergeIntents = (calls) =>
@@ -84,6 +90,7 @@ export default {
         keys: masterKeys(env),
         mailer: undefined,
         linkSecret: env.SESSION_SECRET,
+        slack: env.SLACK_BOT_TOKEN,
         origin: new URL(env.PUBLIC_URL).origin,
       };
       jobs.digests = (calls) => runDigests(db, out, undefined, calls);

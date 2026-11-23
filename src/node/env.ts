@@ -34,6 +34,7 @@ const OPTIONAL = [
   "BUILTIN_PROVIDERS",
   "DEFAULT_MODELS",
   "PUBLIC_URL",
+  "SLACK_BOT_TOKEN",
 ] as const;
 
 const DEFAULTS = {

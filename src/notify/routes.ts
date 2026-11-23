@@ -22,13 +22,14 @@ import {
   type WebhookSecretView,
 } from "../shared/index.js";
 import type { AppEnv } from "../types.js";
-import { hookUrl, type Message, reviewMessage } from "./channels.js";
+import { hookUrl, type Message, type MessageText, messageOf, reviewMessage } from "./channels.js";
 import { KEPT_DELIVERIES } from "./deliveries.js";
 import { emailAddress, mailOf, sendMail } from "./email.js";
 import { CONFIRM_TTL_MS, confirmToken, linkUrl, unsubscribeUrl } from "./links.js";
 import { openHook, openWebhook, outboxOf, sealHook, sealWebhook, send } from "./notify.js";
 import { timeZoneOf } from "./reminders.js";
 import { nextSlot } from "./report.js";
+import { findSlackMember, slackDmAttempt, slackTargetOf } from "./slack-dm.js";
 import { webhookUrl } from "./webhook-url.js";
 import { newWebhookSecret } from "./webhooks.js";
 
@@ -36,13 +37,14 @@ import { newWebhookSecret } from "./webhooks.js";
 // is stored encrypted and never answered (a webhook channel's signing
 // secret with it, answered once when it is made or replaced), tested with a sample message, and
 // removed. An email address first gets a link to confirm it, and nothing
-// else until it is opened. The account's weekly report slot is set here
+// else until it is opened; so does a Slack member, in a direct message from
+// the server's Slack app. The account's weekly report slot is set here
 // too. Only the web session manages them.
 
 export const notifyRoute = new Hono<AppEnv>().use(requireSession(["web"]));
 
 const MAX_CHANNELS = 10;
-/** Confirmation emails an account may send a day, so the server cannot be used to mail strangers. */
+/** Confirmation links an account may send a day, by email or Slack, so the server cannot be used to message strangers. */
 const DAILY_CONFIRMATIONS = 10;
 
 const name = z.string().trim().min(1).max(64);
@@ -70,6 +72,8 @@ const addBody = z.discriminatedUnion("kind", [
   z.object({ kind: z.enum(["slack", "wecom"]), url: z.string().max(512), ...common }),
   z.object({ kind: z.literal("email"), address: z.string().max(320), ...common }),
   z.object({ kind: z.literal("webhook"), url: z.string().max(2048), ...common }),
+  /** A Slack member's email address or member ID. */
+  z.object({ kind: z.literal("slack_dm"), member: z.string().max(320), ...common }),
 ]);
 const changeBody = z
   .object({
@@ -127,20 +131,52 @@ notifyRoute.get("/channels", async (c) => {
   return c.json({
     channels: rows.map(channelView),
     email: c.var.mailer !== undefined,
+    slack: Boolean(c.env.SLACK_BOT_TOKEN),
   } satisfies NotifyChannelsView);
 });
+
+/** A new link to confirm the channel, its old one no longer taken; undefined when none was made. */
+async function newConfirmLink(c: Context<AppEnv>, channelId: string) {
+  const data = c.var.data;
+  const { token, hash } = await confirmToken(data.accountId, channelId);
+  if (!(await data.notify.rearm(channelId, hash, new Date(Date.now() + CONFIRM_TTL_MS)))) {
+    return undefined;
+  }
+  return linkUrl(outboxOf(c).origin, "confirm", token);
+}
+
+/** Sends the Slack member of a slack_dm channel a new link to confirm it; whether it went. */
+async function sendSlackConfirmation(c: Context<AppEnv>, channelId: string, sealed: string) {
+  const token = c.env.SLACK_BOT_TOKEN;
+  const target = slackTargetOf(sealed);
+  if (!token || !target) return false;
+  if (!(await c.var.data.take("slack_confirmations", DAILY_CONFIRMATIONS))) return false;
+  const link = await newConfirmLink(c, channelId);
+  if (!link) return false;
+  const text: MessageText = {
+    subject: "",
+    lines: [
+      ["Someone signed in to ocra asked to send you notifications about their reviews here."],
+      ["Open this link within a day to confirm; until then, nothing else is sent:"],
+      [{ label: "Confirm", url: link }],
+      ["If you did not ask for this, ignore this message."],
+    ],
+  };
+  const sent = await slackDmAttempt(token, target)(
+    { id: channelId, event: "ping", payload: JSON.stringify(messageOf("slack", text)) },
+    new Date(),
+  );
+  return sent.error === null;
+}
 
 /** Mails the channel a new link to confirm its address; whether it went. */
 async function sendConfirmation(c: Context<AppEnv>, channelId: string, address: string) {
   const data = c.var.data;
   const mailer = c.var.mailer;
   if (!mailer || !(await data.take("email_confirmations", DAILY_CONFIRMATIONS))) return false;
-  const { token, hash } = await confirmToken(data.accountId, channelId);
-  if (!(await data.notify.rearm(channelId, hash, new Date(Date.now() + CONFIRM_TTL_MS)))) {
-    return false;
-  }
+  const link = await newConfirmLink(c, channelId);
+  if (!link) return false;
   const out = outboxOf(c);
-  const link = linkUrl(out.origin, "confirm", token);
   const unsubscribe = await unsubscribeUrl(out, data.accountId, channelId);
   return sendMail(
     mailer,
@@ -162,19 +198,37 @@ async function sendConfirmation(c: Context<AppEnv>, channelId: string, address: 
   );
 }
 
+const SLACK_REFUSALS = {
+  invalid: "not a Slack member ID or email address",
+  not_found: "no member of the Slack workspace has this email address or ID",
+  not_a_person: "a bot or a deactivated Slack member",
+} as const;
+
 const refuse = (c: Context<AppEnv>, path: string, message: string) =>
   apiError(c, "invalid_body", { issues: [{ path: [path], message }] });
 
 notifyRoute.post("/channels", perMinute("settings"), jsonBody(addBody), async (c) => {
   const body = c.req.valid("json");
   const email = body.kind === "email";
+  const slackToken = c.env.SLACK_BOT_TOKEN;
   if (email && !c.var.mailer) return refuse(c, "kind", "this server does not send email");
-  const address =
-    body.kind === "email"
-      ? emailAddress(body.address)
-      : body.kind === "webhook"
-        ? webhookUrl(body.url)?.toString()
-        : hookUrl(body.kind, body.url);
+  if (body.kind === "slack_dm" && !slackToken) {
+    return refuse(c, "kind", "this server does not send Slack direct messages");
+  }
+  let address: string | undefined;
+  if (body.kind === "slack_dm") {
+    const found = await findSlackMember(slackToken ?? "", body.member);
+    if ("unreachable" in found) return apiError(c, "upstream_unreachable");
+    if ("refused" in found) return refuse(c, "member", SLACK_REFUSALS[found.refused]);
+    address = JSON.stringify(found.target);
+  } else {
+    address =
+      body.kind === "email"
+        ? emailAddress(body.address)
+        : body.kind === "webhook"
+          ? webhookUrl(body.url)?.toString()
+          : hookUrl(body.kind, body.url);
+  }
   if (!address) {
     if (body.kind === "email") return refuse(c, "address", "not an email address");
     return body.kind === "webhook"
@@ -200,14 +254,19 @@ notifyRoute.post("/channels", perMinute("settings"), jsonBody(addBody), async (c
     quietStart: body.quietHours?.start ?? null,
     quietEnd: body.quietHours?.end ?? null,
     ...sealed,
-    last4: address.slice(-4),
+    // A Slack member's is their member ID's.
+    last4: (slackTargetOf(address)?.user ?? address).slice(-4),
     // A webhook address is its chat's own credential: whoever has it may post there.
-    confirmedAt: email ? null : new Date(),
+    confirmedAt: email || body.kind === "slack_dm" ? null : new Date(),
   };
   if (!(await c.var.data.notify.add(row, MAX_CHANNELS))) {
     return refuse(c, "kind", `the account has ${MAX_CHANNELS} channels`);
   }
-  const confirmationSent = email ? await sendConfirmation(c, id, address) : undefined;
+  const confirmationSent = email
+    ? await sendConfirmation(c, id, address)
+    : body.kind === "slack_dm"
+      ? await sendSlackConfirmation(c, id, address)
+      : undefined;
   const stored = await c.var.data.get("notifyChannels", id);
   if (!stored) return apiError(c, "not_found");
   await audit(c.var.data, "channel.added", { channel: id, kind: stored.kind });
@@ -218,13 +277,14 @@ notifyRoute.post("/channels", perMinute("settings"), jsonBody(addBody), async (c
   } satisfies NotifyChannelAdded);
 });
 
-/** Sends an unconfirmed address a new link. */
+/** Sends an unconfirmed address or Slack member a new link. */
 notifyRoute.post("/channels/:id/confirm", perMinute("settings"), async (c) => {
   const channel = await c.var.data.get("notifyChannels", c.req.param("id"));
-  if (channel?.kind !== "email") return apiError(c, "not_found");
+  if (channel?.kind !== "email" && channel?.kind !== "slack_dm") return apiError(c, "not_found");
   if (channel.confirmedAt) return refuse(c, "id", "the address is confirmed already");
   const address = await openHook(masterKeys(c.env), channel);
-  const sent = address !== undefined && (await sendConfirmation(c, channel.id, address));
+  const confirm = channel.kind === "email" ? sendConfirmation : sendSlackConfirmation;
+  const sent = address !== undefined && (await confirm(c, channel.id, address));
   return c.json({ confirmationSent: sent });
 });
 

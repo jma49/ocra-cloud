@@ -10,7 +10,7 @@ import type { HookEvent } from "./webhooks.js";
 // counts and links, and the titles of its most severe findings when the
 // account shares findings; titles are model text, so they are made plain.
 
-export type HookKind = Exclude<NotifyKind, "email" | "webhook">;
+export type HookKind = Exclude<NotifyKind, "email" | "webhook" | "slack_dm">;
 
 /** Only the chat's own host: the server never posts to an address a user typed freely. */
 const HOOKS: Record<HookKind, (u: URL) => boolean> = {

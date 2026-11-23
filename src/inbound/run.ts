@@ -77,6 +77,7 @@ function means(runner: InboundRunner, origin: string) {
     keys: masterKeys(runner.env),
     mailer: runner.mailer,
     linkSecret: runner.env.SESSION_SECRET,
+    slack: runner.env.SLACK_BOT_TOKEN,
     origin,
     webhooks: runner.webhookPost,
   };

@@ -132,7 +132,7 @@ describe("the channels", () => {
     });
     expect(rename.status).toBe(404);
     const theirs = await call("/api/notifications/channels", { auth: b.auth });
-    expect(await theirs.json()).toEqual({ channels: [], email: false });
+    expect(await theirs.json()).toEqual({ channels: [], email: false, slack: false });
     const test = await call(`/api/notifications/channels/${channel.id}/test`, {
       method: "POST",
       auth: b.auth,
