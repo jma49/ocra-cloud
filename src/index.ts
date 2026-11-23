@@ -2,6 +2,7 @@ import { env } from "cloudflare:workers";
 import { drizzle } from "drizzle-orm/d1";
 import { createApp } from "./app.js";
 import { remoteReviews } from "./auto-review/remote.js";
+import { retryAutomations } from "./automations/retry.js";
 import { type CronJob, type CronJobName, runScheduled } from "./cron-calls.js";
 import { enforceRetention } from "./db/retention.js";
 import { retryInbound } from "./inbound/run.js";
@@ -21,9 +22,9 @@ import { sweepStackMerges } from "./stack-merge/advance.js";
 // daily one runs retention, the hourly one (HOURLY, in wrangler.jsonc) the
 // digests, weekly reports, review reminders, the notices held in quiet
 // hours and the pull requests at risk of a review target, which the database lets go once, and the webhook deliveries,
-// outgoing and incoming, due again, the merge-when-ready intents and stack
-// merges left waiting and the
-// daily reconciliation of enrolled repositories (so on the Worker a retry
+// outgoing and incoming, and the automation rules' writes due again, the
+// merge-when-ready intents and stack merges left waiting and the daily
+// reconciliation of enrolled repositories (so on the Worker a retry
 // waits for the hour), all within one budget of external calls
 // (src/cron-calls.ts). It has no mailer: no email API is
 // configured for it, so they go to its chats only. It runs no hosted job
@@ -50,6 +51,10 @@ export default {
       jobs.deliveries = (calls) =>
         retryNotifications(db, { keys: masterKeys(env), mailer: undefined }, undefined, calls);
       jobs.inbound = (calls) => retryInbound({ db, env, bots }, undefined, calls);
+      // The bot's writes for the automation rules that the platform did not answer.
+      if (bots) {
+        jobs.automations = (calls) => retryAutomations({ db, bots, platforms }, undefined, calls);
+      }
       // An armed intent's webhooks move it too; this reads again one they left armed.
       const out = {
         keys: masterKeys(env),

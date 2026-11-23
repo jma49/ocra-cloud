@@ -16,8 +16,9 @@ export const WORKER_CALLS = 45;
 
 /** Each job's share, in the order the second round runs them; together WORKER_CALLS. */
 export const WORKER_SHARES = {
-  deliveries: 8,
-  inbound: 8,
+  deliveries: 6,
+  inbound: 6,
+  automations: 4,
   held: 3,
   reminders: 3,
   atRisk: 3,
