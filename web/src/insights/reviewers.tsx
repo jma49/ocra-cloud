@@ -22,10 +22,10 @@ export function ReviewLoadSection(props: { days: number }) {
   return (
     <section className="section card" aria-label="Reviewer workload">
       <div className="card-head">
-        <h3>
+        <h2>
           Reviewer workload{" "}
           <span className="subtle">in enrolled repositories, {props.days} days</span>
-        </h3>
+        </h2>
       </div>
       {error && !data ? (
         <div className="card-pad">

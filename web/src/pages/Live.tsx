@@ -64,7 +64,7 @@ function Runs(props: {
   return (
     <div className="card section">
       <div className="card-head">
-        <h3>{props.title}</h3>
+        <h2>{props.title}</h2>
       </div>
       {props.runs.length === 0 ? (
         <EmptyState icon={props.empty.icon} title={props.empty.title}>

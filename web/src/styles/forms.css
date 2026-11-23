@@ -167,7 +167,7 @@ select.input {
   padding: 48px 24px;
   text-align: center;
 }
-.empty-hero h3 {
+.empty-hero h2 {
   font-size: var(--text-lg);
   font-weight: 600;
 }

@@ -97,7 +97,9 @@ export function ApiTokens() {
                   <th className="hide-narrow">Starts with</th>
                   <th className="hide-narrow">Last used</th>
                   <th>Expires</th>
-                  <th />
+                  <th>
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>

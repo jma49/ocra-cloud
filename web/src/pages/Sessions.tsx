@@ -54,7 +54,9 @@ export function Sessions() {
                   <th className="hide-narrow">Signed in</th>
                   <th>Last used</th>
                   <th className="hide-narrow">Expires</th>
-                  <th />
+                  <th>
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>

@@ -33,9 +33,9 @@ export function Cycle(props: { days: number; platforms: readonly CodePlatformKin
   return (
     <section className="section card" aria-label="Pull request cycle">
       <div className="card-head">
-        <h3>
+        <h2>
           Your pull requests <span className="subtle">merged in {props.days} days</span>
-        </h3>
+        </h2>
         {props.platforms.length > 1 && (
           <Seg
             label="Platform"

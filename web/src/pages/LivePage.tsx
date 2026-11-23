@@ -151,7 +151,7 @@ export function LivePage(props: { id: string }) {
         </div>
         {findings.length === 0 ? (
           <div className="card empty-hero">
-            <h3>{ended ? "No findings" : "No findings yet"}</h3>
+            <h2>{ended ? "No findings" : "No findings yet"}</h2>
             <p>
               {ended
                 ? "The review ended without a finding."
@@ -183,7 +183,7 @@ export function LivePage(props: { id: string }) {
       </section>
 
       <aside className="live-talk" aria-label="Discussion">
-        <h3>Discussion</h3>
+        <h2>Discussion</h2>
         {comments.list.error && !comments.list.data ? (
           <LoadError what="the comments" error={comments.list.error} retry={comments.list.reload} />
         ) : (

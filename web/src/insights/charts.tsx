@@ -20,7 +20,7 @@ function Chart(props: { title: string; sub: string; wide?: boolean; children: Re
   return (
     <section className={`card chart-card${props.wide ? " wide" : ""}`} aria-label={props.title}>
       <div className="chart-head">
-        <h3>{props.title}</h3>
+        <h2>{props.title}</h2>
         <span className="subtle">{props.sub}</span>
       </div>
       <div className="chart-body">{props.children}</div>

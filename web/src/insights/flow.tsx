@@ -33,9 +33,9 @@ export function FlowSection(props: { days: number }) {
   return (
     <section className="section card" aria-label="Review flow">
       <div className="card-head">
-        <h3>
+        <h2>
           Review flow <span className="subtle">in enrolled repositories, {props.days} days</span>
-        </h3>
+        </h2>
       </div>
       {error && !data ? (
         <div className="card-pad">

@@ -75,7 +75,9 @@ export function Memory() {
                   <th>Finding</th>
                   <th>Reason</th>
                   <th>Added</th>
-                  <th />
+                  <th>
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>

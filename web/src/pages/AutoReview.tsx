@@ -85,7 +85,9 @@ export function AutoReview(props: { platforms: readonly CodePlatformKind[] }) {
                   <th>Automatic</th>
                   <th>Profile</th>
                   <th>Last review</th>
-                  <th />
+                  <th>
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>

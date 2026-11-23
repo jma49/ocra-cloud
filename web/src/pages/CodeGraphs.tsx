@@ -111,7 +111,9 @@ function GraphRepos(props: {
                   <th className="num">Files</th>
                   <th className="num">Size</th>
                   <th>Last build</th>
-                  <th />
+                  <th>
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>

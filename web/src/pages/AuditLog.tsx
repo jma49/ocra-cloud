@@ -129,7 +129,7 @@ export function AuditLog() {
           {byDay(log.events).map((d, i) => (
             <section key={d.day} className={i === 0 ? "card" : "section card"} aria-label={d.day}>
               <div className="card-head">
-                <h3>{d.day}</h3>
+                <h2>{d.day}</h2>
               </div>
               <ul className="audit-list">
                 {d.events.map((e) => (

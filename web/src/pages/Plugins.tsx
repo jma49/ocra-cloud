@@ -62,7 +62,7 @@ export function Plugins() {
       </div>
       <div className="card">
         <div className="card-head">
-          <h3>Your plugins</h3>
+          <h2>Your plugins</h2>
           <span className="subtle small">{plugins.length} of 20</span>
         </div>
         {plugins.length === 0 && (

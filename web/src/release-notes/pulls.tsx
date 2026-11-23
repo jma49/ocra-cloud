@@ -37,9 +37,9 @@ export function ReleasePulls(props: {
     <div className="release-pulls">
       {sections.map((s) => (
         <section key={s.id} aria-label={SECTION_LABEL[s.id]}>
-          <h3 className="quiet-label">
+          <h2 className="quiet-label">
             {SECTION_LABEL[s.id]} <span className="subtle">{s.pulls.length}</span>
-          </h3>
+          </h2>
           <ul>
             {s.pulls.map((p) => (
               <li key={p.number}>

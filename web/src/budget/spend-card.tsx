@@ -76,7 +76,7 @@ export function SpendCard(props: { spend: SpendView; onSaved: () => void }) {
   return (
     <div className="card spend-card">
       <div className="card-head">
-        <h3>Spend limit</h3>
+        <h2>Spend limit</h2>
         <span className="subtle small">US dollars, from the cost each review reports</span>
       </div>
       <div className="card-pad stack">

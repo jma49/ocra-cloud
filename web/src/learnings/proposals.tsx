@@ -11,13 +11,13 @@ export function Proposals(props: { data: LearningProposalsView }) {
   return (
     <div className="card section">
       <div className="card-head">
-        <h3>
+        <h2>
           Proposed in pull requests{" "}
           <span className="muted">
             {proposals.length}
             {more ? "+" : ""}
           </span>
-        </h3>
+        </h2>
       </div>
       {proposals.map((p) => (
         <div className="proposal" key={p.number}>

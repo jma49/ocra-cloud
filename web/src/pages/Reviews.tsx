@@ -104,7 +104,7 @@ export function Reviews(props: {
       {data && Object.keys(data.reviewers).length > 0 && (
         <div className="section card">
           <div className="card-head">
-            <h3>By reviewer</h3>
+            <h2>By reviewer</h2>
             <span className="subtle small">
               Acceptance: findings later fixed, over fixed and dismissed
               {s && s.fixed + s.dismissed > 0
@@ -155,7 +155,7 @@ export function Reviews(props: {
 
       <div className="section card">
         <div className="card-head">
-          <h3>History</h3>
+          <h2>History</h2>
           <span className="subtle small">
             Repositories are shown by an anonymous hash until you name them under Repositories
           </span>
@@ -176,7 +176,9 @@ export function Reviews(props: {
                   <th className="num">Tokens</th>
                   <th className="num">Duration</th>
                   <th className="num">When</th>
-                  <th />
+                  <th>
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>

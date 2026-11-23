@@ -56,7 +56,7 @@ export function Settings(props: { me: Me }) {
       />
       <div className="card">
         <div className="card-head">
-          <h3>Account</h3>
+          <h2>Account</h2>
         </div>
         <dl className="kv card-pad m-0">
           <dt>{props.me.githubId !== null ? "GitHub" : "Login"}</dt>
@@ -86,7 +86,7 @@ export function Settings(props: { me: Me }) {
 
       <div className="section card">
         <div className="card-head">
-          <h3>Your data</h3>
+          <h2>Your data</h2>
         </div>
         <div className="card-pad export-row">
           <span className="muted small">
@@ -101,7 +101,7 @@ export function Settings(props: { me: Me }) {
 
       <div className="section card danger-zone">
         <div className="card-head">
-          <h3>Delete account</h3>
+          <h2>Delete account</h2>
         </div>
         <div className="card-pad">
           <p className="muted small mt-0">
@@ -166,7 +166,7 @@ function HostedFindings({ load }: { load: SharingLoad }) {
   return (
     <div className="section card">
       <div className="card-head">
-        <h3>Keep the findings of reviews ocra runs here</h3>
+        <h2>Keep the findings of reviews ocra runs here</h2>
         <Switch
           aria-label="Keep the findings of reviews ocra runs here"
           checked={data.hostedFindings}
@@ -225,7 +225,7 @@ function HostedFindings({ load }: { load: SharingLoad }) {
 function Sharing({ load }: { load: SharingLoad }) {
   const { data, error, reload } = load;
   const { asking, setAsking, busy, failed, put } = useSharingSwitch("/account/sharing", reload);
-  const title = <h3>Send findings and the code they quote to ocra Cloud</h3>;
+  const title = <h2>Send findings and the code they quote to ocra Cloud</h2>;
   if (!data) {
     return (
       <div className="section card">
