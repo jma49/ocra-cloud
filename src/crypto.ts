@@ -94,9 +94,9 @@ export function keyBinding(accountId: string, provider: string): string {
   return `ocra-provider-key:v1|${accountId}|${provider}`;
 }
 
-// What each other sealed row is bound to; kept here beside keyBinding so
-// that scripts/rewrap-master-key.ts re-wraps every kind with the binding
-// the service opens it with.
+// What each other sealed row is bound to; kept here beside keyBinding and
+// SEALED_KINDS so that a rotation re-wraps every kind with the binding the
+// service opens it with.
 
 /** An account's token on a code platform: the account, the platform and its host. */
 export const platformTokenBinding = (accountId: string, platform: string, host: string) =>
@@ -164,4 +164,174 @@ export async function rewrap(
 ): Promise<string> {
   const dataKey = await open(await aesKey(fromBase64(oldMaster)), wrappedKey, binding);
   return seal(await aesKey(fromBase64(newMaster)), dataKey, binding);
+}
+
+type Row = Record<string, unknown>;
+
+/**
+ * A table's sealed columns and what each row is bound to: the binding must
+ * be the one the service opens the row with, or the row would not open.
+ */
+export type SealedKind = {
+  table: string;
+  /** The columns that name a row, its primary key. */
+  key: string[];
+  wrapped: string;
+  ciphertext: string;
+  columns: string[];
+  binding(row: Row): string;
+};
+
+const s = (v: unknown) => String(v);
+
+/** Every table a master key seals, read by both rotation tools (docs/rotation.md). */
+const SEALED_KINDS: readonly SealedKind[] = [
+  {
+    table: "provider_keys",
+    key: ["id"],
+    wrapped: "wrapped_key",
+    ciphertext: "ciphertext",
+    columns: ["account_id", "provider"],
+    binding: (r) => keyBinding(s(r.account_id), s(r.provider)),
+  },
+  {
+    table: "platform_links",
+    key: ["account_id", "platform", "host"],
+    wrapped: "wrapped_key",
+    ciphertext: "ciphertext",
+    columns: ["account_id", "platform", "host"],
+    binding: (r) => platformTokenBinding(s(r.account_id), s(r.platform), s(r.host)),
+  },
+  {
+    table: "review_repos",
+    key: ["id"],
+    wrapped: "access_token_wrapped_key",
+    ciphertext: "access_token_ciphertext",
+    columns: ["account_id", "id"],
+    binding: (r) => repoTokenBinding(s(r.account_id), s(r.id)),
+  },
+  {
+    // Every kind of channel, a Slack member's direct messages included.
+    table: "notify_channels",
+    key: ["id"],
+    wrapped: "wrapped_key",
+    ciphertext: "ciphertext",
+    columns: ["account_id", "id"],
+    binding: (r) => channelBinding(s(r.account_id), s(r.id)),
+  },
+];
+
+/** Rows read, and updates written, per round trip to the database. */
+export const REWRAP_BATCH = 200;
+
+/** A sealed row as a store reads it: its values, and how the store finds it again. */
+type SealedRow<Ref> = { ref: Ref; values: Row };
+
+/** One row's compare-and-set: its wrapped key becomes `to` only while it is still `from`. */
+type Rewrapped<Ref> = { ref: Ref; from: string; to: string };
+
+/** Where the sealed rows live: D1 through wrangler, or a self-hosted server's database. */
+export type SealedStore<Ref> = {
+  /** The kind's rows with a wrapped key, REWRAP_BATCH at a time, each page after the last. */
+  pages(kind: SealedKind): AsyncIterable<SealedRow<Ref>[]>;
+  /** At most REWRAP_BATCH compare-and-set updates of the kind's rows. */
+  write(kind: SealedKind, updates: Rewrapped<Ref>[]): Promise<void>;
+  /** How a failed row is named in the output: never anything it seals. */
+  label(ref: Ref): string;
+};
+
+const BASE64 = /^[A-Za-z0-9+/=]+$/;
+
+const opens = (key: string, wrappedKey: string, ciphertext: string, binding: string) =>
+  decryptSecret(key, { wrappedKey, ciphertext }, binding).then(
+    (plain) => plain,
+    () => undefined,
+  );
+
+type Scan<Ref> = { updates: [SealedKind, Rewrapped<Ref>[]][]; pending: number; failed: number };
+
+/** Each row's compare-and-set, or why it gets none: already re-wrapped, or failed. */
+async function scan<Ref>(
+  store: SealedStore<Ref>,
+  keys: { old: string; new: string },
+): Promise<Scan<Ref>> {
+  const out: Scan<Ref> = { updates: [], pending: 0, failed: 0 };
+  for (const kind of SEALED_KINDS) {
+    const tally = { rows: 0, done: 0, failed: 0 };
+    const updates: Rewrapped<Ref>[] = [];
+    for await (const page of store.pages(kind)) {
+      for (const { ref, values } of page) {
+        tally.rows++;
+        const wrapped = s(values[kind.wrapped]);
+        const ciphertext = s(values[kind.ciphertext]);
+        const binding = kind.binding(values);
+        try {
+          if (!BASE64.test(wrapped)) throw new Error("unexpected value");
+          const before = await opens(keys.old, wrapped, ciphertext, binding);
+          if (before === undefined) {
+            // Re-wrapped by an earlier run, or written by the service under the new key.
+            if ((await opens(keys.new, wrapped, ciphertext, binding)) === undefined) {
+              throw new Error("opens with neither key");
+            }
+            tally.done++;
+            continue;
+          }
+          const next = await rewrap(keys.old, keys.new, wrapped, binding);
+          // The point of the rotation: the new key must open what the old one did.
+          if ((await opens(keys.new, next, ciphertext, binding)) !== before) {
+            throw new Error("mismatch");
+          }
+          if (!BASE64.test(next)) throw new Error("unexpected value");
+          updates.push({ ref, from: wrapped, to: next });
+        } catch {
+          tally.failed++;
+          console.error(
+            `${kind.table} ${store.label(ref)}: opens with neither key, or does not verify with the new one`,
+          );
+        }
+      }
+    }
+    console.log(
+      `${kind.table}: ${tally.rows} row(s), ${updates.length} to re-wrap, ${tally.done} already under the new key, ${tally.failed} failed`,
+    );
+    out.updates.push([kind, updates]);
+    out.pending += updates.length;
+    out.failed += tally.failed;
+  }
+  return out;
+}
+
+/**
+ * Re-wraps every sealed row's data key from the old master key to the new
+ * one; without apply it only checks. A row that opens with neither key
+ * stops the run before anything is written; after writing, every row is
+ * read back and must open with the new key. Answers the exit code. Prints
+ * counts and row names, never a key or what a row seals.
+ */
+export async function rotateMasterKey<Ref>(
+  store: SealedStore<Ref>,
+  keys: { old: string; new: string },
+  apply: boolean,
+): Promise<0 | 1> {
+  const first = await scan(store, keys);
+  if (first.failed > 0) return 1;
+  if (!apply) {
+    console.log(
+      first.pending > 0 ? "Checked only. Run again with --apply to write." : "Nothing to re-wrap.",
+    );
+    return 0;
+  }
+  for (const [kind, updates] of first.updates) {
+    for (let i = 0; i < updates.length; i += REWRAP_BATCH) {
+      await store.write(kind, updates.slice(i, i + REWRAP_BATCH));
+    }
+  }
+  // Read back: every row must now open with the new key.
+  const after = await scan(store, keys);
+  if (after.failed > 0 || after.pending > 0) {
+    console.error("Some rows still open only with the old key: run again with --apply.");
+    return 1;
+  }
+  console.log("Every sealed row opens with the new key. Next: remove MASTER_KEY_PREVIOUS.");
+  return 0;
 }
