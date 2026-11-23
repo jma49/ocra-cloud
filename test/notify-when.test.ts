@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { scoped } from "../src/db/scoped.js";
 import { masterKeys } from "../src/keyring.js";
 import { runDigests } from "../src/notify/digest.js";
 import type { Outbox } from "../src/notify/notify.js";
@@ -59,7 +60,25 @@ async function account() {
     const res = await call("/api/reviews", { method: "POST", auth: cli.auth, json });
     expect(res.status).toBe(200);
   };
-  return { review, reportAt: new Date(slot.getTime() + 10 * 60_000) };
+  const merged = async () => {
+    const data = scoped(db, web.account.id);
+    const reviewRepoId = await data.insert("reviewRepos", {
+      platform: "github",
+      host: "github.com",
+      platformRepoId: "11",
+      fullName: "octo/api",
+    });
+    const closedAt = new Date(Date.now() - 1000);
+    await data.closedPulls.record({
+      reviewRepoId,
+      number: 7,
+      title: "Merged",
+      merged: true,
+      openedAt: new Date(closedAt.getTime() - HOUR),
+      closedAt,
+    });
+  };
+  return { review, merged, reportAt: new Date(slot.getTime() + 10 * 60_000) };
 }
 
 const counts = (critical: number, warning: number) => ({
@@ -118,5 +137,24 @@ describe("the weekly report", () => {
     const posted = told();
     await runReports(db, out, reportAt);
     expect(posted.sort()).toEqual([...whens].sort());
+  });
+});
+
+describe("a digest or report that names merges", () => {
+  it("goes to every channel that takes it, its reviews clean or not", async () => {
+    const { review, merged, reportAt } = await account();
+    await review("run-1", counts(0, 0));
+    await merged();
+    const posted = told();
+    await runDigests(db, out, new Date(Date.now() + DAY));
+    await runReports(db, out, reportAt);
+    expect(posted.sort()).toEqual([
+      "blocking",
+      "blocking",
+      "every",
+      "every",
+      "findings",
+      "findings",
+    ]);
   });
 });
