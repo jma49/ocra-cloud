@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type {
   CodePlatformKind,
@@ -10,7 +10,8 @@ import type {
 } from "../../../src/shared/index.js";
 import { api } from "../api.js";
 import { useRead } from "../cache.js";
-import { useFixes } from "../fixes/use-fixes.js";
+import { FixJobsOf } from "../fixes/fix-jobs.js";
+import { useFixesRead } from "../fixes/use-fixes.js";
 import { useBeside } from "../inbox/queue.js";
 import { usePageCommands } from "../page-commands.js";
 import { PlatformMark } from "../platform-mark.js";
@@ -83,8 +84,15 @@ export function PullPage(props: {
     const mark = { platform, repo, number, updatedAt, head };
     api("/pulls/seen", { method: "POST", body: JSON.stringify(mark) }).catch(() => undefined);
   }, [platform, repo, number, updatedAt, head, compared]);
-  const fixes = useFixes(head ? `/pulls/fixes?${query}&head=${head}` : null);
+  const { fixes, reload: readFixes } = useFixesRead(
+    head ? `/pulls/fixes?${query}&head=${head}` : null,
+  );
   const found = usePullFindings(head ? `/pulls/findings?${query}&head=${head}` : null);
+  const readFindings = found.reload;
+  const fixProposed = useCallback(() => {
+    readFixes();
+    readFindings();
+  }, [readFixes, readFindings]);
   // Findings marked fixed or dismissed on this page leave its diff at once.
   const [decided, setDecided] = useState<ReadonlySet<string>>(new Set());
   const decide = (id: string, gone: boolean) =>
@@ -292,27 +300,29 @@ export function PullPage(props: {
         </aside>
         <div className="pull-main">
           <SinceBar since={since} />
-          {shown.map((f) => (
-            <FileDiff
-              key={`${since.picked ?? ""}:${f.path}`}
-              readOnly={narrowed !== null}
-              file={f}
-              viewed={viewed.isViewed(f.path)}
-              onViewed={(v) => viewed.mark(f.path, v)}
-              pending={pending}
-              onComment={(c) => setPending([...pending, c])}
-              onDrop={(c) => setPending(pending.filter((x) => x !== c))}
-              findings={narrowed === null ? findings.filter((x) => x.file === f.path) : []}
-              review={found.review?.id ?? null}
-              onDecided={decide}
-              fixes={
-                narrowed === null
-                  ? fixes.filter((x) => x.file === f.path && !decided.has(x.finding))
-                  : []
-              }
-              onFixDone={(o) => done("Fix", o)}
-            />
-          ))}
+          <FixJobsOf query={query.toString()} onProposed={fixProposed}>
+            {shown.map((f) => (
+              <FileDiff
+                key={`${since.picked ?? ""}:${f.path}`}
+                readOnly={narrowed !== null}
+                file={f}
+                viewed={viewed.isViewed(f.path)}
+                onViewed={(v) => viewed.mark(f.path, v)}
+                pending={pending}
+                onComment={(c) => setPending([...pending, c])}
+                onDrop={(c) => setPending(pending.filter((x) => x !== c))}
+                findings={narrowed === null ? findings.filter((x) => x.file === f.path) : []}
+                review={found.review?.id ?? null}
+                onDecided={decide}
+                fixes={
+                  narrowed === null
+                    ? fixes.filter((x) => x.file === f.path && !decided.has(x.finding))
+                    : []
+                }
+                onFixDone={(o) => done("Fix", o)}
+              />
+            ))}
+          </FixJobsOf>
         </div>
       </div>
       <JumpToCode target={code} />

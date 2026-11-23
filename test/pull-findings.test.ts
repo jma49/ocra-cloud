@@ -30,6 +30,7 @@ describe("a pull request's findings", () => {
           lineStart: 10,
           lineEnd: 12,
           hasFix: true,
+          lowConfidence: false,
         },
       ],
     });

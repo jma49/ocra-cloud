@@ -45,6 +45,7 @@ pullFindings.get("/findings", requireSession(["web"]), perMinute("platform"), as
         lineStart: f.lineStart,
         lineEnd: f.lineEnd,
         hasFix: fixOf(f) !== null,
+        lowConfidence: f.lowConfidence,
       }),
     ),
   } satisfies PullFindingsView);

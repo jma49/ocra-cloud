@@ -1,6 +1,7 @@
 import Flag from "lucide-react/icons/flag";
 import type { PullFindingsView, PullFindingView } from "../../../src/shared/index.js";
 import { api } from "../api.js";
+import { FixWithOcra } from "../fixes/fix-with-ocra.js";
 import { Markdown } from "../markdown.js";
 import { Link } from "../router.js";
 import { SeverityBadge } from "../severity.js";
@@ -13,12 +14,12 @@ import { FindingDecide } from "./finding-decide.js";
 const NONE: PullFindingsView = { review: null, findings: [] };
 
 /** The findings the API path answers; none while loading, or when they could not be read. */
-export function usePullFindings(path: string | null): PullFindingsView {
-  const { data } = useLoad(
+export function usePullFindings(path: string | null): PullFindingsView & { reload: () => void } {
+  const { data, reload } = useLoad(
     () => (path ? api<PullFindingsView>(path) : Promise.resolve(null)),
     [path],
   );
-  return data?.findings ? data : NONE;
+  return { ...(data?.findings ? data : NONE), reload };
 }
 
 /** The new line a finding goes under: where its range ends; none for one about the whole file. */
@@ -44,7 +45,9 @@ export function FindingNote(props: {
       <div className="finding-note-body">
         <Markdown text={f.body} />
       </div>
-      <FindingDecide finding={f} onDecided={props.onDecided} />
+      <FindingDecide finding={f} onDecided={props.onDecided}>
+        <FixWithOcra finding={f} />
+      </FindingDecide>
     </section>
   );
 }
