@@ -1,3 +1,4 @@
+import { callsRefused } from "../calls.js";
 import { decryptWithAny, encryptSecret, type MasterKeys } from "../crypto.js";
 import type { Scoped } from "../db/scoped.js";
 import { masterKeys } from "../keyring.js";
@@ -89,6 +90,8 @@ export async function accessToken(
   }
   if (!tokens.refresh) return drop();
   const answer = await platform.refresh(tokens.refresh);
+  // A refresh the run's call budget refused was never sent: the link stands.
+  if (!answer && callsRefused()) return null;
   if (!answer?.access_token) {
     // A refresh token works once: a request running beside this one may
     // have used it and stored the new pair. Only when nothing changed is

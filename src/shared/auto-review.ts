@@ -46,6 +46,42 @@ export type AutoReviewRepoView = {
 /** What setting or clearing an enrolled GitLab project's access token answers. */
 export type RepoAccessTokenView = { hasAccessToken: boolean; accessTokenBot: string | null };
 
+/**
+ * Repositories one bulk enrollment names at most: each is read as the user,
+ * twice, within the calls one request may make.
+ */
+export const MAX_BULK_ENROLL = 20;
+
+/**
+ * Why a repository of a bulk enrollment was not enrolled: the user does not
+ * reach it through the App, another account enrolls it, or this account has
+ * as many as it may.
+ */
+export type EnrollRefusal = "not_found" | "taken" | "limit";
+
+/** One repository of a bulk enrollment: enrolled now, enrolled before, or refused. */
+export type BulkEnrollResult =
+  | { fullName: string; outcome: "enrolled" | "already"; repo: AutoReviewRepoView }
+  | { fullName: string; outcome: "refused"; reason: EnrollRefusal };
+
+export type BulkEnrollView = { results: BulkEnrollResult[] };
+
+/** A GitHub App installation the user reaches, and whether this account enrolls the repositories added to it. */
+export type AutoEnrollInstallationView = {
+  id: string;
+  /** The user or organisation it is installed on. */
+  owner: string;
+  enabled: boolean;
+  /** Whether the repositories it enrolls are reviewed as their pull requests open; off, only when a person asks. */
+  automatic: boolean;
+};
+
+/** The user's installations; `more` when GitHub listed more than were read. */
+export type AutoEnrollInstallationsView = {
+  installations: AutoEnrollInstallationView[];
+  more: boolean;
+};
+
 /** What the automatic switch of an enrolled repository answers. */
 export type AutoReviewSwitchView = { automatic: boolean };
 

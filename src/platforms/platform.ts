@@ -29,6 +29,9 @@ import type { PullFileViewed } from "./viewed.js";
 // stored but repository names the account chose to keep.
 
 /** A repository the user reaches on a platform. */
+/** An installation of the platform's app: its id, and the user or organisation it is on. */
+export type InstallationListing = { installations: { id: string; owner: string }[]; more: boolean };
+
 export type PlatformRepo = {
   /** The platform's own id, as text. */
   id: string;
@@ -70,6 +73,8 @@ export interface CodePlatform {
   refresh(refreshToken: string): Promise<TokenAnswer | null>;
   /** The repositories the user reaches; null when the platform refused the token. */
   listRepos(accessToken: string): Promise<RepoListing | null>;
+  /** The app's installations the user reaches, where the platform has them; null when refused. */
+  installations?(accessToken: string): Promise<InstallationListing | null>;
   /**
    * null when the platform refused the token. `teamAsks` are listed too
    * where the platform's own lists of the user's reviews miss them.

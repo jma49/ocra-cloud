@@ -22,7 +22,7 @@ import { githubStacks } from "./github-stack.js";
 import { githubThreads } from "./github-threads.js";
 import { githubViewed } from "./github-viewed.js";
 import { platformCall } from "./http.js";
-import type { CodePlatform, PlatformRepo, TokenAnswer } from "./platform.js";
+import type { CodePlatform, InstallationListing, PlatformRepo, TokenAnswer } from "./platform.js";
 
 // GitHub, github.com or a GitHub Enterprise Server, through this
 // deployment's GitHub App: the user's expiring token (8 hours, with a
@@ -32,7 +32,7 @@ import type { CodePlatform, PlatformRepo, TokenAnswer } from "./platform.js";
 /** Bounds the calls of one request (Workers' subrequest limit). */
 const MAX_INSTALLATIONS = 10;
 
-type Installation = { id: number };
+type Installation = { id: number; account?: { login?: string } | null };
 type Repo = { id: number; full_name: string; private: boolean; html_url: string };
 
 export type GithubClient = { host: GithubHost; id: string; secret: string; slug?: string };
@@ -103,6 +103,20 @@ export function github(client: GithubClient): CodePlatform {
     releases: githubReleases(host),
     reconcile: githubReconcile(host),
     viewed: githubViewed(post),
+    async installations(token): Promise<InstallationListing | null> {
+      const installs = await get<{ installations: Installation[] }>(
+        token,
+        "/user/installations?per_page=100",
+      );
+      if (!installs) return null;
+      return {
+        installations: installs.installations.map((i) => ({
+          id: String(i.id),
+          owner: i.account?.login ?? "",
+        })),
+        more: installs.installations.length >= 100,
+      };
+    },
     async listRepos(token) {
       const installs = await get<{ installations: Installation[] }>(
         token,
