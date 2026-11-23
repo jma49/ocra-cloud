@@ -252,7 +252,11 @@ export async function settle(
     reply: data.replies,
     generate: data.generations,
   }[ref.kind];
-  if (failure === null && (await cutShortByDailyLimit(data, ref, dailyCalls, now))) {
+  // A run the limit stopped before any task finished exits as failed: the limit is still why.
+  const limited =
+    (failure === null || failure === "review_failed") &&
+    (await cutShortByDailyLimit(data, ref, dailyCalls, now));
+  if (limited) {
     await data.autoReview.releaseJob(ref.id, ref.attempts, DAILY_LIMIT_WAIT, nextUtcDay(now), now);
   } else if (failure === null) {
     await records.finish(ref.id, ref.attempts, now);

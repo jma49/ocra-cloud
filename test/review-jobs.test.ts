@@ -157,6 +157,29 @@ describe("an account out of gateway calls for the day", () => {
     expect(await latest()).toMatchObject({ state: "done", error: null });
   });
 
+  it("has a review the limit stopped before any task finished wait for the next day too", async () => {
+    const { accountId, data } = await queued();
+    const job = await claimJob(db, now, 60_000, 1);
+    await data.takeCall(1, now);
+    await data.insert("reviews", {
+      runId: "run-1",
+      repoHash: "f".repeat(64),
+      source: "github",
+      complete: false,
+      prNumber: 7,
+      prHeadSha: A,
+      createdAt: now,
+    });
+    const ref = { kind: "review" as const, id: job?.id ?? "", accountId, attempts: 1 };
+    // The CLI exits with an error when no task completed.
+    await settle({ db, dailyCalls: 1 }, ref, "review_failed", now);
+    expect((await data.autoReview.latestJobs())[0]).toMatchObject({
+      state: "queued",
+      error: "daily_limit",
+      notBefore: nextDay,
+    });
+  });
+
   it("takes an incomplete review as the job's result while calls are left", async () => {
     const { accountId, data } = await queued();
     const job = await claimJob(db, now, 60_000, CALLS);
