@@ -75,7 +75,10 @@ describe("the pull request inbox", () => {
       }),
     });
     const a = await signInWithGithub();
-    const listed = (await (await a.send("/api/platforms/pulls")).json()) as Listed;
+    const res = await a.send("/api/platforms/pulls");
+    // How long the platform listing took, apart from the rest: the inbox's slowest read.
+    expect(res.headers.get("server-timing")).toMatch(/\blist;dur=[\d.]+.*\bmarks;dur=/);
+    const listed = (await res.json()) as Listed;
     const gh = listed.platforms.find((p) => p.platform === "github");
     expect(gh).toMatchObject({ linked: true, failed: false, more: false });
     expect(gh?.pulls.map((p) => [p.number, p.roles])).toEqual([
