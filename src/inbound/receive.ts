@@ -8,13 +8,22 @@ import {
 } from "../db/inbound-events.js";
 import { defer } from "../defer.js";
 import type { AppEnv } from "../types.js";
-import { INBOUND_LEASE_MS, type InboundRunner, type InboundWork, runInbound } from "./run.js";
+import {
+  INBOUND_LEASE_MS,
+  type InboundRunner,
+  type InboundWork,
+  runInbound,
+  runSteps,
+} from "./run.js";
 
-// A proved delivery is recorded before anything acts on it: a redelivery of
-// one recorded finds its row and does nothing. What the answer does itself
-// runs next; if it throws, the row goes, so that the platform's redelivery
-// is taken. Then the side effects run after the answer, from the row's work
-// (./run.ts), which the sweep tries again when they fail.
+// A proved delivery with steps to run after its answer (./steps.ts) is
+// recorded before anything acts on it: a redelivery of one recorded finds
+// its row and does nothing. What the answer does itself runs next; if it
+// throws, the row goes, so that the platform's redelivery is taken. Then
+// the steps run after the answer, from the row's work (./run.ts), which the
+// sweep tries again when they fail. A delivery without steps, most of a
+// busy repository's, is not recorded: it costs no write, and a redelivery
+// of it runs its answer again.
 
 /** The platforms' ids of a delivery: GitHub's GUID, GitLab's UUID. */
 const DELIVERY_ID = /^[A-Za-z0-9-]{8,100}$/;
@@ -49,11 +58,27 @@ export type Received = {
   start(): Promise<void>;
 };
 
-/** Records the delivery; null when it was recorded before. */
+/** A delivery without steps: nothing is recorded, and what the answer adds runs once. */
+function unrecorded(c: Context<AppEnv>, d: Delivery, work: InboundWork): Received {
+  return {
+    reviewed(pull) {
+      if (!pull) return;
+      work.reviewed = { number: pull.number, head: pull.head };
+      work.steps = [...work.steps, "paths"];
+    },
+    answer: (run) => run(),
+    async start() {
+      if (work.steps.length > 0) defer(c, runSteps(runnerOf(c), { ...d, attempts: 1 }, work));
+    },
+  };
+}
+
+/** Records the delivery when it has steps; null when it was recorded before. */
 export async function receive(c: Context<AppEnv>, d: Delivery): Promise<Received | null> {
+  const work: InboundWork = { ...d.work, origin: originOf(c) };
+  if (work.steps.length === 0) return unrecorded(c, d, work);
   const id = crypto.randomUUID();
   const deliveryId = d.deliveryId && DELIVERY_ID.test(d.deliveryId) ? d.deliveryId : id;
-  const work: InboundWork = { ...d.work, origin: originOf(c) };
   const db = c.var.db;
   const lease = () => new Date(Date.now() + INBOUND_LEASE_MS);
   const fresh = await receiveInbound(db, {
@@ -63,7 +88,7 @@ export async function receive(c: Context<AppEnv>, d: Delivery): Promise<Received
     deliveryId,
     event: d.event,
     repo: d.repo,
-    work: work.steps.length > 0 ? work : null,
+    work,
     leaseUntil: lease(),
   });
   if (!fresh) return null;
@@ -85,7 +110,6 @@ export async function receive(c: Context<AppEnv>, d: Delivery): Promise<Received
     },
     async start() {
       if (changed) await rearmInbound(db, id, work, lease());
-      if (work.steps.length === 0) return;
       const row = { id, ...d, attempts: 1, work };
       defer(c, runInbound(runnerOf(c), row));
     },

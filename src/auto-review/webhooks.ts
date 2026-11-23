@@ -9,6 +9,7 @@ import { MAX_HOOK_BODY } from "../graph/webhooks.js";
 import { apiError, jsonBody } from "../http.js";
 import { gitlabFields } from "../inbound/fields.js";
 import { receive } from "../inbound/receive.js";
+import { gitlabSteps } from "../inbound/steps.js";
 import { gitlabSignal } from "../merge-when-ready/hooks.js";
 import { COMMIT_ID } from "../platforms/contents.js";
 import { githubHostOf, gitlabClientOf } from "../platforms/registry.js";
@@ -142,6 +143,7 @@ export function autoReviewWebhooks(service: AutoReviewService) {
     }
     const signal = gitlabSignal(kind, body);
     const tells = !!note?.data || !!mr;
+    const steps = await gitlabSteps(c.var.db, repo, tells, signal?.signal);
     const received = await receive(c, {
       platform: "gitlab",
       host,
@@ -149,10 +151,12 @@ export function autoReviewWebhooks(service: AutoReviewService) {
       event: kind ?? "",
       repo: String(projectId),
       work: {
-        steps: [...(tells ? (["tell"] as const) : []), ...(signal ? (["intents"] as const) : [])],
+        steps,
         ...(tells ? { body: gitlabFields(body) } : {}),
         // The secret proves this project only: its intents are moved, whatever path the body names.
-        ...(signal ? { signal: { fullName: repo.fullName, signal: signal.signal } } : {}),
+        ...(signal && steps.includes("intents")
+          ? { signal: { fullName: repo.fullName, signal: signal.signal } }
+          : {}),
       },
     });
     if (!received) return c.json({ queued: 0, duplicate: true }, 202);

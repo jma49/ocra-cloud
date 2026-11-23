@@ -6,6 +6,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { hmacHex } from "../src/crypto.js";
 import { claimJob } from "../src/db/review-jobs.js";
 import * as schema from "../src/db/schema.js";
+import { scoped } from "../src/db/scoped.js";
 import { GITHUB_COM } from "../src/platforms/github-host.js";
 import type { AuditPage } from "../src/shared/index.js";
 import { auditLines, lines } from "../test/audit-lines.js";
@@ -251,5 +252,42 @@ describe("GitLab's merge request hook", () => {
       [3, C1, "superseded"],
       [3, C2, "queued"],
     ]);
+  });
+
+  it("records a pipeline's delivery only while an intent waits on its commit", async () => {
+    const { auth } = await s.signIn(1);
+    const res = await enroll(auth, { platform: "gitlab", fullName: "group/api" });
+    const { webhook } = (await res.json()) as { webhook: { secret: string } };
+    const pipeline = (uuid: string) =>
+      s.call("/api/auto-review/webhooks/gitlab", {
+        method: "POST",
+        headers: {
+          "x-gitlab-event": "Pipeline Hook",
+          "x-gitlab-token": webhook.secret,
+          "x-gitlab-event-uuid": uuid,
+        },
+        json: {
+          object_attributes: { sha: C1, status: "success" },
+          project: { id: 21, path_with_namespace: "group/api" },
+        },
+      });
+    const inbound = () => s.host.db.select().from(schema.inboundEvents);
+    expect(await (await pipeline("p-0001-aaaa")).json()).toEqual({ queued: 0 });
+    expect(await inbound()).toEqual([]);
+    const [repo] = await s.host.db.select().from(schema.reviewRepos);
+    await scoped(s.host.db, repo?.accountId ?? "").insert("mergeIntents", {
+      platform: "gitlab",
+      host: repo?.host ?? "",
+      fullName: "group/api",
+      number: 3,
+      method: "merge",
+      mode: "native",
+      head: C1,
+      state: "armed",
+      armedBy: "octo",
+    });
+    expect(await (await pipeline("p-0002-aaaa")).json()).toEqual({ queued: 0 });
+    expect(await (await pipeline("p-0002-aaaa")).json()).toEqual({ queued: 0, duplicate: true });
+    expect(await inbound()).toMatchObject([{ event: "Pipeline Hook", deliveryId: "p-0002-aaaa" }]);
   });
 });
