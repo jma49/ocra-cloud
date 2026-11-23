@@ -46,10 +46,15 @@ const githubPull = (p: Pull) => ({
   merged_at: p.merged?.toISOString() ?? null,
 });
 
+/** Every call the run made to anything, platforms and tokens alike. */
+let calls = 0;
+
 /** GitHub and GitLab answering for each repository's pull requests; every list read, by repository. */
 function platformsWith(pulls: Record<string, Pull[]>) {
   const reads: string[] = [];
+  calls = 0;
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+    calls++;
     const url = new URL(new Request(input, init).url);
     const gh = url.pathname.match(/^\/repos\/([^/]+\/[^/]+)\/pulls(?:\/(\d+))?$/);
     if (url.origin === API && gh?.[1]) {
@@ -125,7 +130,75 @@ async function account(n: number, repos: { name: string; platform?: "github" | "
   return { id: account.id, data, repo: (name: string) => `${account.id}-${name}` };
 }
 
+/** Pull requests the repository holds open, which the platform closed long ago. */
+async function heldOpen(a: Awaited<ReturnType<typeof account>>, name: string, numbers: number[]) {
+  for (const number of numbers) {
+    await a.data.pullFlows.record({
+      reviewRepoId: a.repo(name),
+      number,
+      title: `Pull ${number}`,
+      author: "dev",
+      draft: false,
+      size: null,
+      seenAt: new Date(Date.now() - 5 * HOUR),
+    });
+  }
+  const merged = new Date(Date.now() - 6 * DAY);
+  return numbers.map((number): Pull => ({ number, state: "closed", merged, updated: merged }));
+}
+
+const range = (from: number, count: number) => Array.from({ length: count }, (_, i) => from + i);
+
+/** The Worker's calls per run (WORKER_RECONCILE_CALLS), which the Free plan's 50 must hold beside the cron's other work. */
+const WORKER_BUDGET = 20;
+
 describe("the daily reconciliation", () => {
+  it("never makes more platform calls in a run than its budget", async () => {
+    const pulls: Record<string, Pull[]> = {};
+    for (const n of [1, 2, 3, 4, 5]) {
+      const names = [`org${n}/a`, `org${n}/b`];
+      const a = await account(
+        n,
+        names.map((name) => ({ name })),
+      );
+      for (const name of names) {
+        // Open since before enrollment: two pages listed, nothing to fill.
+        const open = range(1, 250).map(
+          (number): Pull => ({ number, state: "open", updated: new Date(Date.now() - 2 * DAY) }),
+        );
+        pulls[name] = [...open, ...(await heldOpen(a, name, range(1001, 10)))];
+      }
+    }
+    platformsWith(pulls);
+    await hourly();
+    expect(calls).toBeGreaterThan(0);
+    expect(calls).toBeLessThanOrEqual(WORKER_BUDGET);
+  });
+
+  it("reads a repository its budget cut short again on the next run, and finishes it", async () => {
+    const pulls: Record<string, Pull[]> = {};
+    const accounts: Awaited<ReturnType<typeof account>>[] = [];
+    for (const n of [1, 2]) {
+      const a = await account(n, [{ name: `org${n}/app` }]);
+      accounts.push(a);
+      pulls[`org${n}/app`] = await heldOpen(a, `org${n}/app`, range(1, 10));
+    }
+    const closes = async () =>
+      Promise.all(accounts.map(async (a) => (await a.data.list("closedPulls")).length));
+
+    const reads = platformsWith(pulls);
+    await hourly();
+    expect(calls).toBeLessThanOrEqual(WORKER_BUDGET);
+    expect((await closes()).sort()).not.toEqual([10, 10]);
+
+    await hourly();
+    expect(await closes()).toEqual([10, 10]);
+    const listed = reads.length;
+    await hourly();
+    // Both finished for the day: nothing is read again.
+    expect(reads).toHaveLength(listed);
+  });
+
   it("fills in the closes and open states the webhooks missed, and keeps theirs", async () => {
     const now = Date.now();
     const a = await account(1, [{ name: "octo/api" }]);

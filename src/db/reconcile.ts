@@ -5,7 +5,8 @@ import { reviewRepos } from "./schema.js";
 // The daily reconciliation's turn (src/reconcile.ts), across accounts: each
 // enrolled repository is claimed once per UTC day, by a compare-and-set on
 // when it was last claimed, so two runs at once, or a run every hour, read
-// it once a day.
+// it once a day. A run that ran out of calls before it finished a
+// repository gives the claim back, so the next run reads it again.
 
 export type ReconcileTurn = {
   id: string;
@@ -14,6 +15,9 @@ export type ReconcileTurn = {
   host: string;
   fullName: string;
   createdAt: Date;
+  /** When it was claimed before this claim; null the first time. */
+  previous: Date | null;
+  claimedAt: Date;
 };
 
 /** Midnight UTC of now's day. */
@@ -57,7 +61,19 @@ export async function claimReconcile(
         createdAt: t.createdAt,
       })
       .then(first);
-    if (claimed) return claimed;
+    if (claimed) return { ...claimed, previous: next.reconciledAt, claimedAt: now };
   }
   return undefined;
+}
+
+/**
+ * Gives back a claim whose run did not finish the repository: it is due
+ * again, with the time it waited before, unless another run claimed it since.
+ */
+export async function releaseReconcile(db: Db, turn: ReconcileTurn): Promise<void> {
+  const t = reviewRepos;
+  await db
+    .update(t)
+    .set({ reconciledAt: turn.previous })
+    .where(and(eq(t.id, turn.id), eq(t.reconciledAt, turn.claimedAt)));
 }
