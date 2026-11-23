@@ -1,7 +1,8 @@
 import { createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, it } from "vitest";
-import { scoped } from "../src/db/scoped.js";
+import * as schema from "../src/db/schema.js";
+import { newId } from "../src/db/scoped.js";
 import app from "../src/index.js";
 import { db, request, resetDb, signIn } from "./helpers.js";
 import { metered } from "./metered.js";
@@ -11,19 +12,30 @@ import { metered } from "./metered.js";
 
 beforeEach(resetDb);
 
-const EVENTS = 2000;
+// More than two of the export's pages of 500, so that a reader that ran
+// ahead would have read over half of them.
+const EVENTS = 1200;
+// D1 binds at most 100 parameters to a statement; an event row takes five.
+const ROWS_PER_INSERT = 20;
 
 describe("the export", () => {
   it("reads no further ahead than the client has read, and still holds every row", async () => {
     const me = await signIn(1, "octo");
-    const d = scoped(db, me.account.id);
-    for (let start = 0; start < EVENTS; start += 500) {
-      await d.batch((w) =>
-        Array.from({ length: 500 }, (_, i) =>
-          w.insert("auditEvents", { kind: "key.used", detail: { n: start + i } }),
-        ),
-      );
-    }
+    const at = Date.now();
+    const rows = Array.from({ length: EVENTS }, (_, n) => ({
+      id: newId(),
+      accountId: me.account.id,
+      kind: "key.used",
+      detail: { n },
+      createdAt: new Date(at + n),
+    }));
+    // A statement per row took most of the test's time on PGlite.
+    const [head, ...tail] = Array.from({ length: Math.ceil(EVENTS / ROWS_PER_INSERT) }, (_, i) =>
+      db
+        .insert(schema.auditEvents)
+        .values(rows.slice(i * ROWS_PER_INSERT, (i + 1) * ROWS_PER_INSERT)),
+    );
+    if (head) await db.batch([head, ...tail]);
     const { DB, meter } = metered();
     const ctx = createExecutionContext();
     const res = await app.fetch(request("/api/export", { auth: me.auth }), { ...env, DB }, ctx);
