@@ -1,8 +1,6 @@
-import { type Context, Hono } from "hono";
+import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
-import { defer } from "../defer.js";
 import { apiError } from "../http.js";
-import type { PullsTouched } from "../pull-changes.js";
 import { perMinute } from "../rate.js";
 import { requireSession } from "../session.js";
 import type { PullsChangedEvent } from "../shared/index.js";
@@ -67,20 +65,3 @@ pullEventsRoute.get("/pulls/changed/stream", requireSession(), perMinute("inbox"
     }
   });
 });
-
-/** Tells the open consoles of the accounts a webhook moved, after the answer; a failure is logged. */
-export function publishPulls(
-  c: Context<AppEnv>,
-  moved: { accountId: string; repoId: string }[],
-  touched: PullsTouched,
-): void {
-  const hub = c.var.pullsHub;
-  if (!hub) return;
-  for (const { accountId, repoId } of moved) {
-    const numbers = touched.numbers.length > 0 ? touched.numbers : [null];
-    const events = numbers.map(
-      (number) => ({ repoId, number, kind: touched.kind }) satisfies PullsChangedEvent,
-    );
-    defer(c, hub.publish(accountId, events));
-  }
-}
