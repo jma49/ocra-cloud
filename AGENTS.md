@@ -1,6 +1,6 @@
 # Agent rules for ocra Cloud
 
-Read the private handoff (`../ocra-internal/handoff.md`) and [ADR-0024](https://github.com/jma49/Open-CR-Agent/blob/main/docs/adr/0024-ocra-cloud.md) first. The engine's AGENTS.md (`../ocra/AGENTS.md`, or [on GitHub](https://github.com/jma49/Open-CR-Agent/blob/main/AGENTS.md)) is the house style for what this file does not say (module size, comments, tests).
+Read the private handoff (`../ocra-internal/handoff.md`) and [ADR-0024](https://github.com/ocrahq/Open-CR-Agent/blob/main/docs/adr/0024-ocra-cloud.md) first. The engine's AGENTS.md (`../ocra/AGENTS.md`, or [on GitHub](https://github.com/ocrahq/Open-CR-Agent/blob/main/AGENTS.md)) is the house style for what this file does not say (module size, comments, tests).
 
 - **Isolation is the first rule.** Account data is read and written only through `scoped()` in `src/db/scoped.ts`. Code outside `src/db/` does not import the account tables (`test/shared-boundary.test.ts`). A new account table goes in `accountTables` and gets a case in `test/isolation.test.ts` (the test fails until it does). Read rows with its queries (`find`, `findOne`, `count`, `listNewest`, …), never by filtering a whole `list()` in JS; `insert` makes the id.
 - **Never log a request or response body** of a model call, nor a key, token or secret. Secrets are Worker secrets (`wrangler secret put`, with no trailing newline in piped input), never in `wrangler.jsonc` or the repo.
@@ -18,7 +18,7 @@ Read the private handoff (`../ocra-internal/handoff.md`) and [ADR-0024](https://
 - Work on a branch `<type>/<short-kebab-description>` in its own worktree; open a pull request; merge by rebase once CI is green. `main` is not protected (private repository on the Free plan), so this is on you.
 - [Conventional Commits](https://www.conventionalcommits.org/), committed as the maintainer (`git -c user.name=jincheng_m -c user.email=majincheng990128@gmail.com`); CI's `commits` job checks both and refuses AI attribution.
 - Run `npm run verify` before pushing and read its exit code.
-- CI follows the engine's [`docs/ci.md`](https://github.com/jma49/Open-CR-Agent/blob/main/docs/ci.md) (targets, budgets, the rules that outrank speed): a job that sets up or runs longer than its ceiling in `.github/ci-budgets.json` fails the run.
+- CI follows the engine's [`docs/ci.md`](https://github.com/ocrahq/Open-CR-Agent/blob/main/docs/ci.md) (targets, budgets, the rules that outrank speed): a job that sets up or runs longer than its ceiling in `.github/ci-budgets.json` fails the run.
 - Never commit `.dev.vars`, keys or other secrets. Update `../ocra-internal/handoff.md` at the end of a batch of work, as Working with agents says.
 
 ## Working with agents
@@ -34,5 +34,5 @@ Mirrored word for word in the AGENTS.md of ocra, ocra-cloud and ocra-site: chang
 - **A fix's test fails on the old code on an assertion,** not on a module the fix adds (in ocra, `scripts/fails-without.sh` refuses that).
 - **Shapes the CLI and ocra Cloud share live in `@open-cr-agent/cloud-contract`;** never retype them.
 - **Show only what exists:** mocks, demos and the landing use shipped behaviour and recorded or synthetic data, never the maintainer's accounts, numbers, keys or budget.
-- **Private notes are for maintainers** with access to `jma49/ocra-internal` (`../ocra-internal`): `git pull --rebase` before editing it, commit and push right after, rebase on a conflict. A session without write access puts its handoff in its final report instead.
+- **Private notes are for maintainers** with access to `ocrahq/ocra-internal` (`../ocra-internal`): `git pull --rebase` before editing it, commit and push right after, rebase on a conflict. A session without write access puts its handoff in its final report instead.
 - **Keep AGENTS.md under 150 lines:** a rule a check enforces names that check; stories go to `../ocra-internal/pitfalls.md`.
