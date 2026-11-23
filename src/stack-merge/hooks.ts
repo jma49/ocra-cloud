@@ -6,17 +6,29 @@ import { type Row, scoped } from "../db/scoped.js";
 import { errorName, logError } from "../log.js";
 import { githubSignal, type PullSignal } from "../merge-when-ready/hooks.js";
 import { accessToken } from "../platforms/links.js";
-import { MAX_STACK } from "../platforms/stacks.js";
+import { MAX_STACK, type OpenPull } from "../platforms/stacks.js";
 import { advanceStack, REQUEST_CALLS, type StackRunner } from "./advance.js";
+import { mergeKey, queueRestacks } from "./restack.js";
 
 // What an enrolled repository's webhooks say to stacks: the signals that
 // move a merge intent move the stack merge on that layer too, and a pull
 // request merged on the platform has the ones stacked on it moved onto its
 // base, as the account that enrolled the repository (whose link its other
-// server-side writes use), so they do not merge into a branch that landed.
+// server-side writes use), so they do not merge into a branch that landed;
+// where the repository turned restacks on, each moved one is queued to be
+// rebased there too (./restack.ts).
 
-/** A merged pull request's branches. */
-export type MergedPull = { number: number; head: string; base: string };
+/**
+ * A merged pull request's branches, and its head and merge commit where the
+ * delivery named them (a delivery kept before they were read names neither).
+ */
+export type MergedPull = {
+  number: number;
+  head: string;
+  base: string;
+  headSha?: string;
+  mergeCommit?: string | null;
+};
 
 const MAX_PER_SIGNAL = 20;
 
@@ -26,7 +38,8 @@ const githubMergedBody = z.object({
   number: z.number().int().min(1),
   pull_request: z.object({
     merged: z.literal(true),
-    head: z.object({ ref: z.string().min(1) }),
+    merge_commit_sha: z.string().nullish(),
+    head: z.object({ ref: z.string().min(1), sha: z.string().optional() }),
     base: z.object({ ref: z.string().min(1) }),
   }),
 });
@@ -36,6 +49,9 @@ const gitlabMergedBody = z.object({
     action: z.literal("merge"),
     source_branch: z.string().min(1),
     target_branch: z.string().min(1),
+    last_commit: z.object({ id: z.string() }).optional(),
+    merge_commit_sha: z.string().nullish(),
+    squash_commit_sha: z.string().nullish(),
   }),
 });
 
@@ -47,7 +63,13 @@ export function githubMerged(event: string | undefined, body: unknown): MergedPu
   const p = githubMergedBody.safeParse(body);
   if (!p.success) return null;
   const { number, pull_request: pull } = p.data;
-  return { number, head: pull.head.ref, base: pull.base.ref };
+  return {
+    number,
+    head: pull.head.ref,
+    base: pull.base.ref,
+    ...(pull.head.sha ? { headSha: pull.head.sha } : {}),
+    ...(pull.merge_commit_sha ? { mergeCommit: pull.merge_commit_sha } : {}),
+  };
 }
 
 /** A GitLab hook's merged merge request; null for any other. */
@@ -56,7 +78,14 @@ export function gitlabMerged(kind: string | undefined, body: unknown): MergedPul
   const p = gitlabMergedBody.safeParse(body);
   if (!p.success) return null;
   const a = p.data.object_attributes;
-  return { number: a.iid, head: a.source_branch, base: a.target_branch };
+  const merge = a.squash_commit_sha ?? a.merge_commit_sha;
+  return {
+    number: a.iid,
+    head: a.source_branch,
+    base: a.target_branch,
+    ...(a.last_commit ? { headSha: a.last_commit.id } : {}),
+    ...(merge ? { mergeCommit: merge } : {}),
+  };
 }
 
 const platformOf = (runner: StackRunner, repo: Row<"reviewRepos">) =>
@@ -101,7 +130,8 @@ export async function moveStackMerges(
 
 /**
  * Moves the open pull requests whose base is a merged one's head branch
- * onto that one's base; how many it moved.
+ * onto that one's base, and queues their restacks where the repository
+ * wants them; how many it moved.
  */
 export async function restackOnMerge(
   runner: StackRunner,
@@ -114,18 +144,27 @@ export async function restackOnMerge(
   const token = await accessToken(data, runner.env, platform);
   if (!token) return 0;
   const above = await platform.stacks.children(token, repo.fullName, merged.head);
-  let moved = 0;
+  const moved: OpenPull[] = [];
   for (const pull of (above ?? []).slice(0, MAX_STACK)) {
     if (pull.number === merged.number || pull.base !== merged.head) continue;
     const sent = await platform.stacks.retarget(token, repo.fullName, pull.number, merged.base);
     if (sent !== "done") continue;
-    moved++;
+    moved.push(pull);
     await audit(data, "stack.retargeted", {
       pull: `${repo.fullName}#${pull.number}`,
       base: merged.base,
     });
   }
-  return moved;
+  if (merged.headSha && moved.length > 0) {
+    const parent = {
+      number: merged.number,
+      merge: mergeKey(merged.mergeCommit, merged.headSha),
+      head: merged.headSha,
+      onto: { branch: merged.base, commit: null },
+    };
+    await queueRestacks(data, repo, parent, moved);
+  }
+  return moved.length;
 }
 
 /** A delivery's signal and merged pull request, for the enrolled repository's stacks. */

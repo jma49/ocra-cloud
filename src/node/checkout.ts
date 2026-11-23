@@ -8,13 +8,17 @@ import type { CodePlatformKind } from "../shared/index.js";
 // ocra bot into a directory of the job's own, with an environment that
 // holds nothing of this machine but its network settings.
 
-type ExecResult = { code: number | null };
+/** `stdout` only when asked for: what the command wrote, cut at MAX_STDOUT. */
+type ExecResult = { code: number | null; stdout?: string };
 /** Runs a command to its end; aborting the signal kills it with its children. */
 export type Exec = (
   command: string,
   args: readonly string[],
-  options: { cwd: string; env: Record<string, string>; signal: AbortSignal },
+  options: { cwd: string; env: Record<string, string>; signal: AbortSignal; stdout?: true },
 ) => Promise<ExecResult>;
+
+/** What a command's output is read for is a line or two: an object id. */
+const MAX_STDOUT = 4096;
 
 type Repo = { platform: CodePlatformKind; url: string; fullName: string };
 
@@ -106,8 +110,13 @@ export const spawnExec: Exec = (command, args, options) =>
       cwd: options.cwd,
       // The Worker's typing of process.env names its bindings; a child gets none of them.
       env: options.env as unknown as NodeJS.ProcessEnv,
-      stdio: "ignore",
+      stdio: ["ignore", options.stdout ? "pipe" : "ignore", "ignore"],
       detached: true,
+    });
+    let stdout = "";
+    child.stdout?.setEncoding("utf8");
+    child.stdout?.on("data", (chunk: string) => {
+      if (stdout.length < MAX_STDOUT) stdout = (stdout + chunk).slice(0, MAX_STDOUT);
     });
     const kill = () => {
       if (child.pid) {
@@ -118,8 +127,9 @@ export const spawnExec: Exec = (command, args, options) =>
     };
     options.signal.addEventListener("abort", kill, { once: true });
     child.once("error", reject);
-    child.once("exit", (code) => {
+    // With its output read, it is done once that is all read too.
+    child.once(options.stdout ? "close" : "exit", (code: number | null) => {
       options.signal.removeEventListener("abort", kill);
-      resolve({ code });
+      resolve(options.stdout ? { code, stdout } : { code });
     });
   });

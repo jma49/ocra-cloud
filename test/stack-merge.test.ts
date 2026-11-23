@@ -315,6 +315,7 @@ describe("a pull request merged on the platform", () => {
       number: 1,
       head: "a",
       base: "b",
+      headSha: sha(1),
     });
   });
 });

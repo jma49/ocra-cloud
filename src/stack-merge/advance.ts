@@ -9,10 +9,11 @@ import type { Outbox } from "../notify/notify.js";
 import { tellOwnPullEvent } from "../notify/pull-events.js";
 import { accessToken } from "../platforms/links.js";
 import type { CodePlatform } from "../platforms/platform.js";
-import { MAX_STACK } from "../platforms/stacks.js";
+import { type LayerStanding, MAX_STACK, type OpenPull } from "../platforms/stacks.js";
 import { mergeMethodsOf, mergeOne } from "../pull-page.js";
 import type { StackMergeLayer, StackMergeReason, StackMergeStep } from "../shared/index.js";
 import type { AppBindings } from "../types.js";
+import { enrolledRepo, mergeKey, queueRestacks } from "./restack.js";
 
 // A stack merge moved on, one claimed step at a time: the layer it is on is
 // read from the platform, retargeted to the trunk, brought up to date where
@@ -225,7 +226,10 @@ class Run {
       // Merged into a branch of the stack, not the trunk: what the next layer holds did not land.
       if (standing.base !== at.trunk) return stop(this.end("failed", "stack_changed"));
       // Merged by this run, or on the platform directly: the ones above it move on.
-      const { restacked, cut } = await restack(this.scope, token, at, standing.headBranch);
+      const { restacked, cut } = await restack(this.scope, token, at, {
+        ...standing,
+        number: layer.number,
+      });
       // The run's calls ran out mid-way: what moved is kept, the next run moves the rest.
       if (cut) return stop(this.save({ restacked }).then(() => this.wait("unreachable")));
       const above = at.chain[at.step + 1];
@@ -302,29 +306,59 @@ class Run {
 
 /**
  * Moves the open pull requests stacked on a merged branch, but not in the
- * chain (it moves those itself), onto the trunk; what it did, kept with the
- * merge's earlier ones, and whether the run's calls ran out before the end.
+ * chain (it moves those itself), onto the trunk, and queues their restacks
+ * where the repository wants them (./restack.ts); what it did, kept with
+ * the merge's earlier ones, and whether the run's calls ran out before the end.
  */
 async function restack(
   scope: StackScope,
   token: string,
   merge: StackMerge,
-  branch: string,
+  merged: MergedLayer,
 ): Promise<{ restacked: StackMergeStep[]; cut: boolean }> {
   const kept = [...merge.restacked];
-  const done = (cut: boolean) => ({ restacked: kept.slice(-MAX_STACK), cut });
-  const above = await item(() => scope.platform.stacks.children(token, merge.path, branch));
+  const moved: OpenPull[] = [];
+  const done = async (cut: boolean) => {
+    if (moved.length > 0) await queueMoved(scope, merge, merged, moved);
+    return { restacked: kept.slice(-MAX_STACK), cut };
+  };
+  const above = await item(() =>
+    scope.platform.stacks.children(token, merge.path, merged.headBranch),
+  );
   if (above.cut) return done(true);
   const inChain = new Set(merge.chain.map((l) => l.number));
   for (const pull of (above.value ?? []).slice(0, MAX_STACK)) {
     if (inChain.has(pull.number) || kept.some((s) => s.number === pull.number)) continue;
-    const moved = await item(() =>
+    const sent = await item(() =>
       scope.platform.stacks.retarget(token, merge.path, pull.number, merge.trunk),
     );
-    if (moved.cut) return done(true);
-    kept.push({ number: pull.number, outcome: moved.value ?? "unreached" });
+    if (sent.cut) return done(true);
+    kept.push({ number: pull.number, outcome: sent.value ?? "unreached" });
+    if (sent.value === "done") moved.push(pull);
   }
   return done(false);
+}
+
+type MergedLayer = LayerStanding & { number: number };
+
+/** Queues the restacks of the pull requests moved off a layer the stack merge merged. */
+async function queueMoved(
+  scope: StackScope,
+  merge: StackMerge,
+  merged: MergedLayer,
+  moved: readonly OpenPull[],
+): Promise<void> {
+  const { data, platform } = scope;
+  const where = { platform: platform.kind, host: platform.host, fullName: merge.path };
+  const repo = await enrolledRepo(data, where);
+  if (!repo) return;
+  const parent = {
+    number: merged.number,
+    merge: mergeKey(merged.mergeCommit, merged.head),
+    head: merged.head,
+    onto: { branch: merge.trunk, commit: null },
+  };
+  await queueRestacks(data, repo, parent, moved);
 }
 
 /** Merges a sweep moves; the rest wait for the next. */

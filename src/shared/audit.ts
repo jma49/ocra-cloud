@@ -43,6 +43,7 @@ export type AuditDetails = {
   "auto_review.profile_changed": { repo: string; profile: string };
   "auto_review.automatic_changed": { repo: string; automatic: boolean };
   "auto_review.learn_changed": { repo: string; learn: string };
+  "auto_review.restack_changed": { repo: string; restack: boolean };
   "auto_review.unenrolled": { repo: string };
   "auto_review.renamed": { repo: string; previous: string };
   "auto_review.paused": { repo: string; reason: string };
@@ -79,6 +80,8 @@ export type AuditDetails = {
   "stack_merge.merged": StackMerge;
   "stack_merge.failed": StackMerge & { reason: string | null };
   "stack.retargeted": Pull & { base: string };
+  /** The bot rebased a stacked pull request onto `base` and force-pushed it. */
+  "stack.force_pushed": Pull & { base: string; head: string; pushed: string };
 };
 export type AuditKind = keyof AuditDetails;
 
@@ -115,6 +118,7 @@ export const AUDIT_FIELDS: { readonly [K in AuditKind]: readonly (keyof AuditDet
   "auto_review.profile_changed": ["repo", "profile"],
   "auto_review.automatic_changed": ["repo", "automatic"],
   "auto_review.learn_changed": ["repo", "learn"],
+  "auto_review.restack_changed": ["repo", "restack"],
   "auto_review.unenrolled": ["repo"],
   "auto_review.renamed": ["repo", "previous"],
   "auto_review.paused": ["repo", "reason"],
@@ -146,6 +150,7 @@ export const AUDIT_FIELDS: { readonly [K in AuditKind]: readonly (keyof AuditDet
   "stack_merge.merged": ["pull", "top", "method"],
   "stack_merge.failed": ["pull", "top", "method", "reason"],
   "stack.retargeted": ["pull", "base"],
+  "stack.force_pushed": ["pull", "base", "head", "pushed"],
 };
 export const AUDIT_KINDS = Object.keys(AUDIT_FIELDS) as AuditKind[];
 

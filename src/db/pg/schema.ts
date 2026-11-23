@@ -61,6 +61,7 @@ export const reviewTargets = pg(sqlite.reviewTargets);
 export const replyJobs = pg(sqlite.replyJobs);
 export const reviewWalkthroughs = pg(sqlite.reviewWalkthroughs);
 export const generateJobs = pg(sqlite.generateJobs);
+export const restackJobs = pg(sqlite.restackJobs);
 export const learnJobs = pg(sqlite.learnJobs);
 export const pullCommands = pg(sqlite.pullCommands);
 export const pausedPulls = pg(sqlite.pausedPulls);

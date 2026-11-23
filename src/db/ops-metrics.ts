@@ -10,6 +10,7 @@ import {
   mergeIntents,
   notifyDeliveries,
   replyJobs,
+  restackJobs,
   reviewJobs,
 } from "./schema.js";
 
@@ -63,6 +64,7 @@ const QUEUES: Record<string, QueueTable> = {
   reply: replyJobs,
   generate: generateJobs,
   learn: learnJobs,
+  restack: restackJobs,
   graph: graphBuilds,
 };
 
