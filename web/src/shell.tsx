@@ -31,6 +31,7 @@ import type { Me } from "./api.js";
 import { AccountMenu, signOut } from "./chrome.js";
 import { CommandMenu, type CommandSection } from "./command-menu.js";
 import { EyesMark } from "./eyes.js";
+import { useHoverGlide, usePickedGlide } from "./glide.js";
 import { QueueNav } from "./inbox/queue-nav.js";
 import { Link } from "./router.js";
 import { type Place, placeHome, placeTabs, type Route, settingsGroups } from "./routes.js";
@@ -162,8 +163,9 @@ function SettingsNav(props: { me: Me; path: string }) {
     if (!el || !on || el.scrollWidth <= el.clientWidth) return;
     el.scrollLeft = on.offsetLeft - (el.clientWidth - on.offsetWidth) / 2;
   }, [props.path]);
+  useHoverGlide(nav, ".settings-link");
   return (
-    <nav className="settings-nav" aria-label="Settings" ref={nav}>
+    <nav className="settings-nav glide" aria-label="Settings" ref={nav}>
       {settingsGroups(props.me).map((g) => (
         <div key={g.label} className="settings-group">
           <div className="quiet-label">{g.label}</div>
@@ -217,7 +219,7 @@ function PageBar(props: { me: Me; route: Route | undefined; path: string }) {
       <span className="spacer" />
       {pull && <QueueNav path={props.path} />}
       {tabs.length > 1 && (
-        <nav className="place-tabs" aria-label={place?.label}>
+        <PlaceTabs label={place?.label}>
           {tabs.map((t) => (
             <Link
               key={t.path}
@@ -228,9 +230,19 @@ function PageBar(props: { me: Me; route: Route | undefined; path: string }) {
               {t.tab}
             </Link>
           ))}
-        </nav>
+        </PlaceTabs>
       )}
     </header>
+  );
+}
+
+function PlaceTabs(props: { label: string | undefined; children: ReactNode }) {
+  const nav = useRef<HTMLElement>(null);
+  usePickedGlide(nav, ".place-tab.on");
+  return (
+    <nav className="place-tabs glide" aria-label={props.label} ref={nav}>
+      {props.children}
+    </nav>
   );
 }
 

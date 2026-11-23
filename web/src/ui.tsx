@@ -7,6 +7,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { SignInMethod } from "../../src/shared/index.js";
 import { api, type Day, needsSignIn, type ProviderInfo, why } from "./api.js";
 import { compact } from "./format.js";
+import { usePickedGlide } from "./glide.js";
 import { Link } from "./router.js";
 
 export function PageHead(props: { title: string; sub?: ReactNode; actions?: ReactNode }) {
@@ -28,9 +29,12 @@ export function Seg<T extends string | number>(props: {
   onChange: (v: T) => void;
   label: string;
 }) {
+  const group = useRef<HTMLDivElement>(null);
+  usePickedGlide(group, "[data-pressed]");
   return (
     <ToggleGroup
-      className="seg"
+      ref={group}
+      className="seg glide"
       size="sm"
       aria-label={props.label}
       value={[String(props.value)]}
