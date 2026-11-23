@@ -1,4 +1,4 @@
-import { decryptWithAny, encryptSecret, type MasterKeys } from "../crypto.js";
+import { decryptWithAny, encryptSecret, type MasterKeys, platformTokenBinding } from "../crypto.js";
 import type { Scoped } from "../db/scoped.js";
 import { masterKeys } from "../keyring.js";
 import type { AppBindings } from "../types.js";
@@ -13,7 +13,7 @@ type Tokens = { access: string; refresh?: string };
 type Keys = Pick<AppBindings, "MASTER_KEY" | "MASTER_KEY_PREVIOUS">;
 
 const binding = (accountId: string, p: CodePlatform) =>
-  `ocra-platform-token:v1|${accountId}|${p.kind}|${p.host}`;
+  platformTokenBinding(accountId, p.kind, p.host);
 const after = (now: number, seconds: number | undefined) =>
   typeof seconds === "number" ? new Date(now + seconds * 1000) : null;
 /** A minute's margin, so a call does not start with a token about to lapse. */
