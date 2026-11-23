@@ -5,7 +5,7 @@ import { useCached } from "../cache.js";
 import { GetStarted } from "../first-run/get-started.js";
 import { compact, num } from "../format.js";
 import { Link } from "../router.js";
-import { EmptyNote, LoadError, Loading, PageHead, StackedBars, useLoad } from "../ui.js";
+import { EmptyNote, LoadError, Loading, PageHead, StackedBars, Stat, useLoad } from "../ui.js";
 
 export function Overview(props: { me?: Me }) {
   const {
@@ -27,31 +27,34 @@ export function Overview(props: { me?: Me }) {
     <>
       <PageHead title="Usage" sub="Your keys, your calls and your reviews in one place." />
       <div className="stats">
-        <div className="card stat">
-          <div className="stat-label">Requests today</div>
-          <div className="stat-value">{usage ? num(usage.today) : "–"}</div>
+        <Stat
+          label="Requests today"
+          value={usage ? num(usage.today) : "–"}
+          note={`of ${usage ? num(usage.dailyLimit) : "–"} a day`}
+          to="/activity?days=7"
+        >
           <div className="meter">
             <span style={{ width: `${pct}%` }} />
           </div>
-          <div className="stat-note">of {usage ? num(usage.dailyLimit) : "–"} a day</div>
-        </div>
-        <div className="card stat">
-          <div className="stat-label">Requests, 7 days</div>
-          <div className="stat-value">{usage ? num(calls7) : "–"}</div>
-          <div className="stat-note">
-            {errors7 ? `${num(errors7)} failed upstream` : "no failures"}
-          </div>
-        </div>
-        <div className="card stat">
-          <div className="stat-label">Tokens, 7 days</div>
-          <div className="stat-value">{usage ? compact(tokens7) : "–"}</div>
-          <div className="stat-note">input and output</div>
-        </div>
-        <div className="card stat">
-          <div className="stat-label">Provider keys</div>
-          <div className="stat-value">{keys ? keyCount : "–"}</div>
-          <div className="stat-note">encrypted at rest</div>
-        </div>
+        </Stat>
+        <Stat
+          label="Requests, 7 days"
+          value={usage ? num(calls7) : "–"}
+          note={errors7 ? `${num(errors7)} failed upstream` : "no failures"}
+          to="/activity?days=7"
+        />
+        <Stat
+          label="Tokens, 7 days"
+          value={usage ? compact(tokens7) : "–"}
+          note="input and output"
+          to="/activity?days=7"
+        />
+        <Stat
+          label="Provider keys"
+          value={keys ? keyCount : "–"}
+          note="encrypted at rest"
+          to="/keys"
+        />
       </div>
 
       <div className="section">

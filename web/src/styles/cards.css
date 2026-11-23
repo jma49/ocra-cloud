@@ -44,6 +44,20 @@
 .stat {
   padding: 12px var(--gutter);
 }
+/* A stat that opens the list behind its number. */
+.stat-link {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  transition: background-color 150ms var(--e-std);
+}
+.stat-link:hover {
+  background: var(--bg-subtle);
+}
+.stat-link:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
 .stat-label {
   font-size: var(--text-sm);
   line-height: 16px;

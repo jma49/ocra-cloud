@@ -3,9 +3,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { clearCache } from "../cache.js";
 import { Insights } from "../pages/Insights.js";
 
-// The charts load a library this test environment cannot; its tables are what is read here.
-vi.mock("./charts.js", () => ({ default: () => null }));
-
 afterEach(async () => {
   cleanup();
   vi.unstubAllGlobals();
@@ -99,10 +96,6 @@ describe("Insights", () => {
         return Response.json({ error: "internal" }, { status: 500 });
       }),
     );
-    Object.defineProperty(document, "fonts", {
-      value: { ready: Promise.resolve() },
-      configurable: true,
-    });
     render(<Insights runner={false} platforms={["github"]} />);
     const security = await screen.findByRole("row", { name: /^security/ });
     expect(within(security).getByText("75% of 4")).toBeTruthy();
@@ -168,10 +161,6 @@ describe("Insights", () => {
         return Response.json({ error: "internal" }, { status: 500 });
       }),
     );
-    Object.defineProperty(document, "fonts", {
-      value: { ready: Promise.resolve() },
-      configurable: true,
-    });
     render(<Insights runner={false} platforms={["github"]} />);
     await screen.findByRole("row", { name: /^security/ });
     const text = document.body.textContent ?? "";
@@ -221,12 +210,8 @@ describe("Insights", () => {
         return Response.json({ error: "internal" }, { status: 500 });
       }),
     );
-    Object.defineProperty(document, "fonts", {
-      value: { ready: Promise.resolve() },
-      configurable: true,
-    });
     render(<Insights runner={false} platforms={["github"]} />);
-    const stat = (await screen.findByText("Spend")).closest(".stat");
+    const stat = await screen.findByRole("link", { name: /^Spend/ });
     expect(stat?.textContent).toContain("$3.50");
     expect(stat?.textContent).toContain("$0.20 a review");
     expect(

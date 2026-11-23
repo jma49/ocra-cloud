@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Review } from "../api.js";
-import { acceptanceChart, daily, flat, quantile, shares } from "./series.js";
+import { acceptanceChart, daily, flat, quantile } from "./series.js";
 
 const DAY = 86_400_000;
 const now = Date.UTC(2026, 10, 21, 15);
@@ -88,16 +88,5 @@ describe("acceptance chart", () => {
       { reviewer: "style", rate: 0, decided: 0 },
     ];
     expect(acceptanceChart(rows)).toEqual({ bars: rows.slice(0, 2) });
-  });
-});
-
-describe("shares", () => {
-  it("names each reason with its whole-number share and count", () => {
-    expect(
-      shares([
-        { reason: "False positive", n: 2 },
-        { reason: "Wrong fix", n: 1 },
-      ]).map((s) => s.category),
-    ).toEqual(["False positive · 67% (2)", "Wrong fix · 33% (1)"]);
   });
 });

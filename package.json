@@ -40,22 +40,6 @@
     "@base-ui/react": "^1.9.0",
     "@biomejs/biome": "^2.6.8",
     "@cloudflare/vitest-pool-workers": "^0.23.0",
-    "@dynatrace-sdk/app-environment": "^1.1.6",
-    "@dynatrace-sdk/client-app-engine-registry": "^3.3.1",
-    "@dynatrace-sdk/client-filter-segment-management": "^1.7.1",
-    "@dynatrace-sdk/client-notification-v2": "^2.5.0",
-    "@dynatrace-sdk/client-platform-management-service": "^1.9.1",
-    "@dynatrace-sdk/client-query": "^1.29.0",
-    "@dynatrace-sdk/client-state": "^1.11.1",
-    "@dynatrace-sdk/dqlint": "^1.7.0",
-    "@dynatrace-sdk/error-handlers": "^1.3.3",
-    "@dynatrace-sdk/navigation": "^2.3.2",
-    "@dynatrace-sdk/react-hooks": "^1.15.4",
-    "@dynatrace-sdk/units": "^1.5.0",
-    "@dynatrace-sdk/user-preferences": "^1.1.6",
-    "@dynatrace/strato-components": "^3.18.0",
-    "@dynatrace/strato-design-tokens": "^1.8.1",
-    "@dynatrace/strato-icons": "^2.7.0",
     "@electric-sql/pglite": "^0.5.16",
     "@electric-sql/pglite-socket": "^0.2.19",
     "@fontsource-variable/geist": "^5.3.0",
@@ -84,7 +68,6 @@
     "mermaid": "^12.3.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "react-intl": "^7.1.14",
     "shiki": "4.6.0",
     "tailwind-merge": "^3.7.1",
     "tailwindcss": "^4.3.5",
@@ -105,12 +88,6 @@
     },
     "@esbuild-kit/core-utils": {
       "esbuild": "^0.25.4"
-    },
-    "@formatjs/intl": {
-      "typescript": "$typescript"
-    },
-    "react-intl": {
-      "typescript": "$typescript"
     }
   }
 }

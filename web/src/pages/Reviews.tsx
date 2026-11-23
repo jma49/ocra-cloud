@@ -7,7 +7,7 @@ import { compact, count, num, period, since, sourceLabel, time } from "../format
 import { CloseGlyph } from "../glyphs.js";
 import { useListCursor } from "../list-cursor.js";
 import { usePageCommands } from "../page-commands.js";
-import { Link, navigate } from "../router.js";
+import { daysParam, Link, navigate } from "../router.js";
 import { StackTable } from "../stack-table.js";
 import { EmptyState, LoadError, Loading, PageHead, Seg, useAction } from "../ui.js";
 import { VerdictStatus } from "../verdict-status.js";
@@ -36,7 +36,7 @@ export function Reviews(props: {
   /** Whether this server runs reviews itself, so one need not come from the CLI. */
   runner?: boolean;
 }) {
-  const [days, setDays] = useState(30);
+  const [days, setDays] = useState(() => daysParam(RANGES, 30));
   const { data, error, reload } = useCached(`/reviews?days=${days}`, () =>
     api<ReviewsData>(`/reviews?days=${days}`),
   );

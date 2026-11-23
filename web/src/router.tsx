@@ -34,6 +34,16 @@ export function navigate(to: string): void {
   window.scrollTo(0, 0);
 }
 
+/** A query parameter of the address the page opened at: a link's filter, read once as the page mounts. */
+export const searchParam = (name: string): string | null =>
+  new URLSearchParams(location.search).get(name);
+
+/** The `days` a link asked for, when the page offers that range. */
+export function daysParam(offered: readonly { value: number }[], fallback: number): number {
+  const asked = Number(searchParam("days"));
+  return offered.some((o) => o.value === asked) ? asked : fallback;
+}
+
 export function usePath(): string {
   const [path, setPath] = useState(location.pathname);
   useEffect(() => {

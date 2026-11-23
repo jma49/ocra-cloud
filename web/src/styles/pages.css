@@ -6,11 +6,6 @@
   flex: none;
 }
 
-/* Charts (ui.tsx): the line above a chart keeps its height while hovering. */
-.chart-caption {
-  height: 18px;
-}
-
 /* Insights: six numbers in a row, then the charts, the wide ones over two columns. */
 .stats.stats-6 {
   grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -31,10 +26,6 @@
 .chart-card.wide {
   grid-column: span 2;
 }
-/* Strato draws a grid line per date and has no switch for it: a date's line starts at the top (y1 0) away from the left edge, a value's at the left (x1 0). */
-.chart-card.over-time line[y1="0"]:not([x1="0"]) {
-  display: none;
-}
 .chart-head {
   display: flex;
   align-items: baseline;
@@ -44,18 +35,6 @@
 .chart-head h2 {
   font-size: var(--text-base);
   font-weight: 600;
-}
-.chart-body {
-  padding: 4px 12px 12px;
-}
-/* The library sizes tick labels by its own font's widths at 12px; the
-   console's font is wider, so its ticks are set a pixel smaller to fit. */
-.chart-body foreignObject div {
-  font-size: var(--text-xs);
-}
-/* The library's handle for resizing a legend: the console's legends stay put. */
-.chart-body [data-testid="legend-resize-line"] {
-  display: none;
 }
 @media (max-width: 1100px) {
   .stats.stats-6 {
