@@ -35,10 +35,17 @@ export function request(path: string, init: CallInit = {}): Request {
   });
 }
 
-/** Calls the app in this isolate, so a spy on fetch sees its upstream calls. */
-export async function call(path: string, init: CallInit = {}): Promise<Response> {
+/**
+ * Calls the app in this isolate, so a spy on fetch sees its upstream calls;
+ * `bindings` replace the Worker's own for this call.
+ */
+export async function call(
+  path: string,
+  init: CallInit = {},
+  bindings: Partial<typeof env> = {},
+): Promise<Response> {
   const ctx = createExecutionContext();
-  const res = await app.fetch(request(path, init), env, ctx);
+  const res = await app.fetch(request(path, init), { ...env, ...bindings }, ctx);
   // Read the body before waiting, so the stream's flush (and its record) runs.
   const body = await res.arrayBuffer();
   await waitOnExecutionContext(ctx);

@@ -17,8 +17,31 @@ beforeEach(async () => {
   await db.delete(schema.deviceCodes);
 });
 
-const post = (path: string, body: unknown, headers: Record<string, string> = {}) =>
-  call(path, { method: "POST", headers, json: body });
+const post = (
+  path: string,
+  body: unknown,
+  headers: Record<string, string> = {},
+  bindings: Partial<typeof env> = {},
+) => call(path, { method: "POST", headers, json: body }, bindings);
+
+/**
+ * A rate limiting binding that lets `allowed` calls per key through, then
+ * refuses: the local binding counts in windows of the wall clock's minute,
+ * which a slow run can cross between two calls and so start counting again.
+ */
+function limiter(allowed: number) {
+  const calls = new Map<string, number>();
+  return {
+    calls,
+    binding: {
+      async limit({ key }: { key: string }) {
+        const n = (calls.get(key) ?? 0) + 1;
+        calls.set(key, n);
+        return { success: n <= allowed };
+      },
+    },
+  };
+}
 
 type CodeAnswer = {
   device_code: string;
@@ -280,32 +303,37 @@ describe("ocra login (device flow)", () => {
   });
 
   it("limits how many codes one address may request", async () => {
+    const rate = limiter(10);
+    const ask = (ip: string) =>
+      post("/api/device/code", {}, { "cf-connecting-ip": ip }, { DEVICE_CODES: rate.binding });
     const statuses: number[] = [];
-    for (let i = 0; i < 12; i++) {
-      const res = await post("/api/device/code", {}, { "cf-connecting-ip": "203.0.113.9" });
-      statuses.push(res.status);
-    }
-    expect(statuses.slice(0, 10).every((s) => s === 200)).toBe(true);
-    expect(statuses.at(-1)).toBe(429);
+    for (let i = 0; i < 12; i++) statuses.push((await ask("203.0.113.9")).status);
+    expect(statuses).toEqual([...Array(10).fill(200), 429, 429]);
+    expect((await ask("203.0.113.10")).status).toBe(200);
+    expect([...rate.calls]).toEqual([
+      ["203.0.113.9", 12],
+      ["203.0.113.10", 1],
+    ]);
     expect(env.DEVICE_CODES).toBeDefined();
   });
 
   it("limits code lookups and decisions per account and per address (#15)", async () => {
     const code = await startLogin("198.51.100.77");
     const { auth } = await signIn(31, "guesser");
-    const info = (ip: string) =>
-      call("/api/device/info?user_code=BCDF-GHJK", {
-        auth: auth,
-        headers: { "cf-connecting-ip": ip },
-      });
+    const lookups = { DEVICE_LOOKUPS: limiter(20).binding };
+    const lookUp = (as: Record<string, string>, ip: string) =>
+      call(
+        "/api/device/info?user_code=BCDF-GHJK",
+        { auth: as, headers: { "cf-connecting-ip": ip } },
+        lookups,
+      );
+    const info = (ip: string) => lookUp(auth, ip);
     const decide = (ip: string) =>
       post(
         "/api/device/decide",
         { user_code: code.user_code, approve: false },
-        {
-          ...auth,
-          "cf-connecting-ip": ip,
-        },
+        { ...auth, "cf-connecting-ip": ip },
+        lookups,
       );
     const statuses: number[] = [];
     for (let i = 0; i < 20; i++) statuses.push((await info("192.0.2.1")).status);
@@ -315,17 +343,9 @@ describe("ocra login (device flow)", () => {
     expect((await decide("192.0.2.3")).status).toBe(429);
     // Another account at a fresh address is not held back by it...
     const other = await signIn(32, "other");
-    const fresh = await call("/api/device/info?user_code=BCDF-GHJK", {
-      auth: other.auth,
-      headers: { "cf-connecting-ip": "192.0.2.4" },
-    });
-    expect(fresh.status).toBe(404);
+    expect((await lookUp(other.auth, "192.0.2.4")).status).toBe(404);
     // ...but the busy address is.
-    const sameIp = await call("/api/device/info?user_code=BCDF-GHJK", {
-      auth: other.auth,
-      headers: { "cf-connecting-ip": "192.0.2.1" },
-    });
-    expect(sameIp.status).toBe(429);
+    expect((await lookUp(other.auth, "192.0.2.1")).status).toBe(429);
     expect(env.DEVICE_LOOKUPS).toBeDefined();
   });
 });
