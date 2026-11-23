@@ -38,6 +38,7 @@ export type SharedHub = PullsHub & {
   endAll(): void;
   /** Whether the process hears the others now. */
   listening(): boolean;
+  /** Stops listening; the streams are ended with endAll. */
   stop(): void;
 };
 
@@ -143,7 +144,6 @@ export async function postgresHub(
       client = null;
       listening = false;
       own?.end().catch(() => {});
-      local.endAll();
     },
   };
 }
