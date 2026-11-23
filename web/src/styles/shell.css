@@ -30,6 +30,7 @@
 }
 .brand-tag {
   font: 400 var(--text-xs) var(--mono);
+  line-height: 16px;
   color: var(--t3);
   padding: 1px 6px;
   border-radius: var(--r-chip);
@@ -42,7 +43,7 @@
   display: inline-flex;
   align-items: center;
   height: var(--ctl-h);
-  padding: 0 10px;
+  padding: 0 var(--ctl-pad);
   border-radius: var(--r-tab);
   color: var(--t2);
   text-decoration: none;
@@ -60,7 +61,7 @@
   border: 0;
   background: transparent;
   border-radius: var(--r-ctl);
-  padding: 0 10px 0 4px;
+  padding: 0 8px 0 4px;
   cursor: pointer;
   color: var(--t1);
   transition: background-color 150ms var(--e-std);
@@ -117,7 +118,7 @@
   place-items: center;
   width: 32px;
   height: 32px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   color: var(--t1);
 }
 .rail-link {
@@ -209,7 +210,7 @@
   align-items: center;
   gap: 6px;
   height: var(--ctl-h);
-  padding: 0 10px;
+  padding: 0 var(--ctl-pad);
   border-radius: var(--r-tab);
   box-shadow: inset 0 0 0 0.5px var(--hair);
   color: var(--t2);
@@ -237,17 +238,17 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 12px 10px 24px;
+  padding: 12px 8px 24px;
 }
 .settings-group .quiet-label {
-  padding: 12px 10px 4px;
+  padding: 12px 8px 4px;
 }
 .settings-link {
   display: flex;
   align-items: center;
   gap: 8px;
   height: var(--ctl-h-lg);
-  padding: 0 10px;
+  padding: 0 8px;
   border-radius: var(--r-tab);
   color: var(--t2);
   text-decoration: none;
@@ -339,7 +340,7 @@
 .section-title {
   font-size: var(--text-base);
   font-weight: 600;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -401,7 +402,7 @@
     white-space: nowrap;
   }
   .content {
-    padding: 20px 16px 40px;
+    padding: 16px 16px 32px;
   }
   .topbar {
     padding: 0 12px;
@@ -418,8 +419,8 @@
 .policy h2 {
   font-size: var(--text-lg);
   font-weight: 600;
-  margin: 36px 0 10px;
-  padding-top: 18px;
+  margin: 32px 0 8px;
+  padding-top: 16px;
   border-top: 0.5px solid var(--hair2);
 }
 .policy p,
@@ -429,7 +430,7 @@
   line-height: 1.65;
 }
 .policy ul {
-  padding-left: 20px;
+  padding-left: 16px;
   margin: 8px 0;
 }
 .policy li {
@@ -470,9 +471,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
+  gap: 16px;
   width: min(640px, calc(100vw - 32px));
-  padding: 10px 12px 10px 18px;
+  padding: 8px 12px 8px 16px;
   border-radius: var(--r-sheet);
   color: var(--fg);
   background: var(--stock);
@@ -508,12 +509,13 @@
   overflow: hidden;
   color: var(--fg-muted);
   font: 400 var(--text-xs) var(--mono);
+  line-height: 16px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .command-note {
   margin: 0;
-  padding: 8px 20px 0;
+  padding: 8px 16px 0;
   color: var(--fg-muted);
   font-size: var(--text-sm);
 }

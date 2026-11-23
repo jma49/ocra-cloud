@@ -74,7 +74,12 @@ export function ShareDrawer(props: {
               </option>
             ))}
           </select>
-          <Button type="submit" variant="outline" disabled={send.busy || login.trim() === ""}>
+          <Button
+            type="submit"
+            size="sm"
+            variant="outline"
+            disabled={send.busy || login.trim() === ""}
+          >
             Add
           </Button>
         </form>

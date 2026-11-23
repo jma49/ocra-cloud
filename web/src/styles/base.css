@@ -205,6 +205,11 @@ h3 {
 p {
   text-wrap: pretty;
 }
+/* The heaviest weight the console sets. */
+b,
+strong {
+  font-weight: 600;
+}
 button {
   font: inherit;
 }

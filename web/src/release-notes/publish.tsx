@@ -58,7 +58,7 @@ export function PublishDraft(props: { notes: ReleaseNotesView; body: string }) {
       onSubmit={submit}
     >
       <div>
-        <div className="strong">Save as a draft release</div>
+        <h2 className="card-title">Save as a draft release</h2>
         <p className="muted small m-0">
           The draft is made on the platform as you, with the notes as they read above. It is not
           published, and no tag is made until you publish it there.

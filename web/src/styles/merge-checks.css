@@ -1,6 +1,6 @@
 /* Pre-merge checks: a repository's list and form, and a pull request's results. */
 .repo-checks {
-  padding: 12px 20px 16px;
+  padding: 12px 16px 16px;
   background: var(--fill);
 }
 .check-rows,

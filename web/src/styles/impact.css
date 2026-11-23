@@ -15,9 +15,9 @@
 }
 .impact-head {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   align-items: flex-start;
-  padding: 14px 16px;
+  padding: 12px 16px;
   border-bottom: 0.5px solid var(--hair2);
 }
 .impact-pad {
@@ -25,11 +25,11 @@
   padding: 12px 16px;
 }
 .impact-pad [data-slot="button"] {
-  margin-top: 10px;
+  margin-top: 8px;
 }
 .impact-note {
   margin: 12px 16px 0;
-  padding: 8px 10px;
+  padding: 8px 12px;
   border-radius: var(--r-chip);
   background: var(--ground);
   color: var(--fg-muted);
@@ -44,7 +44,7 @@
 }
 .impact-symbol-head {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   align-items: flex-start;
   width: 100%;
   min-height: 44px;
@@ -71,8 +71,8 @@
 }
 .impact-use {
   display: flex;
-  gap: 10px;
-  padding: 9px 16px;
+  gap: 8px;
+  padding: 8px 16px;
   border-top: 0.5px solid var(--hair2);
   text-decoration: none;
 }
@@ -115,7 +115,7 @@
 }
 .impact-foot {
   margin: 0;
-  padding: 10px 16px 14px;
+  padding: 8px 16px 12px;
 }
 
 @media (max-width: 900px) {
