@@ -45,6 +45,7 @@ const assignment = z.object({
     .transform(({ token, login }) => ({ token, ...(login ? { login } : {}) })),
   cloudUrl: z.url(),
   credentials: z.record(z.string(), z.union([z.string(), z.number()])),
+  uploadSalt: z.string().regex(/^[0-9a-f]{64}$/),
   args: z.array(z.string()),
   config: z.record(z.string(), z.unknown()),
   ok: z.array(z.number().int()),

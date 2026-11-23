@@ -1,4 +1,4 @@
-import { loginOf } from "../db/accounts.js";
+import { accountSalt, loginOf } from "../db/accounts.js";
 import type { Db } from "../db/client.js";
 import { claimGenerate } from "../db/generate-jobs.js";
 import { claimReply } from "../db/reply-jobs.js";
@@ -51,6 +51,12 @@ export type Assignment = WorkRef & {
   /** The server the CLI signs in to, and the account's session there. */
   cloudUrl: string;
   credentials: Record<string, string | number>;
+  /**
+   * The account's salt, which the CLI names the repository with. A run's
+   * home is new each time: without it the CLI would make a salt per run,
+   * and every review would count as another repository.
+   */
+  uploadSalt: string;
   /** The CLI's arguments, before the path of its configuration file. */
   args: string[];
   config: Record<string, unknown>;
@@ -186,6 +192,7 @@ export async function assign(
       expires_at: Date.now() + tokens.expires_in * 1000,
       lifetime_ms: tokens.expires_in * 1000,
     },
+    uploadSalt: await accountSalt(source.db, claimed.accountId),
     args: [...command.args(pull), ...profile.flags],
     config: {
       ...profile.config,
