@@ -1,5 +1,6 @@
 import KeyRound from "lucide-react/icons/key-round";
 import Plus from "lucide-react/icons/plus";
+import X from "lucide-react/icons/x";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -170,13 +171,15 @@ export function Agents() {
                 }
               />
             </div>
-            <EffortSelect
-              value={tierEffort(t.id)}
-              levels={effortsOf(draft.models[t.id]?.[0])}
-              onChange={(e) =>
-                setAgents((prev) => ({ ...prev, effort: { ...prev.effort, [t.id]: e } }))
-              }
-            />
+            <div className="tier-effort">
+              <EffortSelect
+                value={tierEffort(t.id)}
+                levels={effortsOf(draft.models[t.id]?.[0])}
+                onChange={(e) =>
+                  setAgents((prev) => ({ ...prev, effort: { ...prev.effort, [t.id]: e } }))
+                }
+              />
+            </div>
           </div>
         ))}
       </div>
@@ -427,11 +430,12 @@ function ChainEditor(props: {
             />
             <Button
               type="button"
-              variant="destructive-outline"
-              size="sm"
+              variant="ghost"
+              size="icon-sm"
+              aria-label={i === 0 ? "Remove model" : "Remove fallback"}
               onClick={() => props.onChange(rows.filter((_, j) => j !== i))}
             >
-              Remove
+              <X aria-hidden="true" />
             </Button>
           </div>
         );

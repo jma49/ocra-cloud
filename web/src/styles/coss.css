@@ -55,6 +55,10 @@
 :where(a[data-slot]) {
   text-decoration: none;
 }
+/* A ghost or link button sets no background of its own. */
+:where(button[data-slot]) {
+  background: transparent;
+}
 :where([data-slot] input, [data-slot] button) {
   margin: 0;
   padding: 0;
