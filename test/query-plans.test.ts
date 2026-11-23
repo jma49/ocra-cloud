@@ -4,6 +4,7 @@ import { drizzle } from "drizzle-orm/d1";
 import { describe, expect, it, vi } from "vitest";
 import { apiTokenByHash } from "../src/db/api-tokens.js";
 import { claimInboundRetry } from "../src/db/inbound-events.js";
+import { recoverJobs } from "../src/db/job-recovery.js";
 import { enforceRetention } from "../src/db/retention.js";
 import { accountTables } from "../src/db/schema.js";
 import { scoped } from "../src/db/scoped.js";
@@ -493,6 +494,25 @@ describe("review threads", () => {
         /SEARCH (review_threads|th) USING (COVERING )?INDEX (review_threads_thread|review_threads_pull)/,
       );
       expect(p, q.sql).not.toMatch(/SCAN (review_threads|th|review_repos|rr)\b/);
+    }
+  });
+});
+
+describe("@ocra commands", () => {
+  it("lists a pull request's commands, ends its pause and fails the stuck ones through an index", async () => {
+    const seen: Captured[] = [];
+    const db = drizzle(recording(seen));
+    const d = scoped(db, "acct");
+    await d.commands.newest("r1", 7, 20);
+    await d.commands.closed("r1", 7, new Date());
+    const before = seen.length;
+    await recoverJobs(db, new Date());
+    const stuck = seen.slice(before).filter((q) => q.sql.startsWith('update "pull_commands"'));
+    expect(stuck).toHaveLength(1);
+    for (const q of [...seen.slice(0, 2), ...stuck]) {
+      const p = await plan(q);
+      expect(p, q.sql).toMatch(/SEARCH (pull_commands|paused_pulls) USING (COVERING )?INDEX/);
+      expect(p, q.sql).not.toMatch(/SCAN (pull_commands|paused_pulls)\b/);
     }
   });
 });

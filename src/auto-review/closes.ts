@@ -6,7 +6,9 @@ import { scoped } from "../db/scoped.js";
 // When an enrolled repository's pull request is merged or closed, as its
 // platform's webhook says, kept for the digest and the weekly report. A
 // webhook names its own times where it has them; otherwise it arrives as
-// the pull request closes, and its arrival is the time.
+// the pull request closes, and its arrival is the time. A close ends the
+// pull request's `@ocra pause` (./commands.ts): one paused again after a
+// reopen is paused anew.
 
 type Repo = { id: string; accountId: string };
 
@@ -83,10 +85,16 @@ export async function recordGitlabClose(
   return true;
 }
 
-function record(
+/** GitHub writes its times in whole seconds: a pause made in the second it closed ends with it. */
+const CLOSE_SLACK_MS = 1000;
+
+async function record(
   db: Db,
   repo: Repo,
   close: { number: number; title: string; merged: boolean; openedAt: Date | null; closedAt: Date },
 ) {
-  return scoped(db, repo.accountId).closedPulls.record({ ...close, reviewRepoId: repo.id });
+  const data = scoped(db, repo.accountId);
+  await data.closedPulls.record({ ...close, reviewRepoId: repo.id });
+  const ended = new Date(close.closedAt.getTime() + CLOSE_SLACK_MS);
+  await data.commands.closed(repo.id, close.number, ended);
 }

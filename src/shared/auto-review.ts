@@ -36,6 +36,23 @@ export type CommentCommand = (typeof COMMENT_COMMANDS)[number];
 export const COMMENT_COMMAND_OUTCOMES = ["pending", "done", "refused", "failed"] as const;
 export type CommentCommandOutcome = (typeof COMMENT_COMMAND_OUTCOMES)[number];
 
+/** An `@ocra` command on a pull request as the console lists it: never its comment or who wrote it. */
+export type PullCommandView = {
+  command: CommentCommand;
+  outcome: CommentCommandOutcome;
+  createdAt: string;
+  finishedAt: string | null;
+};
+
+/** The most a pull request's command listing holds, newest first. */
+export const MAX_PULL_COMMANDS = 20;
+
+/** Whether the pull request's automatic reviews are paused, and its newest commands. */
+export type PullCommandsView = { paused: boolean; commands: PullCommandView[] };
+
+/** What PUT and DELETE of a pull request's pause answer. */
+export type PullPauseView = { paused: boolean };
+
 /** A queued job's error while it waits for the account's daily gateway calls to reset. */
 export const DAILY_LIMIT_WAIT = "daily_limit";
 /**

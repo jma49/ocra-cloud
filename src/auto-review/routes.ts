@@ -26,6 +26,7 @@ import { enrollRepo, MAX_REVIEW_REPOS } from "./enroll.js";
 import { enrollRoute } from "./enroll-routes.js";
 import { generateRoute } from "./generate.js";
 import { enrolledGitlabHook, gitlabHookRoute, removeEnrolledHook } from "./hook-routes.js";
+import { pullCommandRoute } from "./pull-command-routes.js";
 import { repoTokenRoute } from "./repo-token-routes.js";
 import { autoReviewWebhooks } from "./webhooks.js";
 
@@ -86,6 +87,7 @@ export function autoReviewRoute(service: AutoReviewService) {
   route.route("/webhooks", autoReviewWebhooks(service));
   route.route("/generate", generateRoute(service));
   route.route("/", repoTokenRoute());
+  route.route("/", pullCommandRoute());
   route.route("/", gitlabHookRoute());
   route.route("/", enrollRoute(repoView));
 

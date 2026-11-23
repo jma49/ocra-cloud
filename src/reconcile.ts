@@ -195,6 +195,7 @@ class Fill {
    */
   async close(p: ReconciledPull, mode: "unless_recorded" | "if_newer"): Promise<void> {
     if (!p.closedAt) return;
+    await this.data.commands.closed(this.repo.id, p.number, p.closedAt);
     const close = {
       reviewRepoId: this.repo.id,
       number: p.number,
