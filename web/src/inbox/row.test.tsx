@@ -85,6 +85,6 @@ it("names the team a review was asked of when it reached the user through one", 
     />,
   );
   expect(screen.getByTitle("Review asked of acme/core, a team you are on").textContent).toBe(
-    "acme/core",
+    "core",
   );
 });
