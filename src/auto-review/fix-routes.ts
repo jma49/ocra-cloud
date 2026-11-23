@@ -88,6 +88,9 @@ export function fixRoute(service: AutoReviewService) {
         new Date(),
       );
       if (queued === "limited") {
+        // A request already made is answered past the limit too: it costs nothing more.
+        const made = await data.fixes.forFinding(finding.id, pull.head);
+        if (made && made.state !== "failed") return answer("requested", made);
         return apiError(c, "daily_limit", { limit: MAX_DAILY_FIX_REQUESTS });
       }
       if (queued) {
