@@ -67,20 +67,7 @@ export function checkRepoConfig(file: RepoConfigFile, text: string): Checked {
   } catch (error) {
     return { kind: "unparsed", reason: clip(`it is not valid JSON: ${(error as Error).message}`) };
   }
-  let parsed: z.ZodSafeParseResult<unknown>;
-  try {
-    parsed = schemaOf(file).safeParse(value);
-  } catch (error) {
-    // The contract's endpoint refinement reads `new URL()` of a value that may not be one.
-    const message = clip(`the engine could not check it: ${(error as Error).message}`);
-    return {
-      kind: "parsed",
-      value,
-      errors: [{ path: [], message }],
-      more: false,
-      refusal: message,
-    };
-  }
+  const parsed = schemaOf(file).safeParse(value);
   const issues = parsed.success ? [] : parsed.error.issues;
   const listed = issues.slice(0, MAX_ISSUES);
   return {
