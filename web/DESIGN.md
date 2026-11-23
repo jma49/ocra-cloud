@@ -45,7 +45,7 @@ Pages and components style only through the custom properties in `base.css`.
 
 - **Page head:** title and one sentence on what the page is for, actions on the right, on the title's line. A filter of the whole page (a range, a kind) is one of its actions.
 - **Cards** (`.card`, `.card-head`, `.card-pad`) group one subject. Don't nest cards.
-- **Tables** for records the user compares; list rows for records the user opens. Row actions sit at the row's right end, quietest first, destructive last.
+- **Tables** for records the user compares; list rows for records the user opens. Row actions sit at the row's right end, quietest first, destructive last. A table that would outgrow its card with them puts them behind one menu button (`Ellipsis`, named "Actions for …").
 - **Stats row:** up to four `.stat` cards, label above value, a note below.
 - **Detail pages:** properties in a left column, the timeline of what happened on the right.
 - **Work pages** (a pull request, a walkthrough): a sticky side column of what the user navigates the work with (its files), the work itself (the diff) in the main column, and an optional third column (the impact rail) that stacks under the main one at 1100 px. A pull request's files are a tree (`FileList`, `web/src/styles/pull-files.css`): flat on the panel, a folder row over its files with a chain of single folders joined into one, each row with a 16 px icon of its kind (`FileTypeIcon`), a hairline down each level it sits under, and after a file's name a tick once viewed, a letter for what happened to it (A added, D removed, R renamed) and its line counts; past eight files a field narrows it by path. A diff is set at `--text-base` on a 22 px line.
