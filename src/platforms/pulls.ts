@@ -17,6 +17,9 @@ export type PullListing = {
 
 export type ListedPull = Omit<PlatformPull, "roles">;
 
+/** A pull request the account's records say waits for the user's review through a team they are on. */
+export type TeamAsk = { repo: string; number: number; team: string };
+
 /** At most this many labels per pull request, each cut to MAX_LABEL characters. */
 export const MAX_LABELS = 20;
 const MAX_LABEL = 100;

@@ -9,7 +9,7 @@ import { repoHashOf } from "./platforms/platform.js";
 import { platformLimitedUntil } from "./platforms/rate-limit.js";
 import { platformsOf } from "./platforms/registry.js";
 import { sectionsOf } from "./pull-sections.js";
-import { pullTeams } from "./pull-teams.js";
+import { pullTeams, teamAsks } from "./pull-teams.js";
 import { pullRepliesWaiting, pullSeenStates } from "./pull-unread.js";
 import { pullVerdicts } from "./pull-verdicts.js";
 import { perMinute } from "./rate.js";
@@ -99,10 +99,12 @@ platformsRoute.get("/pulls", requireSession(), perMinute("platform"), async (c) 
     platformsOf(c.env, c.req.url).map(async (platform) => {
       const head = { platform: platform.kind, host: platform.host };
       const token = await accessToken(c.var.data, c.env, platform);
-      if (!token) return { platform, head, linked: false, failed: false, more: false, pulls: [] };
-      const listing = await platform.listPulls(token);
-      if (!listing) return { platform, head, linked: true, failed: true, more: false, pulls: [] };
-      return { platform, head, linked: true, failed: false, ...listing };
+      const none = { platform, head, more: false, pulls: [], asks: [] };
+      if (!token) return { ...none, linked: false, failed: false };
+      const asks = await teamAsks(c.var.db, c.var.data, platform);
+      const listing = await platform.listPulls(token, asks);
+      if (!listing) return { ...none, linked: true, failed: true };
+      return { platform, head, linked: true, failed: false, asks, ...listing };
     }),
   );
   // An empty inbox would read as "nothing waits for you".
@@ -114,14 +116,14 @@ platformsRoute.get("/pulls", requireSession(), perMinute("platform"), async (c) 
   ) {
     return rateLimited(c, limited);
   }
-  const [reviewsOf, seenOf, since, teamOf] = await Promise.all([
+  const teamOf = pullTeams(listed);
+  const [reviewsOf, seenOf, since] = await Promise.all([
     pullVerdicts(c.var.data, listed),
     pullSeenStates(c.var.data, listed),
     c.var.data.pullSeen.baseline(c.var.session.account.inboxSince),
-    pullTeams(c.var.db, c.var.data, listed),
   ]);
   const repliesOf = await pullRepliesWaiting(c.var.db, c.var.data, listed, seenOf, since);
-  const platforms = listed.map(({ platform, head, pulls, ...rest }) => {
+  const platforms = listed.map(({ platform, head, pulls, asks: _, ...rest }) => {
     const stacked = pulls.flatMap((p) =>
       p.state === "open" && p.branches ? [{ repo: p.repo, number: p.number, ...p.branches }] : [],
     );

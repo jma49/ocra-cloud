@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import * as schema from "../src/db/schema.js";
+import { scoped } from "../src/db/scoped.js";
 import type { PullItem } from "../src/shared/index.js";
-import { resetDb } from "./helpers.js";
+import { db, resetDb } from "./helpers.js";
 import { connectGitlab, GITLAB, githubFake, signInWithGithub } from "./platform-fakes.js";
 
 beforeEach(resetDb);
@@ -280,6 +282,98 @@ describe("the pull request inbox", () => {
       [3, { id: "Group/Project#2", position: 2, size: 2 }],
       [2, { id: "Group/Project#2", position: 1, size: 2 }],
     ]);
+  });
+
+  /** GitLab listing MR 1 for my review and my MR 5, every MR read on its own (4 merged); the group 55 with me on it asked of `asked`. */
+  async function groupAsked(asked: number[]) {
+    const mr = (iid: number, state = "opened", author = "ada") => ({
+      id: 300 + iid,
+      iid,
+      title: `MR ${iid}`,
+      web_url: `${GITLAB}/acme/api/-/merge_requests/${iid}`,
+      state,
+      created_at: "2026-11-19T08:00:00Z",
+      updated_at: new Date(Date.UTC(2026, 10, 1, iid)).toISOString(),
+      author: { username: author },
+      references: { full: `acme/api!${iid}` },
+    });
+    const read: number[] = [];
+    githubFake({
+      extra: (req) => {
+        if (req.url.startsWith("https://api.github.com/graphql")) {
+          return Response.json({
+            data: {
+              review: { issueCount: 0, nodes: [] },
+              authored: { issueCount: 0, nodes: [] },
+              merged: { issueCount: 0, nodes: [] },
+            },
+          });
+        }
+        if (!req.url.startsWith(`${GITLAB}/api/v4/`)) return undefined;
+        const url = new URL(req.url);
+        if (url.pathname === "/api/v4/user") return Response.json({ id: 77 });
+        const one = /^\/api\/v4\/projects\/acme%2Fapi\/merge_requests\/(\d+)$/.exec(url.pathname);
+        if (one) {
+          const iid = Number(one[1]);
+          read.push(iid);
+          return Response.json(mr(iid, iid === 4 ? "merged" : "opened"));
+        }
+        const q = url.searchParams;
+        if (q.get("reviewer_id") === "77") return Response.json([mr(1)]);
+        if (q.get("state") === "merged") return Response.json([]);
+        if (q.get("scope") === "created_by_me") return Response.json([mr(5, "opened", "me")]);
+        return undefined;
+      },
+    });
+    const a = await signInWithGithub();
+    await (await connectGitlab(a))("code=c&state=STATE");
+    const [account] = await db.select().from(schema.accounts);
+    const data = scoped(db, account?.id ?? "");
+    const host = new URL(GITLAB).host;
+    const repo = await data.insert("reviewRepos", {
+      platform: "gitlab",
+      host,
+      platformRepoId: "9",
+      fullName: "acme/api",
+    });
+    const at = new Date(Date.now() - 60 * 60_000);
+    await data.reviewTeams.keep({
+      platform: "gitlab",
+      host,
+      reviewerId: "team:55",
+      name: "acme/backend",
+      members: ["77", "8"],
+      at,
+    });
+    for (const number of asked) {
+      await data.reviewRequests.asked({
+        reviewRepoId: repo,
+        number,
+        reviewerId: "team:55",
+        at: new Date(at.getTime() + number * 1000),
+      });
+    }
+    const listed = (await (await a.send("/api/platforms/pulls")).json()) as Listed;
+    return { lab: listed.platforms.find((p) => p.platform === "gitlab"), read };
+  }
+
+  it("lists GitLab merge requests asked of a group I am on, once each, with the group", async () => {
+    // 1 lists me as a reviewer already, 4 is merged, 5 is mine, 6 only my group's.
+    const { lab, read } = await groupAsked([1, 4, 5, 6]);
+    expect(lab?.pulls.map((p) => [p.number, p.roles, p.requestedTeam ?? null])).toEqual([
+      [6, ["reviewer"], "acme/backend"],
+      [5, ["author"], null],
+      [1, ["reviewer"], "acme/backend"],
+    ]);
+    expect(read.sort()).toEqual([4, 6]);
+    expect(lab?.more).toBe(false);
+  });
+
+  it("reads ten merge requests asked of my groups at most, the newest asks, and says more wait", async () => {
+    const { lab, read } = await groupAsked([6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]);
+    expect(read.sort((x, y) => x - y)).toEqual([8, 9, 10, 11, 12, 13, 14, 15, 16, 17]);
+    expect(lab?.pulls.filter((p) => p.requestedTeam)).toHaveLength(10);
+    expect(lab?.more).toBe(true);
   });
 
   it("asks a sign-in first", async () => {

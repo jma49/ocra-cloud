@@ -65,7 +65,7 @@ export function gitlab(client: GitlabClient, redirectUri: string): CodePlatform 
         refresh_token: refreshToken,
         redirect_uri: redirectUri,
       }),
-    listPulls: (token) => gitlabPulls(client.url, token),
+    listPulls: (token, teamAsks) => gitlabPulls(client.url, token, teamAsks),
     searchPulls: (token, search, limit) => gitlabSearch(client.url, token, search, limit),
     contents: gitlabContents(client.url),
     changes: gitlabChanges(client.url),
