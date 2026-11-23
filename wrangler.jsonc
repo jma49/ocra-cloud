@@ -38,7 +38,7 @@
     "REVIEW_DAILY_UPLOADS": "50",
     // Shared findings one account may upload in the 90 days retention keeps
     // them, deleted ones included; past it a review is stored without its
-    // findings.
+    // findings. RETENTION_DAYS stays unset here: the data policy says 90.
     "REVIEW_MAX_FINDINGS": "1000",
     // Login codes (ocra login) one network (an IPv4 address, an IPv6 /64)
     // may ask for in a UTC day, and the whole service may make: they are
