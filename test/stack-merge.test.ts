@@ -4,6 +4,7 @@ import * as schema from "../src/db/schema.js";
 import { scoped } from "../src/db/scoped.js";
 import { githubFields } from "../src/inbound/fields.js";
 import { gitlabSteps } from "../src/inbound/steps.js";
+import { gitlabStacks } from "../src/platforms/gitlab-stack.js";
 import { platformsOf } from "../src/platforms/registry.js";
 import type { StackMergeAnswer } from "../src/shared/index.js";
 import { advanceStack, sweepStackMerges } from "../src/stack-merge/advance.js";
@@ -438,5 +439,32 @@ describe("finding a stack", () => {
     const res = await a.send("/api/pulls/stack?platform=github&repo=octo/api&number=2");
     const view = (await res.json()) as { pulls: { number: number }[] };
     expect(view.pulls.map((p) => p.number)).toEqual([1, 2]);
+  });
+});
+
+describe("a GitLab layer's standing", () => {
+  const ORIGIN_LAB = "https://gitlab.example.com";
+  const at = (status: string, pipeline: string | null = null) => {
+    vi.restoreAllMocks();
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
+      Response.json({
+        state: "opened",
+        sha: sha(1),
+        source_branch: "a",
+        target_branch: "main",
+        detailed_merge_status: status,
+        head_pipeline: pipeline ? { status: pipeline } : null,
+      }),
+    );
+    return gitlabStacks(ORIGIN_LAB).standing("t", "group/api", 1);
+  };
+
+  it("reads what keeps it from merging from the merge status and the head pipeline", async () => {
+    expect((await at("mergeable"))?.blocker).toBeNull();
+    expect((await at("need_rebase"))?.blocker).toBe("behind");
+    expect((await at("conflict"))?.blocker).toBe("conflicts");
+    expect((await at("ci_must_pass", "running"))?.blocker).toBe("checks_pending");
+    expect((await at("ci_must_pass", "failed"))?.blocker).toBe("checks_failed");
+    expect((await at("not_approved"))?.blocker).toBe("waiting");
   });
 });
