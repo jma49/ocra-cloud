@@ -60,7 +60,7 @@
 .chat-ask textarea {
   width: 100%;
   height: auto;
-  padding: 8px 10px;
+  padding: 8px var(--ctl-pad);
   resize: vertical;
 }
 .chat-tools {
