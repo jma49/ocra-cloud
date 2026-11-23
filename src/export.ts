@@ -63,6 +63,8 @@ export const EXPORTED = {
   reviewWalkthroughs: "walkthroughs",
   generateJobs: "generateJobs",
   learnJobs: "learnJobs",
+  pullCommands: "pullCommands",
+  pausedPulls: "pausedPulls",
   automationRules: "automationRules",
   automationRuns: "automationRuns",
   automationAssignments: "automationAssignments",

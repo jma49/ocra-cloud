@@ -94,7 +94,7 @@ export function githubWebhook(host: WebhookHost) {
           : event === "pull_request" && review
             ? await queueGithubPull(c, review, body)
             : (event === "issue_comment" || event === "pull_request_review_comment") && review
-              ? await queueGithubComment(c.var.db, github, review, event, body)
+              ? await queueGithubComment(c, github, review, event, body)
               : review
                 ? await rerunGithubChecks(c.var.db, github, review, event, body)
                 : 0;

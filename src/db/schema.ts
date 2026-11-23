@@ -29,6 +29,8 @@ import {
   type AutomationRetry,
   type AutomationRunView,
   CODE_PLATFORMS,
+  COMMENT_COMMAND_OUTCOMES,
+  COMMENT_COMMANDS,
   DEFAULT_LEARN_MODE,
   DISMISS_REASONS,
   FINDING_STATUSES,
@@ -1357,6 +1359,49 @@ export const learnJobs = sqliteTable(
   ],
 );
 
+// A comment that is an @ocra command on an enrolled repository's pull
+// request (src/auto-review/commands.ts), one per comment: a webhook retried
+// or delivered twice runs it once.
+export const pullCommands = sqliteTable(
+  "pull_commands",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    reviewRepoId: text("review_repo_id")
+      .notNull()
+      .references(() => reviewRepos.id, { onDelete: "cascade" }),
+    number: integer("number").notNull(),
+    commentId: text("comment_id").notNull(),
+    command: text("command", { enum: COMMENT_COMMANDS }).notNull(),
+    outcome: text("outcome", { enum: COMMENT_COMMAND_OUTCOMES }).notNull().default("pending"),
+    finishedAt: integer("finished_at", { mode: "timestamp_ms" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("pull_commands_comment").on(t.reviewRepoId, t.commentId),
+    index("pull_commands_account_created").on(t.accountId, t.createdAt),
+  ],
+);
+
+// A pull request whose automatic reviews `@ocra pause` stopped, until
+// `@ocra resume`: one row per pull request, so a second pause adds none.
+export const pausedPulls = sqliteTable(
+  "paused_pulls",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    reviewRepoId: text("review_repo_id")
+      .notNull()
+      .references(() => reviewRepos.id, { onDelete: "cascade" }),
+    number: integer("number").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("paused_pulls_pull").on(t.reviewRepoId, t.number),
+    index("paused_pulls_account").on(t.accountId, t.createdAt),
+  ],
+);
+
 // A rule the account set for its pull requests (src/automations/).
 export const automationRules = sqliteTable(
   "automation_rules",
@@ -1750,6 +1795,8 @@ export const accountTables = {
   reviewWalkthroughs,
   generateJobs,
   learnJobs,
+  pullCommands,
+  pausedPulls,
   automationRules,
   automationRuns,
   automationAssignments,

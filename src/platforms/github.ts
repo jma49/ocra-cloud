@@ -1,3 +1,4 @@
+import { githubAccess } from "./access.js";
 import { githubActions } from "./github-actions.js";
 import { githubAutoMerge } from "./github-auto-merge.js";
 import { githubChanges } from "./github-changes.js";
@@ -87,6 +88,7 @@ export function github(client: GithubClient): CodePlatform {
     changes: githubChanges(host),
     since: githubSince(host, post),
     actions,
+    access: githubAccess(host),
     queue: githubQueue(host),
     autoMerge: githubAutoMerge(host),
     cycles: githubCycles(post),

@@ -54,6 +54,8 @@ const changes = {
   reviewWalkthroughs: { overview: "changed" },
   generateJobs: { state: "done" as const },
   learnJobs: { state: "done" as const },
+  pullCommands: { outcome: "done" as const },
+  pausedPulls: { number: 2 },
   automationRules: { name: "renamed" },
   automationRuns: { outcome: "failed" as const },
   automationAssignments: { logins: ["hubot"] },
@@ -181,6 +183,8 @@ describe.each(withIds)("%s", (name) => {
         "mergeCheckRuns",
         "generateJobs",
         "learnJobs",
+        "pullCommands",
+        "pausedPulls",
       ].includes(name)
     ) {
       await db

@@ -173,7 +173,7 @@ export function autoReviewWebhooks(service: AutoReviewService) {
       if (gitlabTouchesPulls(kind, body)) {
         await touchPulls(c.var.db, "gitlab", host, String(projectId), new Date());
       }
-      if (note?.data) return queueGitlabNote(c.var.db, service, repo, note.data);
+      if (note?.data) return queueGitlabNote(c, service, repo, note.data);
       if (mr) {
         received.reviewed(await recordGitlabFlow(c.var.db, repo, body));
         await recordGitlabRequests(c.var.db, repo, body);
@@ -227,8 +227,8 @@ async function queue(
   defer(c, run);
   // A pull request a rule skips the review of still has its checks.
   service.checkPull?.(repo.accountId, repo.id, change.number);
-  // Switched off, a review runs only when a person asks for one (review-now.ts).
-  if (skipped || !repo.automatic) return 0;
+  // Switched off, or paused on the pull request (./commands.ts), a review runs only when a person asks for one.
+  if (skipped || !repo.automatic || (await data.commands.paused(repo.id, change.number))) return 0;
   const queued = await data.autoReview.queue(repo.id, change.number, change.head, new Date());
   if (queued) service.kick();
   return queued ? 1 : 0;

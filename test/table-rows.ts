@@ -249,6 +249,16 @@ export const rows = {
   }),
   // The enrolled repository it belongs to is made in beforeEach (the foreign key needs one).
   learnJobs: (id: string) => ({ id, reviewRepoId: "review-repo-of-a", number: 1 }),
+  // The enrolled repository it belongs to is made in beforeEach (the foreign key needs one).
+  pullCommands: (id: string) => ({
+    id,
+    reviewRepoId: "review-repo-of-a",
+    number: 1,
+    commentId: `c-${id}`,
+    command: "pause" as const,
+  }),
+  // The enrolled repository it belongs to is made in beforeEach (the foreign key needs one).
+  pausedPulls: (id: string) => ({ id, reviewRepoId: "review-repo-of-a", number: 1 }),
   // The review it belongs to is made in beforeEach (the foreign key needs one).
   reviewWalkthroughs: (id: string) => ({
     id,

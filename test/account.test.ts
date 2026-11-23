@@ -119,6 +119,8 @@ describe("deleting an account", () => {
           "replyJobs",
           "generateJobs",
           "learnJobs",
+          "pullCommands",
+          "pausedPulls",
           "closedPulls",
           "pullFlows",
           "pullReviews",
@@ -192,6 +194,8 @@ describe("deleting an account", () => {
       "pullPaths",
       "reviewRequests",
       "automationAssignments",
+      "pullCommands",
+      "pausedPulls",
     ] as const) {
       await d.insert(table, { ...rows[table](id(table)), reviewRepoId: id("reviewRepos") });
     }
