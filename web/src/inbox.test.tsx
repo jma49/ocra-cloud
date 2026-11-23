@@ -88,7 +88,7 @@ describe("the inbox's sections", () => {
   const rows = rowsOf(answer);
 
   it("are the views in their order, each with what it matches, a hidden one left out", () => {
-    const [review, mine, waiting, merged] = defaults;
+    const [review, mine, waiting, , merged] = defaults;
     const shown = inboxSections(rows, { text: "", repo: "" }, [
       review as PullView,
       { ...(mine as PullView), hidden: true },
@@ -99,6 +99,24 @@ describe("the inbox's sections", () => {
       ["Needs my review", [1, 2]],
       ["Waiting on others", [6]],
       ["Recently merged", [7]],
+    ]);
+  });
+
+  it("show by default a pull request that is only assigned to the user", () => {
+    const assigned = rowsOf({
+      platforms: [
+        {
+          ...answer.platforms[0],
+          pulls: [
+            pull(8, { roles: ["assignee"], author: "ada" }),
+            pull(9, { roles: ["reviewer"] }),
+          ],
+        },
+      ] as typeof answer.platforms,
+    });
+    const shown = inboxSections(assigned, { text: "", repo: "" }, defaults);
+    expect(shown.filter((s) => s.rows.some((r) => r.number === 8)).map((s) => s.title)).toEqual([
+      "Assigned to me",
     ]);
   });
 
@@ -273,7 +291,7 @@ describe("the inbox page", () => {
       },
     ]);
     await waitFor(() => expect(regions().at(-1)).toBe("Web"));
-    expect(regions()).toHaveLength(5);
+    expect(regions()).toHaveLength(6);
   });
 
   it("edits who opened it, ocra's verdict, labels and how lately it changed, keeping what it had", async () => {
@@ -314,18 +332,18 @@ describe("the inbox page", () => {
     expect(sent.at(-1)).toEqual({
       method: "PUT",
       url: "/api/pull-views/order",
-      body: { ids: ["v1", "v0", "v2", "v3"] },
+      body: { ids: ["v1", "v0", "v2", "v3", "v4"] },
     });
     await choose("Recently merged", "Hide");
     await waitFor(() => expect(regions()).not.toContain("Recently merged"));
-    expect(sent.at(-1)).toMatchObject({ url: "/api/pull-views/v3", body: { hidden: true } });
+    expect(sent.at(-1)).toMatchObject({ url: "/api/pull-views/v4", body: { hidden: true } });
     await act(
       async () =>
         void fireEvent.click(screen.getByRole("button", { name: "Show Recently merged" })),
     );
     await waitFor(() => expect(regions()).toContain("Recently merged"));
     expect(sent.at(-1)).toMatchObject({
-      url: "/api/pull-views/v3",
+      url: "/api/pull-views/v4",
       body: { name: "Recently merged", hidden: false },
     });
   });
