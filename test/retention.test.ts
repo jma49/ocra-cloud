@@ -121,6 +121,26 @@ describe("retention", () => {
     expect((await d.list("webhookDeliveries")).map((r) => r.id)).toEqual(["new"]);
   });
 
+  it("forgets a platform's delivery to us after 7 days, whatever its state", async () => {
+    await db.delete(schema.inboundEvents);
+    const row = (id: string, days: number, state: "pending" | "done") => ({
+      id,
+      platform: "github" as const,
+      host: "github.com",
+      deliveryId: id,
+      event: "pull_request",
+      repo: "11",
+      state,
+      createdAt: ago(days),
+    });
+    await db
+      .insert(schema.inboundEvents)
+      .values([row("old", 7.5, "done"), row("stuck", 8, "pending"), row("new", 6.5, "done")]);
+    await enforceRetention(db, now);
+    const left = await db.select({ id: schema.inboundEvents.id }).from(schema.inboundEvents);
+    expect(left.map((r) => r.id)).toEqual(["new"]);
+  });
+
   it("deletes a merge-when-ready intent a month after it ended, an armed one after 90 days", async () => {
     const { account } = await signIn(1, "octo");
     const d = scoped(db, account.id);

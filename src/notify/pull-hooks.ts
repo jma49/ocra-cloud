@@ -185,6 +185,15 @@ export function gitlabPullEvents(body: unknown, repoId: string): PullEvent[] {
   return events;
 }
 
+const githubRepoId = z.object({ repository: z.object({ id: z.number() }) });
+const githubSender = z.object({ sender: user });
+const gitlabActor = z.object({ user: gitlabUser });
+
+/** Every part of a GitHub delivery that tellGithubHook reads, beside the conversation's (./comment-hooks.ts, ./thread-hooks.ts). */
+export const GITHUB_HOOK_FIELDS = [githubPullEvent, githubReviewEvent, githubRepoId, githubSender];
+/** Every part of a GitLab merge request hook that tellGitlabHook reads. */
+export const GITLAB_HOOK_FIELDS = [gitlabEvent, gitlabActor];
+
 const quick = new Set([
   "pull_request",
   "pull_request_review",
@@ -201,11 +210,11 @@ export async function tellGithubHook(
   body: unknown,
 ): Promise<number> {
   if (!event || !quick.has(event)) return 0;
-  const repoId = z.object({ repository: z.object({ id: z.number() }) }).safeParse(body);
+  const repoId = githubRepoId.safeParse(body);
   if (!repoId.success) return 0;
   const repo = await reviewRepoFor(db, "github", host, id(repoId.data.repository.id));
   if (!repo) return 0;
-  const sender = z.object({ sender: user }).safeParse(body);
+  const sender = githubSender.safeParse(body);
   if (sender.success) {
     await refreshGithubLogin(db, {
       id: id(sender.data.sender.id),
@@ -224,7 +233,7 @@ export async function tellGithubHook(
 
 /** Keeps the login on record of the GitLab user the hook shows acting. */
 async function refreshGitlabActor(db: Db, host: string, body: unknown) {
-  const actor = z.object({ user: gitlabUser }).safeParse(body);
+  const actor = gitlabActor.safeParse(body);
   if (!actor.success) return;
   const { id: userId, username } = actor.data.user;
   await refreshGitlabLogin(db, host, { id: id(userId), login: username });

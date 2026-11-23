@@ -91,6 +91,11 @@ const webhookRetries = () =>
   host.webhookRetries().catch((err) => logError("webhook_retry_failed", { error: errorName(err) }));
 setInterval(webhookRetries, 60_000).unref();
 
+// And a platform webhook's side effects: the first retry is due a minute after they failed.
+const inboundRetries = () =>
+  host.inboundRetries().catch((err) => logError("inbound_retry_failed", { error: errorName(err) }));
+setInterval(inboundRetries, 60_000).unref();
+
 const port = Number(process.env.PORT || 8787);
 const server = serve({ fetch: host.fetch, port });
 console.log({ level: "info", event: "listening", port });

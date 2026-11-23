@@ -18,6 +18,7 @@ export const deviceCodes = pg(sqlite.deviceCodes);
 export const serviceCounters = pg(sqlite.serviceCounters);
 export const rateWindows = pg(sqlite.rateWindows);
 export const reviewRunners = pg(sqlite.reviewRunners);
+export const inboundEvents = pg(sqlite.inboundEvents);
 export const providerKeys = pg(sqlite.providerKeys);
 export const reviews = pg(sqlite.reviews);
 export const preferences = pg(sqlite.preferences);

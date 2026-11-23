@@ -8,6 +8,7 @@ import { Hono } from "hono";
 import { createApp } from "../app.js";
 import { retryAutomations } from "../automations/retry.js";
 import type { Db } from "../db/client.js";
+import { retryInbound } from "../inbound/run.js";
 import { masterKeys } from "../keyring.js";
 import { runAtRisk } from "../notify/at-risk.js";
 import { runDigests } from "../notify/digest.js";
@@ -182,6 +183,15 @@ export async function openHost(options: HostOptions) {
     /** Tries again the webhook deliveries due; how many it tried. */
     webhookRetries: () =>
       retryWebhooks(shared, retryOutbox({ keys: masterKeys(bindings), webhooks: webhookPost })),
+    /** Runs again the side effects of platform webhooks that failed and are due; how many it tried. */
+    inboundRetries: () =>
+      retryInbound({
+        db: shared,
+        env: bindings,
+        bots,
+        mailer: options.mailer,
+        webhookPost,
+      }),
     /** The graph build worker, when graphs are on. */
     graphWorker: graphs?.worker,
     /** The review worker, when auto review is on. */

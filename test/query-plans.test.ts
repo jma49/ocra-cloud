@@ -3,6 +3,7 @@ import { env } from "cloudflare:workers";
 import { drizzle } from "drizzle-orm/d1";
 import { describe, expect, it, vi } from "vitest";
 import { apiTokenByHash } from "../src/db/api-tokens.js";
+import { claimInboundRetry } from "../src/db/inbound-events.js";
 import { enforceRetention } from "../src/db/retention.js";
 import { accountTables } from "../src/db/schema.js";
 import { scoped } from "../src/db/scoped.js";
@@ -549,6 +550,17 @@ describe("pull requests at risk", () => {
   });
 });
 
+describe("incoming deliveries", () => {
+  it("finds the one due next through the retry index, never a whole table", async () => {
+    const seen: Captured[] = [];
+    await claimInboundRetry(drizzle(recording(seen)), new Date(), 60_000, ["11"]);
+    expect(seen.length).toBeGreaterThan(0);
+    const p = await plan(seen[0] as Captured);
+    expect(p).toMatch(/SEARCH inbound_events USING INDEX inbound_events_retry/);
+    expect(p).not.toMatch(/SCAN inbound_events/);
+  });
+});
+
 describe("retention", () => {
   it("finds each table's old rows through an index, never reading the whole table (audit C3)", async () => {
     const seen: Captured[] = [];
@@ -566,6 +578,7 @@ describe("retention", () => {
       "closed_pulls",
       "device_codes",
       "gateway_calls",
+      "inbound_events",
       "live_runs",
       "merge_intents",
       "notify_held",

@@ -13,6 +13,7 @@ import {
   closedPulls,
   deviceCodes,
   gatewayCalls,
+  inboundEvents,
   liveRuns,
   mergeIntents,
   notifyHeld,
@@ -35,7 +36,8 @@ import {
 // What the data policy (web /privacy) promises: review records, live runs, gateway call
 // records, merged and closed pull requests, their review flow and review threads, who a rule assigned to review them, the inbox's read marks, the daily counts and the audit log are deleted after
 // RETENTION_DAYS; expired login codes, sessions and API tokens go at once; a notice held in
-// quiet hours after HELD_FOR; a webhook delivery's record after WEBHOOK_DELIVERY_DAYS. Runs daily
+// quiet hours after HELD_FOR; a webhook delivery's record after WEBHOOK_DELIVERY_DAYS, a platform's
+// delivery to us after INBOUND_EVENT_DAYS. Runs daily
 // from the cron trigger.
 
 export const RETENTION_DAYS = 90;
@@ -47,6 +49,9 @@ const MERGE_INTENT_DAYS = 30;
 const NOTIFY_SEND_DAYS = 30;
 /** A webhook delivery's record: its retries end within hours. */
 const WEBHOOK_DELIVERY_DAYS = 30;
+
+/** A platform's delivery: its retries end within the hour, and platforms redeliver within days. */
+const INBOUND_EVENT_DAYS = 7;
 
 /**
  * Runs every delete, each on its own: one that fails is logged and the rest
@@ -231,6 +236,14 @@ export async function enforceRetention(db: Db, now = new Date()): Promise<void> 
               ),
             ),
           ),
+    ],
+    // Shared: it may be no account's (src/db/inbound-events.ts).
+    [
+      "inbound_events",
+      () =>
+        db
+          .delete(inboundEvents)
+          .where(lt(inboundEvents.createdAt, new Date(now.getTime() - INBOUND_EVENT_DAYS * DAY))),
     ],
     // DEVICE_DAILY_CODES a day at most, so they are read whole.
     ["device_codes", () => db.delete(deviceCodes).where(lt(deviceCodes.expiresAt, now))],

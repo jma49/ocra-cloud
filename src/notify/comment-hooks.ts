@@ -183,6 +183,10 @@ const gitlabNote = z.object({
   }),
 });
 
+/** Every part of a delivery that the conversation's events read. */
+export const GITHUB_COMMENT_FIELDS = [githubIssueComment, githubReviewComment, githubReview];
+export const GITLAB_COMMENT_FIELDS = [gitlabNote];
+
 /** The conversation events of a GitLab note hook, for the enrolled repository it proved. */
 export function gitlabCommentEvents(body: unknown, repoId: string): PullEvent[] {
   const parsed = gitlabNote.safeParse(body);
