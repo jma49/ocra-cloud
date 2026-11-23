@@ -96,7 +96,8 @@ describe("icons", () => {
 });
 
 describe("radii", () => {
-  // Round ends (99px, 50%) and a hairline's 1 or 2 px are shapes, not steps of the scale.
+  // Round ends (99px, 50%) and a hairline's 1 or 2 px are shapes, not steps of the scale;
+  // a component's own variable may choose among the tokens when it falls back to one.
   const allowed = /^(?:var\(--r-[a-z]+\)|0|50%|99px|[12]px|inherit)$/;
   it.each(sheets.filter((sheet) => sheet !== "signin.css"))(
     "%s takes its corners from the radius tokens",
@@ -107,6 +108,7 @@ describe("radii", () => {
           !d
             .replace(/^[^:]+:\s*|;$/g, "")
             .replace(/calc\([^;]*\)/g, "0")
+            .replace(/var\(--[a-z-]+,\s*(var\(--r-[a-z]+\))\)/g, "$1")
             .split(/\s+/)
             .every((v) => allowed.test(v)),
       );
