@@ -54,6 +54,7 @@ function listing(now: { pull: Pull }) {
                 ],
               },
               authored: { issueCount: 0, nodes: [] },
+              assigned: { issueCount: 0, nodes: [] },
               merged: { issueCount: 0, nodes: [] },
             },
           })

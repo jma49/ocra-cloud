@@ -1,6 +1,6 @@
 import { type FormEvent, type ReactNode, useState } from "react";
 import { Button } from "@/components/ui/button";
-import type { PullFilters } from "../../../src/shared/index.js";
+import type { PullFilters, PullRole } from "../../../src/shared/index.js";
 import { why } from "../api.js";
 import { Drawer } from "../drawer.js";
 import { shareLink, type ViewDraft } from "./views.js";
@@ -8,9 +8,10 @@ import { shareLink, type ViewDraft } from "./views.js";
 type Choice<T extends string> = { value: T; label: string };
 type ListKey = "roles" | "states" | "checks" | "reviews" | "verdicts" | "repos";
 
-const ROLES: Choice<"reviewer" | "author">[] = [
+const ROLES: Choice<PullRole>[] = [
   { value: "reviewer", label: "Asks my review" },
   { value: "author", label: "Mine" },
+  { value: "assignee", label: "Assigned to me" },
 ];
 const STATES: Choice<"open" | "merged">[] = [
   { value: "open", label: "Open" },

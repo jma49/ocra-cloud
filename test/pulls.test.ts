@@ -60,6 +60,7 @@ describe("the pull request inbox", () => {
               issueCount: 1,
               nodes: [node(3, { isDraft: true, author: { login: "octo" } })],
             },
+            assigned: { issueCount: 0, nodes: [] },
             merged: {
               issueCount: 1,
               nodes: [
@@ -111,6 +112,7 @@ describe("the pull request inbox", () => {
           data: {
             review: { issueCount: 1, nodes: pulls },
             authored: { issueCount: 0, nodes: [] },
+            assigned: { issueCount: 0, nodes: [] },
             merged: { issueCount: 0, nodes: [] },
           },
           ...(checks ? { errors: [{ message: "Resource not accessible by integration" }] } : {}),
@@ -129,6 +131,7 @@ describe("the pull request inbox", () => {
         data: {
           review: { issueCount: 120, nodes: [node(1)] },
           authored: { issueCount: 0, nodes: [] },
+          assigned: { issueCount: 0, nodes: [] },
           merged: { issueCount: 0, nodes: [] },
         },
       })),
@@ -163,6 +166,7 @@ describe("the pull request inbox", () => {
             data: {
               review: { issueCount: 0, nodes: [] },
               authored: { issueCount: 0, nodes: [] },
+              assigned: { issueCount: 0, nodes: [] },
               merged: { issueCount: 0, nodes: [] },
             },
           });
@@ -179,6 +183,7 @@ describe("the pull request inbox", () => {
           expect(q.get("updated_after")).toMatch(/^\d{4}-\d{2}-\d{2}T/);
           return Response.json([{ ...mr(103, 6, "me"), state: "merged" }]);
         }
+        if (q.get("assignee_id") === "77") return Response.json([]);
         if (q.get("scope") === "created_by_me") return Response.json([mr(102, 5, "me")]);
         return undefined;
       },
@@ -215,6 +220,7 @@ describe("the pull request inbox", () => {
             ],
           },
           authored: { issueCount: 2, nodes: [branch(3, "b", "a"), branch(4, "solo", "main")] },
+          assigned: { issueCount: 0, nodes: [] },
           merged: {
             issueCount: 1,
             nodes: [branch(2, "c", "b", { state: "MERGED", mergedAt: "2026-11-22T09:00:00Z" })],
@@ -259,6 +265,7 @@ describe("the pull request inbox", () => {
             data: {
               review: { issueCount: 0, nodes: [] },
               authored: { issueCount: 0, nodes: [] },
+              assigned: { issueCount: 0, nodes: [] },
               merged: { issueCount: 0, nodes: [] },
             },
           });
@@ -269,6 +276,7 @@ describe("the pull request inbox", () => {
         if (q.get("reviewer_id") === "77")
           return Response.json([mr(3, "b", "a"), mr(4, "z", "b", true)]);
         if (q.get("state") === "merged") return Response.json([]);
+        if (q.get("assignee_id") === "77") return Response.json([]);
         if (q.get("scope") === "created_by_me") return Response.json([mr(2, "a", "main")]);
         return undefined;
       },
@@ -305,6 +313,7 @@ describe("the pull request inbox", () => {
             data: {
               review: { issueCount: 0, nodes: [] },
               authored: { issueCount: 0, nodes: [] },
+              assigned: { issueCount: 0, nodes: [] },
               merged: { issueCount: 0, nodes: [] },
             },
           });
@@ -321,6 +330,7 @@ describe("the pull request inbox", () => {
         const q = url.searchParams;
         if (q.get("reviewer_id") === "77") return Response.json([mr(1)]);
         if (q.get("state") === "merged") return Response.json([]);
+        if (q.get("assignee_id") === "77") return Response.json([]);
         if (q.get("scope") === "created_by_me") return Response.json([mr(5, "opened", "me")]);
         return undefined;
       },

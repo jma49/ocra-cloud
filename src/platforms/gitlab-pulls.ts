@@ -74,8 +74,8 @@ export const mergeRequestItem = (mr: MergeRequest): ListedPull => ({
 });
 
 /**
- * The merge requests asking the user's review, theirs open and theirs merged
- * this week. GitLab lists only those naming the user a reviewer, so those an
+ * The merge requests asking the user's review, theirs open, those assigned
+ * to them open, and theirs merged this week. GitLab lists only those naming the user a reviewer, so those an
  * approval rule asks of a group they are on come from teamAsks: each read
  * on its own, listed while still open.
  */
@@ -93,14 +93,15 @@ export async function gitlabPulls(
   if (!me) return null;
   const open = `state=opened&order_by=updated_at&per_page=${OPEN_PER_LIST}`;
   const since = encodeURIComponent(mergedSince(now).toISOString());
-  const [review, authored, merged] = await Promise.all([
+  const [review, authored, assigned, merged] = await Promise.all([
     get<MergeRequest[]>(`/merge_requests?scope=all&reviewer_id=${me.id}&${open}`),
     get<MergeRequest[]>(`/merge_requests?scope=created_by_me&${open}`),
+    get<MergeRequest[]>(`/merge_requests?scope=all&assignee_id=${me.id}&${open}`),
     get<MergeRequest[]>(
       `/merge_requests?scope=created_by_me&state=merged&updated_after=${since}&order_by=updated_at&per_page=${MERGED_PER_LIST}`,
     ),
   ]);
-  if (!review || !authored || !merged) return null;
+  if (!review || !authored || !assigned || !merged) return null;
   const listed = new Set([...review, ...authored].map((mr) => pullKey(repoOf(mr), mr.iid)));
   const missed = teamAsks.filter((a) => !listed.has(pullKey(a.repo, a.number)));
   const read = await Promise.all(
@@ -115,10 +116,10 @@ export async function gitlabPulls(
     pulls: withRoles([
       { role: "reviewer", pulls: [...review, ...groupAsked].map(mergeRequestItem) },
       { role: "author", pulls: [...authored, ...merged].map(mergeRequestItem) },
+      { role: "assignee", pulls: assigned.map(mergeRequestItem) },
     ]),
     more:
-      review.length >= OPEN_PER_LIST ||
-      authored.length >= OPEN_PER_LIST ||
+      [review, authored, assigned].some((l) => l.length >= OPEN_PER_LIST) ||
       missed.length > MAX_GROUP_ASKED,
   };
 }

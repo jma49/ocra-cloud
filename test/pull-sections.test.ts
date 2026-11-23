@@ -56,6 +56,7 @@ function inbox() {
                   node(3, { author: { login: "octo" }, reviewDecision: "APPROVED" }),
                 ],
               },
+              assigned: { issueCount: 0, nodes: [] },
               merged: {
                 issueCount: 1,
                 nodes: [
