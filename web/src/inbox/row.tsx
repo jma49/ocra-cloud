@@ -104,12 +104,9 @@ function PullLink(props: {
         </span>
       )}
       {r.requestedTeam && (
-        <span
-          className="pull-replies pull-team"
-          title={`Review asked of ${r.requestedTeam}, a team you are on`}
-        >
+        <span className="pull-team" title={`Review asked of ${r.requestedTeam}, a team you are on`}>
           <Users size={12} aria-hidden="true" />
-          {r.requestedTeam}
+          <span className="pull-team-name">{r.requestedTeam.split("/").pop()}</span>
         </span>
       )}
       <span className="pull-ref" title={`${r.repo} #${r.number}`}>
