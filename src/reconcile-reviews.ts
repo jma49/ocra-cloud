@@ -19,7 +19,8 @@ import type { ReconciledPull, ReconciledReview, Spent } from "./platforms/reconc
 // than the platform's last change, so a webhook that arrived since stands,
 // and a round ended here never tells of an ask before it again. A GitLab
 // approval rule's group is not among a merge request's reviewers: its asks
-// are left to its webhooks.
+// are left to its webhooks; an approval taken back leaves the reviewer
+// waiting again, as the unapproval's webhook does.
 
 /** Open pull requests read per repository, the most lately changed first: one call each. */
 const REVIEW_PULLS = 10;
