@@ -14,6 +14,7 @@ import {
   ROLES,
 } from "../../../src/shared/index.js";
 import { loadKeys } from "../account-keys.js";
+import { TIER_IDS } from "../agent-prefs.js";
 import { api, type ProviderInfo } from "../api.js";
 import { type AgentPrefs, type Effort, type Prefs, type Tier, usePrefs } from "../prefs.js";
 import { Link } from "../router.js";
@@ -26,11 +27,12 @@ import { EmptyState, PageHead, Seg, useLoad, useProviders } from "../ui.js";
 type Chain = string[];
 type ModelInfo = { id: string; efforts: Effort[] };
 
-const TIERS: { id: Tier; label: string; hint: string }[] = [
-  { id: "standard", label: "Standard", hint: "Reviews the code" },
-  { id: "light", label: "Light", hint: "Docs, AGENTS.md and helper work" },
-  { id: "top", label: "Top", hint: "The judge" },
-];
+const TIER_TEXT: Record<Tier, { label: string; hint: string }> = {
+  standard: { label: "Standard", hint: "Reviews the code" },
+  light: { label: "Light", hint: "Docs, AGENTS.md and helper work" },
+  top: { label: "Top", hint: "The judge" },
+};
+const TIERS = TIER_IDS.map((id) => ({ id, ...TIER_TEXT[id] }));
 
 // A row's model; the editor writes only ocra-<provider>/<model> names.
 const split = (m: string) => parseModelId(m) ?? { provider: "", model: m };
@@ -314,29 +316,6 @@ function messagesOnly(p: Prefs, usable: ProviderInfo[]): string[] {
   return usable
     .filter((u) => chosen.has(u.name) && chatPath(u.paths)?.wire === "anthropic")
     .map((u) => u.label);
-}
-
-// Drops models whose id is not filled in yet, so a half-edited row is not sent.
-export function completeAgents(p: Prefs): Prefs {
-  const keep = (c: Chain | undefined) => {
-    const done = (c ?? []).filter((m) => !m.endsWith("/"));
-    return done.length ? done : undefined;
-  };
-  const models = Object.fromEntries(
-    TIERS.map((t) => [t.id, keep(p.models[t.id])]).filter(([, c]) => c),
-  );
-  const withModels = <T extends { models?: Chain }>(r: T | undefined): T => {
-    const { models, ...rest } = r ?? ({} as T);
-    const done = keep(models);
-    return (done ? { ...rest, models: done } : rest) as T;
-  };
-  const reviewers = Object.fromEntries(
-    Object.entries(p.agents.reviewers ?? {}).map(([id, r]) => [id, withModels(r)]),
-  );
-  const roles = Object.fromEntries(
-    Object.entries(p.agents.roles ?? {}).map(([id, r]) => [id, withModels(r)]),
-  );
-  return { ...p, models, agents: { ...p.agents, reviewers, roles } };
 }
 
 function EffortSelect(props: {

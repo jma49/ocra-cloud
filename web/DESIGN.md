@@ -55,6 +55,7 @@ Pages and components style only through the custom properties in `base.css`.
 - **Errors:** a failed load shows `LoadError` with a retry where the content would be; a failed action shows `ActionError` above the list it acted on.
 - **Empty states** say what will appear here and the one action that makes it appear.
 - **Loading:** skeletons appear after 300 ms, so fast loads never flash; cached data shows at once and refreshes in place.
+- **Getting ahead of the click:** a link's page loads its code, and its first read, while the pointer rests on it, the keyboard selects it, or it is focused; a press or a navigation starts every read the page lists (`reads` in `routes.tsx`). The likely pages' code loads while the browser is idle. A switch or choice shows its new value at once and goes back if the save is refused.
 
 ## Components
 

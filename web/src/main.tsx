@@ -1,12 +1,12 @@
 import { lazy, StrictMode, Suspense, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
+import { completeAgents } from "./agent-prefs.js";
 import { ApiError, api, type Me } from "./api.js";
 import { cacheFor, clearCache } from "./cache.js";
 import { Footer, TopBar } from "./chrome.js";
-import { completeAgents } from "./pages/Agents.js";
 import { PrefsProvider } from "./prefs.js";
-import { usePath } from "./router.js";
-import { matchRoute } from "./routes.js";
+import { prepareWith, usePath } from "./router.js";
+import { loadLikelyPages, matchRoute, prefetchRoute } from "./routes.js";
 import { Frame } from "./shell.js";
 import { rememberSignedIn, wasSignedIn } from "./signed-in.js";
 import { SignIn } from "./signin.js";
@@ -41,6 +41,12 @@ function App() {
       },
     );
   }, []);
+  useEffect(() => {
+    if (!me) return;
+    prepareWith((to, intent) => prefetchRoute(to, me, intent));
+    const idle = window.requestIdleCallback ?? ((f: () => void) => setTimeout(f, 1000));
+    idle(() => loadLikelyPages(me));
+  }, [me]);
   const found = matchRoute(path, me ?? undefined);
   useEffect(() => {
     setPageTitle(me ? found?.route.tab : undefined);

@@ -1,51 +1,45 @@
-import { lazy, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { loadKeys } from "./account-keys.js";
 import type { Me } from "./api.js";
-import { Activity } from "./pages/Activity.js";
-import { Agents } from "./pages/Agents.js";
-import { ApiTokens } from "./pages/ApiTokens.js";
-import { AuditLog } from "./pages/AuditLog.js";
-import { BudgetPage } from "./pages/Budget.js";
-import { CodeGraphs } from "./pages/CodeGraphs.js";
-import { Findings } from "./pages/Findings.js";
+import { prefetch } from "./api.js";
+import { isLazyPage, lazyPage } from "./lazy-page.js";
 import { Inbox } from "./pages/Inbox.js";
-import { Insights } from "./pages/Insights.js";
-import { Keys } from "./pages/Keys.js";
-import { Memory } from "./pages/Memory.js";
-import { Notifications } from "./pages/Notifications.js";
-import { Overview } from "./pages/Overview.js";
-import { Plugins } from "./pages/Plugins.js";
-import { ReleaseNotes } from "./pages/ReleaseNotes.js";
-import { Repositories } from "./pages/Repositories.js";
-import { ReviewSettings } from "./pages/ReviewSettings.js";
-import { Reviews } from "./pages/Reviews.js";
-import { Rules } from "./pages/Rules.js";
-import { Sessions } from "./pages/Sessions.js";
-import { Settings } from "./pages/Settings.js";
+import { pullReads } from "./pull/reads.js";
+import { loadAhead } from "./stale-build.js";
 import { loadProviders, NotFound } from "./ui.js";
 
-// Pages few visits open load on demand, so the sign-in screen and the
-// console's first page do not wait for them (audit C11).
-const Automations = lazy(() =>
-  import("./pages/Automations.js").then((m) => ({ default: m.Automations })),
-);
-const Learnings = lazy(() =>
-  import("./pages/Learnings.js").then((m) => ({ default: m.Learnings })),
-);
-const RepoConfig = lazy(() =>
-  import("./pages/RepoConfig.js").then((m) => ({ default: m.RepoConfig })),
-);
-const AutoReview = lazy(() =>
-  import("./pages/AutoReview.js").then((m) => ({ default: m.AutoReview })),
-);
-const Defaults = lazy(() => import("./pages/Defaults.js").then((m) => ({ default: m.Defaults })));
-const Device = lazy(() => import("./pages/Device.js").then((m) => ({ default: m.Device })));
-const PullPage = lazy(() => import("./pages/PullPage.js").then((m) => ({ default: m.PullPage })));
-const Live = lazy(() => import("./pages/Live.js").then((m) => ({ default: m.Live })));
-const LivePage = lazy(() => import("./pages/LivePage.js").then((m) => ({ default: m.LivePage })));
-const ReviewDetail = lazy(() =>
-  import("./pages/ReviewDetail.js").then((m) => ({ default: m.ReviewDetail })),
-);
+// Every page but the inbox, the first one, loads on demand: hovering a link
+// to it (or the browser's idle time) loads its code before the click.
+const Activity = lazyPage(() => import("./pages/Activity.js"), "Activity");
+const Agents = lazyPage(() => import("./pages/Agents.js"), "Agents");
+const ApiTokens = lazyPage(() => import("./pages/ApiTokens.js"), "ApiTokens");
+const AuditLog = lazyPage(() => import("./pages/AuditLog.js"), "AuditLog");
+const AutoReview = lazyPage(() => import("./pages/AutoReview.js"), "AutoReview");
+const Automations = lazyPage(() => import("./pages/Automations.js"), "Automations");
+const BudgetPage = lazyPage(() => import("./pages/Budget.js"), "BudgetPage");
+const CodeGraphs = lazyPage(() => import("./pages/CodeGraphs.js"), "CodeGraphs");
+const Defaults = lazyPage(() => import("./pages/Defaults.js"), "Defaults");
+const Device = lazyPage(() => import("./pages/Device.js"), "Device");
+const Findings = lazyPage(() => import("./pages/Findings.js"), "Findings");
+const Insights = lazyPage(() => import("./pages/Insights.js"), "Insights");
+const Keys = lazyPage(() => import("./pages/Keys.js"), "Keys");
+const Learnings = lazyPage(() => import("./pages/Learnings.js"), "Learnings");
+const Live = lazyPage(() => import("./pages/Live.js"), "Live");
+const LivePage = lazyPage(() => import("./pages/LivePage.js"), "LivePage");
+const Memory = lazyPage(() => import("./pages/Memory.js"), "Memory");
+const Notifications = lazyPage(() => import("./pages/Notifications.js"), "Notifications");
+const Overview = lazyPage(() => import("./pages/Overview.js"), "Overview");
+const Plugins = lazyPage(() => import("./pages/Plugins.js"), "Plugins");
+const PullPage = lazyPage(() => import("./pages/PullPage.js"), "PullPage");
+const ReleaseNotes = lazyPage(() => import("./pages/ReleaseNotes.js"), "ReleaseNotes");
+const RepoConfig = lazyPage(() => import("./pages/RepoConfig.js"), "RepoConfig");
+const Repositories = lazyPage(() => import("./pages/Repositories.js"), "Repositories");
+const ReviewDetail = lazyPage(() => import("./pages/ReviewDetail.js"), "ReviewDetail");
+const ReviewSettings = lazyPage(() => import("./pages/ReviewSettings.js"), "ReviewSettings");
+const Reviews = lazyPage(() => import("./pages/Reviews.js"), "Reviews");
+const Rules = lazyPage(() => import("./pages/Rules.js"), "Rules");
+const Sessions = lazyPage(() => import("./pages/Sessions.js"), "Sessions");
+const Settings = lazyPage(() => import("./pages/Settings.js"), "Settings");
 
 // The signed-in pages: one table drives the rail's places, each place's
 // tabs, the settings list, the page title and which page a path shows. An
@@ -73,6 +67,12 @@ export type Route = {
    * C11); a 401 means what /me's does.
    */
   loads?: readonly (() => Promise<unknown>)[];
+  /**
+   * The API paths the page reads first, given its params, started with the
+   * navigation rather than after the page's code arrives and renders; the
+   * first is the one a hover may start too.
+   */
+  reads?: (params: string[]) => readonly string[];
   page: (me: Me, params: string[]) => ReactNode;
 };
 
@@ -95,11 +95,13 @@ const ROUTES: readonly Route[] = [
   {
     path: "/reviews/:id",
     place: "reviews",
+    reads: ([id = ""]) => [`/reviews/${encodeURIComponent(id)}`],
     page: (me, [id]) => <ReviewDetail id={id ?? ""} graphs={graphsKept(me)} />,
   },
   {
     path: "/pull/:platform/:repo*/:number",
     place: "inbox",
+    reads: ([platform = "", repo = "", number = ""]) => pullReads({ platform, repo, number }),
     page: (me, [platform, repo, number]) => (
       <PullPage
         platform={platform ?? ""}
@@ -348,4 +350,42 @@ export function matchRoute(path: string, me?: Me): { route: Route; params: strin
 export function pageFor(path: string, me: Me): ReactNode {
   const found = matchRoute(path, me);
   return found ? found.route.page(me, found.params) : <NotFound />;
+}
+
+/**
+ * Gets a page ready before it opens: its code, and the reads it starts with.
+ * A hover (`intent: "hover"`) starts only the first read, since most
+ * hovers are not followed by a click and the reads of a pull request each
+ * cost the platform a call; a press or a navigation starts them all.
+ */
+export function prefetchRoute(path: string, me: Me, intent: "hover" | "open"): void {
+  const url = new URL(path, location.origin);
+  if (url.origin !== location.origin) return;
+  const found = matchRoute(url.pathname, me);
+  if (!found) return;
+  const { route, params } = found;
+  loadCode(route.page(me, params));
+  const reads = route.reads?.(params) ?? [];
+  for (const read of intent === "hover" ? reads.slice(0, 1) : reads) prefetch(read);
+  if (intent === "open") for (const load of route.loads ?? []) load().catch(() => {});
+}
+
+function loadCode(page: ReactNode): void {
+  if (page && typeof page === "object" && "type" in page && isLazyPage(page.type)) {
+    loadAhead(page.type.preload);
+  }
+}
+
+// The pages most visits go on to open from the inbox.
+const LIKELY = new Set([
+  "/pull/:platform/:repo*/:number",
+  "/reviews/:id",
+  "/reviews",
+  "/findings",
+  "/repositories",
+]);
+
+/** Loads the likely pages' code while the browser is idle, so their first open waits on no download. */
+export function loadLikelyPages(me: Me): void {
+  for (const route of ROUTES) if (LIKELY.has(route.path)) loadCode(route.page(me, []));
 }
