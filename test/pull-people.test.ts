@@ -391,6 +391,21 @@ describe("changing assignees", () => {
     const res = await post(a, "/api/pulls/people/assignees", { ...lab, remove: ["ops"] });
     expect(res.status).toBe(502);
   });
+
+  it("answers upstream_unreachable, not refused, when a GitLab user lookup fails", async () => {
+    const { sent } = platform({
+      [`GET ${MR}`]: () => Response.json({ reviewers: [] }),
+      [`GET ${GITLAB}/api/v4/users?username=ana`]: () => new Response("{}", { status: 500 }),
+    });
+    const a = await onGitlab();
+    for (const [path, body] of [
+      ["/api/pulls/people/reviewers", { ...lab, add: ["ana"] }],
+      ["/api/pulls/reviewers", { ...lab, logins: ["ana"] }],
+    ] as const) {
+      expect((await post(a, path, body)).status).toBe(502);
+    }
+    expect(sent).toEqual([]);
+  });
 });
 
 describe("what an edit may hold", () => {
