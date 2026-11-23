@@ -169,3 +169,17 @@ it("asks every 30 s again while the stream is down", async () => {
   await act(async () => void vi.advanceTimersByTime(30_000));
   await waitFor(() => expect(asked.changes).toBe(2));
 });
+
+it("hears a stream that opens the moment the listing shows", async () => {
+  vi.stubGlobal("EventSource", FakeSource);
+  const asked = serve({ changedAt: "2026-11-21T10:00:00.000Z", title: "Change 1" });
+  // The browser may answer between React's commit and its passive effects.
+  const shown = new MutationObserver(() => {
+    if (!screen.queryAllByText("Change 1").length) return;
+    shown.disconnect();
+    FakeSource.all[0]?.emit("ready");
+  });
+  shown.observe(document.body, { childList: true, subtree: true, characterData: true });
+  render(<Inbox />);
+  await waitFor(() => expect(asked.changes).toBe(1));
+});
