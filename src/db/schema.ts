@@ -293,6 +293,20 @@ export const reviewRunners = sqliteTable("review_runners", {
 });
 
 /**
+ * A self-hosted server's settings saved from its setup page (src/setup/), by
+ * the name of the environment variable each stands for; a variable set in
+ * the environment wins. A secret is sealed under the master key. No
+ * account's: the server's.
+ */
+export const serverSettings = sqliteTable("server_settings", {
+  name: text("name").primaryKey(),
+  /** The value, or a secret's sealed form: its wrapped data key, a dot, its ciphertext. */
+  value: text("value").notNull(),
+  sealed: integer("sealed", { mode: "boolean" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+});
+
+/**
  * A platform webhook delivery whose signature or secret proved it
  * (src/inbound/), one per platform, host and the platform's delivery id, so
  * a redelivery does nothing. `work` holds what its side effects still need,

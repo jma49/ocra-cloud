@@ -19,7 +19,7 @@ export const RUNNER_STALE_MS = 5 * 60_000;
 const CHECK_TIMEOUT_MS = 5_000;
 const MISSING_SHOWN = 10;
 
-type DeepHealth = {
+export type DeepHealth = {
   ok: boolean;
   reasons: string[];
   migrations: MigrationCheck | null;
@@ -41,7 +41,7 @@ export function healthRoute(options: { runners: boolean }) {
   return route;
 }
 
-async function deepHealth(db: Db, runners: boolean, now: Date): Promise<DeepHealth> {
+export async function deepHealth(db: Db, runners: boolean, now: Date): Promise<DeepHealth> {
   const reached = await within(db.run(sql`SELECT 1`));
   if (!reached.ok) return { ok: false, reasons: [`database_${reached.failed}`], migrations: null };
   const reasons: string[] = [];

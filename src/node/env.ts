@@ -49,12 +49,20 @@ const DEFAULTS = {
   DEVICE_DAILY_CODES: "1000",
 } as const;
 
+/** Whether `vars` complete a way to sign in. */
+export function canSignIn(vars: Record<string, string | undefined>): boolean {
+  return Object.values(SIGN_IN).some((names) => names.every((name) => vars[name]));
+}
+
 /**
  * The app's bindings from `vars`; throws naming every required variable that
- * is missing, when no way to sign in is complete, and on malformed model
- * endpoints or default models.
+ * is missing, when no way to sign in is complete (unless the server starts to
+ * be set up), and on malformed model endpoints or default models.
  */
-export function bindingsFrom(vars: Record<string, string | undefined>): AppBindings {
+export function bindingsFrom(
+  vars: Record<string, string | undefined>,
+  options: { setup?: boolean } = {},
+): AppBindings {
   const missing = SECRETS.filter((name) => !vars[name]);
   if (missing.length > 0) throw new Error(`missing environment variables: ${missing.join(", ")}`);
   for (const name of ["MASTER_KEY", "MASTER_KEY_PREVIOUS"] as const) {
@@ -63,8 +71,7 @@ export function bindingsFrom(vars: Record<string, string | undefined>): AppBindi
       throw new Error(`${name} must be base64 of 32 random bytes (openssl rand -base64 32)`);
     }
   }
-  const ways = Object.values(SIGN_IN);
-  if (!ways.some((names) => names.every((name) => vars[name]))) {
+  if (!options.setup && !canSignIn(vars)) {
     const sets = Object.entries(SIGN_IN).map(([way, names]) => `${way} (${names.join(", ")})`);
     throw new Error(`no way to sign in: set ${sets.join(" or ")}`);
   }
@@ -92,6 +99,43 @@ export function bindingsFrom(vars: Record<string, string | undefined>): AppBindi
   retentionDaysOf(bindings.RETENTION_DAYS);
   instanceAdminsOf(bindings.INSTANCE_ADMINS);
   return bindings;
+}
+
+/**
+ * Why the server would not start with `vars`, as the setup page shows it;
+ * undefined when it would.
+ */
+export function startError(vars: Record<string, string | undefined>): string | undefined {
+  try {
+    bindingsFrom(vars, { setup: true });
+    if (autoReviewSettingsFrom(vars) && !vars.PUBLIC_URL) {
+      return "auto review needs PUBLIC_URL, the address its reviews sign in to";
+    }
+    return undefined;
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+}
+
+/**
+ * Each `<NAME>_FILE` variable's file read into `<NAME>`, as Docker's secrets
+ * are given, unless `<NAME>` is set itself; a trailing newline is dropped.
+ */
+export function withFiles(
+  vars: Record<string, string | undefined>,
+  read: (path: string) => string,
+): Record<string, string | undefined> {
+  const out = { ...vars };
+  for (const [name, path] of Object.entries(vars)) {
+    const target = name.endsWith("_FILE") ? name.slice(0, -"_FILE".length) : undefined;
+    if (!target || !path || out[target]) continue;
+    try {
+      out[target] = read(path).replace(/\r?\n$/, "");
+    } catch {
+      throw new Error(`${name}: cannot read ${path}`);
+    }
+  }
+  return out;
 }
 
 /**

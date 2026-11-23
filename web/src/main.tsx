@@ -1,5 +1,6 @@
 import { lazy, StrictMode, Suspense, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
+import type { SetupState } from "../../src/shared/index.js";
 import { completeAgents } from "./agent-prefs.js";
 import { ApiError, api, type Me, prefetch } from "./api.js";
 import { cacheFor, clearCache } from "./cache.js";
@@ -18,6 +19,20 @@ import { ErrorBoundary, Loading, NotFound } from "./ui.js";
 import "./styles.css";
 
 const Privacy = lazy(() => import("./pages/Privacy.js").then((m) => ({ default: m.Privacy })));
+const Setup = lazy(() => import("./setup/Setup.js").then((m) => ({ default: m.Setup })));
+
+/** A self-hosted server nobody can sign in to yet opens on its settings page; elsewhere /api/setup is missing. */
+function useSetupNeeded(signedOut: boolean): boolean | undefined {
+  const [needed, setNeeded] = useState<boolean | undefined>(undefined);
+  useEffect(() => {
+    if (!signedOut) return;
+    api<SetupState>("/setup").then(
+      (s) => setNeeded(s.needed),
+      () => setNeeded(false),
+    );
+  }, [signedOut]);
+  return needed;
+}
 
 function App() {
   const [me, setMe] = useState<Me | null | undefined>(undefined);
@@ -50,6 +65,7 @@ function App() {
     const idle = window.requestIdleCallback ?? ((f: () => void) => setTimeout(f, 1000));
     idle(() => loadLikelyPages(me));
   }, [me]);
+  const setupNeeded = useSetupNeeded(me === null);
   const found = matchRoute(path, me ?? undefined);
   useEffect(() => {
     setPageTitle(me ? found?.route.tab : undefined);
@@ -68,7 +84,20 @@ function App() {
       </>
     );
   }
-  if (me === undefined) return <TopBar me={null} />;
+  if (path === "/setup" || (me === null && setupNeeded)) {
+    return (
+      <>
+        <TopBar me={me ?? null} />
+        <main className="content solo">
+          <Suspense fallback={<Loading what="the settings" />}>
+            <Setup />
+          </Suspense>
+        </main>
+        <Footer />
+      </>
+    );
+  }
+  if (me === undefined || (me === null && setupNeeded === undefined)) return <TopBar me={null} />;
   if (me === null)
     return (
       <>
