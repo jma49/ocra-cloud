@@ -10,6 +10,7 @@ import GitPullRequest from "lucide-react/icons/git-pull-request";
 import History from "lucide-react/icons/history";
 import Inbox from "lucide-react/icons/inbox";
 import KeyRound from "lucide-react/icons/key-round";
+import KeySquare from "lucide-react/icons/key-square";
 import ListChecks from "lucide-react/icons/list-checks";
 import Puzzle from "lucide-react/icons/puzzle";
 import ScrollText from "lucide-react/icons/scroll-text";
@@ -49,6 +50,7 @@ const SETTINGS_ICONS: Record<string, LucideIcon> = {
   "/settings": UserRound,
   "/notifications": Bell,
   "/sessions": Terminal,
+  "/tokens": KeySquare,
   "/audit": ScrollText,
 };
 
