@@ -77,7 +77,7 @@ describe("a webhook channel", () => {
         delivery("d3", { state: "failed", status: null, error: "timeout", latencyMs: null }),
       ],
     );
-    render(<Notifications platforms={["github"]} />);
+    render(<Notifications platforms={["github"]} enrolls={false} />);
     fireEvent.click(await screen.findByRole("button", { name: /deliveries to Deploy bot$/ }));
     const list = await screen.findByRole("region", { name: "Recent deliveries" });
     const rows = within(list).getAllByRole("row").slice(1);
@@ -90,7 +90,7 @@ describe("a webhook channel", () => {
 
   it("replaces its secret only after a second press, and shows the new one once with Copy", async () => {
     const { sent, writeText } = serve([channel()], []);
-    render(<Notifications platforms={["github"]} />);
+    render(<Notifications platforms={["github"]} enrolls={false} />);
     fireEvent.click(await screen.findByRole("button", { name: /deliveries to Deploy bot$/ }));
     const box = screen.getByRole("region", { name: "Signing secret" });
     expect(
@@ -119,7 +119,7 @@ describe("a webhook channel", () => {
         delivery("d2", { event: "held_notices" }),
       ],
     );
-    render(<Notifications platforms={["github"]} />);
+    render(<Notifications platforms={["github"]} enrolls={false} />);
     fireEvent.click(await screen.findByRole("button", { name: /deliveries to #reviews$/ }));
     const list = await screen.findByRole("region", { name: "Recent deliveries" });
     const rows = within(list).getAllByRole("row").slice(1);
@@ -133,7 +133,7 @@ describe("a webhook channel", () => {
 
   it("has no quiet hours among its reminders, which a chat has", async () => {
     serve([channel(), channel({ id: "n2", kind: "slack", name: "#reviews" })], []);
-    render(<Notifications platforms={["github"]} />);
+    render(<Notifications platforms={["github"]} enrolls={false} />);
     fireEvent.click(await screen.findByRole("button", { name: /^Reminders to Deploy bot/ }));
     expect(screen.queryByText("Quiet hours")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Close" }));

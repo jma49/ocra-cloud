@@ -49,7 +49,7 @@ describe("the Notifications page", () => {
         return Response.json({ channels });
       }),
     );
-    render(<Notifications platforms={["github", "gitlab"]} />);
+    render(<Notifications platforms={["github", "gitlab"]} enrolls={false} />);
     await screen.findByText("No channels yet");
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: " #reviews " } });
     fireEvent.change(screen.getByLabelText("Webhook address"), {
@@ -93,7 +93,7 @@ describe("an email channel", () => {
         return Response.json({ email: true, channels: sent.length ? [mail] : [] });
       }),
     );
-    render(<Notifications platforms={["github", "gitlab"]} />);
+    render(<Notifications platforms={["github", "gitlab"]} enrolls={false} />);
     await screen.findByText("No channels yet");
     fireEvent.change(screen.getByLabelText("Where"), { target: { value: "email" } });
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Ada" } });
@@ -133,7 +133,7 @@ describe("an email channel", () => {
         return Response.json({ email: true, channels: [channel] });
       }),
     );
-    render(<Notifications platforms={["github"]} />);
+    render(<Notifications platforms={["github"]} enrolls={false} />);
     const digest = await screen.findByRole("switch", { name: "Daily digest to #reviews" });
     await act(async () => void fireEvent.click(digest));
     expect(digest.getAttribute("aria-checked")).toBe("true");
@@ -146,7 +146,7 @@ describe("an email channel", () => {
       "fetch",
       vi.fn(async () => Response.json({ email: false, channels: [] })),
     );
-    render(<Notifications platforms={["github", "gitlab"]} />);
+    render(<Notifications platforms={["github", "gitlab"]} enrolls={false} />);
     await screen.findByText("No channels yet");
     expect(screen.queryByRole("option", { name: "Email" })).toBeNull();
   });
@@ -166,7 +166,7 @@ describe("the weekly report", () => {
         return Response.json({ channels: [channel], email: false });
       }),
     );
-    render(<Notifications platforms={["github", "gitlab"]} />);
+    render(<Notifications platforms={["github", "gitlab"]} enrolls={false} />);
     const weekly = await screen.findByRole("switch", { name: "Weekly report to #reviews" });
     await act(async () => void fireEvent.click(weekly));
     fireEvent.change(await screen.findByLabelText("Weekly report day"), { target: { value: "5" } });
@@ -196,7 +196,7 @@ describe("my pull requests' events", () => {
         return Response.json({ channels: [{ ...channel, events }], email: false });
       }),
     );
-    render(<Notifications platforms={["github", "gitlab"]} />);
+    render(<Notifications platforms={["github", "gitlab"]} enrolls={false} />);
     fireEvent.click(
       await screen.findByRole("button", { name: "My pull requests' events to #reviews: 2 of 11" }),
     );
@@ -238,7 +238,7 @@ describe("a pull request's time", () => {
         Response.json(url === "/api/notifications/report" ? SLOT : { channels }),
       ),
     );
-    render(<Notifications platforms={["github"]} />);
+    render(<Notifications platforms={["github"]} enrolls={false} />);
     await screen.findByText("My inbox");
     expect(screen.getByText("…Xy9Q")).toBeTruthy();
     expect(screen.queryByText("….com")).toBeNull();
@@ -262,7 +262,7 @@ describe("a pull request's time", () => {
         ),
       ),
     );
-    render(<Notifications platforms={["github"]} />);
+    render(<Notifications platforms={["github"]} enrolls={false} />);
     await screen.findByText("My inbox");
     expect(screen.getAllByText(/removed on .*30.* unless confirmed/)).toHaveLength(1);
   });

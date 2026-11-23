@@ -44,7 +44,7 @@ const show = async (start: NotifyChannelView, timeZone = "Europe/Berlin") => {
       return Response.json({ channels: [now], email: false });
     }),
   );
-  render(<Notifications platforms={["github", "gitlab"]} />);
+  render(<Notifications platforms={["github", "gitlab"]} enrolls={false} />);
   return { sent, button: await screen.findByRole("button", { name: /^Reminders to #reviews/ }) };
 };
 const save = () =>
