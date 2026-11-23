@@ -40,7 +40,7 @@ const mr = (iid: number, author = "ada") => ({
 });
 
 describe("pull requests assigned to the user", () => {
-  it("lists GitHub pulls assigned to me in the one search request, keeping a stronger role", async () => {
+  it("lists GitHub pulls assigned to me in a search of their own, keeping a stronger role", async () => {
     const asked: Record<string, unknown>[] = [];
     githubFake({
       extra: async (req) => {
@@ -66,8 +66,7 @@ describe("pull requests assigned to the user", () => {
       [1, ["reviewer"]],
     ]);
     expect(gh?.more).toBe(true);
-    expect(asked).toHaveLength(1);
-    expect(asked[0]?.assigned).toBe("is:pr is:open archived:false assignee:@me");
+    expect(asked.map((v) => v.q)).toContain("is:pr is:open archived:false assignee:@me");
   });
 
   it("lists open GitLab merge requests assigned to me across projects", async () => {

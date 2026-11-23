@@ -98,10 +98,14 @@ describe("the pull request inbox", () => {
       draft: false,
       additions: 10,
     });
-    expect(asked).toHaveLength(1);
-    expect(asked[0]?.variables.merged).toMatch(
-      /^is:pr is:merged author:@me merged:>=\d{4}-\d{2}-\d{2}$/,
-    );
+    // One search per request, sent together: GitHub runs one request's searches one after another.
+    expect(asked.map((x) => x.variables.q)).toEqual([
+      "is:pr is:open archived:false review-requested:@me",
+      "is:pr is:open archived:false author:@me",
+      "is:pr is:open archived:false assignee:@me",
+      expect.stringMatching(/^is:pr is:merged author:@me merged:>=\d{4}-\d{2}-\d{2}$/),
+    ]);
+    expect(asked.every((x) => (x.query.match(/search\(/g) ?? []).length === 1)).toBe(true);
   });
 
   it("asks again without checks when the App may not read them, rather than lose the pulls", async () => {
@@ -124,7 +128,8 @@ describe("the pull request inbox", () => {
     });
     const a = await signInWithGithub();
     const listed = (await (await a.send("/api/platforms/pulls")).json()) as Listed;
-    expect(asked).toEqual([true, false]);
+    // Only the search that lost pulls is asked again.
+    expect(asked).toEqual([true, true, true, true, false]);
     expect(listed.platforms[0]?.pulls.map((p) => [p.number, p.checks])).toEqual([[1, null]]);
   });
 

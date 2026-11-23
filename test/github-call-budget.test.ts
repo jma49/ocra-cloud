@@ -177,11 +177,11 @@ describe("GitHub calls per load", () => {
     expect(again).toEqual({ rest: 0, graphql: 6, notModified: 8 });
   });
 
-  it("asks one GraphQL query per inbox load and no REST call", async () => {
+  it("asks one GraphQL query per inbox list, sent together, and no REST call", async () => {
     const tally = counted();
     const a = await signInWithGithub();
     await load(a.send, ["/api/platforms/pulls", "/api/platforms/pulls?group=views"]);
-    expect(tally).toEqual({ rest: 0, graphql: 2, notModified: 0 });
+    expect(tally).toEqual({ rest: 0, graphql: 8, notModified: 0 });
   });
 });
 
