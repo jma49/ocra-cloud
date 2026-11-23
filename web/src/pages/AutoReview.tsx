@@ -1,8 +1,13 @@
 import { type FormEvent, Fragment, useState } from "react";
 import { Button } from "@/components/ui/button";
-import type { AutoReviewRepoView, CodePlatformKind } from "../../../src/shared/index.js";
+import {
+  type AutoReviewRepoView,
+  type CodePlatformKind,
+  DAILY_LIMIT_WAIT,
+} from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
 import { AutomaticSwitch } from "../auto-review/automatic-switch.js";
+import { DailyLimitNotice } from "../auto-review/daily-limit.js";
 import { ProfileMenu } from "../auto-review/profile-menu.js";
 import { RunnerStatus } from "../auto-review/runner-status.js";
 import { ago } from "../format.js";
@@ -49,6 +54,7 @@ export function AutoReview(props: { platforms: readonly CodePlatformKind[] }) {
         sub="This server reviews pull requests in these repositories as the ocra bot: each one as it opens or gains commits while Automatic is on, and any one when you ask on its page."
       />
       <RunnerStatus />
+      <DailyLimitNotice />
       <AddRepo
         platforms={props.platforms}
         full={(data?.repos.length ?? 0) >= 100}
@@ -152,7 +158,13 @@ function LastJob(props: { r: AutoReviewRepoView }) {
         <span className={`badge ${state.tone}`}>{state.label}</span>{" "}
         {job.finishedAt && <span className="subtle small">{ago(job.finishedAt)}</span>}
       </span>
-      {job.error && <span className="error-inline small job-error">{job.error}</span>}
+      {job.state === "queued" && job.error === DAILY_LIMIT_WAIT ? (
+        <span className="subtle small job-error">
+          The daily limit cut this review short. It runs again when the limit resets.
+        </span>
+      ) : (
+        job.error && <span className="error-inline small job-error">{job.error}</span>
+      )}
     </div>
   );
 }
