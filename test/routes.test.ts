@@ -86,6 +86,8 @@ const ACCESS: Record<string, Access> = {
   "POST /api/learnings/delete": "web",
   "GET /api/repo-config": "web",
   "POST /api/repo-config": "web",
+  "GET /api/release-notes": "web",
+  "POST /api/release-notes/publish": "web",
   "GET /api/pulls/checks": "web",
   "PATCH /api/merge-checks/repos/:id": "web",
   "GET /api/merge-checks/repos/:id/checks": "web",

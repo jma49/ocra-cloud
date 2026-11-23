@@ -98,3 +98,29 @@ export async function platformSend<T>(
     clock.clear();
   }
 }
+
+/**
+ * A call's status and JSON answer read to at most `max` bytes; null when it
+ * failed, took too long, was larger or was not JSON.
+ */
+export async function platformJson<T>(
+  url: string,
+  init: RequestInit,
+  max: number,
+): Promise<{ status: number; body: T | null } | null> {
+  const clock = deadline(TIMEOUT_MS);
+  try {
+    const res = await send(url, { ...init, signal: clock.signal });
+    if (!res.ok) {
+      await res.body?.cancel().catch(() => {});
+      return { status: res.status, body: null };
+    }
+    const bytes = await boundedBytes(res, max);
+    if (!bytes) return null;
+    return { status: res.status, body: JSON.parse(new TextDecoder().decode(bytes)) as T };
+  } catch {
+    return null;
+  } finally {
+    clock.clear();
+  }
+}

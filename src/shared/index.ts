@@ -29,6 +29,7 @@ export * from "./pull-edits.js";
 export * from "./pull-page.js";
 export * from "./pull-threads.js";
 export * from "./pulls.js";
+export * from "./release-notes.js";
 export * from "./repo-config.js";
 export * from "./review-chat.js";
 export * from "./review-load.js";
