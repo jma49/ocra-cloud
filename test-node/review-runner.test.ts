@@ -209,6 +209,7 @@ describe("a review job's run", () => {
       config?: string;
       salt?: string;
       consent?: string;
+      ocra?: unknown;
     } = {};
     const { exec, calls } = fakeExec(1, seen);
     expect(await run(exec)).toBe(true);
