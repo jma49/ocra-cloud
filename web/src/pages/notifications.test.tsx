@@ -244,4 +244,26 @@ describe("a pull request's time", () => {
     expect(screen.queryByText("….com")).toBeNull();
     expect(screen.queryByText("…B3CD")).toBeNull();
   });
+
+  it("says when a channel nobody confirmed is removed", async () => {
+    const waiting = {
+      ...channel,
+      id: "n2",
+      kind: "email",
+      name: "My inbox",
+      confirmed: false,
+      removesAt: "2026-11-30T12:00:00Z",
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        Response.json(
+          url === "/api/notifications/report" ? SLOT : { channels: [channel, waiting] },
+        ),
+      ),
+    );
+    render(<Notifications platforms={["github"]} />);
+    await screen.findByText("My inbox");
+    expect(screen.getAllByText(/removed on .*30.* unless confirmed/)).toHaveLength(1);
+  });
 });
