@@ -6,7 +6,11 @@ import { reviewRepos } from "./schema.js";
 // enrolled repository is claimed once per UTC day, by a compare-and-set on
 // when it was last claimed, so two runs at once, or a run every hour, read
 // it once a day. A run that ran out of calls before it finished a
-// repository gives the claim back, so the next run reads it again.
+// repository gives the claim back, so the next run reads it again. One whose
+// platform did not answer gives it back too, a few times a day: its retries
+// are counted in the milliseconds before the day's midnight it is set back
+// to, so a retry is due after every repository not yet read that day and
+// the count needs no column of its own; the next day starts it over.
 
 export type ReconcileTurn = {
   id: string;
@@ -19,6 +23,9 @@ export type ReconcileTurn = {
   previous: Date | null;
   claimedAt: Date;
 };
+
+/** Reads of a repository a UTC day whose platform did not answer, the first included. */
+const RECONCILE_TRIES = 3;
 
 /** Midnight UTC of now's day. */
 const dayOf = (now: Date) =>
@@ -76,4 +83,24 @@ export async function releaseReconcile(db: Db, turn: ReconcileTurn): Promise<voi
     .update(t)
     .set({ reconciledAt: turn.previous })
     .where(and(eq(t.id, turn.id), eq(t.reconciledAt, turn.claimedAt)));
+}
+
+/**
+ * Gives back a claim whose platform did not answer, so a later run of the
+ * same day tries again, unless it was tried RECONCILE_TRIES times that day
+ * or another run claimed it since; whether it was given back.
+ */
+export async function retryReconcile(db: Db, turn: ReconcileTurn): Promise<boolean> {
+  const day = dayOf(turn.claimedAt).getTime();
+  const before = turn.previous?.getTime() ?? 0;
+  const tried = before < day && before >= day - RECONCILE_TRIES ? day - before : 0;
+  if (tried + 1 >= RECONCILE_TRIES) return false;
+  const t = reviewRepos;
+  const back = await db
+    .update(t)
+    .set({ reconciledAt: new Date(day - (tried + 1)) })
+    .where(and(eq(t.id, turn.id), eq(t.reconciledAt, turn.claimedAt)))
+    .returning({ id: t.id })
+    .then(first);
+  return back !== undefined;
 }

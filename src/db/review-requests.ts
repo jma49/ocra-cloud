@@ -6,7 +6,8 @@ import { hasMember, memberIdOk, TEAM_PREFIX } from "./review-teams.js";
 import { closedPulls, pullFlows, reviewRepos, reviewRequests, reviewTeams } from "./schema.js";
 
 // The reviews asked of users on an enrolled repository's pull requests, from
-// its platform's webhooks (src/auto-review/requests.ts), and what of them,
+// its platform's webhooks (src/auto-review/requests.ts) and the daily
+// reconciliation (src/reconcile-reviews.ts), and what of them,
 // and of the user's own pull requests, still waits (src/notify/reminders.ts).
 // An ask merges into its row in the statement itself, so a redelivery or a
 // late older event changes nothing; nothing here reads the platform. An
@@ -135,6 +136,72 @@ export function accountReviewRequests(db: Db, accountId: string) {
           ),
         );
       return rows.map((row) => row.reviewerId);
+    },
+
+    /** The asks on record on a repository's pull requests, waiting or ended, at most limit. */
+    async onPulls(reviewRepoId: string, numbers: readonly number[], limit: number) {
+      if (numbers.length === 0) return [];
+      return db
+        .select({
+          number: r.number,
+          reviewerId: r.reviewerId,
+          requestedAt: r.requestedAt,
+          doneAt: r.doneAt,
+        })
+        .from(r)
+        .where(
+          and(
+            eq(r.accountId, accountId),
+            eq(r.reviewRepoId, reviewRepoId),
+            inArray(r.number, [...numbers]),
+          ),
+        )
+        .limit(limit);
+    },
+
+    /**
+     * Asks again, at e.at, an ask read as ended, unless it moved since it was
+     * read (a webhook's ask or end): the reconciliation's re-ask a webhook missed.
+     */
+    async askedAgain(e: Ask, was: { requestedAt: Date; doneAt: Date }) {
+      await db
+        .update(r)
+        .set({
+          ...(e.reviewer ? { reviewer: e.reviewer.slice(0, MAX_LOGIN) } : {}),
+          requestedAt: e.at,
+        })
+        .where(
+          and(
+            eq(r.accountId, accountId),
+            eq(r.reviewRepoId, e.reviewRepoId),
+            eq(r.number, e.number),
+            eq(r.reviewerId, e.reviewerId),
+            eq(r.requestedAt, was.requestedAt),
+            eq(r.doneAt, was.doneAt),
+            lt(r.doneAt, e.at),
+          ),
+        );
+    },
+
+    /**
+     * Ends, at e.at, an ask read as waiting, unless it was asked again since
+     * it was read: the reconciliation's end of an ask a webhook missed.
+     */
+    async endedSince(e: Ask, was: { requestedAt: Date }) {
+      await db
+        .update(r)
+        .set({ doneAt: e.at })
+        .where(
+          and(
+            eq(r.accountId, accountId),
+            eq(r.reviewRepoId, e.reviewRepoId),
+            eq(r.number, e.number),
+            eq(r.reviewerId, e.reviewerId),
+            eq(r.requestedAt, was.requestedAt),
+            or(isNull(r.doneAt), lt(r.doneAt, r.requestedAt)),
+            lte(r.requestedAt, e.at),
+          ),
+        );
     },
 
     /** The reviewer ids of the team asks on the pull request that still wait. */
