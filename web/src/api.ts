@@ -169,7 +169,48 @@ function codeOf(error: unknown): ErrorCode | undefined {
     : undefined;
 }
 
-export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+// Reads started ahead of the page that makes them (on a link's hover, or
+// with the navigation), each taken once by the first matching GET within
+// EARLY_MS; one nobody takes is dropped.
+const EARLY_MS = 10_000;
+const early = new Map<string, { at: number; answer: Promise<unknown> }>();
+
+/** One spelling for a path whatever order its query was built in. */
+function readKey(path: string): string {
+  const url = new URL(path, "http://x");
+  url.searchParams.sort();
+  return url.pathname + url.search;
+}
+
+/** Starts the GET of `path` now, for the page about to read it. */
+export function prefetch(path: string): void {
+  const key = readKey(path);
+  const was = early.get(key);
+  if (was && Date.now() - was.at < EARLY_MS) return;
+  const answer = request(path, {});
+  answer.catch(() => {});
+  early.set(key, { at: Date.now(), answer });
+}
+
+function takeEarly(path: string): Promise<unknown> | undefined {
+  const key = readKey(path);
+  const was = early.get(key);
+  if (!was) return undefined;
+  early.delete(key);
+  return Date.now() - was.at < EARLY_MS ? was.answer : undefined;
+}
+
+/** Forgets reads started ahead (sign-out, and tests). */
+export function forgetPrefetched(): void {
+  early.clear();
+}
+
+export function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const read = (init.method ?? "GET") === "GET" && init.body === undefined;
+  return ((read && takeEarly(path)) || request(path, init)) as Promise<T>;
+}
+
+async function request(path: string, init: RequestInit): Promise<unknown> {
   const res = await fetch(`/api${path}`, {
     ...init,
     headers: { "content-type": "application/json", ...init.headers },
@@ -191,7 +232,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     };
     throw new ApiError(res.status, codeOf(body.error), reason, issuesOf(body), retryAt, file);
   }
-  return body as T;
+  return body;
 }
 
 /** Why a request failed, in words for the person (no codes). */

@@ -1,12 +1,12 @@
 import Layers from "lucide-react/icons/layers";
 import MessageSquare from "lucide-react/icons/message-square";
 import Users from "lucide-react/icons/users";
-import type { MouseEvent } from "react";
+import { type MouseEvent, useEffect } from "react";
 import { since } from "../format.js";
 import { PersonMark } from "../person-mark.js";
 import { CheckMark } from "../pull/check-mark.js";
 import { pullPath } from "../pull/path.js";
-import { navigate } from "../router.js";
+import { navigate, prepare, useIntent } from "../router.js";
 import type { Row } from "./sections.js";
 import { UNREAD_REASON } from "./unread.js";
 
@@ -65,6 +65,8 @@ export function PullRow(props: {
   );
 }
 
+const REST_MS = 150;
+
 function PullLink(props: {
   r: Row;
   i: number;
@@ -74,10 +76,18 @@ function PullLink(props: {
   review: Standing | null;
   when: string;
 }) {
-  const { r, to, onClick, review, when } = props;
+  const { r, to, onClick, review, when, current } = props;
+  const intent = useIntent(to);
+  // The row the keyboard rests on is the one Enter opens; one passed over on the way is not.
+  useEffect(() => {
+    if (!current) return;
+    const t = setTimeout(() => prepare(to, "hover"), REST_MS);
+    return () => clearTimeout(t);
+  }, [current, to]);
   return (
     <a
-      className={`pull-row${props.current ? " current" : ""}`}
+      {...intent}
+      className={`pull-row${current ? " current" : ""}`}
       href={to}
       onClick={onClick}
       data-row={props.i}
