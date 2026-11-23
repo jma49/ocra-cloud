@@ -56,7 +56,7 @@ export function ChecksBox(props: { pull: Pull; head: string }) {
   return (
     <section className="card card-pad stack" aria-label="Pre-merge checks">
       <div className="row-gap checks-head">
-        <span className="strong grow">Pre-merge checks</span>
+        <h2 className="card-title grow">Pre-merge checks</h2>
         <span className={c.tone}>{c.text}</span>
       </div>
       <Tally

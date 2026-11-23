@@ -121,3 +121,7 @@
     flex-basis: 100%;
   }
 }
+/* A badge beside a learning's title does not make its row taller than the others. */
+.learning-toggle .badge {
+  margin-block: -1px;
+}
