@@ -81,8 +81,8 @@ export function accountPullViews(db: Db, accountId: string) {
     },
 
     /**
-     * The verdict of the account's newest review with one, and when its
-     * newest review was made with its finding count, of each pull request
+     * The account's newest review of each pull request: its verdict, whether
+     * it reviewed everything, when it was made and its finding count, for each
      * named by its repository identity (lower case) and number that has a review.
      */
     async verdicts(pulls: readonly { repo: string; number: number }[]) {
@@ -95,7 +95,11 @@ export function accountPullViews(db: Db, accountId: string) {
           number: sql<number>`je.number`,
           verdict: sql<Verdict | null>`(SELECT ${r.verdict} FROM ${r}
             WHERE ${r.accountId} = ${accountId} AND ${r.prNumber} = je.number
-              AND lower(${r.prRepository}) = je.repo AND ${r.verdict} IS NOT NULL
+              AND lower(${r.prRepository}) = je.repo
+            ORDER BY ${r.createdAt} DESC LIMIT 1)`,
+          complete: sql<number | null>`(SELECT ${r.complete} FROM ${r}
+            WHERE ${r.accountId} = ${accountId} AND ${r.prNumber} = je.number
+              AND lower(${r.prRepository}) = je.repo
             ORDER BY ${r.createdAt} DESC LIMIT 1)`,
           reviewedAt: sql<number | null>`(SELECT ${r.createdAt} FROM ${r}
             WHERE ${r.accountId} = ${accountId} AND ${r.prNumber} = je.number
@@ -108,12 +112,13 @@ export function accountPullViews(db: Db, accountId: string) {
         })
         .from(jsonRecords(db, list, { repo: "text", number: "bigint" }));
       return rows.flatMap((row) =>
-        row.verdict || row.reviewedAt !== null
+        row.reviewedAt !== null
           ? [
               {
                 repo: row.repo,
                 number: Number(row.number),
                 verdict: row.verdict,
+                complete: Number(row.complete) === 1,
                 reviewedAt: row.reviewedAt === null ? null : Number(row.reviewedAt),
                 findings: row.findings === null ? 0 : Number(row.findings),
               },
