@@ -1,11 +1,13 @@
 import FileJson from "lucide-react/icons/file-json";
 import { type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
-import type {
-  RepoConfigChangeView,
-  RepoConfigFile,
-  RepoConfigIssue,
-  RepoConfigView,
+import {
+  HOSTED_CONFIG_KEYS,
+  HOSTED_REVIEWER_KEYS,
+  type RepoConfigChangeView,
+  type RepoConfigFile,
+  type RepoConfigIssue,
+  type RepoConfigView,
 } from "../../../src/shared/index.js";
 import { ApiError, api, why } from "../api.js";
 import { useRead } from "../cache.js";
@@ -95,6 +97,43 @@ function Refusal(props: { text: string | null | undefined }) {
   );
 }
 
+const HOSTED_KEYS = HOSTED_CONFIG_KEYS.flatMap((key) =>
+  key === "reviewers"
+    ? HOSTED_REVIEWER_KEYS.map((k) => `reviewers.<id>.${k}`)
+    : key === "github"
+      ? ["github.requestChanges"]
+      : [key],
+);
+
+/** The CLI reads the whole file; a review this server runs takes only part of it, under the account's settings. */
+function HostedNote(props: { branch: string }) {
+  return (
+    <details>
+      <summary className="config-refusal-head">What hosted reviews take from this file</summary>
+      <ul className="config-hosted small">
+        <li>
+          A review this server runs reads the file on {props.branch} and applies only{" "}
+          {HOSTED_KEYS.map((k, i) => (
+            <span key={k}>
+              {i > 0 && (i === HOSTED_KEYS.length - 1 ? " and " : ", ")}
+              <code className="mono">{k}</code>
+            </span>
+          ))}
+          . The ocra CLI reads every key.
+        </li>
+        <li>
+          Where the account's settings or the repository's review profile set the same thing, they
+          win. The spend limit is the lower of the file's and the account's.
+        </li>
+        <li>
+          <code className="mono">exclude</code> here replaces the account's excludes, even when it
+          is empty, and a reviewer's entry replaces the account's entry for that reviewer.
+        </li>
+      </ul>
+    </details>
+  );
+}
+
 function Editor(props: { view: RepoConfigView; at: RepoChoice; reload: () => void }) {
   const { view } = props;
   const [text, setText] = useState(view.text ?? starter(view));
@@ -155,6 +194,7 @@ function Editor(props: { view: RepoConfigView; at: RepoChoice; reload: () => voi
               The file on {view.branch} is not read by reviews: {view.parseError}.
             </p>
           )}
+          {view.file === "config" && <HostedNote branch={view.branch} />}
           {!edited && (
             <>
               <Issues issues={view.errors} more={view.moreErrors} />

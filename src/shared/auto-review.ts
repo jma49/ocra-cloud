@@ -152,3 +152,18 @@ export type ReviewRunnersView = {
   remote: boolean;
   runners: { name: string; version: string; lastSeenAt: string }[];
 };
+
+/** The top-level keys of .ocra/config.json a hosted review applies; of `github`, only `requestChanges`. */
+export const HOSTED_CONFIG_KEYS = [
+  "include",
+  "exclude",
+  "reviewers",
+  "verify",
+  "judge",
+  "showPreExisting",
+  "maxTasks",
+  "maxCostUsd",
+  "github",
+] as const;
+/** The keys of a `reviewers` entry a hosted review applies. */
+export const HOSTED_REVIEWER_KEYS = ["enabled", "minTier"] as const;
