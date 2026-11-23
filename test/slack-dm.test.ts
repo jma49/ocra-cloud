@@ -9,7 +9,8 @@ import { call, db, ORIGIN, resetDb, signIn } from "./helpers.js";
 // token, found by the email address or member ID typed, sent nothing but a
 // link to confirm until the member opens it, then every message in their
 // conversation with the app, through the same delivery queue as the other
-// channels; the token is sent only to Slack, the member never answered.
+// channels; the token is sent only to Slack, the member never answered, and
+// nothing answered says whether an address or ID is a member's.
 
 beforeEach(resetDb);
 afterEach(() => vi.restoreAllMocks());
@@ -99,7 +100,7 @@ describe("Slack direct messages", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as { channel: { id: string; kind: string; last4: string } };
     expect(body).toMatchObject({
-      channel: { kind: "slack_dm", confirmed: false, last4: "B3CD" },
+      channel: { kind: "slack_dm", confirmed: false, last4: ".com" },
       confirmationSent: true,
     });
     expect(calls.map((c) => c.method)).toEqual([
@@ -162,24 +163,76 @@ describe("Slack direct messages", () => {
     expect(calls[0]?.params.get("user")).toBe("U012AB3CD");
   });
 
-  it("refuse what is no member, a bot or a deactivated member, and say when Slack is unreachable", async () => {
+  it("answer the same whether the member exists, is a bot, is deactivated or is nobody", async () => {
+    const ann = (await signIn(1, "ann")).auth;
+    // Each account sends 10 links a day: the member ID cases are bob's.
+    const bob = (await signIn(2, "bob")).auth;
+    /** What adding answers and the listing shows, without what differs by channel. */
+    const seen = async (member: string, answers: Answers, auth = ann) => {
+      const calls = slack(answers);
+      const res = await add(auth, member);
+      const { channel, ...rest } = (await res.json()) as {
+        channel: { id: string; createdAt: string };
+      };
+      const { id, createdAt, ...view } = channel;
+      const listed = (
+        (await (await call("/api/notifications/channels", { auth }, SLACK)).json()) as {
+          channels: { id: string; createdAt: string }[];
+        }
+      ).channels.find((ch) => ch.id === id);
+      const { id: _, createdAt: __, ...listedView } = listed ?? { id: "", createdAt: "" };
+      const resent = await call(
+        `/api/notifications/channels/${id}/confirm`,
+        { method: "POST", auth },
+        SLACK,
+      );
+      vi.restoreAllMocks();
+      return {
+        seen: { status: res.status, rest, view, listedView, resent: await resent.json() },
+        posted: calls.filter((c) => c.method === "chat.postMessage").length,
+      };
+    };
+    const missing = { error: "users_not_found" };
+    const member = await seen("ann@example.com", {});
+    const nobody = await seen("ann@example.com", {
+      "users.lookupByEmail": () => Response.json({ ok: false, ...missing }),
+    });
+    const bot = await seen("ann@example.com", {
+      "users.lookupByEmail": ok({ user: { id: "U0BOT1234", is_bot: true } }),
+    });
+    const gone = await seen("ann@example.com", {
+      "users.lookupByEmail": ok({ user: { id: "U0GONE123", deleted: true } }),
+    });
+    expect(member.seen).toMatchObject({
+      status: 200,
+      rest: { confirmationSent: true },
+      view: { kind: "slack_dm", confirmed: false, last4: ".com", lastStatus: null },
+      resent: { confirmationSent: true },
+    });
+    expect(nobody.seen).toEqual(member.seen);
+    expect(bot.seen).toEqual(member.seen);
+    expect(gone.seen).toEqual(member.seen);
+    // Only the member was sent a link, once when added and once on request.
+    expect([member.posted, nobody.posted, bot.posted, gone.posted]).toEqual([2, 0, 0, 0]);
+
+    const byId = await seen("U012AB3CD", {}, bob);
+    const nobodyById = await seen(
+      "U012AB3CD",
+      {
+        "users.info": () => Response.json({ ok: false, error: "user_not_found" }),
+      },
+      bob,
+    );
+    expect(byId.seen).toMatchObject({ status: 200, view: { last4: "B3CD" } });
+    expect(nobodyById.seen).toEqual(byId.seen);
+  });
+
+  it("refuse only what is no member ID or email address, and say when Slack is unreachable", async () => {
     const { auth } = await signIn(1, "ann");
-    slack({ "users.lookupByEmail": () => Response.json({ ok: false, error: "users_not_found" }) });
-    const missing = await add(auth, "nobody@example.com");
-    expect(missing.status).toBe(400);
-    expect(await missing.text()).toContain("no member of the Slack workspace");
-    vi.restoreAllMocks();
-
-    slack({ "users.info": ok({ user: { id: "U0BOT1234", is_bot: true } }) });
-    expect((await add(auth, "U0BOT1234")).status).toBe(400);
-    vi.restoreAllMocks();
-
-    slack({ "users.info": ok({ user: { id: "U0GONE123", deleted: true } }) });
-    expect((await add(auth, "U0GONE123")).status).toBe(400);
-    vi.restoreAllMocks();
-
     const calls = slack();
-    expect((await add(auth, "#general")).status).toBe(400);
+    const invalid = await add(auth, "#general");
+    expect(invalid.status).toBe(400);
+    expect(await invalid.text()).toContain("not a Slack member ID or email address");
     expect(calls).toEqual([]);
     vi.restoreAllMocks();
 
@@ -188,6 +241,32 @@ describe("Slack direct messages", () => {
     expect(await refused.json()).toMatchObject({ error: "upstream_unreachable" });
     const listed = await call("/api/notifications/channels", { auth }, SLACK);
     expect(((await listed.json()) as { channels: unknown[] }).channels).toEqual([]);
+  });
+
+  it("look up at most 20 members a day per account", async () => {
+    const { auth } = await signIn(1, "ann");
+    const other = await signIn(2, "bob");
+    const calls = slack();
+    const lookups = () => calls.filter((c) => c.method === "users.info").length;
+    // A channel's add and removal, so the account's 10 channels do not stop it first.
+    const tryOnce = async (who: Record<string, string>) => {
+      const res = await add(who, "U012AB3CD");
+      if (res.status === 200) {
+        const id = ((await res.json()) as { channel: { id: string } }).channel.id;
+        await call(`/api/notifications/channels/${id}`, { method: "DELETE", auth: who });
+        return 200;
+      }
+      return res;
+    };
+    for (let i = 0; i < 20; i++) expect(await tryOnce(auth)).toBe(200);
+    expect(lookups()).toBe(20);
+    const over = await tryOnce(auth);
+    expect(over).toBeInstanceOf(Response);
+    const res = over as Response;
+    expect(res.status).toBe(429);
+    expect(await res.json()).toMatchObject({ error: "daily_limit", limit: 20 });
+    expect(lookups()).toBe(20);
+    expect(await tryOnce(other.auth)).toBe(200);
   });
 
   it("are tried again after Slack's rate limit, and given up when the member is deactivated", async () => {
