@@ -61,6 +61,10 @@ describe("settings pages wait for the settings", () => {
     );
     render(withPrefs(<Plugins />));
     expect(await screen.findByText("Could not load your settings")).toBeTruthy();
+    expect(screen.getByRole("textbox", { name: "Plugin package name" })).toHaveProperty(
+      "disabled",
+      true,
+    );
     expect(screen.queryByText("No plugins yet")).toBeNull();
     up = true;
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));

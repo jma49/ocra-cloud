@@ -1,4 +1,5 @@
 import FolderGit2 from "lucide-react/icons/folder-git-2";
+import Unplug from "lucide-react/icons/unplug";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { CodePlatformKind } from "../../../src/shared/index.js";
@@ -8,6 +9,7 @@ import { ago, count, num } from "../format.js";
 import { PlatformMark } from "../platform-mark.js";
 import { PLATFORM_NAME } from "../platform-names.js";
 import { Link } from "../router.js";
+import { PLATFORM_DOCS } from "../site.js";
 import { EmptyState, LoadError, Loading, PageHead, useAction } from "../ui.js";
 
 // The repositories the account's reviews came from, by name: the one the
@@ -146,6 +148,23 @@ function PlatformsSection(props: { me: Me; data: PlatformRepos }) {
       <div className="card-head">
         <h2>Connected platforms</h2>
       </div>
+      {props.data.platforms.length === 0 && (
+        <EmptyState
+          icon={Unplug}
+          title="No code platform on this server"
+          action={
+            <Button
+              variant="outline"
+              render={<a href={PLATFORM_DOCS} target="_blank" rel="noreferrer" />}
+            >
+              How to connect one
+            </Button>
+          }
+        >
+          Whoever runs this server connects GitHub or GitLab to it. Then its pull requests and
+          repositories show up here and in the inbox.
+        </EmptyState>
+      )}
       {props.data.platforms.map((p) => (
         <div className="list-row row-top" key={`${p.platform}:${p.host}`}>
           <div className="grow">

@@ -127,3 +127,14 @@ describe("a reviewed repository", () => {
     expect(screen.getByRole("button", { name: "Name f8c2ef5b" })).toBeTruthy();
   });
 });
+
+describe("a server with no code platform", () => {
+  it("says so and links to how to connect one, instead of an empty card", async () => {
+    serve([], []);
+    render(<Repositories me={ME} />);
+    expect(await screen.findByText("No code platform on this server")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "How to connect one" }).getAttribute("href")).toMatch(
+      /self-hosting\.md#a-github-app-of-your-own$/,
+    );
+  });
+});
