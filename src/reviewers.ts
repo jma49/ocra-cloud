@@ -2,8 +2,8 @@ import { Hono } from "hono";
 import { z } from "zod";
 import type { Owner } from "./codeowners.js";
 import { apiError, jsonBody } from "./http.js";
-import { LOGIN } from "./platforms/reviewers.js";
 import { byKind, pullRef, reach } from "./pull-page.js";
+import { auditPeople, login } from "./pull-people.js";
 import { perMinute } from "./rate.js";
 import { HISTORY_DAYS, suggestReviewers } from "./reviewer-suggest.js";
 import { requireSession } from "./session.js";
@@ -25,7 +25,7 @@ const MAX_REQUESTED = 10;
 const suggestQuery = z.object(pullRef);
 const requestBody = z.object({
   ...pullRef,
-  logins: z.array(z.string().regex(LOGIN)).min(1).max(MAX_REQUESTED),
+  logins: z.array(login).min(1).max(MAX_REQUESTED),
 });
 
 const suggestionDto = (s: SuggestedReviewer) =>
@@ -90,6 +90,8 @@ reviewers.post(
     const { platform, token } = reached;
     const outcome = await platform.actions.requestReviewers(token, repo, number, logins);
     if (!outcome) return apiError(c, "upstream_unreachable");
+    if (outcome === "done")
+      await auditPeople(c, "reviewers", { repo, number }, { add: logins, remove: [] });
     return c.json({ outcome } satisfies RequestReviewersView);
   },
 );

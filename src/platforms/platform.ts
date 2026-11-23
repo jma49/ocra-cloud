@@ -16,6 +16,7 @@ import type { MergeQueue } from "./queue.js";
 import type { PullReadiness } from "./readiness.js";
 import type { RepoReleases } from "./releases.js";
 import type { PullReviewers } from "./reviewers.js";
+import type { PullRoster } from "./roster.js";
 import type { PullSince } from "./since.js";
 import type { PullStacks } from "./stacks.js";
 import type { PullThreads } from "./threads.js";
@@ -88,6 +89,7 @@ export interface CodePlatform {
   readonly mergeStatus: PullMergeStatus;
   readonly readiness: PullReadiness;
   readonly reviewers: PullReviewers;
+  readonly roster: PullRoster;
   readonly threads: PullThreads;
   readonly edits: PullEdits;
   readonly issues: RepoIssues;
