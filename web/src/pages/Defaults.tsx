@@ -34,7 +34,7 @@ function asConfig(p: Prefs): Record<string, unknown> {
   const s = p.settings;
   const out: Record<string, unknown> = {
     $schema:
-      "https://raw.githubusercontent.com/jma49/Open-CR-Agent/main/docs/schema/config.v1.json",
+      "https://raw.githubusercontent.com/ocrahq/Open-CR-Agent/main/docs/schema/config.v1.json",
   };
   if (p.runtime) out.runtime = p.runtime;
   if (Object.keys(p.models).length) out.models = p.models;
