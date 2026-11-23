@@ -1,7 +1,7 @@
 import { createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import { drizzle } from "drizzle-orm/d1";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "../src/app.js";
 import { remoteReviews } from "../src/auto-review/remote.js";
 import * as schema from "../src/db/schema.js";
@@ -135,7 +135,21 @@ describe("hosted reviews for remote runners on a server with GitLab only", () =>
       await jobs.queue(repo ?? "", 7, "c".repeat(40), new Date());
     });
 
+    afterEach(() => vi.restoreAllMocks());
+
     it("gives a GitLab merge request's review the bot's token, and its report ends the job", async () => {
+      // The project's default branch has no .ocra/config.json.
+      const api = `${lab?.url}/api/v4/projects/`;
+      const head = "d".repeat(40);
+      const fetched = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+        const url = new Request(input, init).url;
+        if (url === `${api}acme%2Fapi`) {
+          return Response.json({ id: 11, path_with_namespace: "acme/api", default_branch: "main" });
+        }
+        if (url === `${api}11/repository/branches/main`)
+          return Response.json({ commit: { id: head } });
+        return new Response(null, { status: 404 });
+      });
       const claimed = await asRunner("claim", { name: "mini", version: "0.14.0" });
       expect(claimed.status).toBe(200);
       const { assignment } = claimed.body as { assignment: Record<string, unknown> };
@@ -156,6 +170,9 @@ describe("hosted reviews for remote runners on a server with GitLab only", () =>
       expect(settled.status).toBe(200);
       const [job] = await db.select().from(schema.reviewJobs);
       expect(job).toMatchObject({ state: "done", error: null });
+      expect(fetched.mock.calls.map(([input, init]) => new Request(input, init).url)).toContain(
+        `${api}11/repository/files/.ocra%2Fconfig.json?ref=${head}`,
+      );
     });
   });
 });

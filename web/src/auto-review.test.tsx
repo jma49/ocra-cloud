@@ -216,6 +216,27 @@ describe("the auto review page", () => {
     expect(screen.queryByText("lease_lapsed")).toBeNull();
   });
 
+  it("says a review ran without the repository's configuration", async () => {
+    const done = { ...REPO.latest, state: "done", error: "repo_config_ignored" };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        Response.json(
+          url.startsWith("/api/review-targets")
+            ? { default: { firstReviewHours: null, mergeDays: null }, repos: [] }
+            : { repos: [{ ...REPO, latest: done }] },
+        ),
+      ),
+    );
+    render(<AutoReview platforms={["github"]} />);
+    expect(
+      await screen.findByText(
+        "The repository's .ocra/config.json could not be read or is not valid, so this review ran without it.",
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText("repo_config_ignored")).toBeNull();
+  });
+
   it("opens a GitLab project's access token under its row, and offers none on GitHub", async () => {
     vi.stubGlobal(
       "fetch",

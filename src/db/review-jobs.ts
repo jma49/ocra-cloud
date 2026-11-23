@@ -1,5 +1,9 @@
 import { and, desc, eq, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
-import { DEFAULT_LEARN_MODE, DEFAULT_REVIEW_PROFILE } from "../shared/index.js";
+import {
+  DEFAULT_LEARN_MODE,
+  DEFAULT_REVIEW_PROFILE,
+  REPO_CONFIG_IGNORED,
+} from "../shared/index.js";
 import { changedRows, type Db, first } from "./client.js";
 import { mayStart } from "./counters.js";
 import { recoverLapsed } from "./job-recovery.js";
@@ -153,9 +157,24 @@ export function accountReviewJobs(db: Db, accountId: string) {
     async finishJob(id: string, attempts: number, reviewId: string | null, now: Date) {
       const result = await db
         .update(j)
-        .set({ state: "done", reviewId, error: null, leaseUntil: null, finishedAt: now })
+        .set({
+          state: "done",
+          reviewId,
+          // A note this attempt's run left (noteJob) stays; an earlier attempt's failure goes.
+          error: sql`CASE WHEN ${j.error} = ${REPO_CONFIG_IGNORED} THEN ${j.error} ELSE NULL END`,
+          leaseUntil: null,
+          finishedAt: now,
+        })
         .where(and(own, eq(j.id, id), eq(j.state, "running"), eq(j.attempts, attempts)));
       return changedRows(result) > 0;
+    },
+
+    /** Notes on the running attempt that its review ran without the repository's configuration. */
+    async noteJob(id: string, attempts: number) {
+      await db
+        .update(j)
+        .set({ error: REPO_CONFIG_IGNORED })
+        .where(and(own, eq(j.id, id), eq(j.state, "running"), eq(j.attempts, attempts)));
     },
 
     /** Queues the job again at retryAt, or gives it up with the error when retryAt is null. */

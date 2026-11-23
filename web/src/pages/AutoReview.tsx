@@ -5,6 +5,7 @@ import {
   type AutoReviewRepoView,
   type CodePlatformKind,
   DAILY_LIMIT_WAIT,
+  REPO_CONFIG_IGNORED,
 } from "../../../src/shared/index.js";
 import { api } from "../api.js";
 import { AccessToken } from "../auto-review/access-token.js";
@@ -230,6 +231,11 @@ function LastJob(props: { r: AutoReviewRepoView }) {
       {job.state === "queued" && job.error === DAILY_LIMIT_WAIT ? (
         <span className="subtle small job-error">
           The daily limit cut this review short. It runs again when the limit resets.
+        </span>
+      ) : job.error === REPO_CONFIG_IGNORED ? (
+        <span className="subtle small job-error">
+          The repository's .ocra/config.json could not be read or is not valid, so this review ran
+          without it.
         </span>
       ) : (
         job.error && <span className="error-inline small job-error">{jobError(job.error)}</span>
