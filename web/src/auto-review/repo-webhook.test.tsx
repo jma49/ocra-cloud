@@ -115,4 +115,45 @@ describe("a GitLab project's webhook", () => {
       "Could not add the webhook: GitLab did not answer; try again.",
     );
   });
+
+  it("makes a new secret for a hook added by hand only after a second press", async () => {
+    const sent: { url: string; method: string | undefined }[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        sent.push({ url, method: init?.method });
+        return Response.json({
+          url: URL,
+          secret: "ocra_hook_hand",
+          events: ["Merge request events", "Comments", "Pipeline events"],
+        });
+      }),
+    );
+    const changed = vi.fn();
+    render(<RepoWebhook r={REPO} onChanged={changed} />);
+    await press("New secret");
+    expect(sent).toEqual([]);
+    expect(screen.getByText(/holds the old secret is no longer accepted/)).toBeTruthy();
+    await press("Confirm: new secret");
+    expect(sent).toEqual([{ url: "/api/auto-review/repos/rr1/webhook/secret", method: "POST" }]);
+    expect((screen.getByLabelText("Webhook address") as HTMLInputElement).value).toBe(URL);
+    expect(
+      screen.getByText("Turn on Merge request events, Comments, Pipeline events."),
+    ).toBeTruthy();
+    expect(screen.getByText("ocra_hook_hand")).toBeTruthy();
+    expect(changed).toHaveBeenCalledOnce();
+  });
+
+  it("says another change replaced the secret at the same moment", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ error: "stale" }, { status: 409 })),
+    );
+    render(<RepoWebhook r={REPO} onChanged={() => {}} />);
+    await press("New secret");
+    await press("Confirm: new secret");
+    expect(screen.getByRole("alert").textContent).toBe(
+      "Could not make a new secret: the secret was replaced at the same moment; try again.",
+    );
+  });
 });
