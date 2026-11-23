@@ -61,7 +61,7 @@ export function QueueBox(props: {
   return (
     <section className="card card-pad stack" aria-label="Merge queue">
       <div className="row-gap checks-head">
-        <span className="strong grow">Merge queue</span>
+        <h2 className="card-title grow">Merge queue</h2>
         {state && <span className={state.tone}>{state.label}</span>}
       </div>
       {entry && state ? (

@@ -31,7 +31,7 @@
 .pull-stack-link {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
   min-height: var(--ctl-h);
   padding: 4px 8px;
