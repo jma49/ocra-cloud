@@ -62,9 +62,6 @@
   font-weight: 400;
   white-space: nowrap;
 }
-.pull-stack-notes .ok {
-  color: var(--green);
-}
 .pull-stack-notes .warn {
   color: var(--warning);
 }
@@ -123,6 +120,45 @@
 }
 .stack-merge-stop {
   justify-self: start;
+}
+
+/* The merge queue: the pull requests ahead of this one, next to merge first. */
+.queue-ahead ol {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.queue-ahead li {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  justify-content: space-between;
+  min-width: 0;
+}
+.queue-ahead li > .small {
+  flex: none;
+}
+.queue-pull {
+  display: flex;
+  flex: 1;
+  gap: 6px;
+  align-items: baseline;
+  min-width: 0;
+  color: var(--t1);
+  text-decoration: none;
+  font-size: var(--text-sm);
+}
+.queue-pull:hover .pull-stack-title {
+  text-decoration: underline;
+}
+.queue-removed {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 8px;
+  margin: 0;
 }
 
 /* Suggested reviewers, beside the diff: who and the ask on one line, why below. */
@@ -196,7 +232,7 @@
 .thread-comment {
   display: grid;
   grid-template-columns: 24px minmax(0, 1fr);
-  gap: 10px;
+  gap: 12px;
   padding: 12px;
 }
 .thread-comment + .thread-comment {
@@ -212,10 +248,10 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 6px;
-  padding-top: 3px;
+  padding-top: 4px;
 }
 .thread-foot {
-  padding: 8px 12px 12px 46px;
+  padding: 8px 12px 12px 48px;
 }
 /* A reply on its way: in place at once, quiet until the platform has it. */
 .thread-comment.is-sending {
@@ -309,7 +345,7 @@
   width: 100%;
   height: auto;
   min-height: 60vh;
-  padding: 10px 12px;
+  padding: 12px;
   resize: vertical;
   font-family: var(--mono);
   font-size: var(--text-sm);

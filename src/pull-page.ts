@@ -282,7 +282,20 @@ pullPage.get("/queue", requireSession(["web"]), perMinute("platform"), async (c)
   if (!view) return apiError(c, "upstream_unreachable");
   return c.json({
     enabled: view.enabled,
-    entry: view.entry && { state: view.entry.state, position: view.entry.position },
+    entry: view.entry && {
+      state: view.entry.state,
+      position: view.entry.position,
+      enqueuedAt: view.entry.enqueuedAt,
+      enqueuedBy: view.entry.enqueuedBy,
+      estimate: view.entry.estimate,
+    },
+    ahead: view.ahead.map((a) => ({ number: a.number, title: a.title, state: a.state })),
+    size: view.size,
+    removed: view.removed && {
+      at: view.removed.at,
+      by: view.removed.by,
+      reason: view.removed.reason,
+    },
   } satisfies MergeQueueView);
 });
 

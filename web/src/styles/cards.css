@@ -23,8 +23,10 @@
 .card-head + .card-pad {
   padding-top: 8px;
 }
-.card-head h2 {
+.card-head h2,
+.card-title {
   font-size: var(--text-base);
+  line-height: 20px;
   font-weight: 600;
 }
 
@@ -61,7 +63,7 @@
   border-radius: 3px;
   background: var(--fill2);
   overflow: hidden;
-  margin-top: 10px;
+  margin-top: 8px;
 }
 .meter > span {
   display: block;
@@ -105,7 +107,7 @@
 .legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 14px;
+  gap: 6px 12px;
   padding: 0 var(--gutter) 12px;
   font-size: var(--text-sm);
   color: var(--fg-muted);
@@ -146,6 +148,7 @@
   display: grid;
   place-items: center;
   font: 500 var(--text-xs) var(--mono);
+  line-height: 16px;
   color: var(--fg-muted);
   flex: none;
   margin-top: 1px;
@@ -158,11 +161,12 @@
 .cmd {
   display: inline-block;
   margin-top: 6px;
-  padding: 4px 10px;
+  padding: 4px 8px;
   border-radius: 3px;
   border: 0.5px solid var(--hair2);
   background: var(--bg-subtle);
   font: var(--text-sm) var(--mono);
+  line-height: 16px;
 }
 
 .note > .glyph {
@@ -175,7 +179,7 @@
 .kv {
   display: grid;
   grid-template-columns: 160px 1fr;
-  gap: 10px 16px;
+  gap: 8px 16px;
   font-size: var(--text-base);
 }
 .kv dt {

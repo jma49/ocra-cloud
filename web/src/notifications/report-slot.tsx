@@ -24,7 +24,7 @@ export function ReportSlot() {
   };
   return (
     <div className="card card-pad stack report-slot">
-      <div className="strong">Weekly report</div>
+      <h2 className="card-title">Weekly report</h2>
       <div className="report-when">
         <span>Sent every</span>
         <select

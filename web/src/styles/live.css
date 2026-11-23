@@ -130,7 +130,7 @@
 /* Sharing */
 .share-section {
   display: grid;
-  gap: 10px;
+  gap: 8px;
   padding-top: 16px;
   box-shadow: inset 0 0.5px 0 var(--hair);
 }
@@ -168,7 +168,7 @@
 }
 .share-link {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 .share-link-row {
   display: flex;

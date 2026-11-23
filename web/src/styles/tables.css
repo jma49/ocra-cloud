@@ -62,6 +62,7 @@ th.num {
   display: grid;
   place-items: center;
   font: 600 var(--text-sm) var(--font);
+  line-height: 16px;
   flex: none;
   border: 0;
   background: var(--fill2);

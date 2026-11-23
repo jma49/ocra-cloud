@@ -1,4 +1,4 @@
-import type { QueueState } from "../shared/index.js";
+import { MAX_QUEUE_AHEAD, type QueueState } from "../shared/index.js";
 import { outcomeOf } from "./actions.js";
 import { gitlabHeaders, mergeRequestUrl } from "./gitlab-changes.js";
 import { platformCall, platformSend } from "./http.js";
@@ -8,7 +8,13 @@ import type { MergeQueue } from "./queue.js";
 // project answers no `merge_trains_enabled` and the merge request is merged directly.
 
 type CarStatus = "idle" | "stale" | "fresh" | "merging" | "merged" | "skip_merged";
-type Car = { status: CarStatus; target_branch: string; merge_request: { iid: number } };
+type Car = {
+  status: CarStatus;
+  target_branch: string;
+  created_at?: string;
+  user?: { username: string } | null;
+  merge_request: { iid: number; title?: string };
+};
 
 const STATE = {
   idle: "waiting",
@@ -37,12 +43,13 @@ export function gitlabQueue(origin: string): MergeQueue {
         headers: gitlabHeaders(token),
       });
       if (!settings) return null;
-      if (settings.merge_trains_enabled !== true) return { enabled: false, entry: null };
+      const none = { entry: null, ahead: [], size: null, removed: null };
+      if (settings.merge_trains_enabled !== true) return { enabled: false, ...none };
       const trains = `${project(fullName)}/merge_trains`;
       const read = await get(token, `${trains}/merge_requests/${number}`);
       if (!read || (read.status !== 200 && read.status !== 404)) return null;
       const car = read.status === 200 ? (read.body as Car | null) : null;
-      if (!car || car.status === "merged") return { enabled: true, entry: null };
+      if (!car || car.status === "merged") return { enabled: true, ...none };
       const query = new URLSearchParams({
         scope: "active",
         target_branch: car.target_branch,
@@ -53,9 +60,24 @@ export function gitlabQueue(origin: string): MergeQueue {
         headers: gitlabHeaders(token),
       });
       const at = train?.findIndex((c) => c.merge_request.iid === number) ?? -1;
+      const ahead = (train ?? []).slice(0, Math.max(at, 0)).filter((c) => c.status !== "merged");
       return {
         enabled: true,
-        entry: { state: STATE[car.status], position: at >= 0 ? at + 1 : null },
+        entry: {
+          state: STATE[car.status],
+          position: at >= 0 ? at + 1 : null,
+          enqueuedAt: car.created_at ?? null,
+          enqueuedBy: car.user?.username ?? null,
+          estimate: null,
+        },
+        ahead: ahead.slice(0, MAX_QUEUE_AHEAD).map((c) => ({
+          number: c.merge_request.iid,
+          title: c.merge_request.title ?? "",
+          state: STATE[c.status as Exclude<CarStatus, "merged">],
+        })),
+        // A full page may not be the whole train.
+        size: train && train.length < MAX_CARS ? train.length : null,
+        removed: null,
       };
     },
     async enqueue(token, fullName, number, head) {

@@ -148,7 +148,11 @@ export function PullPage(props: {
   };
   const narrowed = sinceFiles(since);
   const shown = narrowed ?? data.files;
-  const step = nextStep(readiness, data.mergeMethods.length > 0 && !queue.data?.enabled);
+  const queues = queue.data?.enabled === true;
+  const step = nextStep(
+    readiness,
+    queues ? queue.data?.entry === null : data.mergeMethods.length > 0,
+  );
   return (
     <>
       <p className="pull-where">
@@ -181,7 +185,7 @@ export function PullPage(props: {
             )}
             {!settled && step === "merge" && (
               <Button size="sm" render={<a href={`#${MERGE_ID}`} />}>
-                Merge
+                {queues ? "Queue" : "Merge"}
               </Button>
             )}
           </div>
@@ -237,8 +241,10 @@ export function PullPage(props: {
                 view={queue.data}
                 pull={ref}
                 head={data.head}
+                primary={step === "merge"}
                 onDone={(o) => done("Merge queue", o)}
                 reload={queue.reload}
+                onLeft={refresh}
               />
             ) : (
               !queue.loading &&

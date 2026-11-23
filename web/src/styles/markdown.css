@@ -24,7 +24,7 @@
 .md ol {
   display: grid;
   gap: 4px;
-  padding-left: 20px;
+  padding-left: 24px;
 }
 .md li::marker {
   color: var(--t3);
@@ -37,7 +37,7 @@
   background: var(--fill);
 }
 .md pre {
-  padding: 10px 12px;
+  padding: 12px;
   border-radius: var(--r-chip);
   background: var(--fill);
   overflow-x: auto;
@@ -99,7 +99,7 @@
 }
 .pull-description .md :is(ul, ol) {
   gap: 6px;
-  padding-left: 22px;
+  padding-left: 24px;
 }
 .pull-description .md code {
   font-size: var(--text-base);

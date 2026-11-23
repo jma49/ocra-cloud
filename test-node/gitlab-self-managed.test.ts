@@ -413,7 +413,7 @@ describe("ocra Cloud with a self-managed GitLab", () => {
   it("adds the merge request to its merge train and takes it off again", async () => {
     const queue = async () =>
       (await (await visit(`/api/pulls/queue?${pullQuery(MR)}`)).json()) as unknown;
-    expect(await queue()).toEqual({ enabled: true, entry: null });
+    expect(await queue()).toMatchObject({ enabled: true, entry: null });
     const head = gitlab.repo.at("feature");
     const joined = await send("/api/pulls/enqueue", "POST", {
       platform: "gitlab",
@@ -422,14 +422,17 @@ describe("ocra Cloud with a self-managed GitLab", () => {
       head,
     });
     expect(await joined.json()).toEqual({ outcome: "done" });
-    expect(await queue()).toEqual({ enabled: true, entry: { state: "checking", position: 1 } });
+    expect(await queue()).toMatchObject({
+      enabled: true,
+      entry: { state: "checking", position: 1 },
+    });
     const left = await send("/api/pulls/dequeue", "POST", {
       platform: "gitlab",
       repo: PROJECT.path,
       number: MR,
     });
     expect(await left.json()).toEqual({ outcome: "done" });
-    expect(await queue()).toEqual({ enabled: true, entry: null });
+    expect(await queue()).toMatchObject({ enabled: true, entry: null });
   });
 
   it("shows the stack the merge request is in and merges it from the bottom up", async () => {
