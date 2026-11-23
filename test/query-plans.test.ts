@@ -73,6 +73,7 @@ const TABLE: Record<string, string> = {
   graphChunks: "graph_chunks",
   pullImpacts: "pull_impacts",
   reviewRepos: "review_repos",
+  autoEnrollInstallations: "auto_enroll_installations",
   reviewJobs: "review_jobs",
   notifyChannels: "notify_channels",
   notifySends: "notify_sends",
