@@ -5,14 +5,16 @@ import type {
   LineComment,
   PullActionOutcome,
   PullFilesView,
+  PullFindingView,
 } from "../../../src/shared/index.js";
 import { FixProposal } from "../fixes/fix-proposal.js";
 import { anchorOf, type DiffLine, parsePatch, placeOnLines, splitPath } from "./diff.js";
+import { FindingNote, underLine } from "./findings.js";
 import { SuggestionText } from "./suggestion.js";
 
 // One changed file of a pull request: its header and its diff, where a
-// line's number opens a comment box, and ocra's fixes under the lines they
-// replace. Comments wait in the page's review until it is sent. Every text
+// line's number opens a comment box, and ocra's findings and fixes under the
+// lines they are about. Comments wait in the page's review until it is sent. Every text
 // is plain text: the diff is untrusted code.
 
 type File = PullFilesView["files"][number];
@@ -42,6 +44,9 @@ export function FileDiff(props: {
   pending: LineComment[];
   onComment: (c: LineComment) => void;
   onDrop: (c: LineComment) => void;
+  /** ocra's open findings in this file, and the review they are of. */
+  findings: readonly PullFindingView[];
+  review: string | null;
   fixes: readonly FixProposalView[];
   onFixDone: (outcome: PullActionOutcome) => void;
   /** Shows the diff without a way to comment on its lines. */
@@ -50,14 +55,31 @@ export function FileDiff(props: {
   const { file } = props;
   const lines = useMemo(() => (file.patch ? parsePatch(file.patch) : []), [file.patch]);
   const fixesAt = useMemo(() => placeOnLines(lines, props.fixes), [lines, props.fixes]);
-  const fixRows = (i: number) =>
-    fixesAt.get(i)?.map((fix) => (
-      <tr key={fix.finding} className="diff-note">
-        <td colSpan={3}>
-          <FixProposal fix={fix} onDone={props.onFixDone} />
-        </td>
-      </tr>
-    ));
+  const findingsAt = useMemo(
+    () => placeOnLines(lines, props.findings.map(underLine)),
+    [lines, props.findings],
+  );
+  const { review } = props;
+  // What is wrong, then what would fix it.
+  const fixRows = (i: number) => (
+    <>
+      {review &&
+        findingsAt.get(i)?.map((f) => (
+          <tr key={f.id} className="diff-note">
+            <td colSpan={3}>
+              <FindingNote finding={f} review={review} />
+            </td>
+          </tr>
+        ))}
+      {fixesAt.get(i)?.map((fix) => (
+        <tr key={fix.finding} className="diff-note">
+          <td colSpan={3}>
+            <FixProposal fix={fix} onDone={props.onFixDone} />
+          </td>
+        </tr>
+      ))}
+    </>
+  );
   const [open, setOpen] = useState<number | null>(null);
   const [draft, setDraft] = useState("");
   // A suggestion replaces the commented new line; null while the comment carries none.

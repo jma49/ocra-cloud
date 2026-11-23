@@ -18,6 +18,7 @@ import { DescriptionBox } from "../pull/description-box.js";
 import { DraftToggle } from "../pull/draft-toggle.js";
 import { FileDiff } from "../pull/file-diff.js";
 import { FileList } from "../pull/file-list.js";
+import { usePullFindings } from "../pull/findings.js";
 import { GenerateBox } from "../pull/generate-box.js";
 import { JumpToCode } from "../pull/jump-to-code.js";
 import { LabelsBox } from "../pull/labels-box.js";
@@ -74,6 +75,7 @@ export function PullPage(props: {
     api("/pulls/seen", { method: "POST", body: JSON.stringify(mark) }).catch(() => undefined);
   }, [platform, repo, number, updatedAt, head, compared]);
   const fixes = useFixes(head ? `/pulls/fixes?${query}&head=${head}` : null);
+  const found = usePullFindings(head ? `/pulls/findings?${query}&head=${head}` : null);
   const queue = useLoad(() => api<MergeQueueView>(`/pulls/queue?${query}`), [query.toString()]);
   // Ticks sent from this page, over what the page read; a new head reads them afresh.
   const [ticked, setTicked] = useState<{ head: string; paths: ReadonlyMap<string, boolean> }>({
@@ -243,7 +245,7 @@ export function PullPage(props: {
               )
             )}
           </div>
-          <OcraReviewBox review={description.data?.review}>
+          <OcraReviewBox review={description.data?.review} open={found.findings.length}>
             {props.runner && !settled ? <ReviewNowBox pull={ref} head={data.head} /> : undefined}
           </OcraReviewBox>
           <ChecksBox pull={ref} head={data.head} />
@@ -268,6 +270,8 @@ export function PullPage(props: {
               pending={pending}
               onComment={(c) => setPending([...pending, c])}
               onDrop={(c) => setPending(pending.filter((x) => x !== c))}
+              findings={narrowed === null ? found.findings.filter((x) => x.file === f.path) : []}
+              review={found.review?.id ?? null}
               fixes={narrowed === null ? fixes.filter((x) => x.file === f.path) : []}
               onFixDone={(o) => done("Fix", o)}
             />
