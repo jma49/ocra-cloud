@@ -25,6 +25,16 @@ const CONFIRM_TTL = DAY;
  */
 const UNCONFIRMED_DAYS = 7;
 
+/**
+ * How long after an unconfirmed channel's link stops being taken (its last
+ * one was sent CONFIRM_TTL before), or after it was added when no link
+ * went, the daily retention may delete it.
+ */
+const UNCONFIRMED_AFTER = {
+  linkExpired: UNCONFIRMED_DAYS * DAY - CONFIRM_TTL,
+  added: UNCONFIRMED_DAYS * DAY,
+};
+
 /** How long a notice held in quiet hours waits for them to end; no quiet hours last longer. */
 export const HELD_FOR = 2 * DAY;
 
@@ -39,6 +49,24 @@ const DIGEST_TITLES = 5;
 
 /** The kinds a link must confirm before anything else is sent. */
 const CONFIRMABLE_KINDS = ["email", "slack_dm"] as const;
+
+type Confirmable = Pick<
+  typeof notifyChannels.$inferSelect,
+  "kind" | "confirmedAt" | "confirmExpiresAt" | "createdAt"
+>;
+
+/**
+ * When the daily retention may delete the channel for being unconfirmed
+ * (expireUnconfirmed); null once it is confirmed, or for a kind that never
+ * is. It reads only when links went, never whether a Slack member exists.
+ */
+export function unconfirmedRemovesAt(c: Confirmable): Date | null {
+  if (c.confirmedAt !== null) return null;
+  if (!(CONFIRMABLE_KINDS as readonly string[]).includes(c.kind)) return null;
+  return c.confirmExpiresAt
+    ? new Date(c.confirmExpiresAt.getTime() + UNCONFIRMED_AFTER.linkExpired)
+    : new Date(c.createdAt.getTime() + UNCONFIRMED_AFTER.added);
+}
 
 export type DigestNumbers = {
   reviews: number;
@@ -329,7 +357,7 @@ export async function heldAccounts(db: Db, since: Date, limit: number): Promise<
  */
 export async function expireUnconfirmed(db: Db, now: Date) {
   const t = notifyChannels;
-  const sentBefore = now.getTime() - UNCONFIRMED_DAYS * DAY;
+  const ms = now.getTime();
   return db
     .delete(t)
     .where(
@@ -338,8 +366,8 @@ export async function expireUnconfirmed(db: Db, now: Date) {
         inArray(t.kind, CONFIRMABLE_KINDS),
         isNull(t.confirmedAt),
         or(
-          lt(t.confirmExpiresAt, new Date(sentBefore + CONFIRM_TTL)),
-          and(isNull(t.confirmExpiresAt), lt(t.createdAt, new Date(sentBefore))),
+          lt(t.confirmExpiresAt, new Date(ms - UNCONFIRMED_AFTER.linkExpired)),
+          and(isNull(t.confirmExpiresAt), lt(t.createdAt, new Date(ms - UNCONFIRMED_AFTER.added))),
         ),
       ),
     )

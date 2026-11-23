@@ -22,6 +22,7 @@ const channel = (more: Partial<NotifyChannelView> = {}): NotifyChannelView => ({
   reminderHours: null,
   quietHours: null,
   lastStatus: null,
+  removesAt: null,
   lastSentAt: null,
   createdAt: "2026-11-20T10:00:00Z",
   ...more,

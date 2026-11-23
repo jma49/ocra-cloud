@@ -79,6 +79,13 @@ export type NotifyChannelView = {
   last4: string;
   /** False for an email address or a Slack member until they open the link sent to them; it gets nothing before. */
   confirmed: boolean;
+  /**
+   * While unconfirmed, ISO 8601: when the daily retention may delete it, a
+   * week after its last link was sent (or after it was added when none
+   * went); a new link moves it. Null once confirmed and for kinds that are
+   * never confirmed.
+   */
+  removesAt: string | null;
   /** Whether it gets the daily digest of yesterday's reviews (UTC). */
   digest: boolean;
   /** Whether it gets the weekly report, at the account's report slot. */

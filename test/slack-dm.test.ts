@@ -171,16 +171,22 @@ describe("Slack direct messages", () => {
     const seen = async (member: string, answers: Answers, auth = ann) => {
       const calls = slack(answers);
       const res = await add(auth, member);
-      const { channel, ...rest } = (await res.json()) as {
-        channel: { id: string; createdAt: string };
-      };
-      const { id, createdAt, ...view } = channel;
+      type View = { id: string; createdAt: string; removesAt: string | null };
+      const { channel, ...rest } = (await res.json()) as { channel: View };
+      /** The view with its times as how long after it was added it may be removed. */
+      const timeless = ({ id: _, createdAt, removesAt, ...v }: View) => ({
+        ...v,
+        removesIn:
+          removesAt && Math.round((Date.parse(removesAt) - Date.parse(createdAt)) / 60_000),
+      });
+      const { id } = channel;
+      const view = timeless(channel);
       const listed = (
         (await (await call("/api/notifications/channels", { auth }, SLACK)).json()) as {
-          channels: { id: string; createdAt: string }[];
+          channels: View[];
         }
       ).channels.find((ch) => ch.id === id);
-      const { id: _, createdAt: __, ...listedView } = listed ?? { id: "", createdAt: "" };
+      const listedView = listed && timeless(listed);
       const resent = await call(
         `/api/notifications/channels/${id}/confirm`,
         { method: "POST", auth },
@@ -206,7 +212,13 @@ describe("Slack direct messages", () => {
     expect(member.seen).toMatchObject({
       status: 200,
       rest: { confirmationSent: true },
-      view: { kind: "slack_dm", confirmed: false, last4: ".com", lastStatus: null },
+      view: {
+        kind: "slack_dm",
+        confirmed: false,
+        last4: ".com",
+        lastStatus: null,
+        removesIn: 7 * 24 * 60,
+      },
       resent: { confirmationSent: true },
     });
     expect(nobody.seen).toEqual(member.seen);
