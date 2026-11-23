@@ -42,7 +42,8 @@ jobs:
         run: npx wrangler deploy --dry-run --outdir /tmp/bundle
 
   # The vitest projects (vitest.config.ts) side by side, the Worker's in four
-  # shards (three left the fuller one at its ceiling on a slow runner). Node
+  # shards (three left the fuller one at its ceiling on a slow runner) and
+  # Postgres' in two (one passed its ceiling twice in a day as test/ grew). Node
   # and web each alone: together they passed the ceiling on a slow runner as
   # the web's tests grew. Postgres (PGlite) apart from both: together they
   # starve the cold imports of web/src/preload.test.tsx and the PGlite boot
