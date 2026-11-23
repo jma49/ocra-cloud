@@ -252,6 +252,8 @@ describe("a review job's run", () => {
     }
     expect(seen.credentials).toMatchObject({ server: ORIGIN, login: "user-1" });
     expect(seen.config).toContain("extraHeader = Authorization: Basic");
+    // An account that chose no runtime reviews on Direct, not the CLI's OpenCode.
+    expect(seen.ocra).toMatchObject({ runtime: "direct" });
 
     // The run's directory and its session are gone, the job done.
     expect(existsSync(clone?.args.at(-1) ?? "")).toBe(false);
@@ -300,6 +302,20 @@ describe("a review job's run", () => {
     // The file is a layer above the account's settings: setting fixes there would hide them.
     expect(seen.ocra).not.toHaveProperty("fixes");
     expect(read).toMatchObject({ settings: { fixes: true } });
+  });
+
+  it("leaves the runtime an account saved to its settings, which the file would override", async () => {
+    const { auth } = await s.signIn(1);
+    const saved = await s.call("/api/preferences", {
+      method: "PUT",
+      headers: auth,
+      json: { runtime: "opencode" },
+    });
+    expect(saved.status).toBe(200);
+    const seen: { ocra?: unknown } = {};
+    const { exec } = fakeExec(0, seen);
+    expect(await run(exec)).toBe(true);
+    expect(seen.ocra).not.toHaveProperty("runtime");
   });
 
   it("retries a failed review later, then gives it up", async () => {
@@ -367,6 +383,7 @@ describe("a review job's run", () => {
     expect(await run(exec)).toBe(true);
     expect(configs).toEqual([
       {
+        runtime: "direct",
         github: { botLogin: "ocra-review[bot]" },
         mergeChecks: [
           {
@@ -397,6 +414,7 @@ describe("a review job's run", () => {
 
     const [quiet, thorough] = runs;
     expect(quiet?.config).toEqual({
+      runtime: "direct",
       reviewers: {
         performance: { enabled: false },
         docs: { enabled: false },
@@ -406,7 +424,10 @@ describe("a review job's run", () => {
       github: { botLogin: "ocra-review[bot]" },
     });
     expect(quiet?.args).not.toContain("--ultra");
-    expect(thorough?.config).toEqual({ github: { botLogin: "ocra-review[bot]" } });
+    expect(thorough?.config).toEqual({
+      runtime: "direct",
+      github: { botLogin: "ocra-review[bot]" },
+    });
     expect(thorough?.args.slice(-4)).toEqual([
       "--no-repo-config",
       "--ultra",
@@ -449,7 +470,7 @@ describe("a review job's run", () => {
     ]);
     expect(calls.at(-1)?.env).toMatchObject({ GITHUB_TOKEN: "ghs_bot" });
     // Plain-language checks are a review's, not an answer's.
-    expect(seen.ocra).toEqual({ github: { botLogin: "ocra-review[bot]" } });
+    expect(seen.ocra).toEqual({ runtime: "direct", github: { botLogin: "ocra-review[bot]" } });
     expect(await runNextReply(runner)).toBe(false);
     const [reply] = await scoped(s.host.db, accountId).list("replyJobs");
     expect(reply).toMatchObject({ state: "done", attempts: 1 });
