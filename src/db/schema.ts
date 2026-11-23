@@ -764,10 +764,13 @@ export const reviewRepos = sqliteTable(
     reviewProfile: text("review_profile", { enum: REVIEW_PROFILES }).notNull().default("balanced"),
     /** Whether a pull request is reviewed when it opens or gains commits; off leaves only reviews a person asks for. */
     automatic: integer("automatic", { mode: "boolean" }).notNull().default(true),
+    /** When the daily reconciliation (src/reconcile.ts) last claimed it; once per UTC day. */
+    reconciledAt: integer("reconciled_at", { mode: "timestamp_ms" }),
   },
   (t) => [
     uniqueIndex("review_repos_platform_repo").on(t.platform, t.host, t.platformRepoId),
     index("review_repos_account").on(t.accountId),
+    index("review_repos_reconciled").on(t.reconciledAt),
   ],
 );
 

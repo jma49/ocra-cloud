@@ -109,8 +109,13 @@ const SHAPES: Partial<Record<Table, (row: never) => unknown>> = {
   // Never the hook secret's hash.
   graphRepos: ({ webhookSecretHash: _hash, accountId: _account, ...r }: Record<string, unknown>) =>
     r,
-  reviewRepos: ({ webhookSecretHash: _hash, accountId: _account, ...r }: Record<string, unknown>) =>
-    r,
+  // Nor when the daily reconciliation last read it, which is the server's bookkeeping.
+  reviewRepos: ({
+    webhookSecretHash: _hash,
+    reconciledAt: _reconciled,
+    accountId: _account,
+    ...r
+  }: Record<string, unknown>) => r,
   // Never the webhook or email address, nor a confirmation token's hash.
   notifyChannels: ({
     wrappedKey: _w,
