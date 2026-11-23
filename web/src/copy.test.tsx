@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { forgetKeys } from "./account-keys.js";
+import type { Me } from "./api.js";
 import { Footer, TopBar } from "./chrome.js";
 import { Keys } from "./pages/Keys.js";
 import { Overview } from "./pages/Overview.js";
@@ -27,6 +28,8 @@ function fakeApi() {
       if (path.endsWith("/api/keys")) return Response.json({ keys: [] });
       if (path.endsWith("/api/sessions")) return Response.json({ sessions: [] });
       if (path.includes("/api/reviews")) return Response.json({ summary: { reviews: 0 } });
+      if (path.endsWith("/api/auto-review/repos"))
+        return Response.json({ error: "not_found" }, { status: 404 });
       if (path.includes("/api/usage"))
         return Response.json({
           days: 14,
@@ -46,6 +49,18 @@ afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
 });
+
+const ME: Me = {
+  login: "ada",
+  githubId: 1,
+  githubUrl: "https://github.com",
+  avatarUrl: null,
+  session: "web",
+  since: "",
+  codeGraphs: "off",
+  autoReview: false,
+  platforms: ["github"],
+};
 
 describe("links", () => {
   it("every docs link goes to ocracloud.com/docs", async () => {
@@ -85,9 +100,9 @@ describe("links", () => {
 });
 
 describe("provider count", () => {
-  it("Overview counts the providers and does not call ocra login coming soon", async () => {
+  it("Overview's setup steps count the providers and do not call ocra login coming soon", async () => {
     fakeApi();
-    render(<Overview />);
+    render(<Overview me={ME} />);
     await screen.findByText(/any of 46 providers/);
     expect(screen.queryByText(/coming soon/i)).toBeNull();
     expect(document.body.textContent).not.toContain("45");

@@ -3,6 +3,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { offeredRepos } from "./auto-review/add-repo.js";
 import { AutoReview } from "./pages/AutoReview.js";
 
+// The page warns when the account has no model key; these tests are about the rest of it.
+vi.mock("./account-keys.js", () => ({
+  loadKeys: async () => ({ keys: [{ provider: "anthropic" }] }),
+  forgetKeys: () => {},
+}));
+
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();

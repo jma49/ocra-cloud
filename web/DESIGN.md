@@ -57,6 +57,7 @@ Pages and components style only through the custom properties in `base.css`.
 - **Confirming:** no dialogs. An action that cannot be undone (merge, delete data, revoke a key) confirms in place: its button becomes "Confirm: …" beside Cancel, in the same spot. Removing something the user can add back again needs no confirmation.
 - **Errors:** a failed load shows `LoadError` with a retry where the content would be, in the same frame (`inCard` inside a card; cards never nest); a failed action shows `ActionError` above the list it acted on. A page never shows an empty state for data that has not loaded or failed to load.
 - **Empty states** say what will appear here and the one action that makes it appear. A whole view gets `EmptyState`; a part of a card (one chart, a sub-list) gets `EmptyNote`, one quiet centred line.
+- **First run:** until an account's pull requests get reviewed, the inbox and Usage lead with `GetStarted` (`web/src/first-run/`): the steps in order, ticked from what the console already reads, and only the step to do now opens, with why it matters and its one button; the inbox lets the person hide it. A page that would take a step the account cannot finish yet says so where the step starts (Auto review without a model key: `NoKeyNotice`), with a link to the missing step.
 - **Loading:** `Loading` draws list rows (a title and a short meta, 40 px each) in the frame the content will fill, so the page head, cards and error share one place; its bars fade in after 300 ms, so fast loads never flash; cached data shows at once and refreshes in place. Settings pages wait with `PrefsPending`.
 - **Getting ahead of the click:** a link's page loads its code, and its first read, while the pointer rests on it, the keyboard selects it, or it is focused; a press or a navigation starts every read the page lists (`reads` in `routes.tsx`). The likely pages' code loads while the browser is idle. A switch or choice shows its new value at once and goes back if the save is refused.
 
@@ -76,6 +77,7 @@ Shared controls are coss ui (Base UI + Tailwind), copied into `web/src/component
 | A sentence of status or help | `.note` (`.ok`, `.err`) |
 | An empty list, a failed load, a missing page | `EmptyState` (coss Empty): icon, what appears here, one action |
 | An empty part of a card | `EmptyNote` (`.empty`): one centred `--t3` line |
+| A new account's setup | `GetStarted`: an ordered list with a meter, done steps ticked, the current step's reason and one button |
 | Data on its way | `Loading` (`.skeleton`): row bars in the content's frame, `inCard` inside a card |
 | Text entry | `input.input`, `textarea.input` |
 | Name of an icon-only control | `Tooltip` (the rail's `RailTip`); `aria-label` always |

@@ -1,0 +1,25 @@
+/* Set up reviews (first-run/get-started.tsx): the steps a new account has left. */
+.get-started .steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.get-started .step {
+  align-items: center;
+  min-height: 48px;
+}
+.get-started .step.done .strong {
+  color: var(--t3);
+  font-weight: 500;
+}
+.get-started .step.current .step-n {
+  border-color: var(--fg);
+  color: var(--fg);
+}
+.get-started-meter {
+  margin: 0 var(--gutter) 4px;
+}
+.no-key-note {
+  align-items: center;
+  margin-bottom: 16px;
+}

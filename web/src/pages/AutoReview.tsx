@@ -11,6 +11,7 @@ import { type Added, AddRepo, type ListedRepos, listedOn } from "../auto-review/
 import { AutomaticSwitch } from "../auto-review/automatic-switch.js";
 import { jobError } from "../auto-review/job-error.js";
 import { LimitReachedNotice } from "../auto-review/limit-reached.js";
+import { NoKeyNotice } from "../auto-review/no-key.js";
 import { ProfileMenu } from "../auto-review/profile-menu.js";
 import { RunnerStatus } from "../auto-review/runner-status.js";
 import { useRead } from "../cache.js";
@@ -59,6 +60,7 @@ export function AutoReview(props: { platforms: readonly CodePlatformKind[] }) {
       />
       <RunnerStatus />
       <LimitReachedNotice />
+      <NoKeyNotice />
       <AddRepo
         platforms={props.platforms}
         full={(data?.repos.length ?? 0) >= 100}

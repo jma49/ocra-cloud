@@ -80,9 +80,9 @@ const keysAndProviders = [loadKeys, loadProviders] as const;
 const graphsKept = (me: Me) => me.codeGraphs !== "off";
 
 const ROUTES: readonly Route[] = [
-  { path: "/", place: "inbox", tab: "Inbox", page: () => <Inbox /> },
+  { path: "/", place: "inbox", tab: "Inbox", page: (me) => <Inbox me={me} /> },
   // The inbox's address before it was the console's first page.
-  { path: "/pulls", place: "inbox", page: () => <Inbox /> },
+  { path: "/pulls", place: "inbox", page: (me) => <Inbox me={me} /> },
   {
     path: "/reviews",
     place: "reviews",
@@ -162,7 +162,7 @@ const ROUTES: readonly Route[] = [
     place: "insights",
     tab: "Usage",
     loads: keysAndProviders,
-    page: () => <Overview />,
+    page: (me) => <Overview me={me} />,
   },
   {
     path: "/agents",
