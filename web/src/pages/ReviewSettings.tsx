@@ -1,5 +1,5 @@
 import { GlobList, NumberField, Row, TriSwitch, withOptional } from "../form.js";
-import { usePrefs, useSettings } from "../prefs.js";
+import { PrefsPending, usePrefs, useSettings } from "../prefs.js";
 import { PageHead } from "../ui.js";
 
 // Limits, checking and file selection (ADR-0027). Each applies only where
@@ -9,7 +9,13 @@ export function ReviewSettings() {
   const { draft } = usePrefs();
   const { settings, set } = useSettings();
   // The fields start from the saved values, so they wait for them.
-  if (!draft) return <PageHead title="Review settings" />;
+  if (!draft)
+    return (
+      <>
+        <PageHead title="Review settings" />
+        <PrefsPending />
+      </>
+    );
   const sampling = settings.sampling ?? {};
   return (
     <>

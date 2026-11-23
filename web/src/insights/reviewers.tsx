@@ -28,13 +28,9 @@ export function ReviewLoadSection(props: { days: number }) {
         </h2>
       </div>
       {error && !data ? (
-        <div className="card-pad">
-          <LoadError what="the reviewer workload" error={error} retry={reload} />
-        </div>
+        <LoadError what="the reviewer workload" error={error} retry={reload} inCard />
       ) : !data ? (
-        <div className="card-pad">
-          <Loading what="the reviewer workload" />
-        </div>
+        <Loading what="the reviewer workload" inCard />
       ) : empty(data) ? (
         <p className="card-pad subtle small m-0">
           Nothing recorded in this period. The workload counts the review requests and reviews that

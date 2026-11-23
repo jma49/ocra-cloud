@@ -38,13 +38,9 @@ export function FlowSection(props: { days: number }) {
         </h2>
       </div>
       {error && !data ? (
-        <div className="card-pad">
-          <LoadError what="the review flow" error={error} retry={reload} />
-        </div>
+        <LoadError what="the review flow" error={error} retry={reload} inCard />
       ) : !data ? (
-        <div className="card-pad">
-          <Loading what="the review flow" />
-        </div>
+        <Loading what="the review flow" inCard />
       ) : empty(data) ? (
         <p className="card-pad subtle small m-0">
           Nothing recorded in this period. The flow counts pull requests of repositories enrolled

@@ -3,20 +3,18 @@ import { api, type Usage } from "../api.js";
 import { useCached } from "../cache.js";
 import { compact, num, period, time } from "../format.js";
 import { StackTable } from "../stack-table.js";
-import { PageHead, Seg, StackedBars } from "../ui.js";
+import { EmptyNote, LoadError, Loading, PageHead, Seg, StackedBars } from "../ui.js";
 
 const RANGES = [7, 14, 30, 90].map(period);
 
 export function Activity() {
   const [days, setDays] = useState(30);
   const [metric, setMetric] = useState<"calls" | "tokens">("calls");
-  const { data: usage, error } = useCached(`/usage?days=${days}`, () =>
-    api<Usage>(`/usage?days=${days}`),
-  );
-  const total = usage?.series.reduce((n, d) => n + d.calls, 0) ?? 0;
-  const tokens = usage?.series.reduce((n, d) => n + d.tokensIn + d.tokensOut, 0) ?? 0;
-  const errors = usage?.series.reduce((n, d) => n + d.errors, 0) ?? 0;
-
+  const {
+    data: usage,
+    error,
+    reload,
+  } = useCached(`/usage?days=${days}`, () => api<Usage>(`/usage?days=${days}`));
   return (
     <>
       <PageHead
@@ -24,7 +22,26 @@ export function Activity() {
         sub="Every model call made with your keys. Request and answer bodies are never stored."
         actions={<Seg label="Time range" value={days} options={RANGES} onChange={setDays} />}
       />
-      {error ? <p className="error">Could not load activity.</p> : null}
+      {error && !usage ? (
+        <LoadError what="activity" error={error} retry={reload} />
+      ) : (
+        <ActivityBody usage={usage} metric={metric} setMetric={setMetric} />
+      )}
+    </>
+  );
+}
+
+function ActivityBody(props: {
+  usage: Usage | undefined;
+  metric: "calls" | "tokens";
+  setMetric: (m: "calls" | "tokens") => void;
+}) {
+  const { usage, metric, setMetric } = props;
+  const total = usage?.series.reduce((n, d) => n + d.calls, 0) ?? 0;
+  const tokens = usage?.series.reduce((n, d) => n + d.tokensIn + d.tokensOut, 0) ?? 0;
+  const errors = usage?.series.reduce((n, d) => n + d.errors, 0) ?? 0;
+  return (
+    <>
       <div className="stats stats-3">
         <div className="card stat">
           <div className="stat-label">Requests</div>
@@ -56,10 +73,12 @@ export function Activity() {
             onChange={setMetric}
           />
         </div>
-        {usage && total > 0 ? (
+        {!usage ? (
+          <Loading what="requests by model" inCard />
+        ) : total > 0 ? (
           <StackedBars series={usage.series} metric={metric} />
         ) : (
-          <div className="empty">No requests in this range.</div>
+          <EmptyNote>No requests in this range</EmptyNote>
         )}
       </div>
 
@@ -117,7 +136,9 @@ export function Activity() {
             <span className="subtle small">latest {usage.calls.length}</span>
           )}
         </div>
-        {usage && usage.calls.length > 0 ? (
+        {!usage ? (
+          <Loading what="recent requests" inCard />
+        ) : usage.calls.length > 0 ? (
           <StackTable>
             <table>
               <thead>
@@ -165,7 +186,9 @@ export function Activity() {
             </table>
           </StackTable>
         ) : (
-          <div className="empty">No requests yet.</div>
+          <EmptyNote>
+            No requests yet. Each model call a review makes with your keys is listed here.
+          </EmptyNote>
         )}
       </div>
     </>

@@ -7,7 +7,7 @@ import { compact, count, num, period, since, sourceLabel, time } from "../format
 import { CloseGlyph } from "../glyphs.js";
 import { Link } from "../router.js";
 import { StackTable } from "../stack-table.js";
-import { EmptyState, Loading, PageHead, Seg, useAction } from "../ui.js";
+import { EmptyState, LoadError, Loading, PageHead, Seg, useAction } from "../ui.js";
 
 const RANGES = [7, 30, 90].map(period);
 
@@ -70,7 +70,6 @@ export function Reviews(props: {
         }
         actions={<Seg label="Time range" value={days} options={RANGES} onChange={setDays} />}
       />
-      {error ? <p className="error">Could not load reviews: {why(error)}.</p> : null}
       {failed && (
         <p className="error" role="alert">
           {failed}
@@ -161,8 +160,10 @@ export function Reviews(props: {
             Repositories are shown by an anonymous hash until you name them under Repositories
           </span>
         </div>
-        {!data ? (
-          <Loading what="reviews" />
+        {error && !data ? (
+          <LoadError what="reviews" error={error} retry={reload} inCard />
+        ) : !data ? (
+          <Loading what="reviews" rows={5} inCard />
         ) : data.reviews.length > 0 ? (
           <StackTable>
             <table>

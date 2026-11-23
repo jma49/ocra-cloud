@@ -8,7 +8,7 @@ import { AddGlyph } from "../glyphs.js";
 import { ProviderLogo } from "../provider-logo.js";
 import { anyProvider } from "../site.js";
 import { StackTable } from "../stack-table.js";
-import { EmptyState, PageHead, useLoad, useProviders } from "../ui.js";
+import { EmptyState, LoadError, Loading, PageHead, useLoad, useProviders } from "../ui.js";
 import { AddKeyDrawer, formats, POPULAR } from "./KeyDrawer.js";
 
 // Like the channel pages of API relays: the page lists the keys you have;
@@ -38,8 +38,11 @@ export function Keys() {
           </Button>
         }
       />
-      {keysError ? <p className="error">Could not load keys: {why(keysError)}.</p> : null}
-      {keys && list.length === 0 ? (
+      {keysError && !keys ? (
+        <LoadError what="your keys" error={keysError} retry={load} />
+      ) : !keys ? (
+        <Loading what="your keys" rows={2} />
+      ) : list.length === 0 ? (
         <div className="card">
           <EmptyState
             icon={KeyRound}

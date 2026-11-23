@@ -6,7 +6,7 @@ import { loadKeys } from "../account-keys.js";
 import { ApiError, api, why } from "../api.js";
 import { useRead } from "../cache.js";
 import { ago } from "../format.js";
-import { type Prefs, type Settings, usePrefs } from "../prefs.js";
+import { type Prefs, PrefsPending, type Settings, usePrefs } from "../prefs.js";
 import { useToast } from "../toast.js";
 import { CodeBlock, EmptyState, PageHead, useLoad } from "../ui.js";
 
@@ -144,7 +144,13 @@ export function Defaults() {
   const [paste, setPaste] = useState("");
   const [result, setResult] = useState<{ notes: string[]; error?: string } | null>(null);
   const keyed = useMemo(() => new Set((keys?.keys ?? []).map((k) => k.provider)), [keys]);
-  if (!draft) return <PageHead title="Defaults & history" />;
+  if (!draft)
+    return (
+      <>
+        <PageHead title="Defaults & history" />
+        <PrefsPending />
+      </>
+    );
 
   const config = JSON.stringify(asConfig(draft), null, 2);
   const rules = draft.settings.rules?.length

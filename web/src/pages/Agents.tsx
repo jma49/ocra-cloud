@@ -16,7 +16,14 @@ import {
 import { loadKeys } from "../account-keys.js";
 import { TIER_IDS } from "../agent-prefs.js";
 import { api, type ProviderInfo } from "../api.js";
-import { type AgentPrefs, type Effort, type Prefs, type Tier, usePrefs } from "../prefs.js";
+import {
+  type AgentPrefs,
+  type Effort,
+  type Prefs,
+  PrefsPending,
+  type Tier,
+  usePrefs,
+} from "../prefs.js";
 import { Link } from "../router.js";
 import { StackTable } from "../stack-table.js";
 import { EmptyState, PageHead, Seg, useLoad, useProviders } from "../ui.js";
@@ -93,7 +100,13 @@ export function Agents() {
       </>
     );
   }
-  if (!draft) return <PageHead title="Agents & models" />;
+  if (!draft)
+    return (
+      <>
+        <PageHead title="Agents & models" />
+        <PrefsPending />
+      </>
+    );
 
   // Every write starts from the latest draft, never this render's copy, so
   // two writes before a render cannot drop one (the W1 bug class).

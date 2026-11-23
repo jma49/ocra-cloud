@@ -2,7 +2,7 @@ import ListChecks from "lucide-react/icons/list-checks";
 import Plus from "lucide-react/icons/plus";
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { type Rule, useSettings } from "../prefs.js";
+import { PrefsPending, type Rule, usePrefs, useSettings } from "../prefs.js";
 import { EmptyState, PageHead } from "../ui.js";
 
 // Path-scoped instructions for the reviewers (ADR-0027). They apply
@@ -12,6 +12,7 @@ const MAX = 50;
 const paths = (r: Rule) => (Array.isArray(r.path) ? r.path : [r.path]);
 
 export function Rules() {
+  const { draft } = usePrefs();
   const { settings, set } = useSettings();
   const rules = settings.rules ?? [];
   const [editing, setEditing] = useState<number | null>(null);
@@ -42,13 +43,19 @@ export function Rules() {
         title="Rules"
         sub="Tell reviewers what your code must do, by path. They apply alongside a repository's own rules and AGENTS.md."
         actions={
-          <Button type="button" disabled={rules.length >= MAX} onClick={() => add(rules.length)}>
+          <Button
+            type="button"
+            disabled={!draft || rules.length >= MAX}
+            onClick={() => add(rules.length)}
+          >
             <Plus aria-hidden="true" />
             Add rule
           </Button>
         }
       />
-      {rules.length === 0 ? (
+      {!draft ? (
+        <PrefsPending />
+      ) : rules.length === 0 ? (
         <div className="card">
           <EmptyState
             icon={ListChecks}

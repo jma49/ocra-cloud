@@ -233,7 +233,7 @@ function Sharing({ load }: { load: SharingLoad }) {
         {error ? (
           <LoadError what="the sharing setting" error={error} retry={reload} inCard />
         ) : (
-          <Loading what="the sharing setting" />
+          <Loading what="the sharing setting" inCard />
         )}
       </div>
     );

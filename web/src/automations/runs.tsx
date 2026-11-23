@@ -1,5 +1,6 @@
 import type { AutomationActionOutcome, AutomationRunView } from "../../../src/shared/index.js";
 import { ago } from "../format.js";
+import { EmptyNote } from "../ui.js";
 import { ACTION_LABEL, OUTCOME_LABEL, RUN_LABEL, SKIP_LABEL } from "./describe.js";
 
 // The rules' recent runs, newest first: which pull request, and how each
@@ -29,7 +30,11 @@ const RUN_TONE: Record<AutomationRunView["outcome"], string> = {
 
 export function Runs(props: { runs: AutomationRunView[] }) {
   if (props.runs.length === 0)
-    return <p className="subtle small card-pad m-0">No rule has run yet.</p>;
+    return (
+      <EmptyNote>
+        No rule has run yet. Each time one acts on a pull request, it is listed here.
+      </EmptyNote>
+    );
   return (
     <div className="table-wrap stack">
       <table>

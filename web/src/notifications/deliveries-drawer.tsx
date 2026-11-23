@@ -165,7 +165,7 @@ export function DeliveriesDrawer(props: { channel: NotifyChannelView; onClose: (
         {error && !data ? (
           <LoadError what="the deliveries" error={error} retry={reload} inCard />
         ) : !data ? (
-          <Loading what="deliveries" />
+          <Loading what="deliveries" inCard />
         ) : data.deliveries.length === 0 ? (
           <p className="subtle small m-0">
             {c.confirmed
