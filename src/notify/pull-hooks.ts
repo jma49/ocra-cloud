@@ -5,12 +5,12 @@ import type { Db } from "../db/client.js";
 import { refreshGithubLogin, refreshGitlabLogin } from "../db/logins.js";
 import { reviewRepoFor } from "../db/review-jobs.js";
 import { teamReviewerId } from "../db/review-teams.js";
-import { scoped } from "../db/scoped.js";
+import { type Scoped, scoped } from "../db/scoped.js";
 import type { BotTokens } from "../platforms/bot.js";
 import { plain } from "./channels.js";
 import { bySpecificity, githubCommentEvents, gitlabCommentEvents } from "./comment-hooks.js";
 import type { Outbox } from "./notify.js";
-import { type EventRepo, type PullEvent, tellPullEvent } from "./pull-events.js";
+import { type EventRepo, ownUser, type PullEvent, tellPullEvent } from "./pull-events.js";
 import { keepGithubThread, keepGitlabThread, type StartOf } from "./thread-hooks.js";
 
 // The pull request events of the platforms' webhooks that may concern the
@@ -68,7 +68,8 @@ const id = (n: number) => String(n);
 /**
  * The events of a GitHub App webhook's delivery, and the platform's
  * repository id they are of; members, the platform ids of the team a
- * review was asked of. A team's ask tells each member once per pull request.
+ * review was asked of. An ask's key is the user's and the pull request's,
+ * whoever was asked: tellGithubHook adds the round of review to it.
  */
 export function githubPullEvents(
   event: string | undefined,
@@ -114,7 +115,7 @@ export function githubPullEvents(
     const team = plain(`${org}/${requested_team.slug}`);
     return members.map((member) => ({
       kind: "review_requested",
-      key: `github:requested:${repoId}#${number}:${member}:team`,
+      key: `github:requested:${repoId}#${number}:${member}`,
       number,
       concerns: member,
       by: sender ? id(sender.id) : null,
@@ -126,7 +127,7 @@ export function githubPullEvents(
     return [
       {
         kind: "review_requested",
-        key: `github:requested:${repoId}#${number}:${requested_reviewer.id}:${at}`,
+        key: `github:requested:${repoId}#${number}:${requested_reviewer.id}`,
         number,
         concerns: id(requested_reviewer.id),
         by: sender ? id(sender.id) : null,
@@ -264,13 +265,48 @@ export async function tellGithubHook(
         slug: team.slug,
       })
     : null;
+  const asks = githubPullEvents(event, body, repo.id, members);
   const events = bySpecificity([
-    ...githubPullEvents(event, body, repo.id, members),
+    ...(await inRound(db, data, repo, asks, body)),
     ...githubCommentEvents(event, body, repo.id),
     ...(await keepGithubThread(data, event, body, repo.id)),
   ]);
   if (events.length === 0) return 0;
   return (await tellPullEvent(db, data, out, repo, events)).length;
+}
+
+/**
+ * The account's user's asks of a review, each keyed by their round of
+ * review on the pull request: asked of them and of a team they are on, or
+ * of two teams, the channel's claim of that one key tells them once,
+ * whichever comes first. The round ends when the ask of them or of the
+ * team does (a review, a removal), so an ask after it tells them again;
+ * an ask from before it, delivered late or again, tells nobody.
+ */
+async function inRound(
+  db: Db,
+  data: Scoped,
+  repo: EventRepo,
+  events: readonly PullEvent[],
+  body: unknown,
+): Promise<PullEvent[]> {
+  if (!events.some((e) => e.kind === "review_requested")) return [...events];
+  const me = await ownUser(db, data, repo);
+  const parsed = githubPullEvent.safeParse(body);
+  const at = Date.parse(parsed.success ? (parsed.data.pull_request.updated_at ?? "") : "");
+  const kept: PullEvent[] = [];
+  for (const e of events) {
+    if (e.kind !== "review_requested") kept.push(e);
+    else if (me && e.concerns === me.id) {
+      const round = await data.reviewRequests.roundOf(
+        { platform: "github", host: repo.host, userId: me.id },
+        repo.id,
+        e.number,
+      );
+      if (Number.isNaN(at) || at > round) kept.push({ ...e, key: `${e.key}@${round}` });
+    }
+  }
+  return kept;
 }
 
 /** Keeps the login on record of the GitLab user the hook shows acting. */
