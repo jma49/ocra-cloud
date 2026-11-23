@@ -124,7 +124,7 @@ export function DeliveriesDrawer(props: { channel: NotifyChannelView; onClose: (
     >
       {c.kind === "webhook" && <SigningSecret base={base} />}
 
-      <section className="stack-tight webhook-deliveries" aria-label="Recent deliveries">
+      <section className="stack-tight channel-deliveries" aria-label="Recent deliveries">
         <div className="row-gap">
           <div className="strong grow">Recent deliveries</div>
           <Button type="button" variant="outline" size="sm" disabled={loading} onClick={reload}>
