@@ -26,7 +26,9 @@ export type RunnerOptions = Machine & {
   fetch?: typeof fetch;
 };
 
-const POLL_MS = 20_000;
+// A job waits half of this on average before it starts; an empty answer
+// costs the server a few indexed lookups.
+const POLL_MS = 5_000;
 /** A server that cannot be reached is asked again later, up to this far apart. */
 const MAX_BACKOFF_MS = 5 * 60_000;
 const CALL_TIMEOUT_MS = 60_000;

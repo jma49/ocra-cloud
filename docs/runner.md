@@ -34,7 +34,7 @@ OCRA_CLOUD_URL=https://ocra.example.com OCRA_RUNNER_TOKEN_FILE=/path/to/runner-t
 | `OCRA_RUNNER_TOKEN_FILE` | one of the two | a file holding the runner token, readable by the runner's user only |
 | `OCRA_RUNNER_TOKEN` | one of the two | the token itself, where a file does not suit |
 | `OCRA_RUNNER_NAME` | no | how the console names this runner; the machine's host name when unset |
-| `OCRA_RUNNER_POLL_SECONDS` | no | how long it waits before asking again when there was no job; 20 when unset |
+| `OCRA_RUNNER_POLL_SECONDS` | no | how long it waits before asking again when there was no job; 5 when unset. A job waits half of it on average before it starts, and every ask is one request to the server (about 17,000 a day at 5), so raise it where requests are counted against a plan |
 
 It writes one JSON line per event to its output (`runner_started`, `runner_job_started`, `runner_job_ended`, `runner_failed`), never a token or a job's content. On `SIGTERM` it ends the job it is running, reports it failed so that the server queues it again, and exits. A server it cannot reach is asked again later, up to five minutes apart. Each job runs in a new temporary directory that is removed on every exit path.
 
