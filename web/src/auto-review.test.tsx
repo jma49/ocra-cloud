@@ -9,6 +9,9 @@ vi.mock("./account-keys.js", () => ({
   forgetKeys: () => {},
 }));
 
+// Its own tests are in auto-review/bulk-enroll.test.tsx.
+vi.mock("./auto-review/auto-enroll.js", () => ({ AutoEnroll: () => null }));
+
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
