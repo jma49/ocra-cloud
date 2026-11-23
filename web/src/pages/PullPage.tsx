@@ -32,6 +32,7 @@ import { MergeCard } from "../pull/merge-card.js";
 import { PullMeta } from "../pull/meta.js";
 import { OcraCommands } from "../pull/ocra-commands.js";
 import { OcraReviewBox } from "../pull/ocra-review-box.js";
+import { PullFailed, PullLoading } from "../pull/opening.js";
 import { DONE, type Done, OUTCOME } from "../pull/outcome.js";
 import { pullPath } from "../pull/path.js";
 import { PeopleCard } from "../pull/people.js";
@@ -47,7 +48,7 @@ import { UpdateBranch } from "../pull/update-branch.js";
 import { useViewed } from "../pull/viewed.js";
 import { setPageTitle } from "../title.js";
 import { useToast } from "../toast.js";
-import { LoadError, Loading, PageHead, useLoad } from "../ui.js";
+import { useLoad } from "../ui.js";
 
 // A pull request in the console: its changed files read live from the
 // platform as the signed-in user, and their review, comment and merge sent
@@ -123,21 +124,9 @@ export function PullPage(props: {
     }),
   );
   if (error && !data) {
-    return (
-      <>
-        <PageHead title={title} />
-        <LoadError what="the pull request" error={error} retry={reload} />
-      </>
-    );
+    return <PullFailed platform={platform} where={where} error={error} retry={reload} />;
   }
-  if (!data) {
-    return (
-      <>
-        <PageHead title={title} />
-        <Loading what="the pull request" />
-      </>
-    );
-  }
+  if (!data) return <PullLoading platform={platform} where={where} />;
   const done = (what: Done, outcome: PullActionOutcome) => {
     said(what, outcome);
     if (outcome === "done" && what === "Review") setPending([]);

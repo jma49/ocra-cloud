@@ -1,7 +1,7 @@
 /* A pull request's page: a head that stays in view with its standing and next
    step, then what it is (stack, description, threads) beside what it waits
    on (the status rail), then the code. */
-.content:has(> .pull-head) {
+.content:has(> :is(.pull-where, .pull-failed-title)) {
   max-width: 1360px;
 }
 .pull-where {
@@ -28,6 +28,30 @@
   padding: 12px 0;
   background: var(--panel);
   box-shadow: 0 0.5px 0 var(--hair);
+}
+/* The head while the page reads: a title's and a meta line's height, so the page does not move. */
+.pull-head-skeleton {
+  gap: 8px;
+  padding: 0;
+}
+.pull-head-skeleton > .skeleton-bar:first-child {
+  width: 40%;
+  height: 20px;
+  margin-block: 6px;
+}
+.pull-head-skeleton > .skeleton-bar + .skeleton-bar {
+  width: 28%;
+  margin-block: 7px;
+}
+.pull-failed-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 24px;
+  font-size: var(--text-3xl);
+  line-height: 32px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
 }
 .pull-head-row {
   display: flex;
