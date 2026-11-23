@@ -248,7 +248,7 @@ const ROUTES: readonly Route[] = [
     place: "settings",
     tab: "Notifications",
     group: "Account",
-    page: (me) => <Notifications platforms={me.platforms} />,
+    page: (me) => <Notifications platforms={me.platforms} enrolls={me.autoReview} />,
   },
   {
     path: "/sessions",

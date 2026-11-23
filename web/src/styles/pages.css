@@ -1524,3 +1524,22 @@ td.finding-cell {
   align-items: center;
   margin: 0 0 8px;
 }
+.report-preview {
+  display: grid;
+  gap: 8px;
+  padding-top: 16px;
+}
+.report-message {
+  padding: 12px 16px;
+  border-radius: var(--r-ctl);
+  background: var(--fill);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+.report-timing {
+  display: grid;
+  gap: 8px;
+}
+.form-row .control .report-when .input {
+  width: auto;
+}
