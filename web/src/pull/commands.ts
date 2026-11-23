@@ -21,6 +21,17 @@ function fileAtLine(code: HTMLElement | null): HTMLElement | undefined {
   return files.findLast((f) => f.getBoundingClientRect().top - line <= 1) ?? files[0];
 }
 
+/** ocra's next finding on the diff below the middle of the window, or the last above it. */
+function findingBeside(code: HTMLElement | null, step: 1 | -1): Element | undefined {
+  const notes = [...(code?.querySelectorAll(".finding-note") ?? [])];
+  const middle = window.innerHeight / 2;
+  const at = (el: Element) => {
+    const r = el.getBoundingClientRect();
+    return Math.round(r.top + r.height / 2 - middle);
+  };
+  return step === 1 ? notes.find((n) => at(n) > 1) : notes.findLast((n) => at(n) < -1);
+}
+
 const step = (label: string, key: string, to: string | null | undefined): PageCommand[] =>
   to ? [{ label, key, run: () => navigate(to) }] : [];
 
@@ -44,6 +55,16 @@ export function pullCommands(page: {
     { label: "Jump to code", key: "c", run: () => to(code.current) },
     { label: "Next file", key: "j", run: () => to(fileBeside(code.current, 1)) },
     { label: "Previous file", key: "k", run: () => to(fileBeside(code.current, -1)) },
+    {
+      label: "Next finding",
+      key: "n",
+      run: () => findingBeside(code.current, 1)?.scrollIntoView({ block: "center" }),
+    },
+    {
+      label: "Previous finding",
+      key: "N",
+      run: () => findingBeside(code.current, -1)?.scrollIntoView({ block: "center" }),
+    },
     {
       label: "Toggle file viewed",
       key: "v",

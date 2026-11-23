@@ -34,7 +34,7 @@ export function FindingNote(props: {
 }) {
   const { finding: f } = props;
   return (
-    <section className="fix-proposal" aria-label={`ocra's finding: ${f.title}`}>
+    <section className="fix-proposal finding-note" aria-label={`ocra's finding: ${f.title}`}>
       <div className="fix-proposal-head">
         <Flag size={16} aria-hidden="true" />
         <SeverityBadge severity={f.severity} />
