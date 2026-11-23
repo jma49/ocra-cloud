@@ -97,6 +97,8 @@
   --r-tab: 6px;
   --r-ctl: 8px;
   --r-sheet: 10px;
+  /* The keyline: how far a card's content, a row's ends and a toolbar sit from the card's edge. */
+  --gutter: 16px;
   /* Control heights: compact in cards, rows and toolbars, large for a page's own actions. */
   --ctl-h: 28px;
   --ctl-h-lg: 32px;
@@ -209,6 +211,10 @@ button {
 /* Native checkboxes, radios and ranges in ink, not the browser's blue. */
 input {
   accent-color: var(--fg);
+}
+/* A checkbox or radio sits on the keyline, not the browser's margin off it. */
+input:is([type="checkbox"], [type="radio"]) {
+  margin: 0;
 }
 :focus-visible {
   outline: 2px solid var(--focus);

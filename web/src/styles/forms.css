@@ -36,10 +36,10 @@ select.input {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px 16px;
+  gap: 8px 16px;
   margin: 0;
   min-width: 0;
-  padding: 10px 16px;
+  padding: 8px var(--gutter);
   border: 0;
   border-bottom: 0.5px solid var(--hair);
 }
@@ -203,7 +203,7 @@ select.input {
   grid-template-columns: minmax(0, 1fr) 240px;
   gap: 16px;
   align-items: center;
-  padding: 14px 20px;
+  padding: 12px var(--gutter);
   border-bottom: 0.5px solid var(--hair2);
 }
 .form-row:last-child {
@@ -266,7 +266,7 @@ select.input {
 }
 .codeblock {
   margin: 0;
-  padding: 16px 20px;
+  padding: var(--gutter);
   background: var(--bg-subtle);
   font: var(--text-sm) / 1.6 var(--mono);
   overflow-x: auto;

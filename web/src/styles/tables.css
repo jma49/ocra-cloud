@@ -21,18 +21,18 @@ th {
   background: transparent;
 }
 td {
-  padding: 9px 12px;
+  padding: 8px 12px;
   border-bottom: 0.5px solid var(--hair);
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
 th:first-child,
 td:first-child {
-  padding-left: 16px;
+  padding-left: var(--gutter);
 }
 th:last-child,
 td:last-child {
-  padding-right: 16px;
+  padding-right: var(--gutter);
 }
 tr:last-child td {
   border-bottom: 0;
@@ -45,7 +45,7 @@ th.num {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 16px;
+  padding: 8px var(--gutter);
   border-bottom: 0.5px solid var(--hair);
 }
 .list-row:last-child {
@@ -103,8 +103,8 @@ tr.selected td {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px 12px;
-  padding: 12px 16px;
+  gap: 8px 12px;
+  padding: 12px var(--gutter);
   border-bottom: 0.5px solid var(--hair);
 }
 .table-wrap[data-stacked] tr:last-child {
@@ -130,7 +130,7 @@ tr.selected td {
 .audit-list {
   list-style: none;
   margin: 0;
-  padding: 0 16px 8px;
+  padding: 0 var(--gutter) 8px;
 }
 .audit-list li {
   display: grid;
