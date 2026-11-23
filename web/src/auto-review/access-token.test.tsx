@@ -19,6 +19,7 @@ const REPO: AutoReviewRepoView = {
   learn: "merge",
   hasAccessToken: false,
   accessTokenBot: null,
+  webhookManaged: false,
   latest: null,
 };
 const WITH_TOKEN = { ...REPO, hasAccessToken: true, accessTokenBot: "project_7_bot" };

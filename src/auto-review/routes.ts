@@ -11,6 +11,7 @@ import { platformsOf } from "../platforms/registry.js";
 import { perMinute } from "../rate.js";
 import { requireSession } from "../session.js";
 import {
+  type AutoReviewEnrolledView,
   type AutoReviewLearnView,
   type AutoReviewRepoView,
   type AutoReviewSwitchView,
@@ -22,6 +23,7 @@ import {
 } from "../shared/index.js";
 import type { AppEnv } from "../types.js";
 import { generateRoute } from "./generate.js";
+import { enrolledGitlabHook, gitlabHookRoute, removeEnrolledHook } from "./hook-routes.js";
 import { repoTokenRoute } from "./repo-token-routes.js";
 import { autoReviewWebhooks } from "./webhooks.js";
 
@@ -66,6 +68,7 @@ const repoView = (r: Row<"reviewRepos">, latest: ReviewJobSummary | undefined) =
     learn: r.learn,
     hasAccessToken: !!r.accessTokenCiphertext,
     accessTokenBot: r.accessTokenCiphertext ? r.accessTokenBot : null,
+    webhookManaged: r.webhookId !== null,
     latest: latest
       ? {
           number: latest.number,
@@ -83,6 +86,7 @@ export function autoReviewRoute(service: AutoReviewService) {
   route.route("/webhooks", autoReviewWebhooks(service));
   route.route("/generate", generateRoute(service));
   route.route("/", repoTokenRoute());
+  route.route("/", gitlabHookRoute());
 
   route.get("/repos", requireSession(), async (c) => {
     const [repos, latest] = await Promise.all([
@@ -149,12 +153,14 @@ export function autoReviewRoute(service: AutoReviewService) {
         repo: repo.fullName,
         platform: repo.platform,
       });
-      const hook =
-        platform.kind === "gitlab" ? "/api/auto-review/webhooks/gitlab" : "/api/webhooks/github";
+      const webhook = secret
+        ? await enrolledGitlabHook(c, repo, platform, secret)
+        : { url: new URL("/api/webhooks/github", c.req.url).toString() };
+      const kept = (await c.var.data.get("reviewRepos", id)) ?? repo;
       return c.json({
-        repo: repoView(repo, undefined),
-        webhook: { url: new URL(hook, c.req.url).toString(), ...(secret ? { secret } : {}) },
-      });
+        repo: repoView(kept, undefined),
+        webhook,
+      } satisfies AutoReviewEnrolledView);
     },
   );
 
@@ -216,7 +222,10 @@ export function autoReviewRoute(service: AutoReviewService) {
   route.delete("/repos/:id", requireSession(["web"]), async (c) => {
     const repo = await c.var.data.get("reviewRepos", c.req.param("id"));
     const removed = repo !== undefined && (await c.var.data.remove("reviewRepos", repo.id));
-    if (repo && removed) await audit(c.var.data, "auto_review.unenrolled", { repo: repo.fullName });
+    if (repo && removed) {
+      await audit(c.var.data, "auto_review.unenrolled", { repo: repo.fullName });
+      await removeEnrolledHook(c, repo);
+    }
     return c.json({ removed });
   });
 

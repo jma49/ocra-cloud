@@ -834,6 +834,8 @@ export const reviewRepos = sqliteTable(
     accessTokenCiphertext: text("access_token_ciphertext"),
     /** The username of the token's bot user, as GitLab answered when it was given. */
     accessTokenBot: text("access_token_bot"),
+    /** The GitLab project hook ocra added itself (src/auto-review/gitlab-hook.ts), removed on unenroll. */
+    webhookId: text("webhook_id"),
   },
   (t) => [
     uniqueIndex("review_repos_platform_repo").on(t.platform, t.host, t.platformRepoId),

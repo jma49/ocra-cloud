@@ -8,7 +8,11 @@ import {
   AutocompletePopup,
 } from "@/components/ui/autocomplete";
 import { Button } from "@/components/ui/button";
-import type { AutoReviewRepoView, CodePlatformKind } from "../../../src/shared/index.js";
+import type {
+  AutoReviewEnrolledView,
+  AutoReviewRepoView,
+  CodePlatformKind,
+} from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
 import { PlatformSelect } from "../platform-names.js";
 import { useAction } from "../ui.js";
@@ -17,7 +21,7 @@ import { useAction } from "../ui.js";
 // repositories the platform lists for the user (on GitHub, the ones the
 // App is installed on).
 
-export type Added = { repo: AutoReviewRepoView; webhook: { url: string; secret?: string } };
+export type Added = AutoReviewEnrolledView;
 
 /** The repositories each platform lists for the user, as /platforms/repos answers. */
 export type ListedRepos = {
