@@ -117,7 +117,7 @@ export function ReleaseNotes() {
                 onChange={(e) => set({ to: e.target.value })}
               />
             </label>
-            <Button type="submit" loading={draft.busy} disabled={draft.busy || !ready}>
+            <Button type="submit" size="sm" loading={draft.busy} disabled={draft.busy || !ready}>
               Draft notes
             </Button>
           </div>
