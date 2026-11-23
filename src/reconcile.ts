@@ -1,12 +1,18 @@
 import { type CallBudget, item, withCalls } from "./calls.js";
 import type { Db } from "./db/client.js";
-import { claimReconcile, type ReconcileTurn, releaseReconcile } from "./db/reconcile.js";
+import {
+  claimReconcile,
+  type ReconcileTurn,
+  releaseReconcile,
+  retryReconcile,
+} from "./db/reconcile.js";
 import { type Scoped, scoped } from "./db/scoped.js";
 import { errorName, logError } from "./log.js";
 import type { BotTokens } from "./platforms/bot.js";
 import { accessToken } from "./platforms/links.js";
 import type { CodePlatform } from "./platforms/platform.js";
 import type { ReconciledPull } from "./platforms/reconcile.js";
+import { reconcileReviews } from "./reconcile-reviews.js";
 import type { AppBindings } from "./types.js";
 
 // The daily reconciliation of enrolled repositories: what their webhooks
@@ -14,12 +20,16 @@ import type { AppBindings } from "./types.js";
 // link. A pull request that closed with no close on record gets one; one
 // the console holds open but the platform closed gets its close; an open
 // one with no flow, or a draft state the platform changed since, is merged
-// into its flow. Every write is one the webhooks make too, merged in the
-// statement (closes and flows keep what a webhook recorded), so the two
-// never undo each other. Run hourly, it reads each repository once a UTC
-// day (the claim, src/db/reconcile.ts), a few per account per run, within
-// its budget of calls (src/calls.ts): a repository the budget cut short is
-// given back and read again by the next run.
+// into its flow, and the open ones changed lately get their asks of a
+// review and their reviews (./reconcile-reviews.ts). Every write is one the
+// webhooks make too, merged in the statement (closes and flows keep what a
+// webhook recorded), so the two never undo each other. Run hourly, it reads
+// each repository once a UTC day (the claim, src/db/reconcile.ts), a few per
+// account per run, within its budget of calls (src/calls.ts): a repository
+// the budget cut short is given back and read again by the next run, and
+// one whose platform did not answer is tried again a few times that day.
+// One with no platform or no token waits for the next day: neither comes
+// back within the hour, the link needs its owner to sign in again.
 
 export type Reconciler = {
   db: Db;
@@ -51,7 +61,7 @@ const LINK_TOKEN_CALLS = 1;
 const FEWEST_CALLS_PER_REPO = BOT_TOKEN_CALLS + 2;
 
 type ReconcileOutcome =
-  | { state: "done"; closes: number; flows: number }
+  | { state: "done"; closes: number; flows: number; reviews: number }
   | { state: "no_platform" | "no_token" | "unreachable" | "cut" };
 
 /** Reads the repositories due, fairly across accounts, within `calls`; how many it claimed. */
@@ -84,7 +94,10 @@ export function reconcileRun(r: Reconciler, now = new Date()) {
         try {
           const read = await item(() => reconcileRepo(r, turn, calls, now));
           if (read.cut || read.value.state === "cut") await releaseReconcile(r.db, turn);
-          else if (read.value.state !== "done") {
+          else if (read.value.state === "unreachable") {
+            const again = await retryReconcile(r.db, turn);
+            logError("reconcile_skipped", { reason: "unreachable", retry: again });
+          } else if (read.value.state !== "done") {
             logError("reconcile_skipped", { reason: read.value.state });
           }
         } catch (e) {
@@ -151,7 +164,19 @@ async function reconcileRepo(
     }
     if (p && p !== "missing" && p.state !== "open") await fill.close(p, "if_newer");
   }
-  return { state: "done", closes: fill.closes, flows: fill.flows };
+
+  const reviewed = await reconcileReviews({
+    data,
+    repo,
+    platform,
+    token,
+    open: open.pulls,
+    since,
+    calls,
+    now,
+  });
+  if (reviewed === "spent") return { state: "cut" };
+  return { state: "done", closes: fill.closes, flows: fill.flows, reviews: reviewed };
 }
 
 /** The writes of one repository's run, counted. */
