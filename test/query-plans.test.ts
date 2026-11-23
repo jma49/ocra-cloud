@@ -560,6 +560,14 @@ describe("incoming deliveries", () => {
     expect(p).toMatch(/SEARCH inbound_events USING INDEX inbound_events_retry/);
     expect(p).not.toMatch(/SCAN inbound_events/);
   });
+  it("finds a stack merge by any layer through the repository's index", async () => {
+    const seen: Captured[] = [];
+    const key = { platform: "github" as const, host: "github.com", fullName: "octo/api" };
+    await scoped(drizzle(recording(seen)), "acct").stackMerges.holding(key, 2);
+    const p = await plan(seen[0] as Captured);
+    expect(p).toMatch(/SEARCH stack_merges USING INDEX/);
+    expect(p).not.toMatch(/SCAN stack_merges/);
+  });
 });
 
 describe("retention", () => {

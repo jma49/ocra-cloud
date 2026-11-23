@@ -19,8 +19,9 @@ import { advanceStack, type StackRunner } from "./advance.js";
 
 // A stack's merge from the bottom up to one of its pull requests, started,
 // watched and cancelled from the pull request's page as the signed-in user.
-// The server runs it layer by layer (./advance.ts); a merge is named by the
-// stack's bottom, and one runs per bottom at a time.
+// The server runs it layer by layer (./advance.ts); one runs per stack bottom
+// at a time, and a page reads or cancels it by any layer of its chain, since
+// the bottom it started from merges first.
 
 export const stackMerge = new Hono<AppEnv>();
 
@@ -33,8 +34,8 @@ const startBody = z.object({
     .min(1)
     .max(MAX_STACK),
 });
-/** `number` is the stack's bottom. */
-const bottomRef = z.object(pullRef);
+/** `number` is any layer of the merge's chain. */
+const layerRef = z.object(pullRef);
 
 /** A status read moves a waiting merge on itself once the webhooks and the sweep have left it this long. */
 const READ_IDLE_MS = 15_000;
@@ -75,13 +76,13 @@ const answer = (
   } satisfies StackMergeAnswer);
 
 stackMerge.get("/", requireSession(["web"]), perMinute("platform"), async (c) => {
-  const ref = bottomRef.safeParse(c.req.query());
+  const ref = layerRef.safeParse(c.req.query());
   if (!ref.success) return apiError(c, "not_found");
   const platform = platformsOf(c.env, c.req.url).find(byKind(ref.data));
   if (!platform) return apiError(c, "not_found");
   const key = { platform: platform.kind, host: platform.host, fullName: ref.data.repo };
   const data = c.var.data;
-  const merge = await data.stackMerges.of(key, ref.data.number);
+  const merge = await data.stackMerges.holding(key, ref.data.number);
   const now = new Date();
   const idle =
     merge?.state === "waiting" && now.getTime() - merge.updatedAt.getTime() > READ_IDLE_MS;
@@ -145,14 +146,14 @@ stackMerge.delete(
   "/",
   requireSession(["web"]),
   perMinute("platform"),
-  jsonBody(bottomRef),
+  jsonBody(layerRef),
   async (c) => {
     const ref = c.req.valid("json");
     const platform = platformsOf(c.env, c.req.url).find(byKind(ref));
     if (!platform) return apiError(c, "not_found");
     const key = { platform: platform.kind, host: platform.host, fullName: ref.repo };
     const data = c.var.data;
-    const merge = await data.stackMerges.of(key, ref.number);
+    const merge = await data.stackMerges.holding(key, ref.number);
     if (merge && (await data.stackMerges.cancel(merge.id, new Date()))) {
       const top = merge.chain[merge.chain.length - 1]?.number ?? merge.bottom;
       await audit(data, "stack_merge.cancelled", {
@@ -161,6 +162,6 @@ stackMerge.delete(
         method: merge.method,
       });
     }
-    return answer(c, "done", await data.stackMerges.of(key, ref.number));
+    return answer(c, "done", merge && (await data.stackMerges.byId(merge.id)));
   },
 );

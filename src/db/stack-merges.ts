@@ -1,6 +1,7 @@
-import { and, asc, eq, inArray, isNotNull, lt, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, lt, or, sql } from "drizzle-orm";
 import type { StackMergeReason, StackMergeState } from "../shared/index.js";
 import { changedRows, type Db, first } from "./client.js";
+import { jsonHoldsNumber } from "./dialect.js";
 import { stackMerges } from "./schema.js";
 
 // The account's stack merges (reached through scoped()). One row per stack
@@ -48,6 +49,16 @@ export function accountStackMerges(db: Db, accountId: string) {
         .select()
         .from(t)
         .where(and(ofRepo(key), eq(t.bottom, bottom)))
+        .limit(1)
+        .then(first),
+
+    /** The newest merge whose chain holds `number`, whichever layer it is and whatever merged below it. */
+    holding: (key: StackKey, number: number): Promise<StackMerge | undefined> =>
+      db
+        .select()
+        .from(t)
+        .where(and(ofRepo(key), jsonHoldsNumber(db, t.chain, "number", number)))
+        .orderBy(desc(t.createdAt), desc(t.id))
         .limit(1)
         .then(first),
 

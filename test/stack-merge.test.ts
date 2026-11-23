@@ -327,6 +327,35 @@ describe("a stack merge under required checks", () => {
     ).toContain("stack_merge.cancelled");
   });
 
+  it("is read and cancelled by any layer once its bottom merged", async () => {
+    const fake = github([
+      layer(1, "main"),
+      layer(2, "step-1", { mergeState: "BLOCKED", checks: "PENDING" }),
+      layer(3, "step-2"),
+    ]);
+    const { a, answer } = await start(3);
+    expect(merges(fake.sent)).toEqual([`${REPO}/pulls/1/merge`]);
+    const read = async (n: number) =>
+      (
+        (await (
+          await a.send(`/api/pulls/merge-stack?platform=github&repo=octo/api&number=${n}`)
+        ).json()) as StackMergeAnswer
+      ).job;
+    for (const n of [1, 2, 3]) {
+      expect(await read(n), `#${n}`).toMatchObject({ id: answer.job?.id, bottom: 1, step: 1 });
+    }
+    expect(await read(4)).toBeNull();
+    const res = await a.send("/api/pulls/merge-stack", {
+      method: "DELETE",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ...ref, number: 2 }),
+    });
+    expect(((await res.json()) as StackMergeAnswer).job).toMatchObject({
+      id: answer.job?.id,
+      state: "cancelled",
+    });
+  });
+
   it("is merged once when two sweeps run at the same time", async () => {
     const fake = github([
       layer(1, "main", { mergeState: "BLOCKED", checks: "PENDING" }),
