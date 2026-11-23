@@ -222,6 +222,12 @@ describe("acting on a GitHub pull request", () => {
         },
       },
     ]);
+    // The verdict is in the audit log; the review's text and comments are not.
+    const log = await (await a.send("/api/audit?kind=pull.reviewed")).text();
+    expect(JSON.parse(log)).toMatchObject({
+      events: [{ kind: "pull.reviewed", detail: { pull: "octo/api#7", verdict: "approve" } }],
+    });
+    expect(log).not.toMatch(/Looks right|Cap this/);
   });
 
   it("sends no verdict on a pull request that moved since the page was read", async () => {
