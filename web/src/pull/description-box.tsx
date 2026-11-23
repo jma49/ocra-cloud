@@ -72,7 +72,7 @@ export function DescriptionBox(props: {
         )}
       </summary>
       <div className="pull-description">
-        {body ? <Markdown text={body} /> : <p className="subtle m-0">No description yet.</p>}
+        {body ? <Markdown text={body} links /> : <p className="subtle m-0">No description yet.</p>}
       </div>
       {open && (
         <Drawer

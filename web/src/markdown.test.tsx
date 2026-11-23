@@ -28,6 +28,7 @@ describe("Markdown", () => {
       />,
     );
     expect(container.querySelector("h4")?.textContent).toBe("Why");
+    expect(container.querySelector("h3")).toBeNull();
     expect(container.querySelector("p code")?.textContent).toBe("charge.captured");
     expect(container.querySelector("strong")?.textContent).toBe("not");
     expect(container.querySelector("em")?.textContent).toBe("left");
@@ -53,6 +54,55 @@ describe("Markdown", () => {
     expect(container.querySelector("img")).toBeNull();
     expect(container.textContent).toContain("[the fix](https://evil.example/?q=secret)");
     expect(container.textContent).toContain('<img src=x onerror="alert(1)">');
+  });
+
+  it("opens a person's https links when asked, and nothing else", () => {
+    const { container } = render(
+      <Markdown
+        links
+        text={
+          '_See_ [the **note**](https://example.com/a?b=1) [x](javascript:alert(1)) [y](http://example.com/) ![z](https://example.com/p.png) <a href="https://evil.example">here</a>'
+        }
+      />,
+    );
+    const links = [...container.querySelectorAll("a")];
+    expect(links.map((a) => [a.getAttribute("href"), a.textContent, a.target, a.rel])).toEqual([
+      ["https://example.com/a?b=1", "the note", "_blank", "noopener noreferrer nofollow"],
+    ]);
+    expect(container.querySelector("a strong")?.textContent).toBe("note");
+    expect(container.querySelector("em")?.textContent).toBe("See");
+    expect(container.querySelector("img")).toBeNull();
+    expect(container.textContent).toContain("[x](javascript:alert(1))");
+    expect(container.textContent).toContain("[y](http://example.com/)");
+    expect(container.textContent).toContain("![z](https://example.com/p.png)");
+  });
+
+  it("draws a table, and a heading at the level it was written", () => {
+    const { container } = render(
+      <Markdown
+        text={[
+          "# What",
+          "",
+          "| Case | After |",
+          "| --- | :-: |",
+          "| `a` | refused |",
+          "| b |",
+          "",
+          "### Deep",
+        ].join("\n")}
+      />,
+    );
+    expect(container.querySelector("h3")?.textContent).toBe("What");
+    expect(container.querySelector("h5")?.textContent).toBe("Deep");
+    expect([...container.querySelectorAll("th")].map((c) => c.textContent)).toEqual([
+      "Case",
+      "After",
+    ]);
+    expect([...container.querySelectorAll("tbody tr")].map((r) => r.textContent)).toEqual([
+      "arefused",
+      "b",
+    ]);
+    expect(container.querySelector("td code")?.textContent).toBe("a");
   });
 
   it("shows a code block whose fence has not closed yet, and leaves snake_case and 2 * 3 * 4 alone", () => {

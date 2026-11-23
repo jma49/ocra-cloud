@@ -73,46 +73,6 @@
   max-width: 260px;
 }
 
-/* Markdown drawn from a model's answer. */
-.md {
-  display: grid;
-  gap: 8px;
-  line-height: 1.55;
-}
-.md > * {
-  margin: 0;
-  min-width: 0;
-}
-.md p {
-  white-space: pre-wrap;
-}
-.md h4 {
-  font-size: var(--text-base);
-  font-weight: 600;
-}
-.md ul,
-.md ol {
-  display: grid;
-  gap: 4px;
-  padding-left: 20px;
-}
-.md code {
-  font-family: var(--mono);
-  font-size: var(--text-sm);
-  padding: 1px 4px;
-  border-radius: var(--r-tag);
-  background: var(--fill);
-}
-.md pre {
-  padding: 10px 12px;
-  border-radius: var(--r-chip);
-  background: var(--fill);
-  overflow-x: auto;
-}
-.md pre code {
-  padding: 0;
-  background: none;
-}
 @media (prefers-reduced-motion: reduce) {
   .chat-caret {
     animation: none;

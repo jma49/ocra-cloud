@@ -1,19 +1,29 @@
 import type { ReactNode } from "react";
 
 // Model output about untrusted code, drawn from elements made here only:
-// paragraphs, headings, lists, code and emphasis. Links, images and HTML
-// stay the text they were written as, so an answer cannot point the reader
-// anywhere or load anything. That is why this is not a Markdown library.
+// paragraphs, headings, lists, tables, code and emphasis. Links, images and
+// HTML stay the text they were written as, so an answer cannot point the
+// reader anywhere or load anything. That is why this is not a Markdown
+// library. Text a person wrote on the platform (a pull request's
+// description) may ask for its links: those open the https address written,
+// in a new tab, as the platform's own page would.
 
 type Block =
   | { kind: "p"; text: string }
-  | { kind: "h"; text: string }
+  | { kind: "h"; level: number; text: string }
+  | { kind: "table"; head: string[]; rows: string[][] }
   | { kind: "code"; text: string }
   | { kind: "ul"; items: string[] }
   | { kind: "ol"; items: string[] };
 
 const FENCE = /^\s*```/;
-const HEADING = /^\s{0,3}#{1,6}\s+(.*)$/;
+const HEADING = /^\s{0,3}(#{1,6})\s+(.*)$/;
+const ROW = /^\s*\|(.+)\|\s*$/;
+const RULE = /^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/;
+
+const cells = (line: string) =>
+  (ROW.exec(line)?.[1] ?? "").split(/(?<!\\)\|/).map((cell) => cell.trim());
+
 const BULLET = /^\s*[-*+]\s+(.*)$/;
 const NUMBERED = /^\s*\d{1,9}[.)]\s+(.*)$/;
 
@@ -35,13 +45,23 @@ function blocks(source: string): Block[] {
       out.push({ kind: "code", text: code.join("\n") });
       continue;
     }
+    if (ROW.test(line) && RULE.test(lines[i + 1] ?? "")) {
+      flush();
+      const head = cells(line);
+      const rows: string[][] = [];
+      for (i += 2; i < lines.length && ROW.test(lines[i] ?? ""); i++)
+        rows.push(cells(lines[i] ?? ""));
+      i--;
+      out.push({ kind: "table", head, rows });
+      continue;
+    }
     const heading = HEADING.exec(line);
     const bullet = BULLET.exec(line);
     const numbered = NUMBERED.exec(line);
     const item = bullet ?? numbered;
     if (heading) {
       flush();
-      out.push({ kind: "h", text: heading[1] ?? "" });
+      out.push({ kind: "h", level: heading[1]?.length ?? 1, text: heading[2] ?? "" });
     } else if (item) {
       flush();
       const kind = bullet ? "ul" : "ol";
@@ -59,19 +79,45 @@ function blocks(source: string): Block[] {
 }
 
 const INLINE =
-  /(`[^`\n]+`|\*\*(?!\s)[^*\n]+(?<!\s)\*\*|(?<![\w*])\*(?!\s)[^*\n]+(?<!\s)\*(?![\w*]))/;
+  /(`[^`\n]+`|(?<!!)\[[^\]\n]+\]\([^)\s]+\)|\*\*(?!\s)[^*\n]+(?<!\s)\*\*|(?<![\w*])\*(?!\s)[^*\n]+(?<!\s)\*(?![\w*])|(?<![\w_])_(?!\s)[^_\n]+(?<!\s)_(?![\w_]))/;
+const LINK = /^\[([^\]\n]+)\]\(([^)\s]+)\)$/;
 
-function inline(text: string): ReactNode[] {
+/** The address a link opens: https only, as `URL` reads it, never what was written. */
+function httpsAddress(written: string): string | null {
+  if (!URL.canParse(written)) return null;
+  const url = new URL(written);
+  return url.protocol === "https:" ? url.href : null;
+}
+
+function inline(text: string, links: boolean): ReactNode[] {
   return text.split(INLINE).map((part, i) => {
     const key = `${i}:${part}`;
     if (i % 2 === 0) return part;
     if (part.startsWith("`")) return <code key={key}>{part.slice(1, -1)}</code>;
-    if (part.startsWith("**")) return <strong key={key}>{part.slice(2, -2)}</strong>;
-    return <em key={key}>{part.slice(1, -1)}</em>;
+    const link = LINK.exec(part);
+    if (link) {
+      const href = links ? httpsAddress(link[2] ?? "") : null;
+      if (href === null) return part;
+      return (
+        <a key={key} href={href} target="_blank" rel="noopener noreferrer nofollow">
+          {inline(link[1] ?? "", false)}
+        </a>
+      );
+    }
+    if (part.startsWith("**")) return <strong key={key}>{inline(part.slice(2, -2), links)}</strong>;
+    return <em key={key}>{inline(part.slice(1, -1), links)}</em>;
   });
 }
 
-export function Markdown(props: { text: string }) {
+/** A document's headings start under the page's own: `#` is an h3, and the smallest an h6. */
+const HEADINGS = ["h3", "h4", "h5", "h6"] as const;
+
+export function Markdown(props: {
+  text: string;
+  /** Only for text a person wrote on the platform: its https links open. */
+  links?: boolean;
+}) {
+  const say = (text: string) => inline(text, props.links === true);
   return (
     <div className="md">
       {blocks(props.text).map((b, i) => {
@@ -82,14 +128,43 @@ export function Markdown(props: { text: string }) {
               <code>{b.text}</code>
             </pre>
           );
-        if (b.kind === "h") return <h4 key={key}>{inline(b.text)}</h4>;
-        if (b.kind === "p") return <p key={key}>{inline(b.text)}</p>;
+        if (b.kind === "h") {
+          const H = HEADINGS[Math.min(b.level, HEADINGS.length) - 1] ?? "h6";
+          return <H key={key}>{say(b.text)}</H>;
+        }
+        if (b.kind === "p") return <p key={key}>{say(b.text)}</p>;
+        if (b.kind === "table")
+          return (
+            <div key={key} className="md-table">
+              <table>
+                <thead>
+                  <tr>
+                    {b.head.map((cell, n) => (
+                      // biome-ignore lint/suspicious/noArrayIndexKey: a table's cells have no identity but their place
+                      <th key={n}>{say(cell)}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {b.rows.map((row, r) => (
+                    // biome-ignore lint/suspicious/noArrayIndexKey: a table's rows have no identity but their place
+                    <tr key={r}>
+                      {b.head.map((_, n) => (
+                        // biome-ignore lint/suspicious/noArrayIndexKey: a table's cells have no identity but their place
+                        <td key={n}>{say(row[n] ?? "")}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
         const List = b.kind;
         return (
           <List key={key}>
             {b.items.map((item, n) => {
               const at = `${n}:${item}`;
-              return <li key={at}>{inline(item)}</li>;
+              return <li key={at}>{say(item)}</li>;
             })}
           </List>
         );

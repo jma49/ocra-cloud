@@ -1,5 +1,7 @@
 import { sha256Hex } from "../crypto.js";
 import {
+  avatarOf,
+  branchesOf,
   type ChangedFile,
   hunksOf,
   lineCounts,
@@ -15,7 +17,9 @@ const PER_PAGE = 100;
 export type DiffRefs = { base_sha: string; head_sha: string; start_sha: string };
 type MergeRequest = {
   title?: string;
-  author?: { username: string } | null;
+  author?: { username: string; avatar_url?: string | null } | null;
+  source_branch?: string;
+  target_branch?: string;
   web_url?: string;
   /** "locked" is GitLab's state while it merges: still open. */
   state?: "opened" | "closed" | "locked" | "merged";
@@ -81,6 +85,8 @@ async function listDiffs(
     base: mr.diff_refs.base_sha,
     head: mr.diff_refs.head_sha,
     updatedAt: mr.updated_at ?? null,
+    branches: branchesOf(mr.source_branch, mr.target_branch),
+    authorAvatar: avatarOf(mr.author?.avatar_url),
     diffs: diffs.slice(0, max),
     truncated: more || diffs.length > max,
   };

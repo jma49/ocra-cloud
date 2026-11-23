@@ -10,7 +10,6 @@ import type {
 } from "../../../src/shared/index.js";
 import { api } from "../api.js";
 import { useFixes } from "../fixes/use-fixes.js";
-import { count } from "../format.js";
 import { useBeside } from "../inbox/queue.js";
 import { usePageCommands } from "../page-commands.js";
 import { PlatformMark } from "../platform-mark.js";
@@ -27,6 +26,7 @@ import { GenerateBox } from "../pull/generate-box.js";
 import { JumpToCode } from "../pull/jump-to-code.js";
 import { LabelsBox } from "../pull/labels-box.js";
 import { MergeCard } from "../pull/merge-card.js";
+import { PullMeta } from "../pull/meta.js";
 import { OcraReviewBox } from "../pull/ocra-review-box.js";
 import { OUTCOME } from "../pull/outcome.js";
 import { pullPath } from "../pull/path.js";
@@ -127,10 +127,6 @@ export function PullPage(props: {
       </>
     );
   }
-  const total = data.files.reduce(
-    (n, f) => ({ add: n.add + f.additions, del: n.del + f.deletions }),
-    { add: 0, del: 0 },
-  );
   const done = (what: string, outcome: PullActionOutcome) => {
     setSaid({ what, outcome });
     if (outcome === "done" && what === "Review") setPending([]);
@@ -162,6 +158,16 @@ export function PullPage(props: {
   const step = nextStep(readiness, data.mergeMethods.length > 0 && !queue.data?.enabled);
   return (
     <>
+      <p className="pull-where">
+        <PlatformMark platform={platform} size={14} />
+        {data.url ? (
+          <a href={data.url} target="_blank" rel="noopener noreferrer">
+            {where}
+          </a>
+        ) : (
+          where
+        )}
+      </p>
       <header className="pull-head" ref={setHeadEl}>
         <div className="pull-head-row">
           <h1>{title}</h1>
@@ -187,19 +193,7 @@ export function PullPage(props: {
             )}
           </div>
         </div>
-        <p className="pull-meta">
-          <PlatformMark platform={platform} size={14} />{" "}
-          {data.url ? (
-            <a href={data.url} target="_blank" rel="noopener noreferrer">
-              {where}
-            </a>
-          ) : (
-            where
-          )}
-          {data.author && <> · {data.author}</>} · {count(data.files.length, "file")} ·{" "}
-          <span className="add-n">+{total.add}</span> <span className="del-n">−{total.del}</span> ·
-          head <span className="mono">{data.head.slice(0, 7)}</span>
-        </p>
+        <PullMeta data={data} />
         {said && (
           <p className={said.outcome === "done" ? "note" : "error"} role="status">
             {said.what}: {OUTCOME[said.outcome]}

@@ -184,6 +184,8 @@ pullPage.get("/files", requireSession(["web"]), perMinute("platform"), async (c)
     base: patches.base,
     head: patches.head,
     updatedAt: patches.updatedAt,
+    branches: patches.branches,
+    authorAvatar: patches.authorAvatar,
     files: patches.files.map((f) => ({
       path: f.path,
       oldPath: f.oldPath,

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { lineCounts, withinBudget } from "../src/platforms/changes.js";
+import { avatarOf, lineCounts, withinBudget } from "../src/platforms/changes.js";
 import type { AuditPage, PullFilesView } from "../src/shared/index.js";
 import { auditLines, lines } from "./audit-lines.js";
 import { resetDb } from "./helpers.js";
@@ -54,10 +54,10 @@ describe("a pull request's files", () => {
       [`GET ${PULL}`]: () =>
         Response.json({
           title: "Cap refunds at the order total",
-          user: { login: "ada" },
+          user: { login: "ada", avatar_url: "https://avatars.githubusercontent.com/u/1?v=4" },
           html_url: "https://github.com/octo/api/pull/7",
-          base: { sha: BASE },
-          head: { sha: HEAD },
+          base: { sha: BASE, ref: "main" },
+          head: { sha: HEAD, ref: "fix/refund-cap" },
           changed_files: 2,
         }),
       [`GET ${PULL}/files?per_page=100&page=1`]: () =>
@@ -83,6 +83,8 @@ describe("a pull request's files", () => {
       url: "https://github.com/octo/api/pull/7",
       base: BASE,
       head: HEAD,
+      branches: { head: "fix/refund-cap", base: "main" },
+      authorAvatar: "https://avatars.githubusercontent.com/u/1?v=4",
       truncated: false,
     });
     expect(view.files).toEqual([
@@ -107,6 +109,20 @@ describe("a pull request's files", () => {
     ]);
     expect(view.verdicts).toEqual(["approve", "request_changes", "comment"]);
     expect(view.mergeMethods).toEqual(["merge", "squash", "rebase"]);
+  });
+
+  it("passes on an author's picture only from the host the console may load", () => {
+    expect(avatarOf("https://avatars.githubusercontent.com/u/1")).toBe(
+      "https://avatars.githubusercontent.com/u/1",
+    );
+    for (const url of [
+      "https://avatars.githubusercontent.com.evil.example/u/1",
+      "http://avatars.githubusercontent.com/u/1",
+      "https://gitlab.example/uploads/avatar.png",
+      "not a url",
+      null,
+    ])
+      expect(avatarOf(url)).toBeNull();
   });
 
   it("offers only a comment on a merged or closed pull request", async () => {
@@ -171,6 +187,8 @@ describe("a pull request's files", () => {
         base: BASE,
         head: HEAD,
         updatedAt: null,
+        branches: null,
+        authorAvatar: null,
         truncated: false,
         files: [file("a", "@@\n+1234"), file("b", "@@\n+56789"), file("c", "@@\n+0")],
       },

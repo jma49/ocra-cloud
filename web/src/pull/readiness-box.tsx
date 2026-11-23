@@ -10,6 +10,7 @@ import { api } from "../api.js";
 import { count } from "../format.js";
 import { CloseGlyph, DoneGlyph } from "../glyphs.js";
 import { useLoad } from "../ui.js";
+import { Tally } from "./tally.js";
 
 // What still stands between this pull request and its merge, one line per
 // requirement, read live as the user. A requirement the user's token cannot
@@ -134,6 +135,17 @@ export function ReadinessBox(props: { view: PullReadinessView | undefined }) {
         <span className="strong grow">Merge readiness</span>
         <span className={s.tone}>{s.text}</span>
       </div>
+      <Tally
+        label={`${met.length} of ${data.items.length} met`}
+        parts={[
+          { tone: "ok", n: met.length },
+          { tone: "err", n: items.filter((i) => i.state === "unmet").length },
+          {
+            tone: "wait",
+            n: items.filter((i) => i.state === "pending" || i.state === "unknown").length,
+          },
+        ]}
+      />
       {open.length > 0 && (
         <ul className="check-results">
           {open.map((i) => (

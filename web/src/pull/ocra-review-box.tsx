@@ -44,7 +44,7 @@ export function OcraReviewBox(props: {
         <span className="small">{count(props.open, "open finding")} on the diff below.</span>
       )}
       {review && (
-        <Link to={`/reviews/${review.id}`} className="rail-link">
+        <Link to={`/reviews/${review.id}`} className="status-link">
           Open the review
         </Link>
       )}

@@ -48,6 +48,7 @@ it("lists each requirement with its state, and hides when the pull request is cl
   expect(screen.getByText("1 of 3 met, 1 not readable with your sign-in")).toBeTruthy();
   // What is in the way leads; what is met folds under its count.
   expect(screen.getAllByRole("img").map((m) => m.getAttribute("aria-label"))).toEqual([
+    "1 of 3 met",
     "Not met",
     "Cannot be read",
     "Met",

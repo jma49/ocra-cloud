@@ -37,6 +37,10 @@ export type PullFilesView = {
   head: string;
   /** The platform's updated_at, which POST /api/pulls/seen takes back to mark it read. */
   updatedAt: string | null;
+  /** The branch it merges and the one it merges into; null where the platform did not name them. */
+  branches: { head: string; base: string } | null;
+  /** The author's picture; null where there is none the console may load. */
+  authorAvatar: string | null;
   files: PullFileView[];
   /** True when the pull request has more files, or more diff, than one page reads. */
   truncated: boolean;
