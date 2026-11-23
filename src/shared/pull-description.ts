@@ -19,7 +19,14 @@ export type PullDescriptionDraftView = {
   /** The description with ocra's section in place of the one it had, or added; null with no review of the pull request. */
   draft: string | null;
   /** The review the draft is from: of the head now when there is one, else the newest. */
-  review: { id: string; head: string; current: boolean; createdAt: string } | null;
+  review: {
+    id: string;
+    head: string;
+    current: boolean;
+    /** False when it left files unreviewed: such a review is not a pass. */
+    complete: boolean;
+    createdAt: string;
+  } | null;
 };
 
 export type PullDescriptionRequest = {

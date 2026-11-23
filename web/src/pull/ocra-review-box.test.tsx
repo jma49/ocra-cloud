@@ -5,10 +5,11 @@ import { OcraReviewBox } from "./ocra-review-box.js";
 afterEach(cleanup);
 
 const HEAD = "a".repeat(40);
-const review = (current: boolean) => ({
+const review = (current: boolean, complete = true) => ({
   id: "r1",
   head: current ? HEAD : "b".repeat(40),
   current,
+  complete,
   createdAt: new Date().toISOString(),
 });
 
@@ -43,5 +44,14 @@ it("leaves the wording to the server's runner where there is one", () => {
     </OcraReviewBox>,
   );
   expect(screen.getAllByText(/ocra reviewed this head/)).toHaveLength(1);
+  expect(screen.getByRole("link", { name: "Open the review" })).toBeTruthy();
+});
+
+it("never calls a review that left files unreviewed a review of the head", () => {
+  render(<OcraReviewBox review={review(true, false)} />);
+  expect(screen.getByText("Incomplete").className).toBe("badge badge-warn");
+  expect(screen.queryByText("Reviewed")).toBeNull();
+  expect(screen.getByText(/left files unreviewed, so it is not a pass/)).toBeTruthy();
+  expect(screen.queryByText(/ocra reviewed this head/)).toBeNull();
   expect(screen.getByRole("link", { name: "Open the review" })).toBeTruthy();
 });

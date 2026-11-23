@@ -16,17 +16,25 @@ export function OcraReviewBox(props: {
 }) {
   const { review } = props;
   if (review === undefined) return null;
+  const unfinished = review?.current === true && !review.complete;
+  const standing = !review?.current
+    ? { text: "Out of date", tone: "badge" }
+    : unfinished
+      ? { text: "Incomplete", tone: "badge badge-warn" }
+      : { text: "Reviewed", tone: "badge badge-ok" };
   return (
     <section className="card card-pad stack" aria-label="ocra review">
       <div className="row-gap checks-head">
         <span className="strong grow">ocra review</span>
-        {review && (
-          <span className={review.current ? "badge badge-ok" : "badge"}>
-            {review.current ? "Reviewed" : "Out of date"}
-          </span>
-        )}
+        {review && <span className={standing.tone}>{standing.text}</span>}
       </div>
-      {review && !props.children && (
+      {review && unfinished && (
+        <span className="subtle small">
+          The review of this head {ago(review.createdAt)} left files unreviewed, so it is not a
+          pass.
+        </span>
+      )}
+      {review && !unfinished && !props.children && (
         <span className="subtle small">
           {review.current
             ? `ocra reviewed this head ${ago(review.createdAt)}.`

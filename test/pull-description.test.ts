@@ -148,7 +148,7 @@ describe("a draft description on GitHub", () => {
     const view = await draftOf(a, GITHUB_QUERY);
     expect(view.head).toBe(HEAD);
     expect(view.body).toBe("Fixes refunds.\n\nMore of mine.");
-    expect(view.review).toMatchObject({ id, head: HEAD, current: true });
+    expect(view.review).toMatchObject({ id, head: HEAD, current: true, complete: true });
     const draft = view.draft ?? "";
     expect(
       draft.startsWith("Fixes refunds.\n\nMore of mine.\n\n<!-- ocra:description:start -->"),
