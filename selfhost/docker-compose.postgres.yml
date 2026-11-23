@@ -25,6 +25,8 @@ services:
     environment:
       DATABASE_URL: postgres://ocra:${OCRA_DB_PASSWORD}@postgres:5432/ocra
       MIGRATE: only
+    volumes:
+      - ./certs:/certs:ro
     depends_on:
       postgres:
         condition: service_healthy

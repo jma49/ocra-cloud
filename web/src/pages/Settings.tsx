@@ -24,7 +24,7 @@ function useSharing() {
  */
 function dataKept(shareFindings: boolean | undefined, hosted: boolean): string {
   const kept =
-    "Your GitHub id and login, encrypted provider keys, review counts and a record of each model call (model, status, token counts, duration)";
+    "Your sign-in id and login, encrypted provider keys, review counts and a record of each model call (model, status, token counts, duration)";
   if (shareFindings === true) {
     return `${kept}; while you send findings, also the findings and the code they quote. No prompts or answers.`;
   }
@@ -59,7 +59,7 @@ export function Settings(props: { me: Me }) {
           <h3>Account</h3>
         </div>
         <dl className="kv card-pad m-0">
-          <dt>GitHub</dt>
+          <dt>{props.me.githubId !== null ? "GitHub" : "Login"}</dt>
           <dd>
             {props.me.githubUrl && props.me.githubId !== null ? (
               <a href={`${props.me.githubUrl}/${props.me.login}`} target="_blank" rel="noreferrer">
