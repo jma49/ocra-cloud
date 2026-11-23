@@ -118,6 +118,7 @@ export function Settings(props: { me: Me }) {
             />
             <Button
               type="button"
+              size="sm"
               variant="destructive"
               disabled={typed !== props.me.login}
               onClick={remove}

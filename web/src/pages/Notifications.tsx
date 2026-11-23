@@ -409,7 +409,11 @@ function AddChannel(props: {
           value={url}
           onChange={(e) => setUrl(e.target.value)}
         />
-        <Button type="submit" disabled={add.busy || props.full || !name.trim() || !url.trim()}>
+        <Button
+          type="submit"
+          size="sm"
+          disabled={add.busy || props.full || !name.trim() || !url.trim()}
+        >
           Add
         </Button>
       </div>

@@ -80,6 +80,7 @@ export function AddRepo(props: {
             openOnInputClick
           >
             <AutocompleteInput
+              size="sm"
               className="mono"
               aria-label="Repository"
               placeholder={platform === "gitlab" ? "group/project" : "owner/repo"}
@@ -101,7 +102,7 @@ export function AddRepo(props: {
             )}
           </Autocomplete>
         </div>
-        <Button type="submit" disabled={add.busy || props.full || !fullName.trim()}>
+        <Button type="submit" size="sm" disabled={add.busy || props.full || !fullName.trim()}>
           Add
         </Button>
       </div>
