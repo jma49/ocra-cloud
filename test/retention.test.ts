@@ -115,10 +115,10 @@ describe("retention", () => {
   it("forgets a webhook delivery after 30 days", async () => {
     const { account } = await signIn(1, "octo");
     const d = scoped(db, account.id);
-    await d.insert("webhookDeliveries", { ...rows.webhookDeliveries("old"), createdAt: ago(31) });
-    await d.insert("webhookDeliveries", { ...rows.webhookDeliveries("new"), createdAt: ago(29) });
+    await d.insert("notifyDeliveries", { ...rows.notifyDeliveries("old"), createdAt: ago(31) });
+    await d.insert("notifyDeliveries", { ...rows.notifyDeliveries("new"), createdAt: ago(29) });
     await enforceRetention(db, now);
-    expect((await d.list("webhookDeliveries")).map((r) => r.id)).toEqual(["new"]);
+    expect((await d.list("notifyDeliveries")).map((r) => r.id)).toEqual(["new"]);
   });
 
   it("forgets a platform's delivery to us after 7 days, whatever its state", async () => {

@@ -91,20 +91,20 @@ describe("the operations collectors", () => {
           finishedAt: ago(90),
         },
       ]);
-      await db.insert(schema.webhookDeliveries).values([
+      await db.insert(schema.notifyDeliveries).values([
         {
-          ...rows.webhookDeliveries(`p-${accountId}`),
+          ...rows.notifyDeliveries(`p-${accountId}`),
           accountId,
           state: "pending",
           retryAt: ago(1),
         },
         {
-          ...rows.webhookDeliveries(`w-${accountId}`),
+          ...rows.notifyDeliveries(`w-${accountId}`),
           accountId,
           state: "pending",
           retryAt: ago(-5),
         },
-        { ...rows.webhookDeliveries(`x-${accountId}`), accountId, state: "failed" },
+        { ...rows.notifyDeliveries(`x-${accountId}`), accountId, state: "failed" },
       ]);
       await db
         .insert(schema.mergeIntents)
@@ -129,9 +129,9 @@ describe("the operations collectors", () => {
     expect(value(samples, "ocra_jobs_oldest_queued_seconds", { queue: "review" })).toBe(1800);
     expect(value(samples, "ocra_jobs", { queue: "graph", state: "queued" })).toBe(0);
     expect(value(samples, "ocra_jobs_oldest_queued_seconds", { queue: "reply" })).toBe(0);
-    expect(value(samples, "ocra_deliveries", { kind: "webhook", state: "pending" })).toBe(4);
-    expect(value(samples, "ocra_deliveries", { kind: "webhook", state: "failed" })).toBe(2);
-    expect(value(samples, "ocra_delivery_retries_due", { kind: "webhook" })).toBe(2);
+    expect(value(samples, "ocra_deliveries", { kind: "notify", state: "pending" })).toBe(4);
+    expect(value(samples, "ocra_deliveries", { kind: "notify", state: "failed" })).toBe(2);
+    expect(value(samples, "ocra_delivery_retries_due", { kind: "notify" })).toBe(2);
     expect(value(samples, "ocra_merge_intents", { state: "armed" })).toBe(2);
   });
 

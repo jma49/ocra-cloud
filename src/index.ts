@@ -8,10 +8,9 @@ import { masterKeys } from "./keyring.js";
 import { runAtRisk } from "./notify/at-risk.js";
 import { runDigests } from "./notify/digest.js";
 import { runHeld } from "./notify/held.js";
-import { retryOutbox } from "./notify/notify.js";
+import { retryNotifications } from "./notify/notify.js";
 import { runReminders } from "./notify/reminders.js";
 import { runReports } from "./notify/report.js";
-import { retryWebhooks } from "./notify/webhooks.js";
 import { githubHostOf, platformsOf } from "./platforms/registry.js";
 import { sweepStackMerges } from "./stack-merge/advance.js";
 
@@ -38,7 +37,7 @@ export default {
     const db = drizzle(env.DB);
     if (controller.cron !== HOURLY) ctx.waitUntil(enforceRetention(db));
     else {
-      ctx.waitUntil(retryWebhooks(db, retryOutbox({ keys: masterKeys(env) })));
+      ctx.waitUntil(retryNotifications(db, { keys: masterKeys(env), mailer: undefined }));
       ctx.waitUntil(retryInbound({ db, env, bots: "bots" in remote ? remote.bots : undefined }));
       // A stack merge's webhooks move it; this picks up one whose webhooks did not come.
       const platforms = platformsOf(env, env.PUBLIC_URL || "https://localhost");

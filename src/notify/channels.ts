@@ -1,9 +1,11 @@
-import { platformSend } from "../platforms/http.js";
-import type { NotifyKind, NotifyWhen, WebhookPull } from "../shared/index.js";
+import { deadline } from "../deadline.js";
+import { boundedBytes } from "../platforms/http.js";
+import type { NotifyDeliveryEvent, NotifyKind, NotifyWhen, WebhookPull } from "../shared/index.js";
+import { type Attempt, DELIVERED, type Outcome, REFUSED } from "./deliveries.js";
 import type { HookEvent } from "./webhooks.js";
 
 // A chat's incoming webhook: which addresses a kind takes, the message
-// announcing a review, and its delivery. A message carries the review's
+// announcing a review, and one attempt of its delivery. A message carries the review's
 // counts and links, and the titles of its most severe findings when the
 // account shares findings; titles are model text, so they are made plain.
 
@@ -72,13 +74,16 @@ export function plain(text: string): string {
 
 /** Text, or a link; a renderer turns each into its medium's form. */
 type Piece = string | { label: string; url: string };
-/** What a channel is told: the subject only an email shows, then its lines; a webhook gets hooks instead. */
-export type Message = { subject: string; lines: Piece[][]; hooks?: HookEvent[] };
+/** A message's words: the subject only an email shows, then its lines. */
+export type MessageText = { subject: string; lines: Piece[][] };
+/** What a channel is told, as its delivery log names it; a webhook gets hooks instead. */
+export type Message = MessageText & { event: NotifyDeliveryEvent; hooks?: HookEvent[] };
 
 export function reviewMessage(n: ReviewNotice): Message {
   const counts = `${n.critical} critical · ${n.warning} warning · ${n.suggestion} suggestion`;
   const verdict = n.verdict ? ` · ${n.verdict.replaceAll("_", " ")}` : "";
   return {
+    event: "review_completed",
     subject: `ocra reviewed ${n.pull ? plain(n.pull.label) : "a change"}: ${counts}`,
     lines: [
       ["ocra reviewed ", n.pull ?? "a change"],
@@ -102,6 +107,7 @@ export type RuleNotice = {
 export function ruleMessage(n: RuleNotice): Message {
   const pull: Piece = n.pull.url ? { label: n.pull.label, url: n.pull.url } : plain(n.pull.label);
   return {
+    event: "automation_ran",
     subject: `ocra automation "${plain(n.rule)}" ran on ${plain(n.pull.label)}`,
     lines: [
       [`ocra automation "${plain(n.rule)}" ran on `, pull],
@@ -111,13 +117,13 @@ export function ruleMessage(n: RuleNotice): Message {
   };
 }
 
-const render = (m: Message, link: (label: string, url: string) => string) =>
+const render = (m: MessageText, link: (label: string, url: string) => string) =>
   m.lines.map((line) =>
     line.map((p) => (typeof p === "string" ? p : link(p.label, p.url))).join(""),
   );
 
 /** The body the chat's webhook takes. */
-export function messageOf(kind: HookKind, m: Message): unknown {
+export function messageOf(kind: HookKind, m: MessageText): unknown {
   if (kind === "slack") {
     return { text: render(m, (label, url) => `<${url}|${label}>`).join("\n") };
   }
@@ -128,17 +134,86 @@ export function messageOf(kind: HookKind, m: Message): unknown {
 }
 
 /** The message as plain text, each link after its label. */
-export const textOf = (m: Message): string =>
+export const textOf = (m: MessageText): string =>
   render(m, (label, url) => `${label}: ${url}`).join("\n");
 
-/** Whether the chat took the message. */
-export async function deliver(kind: HookKind, url: string, body: unknown): Promise<boolean> {
-  const sent = await platformSend<{ errcode?: number }>(url, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!sent || sent.status < 200 || sent.status >= 300) return false;
+const TIMEOUT_MS = 10_000;
+/** Bytes of a chat's answer read; its error code is short. */
+const MAX_ANSWER = 4096;
+
+/**
+ * Slack's answers that no retry changes: the webhook was revoked, its
+ * channel is gone or archived, or the body is wrong. Any other failure is
+ * read by its status.
+ */
+const SLACK_PERMANENT = new Set([
+  "invalid_token",
+  "invalid_auth",
+  "no_service",
+  "no_service_id",
+  "no_team",
+  "team_disabled",
+  "channel_not_found",
+  "channel_is_archived",
+  "action_prohibited",
+  "posting_to_general_channel_denied",
+  "invalid_payload",
+  "no_text",
+]);
+/** WeCom's errcodes worth another try: system busy, and its rate limit. */
+const WECOM_TRANSIENT = new Set([-1, 45009]);
+
+const transientStatus = (status: number) => status === 408 || status === 429 || status >= 500;
+
+function chatOutcome(kind: HookKind, status: number, answer: string): Outcome {
+  if (status >= 300 && status < 400) return { status, error: "redirect", transient: false };
+  if (kind === "slack") {
+    if (status >= 200 && status < 300) return DELIVERED(status);
+    const permanent = SLACK_PERMANENT.has(answer.trim());
+    return { status, error: "status", transient: !permanent && transientStatus(status) };
+  }
+  if (status < 200 || status >= 300) {
+    return { status, error: "status", transient: transientStatus(status) };
+  }
   // WeCom answers 200 with its error in the body.
-  return kind !== "wecom" || sent.body?.errcode === 0;
+  let errcode: unknown;
+  try {
+    errcode = (JSON.parse(answer) as { errcode?: unknown }).errcode;
+  } catch {
+    errcode = undefined;
+  }
+  if (errcode === 0) return DELIVERED(status);
+  return {
+    status,
+    error: "rejected",
+    transient: typeof errcode === "number" && WECOM_TRANSIENT.has(errcode),
+  };
+}
+
+/**
+ * One attempt of a chat message (its body as messageOf made it) to the
+ * chat's webhook address, which is checked again first; no redirect is
+ * followed. Only the answer's status and error code are read, never kept.
+ */
+export function chatAttempt(kind: HookKind, address: string): Attempt {
+  return async (delivery) => {
+    const url = hookUrl(kind, address);
+    if (!url) return REFUSED;
+    const clock = deadline(TIMEOUT_MS);
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: delivery.payload,
+        redirect: "manual",
+        signal: clock.signal,
+      });
+      const bytes = await boundedBytes(res, MAX_ANSWER);
+      return chatOutcome(kind, res.status, bytes ? new TextDecoder().decode(bytes) : "");
+    } catch {
+      return { status: null, error: clock.timedOut() ? "timeout" : "network", transient: true };
+    } finally {
+      clock.clear();
+    }
+  };
 }

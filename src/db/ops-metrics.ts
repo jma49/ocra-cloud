@@ -6,9 +6,9 @@ import {
   generateJobs,
   graphBuilds,
   mergeIntents,
+  notifyDeliveries,
   replyJobs,
   reviewJobs,
-  webhookDeliveries,
 } from "./schema.js";
 
 // What a self-hosted deployment's operators alert on (src/node/metrics.ts):
@@ -62,7 +62,7 @@ const QUEUES: Record<string, QueueTable> = {
 type DeliveryTable = SQLiteTable & { state: SQLiteColumn; retryAt: SQLiteColumn };
 
 /** The outgoing delivery tables, each with pending and failed states and a retry time. */
-const DELIVERIES: Record<string, DeliveryTable> = { webhook: webhookDeliveries };
+const DELIVERIES: Record<string, DeliveryTable> = { notify: notifyDeliveries };
 
 const is = (column: SQLiteColumn, value: string): SQL => sql`${column} = ${value}`;
 

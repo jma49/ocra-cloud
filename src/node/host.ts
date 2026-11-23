@@ -14,10 +14,10 @@ import { runAtRisk } from "../notify/at-risk.js";
 import { runDigests } from "../notify/digest.js";
 import type { Mailer } from "../notify/email.js";
 import { runHeld } from "../notify/held.js";
-import { retryOutbox } from "../notify/notify.js";
+import { retryNotifications } from "../notify/notify.js";
 import { runReminders } from "../notify/reminders.js";
 import { runReports } from "../notify/report.js";
-import { retryWebhooks, type WebhookPost } from "../notify/webhooks.js";
+import type { WebhookPost } from "../notify/webhooks.js";
 import { botTokens } from "../platforms/bot-tokens.js";
 import { githubHostOf, platformsOf } from "../platforms/registry.js";
 import { sweepStackMerges } from "../stack-merge/advance.js";
@@ -197,9 +197,13 @@ export async function openHost(options: HostOptions) {
         env: bindings,
         platforms: platformsOf(bindings, options.publicUrl ?? "http://localhost"),
       }),
-    /** Tries again the webhook deliveries due; how many it tried. */
-    webhookRetries: () =>
-      retryWebhooks(shared, retryOutbox({ keys: masterKeys(bindings), webhooks: webhookPost })),
+    /** Tries again the channels' deliveries due, of every kind; how many it tried. */
+    deliveryRetries: () =>
+      retryNotifications(shared, {
+        keys: masterKeys(bindings),
+        mailer: options.mailer,
+        webhooks: webhookPost,
+      }),
     /** Runs again the side effects of platform webhooks that failed and are due; how many it tried. */
     inboundRetries: () =>
       retryInbound({

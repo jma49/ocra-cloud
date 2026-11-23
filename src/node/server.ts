@@ -99,9 +99,11 @@ const automationRetries = () =>
 setInterval(automationRetries, 60_000).unref();
 
 // A minute apart too: a webhook delivery's first retry is due a minute after it failed.
-const webhookRetries = () =>
-  host.webhookRetries().catch((err) => logError("webhook_retry_failed", { error: errorName(err) }));
-setInterval(webhookRetries, 60_000).unref();
+const deliveryRetries = () =>
+  host
+    .deliveryRetries()
+    .catch((err) => logError("delivery_retry_failed", { error: errorName(err) }));
+setInterval(deliveryRetries, 60_000).unref();
 
 // And a platform webhook's side effects: the first retry is due a minute after they failed.
 const inboundRetries = () =>

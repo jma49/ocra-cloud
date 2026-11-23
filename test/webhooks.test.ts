@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { scoped } from "../src/db/scoped.js";
-import { retryOutbox } from "../src/notify/notify.js";
-import { KEPT_DELIVERIES, retryWebhooks, webhookSignature } from "../src/notify/webhooks.js";
+import { KEPT_DELIVERIES } from "../src/notify/deliveries.js";
+import { retryNotifications } from "../src/notify/notify.js";
+import { webhookSignature } from "../src/notify/webhooks.js";
 import { TEST_BINDINGS } from "./bindings.js";
 import { finding, upload } from "./finding-uploads.js";
 import { call, db, resetDb, signIn, signInCli } from "./helpers.js";
@@ -216,20 +217,20 @@ describe("a webhook delivery", () => {
     });
     const [pending] = await deliveries(web.auth, channel.id);
     expect(pending).toMatchObject({ state: "pending", status: 503, error: "status", attempts: 1 });
-    const out = retryOutbox({ keys: { current: TEST_BINDINGS.MASTER_KEY } });
+    const out = { keys: { current: TEST_BINDINGS.MASTER_KEY }, mailer: undefined };
     // Not due yet: nothing is sent.
-    expect(await retryWebhooks(db, out)).toBe(0);
+    expect(await retryNotifications(db, out)).toBe(0);
     const later = () => new Date(Date.now() + 2 * 60_000);
-    expect(await retryWebhooks(db, out, later)).toBe(1);
+    expect(await retryNotifications(db, out, later)).toBe(1);
     expect(posted).toHaveLength(2);
     expect(posted[1]?.body).toBe(posted[0]?.body);
     expect(posted[1]?.headers.get("ocra-delivery")).toBe(posted[0]?.headers.get("ocra-delivery"));
     expect(await deliveries(web.auth, channel.id)).toEqual([
       expect.objectContaining({ state: "delivered", status: 200, attempts: 2, retryAt: null }),
     ]);
-    const [row] = await scoped(db, web.account.id).list("webhookDeliveries");
+    const [row] = await scoped(db, web.account.id).list("notifyDeliveries");
     expect(row?.payload).toBeNull();
-    expect(await retryWebhooks(db, out, () => new Date(Date.now() + 86_400_000))).toBe(0);
+    expect(await retryNotifications(db, out, () => new Date(Date.now() + 86_400_000))).toBe(0);
   });
 
   it("keeps only the channel's newest deliveries, a pending one included", async () => {
@@ -239,7 +240,7 @@ describe("a webhook delivery", () => {
     for (let i = 0; i < 25; i++) {
       await call(`/api/notifications/channels/${channel.id}/test`, { method: "POST", auth });
     }
-    const rows = await scoped(db, account.id).list("webhookDeliveries");
+    const rows = await scoped(db, account.id).list("notifyDeliveries");
     expect(rows).toHaveLength(KEPT_DELIVERIES);
     expect(rows.every((r) => r.state === "pending")).toBe(true);
   });
@@ -250,7 +251,7 @@ describe("a webhook delivery", () => {
     const noisy = await addHook(a.auth);
     const quiet = await addHook(b.auth);
     const start = (accountId: string, channelId: string, at: number) =>
-      scoped(db, accountId).webhooks.start({
+      scoped(db, accountId).deliveries.start({
         id: crypto.randomUUID(),
         channelId,
         event: "ping",
@@ -261,10 +262,10 @@ describe("a webhook delivery", () => {
     for (let i = 0; i < 60; i++) await start(a.account.id, noisy.channel.id, base + i);
     await start(b.account.id, quiet.channel.id, base + 1_000);
     endpoint();
-    const out = retryOutbox({ keys: { current: TEST_BINDINGS.MASTER_KEY } });
-    expect(await retryWebhooks(db, out)).toBe(50);
+    const out = { keys: { current: TEST_BINDINGS.MASTER_KEY }, mailer: undefined };
+    expect(await retryNotifications(db, out)).toBe(50);
     expect(
-      await scoped(db, b.account.id).find("webhookDeliveries", { state: "delivered" }),
+      await scoped(db, b.account.id).find("notifyDeliveries", { state: "delivered" }),
     ).toHaveLength(1);
   });
 
@@ -295,8 +296,8 @@ describe("a webhook delivery", () => {
       });
       expect(res.status, path).toBe(404);
     }
-    expect(await scoped(db, b.account.id).count("webhookDeliveries")).toBe(0);
-    expect(await scoped(db, a.account.id).count("webhookDeliveries")).toBe(1);
+    expect(await scoped(db, b.account.id).count("notifyDeliveries")).toBe(0);
+    expect(await scoped(db, a.account.id).count("notifyDeliveries")).toBe(1);
   });
 });
 

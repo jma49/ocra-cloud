@@ -48,6 +48,7 @@ import { accountLive } from "./live.js";
 import { accountMergeChecks } from "./merge-checks.js";
 import { accountMergeIntents } from "./merge-intents.js";
 import { accountNotify } from "./notify.js";
+import { accountNotifyDeliveries } from "./notify-deliveries.js";
 import { type PreferencesSave, savePreferences } from "./preferences.js";
 import { accountPullFileViews } from "./pull-file-views.js";
 import { accountPullFlows } from "./pull-flows.js";
@@ -66,7 +67,6 @@ import { accountReviewThreads } from "./review-threads.js";
 import { accountTables } from "./schema.js";
 import { accountSearch } from "./search.js";
 import { accountStackMerges } from "./stack-merges.js";
-import { accountWebhookDeliveries } from "./webhook-deliveries.js";
 
 type Tables = typeof accountTables;
 type Name = keyof Tables;
@@ -446,7 +446,7 @@ export function scoped(db: Db, accountId: string) {
     graphs: accountGraphs(db, accountId),
     autoReview: accountReviewJobs(db, accountId),
     notify: accountNotify(db, accountId),
-    webhooks: accountWebhookDeliveries(db, accountId),
+    deliveries: accountNotifyDeliveries(db, accountId),
     reports: accountReports(db, accountId),
     closedPulls: accountClosedPulls(db, accountId),
     pullFlows: accountPullFlows(db, accountId),

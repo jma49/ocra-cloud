@@ -126,7 +126,7 @@ export const rows = {
     number: 1,
     line: "hubot commented on your pull request",
   }),
-  webhookDeliveries: (id: string) => ({
+  notifyDeliveries: (id: string) => ({
     id,
     channelId: "channel",
     event: "review_completed" as const,
