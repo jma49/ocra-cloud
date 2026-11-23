@@ -63,6 +63,31 @@ describe("the auto review page", () => {
     expect(screen.queryByLabelText("Secret token")).toBeNull();
   });
 
+  it("says the day's model calls are used and which review waits for the reset", async () => {
+    const waiting = { ...REPO.latest, state: "queued", error: "daily_limit" };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url.startsWith("/api/budget")) {
+          return Response.json({ serviceDailyCalls: 500, dailyCalls: null, callsToday: 500 });
+        }
+        if (url.startsWith("/api/review-targets")) {
+          return Response.json({ default: { firstReviewHours: null, mergeDays: null }, repos: [] });
+        }
+        return Response.json({ repos: [{ ...REPO, latest: waiting }] });
+      }),
+    );
+    render(<AutoReview platforms={["github"]} />);
+    expect(await screen.findByText("Daily limit reached")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Budget" }).getAttribute("href")).toBe("/budget");
+    expect(
+      await screen.findByText(
+        "The daily limit cut this review short. It runs again when the limit resets.",
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText("daily_limit")).toBeNull();
+  });
+
   it("sets a repository's review profile", async () => {
     const sent: unknown[] = [];
     vi.stubGlobal(

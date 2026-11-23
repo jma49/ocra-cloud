@@ -1,14 +1,13 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { api, why } from "../api.js";
+import { type Budget, dailyLimit } from "../budget.js";
 import { useCached } from "../cache.js";
 import { num } from "../format.js";
 import { LoadError, Loading, PageHead, useAction } from "../ui.js";
 
 // The account's own daily limit on gateway calls, under the service's cap.
 // A review's spend in dollars is capped by Review settings, maxCostUsd.
-
-type Budget = { serviceDailyCalls: number; dailyCalls: number | null; callsToday: number };
 
 export function BudgetPage() {
   const { data, error, reload } = useCached("/budget", () => api<Budget>("/budget"));
@@ -19,7 +18,7 @@ export function BudgetPage() {
   if (error && !data) return <LoadError what="the budget" error={error} retry={reload} />;
   if (!data) return <Loading what="the budget" />;
   const value = draft ?? (data.dailyCalls === null ? "" : String(data.dailyCalls));
-  const limit = data.dailyCalls ?? data.serviceDailyCalls;
+  const limit = dailyLimit(data);
   const parsed = value.trim() === "" ? null : Math.trunc(Number(value));
   const valid = parsed === null || (parsed >= 1 && Number.isFinite(parsed));
   const submit = async () => {
