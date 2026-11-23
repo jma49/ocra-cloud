@@ -1,8 +1,10 @@
-import type { ReleasePublishAnswer } from "../shared/index.js";
+import type { HeldReleasePublishAnswer, ReleasePublishAnswer } from "../shared/index.js";
 
 // The pull requests merged between two refs of a repository, and a draft
 // release saved as the signed-in user: the platform decides what they may
-// read and write, and nothing is kept.
+// read and write. Where it keeps no draft releases (GitLab), ocra Cloud
+// holds the draft (src/db/release-drafts.ts) and the platform is asked
+// only to check it and, when the user says so, to make the release.
 
 /** What one compare may answer: its commits and, on GitHub, up to 300 files' patches. */
 export const MAX_COMPARE_BYTES = 16 * 1024 * 1024;
@@ -28,9 +30,7 @@ type RangePulls = {
 
 type ReleaseDraft = { tag: string; target: string; name: string; body: string };
 
-export interface RepoReleases {
-  /** False where the platform keeps no draft releases, so `saveDraft` answers `unsupported` unsent. */
-  readonly drafts: boolean;
+interface RangeReader {
   /** `missing` when a ref is not of the repository; null when the platform was not reached. */
   mergedBetween(
     token: string,
@@ -39,6 +39,11 @@ export interface RepoReleases {
     to: string,
     max: number,
   ): Promise<RangePulls | "missing" | null>;
+}
+
+/** The platform keeps the draft release itself. */
+interface PlatformDrafts extends RangeReader {
+  readonly drafts: "platform";
   /** null when the platform was not reached. */
   saveDraft(
     token: string,
@@ -46,6 +51,25 @@ export interface RepoReleases {
     draft: ReleaseDraft,
   ): Promise<ReleasePublishAnswer | null>;
 }
+
+/** ocra Cloud holds the draft until the user publishes it. */
+interface HeldDrafts extends RangeReader {
+  readonly drafts: "held";
+  /** Whether a release of the tag can still be made at the target; null when not reached. */
+  checkDraft(
+    token: string,
+    fullName: string,
+    draft: Pick<ReleaseDraft, "tag" | "target">,
+  ): Promise<"ok" | "tag_exists" | "target_missing" | "refused" | null>;
+  /** Makes the release, and its tag at the target; null when not reached. */
+  release(
+    token: string,
+    fullName: string,
+    draft: ReleaseDraft,
+  ): Promise<HeldReleasePublishAnswer | null>;
+}
+
+export type RepoReleases = PlatformDrafts | HeldDrafts;
 
 /** A Conventional Commit footer that breaks compatibility, in a pull request's description. */
 export const saysBreaking = (description: string | null | undefined) =>

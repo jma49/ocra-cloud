@@ -1,6 +1,8 @@
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type {
+  HeldReleaseDraftView,
+  HeldReleasePublishAnswer,
   ReleaseNotesView,
   ReleasePublishAnswer,
   ReleasePullView,
@@ -43,7 +45,10 @@ const notes = (more: Partial<ReleaseNotesView> = {}): ReleaseNotesView => ({
   ...more,
 });
 
-function serve(view: ReleaseNotesView | 404, answers: ReleasePublishAnswer[] = []) {
+function serve(
+  view: ReleaseNotesView | 404,
+  answers: (ReleasePublishAnswer | HeldReleasePublishAnswer)[] = [],
+) {
   const sent: { url: string; body?: unknown }[] = [];
   const writeText = vi.fn(async () => {});
   vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
@@ -147,6 +152,42 @@ describe("the Release notes page", () => {
 
     fireEvent.click(box.getByRole("button", { name: "Back to the draft" }));
     expect((text as HTMLTextAreaElement).value).toBe(notes().body);
+  });
+
+  it("holds the draft where the platform keeps none, edits it at its version, and publishes it", async () => {
+    const heldDraft = (version: number): HeldReleaseDraftView => ({
+      id: "d1",
+      tag: "v1.5.0",
+      target: "main",
+      name: "v1.5.0",
+      body: "## Added\n",
+      version,
+      updatedAt: "2026-11-23T10:00:00Z",
+    });
+    const { sent } = serve(notes({ held: [] }), [
+      { outcome: "held", draft: heldDraft(1) },
+      { outcome: "held", draft: heldDraft(2) },
+      { outcome: "published", url: "https://gitlab.com/acme/payments/-/releases/v1.5.0" },
+    ]);
+    await draft();
+    const save = within(screen.getByRole("form", { name: "Save a draft release" }));
+    expect(save.getByText(/ocra Cloud holds the draft/)).toBeTruthy();
+    fireEvent.change(save.getByLabelText("Tag"), { target: { value: "v1.5.0" } });
+    const click = (name: string) =>
+      act(async () => void fireEvent.click(save.getByRole("button", { name })));
+    await click("Save draft release");
+    expect(sent.at(-1)?.body).not.toHaveProperty("version");
+    await click("Save draft release");
+    expect(sent.at(-1)?.body).toMatchObject({ tag: "v1.5.0", version: 1 });
+    expect(save.getAllByRole("button", { name: "Publish v1.5.0" })).toHaveLength(1);
+    await click("Publish v1.5.0");
+    expect(sent.at(-1)).toEqual({
+      url: "/api/release-notes/held/d1/publish",
+      body: { version: 2 },
+    });
+    expect(save.getByRole("link", { name: "Open the release" }).getAttribute("href")).toBe(
+      "https://gitlab.com/acme/payments/-/releases/v1.5.0",
+    );
   });
 
   it("offers only the Markdown where the platform keeps no draft releases", async () => {
