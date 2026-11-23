@@ -69,7 +69,7 @@ export function ReviewersPanel(props: {
   const teams = data.owners.filter((o) => o.kind !== "user");
   return (
     <section className="card card-pad stack" aria-label="Suggested reviewers">
-      <div className="strong">Suggested reviewers</div>
+      <h2 className="card-title">Suggested reviewers</h2>
       <ul className="reviewer-list">
         {data.suggestions.map((s) => (
           <li key={s.login}>
