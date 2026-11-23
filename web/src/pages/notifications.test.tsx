@@ -47,7 +47,7 @@ describe("the Notifications page", () => {
       }),
     );
     render(<Notifications platforms={["github", "gitlab"]} />);
-    await screen.findByText("No channels yet.");
+    await screen.findByText("No channels yet");
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: " #reviews " } });
     fireEvent.change(screen.getByLabelText("Webhook address"), {
       target: { value: "https://hooks.slack.com/services/T/B/x" },
@@ -88,7 +88,7 @@ describe("an email channel", () => {
       }),
     );
     render(<Notifications platforms={["github", "gitlab"]} />);
-    await screen.findByText("No channels yet.");
+    await screen.findByText("No channels yet");
     fireEvent.change(screen.getByLabelText("Where"), { target: { value: "email" } });
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Ada" } });
     fireEvent.change(screen.getByLabelText("Email address"), {
@@ -123,7 +123,7 @@ describe("an email channel", () => {
       vi.fn(async () => Response.json({ email: false, channels: [] })),
     );
     render(<Notifications platforms={["github", "gitlab"]} />);
-    await screen.findByText("No channels yet.");
+    await screen.findByText("No channels yet");
     expect(screen.queryByRole("option", { name: "Email" })).toBeNull();
   });
 });

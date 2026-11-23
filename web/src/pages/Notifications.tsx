@@ -1,3 +1,4 @@
+import BellOff from "lucide-react/icons/bell-off";
 import ChevronRight from "lucide-react/icons/chevron-right";
 import { type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -23,7 +24,15 @@ import {
   reminderSummary,
 } from "../notifications/reminders-drawer.js";
 import { ReportSlot } from "../notifications/report-slot.js";
-import { ActionError, LoadError, Loading, PageHead, useAction, useLoad } from "../ui.js";
+import {
+  ActionError,
+  EmptyState,
+  LoadError,
+  Loading,
+  PageHead,
+  useAction,
+  useLoad,
+} from "../ui.js";
 
 // The chats and email addresses that hear about reviews: a Slack or WeCom
 // incoming webhook, or an address confirmed by the link mailed to it, each
@@ -90,8 +99,8 @@ export function Notifications(props: { platforms: readonly CodePlatformKind[] })
         title="Notifications"
         sub={
           data?.email
-            ? "Tell a Slack or WeCom chat, or an email address, when a review lands, and send a daily digest of yesterday's reviews or a weekly report. Each address is kept encrypted and never shown again; an email address first gets a link to confirm it."
-            : "Tell a Slack or WeCom chat when a review lands, and send a daily digest of yesterday's reviews or a weekly report. Each address is kept encrypted and never shown again."
+            ? "Send review results, a daily digest and a weekly report to a Slack or WeCom chat, a webhook or an email address."
+            : "Send review results, a daily digest and a weekly report to a Slack or WeCom chat or a webhook."
         }
       />
       {linkSent && (
@@ -116,7 +125,12 @@ export function Notifications(props: { platforms: readonly CodePlatformKind[] })
       ) : !data ? (
         <Loading what="channels" />
       ) : data.channels.length === 0 ? (
-        <p className="subtle small">No channels yet.</p>
+        <div className="card">
+          <EmptyState icon={BellOff} title="No channels yet">
+            Add one above to hear when a review lands. Each address is kept encrypted and never
+            shown again{data.email ? "; an email address first gets a link to confirm it" : ""}.
+          </EmptyState>
+        </div>
       ) : (
         <div className="card">
           <div className="table-wrap stack">
