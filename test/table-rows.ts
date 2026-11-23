@@ -92,6 +92,15 @@ export const rows = {
   }),
   // The graph repository it belongs to is made in beforeEach (the foreign key needs one).
   graphBuilds: (id: string) => ({ id, graphRepoId: "graph-repo-of-a", commit: `c-${id}` }),
+  // Its build, and the pull request's graph repository, are made with it (foreign keys).
+  graphChunks: (id: string) => ({ id, buildId: "graph-build-of-a", seq: 0, data: "H4sI" }),
+  pullImpacts: (id: string) => ({
+    id,
+    graphRepoId: "graph-repo-of-a",
+    number: 7,
+    head: "a".repeat(40),
+    view: "{}",
+  }),
   reviewRepos: (id: string) => ({
     id,
     platform: "github" as const,

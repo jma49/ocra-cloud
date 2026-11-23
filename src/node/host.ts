@@ -109,6 +109,7 @@ export async function openHost(options: HostOptions) {
           shared,
           bindings,
           options.publicUrl,
+          graphs?.service,
         )
       : undefined;
   const bots = options.autoReview

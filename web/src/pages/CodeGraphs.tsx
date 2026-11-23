@@ -28,7 +28,10 @@ const FAILURES: Record<string, string> = {
   repo_gone: "The repository was removed.",
   platform_gone: "This server no longer connects to that platform.",
   unlinked: "Your account is no longer connected to the platform; sign in again.",
+  no_bot: "ocra's app is not installed on the repository, so it cannot be cloned.",
   tree_unreadable: "The platform did not return the commit's files.",
+  clone_failed: "The repository could not be cloned.",
+  too_large: "The graph is larger than this server keeps.",
   build_failed: "The graph could not be built, or not within its time limit.",
 };
 const failure = (code: string) => FAILURES[code] ?? "The build failed.";

@@ -41,6 +41,8 @@ export const EXPORTED = {
   pullFileViews: "pullFileViews",
   graphRepos: "graphRepos",
   graphBuilds: "graphBuilds",
+  graphChunks: "graphChunks",
+  pullImpacts: "pullImpacts",
   reviewRepos: "reviewRepos",
   reviewJobs: "reviewJobs",
   notifyChannels: "notifyChannels",
@@ -130,7 +132,7 @@ const SHAPES: Partial<Record<Table, (row: never) => unknown>> = {
   // Never the share link's nonce, which with the server's secret makes the link.
   liveRuns: ({ linkNonce: _n, accountId: _account, ...r }: Record<string, unknown>) => r,
   // The graph itself is served by GET /api/graphs/repos/:id/graph.
-  graphBuilds: ({ content: _content, accountId: _account, ...b }: Record<string, unknown>) => b,
+  graphChunks: ({ data: _data, accountId: _account, ...c }: Record<string, unknown>) => c,
   // Never the secret's hash.
   apiTokens: ({ tokenHash: _hash, accountId: _account, ...t }: Record<string, unknown>) => t,
   // Never the token hashes.

@@ -3,6 +3,8 @@ import { z } from "zod";
 import { config } from "../config.js";
 import { sameText, sha256Hex } from "../crypto.js";
 import { runnerSeen } from "../db/review-runners.js";
+import type { GraphService } from "../graph/routes.js";
+import { assignBuild, type GraphAssignment, graphRunnerApi } from "../graph/runner-api.js";
 import { apiError, jsonBody } from "../http.js";
 import type { BotTokens } from "../platforms/bot.js";
 import { platformsOf } from "../platforms/registry.js";
@@ -14,9 +16,10 @@ import { type Assignment, assign, RUN_FAILURES, settle, WORK_KINDS } from "./wor
 // its own machine (src/node/review-runner.ts) and reports how it went. It
 // proves itself with the deployment's runner token and holds nothing else:
 // each job brings a bot credential for its one repository and a session of
-// the enrolling account, both ended with the job.
+// the enrolling account, both ended with the job. A runner that builds code
+// graphs is given a queued build when no job is due (src/graph/runner-api.ts).
 
-export type RunnerAccess = { token: string; bots: BotTokens };
+export type RunnerAccess = { token: string; bots: BotTokens; graphs?: GraphService };
 
 /** Jobs refused in a row (a repository or bot gone) before a claim answers none. */
 const MAX_REFUSED = 3;
@@ -24,6 +27,8 @@ const MAX_REFUSED = 3;
 const hello = z.object({
   name: z.string().min(1).max(100),
   version: z.string().min(1).max(40),
+  /** Whether it builds code graphs: one that does not is never given a build. */
+  graphs: z.boolean().optional(),
 });
 
 const outcome = z.object({
@@ -47,7 +52,7 @@ export function runnerApi(access: RunnerAccess) {
   const route = new Hono<AppEnv>().use(proven(access.token));
 
   route.post("/claim", jsonBody(hello), async (c) => {
-    const { name, version } = c.req.valid("json");
+    const { name, version, graphs } = c.req.valid("json");
     await runnerSeen(c.var.db, name, version, new Date());
     const source = {
       db: c.var.db,
@@ -55,6 +60,7 @@ export function runnerApi(access: RunnerAccess) {
       bots: access.bots,
       publicUrl: c.env.PUBLIC_URL ?? new URL(c.req.url).origin,
       dailyCalls: config(c.env).gatewayDailyCalls,
+      ...(graphs && access.graphs ? { graphs: access.graphs } : {}),
     };
     for (const kind of WORK_KINDS) {
       for (let refused = 0; refused < MAX_REFUSED; refused++) {
@@ -63,7 +69,11 @@ export function runnerApi(access: RunnerAccess) {
         if (work !== "refused") return c.json({ assignment: work satisfies Assignment });
       }
     }
-    return c.json({ assignment: null });
+    const graph = graphs && access.graphs?.remote ? await assignBuild(source) : undefined;
+    return c.json({
+      assignment: null,
+      ...(graph ? { graph: graph satisfies GraphAssignment } : {}),
+    });
   });
 
   route.post("/settle", jsonBody(outcome), async (c) => {
@@ -77,6 +87,8 @@ export function runnerApi(access: RunnerAccess) {
     );
     return c.json({ ok: true });
   });
+
+  if (access.graphs?.remote) route.route("/graphs", graphRunnerApi(access.graphs.remote));
 
   return route;
 }

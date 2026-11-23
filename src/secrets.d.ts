@@ -36,6 +36,8 @@ interface __BaseEnv_Env {
   GITHUB_WEBHOOK_SECRET?: string;
   /** What remote runners prove themselves with (docs/runner.md); with the three above, hosted reviews are on. */
   RUNNER_TOKEN?: string;
+  /** off: the remote runners build no code graphs and none is kept (src/graph/remote.ts); kept when unset. */
+  CODE_GRAPH?: string;
   /** The address people open: the daily digest's links, sent from the cron with no request to read it from. */
   PUBLIC_URL?: string;
 }

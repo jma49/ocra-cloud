@@ -133,9 +133,11 @@ function Notice(props: { notice: RailNotice }) {
       ? `Building the graph of ${short(n.commit)}. Uses appear here when it finishes.`
       : n.kind === "failed"
         ? `The graph of ${short(n.commit)} could not be built. ocra tries again on the next push.`
-        : n.kind === "behind"
-          ? `The graph is of ${short(n.commit)}, not the pull request's base. Uses in files changed since may be missing or moved.`
-          : "The platform cut this repository's file list short, so uses in the files past the cut are missing.";
+        : n.kind === "unreviewed"
+          ? "ocra works out what a pull request reaches when it reviews it here. Review this one again to see it."
+          : n.kind === "behind"
+            ? `The graph is of ${short(n.commit)}, not the pull request's base. Uses in files changed since may be missing or moved.`
+            : "The platform cut this repository's file list short, so uses in the files past the cut are missing.";
   return (
     <p className={`impact-note${n.kind === "behind" || n.kind === "cut" ? " warn" : ""}`}>{text}</p>
   );

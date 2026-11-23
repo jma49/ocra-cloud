@@ -4,7 +4,9 @@ import { createApp } from "./app.js";
 import { remoteReviews } from "./auto-review/remote.js";
 import { retryAutomations } from "./automations/retry.js";
 import { type CronJob, type CronJobName, runScheduled } from "./cron-calls.js";
+import { pruneGraphBuilds } from "./db/graphs.js";
 import { enforceRetention } from "./db/retention.js";
+import { remoteGraphs } from "./graph/remote.js";
 import { retryInbound } from "./inbound/run.js";
 import { masterKeys } from "./keyring.js";
 import { sweepMergeIntents } from "./merge-when-ready/advance.js";
@@ -29,14 +31,17 @@ import { sweepStackMerges } from "./stack-merge/advance.js";
 // (src/cron-calls.ts). It has no mailer: no email API is
 // configured for it, so they go to its chats only. It runs no hosted job
 // itself: with the GitHub App's key, its webhook secret and a runner token
-// set, it queues them for remote runners (docs/runner.md).
+// set, it queues them for remote runners (docs/runner.md), which also build
+// the code graphs it keeps (src/graph/remote.ts) unless CODE_GRAPH is off.
 const HOURLY = "47 * * * *";
 const remote = remoteReviews(env);
+const graphs = "runnerToken" in remote ? remoteGraphs(env) : undefined;
 export const app = createApp({
   openDb: (env: Env) => drizzle(env.DB),
   // Set by Cloudflare's edge, which drops any value the client sent.
   clientAddress: (c) => c.req.header("cf-connecting-ip"),
   ...remote,
+  ...(graphs ? { graphs } : {}),
 });
 
 export default {
@@ -44,8 +49,10 @@ export default {
   async scheduled(controller, env, ctx) {
     const db = drizzle(env.DB);
     const jobs: Partial<Record<CronJobName, CronJob>> = {};
-    if (controller.cron !== HOURLY) ctx.waitUntil(enforceRetention(db));
-    else {
+    if (controller.cron !== HOURLY) {
+      ctx.waitUntil(enforceRetention(db));
+      ctx.waitUntil(pruneGraphBuilds(db, graphs !== undefined));
+    } else {
       const bots = "bots" in remote ? remote.bots : undefined;
       const platforms = platformsOf(env, env.PUBLIC_URL || "https://localhost");
       jobs.deliveries = (calls) =>

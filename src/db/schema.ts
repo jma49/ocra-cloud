@@ -10,7 +10,6 @@ import {
 } from "@open-cr-agent/cloud-contract";
 import { sql } from "drizzle-orm";
 import {
-  blob,
   index,
   integer,
   primaryKey,
@@ -719,7 +718,7 @@ export const graphRepos = sqliteTable(
 );
 
 // One build of a graph repository's commit, from queued to done; a done
-// build holds the engine's serialized graph, gzipped, as opaque bytes.
+// build's graph is in graph_chunks.
 export const graphBuilds = sqliteTable(
   "graph_builds",
   {
@@ -734,7 +733,6 @@ export const graphBuilds = sqliteTable(
     notBefore: integer("not_before", { mode: "timestamp_ms" }),
     leaseUntil: integer("lease_until", { mode: "timestamp_ms" }),
     error: text("error"),
-    content: blob("content", { mode: "buffer" }),
     bytes: integer("bytes"),
     files: integer("files"),
     parsed: integer("parsed"),
@@ -748,6 +746,49 @@ export const graphBuilds = sqliteTable(
     uniqueIndex("graph_builds_repo_commit").on(t.graphRepoId, t.commit),
     index("graph_builds_state").on(t.state, t.createdAt),
     index("graph_builds_account_created").on(t.accountId, t.createdAt),
+  ],
+);
+
+// A done build's graph: the engine's serialized graph, gzipped, in base64
+// pieces. D1 keeps no value over 2 MB, and passes text between the Worker
+// and the database far cheaper than bytes.
+export const graphChunks = sqliteTable(
+  "graph_chunks",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    buildId: text("build_id")
+      .notNull()
+      .references(() => graphBuilds.id, { onDelete: "cascade" }),
+    seq: integer("seq").notNull(),
+    data: text("data").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("graph_chunks_build_seq").on(t.buildId, t.seq),
+    index("graph_chunks_account").on(t.accountId),
+  ],
+);
+
+// What a pull request reached when a runner last reviewed it, where the
+// server cannot read a graph itself (src/graph/stored-impact.ts): the
+// answer of GET /api/graphs/repos/:id/impact, as JSON.
+export const pullImpacts = sqliteTable(
+  "pull_impacts",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    graphRepoId: text("graph_repo_id")
+      .notNull()
+      .references(() => graphRepos.id, { onDelete: "cascade" }),
+    number: integer("number").notNull(),
+    head: text("head").notNull(),
+    view: text("view").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("pull_impacts_repo_number").on(t.graphRepoId, t.number),
+    index("pull_impacts_account_created").on(t.accountId, t.createdAt),
   ],
 );
 
@@ -1610,6 +1651,8 @@ export const accountTables = {
   pullFileViews,
   graphRepos,
   graphBuilds,
+  graphChunks,
+  pullImpacts,
   reviewRepos,
   reviewJobs,
   notifyChannels,

@@ -5,16 +5,25 @@ import {
   WORK_KINDS,
   type WorkRef,
 } from "../auto-review/work.js";
+import type { GraphAssignment } from "../graph/runner-api.js";
 import { errorName, logError } from "../log.js";
+import { COMMIT_ID } from "../platforms/contents.js";
 import { CODE_PLATFORMS } from "../shared/index.js";
+import { type GraphMachine, runGraphBuild } from "./graph-job.js";
+import type { GitRead } from "./local-graph.js";
 import { type Machine, run } from "./review-runner.js";
+import { serverGraphs } from "./runner-graphs.js";
 
 // A remote runner (docs/runner.md): asks the server for the next hosted job
 // (src/auto-review/runner-api.ts), runs it on this machine and reports how
 // it went. It only calls out, so it needs no address of its own, and holds
-// nothing but its token: each job brings its own credentials.
+// nothing but its token: each job brings its own credentials. When no job
+// is due it builds the next code graph the server queued, where the server
+// keeps them (src/graph/runner-api.ts).
 
-export type RunnerOptions = Machine & {
+export type RunnerOptions = Omit<Machine, "keptGraphs"> & {
+  /** How git objects are read for a code graph; git itself by default. */
+  git?: GitRead;
   /** The server's address, as people open it. */
   server: string;
   token: string;
@@ -35,8 +44,7 @@ const CALL_TIMEOUT_MS = 60_000;
 /** A lost answer must not leave a finished job running until its lease lapses. */
 const SETTLE_TRIES = 5;
 
-const assignment = z.object({
-  kind: z.enum(WORK_KINDS),
+const claim = {
   id: z.string(),
   accountId: z.string(),
   attempts: z.number().int(),
@@ -45,15 +53,27 @@ const assignment = z.object({
   bot: z
     .object({ token: z.string(), login: z.string().optional() })
     .transform(({ token, login }) => ({ token, ...(login ? { login } : {}) })),
-  cloudUrl: z.url(),
-  credentials: z.record(z.string(), z.union([z.string(), z.number()])),
-  uploadSalt: z.string().regex(/^[0-9a-f]{64}$/),
-  args: z.array(z.string()),
-  config: z.record(z.string(), z.unknown()),
-  ok: z.array(z.number().int()),
-  settled: z.array(z.number().int()),
+};
+const assignment = z
+  .object({
+    ...claim,
+    kind: z.enum(WORK_KINDS),
+    cloudUrl: z.url(),
+    credentials: z.record(z.string(), z.union([z.string(), z.number()])),
+    uploadSalt: z.string().regex(/^[0-9a-f]{64}$/),
+    args: z.array(z.string()),
+    config: z.record(z.string(), z.unknown()),
+    ok: z.array(z.number().int()),
+    settled: z.array(z.number().int()),
+    graph: z.object({ repoId: z.string(), pull: z.number().int() }).optional(),
+  })
+  .transform(({ graph, ...work }) => ({ ...work, ...(graph ? { graph } : {}) }));
+const graphBuild = z.object({
+  ...claim,
+  graphRepoId: z.string(),
+  commit: z.string().regex(COMMIT_ID),
 });
-const claimed = z.object({ assignment: assignment.nullable() });
+const claimed = z.object({ assignment: assignment.nullable(), graph: graphBuild.optional() });
 
 const sleep = (ms: number, stop: AbortSignal) =>
   new Promise<void>((resolve) => {
@@ -92,21 +112,24 @@ export async function runRunner(options: RunnerOptions, stop: AbortSignal): Prom
       }
     }
   };
+  const graphs = serverGraphs(options.server, options.token, options.fetch);
+  const machine = { ...options, graphs, keptGraphs: graphs };
   const pollMs = options.pollMs ?? POLL_MS;
   let backoff = pollMs;
   while (!stop.aborted) {
     try {
-      const { assignment: work } = claimed.parse(
-        await call("claim", { name: options.name, version: options.version }),
+      const { assignment: work, graph } = claimed.parse(
+        await call("claim", { name: options.name, version: options.version, graphs: true }),
       );
       backoff = pollMs;
       if (!work) {
-        await sleep(pollMs, stop);
+        if (!graph) await sleep(pollMs, stop);
+        else await buildGraph(machine, graph satisfies GraphAssignment, stop);
         continue;
       }
       const { kind, id, accountId, attempts } = work;
       console.log(JSON.stringify({ level: "info", event: "runner_job_started", kind, job: id }));
-      const failure = await run(options, work satisfies Assignment, new Date(), stop);
+      const failure = await run(machine, work satisfies Assignment, new Date(), stop);
       await settle({ kind, id, accountId, attempts }, failure);
       console.log(
         JSON.stringify({ level: "info", event: "runner_job_ended", kind, job: id, failure }),
@@ -117,4 +140,11 @@ export async function runRunner(options: RunnerOptions, stop: AbortSignal): Prom
       backoff = Math.min(backoff * 2, MAX_BACKOFF_MS);
     }
   }
+}
+
+async function buildGraph(machine: GraphMachine, build: GraphAssignment, stop: AbortSignal) {
+  const event = { kind: "graph", job: build.id };
+  console.log(JSON.stringify({ level: "info", event: "runner_job_started", ...event }));
+  const failure = await runGraphBuild(machine, build, new Date(), stop);
+  console.log(JSON.stringify({ level: "info", event: "runner_job_ended", ...event, failure }));
 }

@@ -1,6 +1,6 @@
 import type { Db } from "../db/client.js";
 import type { GraphBuilder } from "../graph/builder.js";
-import type { GraphParser } from "../graph/impact-route.js";
+import { type GraphParser, impactRoute } from "../graph/impact-route.js";
 import type { GraphService } from "../graph/routes.js";
 import { runNextBuild } from "../graph/runner.js";
 import { errorName, logError } from "../log.js";
@@ -48,7 +48,7 @@ export function startGraphs(
     service: {
       policy,
       kick: worker.kick,
-      parse: options.parse,
+      impact: impactRoute(options.parse),
     },
     worker,
   };

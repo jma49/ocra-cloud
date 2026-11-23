@@ -32,6 +32,8 @@ const changes = {
   pullFileViews: { sha: "f".repeat(64) },
   graphRepos: { branch: "trunk" },
   graphBuilds: { state: "done" as const },
+  graphChunks: { data: "changed" },
+  pullImpacts: { head: "changed" },
   reviewRepos: { fullName: "octo/renamed" },
   reviewJobs: { state: "done" as const },
   notifyChannels: { name: "renamed" },
@@ -190,10 +192,15 @@ describe.each(withIds)("%s", (name) => {
         .insert(schema.stackMerges)
         .values({ ...rows.stackMerges("stack-merge-of-a"), accountId: A });
     }
-    if (name === "graphBuilds") {
+    if (["graphBuilds", "graphChunks", "pullImpacts"].includes(name)) {
       await db
         .insert(schema.graphRepos)
         .values({ ...rows.graphRepos("graph-repo-of-a"), accountId: A });
+    }
+    if (name === "graphChunks") {
+      await db
+        .insert(schema.graphBuilds)
+        .values({ ...rows.graphBuilds("graph-build-of-a"), accountId: A });
     }
   });
 

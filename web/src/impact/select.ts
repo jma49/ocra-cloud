@@ -28,6 +28,7 @@ export function symbolsOf(symbols: readonly ImpactSymbol[], finding: Placed): Im
 export type RailNotice =
   | { kind: "building"; commit: string }
   | { kind: "failed"; commit: string }
+  | { kind: "unreviewed" }
   | { kind: "behind"; commit: string }
   | { kind: "cut" };
 
@@ -41,6 +42,7 @@ export function noticesOf(view: ImpactView): RailNotice[] {
       commit: build.commit,
     });
   }
+  if (!view.pull && !build) out.push({ kind: "unreviewed" });
   if (view.graph && !view.graph.current) out.push({ kind: "behind", commit: view.graph.commit });
   if (view.graph?.truncated) out.push({ kind: "cut" });
   return out;
