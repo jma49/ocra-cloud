@@ -8,12 +8,14 @@ import {
   autoReviewSettingsFrom,
   bindingsFrom,
   graphSettingsFrom,
+  metricsTokenFrom,
   migrateMode,
   trustedProxyHops,
 } from "./env.js";
 import { openHost } from "./host.js";
 import { rateLimitStore } from "./limits.js";
 import { smtpMailer } from "./mailer.js";
+import { installedCliVersion } from "./review-runner.js";
 
 // The self-hosted server: `node --import tsx src/node/server.ts`, or the
 // Docker image. DATABASE_URL defaults to a SQLite file in the working
@@ -30,6 +32,7 @@ if (autoReview && !process.env.PUBLIC_URL && migrate !== "only") {
   throw new Error("auto review needs PUBLIC_URL, the address its reviews sign in to");
 }
 
+const metricsToken = metricsTokenFrom(process.env.METRICS_TOKEN);
 const mailer = smtpMailer(process.env.SMTP_URL, process.env.SMTP_FROM);
 const host = await openHost({
   databaseUrl: process.env.DATABASE_URL || "file:ocra-cloud.db",
@@ -40,6 +43,9 @@ const host = await openHost({
   web: resolve(process.env.WEB_DIR || "web/dist"),
   ...(process.env.PUBLIC_URL ? { publicUrl: process.env.PUBLIC_URL } : {}),
   trustedProxyHops: trustedProxyHops(process.env.TRUSTED_PROXY_HOPS),
+  ...(metricsToken
+    ? { metrics: { token: metricsToken, engineVersion: installedCliVersion() } }
+    : {}),
   ...(process.env.GITHUB_WEBHOOK_SECRET
     ? { githubWebhookSecret: process.env.GITHUB_WEBHOOK_SECRET }
     : {}),
