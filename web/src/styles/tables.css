@@ -72,6 +72,10 @@ th.num {
   color: var(--critical);
   font-size: var(--text-base);
 }
+/* A badge is taller than a line of text; it does not make its row taller. */
+td .badge {
+  margin-block: -1px;
+}
 tr.selected td {
   background: var(--tint);
 }

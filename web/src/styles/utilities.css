@@ -71,10 +71,12 @@
   flex: none;
   vertical-align: -3px;
 }
+/* Top-aligned: on the baseline an inline box adds the descender's gap to its line. */
 .with-mark {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  vertical-align: top;
 }
 .sr-only {
   position: absolute;
