@@ -8,6 +8,7 @@ import type {
   SuggestedReviewer,
 } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
+import { count } from "../format.js";
 import { useAction, useLoad } from "../ui.js";
 import { OUTCOME } from "./outcome.js";
 
@@ -23,8 +24,6 @@ const REASON: Record<ReviewerReason, string> = {
   recent_reviewer: "reviews here",
   reviewed_these_paths: "reviews these paths",
 };
-
-const count = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
 
 const detail = (s: SuggestedReviewer, days: number) =>
   [

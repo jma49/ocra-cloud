@@ -1,5 +1,6 @@
 import type { SearchPullResult, SearchResultsView } from "../../../src/shared/index.js";
 import type { CommandEntry, CommandSection } from "../command-menu.js";
+import { count } from "../format.js";
 
 const pullRef = (p: SearchPullResult) =>
   `${p.repo}${p.platform === "gitlab" ? "!" : "#"}${p.number}`;
@@ -10,8 +11,6 @@ const pullEntry = (p: SearchPullResult, within: string): CommandEntry => ({
   to: p.to,
   within,
 });
-
-const count = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
 
 /** The server's results as the menu's sections, the pull request a reference named first. */
 export function resultSections(view: SearchResultsView): CommandSection[] {
