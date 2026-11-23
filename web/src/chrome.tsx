@@ -47,13 +47,14 @@ function Avatar(props: { me: Me }) {
  * The account button and the few links it shows; compact: the avatar alone, as in the rail.
  * side: where the links open, beside the rail or below a bar.
  */
+export async function signOut(): Promise<void> {
+  rememberSignedIn(false);
+  await clearCache();
+  await api("/auth/logout", { method: "POST" }).catch(() => {});
+  location.href = "/";
+}
+
 export function AccountMenu(props: { me: Me; compact?: boolean; side?: "bottom" | "right" }) {
-  const logout = async () => {
-    rememberSignedIn(false);
-    await clearCache();
-    await api("/auth/logout", { method: "POST" }).catch(() => {});
-    location.href = "/";
-  };
   const { me } = props;
   return (
     <Menu>
@@ -77,7 +78,7 @@ export function AccountMenu(props: { me: Me; compact?: boolean; side?: "bottom" 
         </MenuLinkItem>
         <MenuLinkItem href="/privacy">Data policy</MenuLinkItem>
         <MenuSeparator />
-        <MenuItem onClick={logout}>Sign out</MenuItem>
+        <MenuItem onClick={signOut}>Sign out</MenuItem>
       </MenuPopup>
     </Menu>
   );

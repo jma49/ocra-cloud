@@ -1,5 +1,5 @@
 import Flag from "lucide-react/icons/flag";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type {
   DismissReason,
@@ -10,8 +10,11 @@ import type {
 import { api, why } from "../api.js";
 import { useCached } from "../cache.js";
 import { ago } from "../format.js";
+import { useListCursor } from "../list-cursor.js";
+import { usePageCommands } from "../page-commands.js";
 import { Link } from "../router.js";
 import { EmptyState, LoadError, Loading, PageHead, Seg, useAction } from "../ui.js";
+import { findingsCommands } from "./findings-commands.js";
 
 // Every shared finding of the account, across its reviews: filter them,
 // mark them fixed, dismiss them with a reason (and remember them for the
@@ -100,6 +103,9 @@ export function decided(page: Page, ids: Set<string>, shown: StatusFilter, d: De
   return { ...page, findings, statuses };
 }
 
+const rowClass = (selected: boolean, current: boolean) =>
+  [selected && "selected", current && "is-current"].filter(Boolean).join(" ") || undefined;
+
 export function Findings(props: {
   /** Whether this server runs reviews itself, whose findings need no sharing. */
   runner?: boolean;
@@ -139,6 +145,7 @@ export function Findings(props: {
   const set = (change: Partial<Filters>) => {
     setFilters((f) => ({ ...f, ...change }));
     setSelected(new Set());
+    cursor.reset();
     setDone("");
   };
   const toggle = (id: string) =>
@@ -171,6 +178,29 @@ export function Findings(props: {
     setNote("");
     reload();
   };
+
+  const table = useRef<HTMLTableSectionElement>(null);
+  const reasonBox = useRef<HTMLSelectElement>(null);
+  const cursor = useListCursor(rows.length, table);
+  usePageCommands(
+    "These findings",
+    findingsCommands({
+      row: rows[cursor.current],
+      selected,
+      move: cursor.move,
+      toggle: (id) => {
+        toggle(id);
+        cursor.show();
+      },
+      markFixed: (ids) => void apply("fixed", ids),
+      dismiss: (ids) => {
+        setSelected(new Set(ids));
+        // The bar with the reason shows once something is selected.
+        requestAnimationFrame(() => reasonBox.current?.focus());
+      },
+      clear: () => setSelected(new Set()),
+    }),
+  );
 
   const counts = data?.statuses;
   const label = (s: FindingStatus, name: string) => (counts ? `${name} (${counts[s]})` : name);
@@ -247,6 +277,7 @@ export function Findings(props: {
             <label>
               Reason{" "}
               <select
+                ref={reasonBox}
                 className="input"
                 value={reason}
                 onChange={(e) => setReason(e.target.value as DismissReason)}
@@ -349,9 +380,13 @@ export function Findings(props: {
                   <th>Found</th>
                 </tr>
               </thead>
-              <tbody>
-                {rows.map((f) => (
-                  <tr key={f.id} className={selected.has(f.id) ? "selected" : undefined}>
+              <tbody ref={table}>
+                {rows.map((f, i) => (
+                  <tr
+                    key={f.id}
+                    data-row={i}
+                    className={rowClass(selected.has(f.id), cursor.shown && i === cursor.current)}
+                  >
                     <td>
                       <input
                         type="checkbox"

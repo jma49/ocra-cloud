@@ -87,6 +87,10 @@ export function FileDiff(props: {
   // A suggestion replaces the commented new line; null while the comment carries none.
   const [suggestion, setSuggestion] = useState<string | null>(null);
   const [folded, setFolded] = useState(file.status === "removed" || props.viewed);
+  // A tick, from the box or the page's key, folds the file.
+  useEffect(() => {
+    if (props.viewed) setFolded(true);
+  }, [props.viewed]);
   const { dir, name } = splitPath(file.path);
   const [runs, setRuns] = useState<Map<number, CodeRun[]>>(NO_RUNS);
   useEffect(() => {
@@ -118,6 +122,7 @@ export function FileDiff(props: {
     <section
       className={`card diff-file${props.viewed ? " is-viewed" : ""}`}
       id={`file-${file.path}`}
+      data-path={file.path}
       aria-label={file.path}
     >
       <div className="diff-head-row">
@@ -145,10 +150,7 @@ export function FileDiff(props: {
             type="checkbox"
             aria-label={`Viewed ${file.path}`}
             checked={props.viewed}
-            onChange={(e) => {
-              if (e.target.checked) setFolded(true);
-              props.onViewed(e.target.checked);
-            }}
+            onChange={(e) => props.onViewed(e.target.checked)}
           />
           Viewed
         </label>

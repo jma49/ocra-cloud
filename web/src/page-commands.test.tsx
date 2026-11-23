@@ -13,6 +13,11 @@ function Page(props: { commands: PageCommand[] }) {
   return <input aria-label="A field" />;
 }
 
+function Card() {
+  usePageCommands("This pull request", [{ label: "Ask ocra to review", key: "a", run: () => {} }]);
+  return <button type="button">A button</button>;
+}
+
 describe("a page's commands", () => {
   it("run on their key, but not while typing or with a modifier held", () => {
     const run = vi.fn();
@@ -49,5 +54,31 @@ describe("a page's commands", () => {
     fireEvent.keyDown(document, { key: "k", ctrlKey: true });
     await screen.findByRole("option", { name: "Inbox" });
     expect(screen.queryByRole("option", { name: /Review changes/ })).toBeNull();
+  });
+
+  it("from a page and a card on it are listed together, and Enter on a button stays the button's", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({})),
+    );
+    const open = vi.fn();
+    render(
+      <>
+        <Page commands={[{ label: "Open pull request", key: "Enter", run: open }]} />
+        <Card />
+        <CommandMenu sections={[]} />
+      </>,
+    );
+    fireEvent.keyDown(screen.getByRole("button", { name: "A button" }), { key: "Enter" });
+    expect(open).not.toHaveBeenCalled();
+    fireEvent.keyDown(document.body, { key: "Enter" });
+    expect(open).toHaveBeenCalledTimes(1);
+
+    fireEvent.keyDown(document, { key: "k", ctrlKey: true });
+    const options = await screen.findAllByRole("option");
+    expect(options.map((o) => o.textContent)).toEqual([
+      "Open pull request↵",
+      "Ask ocra to reviewa",
+    ]);
   });
 });

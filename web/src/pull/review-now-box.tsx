@@ -3,6 +3,7 @@ import type { PullReviewJobView, PullReviewNowView } from "../../../src/shared/i
 import { ApiError, api, why } from "../api.js";
 import { useLimitReached } from "../auto-review/limit-reached.js";
 import { ago } from "../format.js";
+import { usePageCommands } from "../page-commands.js";
 import { Link } from "../router.js";
 import { useAction, useLoad, usePoll } from "../ui.js";
 
@@ -42,6 +43,23 @@ export function ReviewNowBox(props: { pull: Pull; head: string }) {
   const job = data?.job ?? null;
   const active = job?.state === "queued" || job?.state === "running";
   usePoll(active, reload, POLL_MS);
+  const ofHead = job?.head === props.head ? job : null;
+  const reviewed = ofHead?.state === "done";
+  const send = async () => {
+    if (await ask.run(reviewed)) reload();
+  };
+  usePageCommands(
+    "This pull request",
+    data && !active && !ask.busy
+      ? [
+          {
+            label: reviewed ? "Ask ocra to review again" : "Ask ocra to review",
+            key: "a",
+            run: send,
+          },
+        ]
+      : [],
+  );
   // The server answers 404 for a repository this account has not enrolled.
   if (!data && error instanceof ApiError && error.status === 404) {
     return (
@@ -57,11 +75,6 @@ export function ReviewNowBox(props: { pull: Pull; head: string }) {
     );
   }
   if (!data) return null;
-  const ofHead = job?.head === props.head ? job : null;
-  const reviewed = ofHead?.state === "done";
-  const send = async () => {
-    if (await ask.run(reviewed)) reload();
-  };
   return (
     <div className="stack">
       <span className={ofHead?.state === "failed" ? "error small" : "subtle small"} role="status">

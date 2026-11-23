@@ -18,15 +18,24 @@ import Settings from "lucide-react/icons/settings";
 import SlidersHorizontal from "lucide-react/icons/sliders-horizontal";
 import Terminal from "lucide-react/icons/terminal";
 import UserRound from "lucide-react/icons/user-round";
-import { type ReactElement, type ReactNode, useEffect, useRef, useSyncExternalStore } from "react";
+import {
+  type ReactElement,
+  type ReactNode,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { Tooltip, TooltipPopup, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Me } from "./api.js";
-import { AccountMenu } from "./chrome.js";
+import { AccountMenu, signOut } from "./chrome.js";
 import { CommandMenu, type CommandSection } from "./command-menu.js";
 import { EyesMark } from "./eyes.js";
 import { QueueNav } from "./inbox/queue-nav.js";
 import { Link } from "./router.js";
 import { type Place, placeHome, placeTabs, type Route, settingsGroups } from "./routes.js";
+import { GO_TO, useGlobalKeys } from "./shortcuts/global-keys.js";
+import { ShortcutsDrawer } from "./shortcuts/shortcuts-drawer.js";
 import { DOCS } from "./site.js";
 
 // The signed-in frame: the icon rail of places on the ground, and the open
@@ -225,9 +234,15 @@ function PageBar(props: { me: Me; route: Route | undefined; path: string }) {
   );
 }
 
-function commandSections(me: Me): CommandSection[] {
+/** A place's home page answers to its "g" key, in the menu as on the page. */
+const goKey = (path: string) => {
+  const go = GO_TO.find((g) => placeHome(g.place) === path);
+  return go ? { key: `g ${go.key}` } : {};
+};
+
+function commandSections(me: Me, showShortcuts: () => void): CommandSection[] {
   const entries = (within: string, routes: { path: string; tab: string }[]) =>
-    routes.map((r) => ({ label: r.tab, to: r.path, within }));
+    routes.map((r) => ({ label: r.tab, to: r.path, within, ...goKey(r.path) }));
   return [
     ...PLACES.map((p) => ({ value: p.label, items: entries(p.label, placeTabs(p.id, me)) })),
     ...settingsGroups(me).map((g) => ({
@@ -236,8 +251,12 @@ function commandSections(me: Me): CommandSection[] {
     })),
     {
       value: "Help",
-      items: [{ label: "Documentation", to: DOCS, within: "Help", external: true }],
+      items: [
+        { label: "Keyboard shortcuts", key: "?", run: showShortcuts, within: "Help" },
+        { label: "Documentation", to: DOCS, within: "Help", external: true },
+      ],
     },
+    { value: "Account", items: [{ label: "Sign out", run: signOut, within: "Account" }] },
   ];
 }
 
@@ -248,6 +267,9 @@ export function Frame(props: {
   children: ReactNode;
 }) {
   const settings = props.route?.place === "settings";
+  const [shortcuts, setShortcuts] = useState(false);
+  const showShortcuts = () => setShortcuts(true);
+  useGlobalKeys(showShortcuts);
   return (
     <div className="frame">
       <Rail me={props.me} place={props.route?.place} />
@@ -258,7 +280,8 @@ export function Frame(props: {
           <main className="content">{props.children}</main>
         </div>
       </div>
-      <CommandMenu sections={commandSections(props.me)} />
+      <CommandMenu sections={commandSections(props.me, showShortcuts)} />
+      {shortcuts && <ShortcutsDrawer onClose={() => setShortcuts(false)} />}
     </div>
   );
 }
