@@ -27,7 +27,7 @@ function useSetupNeeded(signedOut: boolean): boolean | undefined {
   useEffect(() => {
     if (!signedOut) return;
     api<SetupState>("/setup").then(
-      (s) => setNeeded(s.needed),
+      (s) => setNeeded(s.needed === true),
       () => setNeeded(false),
     );
   }, [signedOut]);
