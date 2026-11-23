@@ -29,6 +29,8 @@ export type AutoReviewService = {
   remote?: true;
   /** Evaluates a pull request's pre-merge checks and posts them as the bot, after the answer. */
   checkPull?: (accountId: string, reviewRepoId: string, number: number) => void;
+  /** The GitHub App the checks are posted as, whose re-runs of them are taken (src/merge-checks/rerun.ts). */
+  githubAppId?: string;
 };
 
 const MAX_REVIEW_REPOS = 100;

@@ -31,7 +31,7 @@ let sent: Sent[];
 let pullTitle: string;
 beforeEach(async () => {
   s = await graphServer(dir, `merge-checks-${n++}.db`, "off", undefined, {
-    bots: { githubApi: GITHUB_COM.api },
+    bots: { githubApi: GITHUB_COM.api, githubAppId: "42" },
     tokens: bots,
     workers: 0,
   });
@@ -85,18 +85,22 @@ async function enrolledWithChecks() {
   return me;
 }
 
-async function pullEvent(action: string) {
-  const body = JSON.stringify({
+function pullEvent(action: string) {
+  return hook("pull_request", {
     action,
     number: 7,
     pull_request: { draft: false, head: { sha: C2 } },
     repository: { id: 11, full_name: "Octo/API" },
   });
+}
+
+async function hook(event: string, payload: unknown) {
+  const body = JSON.stringify(payload);
   return s.call("/api/webhooks/github", {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      "x-github-event": "pull_request",
+      "x-github-event": event,
       "x-hub-signature-256": `sha256=${await hmacHex(SECRET, body)}`,
     },
     body,
@@ -147,6 +151,27 @@ describe("pre-merge checks on an enrolled repository", () => {
       body: { status: "in_progress" },
     });
     expect(sent[1]?.body.output).not.toMatchObject({ summary: expect.stringContaining("failed") });
+    expect(await runs()).toHaveLength(1);
+  });
+
+  it("are posted again to the same check run when GitHub's Re-run asks", async () => {
+    await enrolledWithChecks();
+    await pullEvent("opened");
+    await posted();
+    expect(sent).toHaveLength(1);
+    const rerun = {
+      action: "rerequested",
+      check_run: { id: 900, name: "ocra / pre-merge", head_sha: C2, app: { id: 42 } },
+      repository: { id: 11 },
+    };
+    expect((await hook("check_run", rerun)).status).toBe(202);
+    await vi.waitFor(() => expect(sent).toHaveLength(2));
+    expect(sent[1]).toMatchObject({ method: "PATCH", url: `${API}/check-runs/900` });
+    await vi.waitFor(async () => expect((await runs())[0]?.postedDigest).toBeTruthy());
+    // Another App's run is not ours to answer.
+    await hook("check_run", { ...rerun, check_run: { ...rerun.check_run, app: { id: 43 } } });
+    await new Promise((r) => setTimeout(r, 200));
+    expect(sent).toHaveLength(2);
     expect(await runs()).toHaveLength(1);
   });
 

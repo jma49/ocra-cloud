@@ -82,7 +82,12 @@ export function startAutoReview(
   queueMicrotask(kick);
   timer.unref();
   return {
-    service: { kick, checkPull, ...(options.runnerToken ? { remote: true as const } : {}) },
+    service: {
+      kick,
+      checkPull,
+      ...(options.bots.githubAppId ? { githubAppId: options.bots.githubAppId } : {}),
+      ...(options.runnerToken ? { remote: true as const } : {}),
+    },
     stop() {
       stopped = true;
       clearInterval(timer);
