@@ -7,8 +7,8 @@ import { api, why } from "../api.js";
 import { useCached } from "../cache.js";
 import { ago } from "../format.js";
 import { useCollapsed } from "../inbox/collapsed.js";
+import { inboxCommands } from "../inbox/commands.js";
 import { KeyHints } from "../inbox/key-hints.js";
-import { useListKeys } from "../inbox/keys.js";
 import { rememberQueue } from "../inbox/queue.js";
 import { PullRow } from "../inbox/row.js";
 import { SectionMenu } from "../inbox/section-menu.js";
@@ -25,6 +25,8 @@ import {
 import { useUnreadMarks } from "../inbox/unread.js";
 import { ViewDrawer } from "../inbox/view-drawer.js";
 import { forgetSharedView, sharedView, usePullViews, type ViewDraft } from "../inbox/views.js";
+import { useListCursor } from "../list-cursor.js";
+import { usePageCommands } from "../page-commands.js";
 import { platformsText } from "../platform-names.js";
 import { pullPath } from "../pull/path.js";
 import { Link, navigate } from "../router.js";
@@ -47,7 +49,6 @@ export function Inbox() {
   const views = usePullViews();
   const marks = useUnreadMarks(change);
   const [filters, setFilters] = useState<Filters>({ text: "", repo: "" });
-  const [at, setAt] = useState(0);
   const [editing, setEditing] = useState<Editing | null>(null);
   const [offered, setOffered] = useState(() => sharedView(location.search));
   const [failed, setFailed] = useState<unknown>(null);
@@ -61,7 +62,7 @@ export function Inbox() {
     [rows, filters, views.views],
   );
   const visible = sections.flatMap((s) => (collapsed.has(s.key) ? [] : s.rows));
-  const current = Math.min(at, Math.max(visible.length - 1, 0));
+  const cursor = useListCursor(visible.length, list, true);
   useTitleCount(useMemo(() => reviewAsked(rows), [rows]));
   const hidden = views.views.filter((v) => v.hidden);
   const unread = useMemo(() => rows.filter((r) => r.unread), [rows]);
@@ -74,39 +75,26 @@ export function Inbox() {
     rememberQueue(visible.map((r) => pullPath(r.platform, r.repo, r.number)));
   });
 
-  useEffect(() => {
-    list.current
-      ?.querySelector<HTMLElement>(`[data-row="${current}"]`)
-      ?.scrollIntoView?.({ block: "nearest" });
-  }, [current]);
-
-  useListKeys({
-    move: (step) =>
-      setAt((a) => {
-        const last = Math.max(visible.length - 1, 0);
-        return Math.max(0, Math.min(last, Math.min(a, last) + step));
-      }),
-    open: () => {
-      const r = visible[current];
-      if (!r) return;
-      marks.opened(r);
-      navigate(pullPath(r.platform, r.repo, r.number));
-    },
-    openOnPlatform: () => {
-      const r = visible[current];
-      if (r) window.open(r.url, "_blank", "noopener,noreferrer");
-    },
+  const open = (r = visible[cursor.current]) => {
+    if (!r) return;
+    marks.opened(r);
+    navigate(pullPath(r.platform, r.repo, r.number));
+  };
+  const commands = inboxCommands({
+    row: visible[cursor.current],
+    move: cursor.move,
+    open,
     find: () => finder.current?.focus(),
     refresh: reload,
-    toggleRead: () => {
-      const r = visible[current];
-      if (r) marks.mark([r], r.unread);
-    },
+    toggleRead: (r) => marks.mark([r], r.unread),
+    markAllRead: unread.length > 0 ? () => marks.mark(unread, true) : null,
+    newSection: () => setEditing({ draft: BLANK }),
   });
+  usePageCommands("This inbox", commands);
 
   const filter = (change: Partial<Filters>) => {
     setFilters((f) => ({ ...f, ...change }));
-    setAt(0);
+    cursor.reset();
   };
   const filtering = Boolean(filters.text || filters.repo);
   const dismissOffer = () => {
@@ -257,7 +245,7 @@ export function Inbox() {
                       key={`${r.host}:${r.id}`}
                       r={r}
                       i={i}
-                      current={i === current}
+                      current={i === cursor.current}
                       run={stackRun(s.rows, at)}
                       onOpen={() => marks.opened(r)}
                       onMark={(read) => marks.mark([r], read)}
@@ -268,7 +256,7 @@ export function Inbox() {
           ))}
         </div>
       )}
-      {data && views.ready && <KeyHints />}
+      {data && views.ready && <KeyHints commands={commands} />}
       {hidden.length > 0 && (
         <p className="inbox-hidden muted small">
           Hidden:

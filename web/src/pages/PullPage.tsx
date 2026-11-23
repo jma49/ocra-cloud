@@ -40,6 +40,7 @@ import { StackPanel } from "../pull/stack.js";
 import { nextStep, PullStatus } from "../pull/status.js";
 import { ThreadsPanel } from "../pull/threads.js";
 import { UpdateBranch } from "../pull/update-branch.js";
+import { useViewed } from "../pull/viewed.js";
 import { setPageTitle } from "../title.js";
 import { LoadError, Loading, PageHead, useLoad } from "../ui.js";
 
@@ -47,10 +48,6 @@ import { LoadError, Loading, PageHead, useLoad } from "../ui.js";
 // platform as the signed-in user, and their review, comment and merge sent
 // back as them. Writes name the head the page read, so a pull request that
 // moved since is refused rather than reviewed or merged blind.
-
-type Answer = { outcome: PullActionOutcome };
-const post = (path: string, body: unknown) =>
-  api<Answer>(`/pulls/${path}`, { method: "POST", body: JSON.stringify(body) });
 
 export function PullPage(props: {
   platform: string;
@@ -82,11 +79,6 @@ export function PullPage(props: {
   const fixes = useFixes(head ? `/pulls/fixes?${query}&head=${head}` : null);
   const found = usePullFindings(head ? `/pulls/findings?${query}&head=${head}` : null);
   const queue = useLoad(() => api<MergeQueueView>(`/pulls/queue?${query}`), [query.toString()]);
-  // Ticks sent from this page, over what the page read; a new head reads them afresh.
-  const [ticked, setTicked] = useState<{ head: string; paths: ReadonlyMap<string, boolean> }>({
-    head: "",
-    paths: new Map(),
-  });
   const [pending, setPending] = useState<LineComment[]>([]);
   const [said, setSaid] = useState<{ what: string; outcome: PullActionOutcome } | null>(null);
   const [reviewing, setReviewing] = useState(false);
@@ -109,9 +101,16 @@ export function PullPage(props: {
     if (data?.title) setPageTitle(`#${props.number} ${data.title}`);
   }, [data?.title, props.number]);
   const beside = useBeside(pullPath(platform, props.repo, number));
+  const viewed = useViewed(ref, data, (o) => setSaid({ what: "Viewed", outcome: o }));
   usePageCommands(
     "This pull request",
-    pullCommands({ data, code, review: () => setReviewing(true), beside }),
+    pullCommands({
+      data,
+      code,
+      review: () => setReviewing(true),
+      toggleViewed: viewed.toggle,
+      beside,
+    }),
   );
   if (error && !data) {
     return (
@@ -136,27 +135,8 @@ export function PullPage(props: {
     if (outcome === "done" && (what === "Fix" || what === "Merge")) reload();
   };
   const settled = data.state === "merged" || data.state === "closed";
-  const sent = ticked.head === data.head ? ticked.paths : new Map<string, boolean>();
-  const read = new Map(data.files.map((f) => [f.path, f.viewed === true]));
-  const isViewed = (f: { path: string }) => sent.get(f.path) ?? read.get(f.path) === true;
   const narrowed = sinceFiles(since);
   const shown = narrowed ?? data.files;
-  const markViewed = async (path: string, viewed: boolean) => {
-    const head = data.head;
-    // A path is a map key, never an object's: it may be any name, `__proto__` included.
-    const withTick = (keep: boolean) =>
-      setTicked((t) => {
-        const paths = new Map(t.head === head ? t.paths : []);
-        if (keep) paths.set(path, viewed);
-        else paths.delete(path);
-        return { head, paths };
-      });
-    withTick(true);
-    const r = await post("viewed", { ...ref, head, paths: [path], viewed }).catch(() => undefined);
-    if (r?.outcome === "done") return;
-    withTick(false);
-    if (r) done("Viewed", r.outcome);
-  };
   const step = nextStep(readiness, data.mergeMethods.length > 0 && !queue.data?.enabled);
   return (
     <>
@@ -280,7 +260,7 @@ export function PullPage(props: {
       </div>
       <div className="pull-frame" ref={code}>
         <aside className="pull-side">
-          <FileList files={shown} isViewed={isViewed} />
+          <FileList files={shown} isViewed={(f) => viewed.isViewed(f.path)} />
         </aside>
         <div className="pull-main">
           <SinceBar since={since} />
@@ -289,8 +269,8 @@ export function PullPage(props: {
               key={`${since.picked ?? ""}:${f.path}`}
               readOnly={narrowed !== null}
               file={f}
-              viewed={isViewed(f)}
-              onViewed={(v) => markViewed(f.path, v)}
+              viewed={viewed.isViewed(f.path)}
+              onViewed={(v) => viewed.mark(f.path, v)}
               pending={pending}
               onComment={(c) => setPending([...pending, c])}
               onDrop={(c) => setPending(pending.filter((x) => x !== c))}

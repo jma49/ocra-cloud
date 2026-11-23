@@ -5,7 +5,7 @@
   inset: 0;
   background: var(--scrim);
   z-index: 40;
-  animation: fade 120ms ease-out;
+  animation: fade 120ms var(--e-enter);
 }
 .drawer {
   position: fixed;
@@ -19,7 +19,7 @@
   display: flex;
   flex-direction: column;
   box-shadow: var(--float);
-  animation: slide 160ms ease-out;
+  animation: slide 160ms var(--e-enter);
 }
 .drawer-head {
   display: flex;
@@ -183,4 +183,8 @@
   .tiles {
     grid-template-columns: 1fr;
   }
+}
+/* Focus rests on the panel only until its first field takes it; nothing to ring. */
+.drawer:focus {
+  outline: none;
 }

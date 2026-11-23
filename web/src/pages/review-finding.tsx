@@ -82,6 +82,12 @@ export function FindingEvent(props: {
   f: Finding;
   impact: Impact;
   focused: boolean;
+  /** The finding the page's keys act on. */
+  current: boolean;
+  row: number;
+  /** Whether its details show. */
+  open: boolean;
+  onToggle: () => void;
   onImpact: () => void;
   /** The review names its pull request, so a fix can be committed to it. */
   canFix: boolean;
@@ -91,7 +97,7 @@ export function FindingEvent(props: {
   const { f } = props;
   const reached = props.impact.state === "ready" ? symbolsOf(props.impact.view.symbols, f) : [];
   const uses = reached.reduce((n, s) => n + s.useCount, 0);
-  const [open, setOpen] = useState(false);
+  const { open } = props;
   const [reason, setReason] = useState("");
   const [state, setState] = useState<"" | "saving" | "saved" | "error">("");
   const remember = async () => {
@@ -112,7 +118,10 @@ export function FindingEvent(props: {
         ? `L${f.lineStart}–${f.lineEnd}`
         : `L${f.lineStart}`;
   return (
-    <li className={`event finding${props.focused ? " is-focused" : ""}`}>
+    <li
+      className={`event finding${props.focused ? " is-focused" : ""}${props.current ? " is-current" : ""}`}
+      data-row={props.row}
+    >
       <span className={`event-mark sev-${f.severity}`} aria-hidden="true" />
       <div className="event-body">
         <div className="event-meta">
@@ -139,7 +148,7 @@ export function FindingEvent(props: {
           )}
         </div>
         <div className="event-actions">
-          <Button type="button" variant="outline" size="sm" onClick={() => setOpen(!open)}>
+          <Button type="button" variant="outline" size="sm" onClick={props.onToggle}>
             {open ? "Hide" : "Details"}
           </Button>
           {reached[0] && (

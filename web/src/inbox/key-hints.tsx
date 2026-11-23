@@ -1,25 +1,17 @@
-import { Kbd } from "@/components/ui/kbd";
+import type { PageCommand } from "../page-commands.js";
+import { KeyCaps } from "../shortcuts/keys.js";
 
-// The inbox's keys (`keys.ts`), said once under the list instead of in the page's opening line.
+// The list's keys, said once under it from the same commands the keys run,
+// instead of in the page's opening line.
 
-const HINTS = [
-  { keys: ["j", "k"], does: "move" },
-  { keys: ["Enter"], does: "open" },
-  { keys: ["o"], does: "open on the platform" },
-  { keys: ["u"], does: "mark read or unread" },
-  { keys: ["/"], does: "find" },
-  { keys: ["r"], does: "refresh" },
-] as const;
-
-export function KeyHints() {
+export function KeyHints(props: { commands: readonly PageCommand[] }) {
+  const keyed = props.commands.filter((c) => c.key);
   return (
     <ul className="key-hints" aria-label="Keyboard shortcuts">
-      {HINTS.map((h) => (
-        <li key={h.does}>
-          {h.keys.map((k) => (
-            <Kbd key={k}>{k}</Kbd>
-          ))}
-          <span>{h.does}</span>
+      {keyed.map((c) => (
+        <li key={c.label}>
+          <KeyCaps keys={c.key ?? ""} />
+          <span>{c.label.toLowerCase()}</span>
         </li>
       ))}
     </ul>

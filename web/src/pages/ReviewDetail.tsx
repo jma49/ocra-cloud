@@ -1,6 +1,6 @@
 import Flag from "lucide-react/icons/flag";
 import SearchX from "lucide-react/icons/search-x";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type {
   LinkedTaskView,
@@ -14,10 +14,13 @@ import { useFixes } from "../fixes/use-fixes.js";
 import { ago, count, sourceLabel, time } from "../format.js";
 import { type FocusedFinding, ImpactRail } from "../impact/rail.js";
 import { useImpact } from "../impact/use-impact.js";
+import { useListCursor } from "../list-cursor.js";
+import { usePageCommands } from "../page-commands.js";
 import { pullPath } from "../pull/path.js";
 import { ReviewChat } from "../review-chat/chat.js";
 import { Link } from "../router.js";
 import { EmptyState, LoadError, Loading, PageHead, Seg } from "../ui.js";
+import { reviewCommands } from "./review-commands.js";
 import { type Finding, FindingEvent } from "./review-finding.js";
 import { LinkedTasks } from "./review-linked-tasks.js";
 import { Walkthrough } from "./review-walkthrough.js";
@@ -77,6 +80,29 @@ export function ReviewDetail(props: { id: string; graphs: boolean }) {
         .filter((f) => severity === "all" || f.severity === severity)
         .sort((a, b) => RANK[a.severity] - RANK[b.severity] || a.file.localeCompare(b.file)),
     [data, severity],
+  );
+
+  const timeline = useRef<HTMLOListElement>(null);
+  const cursor = useListCursor(shown.length, timeline);
+  const [opened, setOpened] = useState<ReadonlySet<string>>(new Set());
+  const toggle = (id: string) =>
+    setOpened((was) => {
+      const now = new Set(was);
+      if (!now.delete(id)) now.add(id);
+      return now;
+    });
+  usePageCommands(
+    "This review",
+    reviewCommands({
+      findings: shown.length,
+      move: cursor.move,
+      toggleDetails: () => {
+        const f = shown[cursor.current];
+        if (f) toggle(f.id);
+        cursor.show();
+      },
+      pull: pull ? pullPath(pull.platform, pull.repo, pull.number) : null,
+    }),
   );
 
   if (error && !(error instanceof ApiError && error.status === 404)) {
@@ -151,7 +177,7 @@ export function ReviewDetail(props: { id: string; graphs: boolean }) {
             />
           )}
         </div>
-        <ol className="timeline">
+        <ol className="timeline" ref={timeline}>
           <li className="event">
             <span className="event-mark" aria-hidden="true" />
             <div className="event-body">
@@ -164,10 +190,14 @@ export function ReviewDetail(props: { id: string; graphs: boolean }) {
               </p>
             </div>
           </li>
-          {shown.map((f) => (
+          {shown.map((f, i) => (
             <FindingEvent
               key={f.id}
               f={f}
+              row={i}
+              current={cursor.shown && i === cursor.current}
+              open={opened.has(f.id)}
+              onToggle={() => toggle(f.id)}
               impact={impact}
               focused={focused?.id === f.id}
               onImpact={() => setFocused(focused?.id === f.id ? null : f)}
