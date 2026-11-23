@@ -137,7 +137,7 @@ export function StackPanel(props: {
       ? stackMergeStop(under)
       : null;
   return (
-    <section className="card card-pad stack" aria-label="Stack">
+    <section className="card card-pad stack pull-stack-card" aria-label="Stack">
       <div className="pull-stack-head">
         <h2 className="card-title">Stack</h2>
         <span className="subtle small">
