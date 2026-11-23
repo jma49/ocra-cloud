@@ -68,6 +68,7 @@ export const KIND_GROUPS: { label: string; kinds: [AuditKind, string][] }[] = [
       ["auto_review.automatic_changed", "Automatic review switched"],
       ["auto_review.learn_changed", "Learning from declined findings changed"],
       ["auto_review.restack_changed", "Restacking after merges switched"],
+      ["auto_review.mend_changed", "Fixes by ocra changed"],
       ["auto_review.unenrolled", "Repository unenrolled"],
       ["auto_review.renamed", "Repository renamed"],
       ["auto_review.paused", "Repository paused"],
@@ -97,6 +98,8 @@ export const KIND_GROUPS: { label: string; kinds: [AuditKind, string][] }[] = [
       ["pull.fix_applied", "Fix applied"],
       ["pull.fix_requested", "Fix asked of ocra"],
       ["pull.fix_answered", "Fix answered by ocra"],
+      ["pull.mend_requested", "Fixes asked of ocra"],
+      ["pull.mend_committed", "Fixes committed by ocra"],
       ["pull.reviewers_changed", "Reviewers changed"],
       ["pull.assignees_changed", "Assignees changed"],
       ["pull.branch_updated", "Branch updated"],
@@ -138,6 +141,8 @@ const where = (client: string | undefined) => (client === "cli" ? "the terminal"
 const named = (value: string | undefined, fallback: string) => value ?? fallback;
 const noted = (value: string | null | undefined, open = " (", close = ")") =>
   value ? `${open}${value}${close}` : "";
+const counted = (n: number | undefined, one: string, many = `${one}s`) =>
+  n === undefined ? many : `${n} ${n === 1 ? one : many}`;
 const checked = (check: string | undefined) =>
   noted(check && (KEY_CHECK[check] ?? check), ": ", "");
 const listed = (keys: string[] | undefined) => (keys?.length ? `: ${keys.join(", ")}` : "");
@@ -240,6 +245,10 @@ export function describe(e: AuditEventView): string {
       return `Set learning from declined findings${noted(e.detail.learn, " to ", "")} for ${named(e.detail.repo, "a repository")}`;
     case "auto_review.restack_changed":
       return `Turned restacking after merges ${e.detail.restack === false ? "off" : "on"} for ${named(e.detail.repo, "a repository")}`;
+    case "auto_review.mend_changed":
+      return e.detail.mend === "commit"
+        ? `Let ocra commit the fixes asked of it in ${named(e.detail.repo, "a repository")}`
+        : `Set the fixes asked of ocra to proposals in ${named(e.detail.repo, "a repository")}`;
     case "auto_review.unenrolled":
       return `Stopped automatic review of ${named(e.detail.repo, "a repository")}`;
     case "auto_review.renamed":
@@ -284,6 +293,10 @@ export function describe(e: AuditEventView): string {
       return e.detail.outcome === "proposed"
         ? `ocra proposed a fix on ${named(e.detail.pull, "a pull request")}`
         : `ocra wrote no fix on ${named(e.detail.pull, "a pull request")}${noted(e.detail.outcome)}`;
+    case "pull.mend_requested":
+      return `Asked ocra to fix ${counted(e.detail.findings, "finding")} on ${named(e.detail.pull, "a pull request")}`;
+    case "pull.mend_committed":
+      return `ocra committed ${counted(e.detail.fixed, "fix", "fixes")} to ${named(e.detail.pull, "a pull request")}${noted(e.detail.commit?.slice(0, 7))}`;
     case "pull.reviewers_changed":
       return `Changed the reviewers of ${named(e.detail.pull, "a pull request")}${people(e.detail)}`;
     case "pull.assignees_changed":

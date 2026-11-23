@@ -28,6 +28,7 @@ import { fixRoute } from "./fix-routes.js";
 import { generateRoute } from "./generate.js";
 import { groupRoute } from "./group-routes.js";
 import { enrolledGitlabHook, gitlabHookRoute, removeEnrolledHook } from "./hook-routes.js";
+import { mendRoute } from "./mend-routes.js";
 import { pullCommandRoute } from "./pull-command-routes.js";
 import { repoTokenRoute } from "./repo-token-routes.js";
 import { restackRoute } from "./restack-routes.js";
@@ -71,6 +72,7 @@ const repoView = (r: Row<"reviewRepos">, latest: ReviewJobSummary | undefined) =
     automatic: r.automatic,
     learn: r.learn,
     restack: r.restack,
+    mend: r.mend,
     hasAccessToken: !!r.accessTokenCiphertext,
     accessTokenBot: r.accessTokenCiphertext ? r.accessTokenBot : null,
     webhookManaged: r.webhookId !== null,
@@ -98,6 +100,7 @@ export function autoReviewRoute(service: AutoReviewService) {
   route.route("/", enrollRoute(repoView));
   route.route("/", groupRoute());
   route.route("/", restackRoute());
+  route.route("/", mendRoute(service));
 
   route.get("/repos", requireSession(), async (c) => {
     const [repos, latest] = await Promise.all([

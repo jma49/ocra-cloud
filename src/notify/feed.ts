@@ -144,12 +144,31 @@ export function fixNotice(
   };
 }
 
+/** A round of a pull request's fix loop that committed fixes: it opens the pull request. */
+export function mendNotice(
+  round: { id: string; commit: string; fixed: number; finishedAt: Date },
+  repo: Place,
+  number: number,
+): FeedNotice {
+  return {
+    eventKey: `mend:${round.id}@${round.commit}`,
+    kind: "fix_finished",
+    title: round.fixed === 1 ? "ocra committed a fix" : `ocra committed ${round.fixed} fixes`,
+    subtitle: `${plain(repo.fullName)}#${number} · ${round.commit.slice(0, 7)}`,
+    link: pullPath(repo.platform, repo.fullName, number),
+    repo: repo.fullName,
+    number,
+    createdAt: round.finishedAt,
+  };
+}
+
 const JOB_NOUN = {
   review: "review",
   reply: "answer to a comment",
   generate: "draft",
   learn: "learning run",
   fix: "fix",
+  mend: "fix",
 } as const;
 
 /** A hosted job that gave up, once per time it did. */
@@ -175,6 +194,7 @@ const JOB_TABLE = {
   generate: "generateJobs",
   learn: "learnJobs",
   fix: "fixJobs",
+  mend: "mendJobs",
 } as const;
 
 /** Keeps a notice of the hosted job when it has just given up (failed, at now); never throws. */

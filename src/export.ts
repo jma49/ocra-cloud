@@ -69,6 +69,8 @@ export const EXPORTED = {
   restackJobs: "restackJobs",
   fixJobs: "fixJobs",
   learnJobs: "learnJobs",
+  mendJobs: "mendJobs",
+  mendItems: "mendItems",
   pullCommands: "pullCommands",
   pausedPulls: "pausedPulls",
   automationRules: "automationRules",

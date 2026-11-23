@@ -3,6 +3,11 @@ import {
   FIX_REASONS,
   GENERATE_KINDS,
   GRAPH_BUILD_STATES,
+  MEND_ITEM_OUTCOMES,
+  MEND_ITEM_REASONS,
+  MEND_LEVELS,
+  MEND_OUTCOMES,
+  type MendState,
   REVIEW_SOURCES,
   RISK_TIERS,
   RUNTIMES,
@@ -34,6 +39,7 @@ import {
   COMMENT_COMMAND_OUTCOMES,
   COMMENT_COMMANDS,
   DEFAULT_LEARN_MODE,
+  DEFAULT_MEND_LEVEL,
   DISMISS_REASONS,
   FEED_KINDS,
   FINDING_STATUSES,
@@ -883,6 +889,11 @@ export const reviewRepos = sqliteTable(
      * one that merged (src/stack-merge/restack.ts); off, it only moves their base.
      */
     restack: integer("restack", { mode: "boolean" }).notNull().default(false),
+    /**
+     * How far a fix asked of ocra goes here (src/auto-review/mend-work.ts):
+     * proposed for a person to commit, or committed to the branch by the bot.
+     */
+    mend: text("mend", { enum: MEND_LEVELS }).notNull().default(DEFAULT_MEND_LEVEL),
   },
   (t) => [
     uniqueIndex("review_repos_platform_repo").on(t.platform, t.host, t.platformRepoId),
@@ -1615,6 +1626,70 @@ export const learnJobs = sqliteTable(
   ],
 );
 
+// The fix loop of a pull request of an enrolled repository (ADR-0078,
+// src/db/mend-jobs.ts): one row per pull request, queued again by each
+// finding a person asks ocra to fix, as learn_jobs is by each thread. Each
+// run is one round of `ocra mend` in the runner over the findings that wait
+// (mend_items); `loop` is what that round printed for the next one.
+export const mendJobs = sqliteTable(
+  "mend_jobs",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    reviewRepoId: text("review_repo_id")
+      .notNull()
+      .references(() => reviewRepos.id, { onDelete: "cascade" }),
+    number: integer("number").notNull(),
+    state: text("state", { enum: REVIEW_JOB_STATES }).notNull().default("queued"),
+    again: integer("again", { mode: "boolean" }).notNull().default(false),
+    attempts: integer("attempts").notNull().default(0),
+    notBefore: integer("not_before", { mode: "timestamp_ms" }),
+    leaseUntil: integer("lease_until", { mode: "timestamp_ms" }),
+    error: text("error"),
+    /** How its last round ended, and the commit that round made. */
+    outcome: text("outcome", { enum: MEND_OUTCOMES }),
+    commitSha: text("commit_sha"),
+    /** The contract's mendStateSchema: attempts per finding, rounds and spend so far. */
+    loop: text("loop", { mode: "json" }).$type<MendState>(),
+    finishedAt: integer("finished_at", { mode: "timestamp_ms" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("mend_jobs_pull").on(t.reviewRepoId, t.number),
+    index("mend_jobs_state").on(t.state, t.createdAt),
+    index("mend_jobs_account_repo").on(t.accountId, t.reviewRepoId, t.number),
+  ],
+);
+
+// A finding a person asked ocra to fix, in its pull request's loop: one per
+// finding, by the unique index, so a second click answers the first. It
+// waits while `outcome` is null; a round of the loop then says what became
+// of it, and `commitSha` names the commit that fixed it.
+export const mendItems = sqliteTable(
+  "mend_items",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    jobId: text("job_id")
+      .notNull()
+      .references(() => mendJobs.id, { onDelete: "cascade" }),
+    findingId: text("finding_id")
+      .notNull()
+      .references(() => findings.id, { onDelete: "cascade" }),
+    fingerprint: text("fingerprint").notNull(),
+    outcome: text("outcome", { enum: MEND_ITEM_OUTCOMES }),
+    reason: text("reason", { enum: MEND_ITEM_REASONS }),
+    commitSha: text("commit_sha"),
+    finishedAt: integer("finished_at", { mode: "timestamp_ms" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("mend_items_account_finding").on(t.accountId, t.findingId),
+    index("mend_items_job").on(t.jobId, t.createdAt),
+    index("mend_items_finding").on(t.findingId),
+  ],
+);
+
 // A comment that is an @ocra command on an enrolled repository's pull
 // request (src/auto-review/commands.ts), one per comment: a webhook retried
 // or delivered twice runs it once.
@@ -2110,6 +2185,8 @@ export const accountTables = {
   restackJobs,
   fixJobs,
   learnJobs,
+  mendJobs,
+  mendItems,
   pullCommands,
   pausedPulls,
   automationRules,

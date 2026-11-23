@@ -193,6 +193,7 @@ describe("retention", () => {
       "generateJobs",
       "learnJobs",
       "restackJobs",
+      "mendJobs",
     ] as const) {
       const job = (id: string, state: "queued" | "running" | "done" | "failed", days: number) =>
         d.insert(table, {
@@ -543,6 +544,8 @@ describe("export and deletion", () => {
         "generateJobs",
         "restackJobs",
         "fixJobs",
+        "mendJobs",
+        "mendItems",
         "learnJobs",
         "pullCommands",
         "pausedPulls",
@@ -563,6 +566,12 @@ describe("export and deletion", () => {
       ...rows.fixJobs("x-fixJobs"),
       findingId: "x-findings",
       reviewRepoId: "x-reviewRepos",
+    });
+    await d.insert("mendJobs", { ...rows.mendJobs("x-mendJobs"), reviewRepoId: "x-reviewRepos" });
+    await d.insert("mendItems", {
+      ...rows.mendItems("x-mendItems"),
+      jobId: "x-mendJobs",
+      findingId: "x-findings",
     });
     await d.insert("stackMergeLayers", {
       ...rows.stackMergeLayers("x-stackMergeLayers"),

@@ -50,7 +50,7 @@ const jobView = (j: Row<"fixJobs">) =>
   }) satisfies FixJobView;
 
 /** The finding's review's pull request, and the enrolled repository it is in; undefined for any other. */
-async function enrolledPull(c: Context<AppEnv>, finding: Row<"findings">) {
+export async function enrolledPull(c: Context<AppEnv>, finding: Row<"findings">) {
   const review = await c.var.data.get("reviews", finding.reviewId);
   const reviewed = review && pullOfReview(review);
   const on = reviewed && pullOnPlatform(platformsOf(c.env, c.req.url), reviewed);

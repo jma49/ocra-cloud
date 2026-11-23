@@ -8,6 +8,7 @@ import {
   graphBuilds,
   inboundEvents,
   learnJobs,
+  mendJobs,
   mergeIntents,
   notifyDeliveries,
   replyJobs,
@@ -67,6 +68,7 @@ const QUEUES: Record<string, QueueTable> = {
   learn: learnJobs,
   restack: restackJobs,
   fix: fixJobs,
+  mend: mendJobs,
   graph: graphBuilds,
 };
 

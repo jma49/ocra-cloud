@@ -4,6 +4,7 @@ import { claimFix } from "../db/fix-jobs.js";
 import { claimGenerate } from "../db/generate-jobs.js";
 import { JOB_ATTEMPTS } from "../db/job-recovery.js";
 import { claimLearn } from "../db/learn-jobs.js";
+import { claimMend } from "../db/mend-jobs.js";
 import { claimReply } from "../db/reply-jobs.js";
 import { claimJob } from "../db/review-jobs.js";
 import { type Row, type Scoped, scoped } from "../db/scoped.js";
@@ -30,9 +31,11 @@ import { spendOf } from "../spend.js";
 import { nextUtcDay, utcDay } from "../time.js";
 import { depthRun } from "./depths.js";
 import { readHostedConfig, tightenedBy, underServer } from "./hosted-config.js";
+import { mendInput } from "./mend-round.js";
 
 // The server's half of a hosted job (ADR-0046, 4): claiming the next queued
 // review, answer to an @ocra comment, request for tests or docstrings,
+// round of a pull request's fix loop (./mend-work.ts),
 // pull request whose declined findings become learnings, or request for a
 // fix of a stored finding (./fix-work.ts), giving its run
 // what it needs (the bot's credential, a CLI session of the enrolling
@@ -40,14 +43,14 @@ import { readHostedConfig, tightenedBy, underServer } from "./hosted-config.js";
 // machine's half (src/node/review-runner.ts), in this process or on a
 // remote runner (./runner-api.ts).
 
-export const WORK_KINDS = ["review", "reply", "generate", "learn", "fix"] as const;
+export const WORK_KINDS = ["review", "reply", "generate", "learn", "fix", "mend"] as const;
 export type WorkKind = (typeof WORK_KINDS)[number];
 /**
  * Kinds whose run answers in one line of JSON on stdout, which the server
  * reads with the kind's schema (./answers.ts); a runner is given one only
  * when its claim names the kind.
  */
-export const ANSWERED_KINDS = ["fix"] as const satisfies readonly WorkKind[];
+export const ANSWERED_KINDS = ["fix", "mend"] as const satisfies readonly WorkKind[];
 export type AnsweredKind = (typeof ANSWERED_KINDS)[number];
 
 /** Why a run ended without its result; the last three are the machine's to report. */
@@ -74,6 +77,8 @@ const GENERATE_LEASE_MS = 20 * 60_000;
 const LEARN_LEASE_MS = 10 * 60_000;
 /** One fixer model call, a check of what it wrote, and no commit. */
 const FIX_LEASE_MS = 15 * 60_000;
+/** A round's few fixer and verifier calls, a fixer task at most per finding, and one commit. */
+const MEND_LEASE_MS = 30 * 60_000;
 /** Declined findings drafted in one run: each is a model call of the account's. */
 const MAX_LEARN_DRAFTS = 10;
 const RETRY_AFTER_MS = 5 * 60_000;
@@ -108,9 +113,16 @@ export type Assignment = WorkRef & {
   graph?: { repoId: string; pull: number };
   /**
    * An answered kind's run: `input`, when given, is written to a file the
-   * CLI is given with `flag`, and the last line the CLI prints is the answer.
+   * CLI is given with `flag`, as each of `more` is, and the last line the
+   * CLI prints is the answer.
    */
-  answered?: { flag?: string; input?: unknown };
+  answered?: AnsweredRun;
+};
+
+export type AnsweredRun = {
+  flag?: string;
+  input?: unknown;
+  more?: { flag: string; input: unknown }[];
 };
 
 export type WorkSource = {
@@ -148,7 +160,7 @@ type Command = {
    */
   depth?: true;
   /** An answered kind's input (Assignment's `answered`); undefined when what it needs is gone. */
-  answered?: (data: Scoped) => Promise<{ flag?: string; input?: unknown } | undefined>;
+  answered?: (data: Scoped) => Promise<AnsweredRun | undefined>;
 };
 
 type ClaimedWork = Claimed & { attempts: number; leaseUntil: Date };
@@ -224,6 +236,21 @@ async function claim(
       }
     );
   }
+  if (kind === "mend") {
+    const claimed = await claimMend(source.db, now, MEND_LEASE_MS, source.dailyCalls);
+    return (
+      claimed && {
+        claimed,
+        command: {
+          // A round of the pull request's fix loop (./mend-round.ts gives it its input).
+          args: (pull) => ["mend", ...pull, "--level", "commit", "--json"],
+          // 3: the head moved under the round, or the bot cannot write to the branch; the answer says which.
+          ok: [0, 3],
+          access: "commit",
+        },
+      }
+    );
+  }
   const claimed = await claimLearn(source.db, now, LEARN_LEASE_MS, source.dailyCalls);
   return (
     claimed && {
@@ -270,7 +297,12 @@ export async function assign(
     await settle(source, ref, !repo ? "repo_gone" : !platform ? "platform_gone" : "no_bot", now());
     return "refused";
   }
-  const answered = command.answered && (await command.answered(data));
+  const mend = kind === "mend" ? await mendInput(data, claimed.id, repo) : undefined;
+  if (typeof mend === "string") {
+    await data.mends.skip(claimed.id, claimed.attempts, mend, now());
+    return "refused";
+  }
+  const answered = mend ?? (command.answered && (await command.answered(data)));
   if (command.answered && !answered) {
     await settle(source, ref, "input_gone", now());
     return "refused";
@@ -310,7 +342,7 @@ export async function assign(
   // Direct stops at once; the account's saved runtime, below this file, wins.
   const runtime = saved?.runtime ? {} : { runtime: "direct" as const };
   const maxCostUsd =
-    kind === "review" || kind === "fix"
+    kind === "review" || kind === "fix" || kind === "mend"
       ? await reviewSpendCap(data, saved?.settings?.maxCostUsd, now())
       : undefined;
   const pull =
@@ -428,6 +460,11 @@ export async function settle(
       finish: (id: string, attempts: number, at: Date) =>
         data.fixes.release(id, attempts, "no_answer", null, at),
       release: data.fixes.release,
+    },
+    mend: {
+      finish: (id: string, attempts: number, at: Date) =>
+        data.mends.release(id, attempts, "no_answer", null, at),
+      release: data.mends.release,
     },
   }[ref.kind];
   // A run the limit stopped before any task finished exits as failed: the limit is still why.
