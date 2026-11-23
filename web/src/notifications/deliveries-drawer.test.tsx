@@ -77,7 +77,7 @@ describe("a webhook channel", () => {
       ],
     );
     render(<Notifications platforms={["github"]} />);
-    fireEvent.click(await screen.findByRole("button", { name: "Deliveries to Deploy bot" }));
+    fireEvent.click(await screen.findByRole("button", { name: /deliveries to Deploy bot$/ }));
     const list = await screen.findByRole("region", { name: "Recent deliveries" });
     const rows = within(list).getAllByRole("row").slice(1);
     expect(rows.map((r) => r.textContent)).toEqual([
@@ -90,7 +90,7 @@ describe("a webhook channel", () => {
   it("replaces its secret only after a second press, and shows the new one once with Copy", async () => {
     const { sent, writeText } = serve([channel()], []);
     render(<Notifications platforms={["github"]} />);
-    fireEvent.click(await screen.findByRole("button", { name: "Deliveries to Deploy bot" }));
+    fireEvent.click(await screen.findByRole("button", { name: /deliveries to Deploy bot$/ }));
     const box = screen.getByRole("region", { name: "Signing secret" });
     expect(
       within(box).getByRole("link", { name: "Verify the signature" }).getAttribute("href"),
@@ -106,7 +106,7 @@ describe("a webhook channel", () => {
     await act(async () => void fireEvent.click(within(box).getByRole("button", { name: "Copy" })));
     expect(writeText).toHaveBeenCalledWith(SECRET);
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
-    fireEvent.click(screen.getByRole("button", { name: "Deliveries to Deploy bot" }));
+    fireEvent.click(screen.getByRole("button", { name: /deliveries to Deploy bot$/ }));
     expect(screen.queryByText(SECRET)).toBeNull();
   });
 
@@ -119,7 +119,7 @@ describe("a webhook channel", () => {
       ],
     );
     render(<Notifications platforms={["github"]} />);
-    fireEvent.click(await screen.findByRole("button", { name: "Deliveries to #reviews" }));
+    fireEvent.click(await screen.findByRole("button", { name: /deliveries to #reviews$/ }));
     const list = await screen.findByRole("region", { name: "Recent deliveries" });
     const rows = within(list).getAllByRole("row").slice(1);
     expect(rows.map((r) => r.textContent)).toEqual([
