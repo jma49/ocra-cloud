@@ -15,7 +15,7 @@ import {
 } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
 import { Drawer } from "../drawer.js";
-import { listOf, Row } from "../form.js";
+import { Checks, listOf, Row } from "../form.js";
 import { AddGlyph, CloseGlyph } from "../glyphs.js";
 import { useAction } from "../ui.js";
 import { AssignFields, assignAction, assignReady, newAssign } from "./assign-reviewers.js";
@@ -420,32 +420,5 @@ function ActionValue(props: {
       value={a.text}
       onChange={(e) => set(e.target.value)}
     />
-  );
-}
-
-function Checks(props: {
-  items: Choice[];
-  value: string[];
-  onChange: (v: string[]) => void;
-  what: string;
-}) {
-  return (
-    <div className="check-list">
-      {props.items.map((it) => (
-        <label className="check" key={it.id}>
-          <input
-            type="checkbox"
-            aria-label={`${props.what} ${it.label}`}
-            checked={props.value.includes(it.id)}
-            onChange={(e) =>
-              props.onChange(
-                e.target.checked ? [...props.value, it.id] : props.value.filter((x) => x !== it.id),
-              )
-            }
-          />
-          {it.label}
-        </label>
-      ))}
-    </div>
   );
 }

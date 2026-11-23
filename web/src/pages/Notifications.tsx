@@ -25,6 +25,7 @@ import {
   reminderSummary,
 } from "../notifications/reminders-drawer.js";
 import { ReportSlot } from "../notifications/report-slot.js";
+import { ScheduledReports } from "../notifications/scheduled-reports.js";
 import { StackTable } from "../stack-table.js";
 import { ActionError, EmptyState, LoadError, Loading, PageHead, useAction } from "../ui.js";
 
@@ -53,7 +54,11 @@ function places(d: NotifyChannelsView | undefined): string {
 
 type ChannelEdit = Partial<Pick<NotifyChannelView, "when" | "digest" | "weekly" | "events">>;
 
-export function Notifications(props: { platforms: readonly CodePlatformKind[] }) {
+export function Notifications(props: {
+  platforms: readonly CodePlatformKind[];
+  /** Whether this server enrolls repositories, which a custom report can name. */
+  enrolls: boolean;
+}) {
   const {
     data,
     error,
@@ -312,6 +317,7 @@ export function Notifications(props: { platforms: readonly CodePlatformKind[] })
         </div>
       )}
       <ReportSlot />
+      {data && <ScheduledReports channels={data.channels} enrolls={props.enrolls} />}
       {inspecting && <DeliveriesDrawer channel={inspecting} onClose={() => setInspecting(null)} />}
       {reminding && (
         <RemindersDrawer

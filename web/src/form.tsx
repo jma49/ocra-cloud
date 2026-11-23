@@ -168,3 +168,31 @@ export function GlobList(props: {
     </div>
   );
 }
+
+/** Tick any of a short list; `what` names an item for a screen reader. */
+export function Checks(props: {
+  items: { id: string; label: string }[];
+  value: string[];
+  onChange: (v: string[]) => void;
+  what: string;
+}) {
+  return (
+    <div className="check-list">
+      {props.items.map((it) => (
+        <label className="check" key={it.id}>
+          <input
+            type="checkbox"
+            aria-label={`${props.what} ${it.label}`}
+            checked={props.value.includes(it.id)}
+            onChange={(e) =>
+              props.onChange(
+                e.target.checked ? [...props.value, it.id] : props.value.filter((x) => x !== it.id),
+              )
+            }
+          />
+          {it.label}
+        </label>
+      ))}
+    </div>
+  );
+}
