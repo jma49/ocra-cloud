@@ -1,7 +1,7 @@
 import type { CodePlatformKind } from "../shared/index.js";
 
 // The ocra bot, as the API sees it: a credential for one repository, which
-// only a self-hosted server has (src/node/bot-tokens.ts mints it).
+// a host with the App's key mints (./bot-tokens.ts).
 
 export type BotCredential = {
   token: string;

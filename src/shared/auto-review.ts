@@ -43,3 +43,12 @@ export type PullReviewJobView = {
 };
 
 export type PullReviewNowView = { job: PullReviewJobView | null };
+
+/**
+ * The remote runners that asked this deployment for jobs lately, newest
+ * first; `remote` is false where the server runs them itself.
+ */
+export type ReviewRunnersView = {
+  remote: boolean;
+  runners: { name: string; version: string; lastSeenAt: string }[];
+};

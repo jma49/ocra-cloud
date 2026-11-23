@@ -6,7 +6,6 @@ import { join } from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { scoped } from "../src/db/scoped.js";
 import { instructionCheckId } from "../src/merge-checks/instruction.js";
-import { appJwt, botTokens } from "../src/node/bot-tokens.js";
 import {
   type Exec,
   runNextGeneration,
@@ -14,6 +13,7 @@ import {
   runNextReview,
 } from "../src/node/review-runner.js";
 import type { BotTokens } from "../src/platforms/bot.js";
+import { appJwt, botTokens } from "../src/platforms/bot-tokens.js";
 import { github } from "../src/platforms/github.js";
 import { GITHUB_COM } from "../src/platforms/github-host.js";
 import { C1 } from "./graph-fakes.js";
@@ -107,9 +107,9 @@ describe("the ocra bot's GitHub token", () => {
     });
   });
 
-  it("signs a JWT that lives under GitHub's ten minutes", () => {
+  it("signs a JWT that lives under GitHub's ten minutes", async () => {
     const body = JSON.parse(
-      Buffer.from(appJwt("1", PEM, 1_000_000).split(".")[1] ?? "", "base64url").toString(),
+      Buffer.from((await appJwt("1", PEM, 1_000_000)).split(".")[1] ?? "", "base64url").toString(),
     );
     expect(body.exp - body.iat).toBeLessThanOrEqual(600);
   });

@@ -228,6 +228,18 @@ export const rateWindows = sqliteTable(
   (t) => [index("rate_windows_start").on(t.start)],
 );
 
+/**
+ * The remote runners that ask this deployment for hosted jobs
+ * (src/auto-review/runner-api.ts), by the name each gives itself: when one
+ * last asked is how the console tells whether reviews will start. No
+ * account's: a runner serves the deployment.
+ */
+export const reviewRunners = sqliteTable("review_runners", {
+  name: text("name").primaryKey(),
+  version: text("version").notNull(),
+  lastSeenAt: integer("last_seen_at", { mode: "timestamp_ms" }).notNull(),
+});
+
 // A model provider key, encrypted with a data key that the master key wraps.
 export const providerKeys = sqliteTable(
   "provider_keys",

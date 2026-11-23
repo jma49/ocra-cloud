@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import type { AutoReviewRepoView, CodePlatformKind } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
 import { ProfileMenu } from "../auto-review/profile-menu.js";
+import { RunnerStatus } from "../auto-review/runner-status.js";
 import { ago } from "../format.js";
 import { RepoChecks } from "../merge-checks/repo-checks.js";
 import { PlatformMark } from "../platform-mark.js";
@@ -46,6 +47,7 @@ export function AutoReview(props: { platforms: readonly CodePlatformKind[] }) {
         title="Auto review"
         sub="Pull requests in these repositories are reviewed by this server when they open or gain commits, and the review is posted as the ocra bot."
       />
+      <RunnerStatus />
       <AddRepo
         platforms={props.platforms}
         full={(data?.repos.length ?? 0) >= 100}

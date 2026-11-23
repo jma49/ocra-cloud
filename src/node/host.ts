@@ -17,9 +17,9 @@ import { retryOutbox } from "../notify/notify.js";
 import { runReminders } from "../notify/reminders.js";
 import { runReports } from "../notify/report.js";
 import { retryWebhooks, type WebhookPost } from "../notify/webhooks.js";
+import { botTokens } from "../platforms/bot-tokens.js";
 import { githubHostOf, platformsOf } from "../platforms/registry.js";
 import type { AppBindings } from "../types.js";
-import { botTokens } from "./bot-tokens.js";
 import { clientAddress } from "./client-address.js";
 import { type GraphOptions, startGraphs } from "./graph-worker.js";
 import { type RateLimitStore, rateLimits } from "./limits.js";
@@ -112,6 +112,7 @@ export async function openHost(options: HostOptions) {
     ...(options.githubWebhookSecret ? { githubWebhookSecret: options.githubWebhookSecret } : {}),
     ...(reviews ? { autoReview: reviews.service } : {}),
     ...(bots ? { bots } : {}),
+    ...(options.autoReview?.runnerToken ? { runnerToken: options.autoReview.runnerToken } : {}),
     ...(options.mailer ? { mailer: options.mailer } : {}),
     webhookPost,
   });

@@ -1,4 +1,5 @@
 import { createPrivateKey } from "node:crypto";
+import { botSettingsFrom, runnerTokenFrom } from "../auto-review/remote.js";
 import { graphPolicy } from "../graph/policy.js";
 import { githubHostOf } from "../platforms/registry.js";
 import { startingModels } from "../preferences.js";
@@ -133,16 +134,11 @@ export function graphSettingsFrom(vars: Record<string, string | undefined>) {
 /**
  * AUTO_REVIEW_WORKERS (reviews at once; 1 when unset, 0 to only queue them)
  * and the ocra bot's credentials: GITHUB_APP_ID with GITHUB_APP_PRIVATE_KEY,
- * GITLAB_BOT_TOKEN. Off without any credential.
+ * GITLAB_BOT_TOKEN. Off without any credential. RUNNER_TOKEN lets remote
+ * runners take jobs too (docs/runner.md).
  */
 export function autoReviewSettingsFrom(vars: Record<string, string | undefined>) {
-  const bots = {
-    githubApi: githubHostOf(vars).api,
-    githubAppId: vars.GITHUB_APP_ID || undefined,
-    // A key pasted on one line keeps its line breaks as \n.
-    githubAppPrivateKey: vars.GITHUB_APP_PRIVATE_KEY?.replace(/\\n/g, "\n") || undefined,
-    gitlabBotToken: vars.GITLAB_BOT_TOKEN || undefined,
-  };
+  const bots = botSettingsFrom(vars);
   const github = !!bots.githubAppId || !!bots.githubAppPrivateKey;
   if (github) checkGithubApp(bots.githubAppId, bots.githubAppPrivateKey);
   if (!github && !bots.gitlabBotToken) return undefined;
@@ -150,5 +146,6 @@ export function autoReviewSettingsFrom(vars: Record<string, string | undefined>)
   if (!/^\d+$/.test(workers)) {
     throw new Error(`AUTO_REVIEW_WORKERS must be a whole number, not ${workers}`);
   }
-  return { bots, workers: Number(workers) };
+  const runnerToken = runnerTokenFrom(vars.RUNNER_TOKEN);
+  return { bots, workers: Number(workers), ...(runnerToken ? { runnerToken } : {}) };
 }
