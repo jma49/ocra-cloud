@@ -9,6 +9,7 @@ import type {
 } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
 import { useCached } from "../cache.js";
+import { DISMISS_REASONS, reasonLabel } from "../dismiss-reasons.js";
 import { ago } from "../format.js";
 import { useListCursor } from "../list-cursor.js";
 import { usePageCommands } from "../page-commands.js";
@@ -53,13 +54,6 @@ type Filters = {
   repo: string;
 };
 
-const REASONS: { value: DismissReason; label: string }[] = [
-  { value: "false_positive", label: "False positive" },
-  { value: "not_important", label: "Not important" },
-  { value: "wrong_fix", label: "Suggested fix is wrong" },
-  { value: "already_known", label: "Already known" },
-];
-const reasonLabel = (r: DismissReason) => REASONS.find((x) => x.value === r)?.label ?? r;
 const SEV_CLASS = { critical: "badge-err", warning: "badge-warn", suggestion: "" } as const;
 
 function query(f: Filters, after?: string): string {
@@ -298,7 +292,7 @@ export function Findings(props: {
                 value={reason}
                 onChange={(e) => setReason(e.target.value as DismissReason)}
               >
-                {REASONS.map((r) => (
+                {DISMISS_REASONS.map((r) => (
                   <option key={r.value} value={r.value}>
                     {r.label}
                   </option>
