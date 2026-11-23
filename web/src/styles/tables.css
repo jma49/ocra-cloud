@@ -122,3 +122,29 @@ tr.selected td {
     margin-left: auto;
   }
 }
+
+/* The audit log: a time and a line per event. */
+.audit-kind {
+  width: auto;
+  max-width: 100%;
+  margin-top: 12px;
+}
+.audit-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 16px 6px;
+}
+.audit-list li {
+  display: grid;
+  grid-template-columns: 5.5em minmax(0, 1fr);
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 0.5px solid var(--hair);
+  overflow-wrap: anywhere;
+}
+.audit-list li:last-child {
+  border-bottom: 0;
+}
+.audit-list time {
+  font-variant-numeric: tabular-nums;
+}

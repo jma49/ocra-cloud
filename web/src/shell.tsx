@@ -12,6 +12,7 @@ import Inbox from "lucide-react/icons/inbox";
 import KeyRound from "lucide-react/icons/key-round";
 import ListChecks from "lucide-react/icons/list-checks";
 import Puzzle from "lucide-react/icons/puzzle";
+import ScrollText from "lucide-react/icons/scroll-text";
 import Settings from "lucide-react/icons/settings";
 import SlidersHorizontal from "lucide-react/icons/sliders-horizontal";
 import Terminal from "lucide-react/icons/terminal";
@@ -48,6 +49,7 @@ const SETTINGS_ICONS: Record<string, LucideIcon> = {
   "/settings": UserRound,
   "/notifications": Bell,
   "/sessions": Terminal,
+  "/audit": ScrollText,
 };
 
 function NavIcon(props: { icon: LucideIcon; size: number }) {
