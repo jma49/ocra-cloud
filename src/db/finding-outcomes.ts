@@ -1,13 +1,14 @@
-import { and, eq, inArray, ne, type SQL, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, ne, type SQL, sql } from "drizzle-orm";
 import type { FixedVia } from "../shared/index.js";
 import { changedRows, type Db } from "./client.js";
 import { jsonTexts } from "./dialect.js";
 import { findings, reviews } from "./schema.js";
 
 // What the console did to a finding through the platform: committed its fix
-// or its comment's suggestion, or resolved its comment's thread. Each write
-// compares and sets in one statement, so a finding is marked fixed, and its
-// source recorded, once. Reached only through scoped().
+// or its comment's suggestion, or resolved its comment's thread; and what a
+// later review of the pull request saw fixed. Each write compares and sets
+// in one statement, so a finding is marked fixed, and its source recorded,
+// once. Reached only through scoped().
 
 const f = findings;
 
@@ -63,6 +64,19 @@ async function markFixedOnPull(
   return changedRows(result);
 }
 
+/**
+ * Marks the pull request's open findings with these fingerprints fixed by a
+ * re-review; one already fixed, or dismissed by the account, keeps its fate.
+ */
+async function markFixedOnRereview(db: Db, accountId: string, pull: FindingsOnPull) {
+  if (pull.fingerprints.length === 0) return 0;
+  const result = await db
+    .update(f)
+    .set(fixed("rereview"))
+    .where(and(onPull(db, accountId, pull), eq(f.status, "open"), isNull(f.fixedVia)));
+  return changedRows(result);
+}
+
 /** Records that the user resolved (or reopened) the threads of the pull request's findings. */
 async function markThreadResolved(
   db: Db,
@@ -85,6 +99,7 @@ export function accountFindingOutcomes(db: Db, accountId: string) {
     markFixed: (ids: readonly string[], via: FixedVia) => markFixed(db, accountId, ids, via),
     markFixedOnPull: (pull: FindingsOnPull, via: FixedVia) =>
       markFixedOnPull(db, accountId, pull, via),
+    markFixedOnRereview: (pull: FindingsOnPull) => markFixedOnRereview(db, accountId, pull),
     markThreadResolved: (pull: FindingsOnPull, resolved: boolean) =>
       markThreadResolved(db, accountId, pull, resolved),
   };
