@@ -26,6 +26,19 @@ export type ReconciledPull = {
   closedAt: Date | null;
   /** Whose review it asks now, users and (on GitHub) teams, as a listing names them. */
   asks: ReconciledAsk[];
+  /** What the inbox's index keeps of it besides (src/pull-index/), where the listing says. */
+  listed?: ReconciledListed;
+};
+
+type ReconciledListed = {
+  pullId: string | null;
+  url: string;
+  authorAvatar: string | null;
+  labels: string[];
+  assigneeIds: string[];
+  head: string | null;
+  /** Its branch names; null when its head is in a fork. */
+  branches: { head: string; base: string } | null;
 };
 
 /** An ask of a review the platform shows: of a user, or of a team (its org/slug as name). */

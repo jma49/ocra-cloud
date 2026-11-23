@@ -71,6 +71,13 @@ export function jsonHoldsNumber(db: Db, array: AnyColumn, key: string, value: nu
     : sql`EXISTS (SELECT 1 FROM json_each(${array}) AS je WHERE json_extract(je.value, ${`$.${key}`}) = ${value})`;
 }
 
+/** Whether a JSON array of strings in `array` holds `value`. */
+export function jsonHoldsText(db: Db, array: AnyColumn, value: string): SQL {
+  return isPostgres(db)
+    ? sql`${array}::jsonb @> ${JSON.stringify([value])}::jsonb`
+    : sql`EXISTS (SELECT 1 FROM json_each(${array}) AS je WHERE je.value = ${value})`;
+}
+
 /** The UTC day (YYYY-MM-DD) of a time in milliseconds. */
 export function utcDayOf(db: Db, ms: SQL): SQL<string> {
   return isPostgres(db)

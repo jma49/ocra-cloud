@@ -22,6 +22,7 @@ import { rerunGithubChecks } from "./merge-checks/rerun.js";
 import { githubCiFailure } from "./notify/ci-hooks.js";
 import { githubHostOf } from "./platforms/registry.js";
 import { githubTouchesPulls } from "./pull-changes.js";
+import { githubMovesChecks, indexGithubEvent } from "./pull-index/hooks.js";
 import type { AppEnv } from "./types.js";
 
 // The GitHub App's one webhook, proven by its signature: a push queues
@@ -89,6 +90,9 @@ export function githubWebhook(host: WebhookHost) {
       const queued = await received.answer(async () => {
         if (repo.success && githubTouchesPulls(event, body)) {
           await touchPulls(c.var.db, "github", github, String(repo.data.repository.id), new Date());
+        }
+        if (repo.success && (githubTouchesPulls(event, body) || githubMovesChecks(event))) {
+          await indexGithubEvent(c.var.db, github, event, body);
         }
         const site = { kind: "github" as const, host: github, url: githubUrl };
         await githubLifecycle(c.var.db, site, event, body, new Date());

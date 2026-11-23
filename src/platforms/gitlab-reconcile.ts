@@ -1,7 +1,9 @@
 import { z } from "zod";
 import type { CallBudget } from "../calls.js";
+import { avatarOf } from "./changes.js";
 import { gitlabHeaders, mergeRequestUrl } from "./gitlab-changes.js";
 import { platformJson } from "./http.js";
+import { labelsOf } from "./pulls.js";
 import {
   RECONCILE_PER_PAGE,
   type ReconciledPull,
@@ -28,12 +30,23 @@ const mergeRequest = z.object({
   state: z.enum(["opened", "closed", "locked", "merged"]),
   draft: z.boolean().optional(),
   work_in_progress: z.boolean().optional(),
-  author: z.object({ username: z.string(), id: z.number() }).nullish(),
+  author: z
+    .object({ username: z.string(), id: z.number(), avatar_url: z.string().nullish() })
+    .nullish(),
   created_at: z.string().nullish(),
   updated_at: z.string().nullish(),
   closed_at: z.string().nullish(),
   merged_at: z.string().nullish(),
   reviewers: z.array(z.object({ username: z.string(), id: z.number() })).nullish(),
+  id: z.number().optional(),
+  web_url: z.string().optional(),
+  labels: z.array(z.string()).nullish(),
+  assignees: z.array(z.object({ id: z.number() })).nullish(),
+  sha: z.string().nullish(),
+  source_branch: z.string().optional(),
+  target_branch: z.string().optional(),
+  source_project_id: z.number().optional(),
+  target_project_id: z.number().optional(),
 });
 
 const named = z.object({ path_with_namespace: z.string().min(3).max(400) });
@@ -68,6 +81,25 @@ function pullOf(raw: unknown): ReconciledPull | null {
         ? null
         : (timeOf(state === "merged" ? m.merged_at : m.closed_at) ?? timeOf(m.updated_at)),
     asks: (m.reviewers ?? []).map((u) => ({ team: false, id: String(u.id), name: u.username })),
+    ...(m.web_url
+      ? {
+          listed: {
+            pullId: m.id !== undefined ? String(m.id) : null,
+            url: m.web_url,
+            authorAvatar: avatarOf(m.author?.avatar_url),
+            labels: labelsOf(m.labels ?? []),
+            assigneeIds: (m.assignees ?? []).map((u) => String(u.id)),
+            head: m.sha ?? null,
+            branches:
+              m.source_branch &&
+              m.target_branch &&
+              m.source_project_id !== undefined &&
+              m.source_project_id === m.target_project_id
+                ? { head: m.source_branch, base: m.target_branch }
+                : null,
+          },
+        }
+      : {}),
   };
 }
 

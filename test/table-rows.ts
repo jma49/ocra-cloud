@@ -172,6 +172,19 @@ export const rows = {
     title: `pull ${id}`,
     seenAt: new Date(),
   }),
+  pullIndex: (id: string) => ({
+    id,
+    reviewRepoId: "review-repo-of-a",
+    number: 1,
+    title: `pull ${id}`,
+    url: "https://github.com/octo/api/pull/1",
+    state: "open" as const,
+    openedAt: new Date(),
+    changedAt: new Date(),
+    labels: [],
+    reviewerIds: [],
+    assigneeIds: [],
+  }),
   // The enrolled repository it belongs to is made in beforeEach (the foreign key needs one).
   findingThreads: (id: string) => ({
     id,
