@@ -1,4 +1,5 @@
 import type { Severity } from "../../../src/shared/index.js";
+import { Evidence } from "../finding-text.js";
 import { Markdown } from "../markdown.js";
 import { PlatformMarkdown } from "../platform-markdown.js";
 import { SeverityBadge } from "../severity.js";
@@ -126,13 +127,5 @@ export function ThreadBody(props: { said: Said }) {
 /** The facts behind ocra's finding, folded as on the platform. */
 export function ThreadEvidence(props: { said: Said }) {
   if (!props.said.evidence) return null;
-  return (
-    <details className="thread-evidence">
-      <summary className="subtle">
-        <span className="fold" aria-hidden="true" />
-        Evidence
-      </summary>
-      <Markdown text={props.said.evidence} />
-    </details>
-  );
+  return <Evidence text={props.said.evidence} />;
 }

@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { clearCache } from "../cache.js";
 import { ReviewDetail } from "./ReviewDetail.js";
@@ -78,6 +78,7 @@ describe("a finding's fix on its review", () => {
     code: "if (amount > charge.amount) {",
     redacted: false,
     truncated: false,
+    evidence: ["`charge.amount` ignores earlier refunds", "No caller checks the sum"],
     status: "open",
     fix: { startLine: 11, endLine: 11, replacement: "if (amount > left) {\n" },
     issue: null,
@@ -106,6 +107,27 @@ describe("a finding's fix on its review", () => {
     render(<ReviewDetail id="r1" graphs={false} />);
     const title = await screen.findByRole("heading", { name: "Review of octo/api #7" });
     expect(title.parentElement?.textContent).toContain("GitHub PR aaaaaaa");
+  });
+
+  it("folds the finding's evidence under its details, a fact a line", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        url === "/api/reviews/r1"
+          ? Response.json(ofPull)
+          : Response.json({ error: "not_found" }, { status: 404 }),
+      ),
+    );
+    const { container } = render(<ReviewDetail id="r1" graphs={false} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Details" }));
+    const evidence = container.querySelector("details.evidence");
+    expect(evidence?.hasAttribute("open")).toBe(false);
+    expect(evidence?.querySelector("summary")?.textContent).toBe("Evidence");
+    expect([...(evidence?.querySelectorAll("li") ?? [])].map((li) => li.textContent)).toEqual([
+      "charge.amount ignores earlier refunds",
+      "No caller checks the sum",
+    ]);
+    expect(evidence?.querySelector("code")?.textContent).toBe("charge.amount");
   });
 
   it("shows as a diff of the lines it replaces at the reviewed head", async () => {

@@ -81,7 +81,7 @@ describe("a review comment's body", () => {
     expect(container.querySelector(".thread-finding-notes .subtle")?.textContent).toBe(
       "correctness · verified · pre-existing",
     );
-    const evidence = container.querySelector("details.thread-evidence");
+    const evidence = container.querySelector("details.evidence");
     expect(evidence?.querySelector("summary")?.textContent).toBe("Evidence");
     expect(evidence?.querySelector("summary > .fold")).not.toBeNull();
     expect([...(evidence?.querySelectorAll("li") ?? [])].map((li) => li.textContent)).toEqual([
