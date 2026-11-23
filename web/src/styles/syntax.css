@@ -1,0 +1,25 @@
+/* Code in the colours of its language: each kind of token takes one of the
+   console's hues, mixed toward the text colour so it stays readable on a
+   diff's added and removed lines in both themes. */
+.tok-comment {
+  color: var(--t3);
+}
+.tok-keyword {
+  color: color-mix(in srgb, var(--violet) 70%, var(--t1));
+}
+.tok-string,
+.tok-string-expression {
+  color: color-mix(in srgb, var(--green) 72%, var(--t1));
+}
+.tok-constant {
+  color: color-mix(in srgb, var(--blue) 75%, var(--t1));
+}
+.tok-function {
+  color: color-mix(in srgb, var(--amber) 72%, var(--t1));
+}
+.tok-punctuation {
+  color: var(--t2);
+}
+.tok-link {
+  color: color-mix(in srgb, var(--blue) 75%, var(--t1));
+}
