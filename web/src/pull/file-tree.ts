@@ -47,3 +47,8 @@ export function fileTree<F extends { path: string }>(files: readonly F[]): TreeR
   }
   return rows(root, 0, "");
 }
+
+/** The files in the order the tree lists them, so the diffs read down in the same order. */
+export function treeOrder<F extends { path: string }>(files: readonly F[]): F[] {
+  return fileTree(files).flatMap((row) => (row.kind === "file" ? [row.file] : []));
+}

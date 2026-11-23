@@ -187,6 +187,14 @@ describe("a pull request's page", () => {
     );
   });
 
+  it("shows the diffs in the file tree's order, a folder's files first", async () => {
+    const file = (path: string) => ({ ...files.files[0], path, oldPath: path });
+    show(undefined, { ...files, files: [file("README.md"), file("docs/a.md"), file("src/b.ts")] });
+    await screen.findByRole("heading", { name: "Cap refunds at the order total" });
+    const order = [...document.querySelectorAll(".diff-file .diff-path")].map((e) => e.textContent);
+    expect(order).toEqual(["docs/a.md", "src/b.ts", "README.md"]);
+  });
+
   it("sends a review with its line comments against the head it read", async () => {
     const sent = show();
     fireEvent.click(await screen.findByRole("button", { name: "Comment on removed line 11" }));
