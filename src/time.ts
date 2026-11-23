@@ -7,6 +7,9 @@ export const DAY = 24 * HOUR;
 /** The UTC date of `d`, as `YYYY-MM-DD`. */
 export const utcDay = (d: Date): string => d.toISOString().slice(0, 10);
 
+/** The first UTC date of `d`'s calendar month, as `YYYY-MM-01`. */
+export const utcMonthStartDay = (d: Date): string => `${utcDay(d).slice(0, 7)}-01`;
+
 /** Midnight UTC at the start of `now`'s day: where the daily limits reset. */
 export const utcDayStart = (now = new Date()): Date => new Date(utcDay(now));
 

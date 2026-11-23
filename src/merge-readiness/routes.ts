@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { apiError } from "../http.js";
-import { evaluatePull, statusOf } from "../merge-checks/run.js";
+import { evaluatePull, heldBySpend, statusOf } from "../merge-checks/run.js";
 import { byKind, pullRef, reach } from "../pull-page.js";
 import { perMinute } from "../rate.js";
 import { requireSession } from "../session.js";
@@ -52,8 +52,9 @@ pullReadiness.get("/readiness", requireSession(["web"]), perMinute("platform"), 
       number,
       facts.facts,
     );
+    const held = evaluated.report && (await heldBySpend(c.var.data, evaluated.report));
     premerge = evaluated.report
-      ? { report: evaluated.report, title: statusOf(evaluated.report, "").title }
+      ? { report: evaluated.report, title: statusOf(evaluated.report, "", held).title }
       : evaluated.reason === "unreachable"
         ? "unreachable"
         : "none";

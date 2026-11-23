@@ -5,7 +5,7 @@ import type { Outbox } from "../notify/notify.js";
 import { tellChecksFailed } from "../notify/pull-events.js";
 import type { BotTokens } from "../platforms/bot.js";
 import type { CodePlatform } from "../platforms/platform.js";
-import { consolePullUrl, digestOf, evaluatePull, statusOf } from "./run.js";
+import { consolePullUrl, digestOf, evaluatePull, heldBySpend, statusOf } from "./run.js";
 
 // Posting a pull request's checks as the ocra bot, where the host has one
 // (src/node/): evaluated on its current head, stored per head, and posted
@@ -40,7 +40,8 @@ export async function postChecks(
   const evaluated = await evaluatePull(data, platform, bot.token, repo, number);
   if (!evaluated.report) return evaluated.reason === "unreachable" ? "failed" : "skipped";
   const { report } = evaluated;
-  const digest = await digestOf(report);
+  const held = await heldBySpend(data, report, now);
+  const digest = await digestOf(report, held);
   const checks = data.mergeChecks;
   const id = await checks.record(
     {
@@ -55,7 +56,7 @@ export async function postChecks(
   );
   if (!id || !(await checks.claimPost(id, digest))) return "unchanged";
   const run = await data.get("mergeCheckRuns", id);
-  const status = statusOf(report, consolePullUrl(poster.publicUrl, repo, number));
+  const status = statusOf(report, consolePullUrl(poster.publicUrl, repo, number), held);
   if (report.conclusion === "failure" && poster.outbox) {
     const pull = { number, head: report.head, summary: status.title };
     await tellChecksFailed(poster.db, data, poster.outbox, repo, pull).catch((e) =>

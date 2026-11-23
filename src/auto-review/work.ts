@@ -10,7 +10,13 @@ import { checksOf } from "../merge-checks/run.js";
 import type { BotAccess, BotCredential, BotTokens } from "../platforms/bot.js";
 import type { CodePlatform } from "../platforms/platform.js";
 import { startCliSession } from "../session.js";
-import { type CodePlatformKind, DAILY_LIMIT_WAIT } from "../shared/index.js";
+import {
+  type CodePlatformKind,
+  DAILY_LIMIT_WAIT,
+  MIN_REVIEW_SPEND_USD,
+  spendLeftUsd,
+} from "../shared/index.js";
+import { spendOf } from "../spend.js";
 import { nextUtcDay, utcDay } from "../time.js";
 import { profileRun } from "./profiles.js";
 
@@ -175,6 +181,8 @@ export async function assign(
   // Direct stops at once; the account's saved runtime, below this file, wins.
   const saved = await data.findOne("preferences", {});
   const runtime = saved?.runtime ? {} : { runtime: "direct" as const };
+  const maxCostUsd =
+    kind === "review" ? await reviewSpendCap(data, saved?.settings?.maxCostUsd, now()) : undefined;
   const pull =
     platform.kind === "github"
       ? ["--pr", String(claimed.number), "--repo", repo.fullName]
@@ -205,10 +213,26 @@ export async function assign(
       ...profile.config,
       ...(bot.login ? { github: { botLogin: bot.login } } : {}),
       ...(mergeChecks.length > 0 ? { mergeChecks } : {}),
+      ...(maxCostUsd !== undefined ? { maxCostUsd } : {}),
     },
     ok: command.ok,
     settled: command.settled ?? [],
   };
+}
+
+/**
+ * What a hosted review may spend: what is left before the account's nearer
+ * spend limit, or its own limit per review where that is less. The run's
+ * configuration file replaces the account's settings key by key, so the
+ * account's limit is read here rather than left to the CLI.
+ */
+async function reviewSpendCap(
+  data: ReturnType<typeof scoped>,
+  own: number | undefined,
+  now: Date,
+): Promise<number> {
+  const left = Math.max(MIN_REVIEW_SPEND_USD, spendLeftUsd(await spendOf(data, now)));
+  return Math.round(Math.min(left, own ?? left) * 100) / 100;
 }
 
 /**

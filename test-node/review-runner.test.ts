@@ -392,6 +392,8 @@ describe("a review job's run", () => {
             instruction: "No new globals",
           },
         ],
+        // What is left before the default daily spend limit.
+        maxCostUsd: 10,
       },
     ]);
   });
@@ -423,11 +425,13 @@ describe("a review job's run", () => {
       },
       showPreExisting: false,
       github: { botLogin: "ocra-review[bot]" },
+      maxCostUsd: 10,
     });
     expect(quiet?.args).not.toContain("--ultra");
     expect(thorough?.config).toEqual({
       runtime: "direct",
       github: { botLogin: "ocra-review[bot]" },
+      maxCostUsd: 10,
     });
     expect(thorough?.args.slice(-4)).toEqual([
       "--no-repo-config",

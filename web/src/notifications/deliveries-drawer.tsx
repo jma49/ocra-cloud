@@ -40,6 +40,7 @@ const EVENT: Record<NotifyDeliveryEvent, string> = {
   digest: "Daily digest",
   weekly_report: "Weekly report",
   held_notices: "Notices held in quiet hours",
+  spend_limit: "Spend limit warning",
   review_requested: "Review requested",
   pull_reviewed: "Pull request reviewed",
   pull_closed: "Pull request merged or closed",

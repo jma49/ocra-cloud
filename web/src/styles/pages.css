@@ -1241,7 +1241,7 @@ td.finding-cell {
   padding: 0;
   list-style: none;
 }
-.daily-limit {
+.limit-reached {
   margin: 0 0 12px;
 }
 .hook-card {

@@ -138,6 +138,7 @@ const ACCESS: Record<string, Access> = {
   "GET /api/platforms/gitlab/connect": "web",
   "GET /api/platforms/gitlab/callback": "web",
   "PUT /api/budget": "web",
+  "PUT /api/budget/spend": "web",
   "GET /api/findings/insights": "web",
   "GET /api/repositories": "web",
   "PUT /api/repositories/:hash": "web",

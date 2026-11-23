@@ -150,7 +150,18 @@ describe("the auto review page", () => {
       "fetch",
       vi.fn(async (url: string) => {
         if (url.startsWith("/api/budget")) {
-          return Response.json({ serviceDailyCalls: 500, dailyCalls: null, callsToday: 500 });
+          return Response.json({
+            serviceDailyCalls: 500,
+            dailyCalls: null,
+            callsToday: 500,
+            spend: {
+              dailyUsd: null,
+              monthlyUsd: null,
+              spentTodayUsd: 0,
+              spentMonthUsd: 0,
+              defaults: { dailyUsd: 10, monthlyUsd: 100 },
+            },
+          });
         }
         if (url.startsWith("/api/review-targets")) {
           return Response.json({ default: { firstReviewHours: null, mergeDays: null }, repos: [] });

@@ -1,7 +1,7 @@
 import { and, desc, eq, isNull, lt, lte, or, sql } from "drizzle-orm";
 import type { GenerateKind } from "../shared/index.js";
 import { changedRows, type Db, first } from "./client.js";
-import { callsLeft } from "./counters.js";
+import { mayStart } from "./counters.js";
 import { generateJobs } from "./schema.js";
 
 // Tests or docstrings asked for on a pull request (reached through scoped()
@@ -84,7 +84,7 @@ export async function claimGenerate(
       and(
         eq(j.state, "queued"),
         or(isNull(j.notBefore), lte(j.notBefore, now)),
-        callsLeft(j.accountId, dailyCalls, now),
+        mayStart(j.accountId, dailyCalls, now),
       ),
     )
     .orderBy(j.createdAt)

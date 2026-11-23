@@ -1,13 +1,15 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { api, why } from "../api.js";
-import { type Budget, dailyLimit, resetsAt } from "../budget.js";
+import { type Budget, dailyLimit, resetsAt } from "../budget/budget.js";
+import { SpendCard } from "../budget/spend-card.js";
 import { useCached } from "../cache.js";
 import { num } from "../format.js";
 import { LoadError, Loading, PageHead, useAction } from "../ui.js";
 
-// The account's own daily limit on gateway calls, under the service's cap.
-// A review's spend in dollars is capped by Review settings, maxCostUsd.
+// The account's limits: what its reviews may cost a day and a month, and
+// its own daily limit on gateway calls, under the service's cap. One
+// review's spend is capped by Review settings, maxCostUsd.
 
 export function BudgetPage() {
   const { data, error, reload } = useCached("/budget", () => api<Budget>("/budget"));
@@ -33,8 +35,9 @@ export function BudgetPage() {
     <>
       <PageHead
         title="Budget"
-        sub="Limit how many model calls ocra Cloud's gateway forwards for you a day (UTC). A review's dollar limit is under Review settings."
+        sub="Limit what your reviews cost and how many model calls ocra Cloud's gateway forwards for you. Days and months are UTC. One review's limit is under Review settings."
       />
+      <SpendCard spend={data.spend} onSaved={reload} />
       <div className="card">
         <div className="card-head">
           <h3>Daily calls</h3>

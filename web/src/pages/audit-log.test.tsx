@@ -21,6 +21,9 @@ suite("an audit event's line", () => {
     expect(
       line({ kind: "pull.reviewed", detail: { pull: "octo/api#7", verdict: "approve" } }),
     ).toBe("Approved octo/api#7");
+    expect(line({ kind: "budget.spend_changed", detail: { dailyUsd: 25, monthlyUsd: null } })).toBe(
+      "Set the spend limit to $25.00 a day and the default a month",
+    );
     expect(line({ kind: "budget.changed", detail: { dailyCalls: null } })).toBe(
       "Removed the daily budget",
     );

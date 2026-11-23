@@ -2,7 +2,13 @@ import { sha256Hex } from "../crypto.js";
 import type { Row, Scoped } from "../db/scoped.js";
 import type { PostedStatus, PullFacts } from "../platforms/merge-status.js";
 import { type CodePlatform, repoIdentity } from "../platforms/platform.js";
-import { type MergeChecksReportView, pullPath } from "../shared/index.js";
+import {
+  type MergeChecksReportView,
+  pullPath,
+  type SpendWindow,
+  spendReached,
+} from "../shared/index.js";
+import { spendOf } from "../spend.js";
 import { type CheckConfig, evaluateChecks, type HeadReview } from "./evaluate.js";
 import { withEngineIds } from "./instruction.js";
 
@@ -86,11 +92,27 @@ export async function evaluatePull(
 }
 
 /** What the report's result is known by: the same result is posted once. */
-export const digestOf = (report: MergeChecksReportView) =>
-  sha256Hex(JSON.stringify([report.head, report.conclusion, report.results]));
+export const digestOf = (report: MergeChecksReportView, held: SpendWindow | null = null) =>
+  sha256Hex(
+    JSON.stringify([report.head, report.conclusion, report.results, ...(held ? [held] : [])]),
+  );
 
-/** The report as the platform shows it. */
-export function statusOf(report: MergeChecksReportView, detailsUrl: string): PostedStatus {
+/** The spend window whose limit keeps the review the report waits for from starting. */
+export async function heldBySpend(
+  data: Scoped,
+  report: MergeChecksReportView,
+  now = new Date(),
+): Promise<SpendWindow | null> {
+  if (report.conclusion !== "pending") return null;
+  return spendReached(await spendOf(data, now))?.window ?? null;
+}
+
+/** The report as the platform shows it; held names the spend limit its review waits behind. */
+export function statusOf(
+  report: MergeChecksReportView,
+  detailsUrl: string,
+  held: SpendWindow | null = null,
+): PostedStatus {
   const failed = report.results.filter((r) => r.outcome === "failed");
   const blocking = failed.filter((r) => r.mode === "block").length;
   const waiting = report.results.filter((r) => r.outcome === "not_evaluated").length;
@@ -99,7 +121,9 @@ export function statusOf(report: MergeChecksReportView, detailsUrl: string): Pos
     blocking > 0
       ? `${blocking} blocking check${blocking === 1 ? "" : "s"} failed`
       : report.conclusion === "pending"
-        ? `Waiting for the review: ${notYet}`
+        ? held
+          ? `Waiting for the review: the ${held} spend limit is reached`
+          : `Waiting for the review: ${notYet}`
         : failed.length > 0
           ? `Passed with ${failed.length} warning${failed.length === 1 ? "" : "s"}`
           : waiting > 0
@@ -113,7 +137,10 @@ export function statusOf(report: MergeChecksReportView, detailsUrl: string): Pos
       return `- **${KIND_TITLE[r.kind]}** (${how}): ${what}`;
     })
     .join("\n");
-  return { conclusion: report.conclusion, title, summary, detailsUrl };
+  const note = held
+    ? `\n\nThe account's ${held} spend limit is reached, so ocra starts no review until it resets or is raised.`
+    : "";
+  return { conclusion: report.conclusion, title, summary: `${summary}${note}`, detailsUrl };
 }
 
 /** The pull request's page in the console. */

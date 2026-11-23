@@ -18,6 +18,7 @@ import { keepsFindings } from "./findings-kept.js";
 import { apiError, jsonBody, queryDays } from "./http.js";
 import { notifyReview, outboxOf, publicOutbox } from "./notify/notify.js";
 import { tellReviewBlocking } from "./notify/pull-events.js";
+import { tellSpend } from "./notify/spend.js";
 import { platformsOf } from "./platforms/registry.js";
 import { perMinute, retryTomorrow } from "./rate.js";
 import { repoNames } from "./repositories.js";
@@ -156,6 +157,7 @@ reviews.post("/", requireSession(["web", "cli"]), perMinute("upload"), uploadBod
   const fixed = sharing ? fixedOnPull(upload) : null;
   if (fixed) await c.var.data.findingOutcomes.markFixedOnRereview(fixed);
   defer(c, announce(c, id));
+  if (row.costUsd > 0) defer(c, tellSpend(c.var.data, outboxOf(c)));
   defer(c, recheckPull(c, id));
   return c.json({
     id,
