@@ -139,9 +139,33 @@ export type PullActionOutcome =
 /** Where a pull request stands in its base branch's merge queue (GitLab: merge train). */
 export type QueueState = "waiting" | "checking" | "ready" | "merging" | "blocked";
 
+/** A pull request's own place in the queue; a field is null where the platform does not say. */
+export type QueueEntry = {
+  state: QueueState;
+  /** From 1, the next to merge. */
+  position: number | null;
+  enqueuedAt: string | null;
+  /** The login of who queued it. */
+  enqueuedBy: string | null;
+  /** Seconds until the platform expects it to merge. */
+  estimate: number | null;
+};
+
+/** How many of the pull requests ahead a queue's view lists. */
+export const MAX_QUEUE_AHEAD = 10;
+
 export type MergeQueueView = {
   /** False when the base branch has no queue: the pull request is merged directly. */
   enabled: boolean;
   /** Null when the pull request is not in the queue. */
-  entry: { state: QueueState; position: number | null } | null;
+  entry: QueueEntry | null;
+  /** The pull requests that merge before it, next to merge first, at most MAX_QUEUE_AHEAD. */
+  ahead: { number: number; title: string; state: QueueState }[];
+  /** How many pull requests the queue holds; null when the platform does not say. */
+  size: number | null;
+  /**
+   * The last time it left the queue without merging, in the platform's own
+   * words, while it has not been queued again; null when it never did.
+   */
+  removed: { at: string; by: string | null; reason: string | null } | null;
 };
