@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import type { GenerateJobView, GenerateKind } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
+import { givenUp } from "../auto-review/job-error.js";
 import { useAction, useLoad, usePoll } from "../ui.js";
 
 // Tests or docstrings for the head the page read, written by the server's
@@ -79,7 +80,10 @@ export function GenerateBox(props: { pull: Pull; head: string }) {
                 role="status"
               >
                 {KIND[kind].noun} for this head: {STATE[job.state]}
-                {job.error === "not_committed" && " (the branch moved, or ocra cannot push to it)"}.
+                {job.error === "not_committed"
+                  ? " (the branch moved, or ocra cannot push to it)"
+                  : givenUp(job.error) && ` (${givenUp(job.error)?.toLowerCase()})`}
+                .
               </span>
             )}
           </div>

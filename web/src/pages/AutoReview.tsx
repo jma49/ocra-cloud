@@ -8,6 +8,7 @@ import {
 import { api } from "../api.js";
 import { type Added, AddRepo, type ListedRepos, listedOn } from "../auto-review/add-repo.js";
 import { AutomaticSwitch } from "../auto-review/automatic-switch.js";
+import { jobError } from "../auto-review/job-error.js";
 import { LimitReachedNotice } from "../auto-review/limit-reached.js";
 import { ProfileMenu } from "../auto-review/profile-menu.js";
 import { RunnerStatus } from "../auto-review/runner-status.js";
@@ -169,7 +170,7 @@ function LastJob(props: { r: AutoReviewRepoView }) {
           The daily limit cut this review short. It runs again when the limit resets.
         </span>
       ) : (
-        job.error && <span className="error-inline small job-error">{job.error}</span>
+        job.error && <span className="error-inline small job-error">{jobError(job.error)}</span>
       )}
     </div>
   );
