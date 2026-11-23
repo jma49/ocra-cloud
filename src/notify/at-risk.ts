@@ -46,9 +46,24 @@ function atRiskMessage(list: readonly AtRisk[], now: number, origin: string): Me
     a.state === "past" ? `overdue by ${span(now - a.due)}` : `due in ${span(a.due - now)}`,
   ]);
   const more = list.length > LISTED ? [[`… and ${list.length - LISTED} more`]] : [];
+  const pulls = sorted.map((a) => ({
+    platform: a.pull.platform,
+    repo: a.pull.repo,
+    number: a.pull.number,
+    consoleUrl: consolePullUrl(
+      origin,
+      { platform: a.pull.platform, fullName: a.pull.repo },
+      a.pull.number,
+    ),
+    title: a.pull.title,
+    target: a.target,
+    state: a.state,
+    due: new Date(a.due).toISOString(),
+  }));
   return {
     subject: `ocra: ${plural(list.length, "pull request")} at risk of a review target`,
     lines: [[`At risk of a review target (${list.length}):`], ...shown, ...more],
+    hooks: [{ event: "pull_at_risk", data: { pulls } }],
   };
 }
 

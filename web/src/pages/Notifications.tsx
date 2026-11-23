@@ -5,6 +5,7 @@ import {
   type CodePlatformKind,
   NOTIFY_KINDS,
   NOTIFY_WHEN,
+  type NotifyChannelAdded,
   type NotifyChannelsView,
   type NotifyChannelView,
   type NotifyEvent,
@@ -29,7 +30,12 @@ import { ActionError, LoadError, Loading, PageHead, useAction, useLoad } from ".
 // of the user's own pull requests it hears about, and its reminders.
 // The address is sent once and never shown again.
 
-const KIND_LABEL: Record<NotifyKind, string> = { slack: "Slack", wecom: "WeCom", email: "Email" };
+const KIND_LABEL: Record<NotifyKind, string> = {
+  slack: "Slack",
+  wecom: "WeCom",
+  email: "Email",
+  webhook: "Webhook",
+};
 const WHEN_LABEL: Record<NotifyWhen, string> = {
   blocking: "Blocking reviews",
   findings: "Reviews with findings",
@@ -39,6 +45,7 @@ const PLACEHOLDER: Record<NotifyKind, string> = {
   slack: "https://hooks.slack.com/services/…",
   wecom: "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=…",
   email: "you@example.com",
+  webhook: "https://example.com/ocra-webhook",
 };
 const json = (method: string, body?: unknown): RequestInit => ({
   method,
@@ -294,15 +301,17 @@ function AddChannel(props: {
   const [url, setUrl] = useState("");
   const [digest, setDigest] = useState(false);
   const [weekly, setWeekly] = useState(false);
+  const [secret, setSecret] = useState<string | null>(null);
+  const hook = kind === "webhook";
   const add = useAction(() =>
-    api<{ confirmationSent?: boolean }>(
+    api<NotifyChannelAdded>(
       "/notifications/channels",
       json("POST", {
         kind,
         name: name.trim(),
         when,
-        digest,
-        weekly,
+        digest: digest && !hook,
+        weekly: weekly && !hook,
         ...(kind === "email" ? { address: url.trim() } : { url }),
       }),
     ),
@@ -313,6 +322,7 @@ function AddChannel(props: {
     if (added === undefined) return;
     setName("");
     setUrl("");
+    setSecret(added.secret ?? null);
     props.onAdded(added.confirmationSent ? name.trim() : null);
   };
   return (
@@ -355,7 +365,7 @@ function AddChannel(props: {
           className="input grow mono"
           aria-label={kind === "email" ? "Email address" : "Webhook address"}
           placeholder={PLACEHOLDER[kind]}
-          maxLength={512}
+          maxLength={hook ? 2048 : 512}
           value={url}
           onChange={(e) => setUrl(e.target.value)}
         />
@@ -363,7 +373,7 @@ function AddChannel(props: {
           Add
         </Button>
       </div>
-      <div className="add-extras">
+      <div className="add-extras" hidden={hook}>
         <label className="check small">
           <input type="checkbox" checked={digest} onChange={(e) => setDigest(e.target.checked)} />
           Daily digest of yesterday's reviews
@@ -377,6 +387,16 @@ function AddChannel(props: {
         <span className="subtle small">
           The address gets a link to confirm it first; nothing else is sent until it is opened.
         </span>
+      )}
+      {hook && (
+        <span className="subtle small">
+          Each event is posted as signed JSON to an https address of a public host.
+        </span>
+      )}
+      {secret !== null && (
+        <p className="small" role="status">
+          Signing secret, shown only now: <code className="mono">{secret}</code>
+        </p>
       )}
       {props.full && <span className="subtle small">An account has at most 10 channels.</span>}
       {add.error !== null && (

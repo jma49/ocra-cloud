@@ -10,6 +10,7 @@ import { type Message, plain } from "./channels.js";
 import { forAccounts, plural } from "./digest.js";
 import { type Outbox, send } from "./notify.js";
 import { span } from "./report.js";
+import type { HookEvent } from "./webhooks.js";
 
 // Review reminders, from the hourly run: a review asked of the account's own
 // platform user that still waits (review_waiting), and a pull request they
@@ -86,15 +87,35 @@ function lines(title: string, list: Reminder[], now: Date, origin: string) {
   return [[`${title} (${list.length}):`], ...shown, ...more];
 }
 
+const waitingPull = ({ w }: Reminder, origin: string) => ({
+  platform: w.platform,
+  repo: w.repo,
+  number: w.number,
+  consoleUrl: consolePullUrl(origin, { platform: w.platform, fullName: w.repo }, w.number),
+  title: w.title,
+  waitingSince: new Date(w.since).toISOString(),
+});
+
 function reminderMessage(list: Reminder[], now: Date, origin: string): Message {
   const review = list.filter((r) => r.kind === "review_waiting");
   const own = list.filter((r) => r.kind === "pull_waiting");
+  const hooks: HookEvent[] = [];
+  if (review.length > 0) {
+    hooks.push({
+      event: "review_waiting",
+      data: { pulls: review.map((r) => waitingPull(r, origin)) },
+    });
+  }
+  if (own.length > 0) {
+    hooks.push({ event: "pull_waiting", data: { pulls: own.map((r) => waitingPull(r, origin)) } });
+  }
   return {
     subject: `ocra: ${plural(list.length, "pull request")} waiting`,
     lines: [
       ...lines("Waiting for your review", review, now, origin),
       ...lines("Your pull requests waiting for a review", own, now, origin),
     ],
+    hooks,
   };
 }
 

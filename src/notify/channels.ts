@@ -1,12 +1,13 @@
 import { platformSend } from "../platforms/http.js";
-import type { NotifyKind, NotifyWhen } from "../shared/index.js";
+import type { NotifyKind, NotifyWhen, WebhookPull } from "../shared/index.js";
+import type { HookEvent } from "./webhooks.js";
 
 // A chat's incoming webhook: which addresses a kind takes, the message
 // announcing a review, and its delivery. A message carries the review's
 // counts and links, and the titles of its most severe findings when the
 // account shares findings; titles are model text, so they are made plain.
 
-export type HookKind = Exclude<NotifyKind, "email">;
+export type HookKind = Exclude<NotifyKind, "email" | "webhook">;
 
 /** Only the chat's own host: the server never posts to an address a user typed freely. */
 const HOOKS: Record<HookKind, (u: URL) => boolean> = {
@@ -71,8 +72,8 @@ export function plain(text: string): string {
 
 /** Text, or a link; a renderer turns each into its medium's form. */
 type Piece = string | { label: string; url: string };
-/** What a channel is told: the subject only an email shows, then its lines. */
-export type Message = { subject: string; lines: Piece[][] };
+/** What a channel is told: the subject only an email shows, then its lines; a webhook gets hooks instead. */
+export type Message = { subject: string; lines: Piece[][]; hooks?: HookEvent[] };
 
 export function reviewMessage(n: ReviewNotice): Message {
   const counts = `${n.critical} critical · ${n.warning} warning · ${n.suggestion} suggestion`;
@@ -93,6 +94,8 @@ export type RuleNotice = {
   rule: string;
   pull: { label: string; url: string | null };
   consoleUrl: string;
+  /** The pull request as a webhook names it; null where its platform is not configured. */
+  hookPull: WebhookPull | null;
 };
 
 /** The message of an automation rule that ran. */
@@ -104,6 +107,7 @@ export function ruleMessage(n: RuleNotice): Message {
       [`ocra automation "${plain(n.rule)}" ran on `, pull],
       [{ label: "Open in ocra", url: n.consoleUrl }],
     ],
+    hooks: [{ event: "automation_ran", data: { rule: plain(n.rule), pull: n.hookPull } }],
   };
 }
 

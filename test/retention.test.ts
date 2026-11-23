@@ -112,6 +112,15 @@ describe("retention", () => {
     expect((await d.list("notifyHeld")).map((r) => r.id)).toEqual(["new"]);
   });
 
+  it("forgets a webhook delivery after 30 days", async () => {
+    const { account } = await signIn(1, "octo");
+    const d = scoped(db, account.id);
+    await d.insert("webhookDeliveries", { ...rows.webhookDeliveries("old"), createdAt: ago(31) });
+    await d.insert("webhookDeliveries", { ...rows.webhookDeliveries("new"), createdAt: ago(29) });
+    await enforceRetention(db, now);
+    expect((await d.list("webhookDeliveries")).map((r) => r.id)).toEqual(["new"]);
+  });
+
   it("deletes a merge-when-ready intent a month after it ended, an armed one after 90 days", async () => {
     const { account } = await signIn(1, "octo");
     const d = scoped(db, account.id);

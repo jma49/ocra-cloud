@@ -3,7 +3,8 @@
 // digest and the weekly report, and which events of its own pull requests
 // it hears about.
 
-export const NOTIFY_KINDS = ["slack", "wecom", "email"] as const;
+/** webhook: an HTTPS endpoint of the account's own, sent signed JSON (./webhooks.ts). */
+export const NOTIFY_KINDS = ["slack", "wecom", "email", "webhook"] as const;
 export type NotifyKind = (typeof NOTIFY_KINDS)[number];
 
 /** blocking: a review with a critical finding; findings: one with any; every: all of them. */
@@ -96,6 +97,8 @@ export type NotifyChannelAdded = {
   channel: NotifyChannelView;
   /** For an email address: whether the confirmation link was sent. */
   confirmationSent?: boolean;
+  /** For a webhook: the secret its deliveries are signed with, answered only here. */
+  secret?: string;
 };
 
 /** When the account's weekly report goes: a UTC weekday (0 is Sunday) and hour. */

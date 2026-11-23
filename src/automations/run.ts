@@ -1,6 +1,7 @@
 import type { Context } from "hono";
 import type { RunResult } from "../db/automations.js";
 import { newId, type Row, type Scoped } from "../db/scoped.js";
+import { consolePullUrl } from "../merge-checks/run.js";
 import { ruleMessage } from "../notify/channels.js";
 import { type Outbox, outboxOf, send } from "../notify/notify.js";
 import type { BotCredential, BotTokens } from "../platforms/bot.js";
@@ -298,6 +299,17 @@ async function perform(
         url: platform ? pullPageUrl(platform, pull) : null,
       },
       consoleUrl: event.consoleUrl,
+      hookPull: platform
+        ? {
+            platform: platform.kind,
+            ...pull,
+            consoleUrl: consolePullUrl(
+              runner.out.origin,
+              { platform: platform.kind, fullName: pull.repo },
+              pull.number,
+            ),
+          }
+        : null,
     });
     const sent = await send(runner.data, runner.out, channel, message);
     return { outcome: sent ? "done" : "unreached" };

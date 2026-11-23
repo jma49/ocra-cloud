@@ -65,6 +65,7 @@ import { accountReviewTargets } from "./review-targets.js";
 import { accountReviewThreads } from "./review-threads.js";
 import { accountTables } from "./schema.js";
 import { accountSearch } from "./search.js";
+import { accountWebhookDeliveries } from "./webhook-deliveries.js";
 
 type Tables = typeof accountTables;
 type Name = keyof Tables;
@@ -444,6 +445,7 @@ export function scoped(db: Db, accountId: string) {
     graphs: accountGraphs(db, accountId),
     autoReview: accountReviewJobs(db, accountId),
     notify: accountNotify(db, accountId),
+    webhooks: accountWebhookDeliveries(db, accountId),
     reports: accountReports(db, accountId),
     closedPulls: accountClosedPulls(db, accountId),
     pullFlows: accountPullFlows(db, accountId),

@@ -4,6 +4,7 @@ import { masterKeys } from "../keyring.js";
 import { errorName, logError } from "../log.js";
 import { postChecks } from "../merge-checks/publish.js";
 import type { Mailer } from "../notify/email.js";
+import type { WebhookPost } from "../notify/webhooks.js";
 import type { BotTokens } from "../platforms/bot.js";
 import { platformsOf } from "../platforms/registry.js";
 import type { AppBindings } from "../types.js";
@@ -22,6 +23,8 @@ export type AutoReviewOptions = {
   pollMs?: number;
   /** The server's mailer, for the email channels told of failed checks. */
   mailer?: Mailer;
+  /** How the webhook channels told of failed checks are posted. */
+  webhookPost?: WebhookPost;
 };
 
 /** Runs queued reviews in this process until stopped; kick() wakes it at once. */
@@ -40,6 +43,7 @@ export function startAutoReview(
     outbox: {
       keys: masterKeys(env),
       mailer: options.mailer,
+      webhooks: options.webhookPost,
       linkSecret: env.SESSION_SECRET,
       origin: new URL(publicUrl).origin,
     },

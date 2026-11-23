@@ -13,8 +13,10 @@ import { runAtRisk } from "../notify/at-risk.js";
 import { runDigests } from "../notify/digest.js";
 import type { Mailer } from "../notify/email.js";
 import { runHeld } from "../notify/held.js";
+import { retryOutbox } from "../notify/notify.js";
 import { runReminders } from "../notify/reminders.js";
 import { runReports } from "../notify/report.js";
+import { retryWebhooks, type WebhookPost } from "../notify/webhooks.js";
 import { githubHostOf, platformsOf } from "../platforms/registry.js";
 import type { AppBindings } from "../types.js";
 import { botTokens } from "./bot-tokens.js";
@@ -23,6 +25,7 @@ import { type GraphOptions, startGraphs } from "./graph-worker.js";
 import { type RateLimitStore, rateLimits } from "./limits.js";
 import { openPostgres } from "./postgres.js";
 import { type AutoReviewOptions, startAutoReview } from "./review-worker.js";
+import { nodeWebhookPost } from "./webhook-transport.js";
 
 export type HostOptions = {
   /**
@@ -65,6 +68,8 @@ export type HostOptions = {
   autoReview?: AutoReviewOptions;
   /** Email notifications and digests (SMTP_URL); none without it. */
   mailer?: Mailer;
+  /** How webhooks are posted; nodeWebhookPost() unless a test gives its own. */
+  webhookPost?: WebhookPost;
 };
 
 /**
@@ -82,11 +87,16 @@ export async function openHost(options: HostOptions) {
       ? { ...options.bindings, ...rateLimits({ db: shared }) }
       : options.bindings;
   const addresses = new WeakMap<Request, string | undefined>();
+  const webhookPost = options.webhookPost ?? nodeWebhookPost();
   const graphs = options.graphs && startGraphs(options.graphs, shared, bindings, options.publicUrl);
   const reviews =
     options.autoReview && options.publicUrl
       ? startAutoReview(
-          { ...options.autoReview, ...(options.mailer ? { mailer: options.mailer } : {}) },
+          {
+            ...options.autoReview,
+            ...(options.mailer ? { mailer: options.mailer } : {}),
+            webhookPost,
+          },
           shared,
           bindings,
           options.publicUrl,
@@ -103,6 +113,7 @@ export async function openHost(options: HostOptions) {
     ...(reviews ? { autoReview: reviews.service } : {}),
     ...(bots ? { bots } : {}),
     ...(options.mailer ? { mailer: options.mailer } : {}),
+    webhookPost,
   });
 
   const origin = options.publicUrl ? new URL(options.publicUrl).origin : undefined;
@@ -151,6 +162,7 @@ export async function openHost(options: HostOptions) {
         mailer: options.mailer,
         linkSecret: bindings.SESSION_SECRET,
         origin,
+        webhooks: webhookPost,
       };
       await Promise.all([
         runDigests(shared, out),
@@ -166,6 +178,9 @@ export async function openHost(options: HostOptions) {
       const platforms = platformsOf(bindings, options.publicUrl);
       return retryAutomations({ db: shared, bots, platforms });
     },
+    /** Tries again the webhook deliveries due; how many it tried. */
+    webhookRetries: () =>
+      retryWebhooks(shared, retryOutbox({ keys: masterKeys(bindings), webhooks: webhookPost })),
     /** The graph build worker, when graphs are on. */
     graphWorker: graphs?.worker,
     /** The review worker, when auto review is on. */
