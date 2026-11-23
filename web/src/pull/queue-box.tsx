@@ -27,6 +27,8 @@ export function QueueBox(props: {
   head: string;
   /** Whether queueing is the pull request's next step. */
   primary: boolean;
+  /** Whether a requirement of the branch is known not to be met: the platform takes none such into its queue. */
+  unmet: boolean;
   onDone: (o: PullActionOutcome) => void;
   reload: () => void;
   /** It left the queue without this card's doing: what the page shows is out of date. */
@@ -107,6 +109,11 @@ export function QueueBox(props: {
             land, then merges it.
             {view.size !== null && ` ${queueSize(view.size)}`}
           </span>
+          {props.unmet && (
+            <span className="subtle small">
+              The queue takes it once what Merge readiness lists is met.
+            </span>
+          )}
           <Button
             variant={props.primary ? "default" : "outline"}
             loading={write.busy}

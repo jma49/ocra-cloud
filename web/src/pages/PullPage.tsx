@@ -248,6 +248,7 @@ export function PullPage(props: {
                 pull={ref}
                 head={data.head}
                 primary={step === "merge"}
+                unmet={readiness?.ready === "unmet"}
                 onDone={(o) => done("Merge queue", o)}
                 reload={queue.reload}
                 onLeft={refresh}
