@@ -81,7 +81,7 @@ suite("the audit log page", () => {
     );
     const first = await screen.findByRole("region", { name: /January 2, 2026/ });
     expect(within(first).getByText("Merged octo/api#7 (squash)")).toBeTruthy();
-    expect(within(first).getByText("Saved the anthropic key (check: ok)")).toBeTruthy();
+    expect(within(first).getByText("Saved the anthropic key: verified")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Load more" }));
     const second = await screen.findByRole("region", { name: /January 1, 2026/ });
     expect(within(second).getByText("Signed out of a browser")).toBeTruthy();

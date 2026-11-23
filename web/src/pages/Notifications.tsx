@@ -1,7 +1,9 @@
 import BellOff from "lucide-react/icons/bell-off";
 import ChevronRight from "lucide-react/icons/chevron-right";
+import Ellipsis from "lucide-react/icons/ellipsis";
 import { type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@/components/ui/menu";
 import { Switch } from "@/components/ui/switch";
 import {
   type CodePlatformKind,
@@ -150,7 +152,7 @@ export function Notifications(props: { platforms: readonly CodePlatformKind[] })
               <tbody>
                 {data.channels.map((c) => (
                   <tr key={c.id}>
-                    <td className="nobreak">
+                    <td className="channel-name">
                       <div className="strong">{c.name}</div>
                       <div className="subtle small">
                         {KIND_LABEL[c.kind]} · <span className="mono">…{c.last4}</span>
@@ -246,41 +248,40 @@ export function Notifications(props: { platforms: readonly CodePlatformKind[] })
                         <ChevronRight aria-hidden="true" />
                       </Button>
                     </td>
-                    <td className="num nobreak">
-                      {c.confirmed ? (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          disabled={test.busy}
-                          onClick={() => sendTest(c.id)}
+                    <td className="num">
+                      <Menu>
+                        <MenuTrigger
+                          render={<Button type="button" variant="ghost" size="icon-sm" />}
+                          aria-label={`Actions for ${c.name}`}
                         >
-                          Send test
-                        </Button>
-                      ) : (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          disabled={resend.busy}
-                          onClick={async () => {
-                            if ((await resend.run(c.id)) === undefined) return;
-                            setLinkSent(c.name);
-                            reload();
-                          }}
-                        >
-                          Send link again
-                        </Button>
-                      )}{" "}
-                      <Button
-                        type="button"
-                        variant="destructive-outline"
-                        size="sm"
-                        disabled={remove.busy}
-                        onClick={() => after(remove.run(c.id))}
-                      >
-                        Remove
-                      </Button>
+                          <Ellipsis aria-hidden="true" />
+                        </MenuTrigger>
+                        <MenuPopup align="end">
+                          {c.confirmed ? (
+                            <MenuItem disabled={test.busy} onClick={() => sendTest(c.id)}>
+                              Send test
+                            </MenuItem>
+                          ) : (
+                            <MenuItem
+                              disabled={resend.busy}
+                              onClick={async () => {
+                                if ((await resend.run(c.id)) === undefined) return;
+                                setLinkSent(c.name);
+                                reload();
+                              }}
+                            >
+                              Send link again
+                            </MenuItem>
+                          )}
+                          <MenuItem
+                            variant="destructive"
+                            disabled={remove.busy}
+                            onClick={() => after(remove.run(c.id))}
+                          >
+                            Remove
+                          </MenuItem>
+                        </MenuPopup>
+                      </Menu>
                     </td>
                   </tr>
                 ))}

@@ -95,6 +95,11 @@ const SIGN_IN: Record<string, string> = {
   oidc: "single sign-on",
   device: "a code approved in the browser",
 };
+const KEY_CHECK: Record<string, string> = {
+  ok: "verified",
+  invalid: "rejected by the provider",
+  error: "could not be checked",
+};
 const VERDICT: Record<string, string> = {
   approve: "Approved",
   request_changes: "Requested changes on",
@@ -106,6 +111,8 @@ const where = (client: string | undefined) => (client === "cli" ? "the terminal"
 const named = (value: string | undefined, fallback: string) => value ?? fallback;
 const noted = (value: string | null | undefined, open = " (", close = ")") =>
   value ? `${open}${value}${close}` : "";
+const checked = (check: string | undefined) =>
+  noted(check && (KEY_CHECK[check] ?? check), ": ", "");
 const listed = (keys: string[] | undefined) => (keys?.length ? `: ${keys.join(", ")}` : "");
 const people = (d: { added?: string[]; removed?: string[] }) => {
   const parts = [
@@ -160,9 +167,9 @@ export function describe(e: AuditEventView): string {
         ? "Removed the daily budget"
         : `Set the daily budget to ${e.detail.dailyCalls} calls`;
     case "key.saved":
-      return `Saved the ${named(e.detail.provider, "provider")} key${noted(e.detail.check, " (check: ")}`;
+      return `Saved the ${named(e.detail.provider, "provider")} key${checked(e.detail.check)}`;
     case "key.checked":
-      return `Checked the ${named(e.detail.provider, "provider")} key${noted(e.detail.check, ": ", "")}`;
+      return `Checked the ${named(e.detail.provider, "provider")} key${checked(e.detail.check)}`;
     case "key.deleted":
       return `Deleted the ${named(e.detail.provider, "provider")} key`;
     case "channel.added":
