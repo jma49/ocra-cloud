@@ -1,5 +1,5 @@
 import type { CodePlatformKind } from "./domain.js";
-import type { PullActionOutcome } from "./pull-page.js";
+import type { MergeMethod, PullActionOutcome } from "./pull-page.js";
 import type { PullChecks, PullReview } from "./pulls.js";
 
 // A stack of pull requests, read from the platform: one whose base branch is
@@ -31,15 +31,75 @@ export type PullStackView = {
   pulls: StackedPull[];
 };
 
-/** `unreached` when the platform did not answer; the steps after a stop are not tried. */
+/** `unreached` when the platform did not answer. */
 export type StackStepOutcome = PullActionOutcome | "unreached";
 
 export type StackMergeStep = { number: number; outcome: StackStepOutcome };
 
-export type StackMergeView = {
-  steps: StackMergeStep[];
-  /** Open pull requests that were stacked on a merged one, each retargeted to the trunk. */
+/**
+ * A stack merge the server runs layer by layer (POST /api/pulls/merge-stack):
+ * `waiting` on the platform between steps, `running` while one runner holds
+ * it; the last three are where it ends.
+ */
+export const STACK_MERGE_STATES = ["waiting", "running", "merged", "failed", "cancelled"] as const;
+export type StackMergeState = (typeof STACK_MERGE_STATES)[number];
+
+/**
+ * What a waiting merge waits on (the layer's checks, the platform's other
+ * rules, the branch being brought up to date), or why it stopped.
+ */
+export const STACK_MERGE_REASONS = [
+  "waiting_checks",
+  "waiting_platform",
+  "updating",
+  "checks_failed",
+  "conflicts",
+  "refused",
+  "head_moved",
+  "closed",
+  "stack_changed",
+  "no_token",
+  "unreachable",
+  "timed_out",
+] as const;
+export type StackMergeReason = (typeof STACK_MERGE_REASONS)[number];
+
+/** One layer of a stack merge, with the head it merges. */
+export type StackMergeLayer = { number: number; head: string };
+
+export type StackMergeJobView = {
+  id: string;
+  platform: CodePlatformKind;
+  repo: string;
+  /** The stack's bottom, which names the merge: one runs per bottom at a time. */
+  bottom: number;
+  trunk: string;
+  method: MergeMethod;
+  /** Bottom first, up to the pull request it was started from. */
+  chain: StackMergeLayer[];
+  /** The index in `chain` of the layer it is on; every layer below it is merged. */
+  step: number;
+  state: StackMergeState;
+  reason: StackMergeReason | null;
+  /** Open pull requests stacked on a merged layer but not in the chain, moved onto the trunk. */
   restacked: StackMergeStep[];
+  /** The login of who started it. */
+  startedBy: string;
+  startedAt: string;
+  updatedAt: string;
+  finishedAt: string | null;
+};
+
+/**
+ * What POST, GET and DELETE /api/pulls/merge-stack answer. A start is
+ * `started`, or `running` when a merge of this stack is already under way
+ * (that one is the job), or `stack_changed` when the stack is not the one
+ * the page read, so nothing started; a read or a cancel is `done`.
+ */
+export type StackMergeAnswer = {
+  outcome: "started" | "running" | "stack_changed" | "done";
+  /** The stack's newest merge; null when none was started. */
+  job: StackMergeJobView | null;
 };
 
 /**

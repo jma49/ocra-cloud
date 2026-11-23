@@ -97,6 +97,7 @@ export function mergeRequestApi(repo: BareRepository, url: () => string) {
       title: p.title,
       description: p.description,
       state: p.state,
+      detailed_merge_status: p.state === "opened" ? "mergeable" : "not_open",
       draft: false,
       author: { id: PERSON.id, username: PERSON.username },
       web_url: `${url()}/${PROJECT.path}/-/merge_requests/${p.iid}`,
@@ -254,7 +255,11 @@ export function mergeRequestApi(repo: BareRepository, url: () => string) {
       const car = /^\/merge_trains\/merge_requests\/(\d+)$/.exec(rest);
       if (rest === "/merge_requests" && method === "GET") {
         const state = query.get("state");
-        json([...pulls.values()].filter((p) => !state || p.state === state).map(view));
+        const target = query.get("target_branch");
+        const listed = [...pulls.values()].filter(
+          (p) => (!state || p.state === state) && (!target || p.target_branch === target),
+        );
+        json(listed.map(view));
       } else if (pull) {
         pullRoute(method, Number(pull[1]), pull[2] ?? "", fields, user, json);
       } else if (car) {

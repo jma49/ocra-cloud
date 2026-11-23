@@ -7,9 +7,30 @@ import { type PullActionOutcome, pullStacks, type StackedPull } from "../shared/
 /** An open pull request whose head branch is in the repository itself. */
 export type OpenPull = Omit<StackedPull, "parent">;
 
+/**
+ * Where one layer of a stack stands for its merge: `blocker` is null when
+ * the platform would merge it now; `behind` when its base moved on and the
+ * repository wants it up to date; `checks_pending` or `checks_failed` by the
+ * head's checks; `waiting` for anything else (approvals, a draft, a state
+ * the platform is still working out).
+ */
+export type LayerStanding = {
+  state: "open" | "merged" | "closed";
+  head: string;
+  headBranch: string;
+  base: string;
+  blocker: "behind" | "conflicts" | "checks_pending" | "checks_failed" | "waiting" | null;
+};
+
+/** Pages of open pull requests read to find a stack: a stack's bottom may be older than the first. */
+export const MAX_OPEN_PAGES = 10;
+
 export interface PullStacks {
-  /** The repository's open pull requests, at most one page; null when unreached. */
+  /** The repository's open pull requests, at most MAX_OPEN_PAGES pages; null when unreached. */
   open(token: string, fullName: string): Promise<OpenPull[] | null>;
+  /** The open pull requests whose base is `branch`, their heads in the repository itself. */
+  children(token: string, fullName: string, branch: string): Promise<OpenPull[] | null>;
+  standing(token: string, fullName: string, number: number): Promise<LayerStanding | null>;
   /** Sets a pull request's base branch. */
   retarget(
     token: string,

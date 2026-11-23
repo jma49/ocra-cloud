@@ -1,0 +1,245 @@
+import { audit } from "../audit.js";
+import type { Db } from "../db/client.js";
+import { type Scoped, scoped } from "../db/scoped.js";
+import { dueStackMerges, type StackMerge, type StackProgress } from "../db/stack-merges.js";
+import { errorName, logError } from "../log.js";
+import { accessToken } from "../platforms/links.js";
+import type { CodePlatform } from "../platforms/platform.js";
+import { MAX_STACK } from "../platforms/stacks.js";
+import { mergeMethodsOf, mergeOne } from "../pull-page.js";
+import type { StackMergeLayer, StackMergeReason, StackMergeStep } from "../shared/index.js";
+import type { AppBindings } from "../types.js";
+
+// A stack merge moved on, one claimed step at a time: the layer it is on is
+// read from the platform, retargeted to the trunk, brought up to date where
+// the repository wants that, and merged as the user once the platform would
+// merge it; then the layers stacked on it are moved onto the trunk and the
+// next one is taken. It waits between steps on the layer's checks and the
+// platform's rules, moved on by webhooks, the sweep and the status page, and
+// stops with a reason on what waiting will not fix.
+
+export type StackRunner = {
+  db: Db;
+  env: Pick<AppBindings, "MASTER_KEY" | "MASTER_KEY_PREVIOUS">;
+  platforms: readonly CodePlatform[];
+};
+
+export type StackScope = { runner: StackRunner; data: Scoped; platform: CodePlatform };
+
+/** A merge not done by then is stopped: what it waits on is not coming. */
+const STACK_MERGE_TIMEOUT_MS = 3 * 24 * 60 * 60_000;
+
+/** One step is either a platform read, a write, or both: this many is every layer twice over. */
+const MAX_STEPS = MAX_STACK * 4;
+
+const pullOf = (merge: StackMerge) => `${merge.path}#${merge.bottom}`;
+const topOf = (merge: StackMerge) => merge.chain[merge.chain.length - 1]?.number ?? merge.bottom;
+
+type Ended = "merged" | "failed";
+
+/**
+ * Takes one claimed run of a merge as far as it goes now; the row as it then
+ * stands. A caller that loses the claim changes nothing.
+ */
+export async function advanceStack(
+  scope: StackScope,
+  merge: StackMerge,
+  now = new Date(),
+): Promise<StackMerge | undefined> {
+  const merges = scope.data.stackMerges;
+  const claim = await merges.claim(merge.id, now);
+  if (!claim) return merges.byId(merge.id);
+  const run = new Run(scope, merge, claim, now);
+  try {
+    await run.steps();
+  } catch (e) {
+    await run.wait("unreachable");
+    throw e;
+  }
+  return merges.byId(merge.id);
+}
+
+/** One claimed run: every write names the claim, so a cancel or a takeover stops it. */
+class Run {
+  private at: StackMerge;
+  constructor(
+    private readonly scope: StackScope,
+    private readonly merge: StackMerge,
+    private readonly claim: Date,
+    private readonly now: Date,
+  ) {
+    this.at = merge;
+  }
+
+  private get merges() {
+    return this.scope.data.stackMerges;
+  }
+
+  wait(reason: StackMergeReason): Promise<boolean> {
+    return this.merges.release(this.merge.id, this.claim, reason, this.now);
+  }
+
+  private async end(state: Ended, reason: StackMergeReason | null): Promise<void> {
+    const { merge } = this;
+    if (!(await this.merges.finish(merge.id, this.claim, state, reason, this.now))) return;
+    const detail = { pull: pullOf(merge), top: topOf(merge), method: merge.method };
+    if (state === "merged") await audit(this.scope.data, "stack_merge.merged", detail);
+    else await audit(this.scope.data, "stack_merge.failed", { ...detail, reason });
+  }
+
+  private save(progress: StackProgress): Promise<boolean> {
+    this.at = { ...this.at, ...progress };
+    return this.merges.save(this.merge.id, this.claim, progress, this.now);
+  }
+
+  async steps(): Promise<void> {
+    const { platform, runner, data } = this.scope;
+    const token = await accessToken(data, runner.env, platform);
+    if (!token) return this.end("failed", "no_token");
+    if (this.now.getTime() - this.merge.createdAt.getTime() > STACK_MERGE_TIMEOUT_MS) {
+      return this.end("failed", "timed_out");
+    }
+    for (let n = 0; n < MAX_STEPS; n++) {
+      const moved = await this.step(token);
+      if (moved !== "next") return;
+    }
+    await this.wait("waiting_platform");
+  }
+
+  /** One read of the layer it is on, and what that calls for; `next` to read again at once. */
+  private async step(token: string): Promise<"next" | "stop"> {
+    const { platform } = this.scope;
+    const at = this.at;
+    const repo = at.path;
+    const stop = async (done: Promise<unknown>) => {
+      await done;
+      return "stop" as const;
+    };
+    const next = async (progress: StackProgress) =>
+      (await this.save(progress)) ? ("next" as const) : ("stop" as const);
+    const layer = at.chain[at.step];
+    if (!layer) return stop(this.end("merged", null));
+    const standing = await platform.stacks.standing(token, repo, layer.number);
+    if (!standing) return stop(this.wait("unreachable"));
+    if (standing.state === "closed") return stop(this.end("failed", "closed"));
+    if (standing.state === "merged") {
+      // Merged into a branch of the stack, not the trunk: what the next layer holds did not land.
+      if (standing.base !== at.trunk) return stop(this.end("failed", "stack_changed"));
+      // Merged by this run, or on the platform directly: the ones above it move on.
+      const restacked = await restack(this.scope, token, at, standing.headBranch);
+      const above = at.chain[at.step + 1];
+      const current = above ? { current: above.number, head: above.head } : {};
+      return next({ step: at.step + 1, ...current, updatedFrom: null, restacked });
+    }
+    if (standing.base !== at.trunk) {
+      if (at.step === 0) return stop(this.end("failed", "stack_changed"));
+      const moved = await platform.stacks.retarget(token, repo, layer.number, at.trunk);
+      if (moved === null) return stop(this.wait("unreachable"));
+      if (moved !== "done") return stop(this.end("failed", "refused"));
+      return next({});
+    }
+    if (standing.head !== layer.head) {
+      // Only the platform's own update of the branch, which this run asked for, moves a layer.
+      if (at.updatedFrom !== layer.head) return stop(this.end("failed", "head_moved"));
+      const chain = at.chain.map((l, i) => (i === at.step ? { ...l, head: standing.head } : l));
+      return next({ chain, head: standing.head, updatedFrom: null });
+    }
+    switch (standing.blocker) {
+      case "conflicts":
+        return stop(this.end("failed", "conflicts"));
+      case "checks_failed":
+        return stop(this.end("failed", "checks_failed"));
+      case "checks_pending":
+        return stop(this.wait("waiting_checks"));
+      case "waiting":
+        return stop(this.wait("waiting_platform"));
+      case "behind":
+        return this.update(token, layer);
+      case null:
+        return this.mergeLayer(token, layer);
+    }
+  }
+
+  /** Asks the platform to bring a layer whose base moved on up to date, once per head. */
+  private async update(token: string, layer: StackMergeLayer): Promise<"stop"> {
+    if (this.at.updatedFrom === layer.head) {
+      await this.wait("updating");
+      return "stop";
+    }
+    const { platform } = this.scope;
+    const sent = await platform.edits.updateBranch(token, this.at.path, layer.number, layer.head);
+    if (sent === null) await this.wait("unreachable");
+    else if (sent === "updating") {
+      if (await this.save({ updatedFrom: layer.head })) await this.wait("updating");
+    } else if (sent === "conflicts") await this.end("failed", "conflicts");
+    else if (sent === "forbidden") await this.end("failed", "refused");
+    else if (sent === "not_open") await this.end("failed", "closed");
+    else await this.wait("waiting_platform");
+    return "stop";
+  }
+
+  private async mergeLayer(token: string, layer: StackMergeLayer): Promise<"next" | "stop"> {
+    // The claim is checked once more just before the merge: a cancel since stops it here.
+    if (!(await this.save({}))) return "stop";
+    const { platform } = this.scope;
+    const repo = this.at.path;
+    const allowed = await mergeMethodsOf(platform, token, repo);
+    const merged = await mergeOne(
+      platform,
+      token,
+      { repo, number: layer.number, method: this.at.method, head: layer.head },
+      allowed,
+    );
+    // Merged: the next read sees it so and moves on.
+    if (merged === "done") return "next";
+    if (merged === null) await this.wait("unreachable");
+    else if (merged === "refused") await this.end("failed", "refused");
+    else await this.wait("waiting_platform");
+    return "stop";
+  }
+}
+
+/**
+ * Moves the open pull requests stacked on a merged branch, but not in the
+ * chain (it moves those itself), onto the trunk; what it did, kept with the
+ * merge's earlier ones.
+ */
+async function restack(
+  scope: StackScope,
+  token: string,
+  merge: StackMerge,
+  branch: string,
+): Promise<StackMergeStep[]> {
+  const above = await scope.platform.stacks.children(token, merge.path, branch);
+  const kept = [...merge.restacked];
+  const inChain = new Set(merge.chain.map((l) => l.number));
+  for (const pull of (above ?? []).slice(0, MAX_STACK)) {
+    if (inChain.has(pull.number) || kept.some((s) => s.number === pull.number)) continue;
+    const moved = await scope.platform.stacks.retarget(token, merge.path, pull.number, merge.trunk);
+    kept.push({ number: pull.number, outcome: moved ?? "unreached" });
+  }
+  return kept.slice(-MAX_STACK);
+}
+
+/** Merges a sweep moves; the rest wait for the next. */
+const PER_SWEEP = 20;
+/** A waiting merge the webhooks have not moved for this long is read again. */
+const SWEEP_IDLE_MS = 60_000;
+
+/** Moves on the merges that waited longest, across accounts; how many it tried. */
+export async function sweepStackMerges(runner: StackRunner, now = new Date()): Promise<number> {
+  const due = await dueStackMerges(runner.db, now, SWEEP_IDLE_MS, PER_SWEEP);
+  for (const row of due) {
+    const platform = runner.platforms.find((p) => p.kind === row.platform && p.host === row.host);
+    if (!platform) continue;
+    const data = scoped(runner.db, row.accountId);
+    const merge = await data.stackMerges.byId(row.id);
+    if (!merge) continue;
+    try {
+      await advanceStack({ runner, data, platform }, merge, now);
+    } catch (e) {
+      logError("stack_merge_failed", { error: errorName(e) });
+    }
+  }
+  return due.length;
+}

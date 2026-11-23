@@ -13,6 +13,7 @@ import { gitlabSteps } from "../inbound/steps.js";
 import { gitlabSignal } from "../merge-when-ready/hooks.js";
 import { COMMIT_ID } from "../platforms/contents.js";
 import { githubHostOf, gitlabClientOf } from "../platforms/registry.js";
+import { gitlabMerged } from "../stack-merge/hooks.js";
 import type { AppEnv } from "../types.js";
 import { recordGitlabClose } from "./closes.js";
 import { recordGitlabFlow } from "./flows.js";
@@ -142,8 +143,9 @@ export function autoReviewWebhooks(service: AutoReviewService) {
       return apiError(c, "unauthenticated");
     }
     const signal = gitlabSignal(kind, body);
+    const merged = gitlabMerged(kind, body);
     const tells = !!note?.data || !!mr;
-    const steps = await gitlabSteps(c.var.db, repo, tells, signal?.signal);
+    const steps = await gitlabSteps(c.var.db, repo, tells, signal?.signal, merged);
     const received = await receive(c, {
       platform: "gitlab",
       host,
@@ -157,6 +159,7 @@ export function autoReviewWebhooks(service: AutoReviewService) {
         ...(signal && steps.includes("intents")
           ? { signal: { fullName: repo.fullName, signal: signal.signal } }
           : {}),
+        ...(merged && steps.includes("intents") ? { merged } : {}),
       },
     });
     if (!received) return c.json({ queued: 0, duplicate: true }, 202);

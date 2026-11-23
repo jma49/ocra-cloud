@@ -65,6 +65,7 @@ import { accountReviewTargets } from "./review-targets.js";
 import { accountReviewThreads } from "./review-threads.js";
 import { accountTables } from "./schema.js";
 import { accountSearch } from "./search.js";
+import { accountStackMerges } from "./stack-merges.js";
 import { accountWebhookDeliveries } from "./webhook-deliveries.js";
 
 type Tables = typeof accountTables;
@@ -463,6 +464,7 @@ export function scoped(db: Db, accountId: string) {
     automations: accountAutomations(db, accountId),
     mergeChecks: accountMergeChecks(db, accountId),
     mergeIntents: accountMergeIntents(db, accountId),
+    stackMerges: accountStackMerges(db, accountId),
     live: accountLive(db, accountId),
     search: accountSearch(db, accountId),
     /** The findings of one of this account's reviews. */

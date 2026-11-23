@@ -62,6 +62,7 @@ import { reviewers } from "./reviewers.js";
 import { reviews } from "./reviews.js";
 import { searchRoute } from "./search.js";
 import { sessions } from "./sessions.js";
+import { stackMerge } from "./stack-merge/routes.js";
 import type { AppBindings, AppEnv } from "./types.js";
 import { usage } from "./usage.js";
 import { githubWebhook } from "./webhooks.js";
@@ -157,6 +158,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
   app.route("/pull-views", pullViewsRoute);
   app.route("/pulls/checks", pullChecksRoute);
   app.route("/pulls/merge-when-ready", mergeWhenReady);
+  app.route("/pulls/merge-stack", stackMerge);
   app.route("/pulls", pullPage);
   app.route("/pulls", pullDescription);
   app.route("/pulls", pullFindings);

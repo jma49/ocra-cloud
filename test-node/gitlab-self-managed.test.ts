@@ -441,11 +441,11 @@ describe("ocra Cloud with a self-managed GitLab", () => {
       method: "merge",
       heads: stack.pulls.map((p) => ({ number: p.number, head: p.headSha })),
     });
-    expect(await merged.json()).toEqual({
-      steps: [
-        { number: MR, outcome: "done" },
-        { number: STACKED, outcome: "done" },
-      ],
+    expect(((await merged.json()) as { job: unknown }).job).toMatchObject({
+      bottom: MR,
+      step: 2,
+      state: "merged",
+      reason: null,
       restacked: [],
     });
     // The upper one was moved onto main before its merge, and both landed there.

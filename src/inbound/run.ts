@@ -18,10 +18,12 @@ import { tellGithubHook, tellGitlabHook, tellGitlabNote } from "../notify/pull-h
 import type { WebhookPost } from "../notify/webhooks.js";
 import type { BotTokens } from "../platforms/bot.js";
 import { platformsOf } from "../platforms/registry.js";
+import { type MergedPull, moveGithubStacks, moveStacks } from "../stack-merge/hooks.js";
 import type { AppBindings } from "../types.js";
 
 // A delivery's side effects after its answer: telling the account's
-// channels, moving merge-when-ready intents and reading a reviewed pull
+// channels, moving merge-when-ready intents and stack merges (and the
+// pull requests stacked on a merged one), and reading a reviewed pull
 // request's directories. Each is safe to run again (the notices' keys, the
 // intents' compare-and-set, the paths' head), so a step that throws is
 // tried again with backoff, by the sweep, until MAX_ATTEMPTS; the steps
@@ -40,6 +42,8 @@ export type InboundWork = {
   reviewed?: { number: number; head?: string | undefined };
   /** GitLab's: the signal, already read, for the proved project's intents. */
   signal?: { fullName: string; signal: PullSignal };
+  /** GitLab's: the merge request that merged, whose stacked ones move onto its base. */
+  merged?: MergedPull;
 };
 
 /** What a host gives the side effects, in a request or in its sweep. */
@@ -92,6 +96,7 @@ async function runStep(
   }
   if (row.platform === "github" && step === "intents") {
     await moveGithubIntents(merges, row.host, row.event, body);
+    await moveGithubStacks(merges, row.host, row.event, body);
     return;
   }
   // The repository is read again: it may have been removed since.
@@ -102,6 +107,7 @@ async function runStep(
     if (pull) await keepReviewedPaths(reader, { repo, number: pull.number, head: pull.head });
   } else if (step === "intents") {
     if (work.signal) await moveIntents(merges, repo, work.signal.fullName, work.signal.signal);
+    await moveStacks(merges, repo, repo.fullName, work.signal?.signal, work.merged);
   } else if (row.event === "Note Hook") {
     await tellGitlabNote(db, out, repo, body, gitlabStartOf(reader, repo));
   } else {

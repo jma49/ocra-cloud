@@ -5,6 +5,8 @@
 type Pull = { pull: string };
 /** Logins, which the platforms show to anyone who reaches the pull request. */
 type People = { added: string[]; removed: string[] };
+/** A stack merge, named by its bottom and top pull requests. */
+type StackMerge = Pull & { top: number; method: string };
 type MergeEnded = Pull & { mode: string; method: string; head: string; reason: string | null };
 
 /** What each kind of event keeps, by kind. */
@@ -53,6 +55,11 @@ export type AuditDetails = {
   "merge_when_ready.closed": MergeEnded;
   "merge_when_ready.disarmed": MergeEnded;
   "merge_when_ready.failed": MergeEnded;
+  "stack_merge.started": StackMerge;
+  "stack_merge.cancelled": StackMerge;
+  "stack_merge.merged": StackMerge;
+  "stack_merge.failed": StackMerge & { reason: string | null };
+  "stack.retargeted": Pull & { base: string };
 };
 export type AuditKind = keyof AuditDetails;
 
@@ -97,6 +104,11 @@ export const AUDIT_FIELDS: { readonly [K in AuditKind]: readonly (keyof AuditDet
   "merge_when_ready.closed": ["pull", "mode", "method", "head", "reason"],
   "merge_when_ready.disarmed": ["pull", "mode", "method", "head", "reason"],
   "merge_when_ready.failed": ["pull", "mode", "method", "head", "reason"],
+  "stack_merge.started": ["pull", "top", "method"],
+  "stack_merge.cancelled": ["pull", "top", "method"],
+  "stack_merge.merged": ["pull", "top", "method"],
+  "stack_merge.failed": ["pull", "top", "method", "reason"],
+  "stack.retargeted": ["pull", "base"],
 };
 export const AUDIT_KINDS = Object.keys(AUDIT_FIELDS) as AuditKind[];
 
