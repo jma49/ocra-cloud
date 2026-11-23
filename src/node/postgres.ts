@@ -59,5 +59,5 @@ export async function openPostgres(url: string, options: { migrations: string; m
       client.release();
     }
   };
-  return { db: asDb(db, transact), close: () => void pool.end() };
+  return { db: asDb(db, transact), pool, close: () => void pool.end() };
 }
