@@ -27,6 +27,7 @@ import {
   rateWindows,
   reviewRequests,
   reviews,
+  reviewTeams,
   reviewThreads,
   serviceCounters,
   sessions,
@@ -38,7 +39,8 @@ import {
 // records, merged and closed pull requests, their review flow and review threads, who a rule assigned to review them, the inbox's read marks, the daily counts and the audit log are deleted after
 // RETENTION_DAYS; expired login codes, sessions and API tokens go at once; a notice held in
 // quiet hours after HELD_FOR; a channel's delivery record after DELIVERY_DAYS, a platform's
-// delivery to us after INBOUND_EVENT_DAYS. Runs daily
+// delivery to us after INBOUND_EVENT_DAYS, a team's members TEAM_DAYS after
+// they were read. Runs daily
 // from the cron trigger.
 
 export const RETENTION_DAYS = 90;
@@ -50,6 +52,9 @@ const MERGE_INTENT_DAYS = 30;
 const NOTIFY_SEND_DAYS = 30;
 /** A webhook delivery's record: its retries end within hours. */
 const DELIVERY_DAYS = 30;
+
+/** A team's members as read: a newer ask reads them again after a day (src/auto-review/teams.ts). */
+const TEAM_DAYS = 30;
 
 /** A platform's delivery: its retries end within the hour, and platforms redeliver within days. */
 const INBOUND_EVENT_DAYS = 7;
@@ -132,6 +137,18 @@ export async function enforceRetention(db: Db, now = new Date()): Promise<void> 
           .delete(reviewRequests)
           .where(
             and(ofEachAccount(reviewRequests.accountId), lt(reviewRequests.requestedAt, cutoff)),
+          ),
+    ],
+    [
+      "review_teams",
+      () =>
+        db
+          .delete(reviewTeams)
+          .where(
+            and(
+              ofEachAccount(reviewTeams.accountId),
+              lt(reviewTeams.fetchedAt, new Date(now.getTime() - TEAM_DAYS * DAY)),
+            ),
           ),
     ],
     // A pull request not seen for that long falls back on the inbox baseline,

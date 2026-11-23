@@ -189,6 +189,15 @@ export const rows = {
     reviewerId: `reviewer-${id}`,
     requestedAt: new Date(),
   }),
+  reviewTeams: (id: string) => ({
+    id,
+    platform: "github" as const,
+    host: "github.com",
+    reviewerId: `team:${id}`,
+    name: "acme/core",
+    members: ",1,2,",
+    fetchedAt: new Date(),
+  }),
   // The account default: a repository's own needs the enrolled repository too.
   reviewTargets: (id: string) => ({
     id,

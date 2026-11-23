@@ -85,6 +85,15 @@ describe("retention", () => {
     expect((await d.list("pullSeen")).map((r) => r.id)).toEqual(["new"]);
   });
 
+  it("forgets a team's members 30 days after they were read", async () => {
+    const { account } = await signIn(1, "octo");
+    const d = scoped(db, account.id);
+    await d.insert("reviewTeams", { ...rows.reviewTeams("old"), fetchedAt: ago(31) });
+    await d.insert("reviewTeams", { ...rows.reviewTeams("new"), fetchedAt: ago(29) });
+    await enforceRetention(db, now);
+    expect((await d.list("reviewTeams")).map((r) => r.id)).toEqual(["new"]);
+  });
+
   it("forgets a file ticked as viewed 90 days after the tick", async () => {
     const { account } = await signIn(1, "octo");
     const d = scoped(db, account.id);

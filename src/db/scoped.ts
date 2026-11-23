@@ -63,6 +63,7 @@ import { accountReviewJobs } from "./review-jobs.js";
 import { accountReviewLoad } from "./review-load.js";
 import { accountReviewRequests } from "./review-requests.js";
 import { accountReviewTargets } from "./review-targets.js";
+import { accountReviewTeams } from "./review-teams.js";
 import { accountReviewThreads } from "./review-threads.js";
 import { accountTables } from "./schema.js";
 import { accountSearch } from "./search.js";
@@ -452,6 +453,7 @@ export function scoped(db: Db, accountId: string) {
     pullFlows: accountPullFlows(db, accountId),
     pullPaths: accountPullPaths(db, accountId),
     reviewRequests: accountReviewRequests(db, accountId),
+    reviewTeams: accountReviewTeams(db, accountId),
     reviewThreads: accountReviewThreads(db, accountId),
     reviewTargets: accountReviewTargets(db, accountId),
     reviewLoad: accountReviewLoad(db, accountId),

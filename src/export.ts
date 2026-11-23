@@ -53,6 +53,7 @@ export const EXPORTED = {
   reviewThreads: "reviewThreads",
   pullPaths: "pullPaths",
   reviewRequests: "reviewRequests",
+  reviewTeams: "reviewTeams",
   reviewTargets: "reviewTargets",
   replyJobs: "replyJobs",
   reviewWalkthroughs: "walkthroughs",

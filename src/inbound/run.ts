@@ -91,7 +91,7 @@ async function runStep(
   const { out, reader, merges } = means(runner, work.origin);
   const body = work.body ?? {};
   if (row.platform === "github" && step === "tell") {
-    await tellGithubHook(db, row.host, out, row.event, body);
+    await tellGithubHook(db, row.host, out, row.event, body, runner.bots);
     return;
   }
   if (row.platform === "github" && step === "intents") {

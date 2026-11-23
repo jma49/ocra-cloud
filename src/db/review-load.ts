@@ -1,12 +1,27 @@
-import { and, desc, eq, gte, inArray, isNotNull, isNull, lt, or, type SQL, sql } from "drizzle-orm";
+import {
+  and,
+  desc,
+  eq,
+  gte,
+  inArray,
+  isNotNull,
+  isNull,
+  lt,
+  notLike,
+  or,
+  type SQL,
+  sql,
+} from "drizzle-orm";
 import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
 import type { Db } from "./client.js";
+import { TEAM_PREFIX } from "./review-teams.js";
 import { closedPulls, pullFlows, pullReviews, reviewRequests } from "./schema.js";
 
 // Who carries the review work of an account's enrolled repositories, from
 // what their webhooks recorded (src/review-load.ts): asks of a reviewer by
 // login, the reviews submitted, the asks still open and the pull requests
-// authored. Counts are grouped here; times come back as bounded rows.
+// authored, a team's asks left out. Counts are grouped here; times come
+// back as bounded rows.
 
 const r = reviewRequests;
 const v = pullReviews;
@@ -35,6 +50,7 @@ export function accountReviewLoad(db: Db, accountId: string) {
             eq(r.accountId, accountId),
             gte(r.requestedAt, since),
             isNotNull(r.reviewer),
+            notLike(r.reviewerId, `${TEAM_PREFIX}%`),
             ofRepos(r.reviewRepoId, repoIds),
           ),
         )
@@ -88,6 +104,7 @@ export function accountReviewLoad(db: Db, accountId: string) {
           and(
             eq(r.accountId, accountId),
             isNotNull(r.reviewer),
+            notLike(r.reviewerId, `${TEAM_PREFIX}%`),
             or(isNull(r.doneAt), lt(r.doneAt, r.requestedAt)),
             or(isNull(f.id), eq(f.draft, false)),
             or(isNull(c.id), lt(c.closedAt, r.requestedAt), lt(c.closedAt, f.reopenedAt)),

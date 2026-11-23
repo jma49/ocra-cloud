@@ -121,25 +121,47 @@ async function memberStatus(api: string, path: string, token: string): Promise<b
   }
 }
 
-async function appOrgMember(settings: BotSettings, org: string, login: string) {
+/** An installation token of the App in the organisation that may read its members only. */
+async function membersToken(settings: BotSettings, org: string): Promise<string | null> {
   const { githubAppId: appId, githubAppPrivateKey: key } = settings;
   if (!appId || !key) return null;
   const jwt = await appJwt(appId, key);
-  const at = encodeURIComponent(org);
-  const installation = await github(settings.githubApi, `/orgs/${at}/installation`, {
-    token: jwt,
-  });
+  const installation = await github(
+    settings.githubApi,
+    `/orgs/${encodeURIComponent(org)}/installation`,
+    { token: jwt },
+  );
   if (typeof installation?.id !== "number") return null;
   const minted = await github(
     settings.githubApi,
     `/app/installations/${installation.id}/access_tokens`,
     { token: jwt, method: "POST", body: JSON.stringify({ permissions: { members: "read" } }) },
   );
-  if (typeof minted?.token !== "string") return null;
+  return typeof minted?.token === "string" ? minted.token : null;
+}
+
+async function appOrgMember(settings: BotSettings, org: string, login: string) {
+  const token = await membersToken(settings, org);
+  if (!token) return null;
   return memberStatus(
     settings.githubApi,
-    `/orgs/${at}/members/${encodeURIComponent(login)}`,
-    minted.token,
+    `/orgs/${encodeURIComponent(org)}/members/${encodeURIComponent(login)}`,
+    token,
+  );
+}
+
+const TEAM_PAGE = 100;
+
+async function appTeamMembers(settings: BotSettings, org: string, slug: string) {
+  const token = await membersToken(settings, org);
+  if (!token) return null;
+  const path = `/orgs/${encodeURIComponent(org)}/teams/${encodeURIComponent(slug)}/members`;
+  const users: unknown = await github(settings.githubApi, `${path}?per_page=${TEAM_PAGE}`, {
+    token,
+  });
+  if (!Array.isArray(users)) return null;
+  return users.flatMap((u) =>
+    typeof u?.id === "number" && Number.isSafeInteger(u.id) ? [String(u.id)] : [],
   );
 }
 
@@ -148,6 +170,7 @@ export function botTokens(settings: BotSettings): BotTokens {
     // Never throws: a key Web Crypto refuses or a call that times out is
     // an answer the App cannot give, not a failed request.
     orgMember: (org, login) => appOrgMember(settings, org, login).catch(() => null),
+    teamMembers: (org, slug) => appTeamMembers(settings, org, slug).catch(() => null),
     async forRepo(platform, fullName, access = "review") {
       if (platform === "gitlab") {
         return settings.gitlabBotToken ? { token: settings.gitlabBotToken } : null;

@@ -24,4 +24,10 @@ export type BotTokens = {
    * App's Members permission there; null when the App cannot tell.
    */
   orgMember?(org: string, login: string): Promise<boolean | null>;
+  /**
+   * The platform ids of the members of the organisation's team (by its
+   * slug), read with the App's Members permission there, at most one page;
+   * null when the App cannot tell. Never throws.
+   */
+  teamMembers?(org: string, slug: string): Promise<string[] | null>;
 };
