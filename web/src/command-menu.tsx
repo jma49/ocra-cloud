@@ -14,6 +14,7 @@ import {
   CommandPanel,
 } from "@/components/ui/command";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
+import { useOpenPageCommands } from "./page-commands.js";
 import { navigate } from "./router.js";
 import { resultSections, unanswered } from "./search/sections.js";
 import { useSearch } from "./search/use-search.js";
@@ -21,12 +22,14 @@ import { useSearch } from "./search/use-search.js";
 /** `within` names its section for the search too: "insights" finds every Insights tab. */
 export type CommandEntry = {
   label: string;
-  to: string;
   within: string;
   /** Said beside the label: a pull request's reference, a finding's file. */
   hint?: string;
-  external?: boolean;
-};
+} & (
+  | { to: string; external?: boolean; run?: undefined }
+  /** Something the open page does, and the key that does it there. */
+  | { run: () => void; key?: string; to?: undefined }
+);
 export type CommandSection = { value: string; items: CommandEntry[] };
 
 function isToggle(e: KeyboardEvent): boolean {
@@ -45,7 +48,8 @@ function pagesMatching(sections: CommandSection[], query: string): CommandSectio
 }
 
 function go(entry: CommandEntry): void {
-  if (entry.external) window.open(entry.to, "_blank", "noreferrer");
+  if (entry.run) entry.run();
+  else if (entry.external) window.open(entry.to, "_blank", "noreferrer");
   // A result's path is the server's: only one of this console's is followed.
   else if (entry.to.startsWith("/") && !entry.to.startsWith("//")) navigate(entry.to);
 }
@@ -62,6 +66,10 @@ export function CommandMenu(props: { sections: CommandSection[] }) {
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, []);
+  const page = useOpenPageCommands();
+  const here: CommandSection[] = page?.commands.length
+    ? [{ value: page.title, items: page.commands.map((c) => ({ ...c, within: page.title })) }]
+    : [];
   const [query, setQuery] = useState("");
   const { results, searching } = useSearch(open ? query : "");
   const pick = (entry: CommandEntry) => {
@@ -72,7 +80,7 @@ export function CommandMenu(props: { sections: CommandSection[] }) {
   const jump = reference?.value === "Pull request" ? [reference] : [];
   const shown = [
     ...jump,
-    ...pagesMatching(props.sections, query),
+    ...pagesMatching([...here, ...props.sections], query),
     ...(reference && jump.length === 0 ? [reference] : []),
     ...found,
   ];
@@ -100,12 +108,13 @@ export function CommandMenu(props: { sections: CommandSection[] }) {
                   <CommandCollection>
                     {(entry: CommandEntry) => (
                       <CommandItem
-                        key={`${entry.to} ${entry.label}`}
+                        key={`${entry.to ?? ""} ${entry.label}`}
                         value={entry}
                         onClick={() => pick(entry)}
                       >
                         <span className="command-label">{entry.label}</span>
                         {entry.hint && <span className="command-hint">{entry.hint}</span>}
+                        {entry.run && entry.key && <Kbd className="command-key">{entry.key}</Kbd>}
                       </CommandItem>
                     )}
                   </CommandCollection>

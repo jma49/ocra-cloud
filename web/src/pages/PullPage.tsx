@@ -11,9 +11,11 @@ import type {
 import { api } from "../api.js";
 import { useFixes } from "../fixes/use-fixes.js";
 import { count } from "../format.js";
+import { usePageCommands } from "../page-commands.js";
 import { PlatformMark } from "../platform-mark.js";
 import { SinceBar, sinceFiles, useSince } from "../pull/changes-since.js";
 import { ChecksBox } from "../pull/checks-box.js";
+import { MERGE_ID, pullCommands } from "../pull/commands.js";
 import { DescriptionBox } from "../pull/description-box.js";
 import { DraftToggle } from "../pull/draft-toggle.js";
 import { FileDiff } from "../pull/file-diff.js";
@@ -99,6 +101,10 @@ export function PullPage(props: {
   useEffect(() => {
     if (data?.title) setPageTitle(`#${props.number} ${data.title}`);
   }, [data?.title, props.number]);
+  usePageCommands(
+    "This pull request",
+    pullCommands({ data, code, review: () => setReviewing(true) }),
+  );
   if (error && !data) {
     return (
       <>
@@ -169,7 +175,7 @@ export function PullPage(props: {
               <DraftToggle pull={ref} primary={step === "ready"} onDone={(o) => done("Draft", o)} />
             )}
             {!settled && step === "merge" && (
-              <Button size="sm" render={<a href="#merge" />}>
+              <Button size="sm" render={<a href={`#${MERGE_ID}`} />}>
                 Merge
               </Button>
             )}
@@ -221,7 +227,7 @@ export function PullPage(props: {
         </div>
         <aside className="pull-rail" aria-label="Status">
           {!settled && <ReadinessBox view={readiness} />}
-          <div id="merge" className="pull-merge">
+          <div id={MERGE_ID} className="pull-merge">
             {settled ? null : queue.data?.enabled ? (
               <QueueBox
                 view={queue.data}
