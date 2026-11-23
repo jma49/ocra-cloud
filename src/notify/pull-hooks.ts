@@ -255,16 +255,15 @@ export async function tellGithubHook(
   }
   const data = scoped(db, repo.accountId);
   const team = event === "pull_request" ? githubAskedTeam(body) : null;
-  const members =
-    team && (body as { action?: unknown }).action === "review_requested"
-      ? await teamMembers(data, bots, {
-          platform: "github",
-          host,
-          reviewerId: teamReviewerId(team.id),
-          org: team.org,
-          slug: team.slug,
-        })
-      : null;
+  const members = team?.asked
+    ? await teamMembers(data, bots, {
+        platform: "github",
+        host,
+        reviewerId: teamReviewerId(team.id),
+        org: team.org,
+        slug: team.slug,
+      })
+    : null;
   const events = bySpecificity([
     ...githubPullEvents(event, body, repo.id, members),
     ...githubCommentEvents(event, body, repo.id),

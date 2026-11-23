@@ -30,11 +30,16 @@ const githubPullEvent = z.object({
 });
 
 /** The team a pull_request delivery asked, or asked no more: its org and slug, as GitHub names them. */
-export function githubAskedTeam(body: unknown): { id: number; org: string; slug: string } | null {
+export function githubAskedTeam(
+  body: unknown,
+): { id: number; org: string; slug: string; asked: boolean } | null {
   const parsed = githubPullEvent.safeParse(body);
-  const team = parsed.success ? parsed.data.requested_team : undefined;
-  const org = parsed.success ? parsed.data.repository.owner?.login : undefined;
-  return team && org ? { id: team.id, org, slug: team.slug } : null;
+  if (!parsed.success) return null;
+  const { requested_team: team, repository, action } = parsed.data;
+  const org = repository.owner?.login;
+  return team && org
+    ? { id: team.id, org, slug: team.slug, asked: action === "review_requested" }
+    : null;
 }
 
 const githubReviewEvent = z.object({
