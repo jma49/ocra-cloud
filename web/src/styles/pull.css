@@ -63,12 +63,11 @@
 .pull-merge:empty {
   display: none;
 }
-.pull-merge {
-  scroll-margin-top: 144px;
-}
+/* The sticky head's height follows its title: `useClearance` measures it. */
+.pull-merge,
 .pull-frame,
 .pull-frame .diff-file {
-  scroll-margin-top: 136px;
+  scroll-margin-top: var(--pull-clear, 144px);
 }
 .pull-part-head {
   display: flex;

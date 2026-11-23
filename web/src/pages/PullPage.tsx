@@ -16,6 +16,7 @@ import { usePageCommands } from "../page-commands.js";
 import { PlatformMark } from "../platform-mark.js";
 import { SinceBar, sinceFiles, useSince } from "../pull/changes-since.js";
 import { ChecksBox } from "../pull/checks-box.js";
+import { useClearance } from "../pull/clearance.js";
 import { MERGE_ID, pullCommands } from "../pull/commands.js";
 import { DescriptionBox } from "../pull/description-box.js";
 import { DraftToggle } from "../pull/draft-toggle.js";
@@ -98,6 +99,8 @@ export function PullPage(props: {
     [query.toString(), head],
   );
   const code = useRef<HTMLDivElement>(null);
+  const [headEl, setHeadEl] = useState<HTMLElement | null>(null);
+  useClearance(headEl);
   const where = `${props.repo} #${props.number}`;
   const title = data?.title ?? where;
   useEffect(() => {
@@ -159,7 +162,7 @@ export function PullPage(props: {
   const step = nextStep(readiness, data.mergeMethods.length > 0 && !queue.data?.enabled);
   return (
     <>
-      <header className="pull-head">
+      <header className="pull-head" ref={setHeadEl}>
         <div className="pull-head-row">
           <h1>{title}</h1>
           <div className="pull-actions">
