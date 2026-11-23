@@ -17,8 +17,8 @@ import { call, db, resetDb, signIn } from "./helpers.js";
 // group's members as a GitHub team's ask does: the rules are read when it
 // opens, reopens or gains commits, the group's direct members are paged
 // and kept a day, each member on the account is told once and reminded,
-// a member's approval ends the ask, and a group no longer named is asked
-// no more.
+// a member's approval ends the ask, an approval GitLab took back opens it
+// again, and a group no longer named is asked no more.
 
 beforeEach(resetDb);
 afterEach(() => vi.restoreAllMocks());
@@ -40,8 +40,14 @@ const out = (): Outbox => ({
 
 type Group = { id: number; full_path: string; members: number[] };
 
-/** GitLab with these approval rules' groups (null: the rules are refused); Slack takes every post. */
-function platform(rules: () => { rule_type: string; groups: Group[] }[] | null) {
+/**
+ * GitLab with these approval rules' groups (null: the rules are refused) and
+ * these users' approvals standing (null: refused); Slack takes every post.
+ */
+function platform(
+  rules: () => { rule_type: string; groups: Group[] }[] | null,
+  approvers: () => number[] | null = () => null,
+) {
   const asked: string[] = [];
   const posted: string[] = [];
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
@@ -53,6 +59,11 @@ function platform(rules: () => { rule_type: string; groups: Group[] }[] | null) 
     const url = new URL(req.url);
     asked.push(`${url.pathname}${url.search}`);
     const listed = rules();
+    if (url.pathname.endsWith("/approvals")) {
+      const approved = approvers();
+      if (!approved) return new Response(null, { status: 403 });
+      return Response.json({ approved_by: approved.map((id) => ({ user: { id } })) });
+    }
     if (url.pathname.endsWith("/approval_rules")) {
       if (!listed) return new Response(null, { status: 403 });
       return Response.json(
@@ -140,7 +151,10 @@ describe("a GitLab approval rule naming a group", () => {
 
   it("tells a member once when asked as a reviewer and through the group, and not again once they approved", async () => {
     const { repo, tell } = await setUp(["review_requested"]);
-    const { posted } = platform(() => [{ rule_type: "regular", groups: [backend([ME])] }]);
+    const { posted } = platform(
+      () => [{ rule_type: "regular", groups: [backend([ME])] }],
+      () => [ME],
+    );
     const me = { id: ME, username: "lab-mona" };
     await tell(
       hook(
@@ -226,5 +240,129 @@ describe("a GitLab approval rule naming a group", () => {
     groups = [];
     await tell(hook("update", { oldrev: "c".repeat(40) }));
     expect(await asks()).toEqual([["team:55", true]]);
+  });
+});
+
+describe("a GitLab approval taken back", () => {
+  const rules = () => [{ rule_type: "regular", groups: [backend([ME, 8])] }];
+  const u8 = { id: 8, username: "u8" };
+  const push = (rev: string) => hook("update", { oldrev: rev.repeat(40), state: "opened" });
+  const asks = async (data: Awaited<ReturnType<typeof setUp>>["data"]) =>
+    (await data.find("reviewRequests", {}, 5))
+      .map((r) => [r.reviewerId, r.doneAt === null || r.doneAt < r.requestedAt] as const)
+      .sort(([x], [y]) => x.localeCompare(y));
+
+  it("asks the group again when a push reset the approval, once however often it is delivered", async () => {
+    const { data, repo, tell } = await setUp(["review_requested"]);
+    let approved: number[] = [8];
+    const { posted, asked } = platform(rules, () => approved);
+    await tell(hook("open"));
+    expect(posted).toHaveLength(1);
+    await recordGitlabRequests(db, repo, { ...hook("approved"), user: u8 }, later(1));
+    expect(await asks(data)).toEqual([["team:55", false]]);
+
+    // The approval stands: the push asks nobody.
+    await tell(push("a"));
+    expect(asked.filter((u) => u.endsWith("/approvals"))).toHaveLength(1);
+    expect(await asks(data)).toEqual([["team:55", false]]);
+    expect(posted).toHaveLength(1);
+
+    approved = [];
+    await tell(push("b"));
+    expect(await asks(data)).toEqual([["team:55", true]]);
+    expect(posted).toHaveLength(2);
+    expect(posted[1]).toContain("Approval was asked of acme/backend, a group you are on");
+    const requestedAt = (await data.find("reviewRequests", {}, 5))[0]?.requestedAt;
+
+    await tell(push("b"));
+    expect(posted).toHaveLength(2);
+    expect((await data.find("reviewRequests", {}, 5))[0]?.requestedAt).toEqual(requestedAt);
+    // Waiting again, the approvers are not read.
+    expect(asked.filter((u) => u.endsWith("/approvals"))).toHaveLength(2);
+  });
+
+  it("asks the group again when its approver removes the approval, and reminds its members", async () => {
+    const { data, repo, tell } = await setUp(["review_waiting"]);
+    let approved: number[] = [8];
+    const { posted } = platform(rules, () => approved);
+    await tell(hook("open"));
+    await recordGitlabRequests(db, repo, { ...hook("approved"), user: u8 }, later(1));
+    await runReminders(db, out(), "github.com", later(5));
+    expect(posted).toEqual([]);
+
+    approved = [];
+    await tell({ ...hook("unapproved", { state: "opened" }), user: u8 });
+    expect(await asks(data)).toEqual([["team:55", true]]);
+    await runReminders(db, out(), "github.com", later(6));
+    expect(posted).toHaveLength(1);
+    expect(posted[0]).toContain("MR 3 · asked of acme/backend");
+  });
+
+  it("leaves the group's ask ended while another member's approval stands, the approvers are refused, or the merge request is closed", async () => {
+    const { data, repo, tell } = await setUp([]);
+    let approved: number[] | null = [ME];
+    platform(rules, () => approved);
+    await tell(hook("open"));
+    await recordGitlabRequests(db, repo, { ...hook("approved"), user: u8 }, later(1));
+    await tell({ ...hook("unapproved", { state: "opened" }), user: u8 });
+    approved = null;
+    await tell(push("a"));
+    approved = [];
+    await tell({ ...hook("unapproved", { state: "merged" }), user: u8 });
+    expect(await asks(data)).toEqual([["team:55", false]]);
+  });
+
+  it("asks a reviewer again who removes their approval, once, and not one no longer a reviewer or on a closed merge request", async () => {
+    const { data, repo } = await setUp([]);
+    const me = { id: ME, username: "lab-mona" };
+    const record = (body: unknown, at: Date) => recordGitlabRequests(db, repo, body, at);
+    await record(hook("open", { reviewer_ids: [ME, 8] }), now);
+    await record({ ...hook("approved"), user: me }, later(1));
+    await record({ ...hook("approved"), user: u8 }, later(1));
+    expect(await asks(data)).toEqual([
+      ["42", false],
+      ["8", false],
+    ]);
+
+    await record(
+      { ...hook("unapproved", { state: "merged", reviewer_ids: [ME] }), user: me },
+      later(2),
+    );
+    await record(
+      { ...hook("unapproved", { state: "opened", reviewer_ids: [ME] }), user: u8 },
+      later(2),
+    );
+    expect(await asks(data)).toEqual([
+      ["42", false],
+      ["8", false],
+    ]);
+
+    const unapproved = { ...hook("unapproved", { state: "opened" }), user: me, reviewers: [me] };
+    await record(unapproved, later(2));
+    await record(unapproved, later(3));
+    const rows = await data.find("reviewRequests", { reviewerId: String(ME) }, 5);
+    expect(rows.map((r) => r.requestedAt)).toEqual([later(2)]);
+    expect(await asks(data)).toEqual([
+      ["42", true],
+      ["8", false],
+    ]);
+  });
+
+  it("asks a reviewer again whose approval a push reset, where the rules name no group", async () => {
+    const { data, repo, tell } = await setUp([]);
+    const me = { id: ME, username: "lab-mona" };
+    let approved: number[] = [ME];
+    platform(
+      () => null,
+      () => approved,
+    );
+    await recordGitlabRequests(db, repo, hook("open", { reviewer_ids: [ME] }), now);
+    await recordGitlabRequests(db, repo, { ...hook("approved"), user: me }, later(1));
+    const pushed = hook("update", { oldrev: "a".repeat(40), state: "opened", reviewer_ids: [ME] });
+    await tell(pushed);
+    expect(await asks(data)).toEqual([["42", false]]);
+    approved = [];
+    await tell(pushed);
+    expect(await asks(data)).toEqual([["42", true]]);
   });
 });

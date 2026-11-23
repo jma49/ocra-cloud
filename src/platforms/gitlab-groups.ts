@@ -5,7 +5,8 @@ import { boundedBytes, platformCall, platformRead } from "./http.js";
 // The groups a GitLab merge request's approval rules name (Premium and
 // Ultimate; GitLab has no group reviewers, a merge request's reviewers are
 // users) and who is directly on a group, as GitLab lets approval rules count
-// them. Each call is bounded in time, size and pages, and never retried.
+// them, and who has approved the merge request now. Each call is bounded in
+// time, size and pages, and never retried.
 
 export type ApprovalGroup = { id: number; path: string };
 
@@ -28,6 +29,19 @@ const rules = z.array(
   }),
 );
 
+/** The JSON GitLab answers url with, read up to MAX_RULES_BYTES; undefined when it did not. */
+async function boundedJson(url: string, token: string): Promise<unknown> {
+  const bytes = await platformRead(url, { headers: gitlabHeaders(token) }, (res) =>
+    boundedBytes(res, MAX_RULES_BYTES),
+  );
+  if (!bytes) return undefined;
+  try {
+    return JSON.parse(new TextDecoder().decode(bytes));
+  } catch {
+    return undefined;
+  }
+}
+
 /** The groups the merge request's asking approval rules name; null when GitLab did not answer. */
 export async function gitlabApprovalGroups(
   origin: string,
@@ -36,17 +50,7 @@ export async function gitlabApprovalGroups(
   number: number,
 ): Promise<ApprovalGroup[] | null> {
   const url = `${mergeRequestUrl(origin, fullName, number)}/approval_rules?per_page=${PER_PAGE}`;
-  const bytes = await platformRead(url, { headers: gitlabHeaders(token) }, (res) =>
-    boundedBytes(res, MAX_RULES_BYTES),
-  );
-  if (!bytes) return null;
-  let json: unknown;
-  try {
-    json = JSON.parse(new TextDecoder().decode(bytes));
-  } catch {
-    return null;
-  }
-  const parsed = rules.safeParse(json);
+  const parsed = rules.safeParse(await boundedJson(url, token));
   if (!parsed.success) return null;
   const groups = new Map<number, ApprovalGroup>();
   for (const rule of parsed.data) {
@@ -54,6 +58,23 @@ export async function gitlabApprovalGroups(
     for (const g of rule.groups ?? []) groups.set(g.id, { id: g.id, path: g.full_path });
   }
   return [...groups.values()].slice(0, MAX_GROUPS);
+}
+
+const approvals = z.object({
+  approved_by: z.array(z.object({ user: z.object({ id: z.number() }).nullish() })).nullish(),
+});
+
+/** The ids of the users whose approval of the merge request stands; null when GitLab did not answer. */
+export async function gitlabApprovers(
+  origin: string,
+  token: string,
+  fullName: string,
+  number: number,
+): Promise<string[] | null> {
+  const url = `${mergeRequestUrl(origin, fullName, number)}/approvals`;
+  const parsed = approvals.safeParse(await boundedJson(url, token));
+  if (!parsed.success) return null;
+  return (parsed.data.approved_by ?? []).flatMap((a) => (a.user ? [String(a.user.id)] : []));
 }
 
 const members = z.array(z.object({ id: z.number(), state: z.string().optional() }));
