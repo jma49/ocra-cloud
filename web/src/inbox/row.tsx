@@ -14,10 +14,21 @@ const REVIEW = {
   required: { label: "Review required", cls: "" },
 } as const;
 
+type Standing = { label: string; cls: string };
+
+/** The one thing to know before opening it: what it is, then what blocks it, then how its review stands. */
+function standingOf(r: Row): Standing | null {
+  if (r.state !== "open") return null;
+  if (r.draft) return { label: "Draft", cls: "" };
+  if (r.verdict === "blocking") return { label: "ocra blocks", cls: "badge-err" };
+  if (r.review) return REVIEW[r.review];
+  return r.verdict === "not_blocking" ? { label: "ocra passed", cls: "badge-ok" } : null;
+}
+
 const runClass = (run: { first: boolean; last: boolean } | null) =>
   run ? ` in-stack${run.first ? " stack-first" : ""}${run.last ? " stack-last" : ""}` : "";
 
-/** One pull request on one line: unread mark, checks, number, title, repository, review, author, age. */
+/** One pull request on one line: unread mark, checks, number, title, repository, standing, author, age. */
 export function PullRow(props: {
   r: Row;
   i: number;
@@ -29,7 +40,7 @@ export function PullRow(props: {
 }) {
   const { r } = props;
   const checks = r.checks && CHECKS[r.checks];
-  const review = r.state === "open" && r.review ? REVIEW[r.review] : null;
+  const review = standingOf(r);
   const when = r.mergedAt ?? r.updatedAt;
   const to = pullPath(r.platform, r.repo, r.number);
   const onClick = (e: MouseEvent) => {
@@ -60,7 +71,7 @@ function PullLink(props: {
   to: string;
   onClick: (e: MouseEvent) => void;
   checks: (typeof CHECKS)[keyof typeof CHECKS] | null | "";
-  review: (typeof REVIEW)[keyof typeof REVIEW] | null;
+  review: Standing | null;
   when: string;
 }) {
   const { r, to, onClick, checks, review, when } = props;
