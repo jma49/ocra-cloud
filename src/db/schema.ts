@@ -98,6 +98,11 @@ export const accounts = sqliteTable(
     inboxSince: integer("inbox_since", { mode: "timestamp_ms" }),
     // The IANA time zone a channel's quiet hours are read in (src/notify/reminders.ts).
     timeZone: text("time_zone").notNull().default("UTC"),
+    // Whether the account matched SIGN_IN_ALLOW (src/sign-in-gate.ts): the
+    // list's hash it was checked against, the answer, and when.
+    signInAllowKey: text("sign_in_allow_key"),
+    signInAllowed: integer("sign_in_allowed", { mode: "boolean" }),
+    signInCheckedAt: integer("sign_in_checked_at", { mode: "timestamp_ms" }),
   },
   (t) => [index("accounts_login").on(t.login)],
 );

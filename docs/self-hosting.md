@@ -61,6 +61,7 @@ Without Docker: `npm ci && npm run build:web && npm run build:node`, then `node 
 | `GITHUB_URL` | for GitHub Enterprise Server | the server's address, such as `https://github.example.com` (a port is kept, a path refused); `https://github.com` when unset. Its REST API is then `<GITHUB_URL>/api/v3` and GraphQL `<GITHUB_URL>/api/graphql` (GitHub Enterprise Server below) |
 | `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` | one way to sign in | An OpenID Connect provider: the company's SSO (Keycloak, Azure AD, Okta) or a self-hosted GitLab, which is one. A confidential client with the scopes `openid profile email` and the redirect URI `<PUBLIC_URL>/api/auth/oidc/callback`; the issuer is the URL its discovery document names, such as `https://gitlab.example.com`. With the same client and address as `GITLAB_CLIENT_ID` and `GITLAB_URL`, the sign-in also asks for `api` and connects GitLab (gitlab.md) |
 | `OIDC_NAME` | no | the provider's name on the sign-in button, "SSO" when unset |
+| `SIGN_IN_ALLOW` | with a server key in `MODEL_ENDPOINTS` | who may sign in, as a comma list of `org:`, `user:`, `domain:` and `group:` entries (Who may sign in below); anyone the sign-in providers vouch for when unset |
 | `MASTER_KEY` | yes | base64 of 32 random bytes (`openssl rand -base64 32`); wraps every stored key. Losing it loses them |
 | `MASTER_KEY_PREVIOUS` | during a rotation | as on Workers (`docs/rotation.md`) |
 | `SESSION_SECRET` | yes | signs the sign-in state cookie |
@@ -91,6 +92,21 @@ Without Docker: `npm ci && npm run build:web && npm run build:node`, then `node 
 
 Serve it over HTTPS: session cookies are `__Host-` cookies, which browsers keep only on secure origins.
 
+## Who may sign in
+
+Unset, `SIGN_IN_ALLOW` lets in anyone the sign-in providers vouch for: any GitHub user, and any subject of the OpenID Connect provider. Set, it is a comma list of entries, and a sign-in that matches none is refused (`403 forbidden_for_session` with `"reason": "sign_in_not_allowed"`) before any account is made:
+
+| Entry | Matches |
+|---|---|
+| `org:<organization>` | a GitHub user who is an active member of the organization. Read with the user's own token, or, when the server keeps none for them, with the App's installation on the organization (`GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`); either way the App must be installed on the organization with the Members: Read permission |
+| `user:<login>` | that GitHub login. GitHub lets a login be renamed and the old one taken by someone else, so prefer `org:` |
+| `domain:<domain>` | a verified email address at exactly that domain (a subdomain is not the domain): on GitHub one of the user's verified addresses, which needs the App's account permission Email addresses: Read; through OpenID Connect the `email` claim when `email_verified` is true |
+| `group:<group>` | through OpenID Connect, a value of the userinfo's `groups` claim, compared exactly (a self-hosted GitLab names its groups by path, such as `company/eng`; Keycloak, Okta and Azure AD need a mapper or claim that puts `groups` in userinfo) |
+
+For example `SIGN_IN_ALLOW=org:acme,domain:acme.com`. Logins, organizations and domains are compared lowercased, a domain in its ASCII form (`bücher.example` is `xn--bcher-kva.example`); a group cannot hold a comma. The server refuses to start with an entry it cannot read, or more than 50. With a list set, GitHub's sign-in page offers no sign-up.
+
+Sessions and API tokens are checked too. An account's answer is kept in its row with a hash of the list it was checked against: a request within the hour uses it, a later one asks again (on GitHub, live: the login, the domains, then each organization until one matches), and a changed list asks again at once. An account that no longer matches is refused on its next request with `401 unauthenticated` and the same reason, its web and CLI sessions and its API tokens alike, so leaving the organization ends access within the hour. When GitHub cannot answer (it is unreachable, or the user's token is gone and no App can read the organization), a match found within the last day stands, and after that the account is refused until it signs in again. An OpenID Connect provider is not asked again without the person: a change of their groups or email there counts from their next sign-in, while a change of `SIGN_IN_ALLOW` refuses every session at once and each person signs in again. To shut out one SSO user at once, disable them in the provider and change the list (adding a `group:` entry nobody has is enough).
+
 ## A GitHub App of your own
 
 On GitHub, one App of the company's own does three things: people sign in with it, the console acts as each person through it (comments, reviews, merges, fixes, issues), and its installation is the bot that reviews. Create it under the organization: Settings, Developer settings, GitHub Apps, New GitHub App.
@@ -109,7 +125,8 @@ On GitHub, one App of the company's own does three things: people sign in with i
 | Administration | Read | the merge readiness checklist's branch rule; without it those rows read unknown |
 | Metadata | Read | required by GitHub |
 
-- **Organization permission** Members: Read, for team code owners in the readiness checklist.
+- **Organization permission** Members: Read, for team code owners in the readiness checklist and `org:` entries of `SIGN_IN_ALLOW`.
+- **Account permission** Email addresses: Read, only for `domain:` entries of `SIGN_IN_ALLOW`.
 - **Events**: Push, Pull request, Pull request review, Pull request review comment, Issue comment, Check suite, Check run and Status.
 - Then set `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` (the App's client), `GITHUB_APP_SLUG`, `GITHUB_APP_ID` (its number), and `GITHUB_APP_PRIVATE_KEY`: a private key generated on the App's page, on one line with `\n` for its line breaks (`awk '{printf "%s\\n", $0}' key.pem`). The server refuses to start with only one of the id and the key, or a key it cannot read.
 - Install the App on the repositories it should review. Each review then gets an installation token limited to its repository.
@@ -149,6 +166,8 @@ Tested against a stand-in server (`test-node/github-enterprise.test.ts`: sign-in
 | `auth` | no | `bearer` (the default) or `x-api-key`: how the key goes on the request |
 | `models` | no | a GET that lists the models in OpenAI's shape; it also checks a key |
 | `key` | no | the server's own key: every account's calls use it and nobody stores one. Without it, each person adds their own key for the endpoint on the keys page |
+
+An endpoint with a `key` is the company's bill: every account calls it through `/api/gateway`, held back only by the per-account daily caps. Without `SIGN_IN_ALLOW`, anyone who can sign in gets an account, and so does anyone with a GitHub account when people sign in with GitHub, so set it whenever an endpoint has a `key`; the server warns at start (`open_sign_in_with_server_key`) when one does and no list is set.
 
 With `DEFAULT_MODELS` naming them, a colleague who signs in for the first time reviews with the company's models without setting anything. The endpoints appear in the console's "Your company" group, and the CLI reaches them through the gateway like any other provider, with the same metering and daily caps. A declaration the server cannot read stops it from starting, naming the field. Keep the filled-in environment file secret when it holds a `key`.
 

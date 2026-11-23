@@ -477,6 +477,13 @@
       "when": 1795402502807,
       "tag": "0067_inbound_events",
       "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "6",
+      "when": 1795405784292,
+      "tag": "0068_sign_in_allow",
+      "breakpoints": true
     }
   ]
 }

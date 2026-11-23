@@ -19,4 +19,9 @@ export type BotTokens = {
     fullName: string,
     access?: BotAccess,
   ): Promise<BotCredential | null>;
+  /**
+   * Whether `login` is a member of the GitHub organisation, read with the
+   * App's Members permission there; null when the App cannot tell.
+   */
+  orgMember?(org: string, login: string): Promise<boolean | null>;
 };

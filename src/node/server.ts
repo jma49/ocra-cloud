@@ -10,6 +10,7 @@ import {
   graphSettingsFrom,
   metricsTokenFrom,
   migrateMode,
+  startWarnings,
   trustedProxyHops,
 } from "./env.js";
 import { openHost } from "./host.js";
@@ -34,11 +35,16 @@ if (autoReview && !process.env.PUBLIC_URL && migrate !== "only") {
 
 const metricsToken = metricsTokenFrom(process.env.METRICS_TOKEN);
 const mailer = smtpMailer(process.env.SMTP_URL, process.env.SMTP_FROM);
+const bindings = bindingsFrom(process.env);
+for (const event of startWarnings(bindings)) {
+  // Anyone who can sign in spends the server's model key (docs/self-hosting.md, Who may sign in).
+  console.warn({ level: "warn", event, set: "SIGN_IN_ALLOW" });
+}
 const host = await openHost({
   databaseUrl: process.env.DATABASE_URL || "file:ocra-cloud.db",
   migrate: migrate !== "off",
   rateLimits: rateLimitStore(process.env.RATE_LIMITS),
-  bindings: bindingsFrom(process.env),
+  bindings,
   migrations: resolve(process.env.MIGRATIONS_DIR || "migrations"),
   web: resolve(process.env.WEB_DIR || "web/dist"),
   ...(process.env.PUBLIC_URL ? { publicUrl: process.env.PUBLIC_URL } : {}),

@@ -288,6 +288,13 @@
       "when": 1795402504150,
       "tag": "0040_inbound_events",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1795405786222,
+      "tag": "0041_sign_in_allow",
+      "breakpoints": true
     }
   ]
 }
