@@ -46,7 +46,7 @@ const step = (title: string) => screen.getByText(title).closest(".step");
 describe("getting started", () => {
   it("ticks signing in from the terminal and reviewing once the account has done them", async () => {
     fakeApi({ keys: 0, cli: true, reviews: 2 });
-    render(<Overview login="ada" />);
+    render(<Overview />);
     await waitFor(() => expect(step("Review a change")?.classList.contains("done")).toBe(true));
     expect(step("Sign in from the terminal")?.classList.contains("done")).toBe(true);
     expect(step("Add a provider key")?.classList.contains("done")).toBe(false);
@@ -54,7 +54,7 @@ describe("getting started", () => {
 
   it("goes away once every step is done", async () => {
     fakeApi({ keys: 1, cli: true, reviews: 1 });
-    render(<Overview login="ada" />);
+    render(<Overview />);
     await waitFor(() => expect(screen.queryByText("Get started")).toBeNull());
   });
 });

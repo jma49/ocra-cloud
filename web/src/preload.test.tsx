@@ -66,7 +66,7 @@ it("does not read the first page's data on the sign-in screen", async () => {
 
 it("starts the first page's reads with /me once this browser was signed in", async () => {
   await load(() => Response.json(me));
-  await screen.findByRole("heading", { name: /Overview|ada/ });
+  await screen.findByRole("heading", { name: "Usage", level: 1 });
   const asked = await load(undefined);
   // The app from the earlier load may ask /keys on this fetch too, so wait
   // for both rather than reading /me once /keys shows up.
@@ -75,7 +75,7 @@ it("starts the first page's reads with /me once this browser was signed in", asy
 
 it("stops once /me finds the browser signed out", async () => {
   await load(() => Response.json(me));
-  await screen.findByRole("heading", { name: /Overview|ada/ });
+  await screen.findByRole("heading", { name: "Usage", level: 1 });
   await load(signedOut);
   await screen.findByRole("link", { name: /Continue with GitHub/ });
   const asked = await load(signedOut);

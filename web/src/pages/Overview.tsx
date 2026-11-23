@@ -8,7 +8,7 @@ import { Link } from "../router.js";
 import { anyProvider } from "../site.js";
 import { LoadError, Loading, PageHead, StackedBars, useLoad, useProviders } from "../ui.js";
 
-export function Overview(props: { login: string }) {
+export function Overview() {
   const {
     data: usage,
     error: usageError,
@@ -34,10 +34,7 @@ export function Overview(props: { login: string }) {
 
   return (
     <>
-      <PageHead
-        title={`Welcome, ${props.login}`}
-        sub="Your keys, your calls and your reviews in one place."
-      />
+      <PageHead title="Usage" sub="Your keys, your calls and your reviews in one place." />
       <div className="stats">
         <div className="card stat">
           <div className="stat-label">Requests today</div>
