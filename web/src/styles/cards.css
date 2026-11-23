@@ -49,7 +49,7 @@
   display: block;
   color: inherit;
   text-decoration: none;
-  transition: background-color 150ms var(--e-std);
+  transition: background-color var(--d-fast) var(--e-std);
 }
 .stat-link:hover {
   background: var(--bg-subtle);
