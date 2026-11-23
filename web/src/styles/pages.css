@@ -1346,6 +1346,9 @@ td.finding-cell {
 }
 
 /* A channel's deliveries drawer */
-.channel-deliveries {
+.channel-deliveries:not(:first-child) {
   margin-top: 28px;
+}
+.channel-deliveries-head {
+  align-items: center;
 }

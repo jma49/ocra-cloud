@@ -4,6 +4,7 @@ import type {
   NotifyChannelView,
   NotifyDeliveriesView,
   NotifyDeliveryError,
+  NotifyDeliveryEvent,
   NotifyDeliveryView,
   WebhookSecretView,
 } from "../../../src/shared/index.js";
@@ -30,6 +31,34 @@ const ERROR: Record<NotifyDeliveryError, string> = {
   status: "No 2xx answer",
   rejected: "Refused by the chat",
 };
+// A webhook's endpoint reads the event's id, so its list keeps it; people read these.
+const EVENT: Record<NotifyDeliveryEvent, string> = {
+  review_completed: "Review finished",
+  automation_ran: "Automation rule",
+  ping: "Test message",
+  digest: "Daily digest",
+  weekly_report: "Weekly report",
+  held_notices: "Notices held in quiet hours",
+  review_requested: "Review requested",
+  pull_reviewed: "Pull request reviewed",
+  pull_closed: "Pull request merged or closed",
+  checks_failed: "Checks failed",
+  review_blocking: "Critical finding",
+  merge_when_ready: "Merge when ready",
+  pull_commented: "Comment",
+  mentioned: "Mention",
+  thread_replied: "Thread reply",
+  pull_at_risk: "Review target at risk",
+  review_waiting: "Reminder: review waiting",
+  pull_waiting: "Reminder: no review yet",
+};
+
+/** When a pending delivery is tried again: "in 4m", or "soon" once it is due. */
+function nextTry(iso: string): string {
+  const s = (new Date(iso).getTime() - Date.now()) / 1000;
+  if (s < 60) return "soon";
+  return s < 3600 ? `in ${Math.ceil(s / 60)}m` : `in ${Math.ceil(s / 3600)}h`;
+}
 
 const answer = (d: NotifyDeliveryView, email: boolean) =>
   d.error && d.error !== "status"
@@ -118,14 +147,14 @@ export function DeliveriesDrawer(props: { channel: NotifyChannelView; onClose: (
 
   return (
     <Drawer
-      title={`${c.kind === "webhook" ? "Webhook" : "Channel"} ${c.name}`}
+      title={c.kind === "webhook" ? `Webhook ${c.name}` : `Deliveries to ${c.name}`}
       heading={c.name}
       onClose={props.onClose}
     >
       {c.kind === "webhook" && <SigningSecret base={base} />}
 
       <section className="stack-tight channel-deliveries" aria-label="Recent deliveries">
-        <div className="row-gap">
+        <div className="row-gap channel-deliveries-head">
           <div className="strong grow">Recent deliveries</div>
           <Button type="button" variant="outline" size="sm" disabled={loading} onClick={reload}>
             Refresh
@@ -136,7 +165,11 @@ export function DeliveriesDrawer(props: { channel: NotifyChannelView; onClose: (
         ) : !data ? (
           <Loading what="deliveries" />
         ) : data.deliveries.length === 0 ? (
-          <p className="subtle small m-0">Nothing sent yet. Send a test from the channel's row.</p>
+          <p className="subtle small m-0">
+            {c.confirmed
+              ? "Nothing sent yet. Send a test from the channel's row."
+              : "Nothing is sent until the address is confirmed."}
+          </p>
         ) : (
           <div className="table-wrap">
             <table>
@@ -151,7 +184,9 @@ export function DeliveriesDrawer(props: { channel: NotifyChannelView; onClose: (
               <tbody>
                 {data.deliveries.map((d) => (
                   <tr key={d.id}>
-                    <td className="mono">{d.event}</td>
+                    <td className={c.kind === "webhook" ? "mono" : "text"}>
+                      {c.kind === "webhook" ? d.event : EVENT[d.event]}
+                    </td>
                     <td>
                       <span className={STATE[d.state].tone}>{STATE[d.state].label}</span>
                     </td>
@@ -159,6 +194,7 @@ export function DeliveriesDrawer(props: { channel: NotifyChannelView; onClose: (
                       {answer(d, c.kind === "email")}
                       {d.latencyMs !== null && `, ${d.latencyMs} ms`}
                       {d.attempts > 1 && `, ${d.attempts} attempts`}
+                      {d.state === "pending" && d.retryAt && `, next ${nextTry(d.retryAt)}`}
                     </td>
                     <td className="muted">{ago(d.createdAt)}</td>
                   </tr>
@@ -167,7 +203,9 @@ export function DeliveriesDrawer(props: { channel: NotifyChannelView; onClose: (
             </table>
           </div>
         )}
-        <p className="subtle small m-0">The newest 20 are kept, without their bodies.</p>
+        {data && data.deliveries.length > 0 && (
+          <p className="subtle small m-0">The newest 20 are kept, without their bodies.</p>
+        )}
       </section>
     </Drawer>
   );
