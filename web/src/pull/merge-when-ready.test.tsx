@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { MergeIntentView } from "../../../src/shared/index.js";
-import { MergeWhenReadyBox } from "./merge-when-ready-box.js";
+import { MergeWhenReady } from "./merge-when-ready.js";
 
 afterEach(() => {
   cleanup();
@@ -36,10 +36,10 @@ function show(first: MergeIntentView | null, outcome = "done") {
     }),
   );
   render(
-    <MergeWhenReadyBox
+    <MergeWhenReady
       pull={pull}
       head={HEAD}
-      methods={["squash", "merge"]}
+      method="merge"
       label={{ squash: "Squash and merge", merge: "Merge commit", rebase: "Rebase and merge" }}
     />,
   );
@@ -49,10 +49,7 @@ function show(first: MergeIntentView | null, outcome = "done") {
 describe("merge when ready", () => {
   it("arms the head it read with the method and whether it survives a push", async () => {
     const sent = show(null);
-    fireEvent.change(await screen.findByLabelText("Merge method when ready"), {
-      target: { value: "merge" },
-    });
-    fireEvent.click(screen.getByLabelText("Keep armed on new commits"));
+    fireEvent.click(await screen.findByLabelText("Keep armed on new commits"));
     await act(
       async () => void fireEvent.click(screen.getByRole("button", { name: "Merge when ready" })),
     );

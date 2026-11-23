@@ -47,10 +47,10 @@ const ANSWER: Record<MergeWhenReadyOutcome, string> = {
 
 type Pull = { platform: string; repo: string; number: number };
 
-export function MergeWhenReadyBox(props: {
+export function MergeWhenReady(props: {
   pull: Pull;
   head: string;
-  methods: MergeMethod[];
+  method: MergeMethod;
   label: Record<MergeMethod, string>;
 }) {
   const q = new URLSearchParams({ ...props.pull, number: String(props.pull.number) });
@@ -58,7 +58,7 @@ export function MergeWhenReadyBox(props: {
     () => api<MergeWhenReadyView>(`/pulls/merge-when-ready?${q}`),
     [q.toString(), props.head],
   );
-  const [method, setMethod] = useState<MergeMethod>(props.methods[0] ?? "merge");
+  const { method } = props;
   const [keep, setKeep] = useState(false);
   const [said, setSaid] = useState<MergeWhenReadyOutcome | null>(null);
   const write = useAction((verb: "POST" | "DELETE", body: unknown) =>
@@ -78,11 +78,13 @@ export function MergeWhenReadyBox(props: {
   const intent = data?.intent;
   const live = intent && (intent.state === "armed" || intent.state === "merging");
   return (
-    <section className="card card-pad stack" aria-label="Merge when ready">
-      <div className="row-gap checks-head">
-        <span className="strong grow">Merge when ready</span>
-        {intent && <span className={STATE[intent.state].tone}>{STATE[intent.state].text}</span>}
-      </div>
+    <section className="stack merge-when-ready" aria-label="Merge when ready">
+      {intent && (
+        <div className="row-gap checks-head">
+          <span className="grow">Merge when ready</span>
+          <span className={STATE[intent.state].tone}>{STATE[intent.state].text}</span>
+        </div>
+      )}
       {live && (
         <span className="subtle small">
           {props.label[intent.method]}, set by {intent.armedBy} {ago(intent.armedAt)}
@@ -96,18 +98,6 @@ export function MergeWhenReadyBox(props: {
         </Button>
       ) : (
         <>
-          <select
-            className="input"
-            aria-label="Merge method when ready"
-            value={method}
-            onChange={(e) => setMethod(e.target.value as MergeMethod)}
-          >
-            {props.methods.map((m) => (
-              <option key={m} value={m}>
-                {props.label[m]}
-              </option>
-            ))}
-          </select>
           <label className="check small">
             <input type="checkbox" checked={keep} onChange={(e) => setKeep(e.target.checked)} />
             Keep armed on new commits
