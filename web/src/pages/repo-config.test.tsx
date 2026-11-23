@@ -189,6 +189,8 @@ describe("the Review config page", () => {
     for (const key of ["include", "reviewers.<id>.minTier", "github.requestChanges", "maxCostUsd"])
       expect(note?.textContent).toContain(key);
     expect(note?.textContent).not.toContain("model");
+    expect(note?.textContent).toContain("review depth");
+    expect(note?.textContent).not.toContain("profile");
     await act(async () => void fireEvent.click(screen.getByRole("button", { name: "Rules" })));
     await editor();
     expect(screen.queryByText("What hosted reviews take from this file")).toBeNull();
