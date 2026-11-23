@@ -42,6 +42,8 @@ export type Finding = {
   code: string | null;
   redacted: boolean;
   truncated: boolean;
+  /** What the reviewer read to reach it, one fact per entry; null without any. */
+  evidence: string[] | null;
   status: "open" | "fixed" | "dismissed";
   /** The lines the fix replaces at the reviewed head, and what with; null without one. */
   fix: { startLine: number; endLine: number; replacement: string } | null;
@@ -198,7 +200,7 @@ export function FindingEvent(props: {
         <CommitFixNote state={fixed} />
         {open && (
           <div className="finding-body">
-            <FindingText body={f.body} suggestion={f.suggestion} />
+            <FindingText body={f.body} suggestion={f.suggestion} evidence={f.evidence} />
             {f.platformDismissal && <PlatformThread d={f.platformDismissal} />}
             <div className="inline-form">
               {state === "saved" ? (

@@ -461,6 +461,18 @@ td.finding-cell {
 .finding-label {
   margin-bottom: 4px;
 }
+/* A thread or a finding is a list item, which would give a list in it the second level's hollow mark. */
+.thread-said .md ul,
+.finding-text .md ul {
+  list-style-type: disc;
+}
+.evidence > summary {
+  width: fit-content;
+}
+.evidence > .md {
+  margin-top: 4px;
+  color: var(--t2);
+}
 @media (max-width: 900px) {
   .review-frame {
     grid-template-columns: minmax(0, 1fr);
