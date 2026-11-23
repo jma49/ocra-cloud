@@ -73,8 +73,9 @@ export function Privacy() {
         <li>
           <b>Your settings</b> (models, agents, limits, rules, plugin names and their settings) with
           their saved versions,
-          <b> sessions</b> (browsers and terminals signed in, as token hashes), and an audit log of
-          key and settings changes.
+          <b> sessions</b> (browsers and terminals signed in, as token hashes),
+          <b> API tokens</b> (name, scopes, first characters and expiry, the secret only as a hash),
+          and an audit log of key and settings changes.
         </li>
       </ul>
 
@@ -118,11 +119,11 @@ export function Privacy() {
           days, then deleted by a daily job.
         </li>
         <li>
-          Expired sign-in codes and sessions: deleted the day they expire. The day's count of
-          sign-in codes asked for from each network, kept under a keyed hash rather than the
-          address: deleted the next day. Browser sessions last 30 days from sign-in, stop working
-          after 7 days unused, and end when the same browser signs in again; terminal sessions last
-          90 from sign-in, however often they refresh.
+          Expired sign-in codes, sessions and API tokens: deleted the day they expire. The day's
+          count of sign-in codes asked for from each network, kept under a keyed hash rather than
+          the address: deleted the next day. Browser sessions last 30 days from sign-in, stop
+          working after 7 days unused, and end when the same browser signs in again; terminal
+          sessions last 90 from sign-in, however often they refresh.
         </li>
         <li>
           Your account, keys, settings and memory: until you delete them. The newest 50 versions of
@@ -143,8 +144,8 @@ export function Privacy() {
       <ul>
         <li>
           Export everything stored for your account as JSON, under Settings: keys appear by provider
-          and last four characters, sessions without their tokens. Download any review's findings
-          from its page.
+          and last four characters, sessions and API tokens without their secrets. Download any
+          review's findings from its page.
         </li>
         <li>
           Delete a key, a review, a memory entry or a session at any time; turn off sending findings

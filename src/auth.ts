@@ -98,8 +98,10 @@ auth.get("/github/callback", async (c) => {
 });
 
 auth.post("/logout", requireSession(["web", "cli"]), async (c) => {
-  await c.var.data.remove("sessions", c.var.session.sessionId);
-  await audit(c.var.data, "session.signed_out", { client: c.var.session.kind });
+  const { kind, sessionId } = c.var.session;
+  if (kind === "token") return apiError(c, "forbidden_for_session");
+  await c.var.data.remove("sessions", sessionId);
+  await audit(c.var.data, "session.signed_out", { client: kind });
   clearSessionCookie(c);
   return c.json({ ok: true });
 });

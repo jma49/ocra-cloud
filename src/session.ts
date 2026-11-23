@@ -1,5 +1,6 @@
 import type { Context, MiddlewareHandler } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
+import { isApiToken, tokenAccess } from "./api-token-access.js";
 import { audit } from "./audit.js";
 import { randomToken, sha256Hex } from "./crypto.js";
 import {
@@ -47,6 +48,9 @@ type Kind = "web" | "cli";
 export function requireSession(kinds: readonly Kind[] = ["web"]): MiddlewareHandler<AppEnv> {
   return async (c, next) => {
     const bearer = c.req.header("authorization")?.match(/^Bearer\s+(\S+)$/i)?.[1];
+    // A personal API token reaches only the routes its scopes list, whatever
+    // sessions the route itself takes (src/api-token-access.ts).
+    if (bearer && isApiToken(bearer)) return tokenAccess(c, next, bearer);
     const token = bearer ?? getCookie(c, SESSION_COOKIE);
     if (!token) return apiError(c, "unauthenticated");
     if (!bearer && !["GET", "HEAD"].includes(c.req.method)) {
@@ -61,7 +65,9 @@ export function requireSession(kinds: readonly Kind[] = ["web"]): MiddlewareHand
     }
     // A CLI token reaches only what the CLI needs (ADR-0024): never keys,
     // sessions or the account.
-    if (!kinds.includes(session.kind)) return apiError(c, "forbidden_for_session");
+    if (session.kind === "token" || !kinds.includes(session.kind)) {
+      return apiError(c, "forbidden_for_session");
+    }
     c.set("session", session);
     const data = scoped(c.var.db, session.account.id);
     c.set("data", data);

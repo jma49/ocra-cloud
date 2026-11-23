@@ -6,6 +6,7 @@ import type { Db } from "./client.js";
 import { HELD_FOR } from "./notify.js";
 import {
   accounts,
+  apiTokens,
   auditEvents,
   automationAssignments,
   automationRuns,
@@ -32,7 +33,7 @@ import {
 
 // What the data policy (web /privacy) promises: review records, live runs, gateway call
 // records, merged and closed pull requests, their review flow and review threads, who a rule assigned to review them, the inbox's read marks, the daily counts and the audit log are deleted after
-// RETENTION_DAYS; expired login codes and sessions go at once; a notice held in
+// RETENTION_DAYS; expired login codes, sessions and API tokens go at once; a notice held in
 // quiet hours after HELD_FOR. Runs daily
 // from the cron trigger.
 
@@ -236,6 +237,8 @@ export async function enforceRetention(db: Db, now = new Date()): Promise<void> 
             sql`coalesce(${sessions.refreshExpiresAt}, ${sessions.expiresAt}) < ${now.getTime()}`,
           ),
     ],
+    // A token past its expiry is refused already; its row goes at once.
+    ["api_tokens", () => db.delete(apiTokens).where(lt(apiTokens.expiresAt, now))],
     [
       "usage_counters",
       () =>

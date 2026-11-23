@@ -50,6 +50,7 @@ async function plan(q: Captured): Promise<string> {
 const names = Object.keys(accountTables) as (keyof typeof accountTables)[];
 const TABLE: Record<string, string> = {
   sessions: "sessions",
+  apiTokens: "api_tokens",
   providerKeys: "provider_keys",
   reviews: "reviews",
   auditEvents: "audit_events",
@@ -548,6 +549,7 @@ describe("retention", () => {
       plans.set(table, await plan(q));
     }
     expect([...plans.keys()].sort()).toEqual([
+      "api_tokens",
       "audit_events",
       "automation_assignments",
       "automation_runs",

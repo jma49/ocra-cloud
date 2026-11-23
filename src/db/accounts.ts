@@ -80,8 +80,9 @@ export async function loginOf(db: Db, accountId: string): Promise<string | null>
 
 export type SessionAccount = {
   account: Account;
+  /** The session's id, or a personal API token's. */
   sessionId: string;
-  kind: "web" | "cli";
+  kind: "web" | "cli" | "token";
   /** When the session's sign-in happened. */
   createdAt: Date;
   expiresAt: Date;

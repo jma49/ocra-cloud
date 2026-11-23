@@ -9,6 +9,9 @@ export const KIND_GROUPS: { label: string; kinds: [AuditKind, string][] }[] = [
       ["session.signed_out", "Signed out"],
       ["session.revoked", "Session revoked"],
       ["device.decided", "Terminal sign-in decided"],
+      ["token.created", "API token made"],
+      ["token.revoked", "API token revoked"],
+      ["token.first_used", "API token first used"],
     ],
   },
   {
@@ -95,6 +98,9 @@ const noted = (value: string | null | undefined, open = " (", close = ")") =>
   value ? `${open}${value}${close}` : "";
 const listed = (keys: string[] | undefined) => (keys?.length ? `: ${keys.join(", ")}` : "");
 
+const apiToken = (prefix: string | undefined) =>
+  prefix ? `the API token ${prefix}` : "an API token";
+
 /** One event as a line a person reads. */
 export function describe(e: AuditEventView): string {
   switch (e.kind) {
@@ -109,6 +115,12 @@ export function describe(e: AuditEventView): string {
     case "device.decided":
       if (e.detail.approved === undefined) return "Decided a terminal sign-in";
       return e.detail.approved ? "Approved a terminal sign-in" : "Refused a terminal sign-in";
+    case "token.created":
+      return `Made ${apiToken(e.detail.prefix)}${listed(e.detail.scopes)}`;
+    case "token.revoked":
+      return `Revoked ${apiToken(e.detail.prefix)}`;
+    case "token.first_used":
+      return `First use of ${apiToken(e.detail.prefix)}`;
     case "platform.connected": {
       const p = e.detail.platform;
       return `Connected ${p ? (PLATFORM[p] ?? p) : "a code platform"}`;

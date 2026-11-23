@@ -14,6 +14,7 @@ const B = "acct-b";
 // A change to one column of each table's row.
 const changes = {
   sessions: { label: "changed" },
+  apiTokens: { name: "changed" },
   providerKeys: { last4: "zzzz" },
   reviews: { findings: 9 },
   auditEvents: { kind: "changed" },

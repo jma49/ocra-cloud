@@ -62,6 +62,8 @@ describe("retention", () => {
       refreshExpiresAt: new Date(now.getTime() + DAY),
     });
     await d.insert("sessions", { id: "web-dead", tokenHash: "t2", kind: "web", expiresAt: ago(1) });
+    await d.insert("apiTokens", { ...rows.apiTokens("token-dead"), expiresAt: ago(1) });
+    await d.insert("apiTokens", rows.apiTokens("token-live"));
 
     await enforceRetention(db, now);
     for (const t of ["reviews", "gatewayCalls", "auditEvents"] as const) {
@@ -71,6 +73,7 @@ describe("retention", () => {
     const ids = (await d.list("sessions")).map((s) => s.id);
     expect(ids).toContain("cli-live");
     expect(ids).not.toContain("web-dead");
+    expect((await d.list("apiTokens")).map((t) => t.id)).toEqual(["token-live"]);
   });
 
   it("forgets when a pull request was seen after 90 days", async () => {

@@ -1,7 +1,8 @@
 import { inspectRoutes } from "hono/dev";
 import { beforeEach, describe, expect, it } from "vitest";
 import { app } from "../src/index.js";
-import { call, resetDb, signIn, signInCli } from "./helpers.js";
+import { API_TOKEN_ROUTES, API_TOKEN_SCOPES } from "../src/shared/index.js";
+import { call, resetDb, signIn, signInCli, signInToken } from "./helpers.js";
 
 // Every route the app serves, and which sessions reach it. A route added
 // without a line here fails the first test; a route whose router lost its
@@ -29,6 +30,9 @@ const ACCESS: Record<string, Access> = {
   "GET /api/usage": "web",
   "GET /api/sessions": "web",
   "DELETE /api/sessions/:id": "web",
+  "GET /api/tokens": "web",
+  "POST /api/tokens": "web",
+  "DELETE /api/tokens/:id": "web",
   "GET /api/export": "web",
   "GET /api/findings": "web",
   "GET /api/budget": "web",
@@ -239,4 +243,43 @@ describe("every route", () => {
       expect(res.status).toBeLessThan(500);
     },
   );
+});
+
+// A personal API token reaches the routes API_TOKEN_ROUTES lists, with the
+// scope listed, and nothing else, whatever scopes it holds.
+describe("every route, with a personal API token", () => {
+  const allowed = guarded.filter((r) => Object.hasOwn(API_TOKEN_ROUTES, r.route));
+
+  it("lists only registered GET routes", () => {
+    const listed = Object.keys(API_TOKEN_ROUTES);
+    expect(listed.filter((r) => !Object.hasOwn(ACCESS, r))).toEqual([]);
+    expect(listed.filter((r) => !r.startsWith("GET "))).toEqual([]);
+  });
+
+  it.each(guarded.filter((r) => !Object.hasOwn(API_TOKEN_ROUTES, r.route)))(
+    "$route refuses a token with every scope (403)",
+    async (r) => {
+      const { auth } = await signInToken(1, "script", API_TOKEN_SCOPES);
+      const res = await call(r.url, { method: r.method, auth });
+      expect(res.status).toBe(403);
+      expect(await res.json()).toEqual({ error: "forbidden_for_session" });
+    },
+  );
+
+  it.each(allowed)("$route lets a token with its scope through", async (r) => {
+    const scope = API_TOKEN_ROUTES[r.route] as string;
+    const { auth } = await signInToken(1, "script", [scope]);
+    const res = await call(r.url, { method: r.method, auth });
+    expect([401, 403]).not.toContain(res.status);
+    expect(res.status).toBeLessThan(500);
+  });
+
+  it.each(allowed)("$route refuses a token without its scope (403)", async (r) => {
+    const scope = API_TOKEN_ROUTES[r.route];
+    const others = API_TOKEN_SCOPES.filter((s) => s !== scope);
+    const { auth } = await signInToken(1, "script", others);
+    const res = await call(r.url, { method: r.method, auth });
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({ error: "forbidden_for_session", scope });
+  });
 });

@@ -73,3 +73,16 @@ export async function signInCli(githubId: number, login: string) {
   const tokens = await startCliSession(db, account.id, "test terminal");
   return { account, tokens, auth: { authorization: `Bearer ${tokens.access_token}` } };
 }
+
+/** A signed-in account and a personal API token it made through the API, sent as a bearer token. */
+export async function signInToken(githubId: number, login: string, scopes: readonly string[]) {
+  const me = await signIn(githubId, login);
+  const res = await call("/api/tokens", {
+    method: "POST",
+    auth: me.auth,
+    json: { name: "ci", scopes, expiresInDays: 30 },
+  });
+  if (res.status !== 201) throw new Error(`token not made: ${res.status}`);
+  const made = (await res.json()) as { token: { id: string; prefix: string }; secret: string };
+  return { ...me, made, auth: { authorization: `Bearer ${made.secret}` }, web: me.auth };
+}

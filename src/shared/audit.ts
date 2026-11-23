@@ -11,6 +11,9 @@ export type AuditDetails = {
   "session.signed_out": { client: "web" | "cli" };
   "session.revoked": { current: boolean };
   "device.decided": { approved: boolean };
+  "token.created": { prefix: string; scopes: string[]; expiresAt: string };
+  "token.revoked": { prefix: string };
+  "token.first_used": { prefix: string };
   "platform.connected": { platform: string };
   "settings.changed": { keys: string[]; version: number };
   "sharing.changed": { shareFindings: boolean; deleted: number };
@@ -53,6 +56,9 @@ export const AUDIT_FIELDS: { readonly [K in AuditKind]: readonly (keyof AuditDet
   "session.signed_out": ["client"],
   "session.revoked": ["current"],
   "device.decided": ["approved"],
+  "token.created": ["prefix", "scopes", "expiresAt"],
+  "token.revoked": ["prefix"],
+  "token.first_used": ["prefix"],
   "platform.connected": ["platform"],
   "settings.changed": ["keys", "version"],
   "sharing.changed": ["shareFindings", "deleted"],
