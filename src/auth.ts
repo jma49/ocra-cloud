@@ -100,6 +100,7 @@ auth.get("/github/callback", async (c) => {
       api: client.host.api,
       token: tokenBody.access_token,
       login: user.login,
+      fresh: true,
       bots: c.var.bots,
     });
     if (verdict === undefined) return apiError(c, "upstream_unreachable");
