@@ -45,6 +45,8 @@ import { preferences } from "./preferences.js";
 import { pullBatch } from "./pull-batch.js";
 import { pullDescription } from "./pull-description.js";
 import { pullEdits } from "./pull-edits.js";
+import type { PullsHub } from "./pull-events/hub.js";
+import { pullEventsRoute } from "./pull-events/stream.js";
 import { pullFindings } from "./pull-findings.js";
 import { pullFixes } from "./pull-fixes.js";
 import { pullPage } from "./pull-page.js";
@@ -104,6 +106,8 @@ export type Host<E extends AppBindings> = {
   mailer?: Mailer;
   /** How webhooks are posted, where the host checks more than fetch can (src/node/webhook-transport.ts). */
   webhookPost?: WebhookPost;
+  /** Where webhooks tell the open inboxes of their changes: a Durable Object on Workers, memory on Node. */
+  pullsHub?: PullsHub;
   /** Whether a deep health check asks that a remote runner reported in lately (src/node/). */
   runnerHeartbeat?: boolean;
 };
@@ -123,6 +127,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
     if (host.autoReview) c.set("autoReview", host.autoReview);
     c.set("mailer", host.mailer);
     c.set("webhookPost", host.webhookPost);
+    c.set("pullsHub", host.pullsHub);
     await next();
   });
   app.use(platformLimits);
@@ -157,6 +162,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
   app.route("/gateway", gateway);
   app.route("/platforms", platformsRoute);
   app.route("/platforms", platformConnect);
+  app.route("/platforms", pullEventsRoute);
   app.route("/pull-views", pullViewsRoute);
   app.route("/pulls/checks", pullChecksRoute);
   app.route("/pulls/merge-when-ready", mergeWhenReady);

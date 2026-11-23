@@ -20,6 +20,8 @@ const POSTGRES_EXCLUDE = [
   "test/body-limits.test.ts",
   "test/timeouts.test.ts",
   "test/automation-retry-cron.test.ts",
+  // A Durable Object.
+  "test/pulls-stream.test.ts",
 ];
 
 // Four projects in one run: the Worker's tests in workerd, with a local D1;

@@ -18,3 +18,7 @@ export const env = {
   TEST_MIGRATIONS: [],
   ...rateLimits(),
 };
+
+// The Worker's module exports its Durable Object classes; here they are
+// never bound (env has no PULL_EVENTS), so the base class is a stand-in.
+export class DurableObject {}

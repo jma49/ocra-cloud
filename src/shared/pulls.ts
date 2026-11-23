@@ -22,6 +22,18 @@ export type PullAiVerdict = "blocking" | "not_blocking" | null;
  */
 export type PullsChange = { changedAt: string | null };
 
+/** What a webhook said changed of a pull request: the pull request itself, a review, a comment, its checks. */
+export type PullChangeKind = "pull" | "review" | "comment" | "checks";
+
+/**
+ * GET /api/platforms/pulls/changed/stream pushes these, a JSON array per
+ * `pulls` event: a pull request of the account's enrolled repository
+ * `repoId` changed (`number` null when the delivery did not name it). Its
+ * `ready` event says the stream is open; the console then reads
+ * /pulls/changed once, for what it missed while it was not.
+ */
+export type PullsChangedEvent = { repoId: string; number: number | null; kind: PullChangeKind };
+
 export type PullItem = {
   id: string;
   number: number;

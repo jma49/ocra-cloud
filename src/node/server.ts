@@ -148,6 +148,7 @@ console.log({ level: "info", event: "listening", port });
 // The work requests deferred past their answers finishes before the database closes.
 for (const signal of ["SIGTERM", "SIGINT"] as const) {
   process.once(signal, () => {
+    host.endStreams();
     server.close(async () => {
       await host.idle();
       host.close();

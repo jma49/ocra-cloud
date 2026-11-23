@@ -21,7 +21,8 @@ import { githubSteps } from "./inbound/steps.js";
 import { rerunGithubChecks } from "./merge-checks/rerun.js";
 import { githubCiFailure } from "./notify/ci-hooks.js";
 import { githubHostOf } from "./platforms/registry.js";
-import { githubTouchesPulls } from "./pull-changes.js";
+import { githubPullsTouched } from "./pull-changes.js";
+import { publishPulls } from "./pull-events/stream.js";
 import { githubMovesChecks, indexGithubEvent } from "./pull-index/hooks.js";
 import type { AppEnv } from "./types.js";
 
@@ -88,10 +89,12 @@ export function githubWebhook(host: WebhookHost) {
       });
       if (!received) return c.json({ queued: 0, duplicate: true }, 202);
       const queued = await received.answer(async () => {
-        if (repo.success && githubTouchesPulls(event, body)) {
-          await touchPulls(c.var.db, "github", github, String(repo.data.repository.id), new Date());
+        const touched = githubPullsTouched(event, body);
+        if (repo.success && touched) {
+          const id = String(repo.data.repository.id);
+          publishPulls(c, await touchPulls(c.var.db, "github", github, id, new Date()), touched);
         }
-        if (repo.success && (githubTouchesPulls(event, body) || githubMovesChecks(event))) {
+        if (repo.success && (touched || githubMovesChecks(event))) {
           await indexGithubEvent(c.var.db, github, event, body);
         }
         const site = { kind: "github" as const, host: github, url: githubUrl };

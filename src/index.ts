@@ -21,6 +21,7 @@ import { runReminders } from "./notify/reminders.js";
 import { runReports } from "./notify/report.js";
 import { runScheduledReports } from "./notify/scheduled-reports.js";
 import { githubHostOf, platformsOf } from "./platforms/registry.js";
+import { durableHub } from "./pull-events/durable.js";
 import { reconcileRun } from "./reconcile.js";
 import { sweepStackMerges } from "./stack-merge/advance.js";
 
@@ -47,7 +48,11 @@ export const app = createApp({
   clientAddress: (c) => c.req.header("cf-connecting-ip"),
   ...remote,
   ...(graphs ? { graphs } : {}),
+  // Absent only where the Worker's module runs without wrangler.jsonc (the Postgres tests).
+  ...(env.PULL_EVENTS ? { pullsHub: durableHub(env.PULL_EVENTS) } : {}),
 });
+
+export { PullEvents } from "./pull-events/durable.js";
 
 export default {
   fetch: app.fetch,

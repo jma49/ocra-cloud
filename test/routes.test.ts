@@ -1,8 +1,10 @@
+import { createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
+import { env } from "cloudflare:workers";
 import { inspectRoutes } from "hono/dev";
 import { beforeEach, describe, expect, it } from "vitest";
 import { app } from "../src/index.js";
 import { API_TOKEN_ROUTES, API_TOKEN_SCOPES } from "../src/shared/index.js";
-import { call, resetDb, signIn, signInCli, signInToken } from "./helpers.js";
+import { call, request, resetDb, signIn, signInCli, signInToken } from "./helpers.js";
 
 // Every route the app serves, and which sessions reach it. A route added
 // without a line here fails the first test; a route whose router lost its
@@ -10,6 +12,17 @@ import { call, resetDb, signIn, signInCli, signInToken } from "./helpers.js";
 // (usually a 500, reading a session that is not there) and fails the second.
 
 type Access = "public" | "web" | "cli" | "web+cli";
+
+/** Routes that stream for minutes: their answer is read up to the status. */
+const STREAMS = new Set(["GET /api/platforms/pulls/changed/stream"]);
+
+async function opened(url: string, auth: Record<string, string>) {
+  const ctx = createExecutionContext();
+  const res = await app.fetch(request(url, { auth }), env, ctx);
+  await res.body?.cancel();
+  await waitOnExecutionContext(ctx);
+  return res;
+}
 
 const ACCESS: Record<string, Access> = {
   "GET /api/health": "public",
@@ -38,6 +51,7 @@ const ACCESS: Record<string, Access> = {
   "GET /api/budget": "web",
   "GET /api/platforms/pulls": "web",
   "GET /api/platforms/pulls/changed": "web",
+  "GET /api/platforms/pulls/changed/stream": "web",
   "GET /api/search": "web",
   "GET /api/pull-views": "web",
   "POST /api/pull-views": "web",
@@ -261,7 +275,9 @@ describe("every route", () => {
     "$route lets a web session through",
     async (r) => {
       const { auth } = await signIn(1, "web-user");
-      const res = await call(r.url, { method: r.method, auth: auth });
+      const res = STREAMS.has(r.route)
+        ? await opened(r.url, auth)
+        : await call(r.url, { method: r.method, auth: auth });
       expect([401, 403]).not.toContain(res.status);
       expect(res.status).toBeLessThan(500);
     },
