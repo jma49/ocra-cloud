@@ -152,6 +152,17 @@ export const rows = {
     seenAt: new Date(),
   }),
   // The enrolled repository it belongs to is made in beforeEach (the foreign key needs one).
+  findingThreads: (id: string) => ({
+    id,
+    reviewRepoId: "review-repo-of-a",
+    repository: "https://github.com/octo/api",
+    number: 1,
+    threadKey: `thread-${id}`,
+    fingerprint: "0123456789abcdef",
+    starterId: "99",
+    seenAt: new Date(),
+  }),
+  // The enrolled repository it belongs to is made in beforeEach (the foreign key needs one).
   reviewThreads: (id: string) => ({
     id,
     reviewRepoId: "review-repo-of-a",

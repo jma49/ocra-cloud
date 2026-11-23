@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import {
   type FindingIssueView,
   type FixProposalView,
+  type PlatformDismissal,
   replacementLines,
   type Severity,
   type Verification,
@@ -41,7 +42,19 @@ export type Finding = {
   fix: { startLine: number; endLine: number; replacement: string } | null;
   /** The issue opened from it in the reviewed repository; null before one is. */
   issue: FindingIssueView | null;
+  /** What people did to its comment's thread on the platform; null when nothing is on record. */
+  platformDismissal: PlatformDismissal | null;
 };
+
+/** One line of what happened to the finding's thread on the platform. */
+export function dismissalLine(d: PlatformDismissal): string {
+  const did =
+    d.state === null
+      ? ""
+      : `Thread ${d.state === "resolved" ? "resolved" : "reopened"} on the platform${d.by ? ` by ${d.by}` : ""}`;
+  const said = d.reason === null ? "" : `${d.reasonBy ?? "A reply"}: ${d.reason}`;
+  return [did, said].filter(Boolean).join(". ");
+}
 
 export function FindingEvent(props: {
   f: Finding;
@@ -144,6 +157,9 @@ export function FindingEvent(props: {
                 <div className="quiet-label finding-label">Suggestion</div>
                 <p className="m-0 pre-wrap">{f.suggestion}</p>
               </div>
+            )}
+            {f.platformDismissal && (
+              <p className="m-0 small pre-wrap">{dismissalLine(f.platformDismissal)}</p>
             )}
             <div className="inline-form">
               {state === "saved" ? (

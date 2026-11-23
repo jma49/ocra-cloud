@@ -37,7 +37,7 @@ type ThreadNote = {
   noun: "pull request" | "merge request";
 };
 
-function timeOf(raw: string | null | undefined, now: Date): Date {
+export function timeOf(raw: string | null | undefined, now: Date): Date {
   const at = raw ? Date.parse(raw) : Number.NaN;
   return Number.isNaN(at) || at > now.getTime() + SKEW_MS ? now : new Date(at);
 }

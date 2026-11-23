@@ -85,6 +85,7 @@ describe("the CLI's real upload", () => {
         fixedVia: _v,
         threadResolvedAt: _t,
         issue: _i,
+        platformDismissal: _p,
         ...f
       }) => f,
     );

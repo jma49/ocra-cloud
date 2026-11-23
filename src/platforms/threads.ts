@@ -86,6 +86,14 @@ const FINDING_MARKER = /<!-- ocra:finding ([0-9a-f]{16}) -->/;
 /** The fingerprint of the finding a comment is ocra's comment of, if it is one. */
 const findingOfComment = (body: string): string | undefined => FINDING_MARKER.exec(body)?.[1];
 
+/**
+ * The fingerprint of the finding a comment is ocra's comment of, for a
+ * comment that starts with the marker as ocra writes it: a reply that
+ * quotes one is not it.
+ */
+export const findingStarting = (body: string): string | undefined =>
+  /^\s*<!-- ocra:finding ([0-9a-f]{16}) -->/.exec(body)?.[1];
+
 /** The findings of the comments carrying these suggestions. */
 export function findingsOfSuggestions(
   threads: { comments: { body: string; suggestions: { id: string }[] }[] }[],

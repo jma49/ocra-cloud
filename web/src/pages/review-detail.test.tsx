@@ -2,6 +2,7 @@ import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { clearCache } from "../cache.js";
 import { ReviewDetail } from "./ReviewDetail.js";
+import { dismissalLine } from "./review-finding.js";
 
 afterEach(async () => {
   cleanup();
@@ -152,5 +153,30 @@ describe("a finding's fix on its review", () => {
     expect(await screen.findByText("Replaces line 11")).toBeTruthy();
     expect(screen.getByText("if (amount > charge.amount) {", { selector: "pre" })).toBeTruthy();
     expect(screen.getByText("if (amount > left) {")).toBeTruthy();
+  });
+});
+
+describe("what happened to a finding's thread on the platform", () => {
+  const none = {
+    state: null,
+    by: null,
+    at: null,
+    reason: null,
+    reasonBy: null,
+    reasonAt: null,
+    redacted: false,
+    truncated: false,
+  };
+
+  it("says who resolved or reopened it, and the reply kept as the reason", () => {
+    expect(dismissalLine({ ...none, state: "resolved", by: "rita" })).toBe(
+      "Thread resolved on the platform by rita",
+    );
+    expect(
+      dismissalLine({ ...none, state: "unresolved", reason: "By design.", reasonBy: "lena" }),
+    ).toBe("Thread reopened on the platform. lena: By design.");
+    expect(dismissalLine({ ...none, reason: "By design.", reasonBy: "lena" })).toBe(
+      "lena: By design.",
+    );
   });
 });

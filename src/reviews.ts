@@ -12,6 +12,7 @@ import { config } from "./config.js";
 import type { FindingsOnPull } from "./db/finding-outcomes.js";
 import type { Row, Scoped } from "./db/scoped.js";
 import { defer } from "./defer.js";
+import { platformDismissals } from "./finding-dismissals.js";
 import { parseFindings } from "./findings.js";
 import { keepsFindings } from "./findings-kept.js";
 import { apiError, jsonBody, queryDays } from "./http.js";
@@ -206,14 +207,19 @@ async function recheckPull(c: Context<AppEnv>, id: string) {
 reviews.get("/:id", requireSession(), async (c) => {
   const review = await c.var.data.get("reviews", c.req.param("id"));
   if (!review) return apiError(c, "not_found");
-  const [list, walkthrough, issues] = await Promise.all([
+  const [list, walkthrough, issues, dismissals] = await Promise.all([
     c.var.data.findingsOf(review.id),
     c.var.data.findOne("reviewWalkthroughs", { reviewId: review.id }),
     c.var.data.findingIssues.ofReview(review.id),
+    platformDismissals(c.var.data, review),
   ]);
   return c.json({
     review: listedReview(review),
-    findings: list.map((f) => ({ ...findingDto(f), issue: issues.get(f.id) ?? null })),
+    findings: list.map((f) => ({
+      ...findingDto(f),
+      issue: issues.get(f.id) ?? null,
+      platformDismissal: dismissals.get(f.fingerprint) ?? null,
+    })),
     walkthrough: walkthrough ? walkthroughDto(walkthrough) : null,
   });
 });

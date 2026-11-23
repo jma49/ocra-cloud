@@ -80,6 +80,7 @@ const TABLE: Record<string, string> = {
   pullFlows: "pull_flows",
   pullReviews: "pull_reviews",
   reviewThreads: "review_threads",
+  findingThreads: "finding_threads",
   pullPaths: "pull_paths",
   reviewRequests: "review_requests",
   reviewTeams: "review_teams",
@@ -489,6 +490,34 @@ describe("review threads", () => {
   });
 });
 
+describe("finding threads", () => {
+  it("finds a thread by its key, its finding by the pull request's reviews, and a pull request's threads through an index", async () => {
+    const seen: Captured[] = [];
+    const d = scoped(drizzle(recording(seen)), "acct");
+    const on = { reviewRepoId: "r1", threadKey: "1" };
+    const by = { id: "7", login: "rita" };
+    await d.findingThreads.find(on);
+    await d.findingThreads.setState({ ...on, state: "resolved", by, at: new Date() });
+    await d.findingThreads.reply({
+      ...on,
+      by,
+      at: new Date(),
+      text: "why",
+      redacted: false,
+      truncated: false,
+    });
+    await d.findingThreads.ofPull("https://github.com/octo/api", 5);
+    expect(seen).toHaveLength(4);
+    for (const q of seen) {
+      const p = await plan(q);
+      expect(p, q.sql).toMatch(
+        /SEARCH finding_threads USING INDEX (finding_threads_thread|finding_threads_pull)/,
+      );
+      expect(p, q.sql).not.toMatch(/SCAN (finding_threads|findings|reviews)\b/);
+    }
+  });
+});
+
 describe("reviewer workload", () => {
   it("reads asks, reviews, open asks, authors and waits through an index, never a whole table", async () => {
     const seen: Captured[] = [];
@@ -587,6 +616,7 @@ describe("retention", () => {
       "automation_runs",
       "closed_pulls",
       "device_codes",
+      "finding_threads",
       "gateway_calls",
       "inbound_events",
       "live_runs",
