@@ -74,7 +74,10 @@ beforeEach(async () => {
     return inner(input, init);
   });
 });
-afterEach(() => s.host.close());
+afterEach(async () => {
+  await s.host.idle();
+  s.host.close();
+});
 
 async function enrolled() {
   const { auth } = await s.signIn(1);
@@ -157,7 +160,7 @@ describe("a merge request queued for review", () => {
     // Delivered again: the event is taken. Given commits: only a skip would apply.
     expect(await hook({ action: "open" })).toBe(0);
     expect(await hook({ action: "update", oldrev: C1, last_commit: { id: C2 } })).toBe(1);
-    await new Promise((r) => setTimeout(r, 50));
+    await s.host.idle();
     expect(await runs()).toHaveLength(1);
     expect(sent.filter((x) => x.method !== "GET")).toHaveLength(3);
   });

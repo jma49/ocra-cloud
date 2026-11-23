@@ -4,7 +4,7 @@ import { serveStatic } from "@hono/node-server/serve-static";
 import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
 import { migrate } from "drizzle-orm/libsql/migrator";
-import { Hono } from "hono";
+import { type ExecutionContext, Hono } from "hono";
 import { createApp } from "../app.js";
 import { retryAutomations } from "../automations/retry.js";
 import { CallBudget } from "../calls.js";
@@ -129,6 +129,16 @@ export async function openHost(options: HostOptions) {
     runnerHeartbeat: !!options.autoReview?.runnerToken,
   });
   const metrics = options.metrics && metricsEndpoint(shared, { ...options.metrics, startedAt });
+  const deferred = new Set<Promise<unknown>>();
+  const executionCtx: ExecutionContext = {
+    waitUntil(work) {
+      deferred.add(work);
+      const done = () => deferred.delete(work);
+      work.then(done, done);
+    },
+    passThroughOnException() {},
+    props: {},
+  };
 
   const origin = options.publicUrl ? new URL(options.publicUrl).origin : undefined;
   const site = new Hono();
@@ -164,7 +174,7 @@ export async function openHost(options: HostOptions) {
         return metrics ? metrics(request) : new Response("not found\n", { status: 404 });
       }
       return pathname === "/api" || pathname.startsWith("/api/")
-        ? api.fetch(request, bindings)
+        ? api.fetch(request, bindings, executionCtx)
         : site.fetch(request);
     },
     /**
@@ -259,6 +269,10 @@ export async function openHost(options: HostOptions) {
     graphWorker: graphs?.worker,
     /** The review worker, when auto review is on. */
     reviewWorker: reviews,
+    /** Resolves once the work answered requests deferred has finished, the database still open. */
+    idle: async () => {
+      while (deferred.size > 0) await Promise.allSettled(deferred);
+    },
     close: () => {
       graphs?.worker.stop();
       reviews?.stop();

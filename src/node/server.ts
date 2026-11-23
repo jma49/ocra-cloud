@@ -142,9 +142,11 @@ console.log({ level: "info", event: "listening", port });
 
 // As PID 1 in a container, Node gets no default handler for these: without
 // one, `docker stop` waits out its timeout and kills the server mid-write.
+// The work requests deferred past their answers finishes before the database closes.
 for (const signal of ["SIGTERM", "SIGINT"] as const) {
   process.once(signal, () => {
-    server.close(() => {
+    server.close(async () => {
+      await host.idle();
       host.close();
       process.exit(0);
     });

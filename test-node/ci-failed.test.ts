@@ -59,7 +59,10 @@ beforeEach(async () => {
     return new Response(null, { status: 404 });
   });
 });
-afterEach(() => s.host.close());
+afterEach(async () => {
+  await s.host.idle();
+  s.host.close();
+});
 
 /** The signed-in user 1, its enrolled repository, and a channel that hears about events. */
 async function me(platform: "github" | "gitlab", events = ["checks_failed"]) {
@@ -123,7 +126,7 @@ const suite = (head: string, conclusion: string, app = 1, pulls = [{ number: 7, 
 
 const inbound = () => s.host.db.select().from(schema.inboundEvents);
 /** Lets the webhooks' work after the answer finish. */
-const settle = () => new Promise((r) => setTimeout(r, 50));
+const settle = () => s.host.idle();
 
 describe("CI failing on a GitHub pull request", () => {
   it("tells its author once per head, and a later green run on it nothing", async () => {
@@ -172,6 +175,37 @@ describe("CI failing on a GitHub pull request", () => {
       "o-0002-aaaa",
       "o-0003-aaaa",
     ]);
+  });
+
+  it("is told before the host is idle, however late the chat answers", async () => {
+    const { data, repo } = await me("github");
+    await pullBy(data, repo.id, 7, "1");
+    let told!: () => void;
+    const reached = new Promise<void>((r) => {
+      told = r;
+    });
+    let answer!: (res: Response) => void;
+    const answered = new Promise<Response>((r) => {
+      answer = r;
+    });
+    const platform = vi.mocked(globalThis.fetch).getMockImplementation();
+    vi.mocked(globalThis.fetch).mockImplementation((input, init) => {
+      if (!new Request(input, init).url.startsWith("https://hooks.slack.com/")) {
+        return platform?.(input, init) ?? Promise.reject(new Error("unmocked"));
+      }
+      told();
+      return answered;
+    });
+    await deliver("check_suite", suite(C1, "failure"), "l-1");
+    let idle = false;
+    const settled = s.host.idle().then(() => {
+      idle = true;
+    });
+    await reached;
+    expect(idle).toBe(false);
+    answer(new Response("ok"));
+    await settled;
+    expect((await inbound()).map((e) => e.state)).toEqual(["done"]);
   });
 
   it("tells nobody whose channels do not hear about checks_failed", async () => {
