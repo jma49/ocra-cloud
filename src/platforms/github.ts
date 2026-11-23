@@ -80,6 +80,7 @@ export function github(client: GithubClient): CodePlatform {
           refresh_token: refreshToken,
         }),
       }),
+    // Its search for review-requested:@me holds the asks of the user's teams.
     listPulls: (token) => githubPulls(post(token)),
     searchPulls: (token, search, limit) => githubSearch(post(token), search, limit),
     contents: githubContents(host),

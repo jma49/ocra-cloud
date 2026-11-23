@@ -11,7 +11,7 @@ import type { RepoFiles } from "./files.js";
 import type { RepoIssues } from "./issues.js";
 import type { RepoLearnings } from "./learnings.js";
 import type { PullMergeStatus } from "./merge-status.js";
-import type { ListedPull, PullListing, PullSearch } from "./pulls.js";
+import type { ListedPull, PullListing, PullSearch, TeamAsk } from "./pulls.js";
 import type { MergeQueue } from "./queue.js";
 import type { PullReadiness } from "./readiness.js";
 import type { RepoReconcile } from "./reconcile.js";
@@ -70,8 +70,11 @@ export interface CodePlatform {
   refresh(refreshToken: string): Promise<TokenAnswer | null>;
   /** The repositories the user reaches; null when the platform refused the token. */
   listRepos(accessToken: string): Promise<RepoListing | null>;
-  /** null when the platform refused the token. */
-  listPulls(accessToken: string): Promise<PullListing | null>;
+  /**
+   * null when the platform refused the token. `teamAsks` are listed too
+   * where the platform's own lists of the user's reviews miss them.
+   */
+  listPulls(accessToken: string, teamAsks: readonly TeamAsk[]): Promise<PullListing | null>;
   /**
    * The pull requests the user is involved in that match, at most `limit`;
    * null when the platform failed or refused the token.

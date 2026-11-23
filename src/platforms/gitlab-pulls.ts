@@ -7,8 +7,12 @@ import {
   mergedSince,
   OPEN_PER_LIST,
   type PullListing,
+  type TeamAsk,
   withRoles,
 } from "./pulls.js";
+
+/** Merge requests asked of a group the user is on read at most, newest ask first: one call each. */
+const MAX_GROUP_ASKED = 10;
 
 export type MergeRequest = {
   id: number;
@@ -68,9 +72,18 @@ export const mergeRequestItem = (mr: MergeRequest): ListedPull => ({
       : null,
 });
 
+const keyOf = (repo: string, number: number) => `${repo.toLowerCase()}#${number}`;
+
+/**
+ * The merge requests asking the user's review, theirs open and theirs merged
+ * this week. GitLab lists only those naming the user a reviewer, so those an
+ * approval rule asks of a group they are on come from teamAsks: each read
+ * on its own, listed while still open.
+ */
 export async function gitlabPulls(
   baseUrl: string,
   token: string,
+  teamAsks: readonly TeamAsk[] = [],
   now = Date.now(),
 ): Promise<PullListing | null> {
   const get = <T>(path: string) =>
@@ -89,11 +102,24 @@ export async function gitlabPulls(
     ),
   ]);
   if (!review || !authored || !merged) return null;
+  const listed = new Set([...review, ...authored].map((mr) => keyOf(repoOf(mr), mr.iid)));
+  const missed = teamAsks.filter((a) => !listed.has(keyOf(a.repo, a.number)));
+  const read = await Promise.all(
+    missed
+      .slice(-MAX_GROUP_ASKED)
+      .map((a) =>
+        get<MergeRequest>(`/projects/${encodeURIComponent(a.repo)}/merge_requests/${a.number}`),
+      ),
+  );
+  const groupAsked = read.filter((mr): mr is MergeRequest => mr?.state === "opened");
   return {
     pulls: withRoles([
-      { role: "reviewer", pulls: review.map(mergeRequestItem) },
+      { role: "reviewer", pulls: [...review, ...groupAsked].map(mergeRequestItem) },
       { role: "author", pulls: [...authored, ...merged].map(mergeRequestItem) },
     ]),
-    more: review.length >= OPEN_PER_LIST || authored.length >= OPEN_PER_LIST,
+    more:
+      review.length >= OPEN_PER_LIST ||
+      authored.length >= OPEN_PER_LIST ||
+      missed.length > MAX_GROUP_ASKED,
   };
 }
