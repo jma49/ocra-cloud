@@ -12,7 +12,7 @@ const token = (tokenFile ? readFileSync(tokenFile, "utf8") : process.env.OCRA_RU
 if (!server || !token) {
   throw new Error("set OCRA_CLOUD_URL, and OCRA_RUNNER_TOKEN_FILE or OCRA_RUNNER_TOKEN");
 }
-const poll = process.env.OCRA_RUNNER_POLL_SECONDS || "20";
+const poll = process.env.OCRA_RUNNER_POLL_SECONDS || "5";
 if (!/^[1-9]\d*$/.test(poll)) {
   throw new Error(`OCRA_RUNNER_POLL_SECONDS must be a whole number above 0, not ${poll}`);
 }
