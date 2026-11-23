@@ -253,6 +253,13 @@
       "when": 1795392551113,
       "tag": "0035_review_targets",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1795394031127,
+      "tag": "0036_automation_assignments",
+      "breakpoints": true
     }
   ]
 }

@@ -3,7 +3,7 @@ import type { Db } from "../db/client.js";
 import { scoped } from "../db/scoped.js";
 import type { BotTokens } from "../platforms/bot.js";
 import type { CodePlatform } from "../platforms/platform.js";
-import { botOf, botWrite, MAX_ATTEMPTS, resultOf, retryOf } from "./run.js";
+import { botOf, botWrite, isRetried, MAX_ATTEMPTS, resultOf, retryOf } from "./run.js";
 
 // The bot's writes the platform did not answer, tried again with backoff
 // until MAX_ATTEMPTS: each attempt claimed by one runner (claimAutomationRetry),
@@ -29,7 +29,8 @@ export async function retryAutomations(runner: RetryRunner, now = () => new Date
     const actions = [...run.actions];
     for (const { index, action } of run.retry.actions) {
       const done = actions[index];
-      if (!done || action.kind === "notify" || action.kind === "skip_review") continue;
+      // An assignment is retried as the request of the logins it chose (./assign.ts).
+      if (!done || !isRetried(action)) continue;
       const outcome = repo
         ? await botWrite(bot, repo.fullName, run.retry.number, action)
         : "not_enrolled";

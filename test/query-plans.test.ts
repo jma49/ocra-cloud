@@ -84,6 +84,7 @@ const TABLE: Record<string, string> = {
   reviewWalkthroughs: "review_walkthroughs",
   automationRules: "automation_rules",
   automationRuns: "automation_runs",
+  automationAssignments: "automation_assignments",
   mergeChecks: "merge_checks",
   mergeCheckRuns: "merge_check_runs",
   mergeIntents: "merge_intents",
@@ -548,6 +549,7 @@ describe("retention", () => {
     }
     expect([...plans.keys()].sort()).toEqual([
       "audit_events",
+      "automation_assignments",
       "automation_runs",
       "closed_pulls",
       "device_codes",

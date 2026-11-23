@@ -121,6 +121,7 @@ describe("deleting an account", () => {
           "reviewThreads",
           "pullPaths",
           "reviewRequests",
+          "automationAssignments",
           "mergeChecks",
           "mergeCheckRuns",
           "liveEvents",
@@ -168,6 +169,7 @@ describe("deleting an account", () => {
       "reviewThreads",
       "pullPaths",
       "reviewRequests",
+      "automationAssignments",
     ] as const) {
       await d.insert(table, { ...rows[table](id(table)), reviewRepoId: id("reviewRepos") });
     }

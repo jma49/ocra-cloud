@@ -6,7 +6,13 @@ import { ACTION_LABEL, OUTCOME_LABEL, RUN_LABEL, SKIP_LABEL } from "./describe.j
 // action went.
 
 // Skips this server is expected to make, which the page explains, are not errors.
-const QUIET = new Set<AutomationActionOutcome>(["done", "needs_self_hosted", "not_enrolled"]);
+const QUIET = new Set<AutomationActionOutcome>([
+  "done",
+  "needs_self_hosted",
+  "not_enrolled",
+  "enough_reviewers",
+  "already_assigned",
+]);
 
 const RUN_TONE: Record<AutomationRunView["outcome"], string> = {
   running: "badge",

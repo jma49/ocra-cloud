@@ -81,8 +81,10 @@ export function triggerConflict(
   const condition = wrong.find((k) => conditions[k] !== undefined);
   if (condition) return ["conditions", condition];
   if (trigger === "reviewed") {
-    const skip = actions.findIndex((a) => a.kind === "skip_review");
-    if (skip >= 0) return ["actions", skip];
+    const queuedOnly = actions.findIndex(
+      (a) => a.kind === "skip_review" || a.kind === "assign_reviewers",
+    );
+    if (queuedOnly >= 0) return ["actions", queuedOnly];
   }
   return undefined;
 }
