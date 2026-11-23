@@ -1,5 +1,6 @@
+import type { HeldReleasePublishAnswer } from "../shared/index.js";
 import { gitlabHeaders } from "./gitlab-changes.js";
-import { platformJson } from "./http.js";
+import { platformJson, platformSend } from "./http.js";
 import {
   isSha,
   isUnder,
@@ -13,8 +14,10 @@ import {
 // GitLab: the range's commits from one compare call, then the merge
 // requests merged since its oldest commit, matched to the range by their
 // merge, squash or head commit (a fast-forward merge has only the head).
-// GitLab keeps no draft releases: a release makes its tag at once, so a
-// draft is never sent there.
+// GitLab keeps no draft releases: a release makes its tag at once, and one
+// with a future released_at ("upcoming") is still a published release with
+// its tag. So ocra Cloud holds the draft (src/db/release-drafts.ts); GitLab
+// is asked to check its tag and target, and makes the release on publish.
 
 const MR_PAGES = 3;
 const PER_PAGE = 100;
@@ -23,6 +26,10 @@ const MAX_PAGE_BYTES = 4 * 1024 * 1024;
 const CLOCK_SLACK_MS = 24 * 60 * 60 * 1000;
 
 type Compare = { commits?: { id?: unknown; committed_date?: unknown }[] };
+type Release = { _links?: { self?: unknown } | null };
+
+const isRefused = (status: number) => status === 401 || status === 403;
+
 type MergeRequest = {
   iid?: unknown;
   title?: unknown;
@@ -37,8 +44,36 @@ type MergeRequest = {
 
 export function gitlabReleases(origin: string): RepoReleases {
   const project = (fullName: string) => `${origin}/api/v4/projects/${encodeURIComponent(fullName)}`;
+  const repo = (fullName: string) =>
+    `${origin}/${fullName.split("/").map(encodeURIComponent).join("/")}`;
+
+  async function checkDraft(
+    token: string,
+    fullName: string,
+    draft: { tag: string; target: string },
+  ): Promise<"ok" | "tag_exists" | "target_missing" | "refused" | null> {
+    const headers = gitlabHeaders(token);
+    const target = await platformSend(
+      `${project(fullName)}/repository/commits/${encodeURIComponent(draft.target)}`,
+      { headers },
+    );
+    if (!target) return null;
+    if (target.status === 404) return "target_missing";
+    if (isRefused(target.status)) return "refused";
+    if (target.status !== 200) return null;
+    // A release on a tag of that name would be someone else's tag.
+    const tag = await platformSend(
+      `${project(fullName)}/repository/tags/${encodeURIComponent(draft.tag)}`,
+      { headers },
+    );
+    if (!tag) return null;
+    if (tag.status === 200) return "tag_exists";
+    if (tag.status === 404) return "ok";
+    return isRefused(tag.status) ? "refused" : null;
+  }
+
   return {
-    drafts: false,
+    drafts: "held",
     async mergedBetween(token, fullName, from, to, max) {
       const query = new URLSearchParams({ from, to });
       const compared = await platformJson<Compare>(
@@ -54,7 +89,7 @@ export function gitlabReleases(origin: string): RepoReleases {
       const times = commits
         .map((c) => (typeof c.committed_date === "string" ? Date.parse(c.committed_date) : NaN))
         .filter(Number.isFinite);
-      const compareUrl = `${origin}/${fullName.split("/").map(encodeURIComponent).join("/")}/-/compare/${refPath(from)}...${refPath(to)}`;
+      const compareUrl = `${repo(fullName)}/-/compare/${refPath(from)}...${refPath(to)}`;
       if (inRange.size === 0 || times.length === 0)
         return { pulls: [], truncated: false, compareUrl };
       const since = new Date(Math.min(...times) - CLOCK_SLACK_MS).toISOString();
@@ -98,6 +133,31 @@ export function gitlabReleases(origin: string): RepoReleases {
       const pulls = [...found.values()].sort((a, b) => a.number - b.number);
       return { pulls: pulls.slice(0, max), truncated: full || pulls.length > max, compareUrl };
     },
-    saveDraft: async () => ({ outcome: "unsupported" }),
+    checkDraft,
+
+    async release(token, fullName, draft): Promise<HeldReleasePublishAnswer | null> {
+      const checked = await checkDraft(token, fullName, draft);
+      if (checked !== "ok") return checked && { outcome: checked };
+      const sent = await platformSend<Release>(`${project(fullName)}/releases`, {
+        method: "POST",
+        headers: { ...gitlabHeaders(token), "content-type": "application/json" },
+        body: JSON.stringify({
+          tag_name: draft.tag,
+          ref: draft.target,
+          name: draft.name,
+          description: draft.body,
+        }),
+      });
+      if (!sent) return null;
+      if (sent.status === 409) return { outcome: "tag_exists" };
+      if (isRefused(sent.status)) return { outcome: "refused" };
+      if (sent.status === 400 || sent.status === 422) return { outcome: "target_missing" };
+      if (sent.status !== 201 && sent.status !== 200) return null;
+      const self = sent.body?._links?.self;
+      return {
+        outcome: "published",
+        url: isUnder(self, origin) ? self : `${repo(fullName)}/-/releases`,
+      };
+    },
   };
 }

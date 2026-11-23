@@ -34,6 +34,7 @@ import {
   pullReviews,
   pullSeen,
   rateWindows,
+  releaseDrafts,
   replyJobs,
   reviewJobs,
   reviewRequests,
@@ -55,7 +56,8 @@ import { scoped } from "./scoped.js";
 // quiet hours after HELD_FOR; a channel's delivery record after DELIVERY_DAYS, a platform's
 // delivery to us after INBOUND_EVENT_DAYS, a team's members TEAM_DAYS after
 // they were read, a channel never confirmed UNCONFIRMED_DAYS after its last link, a
-// notification centre's notice after FEED_DAYS. Runs daily
+// notification centre's notice after FEED_DAYS, a held release draft RETENTION_DAYS after its
+// last save. Runs daily
 // from the cron trigger.
 
 export const RETENTION_DAYS = 90;
@@ -325,6 +327,13 @@ export async function enforceRetention(db: Db, now = new Date()): Promise<void> 
               lt(notificationFeed.createdAt, new Date(now.getTime() - FEED_DAYS * DAY)),
             ),
           ),
+    ],
+    [
+      "release_drafts",
+      () =>
+        db
+          .delete(releaseDrafts)
+          .where(and(ofEachAccount(releaseDrafts.accountId), lt(releaseDrafts.updatedAt, cutoff))),
     ],
     [
       "notify_held",

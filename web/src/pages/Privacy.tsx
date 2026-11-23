@@ -141,6 +141,11 @@ export function Privacy() {
           after it was last read.
         </li>
         <li>
+          Release notes you save as a draft for a GitLab project (its tag, target, name and the
+          notes), which GitLab cannot keep as a draft: deleted when you publish or discard them, or
+          90 days after you last saved them.
+        </li>
+        <li>
           The notices in your notification centre (what happened, the pull request's title, a short
           redacted excerpt of a comment, and whether you read it): deleted 30 days after they came.
         </li>

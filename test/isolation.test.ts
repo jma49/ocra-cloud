@@ -41,6 +41,7 @@ const changes = {
   notifyHeld: { line: "changed" },
   notifyDeliveries: { status: 500 },
   notificationFeed: { readAt: new Date(0) },
+  releaseDrafts: { body: "changed" },
   closedPulls: { merged: false },
   pullFlows: { draft: true },
   pullIndex: { draft: true },

@@ -83,6 +83,7 @@ const TABLE: Record<string, string> = {
   notifyHeld: "notify_held",
   notifyDeliveries: "notify_deliveries",
   notificationFeed: "notification_feed",
+  releaseDrafts: "release_drafts",
   closedPulls: "closed_pulls",
   pullFlows: "pull_flows",
   pullIndex: "pull_index",
@@ -212,6 +213,23 @@ describe("query plans", () => {
         new RegExp(`SEARCH notification_feed USING (COVERING )?INDEX ${index} `),
       );
       expect(p, q.sql).not.toMatch(/\bSCAN notification_feed\b|TEMP B-TREE/);
+    }
+  });
+
+  it("held release drafts are listed, saved and removed through their indexes", async () => {
+    const seen: Captured[] = [];
+    const drafts = scoped(drizzle(recording(seen)), "acct").releaseDrafts;
+    const edit = { platform: "gitlab" as const, repo: "g/p", tag: "v1", target: "main" };
+    await drafts.list({ platform: "gitlab", repo: "g/p" }, 50);
+    await drafts.save({ ...edit, name: "v1", body: "b" }, 1, 100);
+    await drafts.remove("x", 1);
+    const plans = await Promise.all(
+      seen.filter((q) => /^(select|update|delete)/.test(q.sql)).map(plan),
+    );
+    expect(plans.length).toBeGreaterThanOrEqual(3);
+    for (const p of plans) {
+      expect(p).toMatch(/SEARCH release_drafts USING (COVERING )?INDEX /);
+      expect(p).not.toMatch(/\bSCAN release_drafts\b|TEMP B-TREE/);
     }
   });
 
@@ -739,6 +757,7 @@ describe("retention", () => {
       "pull_reviews",
       "pull_seen",
       "rate_windows",
+      "release_drafts",
       "reply_jobs",
       "review_jobs",
       "review_requests",

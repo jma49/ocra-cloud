@@ -154,6 +154,16 @@ export const rows = {
     title: "ocra reviewed octo/api#1",
     link: `/reviews/${id}`,
   }),
+  releaseDrafts: (id: string) => ({
+    id,
+    platform: "gitlab" as const,
+    repo: "group/project",
+    tag: `v1.${id}`,
+    target: "main",
+    name: `v1.${id}`,
+    body: "Notes.",
+    updatedAt: new Date(),
+  }),
   notifyDeliveries: (id: string) => ({
     id,
     channelId: "channel",

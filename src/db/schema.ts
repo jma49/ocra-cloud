@@ -1004,6 +1004,32 @@ export const notificationFeed = sqliteTable(
   ],
 );
 
+// A GitLab release's notes the account holds until it publishes them
+// (src/release-notes.ts): GitLab keeps no draft releases, and a release
+// there makes its tag at once. One per repository and tag (the unique
+// key); `version` counts the saves, and a save or publish names the
+// version it read (compare-and-set). Kept RETENTION_DAYS after its last save.
+export const releaseDrafts = sqliteTable(
+  "release_drafts",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    platform: text("platform", { enum: CODE_PLATFORMS }).notNull(),
+    repo: text("repo").notNull(),
+    tag: text("tag").notNull(),
+    target: text("target").notNull(),
+    name: text("name").notNull(),
+    body: text("body").notNull(),
+    version: integer("version").notNull().default(1),
+    createdAt: createdAt(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (t) => [
+    uniqueIndex("release_drafts_account_repo_tag").on(t.accountId, t.platform, t.repo, t.tag),
+    index("release_drafts_account_updated").on(t.accountId, t.updatedAt),
+  ],
+);
+
 // A pull request event that came in a channel's quiet hours
 // (src/notify/held.ts), held to go in one message when they end: its line
 // made plain when it was held, and the pull request it links to. A notice
@@ -1970,6 +1996,7 @@ export const accountTables = {
   notifyHeld,
   notifyDeliveries,
   notificationFeed,
+  releaseDrafts,
   closedPulls,
   pullFlows,
   pullIndex,

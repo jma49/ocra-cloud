@@ -121,6 +121,15 @@ describe("retention", () => {
     expect((await d.list("notificationFeed")).map((r) => r.id)).toEqual(["new"]);
   });
 
+  it("forgets a held release draft 90 days after its last save", async () => {
+    const { account } = await signIn(1, "octo");
+    const d = scoped(db, account.id);
+    await d.insert("releaseDrafts", { ...rows.releaseDrafts("old"), updatedAt: ago(91) });
+    await d.insert("releaseDrafts", { ...rows.releaseDrafts("new"), updatedAt: ago(89) });
+    await enforceRetention(db, now);
+    expect((await d.list("releaseDrafts")).map((r) => r.id)).toEqual(["new"]);
+  });
+
   it("drops a notice held in quiet hours after two days", async () => {
     const { account } = await signIn(1, "octo");
     const d = scoped(db, account.id);

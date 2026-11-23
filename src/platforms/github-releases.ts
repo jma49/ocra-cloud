@@ -66,7 +66,7 @@ export function githubReleases(host: GithubHost): RepoReleases {
   }
 
   return {
-    drafts: true,
+    drafts: "platform",
     async mergedBetween(token, fullName, from, to, max) {
       const compared = await platformJson<Compare>(
         `${repoApi(fullName)}/compare/${refPath(from)}...${refPath(to)}?per_page=${MAX_RANGE_COMMITS}`,
