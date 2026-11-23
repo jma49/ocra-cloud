@@ -200,6 +200,31 @@ export function accountPullFlows(db: Db, accountId: string) {
         .limit(limit);
     },
 
+    /** One repository's pull requests the console holds open (no close, or one before a reopen), at most limit. */
+    looksOpen(reviewRepoId: string, limit: number) {
+      const c = closedPulls;
+      return db
+        .select({ number: t.number, draft: t.draft })
+        .from(t)
+        .leftJoin(
+          c,
+          and(
+            eq(c.reviewRepoId, t.reviewRepoId),
+            eq(c.number, t.number),
+            eq(c.accountId, accountId),
+          ),
+        )
+        .where(
+          and(
+            eq(t.accountId, accountId),
+            eq(t.reviewRepoId, reviewRepoId),
+            or(isNull(c.id), lt(c.closedAt, t.reopenedAt)),
+          ),
+        )
+        .orderBy(asc(t.number))
+        .limit(limit);
+    },
+
     /** Reviews submitted since, per reviewer, most first, up to limit. */
     reviewersSince(since: Date, repoIds: readonly string[] | null, limit: number) {
       const r = pullReviews;

@@ -12,13 +12,15 @@ import { retryNotifications } from "./notify/notify.js";
 import { runReminders } from "./notify/reminders.js";
 import { runReports } from "./notify/report.js";
 import { githubHostOf, platformsOf } from "./platforms/registry.js";
+import { reconcileRepos } from "./reconcile.js";
 import { sweepStackMerges } from "./stack-merge/advance.js";
 
 // The Cloudflare Worker: D1, its rate limiting bindings and its crons: the
 // daily one runs retention, the hourly one (HOURLY, in wrangler.jsonc) the
 // digests, weekly reports, review reminders, the notices held in quiet
 // hours and the pull requests at risk of a review target, which the database lets go once, and the webhook deliveries,
-// outgoing and incoming, due again, and the stack merges left waiting (so on the Worker a retry waits for the hour). It has no mailer: no email API is
+// outgoing and incoming, due again, the stack merges left waiting and the
+// daily reconciliation of enrolled repositories (so on the Worker a retry waits for the hour). It has no mailer: no email API is
 // configured for it, so they go to its chats only. It runs no hosted job
 // itself: with the GitHub App's key, its webhook secret and a runner token
 // set, it queues them for remote runners (docs/runner.md).
@@ -42,6 +44,9 @@ export default {
       // A stack merge's webhooks move it; this picks up one whose webhooks did not come.
       const platforms = platformsOf(env, env.PUBLIC_URL || "https://localhost");
       ctx.waitUntil(sweepStackMerges({ db, env, platforms }));
+      // What webhooks missed, each enrolled repository read once a day (src/reconcile.ts).
+      const bots = "bots" in remote ? remote.bots : undefined;
+      ctx.waitUntil(reconcileRepos({ db, env, platforms, bots }));
     }
     if (env.PUBLIC_URL) {
       const out = {

@@ -41,7 +41,7 @@ export function accountReviewJobs(db: Db, accountId: string) {
       const [row] = await db
         .insert(t)
         .select(sql`SELECT ${crypto.randomUUID()}, ${accountId}, ${repo.platform}, ${repo.host},
-          ${repo.platformRepoId}, ${repo.fullName}, ${repo.webhookSecretHash ?? null}, ${Date.now()}, 1, ${DEFAULT_REVIEW_PROFILE}, 1
+          ${repo.platformRepoId}, ${repo.fullName}, ${repo.webhookSecretHash ?? null}, ${Date.now()}, 1, ${DEFAULT_REVIEW_PROFILE}, 1, NULL
         WHERE (SELECT count(*) FROM ${t} WHERE account_id = ${accountId}) < ${cap}
           OR EXISTS (SELECT 1 FROM ${t} WHERE account_id = ${accountId} AND platform = ${repo.platform}
             AND host = ${repo.host} AND platform_repo_id = ${repo.platformRepoId})`)

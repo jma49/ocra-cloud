@@ -1,5 +1,5 @@
 import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
-import type { Db } from "./client.js";
+import { changedRows, type Db } from "./client.js";
 import { closedPulls, reviewRepos } from "./schema.js";
 
 // How an enrolled repository's pull requests ended, as its platform's
@@ -45,6 +45,20 @@ export function accountClosedPulls(db: Db, accountId: string) {
           },
           setWhere: sql`${eq(t.accountId, accountId)} AND ${lt(t.closedAt, sql`excluded.closed_at`)}`,
         });
+    },
+
+    /** Records the close only when the pull request has none: the webhook's, earlier or later, stands. */
+    async fill(close: PullClose): Promise<boolean> {
+      const added = await db
+        .insert(t)
+        .values({
+          ...close,
+          id: crypto.randomUUID(),
+          accountId,
+          title: [...close.title].slice(0, MAX_TITLE).join(""),
+        })
+        .onConflictDoNothing({ target: [t.reviewRepoId, t.number] });
+      return changedRows(added) > 0;
     },
 
     /** How many were merged between from and to, and the newest of them, up to limit. */
