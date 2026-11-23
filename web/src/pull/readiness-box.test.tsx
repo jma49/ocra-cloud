@@ -1,7 +1,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import type { PullReadinessView } from "../../../src/shared/index.js";
-import { ReadinessBox } from "./readiness-box.js";
+import { ReadinessBox, useReadiness } from "./readiness-box.js";
 
 afterEach(() => {
   cleanup();
@@ -10,6 +10,8 @@ afterEach(() => {
 
 const HEAD = "a".repeat(40);
 const pull = { platform: "github", repo: "octo/api", number: 7 };
+
+const Box = () => <ReadinessBox view={useReadiness(pull, HEAD)} />;
 
 const serve = (answer: PullReadinessView) =>
   vi.stubGlobal(
@@ -37,18 +39,25 @@ it("lists each requirement with its state, and hides when the pull request is cl
     "fetch",
     vi.fn(async () => Response.json(view)),
   );
-  render(<ReadinessBox pull={pull} head={HEAD} />);
+  render(<Box />);
   expect(await screen.findByText("Not ready")).toBeTruthy();
   expect(screen.getByText("1 of 2 required approvals")).toBeTruthy();
   expect(screen.getByRole("img", { name: "Not met" })).toBeTruthy();
   expect(screen.getByRole("img", { name: "Cannot be read" })).toBeTruthy();
   expect(screen.getByText("1 of 3 met, 1 not readable with your sign-in")).toBeTruthy();
+  // What is in the way leads; what is met folds under its count.
+  expect(screen.getAllByRole("img").map((m) => m.getAttribute("aria-label"))).toEqual([
+    "Not met",
+    "Cannot be read",
+    "Met",
+  ]);
+  expect(screen.getByText("No unresolved threads").closest("details")?.open).toBe(false);
   cleanup();
   vi.stubGlobal(
     "fetch",
     vi.fn(async () => Response.json({ ...view, state: "merged", ready: null, items: [] })),
   );
-  const { container } = render(<ReadinessBox pull={pull} head={HEAD} />);
+  const { container } = render(<Box />);
   await new Promise((r) => setTimeout(r, 20));
   expect(container.textContent).toBe("");
 });
@@ -71,7 +80,7 @@ it("stays calm when the rest cannot be read, and names owner groups and stale ap
     staleApprovals: ["grace"],
     otherRules: ["merge_queue", "required_signatures", "pull_request_title"],
   });
-  render(<ReadinessBox pull={pull} head={HEAD} />);
+  render(<Box />);
   expect((await screen.findByText("Nothing in the way")).className).toBe("badge");
   expect(screen.getByText("approved by ada, 2 files")).toBeTruthy();
   expect(screen.getByText("cannot be read, 1 file")).toBeTruthy();

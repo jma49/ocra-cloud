@@ -8,33 +8,37 @@ import {
 import { api, why } from "../api.js";
 import { Drawer } from "../drawer.js";
 import { num } from "../format.js";
+import { Markdown } from "../markdown.js";
 import { useAction } from "../ui.js";
 
-// "Write the PR description": a draft from ocra's review of this pull
-// request, edited here and saved to the platform as the user. Only ocra's
-// section of the description is redrafted; the rest is the user's text.
+// The pull request's description, read where the diff is, and "Draft with
+// ocra": a draft from ocra's review of it, edited here and saved to the
+// platform as the user. Only ocra's section of the description is
+// redrafted; the rest is the user's text.
 
 type Pull = { platform: string; repo: string; number: number };
 
-export function DescriptionBox(props: { pull: Pull; onDone: (o: PullActionOutcome) => void }) {
-  const [draft, setDraft] = useState<PullDescriptionDraftView | null>(null);
-  const [text, setText] = useState("");
+/** A description's markers and notes to tools are not for its reader. */
+const readable = (body: string) => body.replace(/<!--[\s\S]*?-->/g, "").trim();
+
+export function DescriptionBox(props: {
+  pull: Pull;
+  /** The description as the platform has it, and ocra's draft of it; undefined until read. */
+  view: PullDescriptionDraftView | undefined;
+  /** Whether the pull request still takes a new description. */
+  editable: boolean;
+  onDone: (o: PullActionOutcome) => void;
+}) {
+  const { view } = props;
+  const start = view ? (view.draft ?? view.body) : "";
+  // What the user typed and has not saved; it outlives a closed drawer.
+  const [edited, setEdited] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
-  const load = useAction(async () => {
-    const query = new URLSearchParams({
-      platform: props.pull.platform,
-      repo: props.pull.repo,
-      number: String(props.pull.number),
-    });
-    const view = await api<PullDescriptionDraftView>(`/pulls/description-draft?${query}`);
-    setDraft(view);
-    setText(view.draft ?? view.body);
-    setOpen(true);
-  });
+  const text = edited ?? start;
   const save = useAction(() =>
     api<{ outcome: PullActionOutcome }>("/pulls/description", {
       method: "POST",
-      body: JSON.stringify({ ...props.pull, head: draft?.head, body: text }),
+      body: JSON.stringify({ ...props.pull, head: view?.head, body: text }),
     }),
   );
   const submit = async (e: FormEvent) => {
@@ -42,39 +46,35 @@ export function DescriptionBox(props: { pull: Pull; onDone: (o: PullActionOutcom
     const r = await save.run();
     if (!r) return;
     setOpen(false);
-    if (r.outcome === "done") setDraft(null);
+    if (r.outcome === "done") setEdited(null);
     props.onDone(r.outcome);
   };
-  const start = draft ? (draft.draft ?? draft.body) : "";
+  if (!view) return null;
+  const body = readable(view.body);
   const tooLong = text.length > MAX_DESCRIPTION_CHARS;
   return (
-    <section className="card card-pad stack" aria-label="Description">
-      <div className="strong">Description</div>
-      <span className="subtle small">
-        {draft
-          ? "Your draft is kept here until you save it or leave the page."
-          : "Drafted from ocra's review, edited by you, saved to the pull request as you."}
-      </span>
-      {draft ? (
-        <div className="row-gap">
-          <Button type="button" variant="outline" className="grow" onClick={() => setOpen(true)}>
-            Continue the description
+    <details className="pull-part" open>
+      <summary className="pull-part-head">
+        <span className="fold" aria-hidden="true" />
+        <span className="strong grow">Description</span>
+        {props.editable && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={(e) => {
+              e.preventDefault();
+              setOpen(true);
+            }}
+          >
+            {edited !== null ? "Continue editing" : view.draft ? "Draft with ocra" : "Edit"}
           </Button>
-          <Button type="button" variant="outline" onClick={() => setDraft(null)}>
-            Discard
-          </Button>
-        </div>
-      ) : (
-        <Button type="button" variant="outline" loading={load.busy} onClick={() => load.run()}>
-          Write the PR description
-        </Button>
-      )}
-      {load.error !== null && (
-        <p className="error" role="alert">
-          Could not draft the description: {why(load.error)}.
-        </p>
-      )}
-      {draft && open && (
+        )}
+      </summary>
+      <div className="pull-description">
+        {body ? <Markdown text={body} /> : <p className="subtle m-0">No description yet.</p>}
+      </div>
+      {open && (
         <Drawer
           title="Description"
           heading="Pull request description"
@@ -85,8 +85,8 @@ export function DescriptionBox(props: { pull: Pull; onDone: (o: PullActionOutcom
               <span className={`small grow ${tooLong ? "error-inline" : "subtle"}`}>
                 {num(text.length)} of {num(MAX_DESCRIPTION_CHARS)} characters
               </span>
-              {text !== start && (
-                <Button type="button" variant="outline" onClick={() => setText(start)}>
+              {edited !== null && edited !== start && (
+                <Button type="button" variant="outline" onClick={() => setEdited(null)}>
                   Start over
                 </Button>
               )}
@@ -97,10 +97,10 @@ export function DescriptionBox(props: { pull: Pull; onDone: (o: PullActionOutcom
           }
         >
           <p className="muted small m-0">
-            {draft.review ? (
+            {view.review ? (
               <>
-                From ocra's review of <span className="mono">{draft.review.head.slice(0, 7)}</span>
-                {draft.review.current ? ", the current head" : ", an earlier head"}. Only ocra's
+                From ocra's review of <span className="mono">{view.review.head.slice(0, 7)}</span>
+                {view.review.current ? ", the current head" : ", an earlier head"}. Only ocra's
                 section is redrafted; your own text around it is kept.
               </>
             ) : (
@@ -112,7 +112,7 @@ export function DescriptionBox(props: { pull: Pull; onDone: (o: PullActionOutcom
             aria-label="Pull request description"
             spellCheck={false}
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            onChange={(e) => setEdited(e.target.value)}
           />
           {save.error !== null && (
             <p className="error" role="alert">
@@ -121,6 +121,6 @@ export function DescriptionBox(props: { pull: Pull; onDone: (o: PullActionOutcom
           )}
         </Drawer>
       )}
-    </section>
+    </details>
   );
 }

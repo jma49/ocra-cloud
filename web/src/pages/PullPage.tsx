@@ -1,15 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type {
   CodePlatformKind,
   LineComment,
-  MergeMethod,
   MergeQueueView,
   PullActionOutcome,
+  PullDescriptionDraftView,
   PullFilesView,
-  PullVerdict,
 } from "../../../src/shared/index.js";
-import { api, why } from "../api.js";
+import { api } from "../api.js";
 import { useFixes } from "../fixes/use-fixes.js";
 import { count } from "../format.js";
 import { PlatformMark } from "../platform-mark.js";
@@ -20,29 +19,28 @@ import { DraftToggle } from "../pull/draft-toggle.js";
 import { FileDiff } from "../pull/file-diff.js";
 import { FileList } from "../pull/file-list.js";
 import { GenerateBox } from "../pull/generate-box.js";
+import { JumpToCode } from "../pull/jump-to-code.js";
 import { LabelsBox } from "../pull/labels-box.js";
+import { MergeBox } from "../pull/merge-box.js";
 import { methodLabels } from "../pull/merge-method.js";
 import { MergeWhenReadyBox } from "../pull/merge-when-ready-box.js";
+import { OcraReviewBox } from "../pull/ocra-review-box.js";
 import { OUTCOME } from "../pull/outcome.js";
 import { QueueBox } from "../pull/queue-box.js";
-import { ReadinessBox } from "../pull/readiness-box.js";
+import { ReadinessBox, useReadiness } from "../pull/readiness-box.js";
+import { ReviewBox } from "../pull/review-box.js";
 import { ReviewNowBox } from "../pull/review-now-box.js";
 import { ReviewersPanel } from "../pull/reviewers.js";
 import { StackPanel } from "../pull/stack.js";
+import { nextStep, PullStatus } from "../pull/status.js";
 import { ThreadsPanel } from "../pull/threads.js";
 import { setPageTitle } from "../title.js";
-import { LoadError, Loading, PageHead, Seg, useAction, useLoad } from "../ui.js";
+import { LoadError, Loading, PageHead, useLoad } from "../ui.js";
 
 // A pull request in the console: its changed files read live from the
 // platform as the signed-in user, and their review, comment and merge sent
 // back as them. Writes name the head the page read, so a pull request that
 // moved since is refused rather than reviewed or merged blind.
-
-const VERDICT: Record<PullVerdict, string> = {
-  comment: "Comment",
-  approve: "Approve",
-  request_changes: "Request changes",
-};
 
 type Answer = { outcome: PullActionOutcome };
 const post = (path: string, body: unknown) =>
@@ -84,6 +82,16 @@ export function PullPage(props: {
   });
   const [pending, setPending] = useState<LineComment[]>([]);
   const [said, setSaid] = useState<{ what: string; outcome: PullActionOutcome } | null>(null);
+  const [reviewing, setReviewing] = useState(false);
+  const readiness = useReadiness(ref, head);
+  const description = useLoad(
+    () =>
+      head
+        ? api<PullDescriptionDraftView>(`/pulls/description-draft?${query}`)
+        : Promise.resolve(undefined),
+    [query.toString(), head],
+  );
+  const code = useRef<HTMLDivElement>(null);
   const where = `${props.repo} #${props.number}`;
   const title = data?.title ?? where;
   useEffect(() => {
@@ -137,32 +145,53 @@ export function PullPage(props: {
     withTick(false);
     if (r) done("Viewed", r.outcome);
   };
+  const step = nextStep(readiness, data.mergeMethods.length > 0 && !queue.data?.enabled);
   return (
     <>
-      <PageHead
-        title={title}
-        actions={settled ? undefined : <DraftToggle pull={ref} onDone={(o) => done("Draft", o)} />}
-        sub={
-          <>
-            <PlatformMark platform={platform} size={14} />{" "}
-            {data.url ? (
-              <a href={data.url} target="_blank" rel="noopener noreferrer">
-                {where}
-              </a>
-            ) : (
-              where
+      <header className="pull-head">
+        <div className="pull-head-row">
+          <h1>{title}</h1>
+          <div className="pull-actions">
+            <PullStatus state={data.state} view={readiness} />
+            {data.verdicts.length > 0 && (
+              <Button
+                size="sm"
+                variant={step === "review" && !settled ? "default" : "outline"}
+                onClick={() => setReviewing(true)}
+              >
+                Review changes
+                {pending.length > 0 && <span className="num">{pending.length}</span>}
+              </Button>
             )}
-            {data.author && <> · {data.author}</>} · {count(data.files.length, "file")} ·{" "}
-            <span className="add-n">+{total.add}</span> <span className="del-n">−{total.del}</span>{" "}
-            · head <span className="mono">{data.head.slice(0, 7)}</span>
-          </>
-        }
-      />
-      {said && (
-        <p className={said.outcome === "done" ? "note" : "error"} role="status">
-          {said.what}: {OUTCOME[said.outcome]}
+            {!settled && (
+              <DraftToggle pull={ref} primary={step === "ready"} onDone={(o) => done("Draft", o)} />
+            )}
+            {!settled && step === "merge" && (
+              <Button size="sm" render={<a href="#merge" />}>
+                Merge
+              </Button>
+            )}
+          </div>
+        </div>
+        <p className="pull-meta">
+          <PlatformMark platform={platform} size={14} />{" "}
+          {data.url ? (
+            <a href={data.url} target="_blank" rel="noopener noreferrer">
+              {where}
+            </a>
+          ) : (
+            where
+          )}
+          {data.author && <> · {data.author}</>} · {count(data.files.length, "file")} ·{" "}
+          <span className="add-n">+{total.add}</span> <span className="del-n">−{total.del}</span> ·
+          head <span className="mono">{data.head.slice(0, 7)}</span>
         </p>
-      )}
+        {said && (
+          <p className={said.outcome === "done" ? "note" : "error"} role="status">
+            {said.what}: {OUTCOME[said.outcome]}
+          </p>
+        )}
+      </header>
       {settled && (
         <p className="muted small">
           This pull request is {data.state}: you can still comment on it, but not approve or merge
@@ -174,47 +203,58 @@ export function PullPage(props: {
           This pull request has more changes than one page reads; the rest are on the platform.
         </p>
       )}
-      <div className="pull-frame">
-        <aside className="pull-side">
+      <div className="pull-overview">
+        <div className="pull-about">
           <StackPanel pull={ref} mergeMethods={data.mergeMethods} onMerged={reload} />
+          <DescriptionBox
+            pull={ref}
+            view={description.data}
+            editable={!settled}
+            onDone={(o) => {
+              done("Description", o);
+              if (o === "done") description.reload();
+            }}
+          />
+          <ThreadsPanel pull={ref} onDone={(o) => done("Review threads", o)} />
+        </div>
+        <aside className="pull-rail" aria-label="Status">
+          {!settled && <ReadinessBox view={readiness} />}
+          <div id="merge" className="pull-merge">
+            {settled ? null : queue.data?.enabled ? (
+              <QueueBox
+                view={queue.data}
+                pull={ref}
+                head={data.head}
+                onDone={(o) => done("Merge queue", o)}
+                reload={queue.reload}
+              />
+            ) : (
+              !queue.loading &&
+              data.mergeMethods.length > 0 && (
+                <>
+                  <MergeBox data={data} pull={ref} onDone={(o) => done("Merge", o)} />
+                  <MergeWhenReadyBox
+                    pull={ref}
+                    head={data.head}
+                    methods={data.mergeMethods}
+                    label={methodLabels(ref.platform)}
+                  />
+                </>
+              )
+            )}
+          </div>
+          <OcraReviewBox review={description.data?.review}>
+            {props.runner && !settled ? <ReviewNowBox pull={ref} head={data.head} /> : undefined}
+          </OcraReviewBox>
+          <ChecksBox pull={ref} head={data.head} />
           <ReviewersPanel pull={ref} />
           <LabelsBox pull={ref} onDone={(o) => done("Labels", o)} />
-          <FileList files={shown} isViewed={isViewed} />
-          <ReviewBox
-            data={data}
-            pull={ref}
-            pending={pending}
-            wholeDiff={narrowed === null}
-            onDone={(o) => done("Review", o)}
-          />
-          {!settled && <DescriptionBox pull={ref} onDone={(o) => done("Description", o)} />}
-          <ThreadsPanel pull={ref} onDone={(o) => done("Review threads", o)} />
-          {!settled && <ReadinessBox pull={ref} head={data.head} />}
-          <ChecksBox pull={ref} head={data.head} />
-          {props.runner && !settled && <ReviewNowBox pull={ref} head={data.head} />}
           {props.runner && !settled && <GenerateBox pull={ref} head={data.head} />}
-          {settled ? null : queue.data?.enabled ? (
-            <QueueBox
-              view={queue.data}
-              pull={ref}
-              head={data.head}
-              onDone={(o) => done("Merge queue", o)}
-              reload={queue.reload}
-            />
-          ) : (
-            !queue.loading &&
-            data.mergeMethods.length > 0 && (
-              <>
-                <MergeBox data={data} pull={ref} onDone={(o) => done("Merge", o)} />
-                <MergeWhenReadyBox
-                  pull={ref}
-                  head={data.head}
-                  methods={data.mergeMethods}
-                  label={methodLabels(ref.platform)}
-                />
-              </>
-            )
-          )}
+        </aside>
+      </div>
+      <div className="pull-frame" ref={code}>
+        <aside className="pull-side">
+          <FileList files={shown} isViewed={isViewed} />
         </aside>
         <div className="pull-main">
           <SinceBar since={since} />
@@ -234,131 +274,16 @@ export function PullPage(props: {
           ))}
         </div>
       </div>
-    </>
-  );
-}
-
-type Ref = { platform: CodePlatformKind; repo: string; number: number };
-
-function ReviewBox(props: {
-  data: PullFilesView;
-  pull: Ref;
-  pending: LineComment[];
-  /** Whether the diff shown is the whole one, whose lines take comments. */
-  wholeDiff: boolean;
-  onDone: (o: PullActionOutcome) => void;
-}) {
-  const verdicts = props.data.verdicts;
-  const [verdict, setVerdict] = useState<PullVerdict>(verdicts[0] ?? "comment");
-  const [body, setBody] = useState("");
-  const send = useAction(() =>
-    post("review", {
-      ...props.pull,
-      verdict,
-      body,
-      head: props.data.head,
-      comments: props.pending,
-    }),
-  );
-  const submit = async () => {
-    const r = await send.run();
-    if (!r) return;
-    if (r.outcome === "done") setBody("");
-    props.onDone(r.outcome);
-  };
-  const empty = verdict !== "approve" && !body.trim() && props.pending.length === 0;
-  if (verdicts.length === 0) return null;
-  return (
-    <section className="card card-pad stack" aria-label="Your review">
-      <div className="strong">Your review</div>
-      {verdicts.length > 1 && (
-        <Seg
-          label="Verdict"
-          value={verdict}
-          onChange={setVerdict}
-          options={verdicts.map((v) => ({ value: v, label: VERDICT[v] }))}
-        />
-      )}
-      <textarea
-        className="input"
-        aria-label="Review note"
-        placeholder={
-          verdicts.includes("approve") ? "Leave a note (optional for an approval)" : "Leave a note"
-        }
-        rows={4}
-        value={body}
-        onChange={(e) => setBody(e.target.value)}
+      <JumpToCode target={code} />
+      <ReviewBox
+        data={data}
+        pull={ref}
+        pending={pending}
+        wholeDiff={narrowed === null}
+        open={reviewing}
+        onClose={() => setReviewing(false)}
+        onDone={(o) => done("Review", o)}
       />
-      <span className="subtle small">
-        {props.pending.length === 0
-          ? props.wholeDiff
-            ? "Click a line number in the diff to comment on that line."
-            : "Line comments are made on the whole diff."
-          : props.pending.length === 1
-            ? "1 line comment goes with it."
-            : `${props.pending.length} line comments go with it.`}
-      </span>
-      <Button disabled={send.busy || empty} onClick={submit}>
-        Submit review
-      </Button>
-      {send.error !== null && (
-        <p className="error" role="alert">
-          Could not send the review: {why(send.error)}.
-        </p>
-      )}
-    </section>
-  );
-}
-
-function MergeBox(props: {
-  data: PullFilesView;
-  pull: Ref;
-  onDone: (o: PullActionOutcome) => void;
-}) {
-  const methods = props.data.mergeMethods;
-  const label = methodLabels(props.pull.platform);
-  const [method, setMethod] = useState<MergeMethod>(methods[0] ?? "merge");
-  const [asking, setAsking] = useState(false);
-  const merge = useAction(() => post("merge", { ...props.pull, method, head: props.data.head }));
-  const confirm = async () => {
-    const r = await merge.run();
-    setAsking(false);
-    if (r) props.onDone(r.outcome);
-  };
-  return (
-    <section className="card card-pad stack" aria-label="Merge">
-      <div className="strong">Merge</div>
-      <select
-        className="input"
-        aria-label="Merge method"
-        value={method}
-        onChange={(e) => setMethod(e.target.value as MergeMethod)}
-      >
-        {methods.map((m) => (
-          <option key={m} value={m}>
-            {label[m]}
-          </option>
-        ))}
-      </select>
-      {asking ? (
-        <div className="row-gap">
-          <Button className="grow" disabled={merge.busy} onClick={confirm}>
-            Confirm: {label[method].toLowerCase()}
-          </Button>
-          <Button variant="outline" onClick={() => setAsking(false)}>
-            Cancel
-          </Button>
-        </div>
-      ) : (
-        <Button variant="outline" onClick={() => setAsking(true)}>
-          Merge pull request
-        </Button>
-      )}
-      {merge.error !== null && (
-        <p className="error" role="alert">
-          Could not merge: {why(merge.error)}.
-        </p>
-      )}
-    </section>
+    </>
   );
 }

@@ -5,8 +5,8 @@ import { ago } from "../format.js";
 import { useAction, useLoad, usePoll } from "../ui.js";
 
 // An AI review of the pull request's current head by the server's runner,
-// asked for here. The server answers only for a repository this account
-// enrolled for reviews, so the card shows for no other.
+// asked for inside the ocra review card. The server answers only for a
+// repository this account enrolled for reviews, so it shows for no other.
 
 const STATE: Record<PullReviewJobView["state"], string> = {
   queued: "A review of this head is queued",
@@ -46,8 +46,7 @@ export function ReviewNowBox(props: { pull: Pull; head: string }) {
     if (await ask.run(reviewed)) reload();
   };
   return (
-    <section className="card card-pad stack" aria-label="AI review">
-      <div className="strong">AI review</div>
+    <div className="stack">
       <span className={ofHead?.state === "failed" ? "error small" : "subtle small"} role="status">
         {ofHead
           ? `${STATE[ofHead.state]}, asked ${ago(ofHead.queuedAt)}.`
@@ -63,6 +62,6 @@ export function ReviewNowBox(props: { pull: Pull; head: string }) {
           Could not ask for a review: {why(ask.error)}.
         </p>
       )}
-    </section>
+    </div>
   );
 }

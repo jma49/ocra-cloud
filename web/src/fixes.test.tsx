@@ -75,6 +75,12 @@ describe("a fix on the pull request's page", () => {
         if (url.startsWith("/api/pulls/draft")) {
           return Response.json({ draft: false, state: "open" });
         }
+        if (url.startsWith("/api/pulls/description-draft")) {
+          return Response.json({ head: HEAD, body: "", draft: null, review: null });
+        }
+        if (url.startsWith("/api/pulls/readiness")) {
+          return Response.json({ ready: null, items: [] });
+        }
         if (url.startsWith("/api/pulls/reviewers")) {
           return Response.json({ suggestions: [], owners: [] });
         }

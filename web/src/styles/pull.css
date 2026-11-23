@@ -1,0 +1,164 @@
+/* A pull request's page: a head that stays in view with its standing and next
+   step, then what it is (stack, description, threads) beside what it waits
+   on (the status rail), then the code. */
+.pull-head {
+  position: sticky;
+  top: 56px;
+  z-index: 4;
+  display: grid;
+  gap: 4px;
+  margin: -12px 0 16px;
+  padding: 12px 0;
+  background: var(--panel);
+  box-shadow: 0 0.5px 0 var(--hair);
+}
+.pull-head-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.pull-head h1 {
+  min-width: 0;
+  font-size: var(--text-2xl);
+  line-height: 28px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+.pull-actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pull-actions .num {
+  color: inherit;
+  opacity: 0.72;
+  font-variant-numeric: tabular-nums;
+}
+.pull-meta {
+  margin: 0;
+  color: var(--t2);
+}
+.pull-head .note,
+.pull-head .error {
+  margin: 4px 0 0;
+}
+.pull-overview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 24px;
+  align-items: start;
+  margin-bottom: 32px;
+}
+.pull-about,
+.pull-rail,
+.pull-merge {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 12px;
+}
+.pull-merge:empty {
+  display: none;
+}
+.pull-merge {
+  scroll-margin-top: 144px;
+}
+.pull-frame {
+  scroll-margin-top: 136px;
+}
+.pull-part-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  cursor: pointer;
+  list-style: none;
+}
+.pull-part-head::-webkit-details-marker {
+  display: none;
+}
+.pull-part:not([open]) .fold {
+  rotate: -45deg;
+  margin-top: 0;
+}
+.pull-description {
+  margin-top: 8px;
+  padding: 16px;
+  border-radius: var(--r-ctl);
+  background: var(--raised);
+  box-shadow: var(--shadow);
+  overflow-wrap: anywhere;
+}
+.pull-description > :first-child {
+  margin-top: 0;
+}
+.pull-description > :last-child {
+  margin-bottom: 0;
+}
+.readiness-met > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  list-style: none;
+}
+.readiness-met > summary::-webkit-details-marker {
+  display: none;
+}
+.readiness-met:not([open]) .fold {
+  rotate: -45deg;
+  margin-top: 0;
+}
+.readiness-met[open] > summary {
+  margin-bottom: 8px;
+}
+.rail-link {
+  justify-self: start;
+  font-size: var(--text-sm);
+}
+.jump-to-code {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 6;
+  translate: -50% 0;
+  border-radius: var(--r-ctl);
+  box-shadow: var(--float);
+  animation: jump-in 160ms var(--e-enter);
+}
+@keyframes jump-in {
+  from {
+    opacity: 0;
+    translate: -50% 4px;
+  }
+}
+@media (max-width: 1100px) {
+  .pull-overview {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  /* What it waits on comes before the long read on a narrow window. */
+  .pull-rail {
+    order: -1;
+  }
+}
+@media (max-width: 760px) {
+  .pull-head {
+    position: static;
+    margin-top: 0;
+    padding-top: 0;
+  }
+  .pull-head-row {
+    flex-direction: column;
+  }
+  .pull-actions {
+    flex-wrap: wrap;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .jump-to-code {
+    animation: none;
+  }
+}
