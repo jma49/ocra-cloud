@@ -2,6 +2,7 @@ import { createExecutionContext, waitOnExecutionContext } from "cloudflare:test"
 import { env } from "cloudflare:workers";
 import { drizzle } from "drizzle-orm/d1";
 import { describe, expect, it, vi } from "vitest";
+import { apiTokenByHash } from "../src/db/api-tokens.js";
 import { enforceRetention } from "../src/db/retention.js";
 import { accountTables } from "../src/db/schema.js";
 import { scoped } from "../src/db/scoped.js";
@@ -98,6 +99,14 @@ const TABLE: Record<string, string> = {
 };
 
 describe("query plans", () => {
+  it("finds a personal API token by its hash through the unique index", async () => {
+    const seen: Captured[] = [];
+    await apiTokenByHash(drizzle(recording(seen)), "h".repeat(64));
+    const p = await plan(seen[0] as Captured);
+    expect(p).toMatch(/SEARCH api_tokens USING INDEX api_tokens_token_hash_unique/);
+    expect(p).not.toMatch(/SCAN api_tokens/);
+  });
+
   it.each(names)("list(%s) searches an index on account_id", async (name) => {
     const seen: Captured[] = [];
     await scoped(drizzle(recording(seen)), "acct").list(name);
