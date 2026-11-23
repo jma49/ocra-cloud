@@ -5,6 +5,7 @@ import { auditLog } from "./audit-log.js";
 import { auth } from "./auth.js";
 import { reviewNow } from "./auto-review/review-now.js";
 import { type AutoReviewService, autoReviewRoute } from "./auto-review/routes.js";
+import { runnerApi } from "./auto-review/runner-api.js";
 import { automationsRoute } from "./automations/routes.js";
 import { BodyTooLarge } from "./body.js";
 import { budget } from "./budget.js";
@@ -90,8 +91,10 @@ export type Host<E extends AppBindings> = {
   autoReview?: AutoReviewService;
   /** The GitHub App's webhook secret; without it the App's webhooks are refused. */
   githubWebhookSecret?: string;
-  /** The ocra bot, which automation rules write on pull requests as; only self-hosted. */
+  /** The ocra bot, which automation rules write on pull requests as; where the host has its key. */
   bots?: BotTokens;
+  /** The token remote runners prove themselves with (src/auto-review/runner-api.ts); needs bots. */
+  runnerToken?: string;
   /** Email, where the host sends it (SMTP on Node); without it email channels are refused. */
   mailer?: Mailer;
   /** How webhooks are posted, where the host checks more than fetch can (src/node/webhook-transport.ts). */
@@ -190,6 +193,9 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
   if (host.graphs) app.route("/graphs/webhooks/github", hook);
   if (host.graphs) app.route("/graphs", graphsRoute(host.graphs));
   if (host.autoReview) app.route("/auto-review", autoReviewRoute(host.autoReview));
+  if (host.runnerToken && host.bots) {
+    app.route("/runner", runnerApi({ token: host.runnerToken, bots: host.bots }));
+  }
 
   app.notFound((c) => apiError(c, "not_found"));
   app.onError((err, c) => {

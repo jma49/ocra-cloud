@@ -6,9 +6,9 @@ import { postChecks } from "../merge-checks/publish.js";
 import type { Mailer } from "../notify/email.js";
 import type { WebhookPost } from "../notify/webhooks.js";
 import type { BotTokens } from "../platforms/bot.js";
+import { type BotSettings, botTokens } from "../platforms/bot-tokens.js";
 import { platformsOf } from "../platforms/registry.js";
 import type { AppBindings } from "../types.js";
-import { type BotSettings, botTokens } from "./bot-tokens.js";
 import { type Exec, runNextGeneration, runNextReply, runNextReview } from "./review-runner.js";
 
 export type AutoReviewOptions = {
@@ -17,6 +17,8 @@ export type AutoReviewOptions = {
   tokens?: BotTokens;
   /** Reviews at once; 0 queues them for another process sharing the database. */
   workers: number;
+  /** What remote runners prove themselves with; none take jobs without it. */
+  runnerToken?: string;
   exec?: Exec;
   cli?: string;
   /** How often it looks for due reviews when nothing woke it: retries, lapsed leases. */
@@ -80,7 +82,7 @@ export function startAutoReview(
   queueMicrotask(kick);
   timer.unref();
   return {
-    service: { kick, checkPull },
+    service: { kick, checkPull, ...(options.runnerToken ? { remote: true as const } : {}) },
     stop() {
       stopped = true;
       clearInterval(timer);

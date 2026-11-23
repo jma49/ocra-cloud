@@ -1,5 +1,7 @@
+import { env } from "cloudflare:workers";
 import { drizzle } from "drizzle-orm/d1";
 import { createApp } from "./app.js";
+import { remoteReviews } from "./auto-review/remote.js";
 import { enforceRetention } from "./db/retention.js";
 import { masterKeys } from "./keyring.js";
 import { runAtRisk } from "./notify/at-risk.js";
@@ -16,12 +18,15 @@ import { githubHostOf } from "./platforms/registry.js";
 // digests, weekly reports, review reminders, the notices held in quiet
 // hours and the pull requests at risk of a review target, which the database lets go once, and the webhook deliveries due
 // again (so on the Worker a retry waits for the hour). It has no mailer: no email API is
-// configured for it, so they go to its chats only.
+// configured for it, so they go to its chats only. It runs no hosted job
+// itself: with the GitHub App's key, its webhook secret and a runner token
+// set, it queues them for remote runners (docs/runner.md).
 const HOURLY = "47 * * * *";
 export const app = createApp({
   openDb: (env: Env) => drizzle(env.DB),
   // Set by Cloudflare's edge, which drops any value the client sent.
   clientAddress: (c) => c.req.header("cf-connecting-ip"),
+  ...remoteReviews(env),
 });
 
 export default {

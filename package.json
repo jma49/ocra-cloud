@@ -10,6 +10,8 @@
     "dev": "npm run build:web && wrangler dev",
     "build:web": "vite build --config web/vite.config.ts",
     "build:node": "esbuild src/node/server.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/server.mjs",
+    "build:runner": "esbuild src/node/runner.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/runner.mjs",
+    "start:runner": "node dist/runner.mjs",
     "start:node": "node dist/server.mjs",
     "check": "biome check --error-on-warnings . && node scripts/check-agents.mjs",
     "knip": "knip",
@@ -18,7 +20,7 @@
     "test": "vitest run",
     "db:generate": "drizzle-kit generate && drizzle-kit generate --config drizzle.pg.config.ts",
     "types": "wrangler types src/worker-configuration.d.ts",
-    "verify": "npm run check && npm run knip && npm run typecheck && npm test && npm run build:web && npm run build:node",
+    "verify": "npm run check && npm run knip && npm run typecheck && npm test && npm run build:web && npm run build:node && npm run build:runner",
     "deploy": "npm run build:web && wrangler d1 migrations apply ocra-cloud --remote && wrangler deploy"
   },
   "dependencies": {

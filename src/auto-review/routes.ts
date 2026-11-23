@@ -3,6 +3,7 @@ import { z } from "zod";
 import { audit } from "../audit.js";
 import { randomToken, sha256Hex } from "../crypto.js";
 import type { ReviewJobSummary } from "../db/review-jobs.js";
+import { recentRunners } from "../db/review-runners.js";
 import type { Row } from "../db/scoped.js";
 import { apiError, jsonBody } from "../http.js";
 import { accessToken } from "../platforms/links.js";
@@ -14,6 +15,7 @@ import {
   CODE_PLATFORMS,
   REVIEW_PROFILES,
   type ReviewProfileView,
+  type ReviewRunnersView,
 } from "../shared/index.js";
 import type { AppEnv } from "../types.js";
 import { generateRoute } from "./generate.js";
@@ -23,6 +25,8 @@ import { autoReviewWebhooks } from "./webhooks.js";
 export type AutoReviewService = {
   /** Wakes the review runner after a job is queued. */
   kick: () => void;
+  /** Whether jobs wait for a remote runner to ask for them (./runner-api.ts). */
+  remote?: true;
   /** Evaluates a pull request's pre-merge checks and posts them as the bot, after the answer. */
   checkPull?: (accountId: string, reviewRepoId: string, number: number) => void;
 };
@@ -72,6 +76,18 @@ export function autoReviewRoute(service: AutoReviewService) {
     ]);
     const byRepo = new Map(latest.map((j) => [j.reviewRepoId, j]));
     return c.json({ repos: repos.map((r) => repoView(r, byRepo.get(r.id))) });
+  });
+
+  route.get("/runners", requireSession(), async (c) => {
+    const runners = service.remote ? await recentRunners(c.var.db, new Date()) : [];
+    return c.json({
+      remote: service.remote === true,
+      runners: runners.map((r) => ({
+        name: r.name,
+        version: r.version,
+        lastSeenAt: r.lastSeenAt.toISOString(),
+      })),
+    } satisfies ReviewRunnersView);
   });
 
   route.post(

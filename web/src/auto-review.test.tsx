@@ -92,4 +92,34 @@ describe("the auto review page", () => {
     ]);
     expect(screen.getByRole("button", { name: "Review profile of pay/api: Quiet" })).toBeTruthy();
   });
+
+  it("says whether a remote runner is asking for work", async () => {
+    const runners = [
+      { name: "mini", version: "0.12.0", lastSeenAt: new Date().toISOString() },
+      {
+        name: "old",
+        version: "0.11.0",
+        lastSeenAt: new Date(Date.now() - 3_600_000).toISOString(),
+      },
+    ];
+    let listed = runners;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        url.startsWith("/api/auto-review/runners")
+          ? Response.json({ remote: true, runners: listed })
+          : url.startsWith("/api/review-targets")
+            ? Response.json({ default: { firstReviewHours: null, mergeDays: null }, repos: [] })
+            : Response.json({ repos: [] }),
+      ),
+    );
+    const first = render(<AutoReview platforms={["github"]} />);
+    const rows = (await screen.findAllByRole("listitem")).map((li) => li.textContent);
+    expect(rows[0]).toContain("mini Online Asked for work just now · ocra 0.12.0");
+    expect(rows[1]).toContain("old Offline Asked for work 1h ago");
+    first.unmount();
+    listed = [];
+    render(<AutoReview platforms={["github"]} />);
+    expect((await screen.findByRole("status")).textContent).toContain("No runner is connected");
+  });
 });

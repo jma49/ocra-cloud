@@ -1208,7 +1208,14 @@ td.finding-cell {
   background: var(--fill2);
 }
 
-/* Auto review: the one-time webhook card, and a failed job's reason. */
+/* Auto review: the remote runners, the one-time webhook card, and a failed job's reason. */
+.runner-status {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
 .hook-card {
   margin-bottom: 12px;
 }

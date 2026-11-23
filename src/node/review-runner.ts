@@ -3,28 +3,25 @@ import { appendFile, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { profileRun } from "../auto-review/profiles.js";
-import { loginOf } from "../db/accounts.js";
-import type { Db } from "../db/client.js";
-import { claimGenerate } from "../db/generate-jobs.js";
-import { claimReply } from "../db/reply-jobs.js";
-import { claimJob } from "../db/review-jobs.js";
-import { scoped } from "../db/scoped.js";
+import {
+  type Assignment,
+  assign,
+  type RunFailure,
+  settle,
+  type WorkKind,
+  type WorkSource,
+} from "../auto-review/work.js";
 import { errorName, logError } from "../log.js";
-import { engineMergeChecks } from "../merge-checks/instruction.js";
-import { checksOf } from "../merge-checks/run.js";
-import type { BotAccess, BotCredential, BotTokens } from "../platforms/bot.js";
+import type { BotCredential } from "../platforms/bot.js";
 import { githubHost } from "../platforms/github-host.js";
-import type { CodePlatform } from "../platforms/platform.js";
-import { startCliSession } from "../session.js";
 
-// Runs the next queued review (ADR-0046, 4), answer to an @ocra comment, or
-// request for tests or docstrings: clones the repository's default branch
-// into a new directory, runs the released CLI there on the pull request
-// (`ocra review … --no-repo-config`, `ocra reply` or `ocra generate`), signed in to this server as the enrolling account (its
+// The machine's half of a hosted job (ADR-0046, 4): clones the repository's
+// default branch into a new directory and runs the released CLI there on
+// the pull request (`ocra review … --no-repo-config`, `ocra reply` or
+// `ocra generate`), signed in to the server as the enrolling account (its
 // models, key, budget and rules, and the upload), and posting as the ocra
-// bot. The directory and the session it was given are removed on every
-// exit path. A failure is recorded on the job.
+// bot. The directory is removed on every exit path. What to run comes from
+// the server's half (src/auto-review/work.ts), which records how it went.
 
 type ExecResult = { code: number | null };
 /** Runs a command to its end; aborting the signal kills it with its children. */
@@ -34,279 +31,117 @@ export type Exec = (
   options: { cwd: string; env: Record<string, string>; signal: AbortSignal },
 ) => Promise<ExecResult>;
 
-export type ReviewRunner = {
-  db: Db;
-  platforms: readonly CodePlatform[];
-  bots: BotTokens;
-  /** This server's own address, which the CLI signs in to. */
-  publicUrl: string;
+export type Machine = {
   exec?: Exec;
   /** The CLI's entry; the installed @open-cr-agent/cli by default. */
   cli?: string;
-  leaseMs?: number;
-  now?: () => Date;
 };
 
-type Failure =
-  | "repo_gone"
-  | "platform_gone"
-  | "no_bot"
-  | "clone_failed"
-  | "review_failed"
-  | "not_committed";
-const RETRIED: ReadonlySet<Failure> = new Set(["clone_failed", "review_failed"]);
+export type ReviewRunner = WorkSource & Machine;
 
-/** A review's run, clone included; the CLI's own run timeout is shorter. */
-const LEASE_MS = 45 * 60_000;
-const MAX_ATTEMPTS = 3;
-const RETRY_AFTER_MS = 5 * 60_000;
-/** The CLI's exit codes for a review it finished and posted: ok, blocking, incomplete. */
-const REVIEWED = new Set([0, 1, 3]);
-/** `ocra reply` answered, or found nothing to answer. */
-const REPLIED = new Set([0]);
-/** An answer is one model call or a few: far shorter than a review. */
-const REPLY_LEASE_MS = 10 * 60_000;
-/** `ocra generate` committed, or found nothing to write. */
-const GENERATED = new Set([0]);
-/** `ocra generate` wrote edits it could not commit: the branch moved, or the bot cannot push to it. */
-const NOT_COMMITTED = new Set([3]);
-/** A few model calls, one per file it writes for, and one commit. */
-const GENERATE_LEASE_MS = 20 * 60_000;
-
-class JobFailure extends Error {
-  constructor(readonly reason: Failure) {
+class RunFailed extends Error {
+  constructor(readonly reason: RunFailure) {
     super(reason);
   }
 }
 
-type Job = {
-  id: string;
-  accountId: string;
-  reviewRepoId: string;
-  attempts: number;
-  leaseUntil: Date;
-};
-type Records = {
-  finish(id: string, attempts: number, now: Date): Promise<unknown>;
-  release(
-    id: string,
-    attempts: number,
-    error: string,
-    retryAt: Date | null,
-    now: Date,
-  ): Promise<unknown>;
-};
-
-/** Runs the job's CLI command and records how it went, retrying what may pass next time. */
-async function runJob(runner: ReviewRunner, job: Job, records: Records, command: Command) {
-  const now = runner.now ?? (() => new Date());
-  const signal = AbortSignal.timeout(Math.max(job.leaseUntil.getTime() - now().getTime(), 0));
+/** Runs the assignment to its end, or to its lease's; the failure it ended with, or null. */
+export async function run(
+  machine: Machine,
+  work: Assignment,
+  now = new Date(),
+  stop?: AbortSignal,
+): Promise<RunFailure | null> {
+  const lease = AbortSignal.timeout(Math.max(work.leaseUntil.getTime() - now.getTime(), 0));
+  const signal = stop ? AbortSignal.any([lease, stop]) : lease;
   try {
-    await inCheckout(runner, job, command, signal);
-    await records.finish(job.id, job.attempts, now());
+    await inCheckout(machine, work, signal);
+    return null;
   } catch (e) {
-    const reason = e instanceof JobFailure ? e.reason : "review_failed";
-    const retry = RETRIED.has(reason) && job.attempts < MAX_ATTEMPTS;
-    logError("review_job_failed", { job: job.id, reason, error: errorName(e), retry });
-    const retryAt = retry ? new Date(now().getTime() + RETRY_AFTER_MS * job.attempts) : null;
-    await records.release(job.id, job.attempts, reason, retryAt, now());
+    logError("review_run_failed", { job: work.id, error: errorName(e) });
+    return e instanceof RunFailed ? e.reason : "review_failed";
   }
 }
 
-/** Runs the next due review; false when there was none. */
-export async function runNextReview(runner: ReviewRunner): Promise<boolean> {
+/** Runs the kind's next due job; false when there was none. */
+async function runNext(runner: ReviewRunner, kind: WorkKind): Promise<boolean> {
+  const work = await assign(runner, kind);
+  if (!work) return false;
+  if (work === "refused") return true;
   const now = runner.now ?? (() => new Date());
-  const job = await claimJob(runner.db, now(), runner.leaseMs ?? LEASE_MS);
-  if (!job) return false;
-  const jobs = scoped(runner.db, job.accountId).autoReview;
-  await runJob(
-    runner,
-    job,
-    {
-      finish: (id, attempts, at) => jobs.finishJob(id, attempts, null, at),
-      release: (id, attempts, error, retryAt, at) =>
-        jobs.releaseJob(id, attempts, error, retryAt, at),
-    },
-    {
-      args: (platform, fullName, config, flags) => [
-        "review",
-        ...pull(platform, fullName, job.number),
-        "--publish",
-        "--no-repo-config",
-        ...flags,
-        "--config",
-        config,
-      ],
-      ok: REVIEWED,
-      mergeChecks: true,
-      profile: true,
-    },
-  );
+  await settle(runner.db, work, await run(runner, work, now()), now());
   return true;
 }
 
-/** Runs the next due answer to an @ocra comment; false when there was none. */
-export async function runNextReply(runner: ReviewRunner): Promise<boolean> {
-  const now = runner.now ?? (() => new Date());
-  const job = await claimReply(runner.db, now(), REPLY_LEASE_MS);
-  if (!job) return false;
-  await runJob(runner, job, scoped(runner.db, job.accountId).replies, {
-    args: (platform, fullName, config) => [
-      "reply",
-      ...pull(platform, fullName, job.number),
-      "--comment",
-      job.commentId,
-      ...(job.inline ? ["--inline"] : []),
-      "--config",
-      config,
-    ],
-    ok: REPLIED,
-  });
-  return true;
-}
+export const runNextReview = (runner: ReviewRunner) => runNext(runner, "review");
+/** An answer to an @ocra comment. */
+export const runNextReply = (runner: ReviewRunner) => runNext(runner, "reply");
+/** A request for tests or docstrings. */
+export const runNextGeneration = (runner: ReviewRunner) => runNext(runner, "generate");
 
-/** Runs the next due request for tests or docstrings; false when there was none. */
-export async function runNextGeneration(runner: ReviewRunner): Promise<boolean> {
-  const now = runner.now ?? (() => new Date());
-  const job = await claimGenerate(runner.db, now(), GENERATE_LEASE_MS);
-  if (!job) return false;
-  await runJob(runner, job, scoped(runner.db, job.accountId).generations, {
-    args: (platform, fullName, config) => [
-      "generate",
-      job.kind,
-      ...pull(platform, fullName, job.number),
-      "--config",
-      config,
-    ],
-    ok: GENERATED,
-    settled: NOT_COMMITTED,
-    access: "commit",
-  });
-  return true;
-}
-
-/**
- * What to run in the checkout: the CLI's arguments, its exit codes that
- * mean done, the bot's access, and whether it judges the repository's
- * plain-language checks.
- */
-type Command = {
-  /** `flags` are the review profile's (none unless `profile`). */
-  args: (
-    platform: CodePlatform,
-    fullName: string,
-    config: string,
-    flags: readonly string[],
-  ) => string[];
-  ok: ReadonlySet<number>;
-  /** Exit codes that end the job without a retry: running it again would not change them. */
-  settled?: ReadonlySet<number>;
-  access?: BotAccess;
-  mergeChecks?: true;
-  /** Whether the repository's review profile applies (src/shared/review-profiles.ts). */
-  profile?: true;
-};
-
-/** Clones the job's repository and runs the command there, signed in and posting as the bot. */
-async function inCheckout(runner: ReviewRunner, job: Job, command: Command, signal: AbortSignal) {
-  const data = scoped(runner.db, job.accountId);
-  const repo = await data.get("reviewRepos", job.reviewRepoId);
-  if (!repo) throw new JobFailure("repo_gone");
-  const platform = runner.platforms.find((p) => p.kind === repo.platform && p.host === repo.host);
-  if (!platform) throw new JobFailure("platform_gone");
-  const bot = await runner.bots.forRepo(repo.platform, repo.fullName, command.access);
-  if (!bot) throw new JobFailure("no_bot");
-  const exec = runner.exec ?? spawnExec;
+/** Clones the repository and runs the CLI there, signed in and posting as the bot. */
+async function inCheckout(machine: Machine, work: Assignment, signal: AbortSignal) {
+  const exec = machine.exec ?? spawnExec;
+  const { repo, bot } = work;
   const dir = await mkdtemp(join(tmpdir(), "ocra-review-"));
-  const sessionId = crypto.randomUUID();
   try {
     const home = join(dir, "home");
     const checkout = join(dir, "repo");
-    await signIn(runner, job.accountId, sessionId, home);
-    const origin = repoUrl(platform, repo.fullName);
-    const auth = gitAuth(platform, bot);
-    const cloned = await exec("git", ["clone", "--quiet", "--no-tags", "--", origin, checkout], {
-      cwd: dir,
-      env: { ...baseEnv(home), ...gitConfigEnv(platform, auth) },
-      signal,
+    const credentials = join(home, ".config", "ocra");
+    await mkdir(credentials, { recursive: true, mode: 0o700 });
+    await writeFile(join(credentials, "credentials.json"), JSON.stringify(work.credentials), {
+      mode: 0o600,
     });
-    if (cloned.code !== 0) throw new JobFailure("clone_failed");
+    const auth = gitAuth(repo.platform, bot);
+    const cloned = await exec(
+      "git",
+      ["clone", "--quiet", "--no-tags", "--", repoUrl(repo.url, repo.fullName), checkout],
+      { cwd: dir, env: { ...baseEnv(home), ...gitConfigEnv(repo.url, auth) }, signal },
+    );
+    if (cloned.code !== 0) throw new RunFailed("clone_failed");
     // ocra fetches the pull request's commits with the checkout's credentials, as in CI.
     await appendFile(
       join(checkout, ".git", "config"),
-      `[http "${platform.url}/"]\n\textraHeader = ${auth}\n`,
+      `[http "${repo.url}/"]\n\textraHeader = ${auth}\n`,
     );
     const config = join(dir, "ocra.json");
-    const mergeChecks = command.mergeChecks
-      ? await engineMergeChecks(await checksOf(data, repo.id))
-      : [];
-    const profile = command.profile ? profileRun(repo.reviewProfile) : { config: {}, flags: [] };
-    await writeFile(
-      config,
-      JSON.stringify({
-        ...profile.config,
-        ...(bot.login ? { github: { botLogin: bot.login } } : {}),
-        ...(mergeChecks.length > 0 ? { mergeChecks } : {}),
-      }),
+    await writeFile(config, JSON.stringify(work.config));
+    const ran = await exec(
+      process.execPath,
+      [machine.cli ?? installedCli(), ...work.args, "--config", config],
+      {
+        cwd: checkout,
+        env: { ...baseEnv(home), OCRA_CLOUD_URL: work.cloudUrl, ...botEnv(repo, bot) },
+        signal,
+      },
     );
-    const args = command.args(platform, repo.fullName, config, profile.flags);
-    const ran = await exec(process.execPath, [runner.cli ?? installedCli(), ...args], {
-      cwd: checkout,
-      env: { ...baseEnv(home), OCRA_CLOUD_URL: runner.publicUrl, ...botEnv(platform, bot) },
-      signal,
-    });
-    if (ran.code !== null && command.settled?.has(ran.code)) throw new JobFailure("not_committed");
-    if (ran.code === null || !command.ok.has(ran.code)) throw new JobFailure("review_failed");
+    if (ran.code !== null && work.settled.includes(ran.code)) throw new RunFailed("not_committed");
+    if (ran.code === null || !work.ok.includes(ran.code)) throw new RunFailed("review_failed");
   } finally {
     await rm(dir, { recursive: true, force: true }).catch(() => {});
-    await data.remove("sessions", sessionId).catch(() => {});
   }
 }
 
-/** A CLI session of the account, written where the CLI reads it; removed after the run. */
-async function signIn(runner: ReviewRunner, accountId: string, sessionId: string, home: string) {
-  const tokens = await startCliSession(runner.db, accountId, "auto review", sessionId);
-  const config = join(home, ".config", "ocra");
-  await mkdir(config, { recursive: true, mode: 0o700 });
-  await writeFile(
-    join(config, "credentials.json"),
-    JSON.stringify({
-      server: new URL(runner.publicUrl).origin,
-      login: (await loginOf(runner.db, accountId)) ?? "",
-      access_token: tokens.access_token,
-      refresh_token: tokens.refresh_token,
-      expires_at: Date.now() + tokens.expires_in * 1000,
-      lifetime_ms: tokens.expires_in * 1000,
-    }),
-    { mode: 0o600 },
-  );
-}
-
-const pull = (platform: CodePlatform, fullName: string, number: number) =>
-  platform.kind === "github"
-    ? ["--pr", String(number), "--repo", fullName]
-    : ["--mr", String(number), "--project", fullName];
-
-const repoUrl = (platform: CodePlatform, fullName: string) =>
-  `${platform.url}/${fullName.split("/").map(encodeURIComponent).join("/")}.git`;
+const repoUrl = (url: string, fullName: string) =>
+  `${url}/${fullName.split("/").map(encodeURIComponent).join("/")}.git`;
 
 /** HTTP basic auth as each platform names a token's user. */
-const gitAuth = (platform: CodePlatform, bot: BotCredential) =>
+const gitAuth = (platform: Assignment["repo"]["platform"], bot: BotCredential) =>
   `Authorization: Basic ${Buffer.from(
-    `${platform.kind === "github" ? "x-access-token" : "oauth2"}:${bot.token}`,
+    `${platform === "github" ? "x-access-token" : "oauth2"}:${bot.token}`,
   ).toString("base64")}`;
 
 // Given in the environment, not the command line, where any process could read it.
-const gitConfigEnv = (platform: CodePlatform, auth: string) => ({
+const gitConfigEnv = (url: string, auth: string) => ({
   GIT_CONFIG_COUNT: "1",
-  GIT_CONFIG_KEY_0: `http.${platform.url}/.extraHeader`,
+  GIT_CONFIG_KEY_0: `http.${url}/.extraHeader`,
   GIT_CONFIG_VALUE_0: auth,
 });
 
-const botEnv = (platform: CodePlatform, bot: BotCredential): Record<string, string> =>
-  platform.kind === "github"
-    ? { GITHUB_TOKEN: bot.token, GITHUB_API_URL: githubHost(platform.url).api }
-    : { GITLAB_TOKEN: bot.token, CI_API_V4_URL: `${platform.url}/api/v4` };
+const botEnv = (repo: Assignment["repo"], bot: BotCredential): Record<string, string> =>
+  repo.platform === "github"
+    ? { GITHUB_TOKEN: bot.token, GITHUB_API_URL: githubHost(repo.url).api }
+    : { GITLAB_TOKEN: bot.token, CI_API_V4_URL: `${repo.url}/api/v4` };
 
 /**
  * How this host reaches the company's network, which git and the CLI need
@@ -346,12 +181,19 @@ const baseEnv = (home: string): Record<string, string> => ({
   LANG: "C.UTF-8",
 });
 
-function installedCli(): string {
+function cliManifest() {
   const require = createRequire(import.meta.url);
-  const manifest = require.resolve("@open-cr-agent/cli/package.json");
-  const { bin } = require(manifest) as { bin: { ocra: string } };
-  return join(dirname(manifest), bin.ocra);
+  const path = require.resolve("@open-cr-agent/cli/package.json");
+  return { path, ...(require(path) as { version: string; bin: { ocra: string } }) };
 }
+
+function installedCli(): string {
+  const manifest = cliManifest();
+  return join(dirname(manifest.path), manifest.bin.ocra);
+}
+
+/** The installed CLI's version, which a remote runner names itself with. */
+export const installedCliVersion = () => cliManifest().version;
 
 /** spawn in its own process group, so that an abort kills what it started too. */
 const spawnExec: Exec = (command, args, options) =>
