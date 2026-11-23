@@ -97,7 +97,7 @@ async function seed(accountId: string, title: string) {
     platform: "github",
     host: "github.com",
     platformRepoId: `id-${accountId}`,
-    fullName: `octo/api-${accountId.slice(0, 4)}`,
+    fullName: `octo/api-${accountId}`,
   });
   return reviewId;
 }
@@ -160,9 +160,9 @@ describe("the console's search", () => {
       [reviewId, "octo/api", 12],
     ]);
     expect(byRepo.repositories).toEqual([
-      expect.objectContaining({ fullName: `octo/api-${me.slice(0, 4)}`, autoReview: true }),
+      expect.objectContaining({ fullName: `octo/api-${me}`, autoReview: true }),
     ]);
-    expect(JSON.stringify([found, byRepo])).not.toContain(other.account.id.slice(0, 4));
+    expect(JSON.stringify([found, byRepo])).not.toContain(other.account.id);
     expect(JSON.stringify([found, byRepo])).not.toContain("another account");
   });
 
