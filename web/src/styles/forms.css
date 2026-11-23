@@ -124,9 +124,18 @@ select.input {
   gap: 6px;
   margin-top: 16px;
 }
-.field label {
+.field label,
+label.field {
   font-weight: 500;
   font-size: var(--text-base);
+}
+label.field .input {
+  font-weight: 400;
+}
+/* The first field starts where the drawer's padding ends. */
+.drawer-body > .field:first-child,
+.drawer-body > form > .field:first-child {
+  margin-top: 0;
 }
 .field .hint {
   font-size: var(--text-sm);
