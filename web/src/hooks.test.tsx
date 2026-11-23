@@ -90,7 +90,7 @@ describe("the routes", () => {
         ["/agents", "/review-settings", "/rules", "/automations", "/plugins", "/defaults"],
       ],
       ["Models & spend", ["/keys", "/budget"]],
-      ["Account", ["/settings", "/notifications", "/sessions", "/audit"]],
+      ["Account", ["/settings", "/notifications", "/sessions", "/tokens", "/audit"]],
     ]);
     expect(placeHome("settings")).toBe("/agents");
   });
