@@ -34,7 +34,9 @@ Pages and components style only through the custom properties in `base.css`.
 
 ## Spacing and layout
 
-- **Steps:** 4, 8, 12, 16, 24, 32 px. Card padding 16; table cells 9×12 with 16 at the row's ends; sections 32 apart; page head 24 above content.
+- **Steps:** 4, 8, 12, 16, 24, 32 px.
+- **Keyline:** everything in a card starts and ends `--gutter` (16 px) from the card's edge: its title, its padding, a toolbar, a table row's first and last cell, a list row, a settings row, a stat, a code block. A checkbox sits on the keyline too (no browser margin). An icon button may reach past it so its glyph, not its hover box, ends on the line.
+- **Rhythm:** the page's content starts 24 px under the page bar and 24 px under the page head; sections are 32 px apart (`.section`); the parts of one section (an add form and its list, stats and their charts, a card and its footnote) are 12 px apart. Table cells are 8×12, so a one-line row is 36 px, the same as a list row.
 - **Control heights (test, `styles.test.ts`):** two, from `--ctl-h` (28 px: buttons at `size="sm"`, inputs, selects, segmented controls, icon buttons, tabs) and `--ctl-h-lg` (32 px: a page's own actions in its head, and a view's one primary action). Controls on one line share one height: a line of fields ends in a `size="sm"` button. Both grow by 4 px under 640 px, where the coss ui controls grow for touch. No stylesheet sets a control's height in pixels. A control's text sits `--ctl-pad` (10 px) from its edge, and controls take `--r-ctl`.
 - **Frame:** a 56 px icon rail on the ground, the page on one panel beside it (`.frame`, `.rail`, `.panel`). The pagebar on top of the panel shows the breadcrumb and the place's tabs.
 - **Places:** Inbox, Reviews, Findings, Repositories, Insights, and Settings as its own mode with a grouped side list. A new page belongs to one place and appears as one of its tabs (`routes.tsx`); it is reachable from the command menu (Ctrl/⌘ K) automatically. The same menu searches: past two characters it lists what the server finds (pull requests, reviews, findings, repositories) under the matching pages, a pull request named by its reference first.
