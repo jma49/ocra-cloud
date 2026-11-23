@@ -1,5 +1,5 @@
 import type { Context } from "hono";
-import { type Account, githubIdOf, recordSignInCheck } from "./db/accounts.js";
+import { type Account, githubIdOf, recordSignInCheck, recordSignInTry } from "./db/accounts.js";
 import { scoped } from "./db/scoped.js";
 import { apiError } from "./http.js";
 import { github } from "./platforms/github.js";
@@ -8,7 +8,7 @@ import { githubClientOf, githubHostOf } from "./platforms/registry.js";
 import { SIGN_IN_NOT_ALLOWED } from "./shared/index.js";
 import { type AllowList, allowListOf, anyIn, emailDomainOf } from "./sign-in-allow.js";
 import { githubAllowed } from "./sign-in-github.js";
-import { HOUR } from "./time.js";
+import { HOUR, MINUTE } from "./time.js";
 import type { AppEnv } from "./types.js";
 
 // SIGN_IN_ALLOW at sign-in and after: a sign-in that matches no entry is
@@ -20,6 +20,10 @@ import type { AppEnv } from "./types.js";
 
 /** How long an account's answer stands before GitHub is asked again. */
 const RECHECK_MS = HOUR;
+/** How long after GitHub could not answer it is not asked again. */
+const RETRY_MS = 5 * MINUTE;
+/** How long a match stands while GitHub cannot answer. */
+const UNSURE_GRACE_MS = 24 * HOUR;
 
 /** The deployment's allowlist; undefined when anyone may sign in. */
 export const allowListFor = (c: Context<AppEnv>) => allowListOf(c.env.SIGN_IN_ALLOW);
@@ -75,7 +79,8 @@ async function askAgain(c: Context<AppEnv>, account: Account, list: AllowList) {
  * A refusal when SIGN_IN_ALLOW is set and the account no longer matches it;
  * undefined to let the request on. An answer GitHub cannot give (it is
  * unreachable, or the account's token is gone and no App can read the
- * organisation) keeps a match found within the last day, and refuses after.
+ * organisation) keeps a match found within UNSURE_GRACE_MS, and refuses
+ * after; GitHub is then not asked again for RETRY_MS.
  */
 export async function checkAccount(
   c: Context<AppEnv>,
@@ -89,10 +94,17 @@ export async function checkAccount(
   if (sameList && now - checkedAt < RECHECK_MS) {
     return account.signInAllowed ? undefined : sessionRefused(c);
   }
+  // A match found lately stands while GitHub cannot answer, and refuses after.
+  const unsure = () => {
+    const lately = sameList && account.signInAllowed && now - checkedAt < UNSURE_GRACE_MS;
+    return lately ? undefined : sessionRefused(c);
+  };
+  const triedAt = account.signInTriedAt?.getTime() ?? 0;
+  if (now - triedAt < RETRY_MS) return unsure();
   const verdict = await askAgain(c, account, list);
   if (verdict === undefined) {
-    const lately = sameList && account.signInAllowed && now - checkedAt < 24 * HOUR;
-    return lately ? undefined : sessionRefused(c);
+    await recordSignInTry(c.var.db, account.id, new Date(now));
+    return unsure();
   }
   await recordSignInCheck(c.var.db, account.id, {
     key: list.key,

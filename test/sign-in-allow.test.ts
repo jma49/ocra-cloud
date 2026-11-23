@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as schema from "../src/db/schema.js";
 import { forgetDiscovery } from "../src/oidc.js";
+import { botTokens } from "../src/platforms/bot-tokens.js";
 import { HOUR } from "../src/time.js";
 import { call, db, resetDb, signIn, signInCli, signInToken } from "./helpers.js";
 
@@ -38,6 +39,8 @@ type GithubWorld = {
   /** Each organisation's membership state for the user; absent ones answer 404. */
   orgs?: Record<string, string>;
   emails?: { email: string; verified: boolean }[];
+  /** What GET /user answers instead of the user: 401 for a revoked token, 502 for an outage. */
+  userStatus?: number;
 };
 
 /** GitHub as sign-in and the checks after it see it; `calls` lists the API paths asked. */
@@ -53,7 +56,11 @@ function githubFake(world: GithubWorld) {
       }
       if (url.origin !== "https://api.github.com") throw new Error(`unexpected fetch ${req.url}`);
       calls.push(url.pathname);
-      if (url.pathname === "/user") return Response.json(world.user);
+      if (url.pathname === "/user") {
+        return world.userStatus
+          ? Response.json({ message: "no" }, { status: world.userStatus })
+          : Response.json(world.user);
+      }
       if (url.pathname === "/user/emails") return Response.json(world.emails ?? []);
       const org = url.pathname.match(/^\/user\/memberships\/orgs\/(.+)$/)?.[1];
       const state = org ? world.orgs?.[decodeURIComponent(org)] : undefined;
@@ -173,6 +180,58 @@ describe("sessions and tokens once the account no longer matches", () => {
     const res = await call("/api/me", { headers: cookie }, { SIGN_IN_ALLOW: "user:grace" });
     expect(res.status).toBe(401);
     expect(calls).toEqual(["/user"]);
+  });
+
+  it("asks GitHub no more than every few minutes while it cannot answer", async () => {
+    const env = { SIGN_IN_ALLOW: "org:acme" };
+    const world: GithubWorld = { user: { id: 1, login: "ada" }, orgs: { acme: "active" } };
+    const calls = githubFake(world);
+    const { cookie } = await githubSignIn("org:acme");
+    world.userStatus = 502;
+    later(HOUR + 1000);
+    calls.length = 0;
+    // The match of an hour ago stands, and GitHub is asked once.
+    expect((await call("/api/me", { headers: cookie }, env)).status).toBe(200);
+    expect((await call("/api/me", { headers: cookie }, env)).status).toBe(200);
+    expect(calls).toEqual(["/user"]);
+  });
+
+  it("checks with the stored login when GitHub refuses the kept token", async () => {
+    const world: GithubWorld = { user: { id: 1, login: "ada" } };
+    githubFake(world);
+    const { cookie } = await githubSignIn("user:ada");
+    world.userStatus = 401;
+    // Past the day a match stands while GitHub cannot answer.
+    later(25 * HOUR);
+    const res = await call("/api/me", { headers: cookie }, { SIGN_IN_ALLOW: "user:ada" });
+    expect(res.status).toBe(200);
+  });
+});
+
+describe("the App's organisation read", () => {
+  const settings = { githubApi: "https://api.github.com", githubAppId: "1" };
+
+  it("answers null, never throws, for a key it cannot sign with", async () => {
+    const bots = botTokens({ ...settings, githubAppPrivateKey: "not a key" });
+    await expect(bots.orgMember?.("acme", "ada")).resolves.toBeNull();
+  });
+
+  it("answers null, never throws, when GitHub does not answer", async () => {
+    const { privateKey } = (await crypto.subtle.generateKey(
+      {
+        name: "RSASSA-PKCS1-v1_5",
+        modulusLength: 2048,
+        publicExponent: new Uint8Array([1, 0, 1]),
+        hash: "SHA-256",
+      },
+      true,
+      ["sign"],
+    )) as CryptoKeyPair;
+    const der = new Uint8Array((await crypto.subtle.exportKey("pkcs8", privateKey)) as ArrayBuffer);
+    const pem = `-----BEGIN PRIVATE KEY-----\n${btoa(String.fromCharCode(...der))}\n-----END PRIVATE KEY-----`;
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(new DOMException("late", "TimeoutError"));
+    const bots = botTokens({ ...settings, githubAppPrivateKey: pem });
+    await expect(bots.orgMember?.("acme", "ada")).resolves.toBeNull();
   });
 });
 

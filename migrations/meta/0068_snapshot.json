@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "b27fa248-a51b-4dce-9341-a0cc1df9b481",
+  "id": "2a259642-7088-4340-b4d7-a26271160b06",
   "prevId": "a5f7201b-1073-4238-baa0-ec41f678b224",
   "tables": {
     "account_memory": {
@@ -204,6 +204,13 @@
         },
         "sign_in_checked_at": {
           "name": "sign_in_checked_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "sign_in_tried_at": {
+          "name": "sign_in_tried_at",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,

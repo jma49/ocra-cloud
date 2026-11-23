@@ -121,29 +121,33 @@ async function memberStatus(api: string, path: string, token: string): Promise<b
   }
 }
 
+async function appOrgMember(settings: BotSettings, org: string, login: string) {
+  const { githubAppId: appId, githubAppPrivateKey: key } = settings;
+  if (!appId || !key) return null;
+  const jwt = await appJwt(appId, key);
+  const at = encodeURIComponent(org);
+  const installation = await github(settings.githubApi, `/orgs/${at}/installation`, {
+    token: jwt,
+  });
+  if (typeof installation?.id !== "number") return null;
+  const minted = await github(
+    settings.githubApi,
+    `/app/installations/${installation.id}/access_tokens`,
+    { token: jwt, method: "POST", body: JSON.stringify({ permissions: { members: "read" } }) },
+  );
+  if (typeof minted?.token !== "string") return null;
+  return memberStatus(
+    settings.githubApi,
+    `/orgs/${at}/members/${encodeURIComponent(login)}`,
+    minted.token,
+  );
+}
+
 export function botTokens(settings: BotSettings): BotTokens {
   return {
-    async orgMember(org, login) {
-      const { githubAppId: appId, githubAppPrivateKey: key } = settings;
-      if (!appId || !key) return null;
-      const jwt = await appJwt(appId, key);
-      const at = encodeURIComponent(org);
-      const installation = await github(settings.githubApi, `/orgs/${at}/installation`, {
-        token: jwt,
-      });
-      if (typeof installation?.id !== "number") return null;
-      const minted = await github(
-        settings.githubApi,
-        `/app/installations/${installation.id}/access_tokens`,
-        { token: jwt, method: "POST", body: JSON.stringify({ permissions: { members: "read" } }) },
-      );
-      if (typeof minted?.token !== "string") return null;
-      return memberStatus(
-        settings.githubApi,
-        `/orgs/${at}/members/${encodeURIComponent(login)}`,
-        minted.token,
-      );
-    },
+    // Never throws: a key Web Crypto refuses or a call that times out is
+    // an answer the App cannot give, not a failed request.
+    orgMember: (org, login) => appOrgMember(settings, org, login).catch(() => null),
     async forRepo(platform, fullName, access = "review") {
       if (platform === "gitlab") {
         return settings.gitlabBotToken ? { token: settings.gitlabBotToken } : null;

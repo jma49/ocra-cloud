@@ -1,5 +1,5 @@
 {
-  "id": "42f626d0-6cda-43ef-a756-df6a011be5af",
+  "id": "a70a9db5-cbed-408a-a535-e5f92a5752ec",
   "prevId": "178f1e4b-44b9-4581-afaa-cf522234ef20",
   "version": "7",
   "dialect": "postgresql",
@@ -214,6 +214,12 @@
         },
         "sign_in_checked_at": {
           "name": "sign_in_checked_at",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sign_in_tried_at": {
+          "name": "sign_in_tried_at",
           "type": "bigint",
           "primaryKey": false,
           "notNull": false

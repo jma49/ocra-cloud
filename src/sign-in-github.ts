@@ -47,11 +47,23 @@ export type GithubPerson = {
   bots?: BotTokens | undefined;
 };
 
-async function loginOf(p: GithubPerson): Promise<string | undefined> {
-  if (!p.token || p.fresh) return p.login.toLowerCase();
+/** Organisations asked at once: a list holds up to 50 entries. */
+const ORG_CONCURRENCY = 4;
+
+/**
+ * The person as checked: the login read with their token, or, when GitHub
+ * refuses the token (revoked), the stored login and no token, so the App's
+ * read stands in. Undefined when GitHub did not answer.
+ */
+async function current(
+  p: GithubPerson,
+): Promise<{ person: GithubPerson; login: string } | undefined> {
+  if (!p.token || p.fresh) return { person: p, login: p.login.toLowerCase() };
   const user = await get(`${p.api}/user`, p.token);
+  if (user?.status === 401) return { person: { ...p, token: null }, login: p.login.toLowerCase() };
   const login = (user?.body as { login?: unknown } | null)?.login;
-  return user?.status === 200 && typeof login === "string" ? login.toLowerCase() : undefined;
+  if (user?.status !== 200 || typeof login !== "string") return undefined;
+  return { person: p, login: login.toLowerCase() };
 }
 
 async function orgMember(p: GithubPerson, org: string, login: string): Promise<Verdict> {
@@ -80,9 +92,10 @@ async function verifiedDomains(p: GithubPerson): Promise<string[] | undefined> {
  * true; false when every entry was read and none matched; undefined when
  * none matched but one could not be read.
  */
-export async function githubAllowed(list: AllowList, p: GithubPerson): Promise<Verdict> {
-  const login = await loginOf(p);
-  if (!login) return undefined;
+export async function githubAllowed(list: AllowList, asked: GithubPerson): Promise<Verdict> {
+  const found = await current(asked);
+  if (!found) return undefined;
+  const { person: p, login } = found;
   if (anyIn(list.users, [login])) return true;
   let unsure = false;
   if (list.domains.length > 0) {
@@ -90,10 +103,11 @@ export async function githubAllowed(list: AllowList, p: GithubPerson): Promise<V
     if (domains && anyIn(list.domains, domains)) return true;
     if (!domains) unsure = true;
   }
-  for (const org of list.orgs) {
-    const member = await orgMember(p, org, login);
-    if (member) return true;
-    if (member === undefined) unsure = true;
+  for (let i = 0; i < list.orgs.length; i += ORG_CONCURRENCY) {
+    const part = list.orgs.slice(i, i + ORG_CONCURRENCY);
+    const members = await Promise.all(part.map((org) => orgMember(p, org, login)));
+    if (members.includes(true)) return true;
+    if (members.includes(undefined)) unsure = true;
   }
   return unsure ? undefined : false;
 }

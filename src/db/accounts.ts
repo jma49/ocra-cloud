@@ -236,6 +236,11 @@ export async function recordSignInCheck(
     .where(eq(accounts.id, accountId));
 }
 
+/** Records that the allowlist could not be checked now, which holds the next try back. */
+export async function recordSignInTry(db: Db, accountId: string, at: Date): Promise<void> {
+  await db.update(accounts).set({ signInTriedAt: at }).where(eq(accounts.id, accountId));
+}
+
 /** Records a refused sign-in on the identity's account, if it has one, so its sessions end too. */
 export async function refuseIdentity(
   db: Db,

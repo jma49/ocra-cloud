@@ -99,10 +99,12 @@ export const accounts = sqliteTable(
     // The IANA time zone a channel's quiet hours are read in (src/notify/reminders.ts).
     timeZone: text("time_zone").notNull().default("UTC"),
     // Whether the account matched SIGN_IN_ALLOW (src/sign-in-gate.ts): the
-    // list's hash it was checked against, the answer, and when.
+    // list's hash it was checked against, the answer, and when; and when
+    // GitHub last could not answer, so that it is not asked on every request.
     signInAllowKey: text("sign_in_allow_key"),
     signInAllowed: integer("sign_in_allowed", { mode: "boolean" }),
     signInCheckedAt: integer("sign_in_checked_at", { mode: "timestamp_ms" }),
+    signInTriedAt: integer("sign_in_tried_at", { mode: "timestamp_ms" }),
   },
   (t) => [index("accounts_login").on(t.login)],
 );
