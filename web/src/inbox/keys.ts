@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { typing } from "../page-commands.js";
 
 type Keys = {
   move: (step: 1 | -1) => void;
@@ -8,9 +9,6 @@ type Keys = {
   refresh: () => void;
   toggleRead: () => void;
 };
-
-const typing = (t: EventTarget | null) =>
-  t instanceof HTMLElement && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
 
 /** j/k move, Enter opens here, o on the platform, / finds, r refreshes, u marks read or unread; never while typing. */
 export function useListKeys(keys: Keys) {
