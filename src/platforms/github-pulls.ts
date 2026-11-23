@@ -15,13 +15,11 @@ import {
 const LISTS = ["review", "authored", "assigned", "merged"] as const;
 type List = (typeof LISTS)[number];
 
-const query = (
-  checks: boolean,
-) => `query($review: String!, $authored: String!, $assigned: String!, $merged: String!, $open: Int!, $done: Int!) {
-  review: search(query: $review, type: ISSUE, first: $open) { issueCount nodes { ...P } }
-  authored: search(query: $authored, type: ISSUE, first: $open) { issueCount nodes { ...P } }
-  assigned: search(query: $assigned, type: ISSUE, first: $open) { issueCount nodes { ...P } }
-  merged: search(query: $merged, type: ISSUE, first: $done) { issueCount nodes { ...P } }
+// One request per list, sent together: GitHub answers a request's searches
+// one after another, so one request with all four took the sum of them
+// (3.5 s for the inbox, live).
+const query = (list: List, checks: boolean) => `query($q: String!, $n: Int!) {
+  ${list}: search(query: $q, type: ISSUE, first: $n) { issueCount nodes { ...P } }
 }
 ${pullFragment(checks)}`;
 
@@ -108,30 +106,28 @@ export async function githubPulls(
   now = Date.now(),
 ): Promise<PullListing | null> {
   const since = mergedSince(now).toISOString().slice(0, 10);
-  const ask = (checks: boolean) =>
-    post<Answer>({
-      query: query(checks),
-      variables: {
-        review: "is:pr is:open archived:false review-requested:@me",
-        authored: "is:pr is:open archived:false author:@me",
-        assigned: "is:pr is:open archived:false assignee:@me",
-        merged: `is:pr is:merged author:@me merged:>=${since}`,
-        open: OPEN_PER_LIST,
-        done: MERGED_PER_LIST,
-      },
-    });
-  let answer = await ask(true);
-  // Without the App's checks permission GitHub nulls the whole pull.
-  const lost = LISTS.some((l) => answer?.data?.[l]?.nodes.some((n) => n === null));
-  if (answer?.errors && lost) answer = await ask(false);
-  const data = answer?.data;
-  if (!data?.review || !data.authored || !data.assigned || !data.merged) return null;
+  const searches: Record<List, { q: string; n: number }> = {
+    review: { q: "is:pr is:open archived:false review-requested:@me", n: OPEN_PER_LIST },
+    authored: { q: "is:pr is:open archived:false author:@me", n: OPEN_PER_LIST },
+    assigned: { q: "is:pr is:open archived:false assignee:@me", n: OPEN_PER_LIST },
+    merged: { q: `is:pr is:merged author:@me merged:>=${since}`, n: MERGED_PER_LIST },
+  };
+  const ask = (list: List, checks: boolean) =>
+    post<Answer>({ query: query(list, checks), variables: searches[list] });
+  const search = async (list: List) => {
+    const answer = await ask(list, true);
+    // Without the App's checks permission GitHub nulls the whole pull.
+    const lost = answer?.data?.[list]?.nodes.some((n) => n === null);
+    return (answer?.errors && lost ? await ask(list, false) : answer)?.data?.[list];
+  };
+  const [review, authored, assigned, merged] = await Promise.all(LISTS.map(search));
+  if (!review || !authored || !assigned || !merged) return null;
   return {
     pulls: withRoles([
-      { role: "reviewer", pulls: pulls(data.review) },
-      { role: "author", pulls: [...pulls(data.authored), ...pulls(data.merged)] },
-      { role: "assignee", pulls: pulls(data.assigned) },
+      { role: "reviewer", pulls: pulls(review) },
+      { role: "author", pulls: [...pulls(authored), ...pulls(merged)] },
+      { role: "assignee", pulls: pulls(assigned) },
     ]),
-    more: [data.review, data.authored, data.assigned].some((l) => l.issueCount > OPEN_PER_LIST),
+    more: [review, authored, assigned].some((l) => l.issueCount > OPEN_PER_LIST),
   };
 }
