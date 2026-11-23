@@ -171,6 +171,10 @@ export async function assign(
     ? await engineMergeChecks(await checksOf(data, repo.id))
     : [];
   const profile = command.profile ? profileRun(repo.reviewProfile) : { config: {}, flags: [] };
+  // The CLI's own default is OpenCode, which waits out a refused call where
+  // Direct stops at once; the account's saved runtime, below this file, wins.
+  const saved = await data.findOne("preferences", {});
+  const runtime = saved?.runtime ? {} : { runtime: "direct" as const };
   const pull =
     platform.kind === "github"
       ? ["--pr", String(claimed.number), "--repo", repo.fullName]
@@ -197,6 +201,7 @@ export async function assign(
     uploadSalt: await accountSalt(source.db, claimed.accountId),
     args: [...command.args(pull), ...profile.flags],
     config: {
+      ...runtime,
       ...profile.config,
       ...(bot.login ? { github: { botLogin: bot.login } } : {}),
       ...(mergeChecks.length > 0 ? { mergeChecks } : {}),
