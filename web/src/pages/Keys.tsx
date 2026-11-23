@@ -5,8 +5,9 @@ import { forgetKeys, loadKeys } from "../account-keys.js";
 import { api, type CheckStatus, type Key, type ProviderInfo, why } from "../api.js";
 import { ago, date, num } from "../format.js";
 import { AddGlyph } from "../glyphs.js";
+import { ProviderLogo } from "../provider-logo.js";
 import { anyProvider } from "../site.js";
-import { EmptyState, PageHead, ProviderLogo, useLoad, useProviders } from "../ui.js";
+import { EmptyState, PageHead, useLoad, useProviders } from "../ui.js";
 import { AddKeyDrawer, formats, POPULAR } from "./KeyDrawer.js";
 
 // Like the channel pages of API relays: the page lists the keys you have;
@@ -62,7 +63,7 @@ export function Keys() {
                         className="chip"
                         onClick={() => setDrawer({ provider: p.name })}
                       >
-                        <ProviderLogo label={p.label} size={22} />
+                        <ProviderLogo name={p.name} label={p.label} size={22} />
                         {p.label}
                       </button>
                     ))}
@@ -190,7 +191,7 @@ function KeyRow(props: {
     <tr>
       <td>
         <div className="key-name">
-          <ProviderLogo label={label} size={28} />
+          <ProviderLogo name={k.provider} label={label} size={28} />
           <div>
             <div className="strong">{label}</div>
             <div className="subtle small">{p ? formats(p) : ""}</div>

@@ -408,16 +408,3 @@ export function StackedBars(props: { series: Day[]; metric: "calls" | "tokens" }
     </>
   );
 }
-
-/**
- * A monogram tile printed in ink (no third-party logos, and no colour per
- * provider: the landing page's look has one signal colour and no other).
- */
-export function ProviderLogo(props: { label: string; size?: number }) {
-  const size = props.size ?? 32;
-  return (
-    <span className="prov-logo" style={{ width: size, height: size, fontSize: size * 0.4 }}>
-      {props.label.replace(/[^A-Za-z0-9]/g, "").slice(0, 2)}
-    </span>
-  );
-}

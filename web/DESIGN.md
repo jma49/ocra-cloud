@@ -84,7 +84,7 @@ A new shared control comes from coss ui first, then from a small component in `w
 ## Icons
 
 - **Lucide** for every UI icon, imported per icon (`lucide-react/icons/<name>`) so the bundle carries only what it uses **(test)**. Navigation icons are 20 px at 1.75 stroke; inline icons 16 px.
-- Product marks (GitHub, GitLab, model providers) come from simple-icons through `PlatformMark`, in their own colours only in logo tiles.
+- Product marks are the products' own, drawn in the text colour so they read the same in both themes: GitHub and GitLab through `PlatformMark` (simple-icons), model providers through `ProviderLogo`, a quiet tile holding the mark from simple-icons or, where it has none, from `@lobehub/icons-static-svg` (`provider-marks.ts`). Every provider the gateway lists has one (the type fails otherwise); only a name it does not list falls back to two letters.
 - An icon never carries meaning alone: it has a visible label or an accessible name and tooltip.
 
 ## Motion
