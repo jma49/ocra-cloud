@@ -24,6 +24,7 @@ import type { Me } from "./api.js";
 import { AccountMenu } from "./chrome.js";
 import { CommandMenu, type CommandSection } from "./command-menu.js";
 import { EyesMark } from "./eyes.js";
+import { QueueNav } from "./inbox/queue-nav.js";
 import { Link } from "./router.js";
 import { type Place, placeHome, placeTabs, type Route, settingsGroups } from "./routes.js";
 import { DOCS } from "./site.js";
@@ -182,11 +183,22 @@ function SettingsNav(props: { me: Me; path: string }) {
 function PageBar(props: { me: Me; route: Route | undefined; path: string }) {
   const place = PLACES.find((p) => p.id === props.route?.place);
   const tabs = place ? placeTabs(place.id, props.me) : [];
-  const here = props.route?.tab ?? (props.route?.path === "/reviews/:id" ? "Review" : undefined);
+  const pull = props.route?.path.startsWith("/pull/") === true;
+  const here =
+    props.route?.tab ??
+    (props.route?.path === "/reviews/:id" ? "Review" : pull ? "Pull request" : undefined);
   const settings = props.route?.place === "settings";
+  // A page under a place leads back to it; the place's own pages only name it.
+  const under = place && !props.route?.tab && here !== undefined;
   return (
     <header className="pagebar">
-      <span className="crumb">{settings ? "Settings" : (place?.label ?? "ocra")}</span>
+      {under ? (
+        <Link to={placeHome(place.id)} className="crumb crumb-link">
+          {place.label}
+        </Link>
+      ) : (
+        <span className="crumb">{settings ? "Settings" : (place?.label ?? "ocra")}</span>
+      )}
       {here && here !== place?.label && (
         <>
           <span className="crumb-sep" aria-hidden="true" />
@@ -194,6 +206,7 @@ function PageBar(props: { me: Me; route: Route | undefined; path: string }) {
         </>
       )}
       <span className="spacer" />
+      {pull && <QueueNav path={props.path} />}
       {tabs.length > 1 && (
         <nav className="place-tabs" aria-label={place?.label}>
           {tabs.map((t) => (

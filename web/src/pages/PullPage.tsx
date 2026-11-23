@@ -11,6 +11,7 @@ import type {
 import { api } from "../api.js";
 import { useFixes } from "../fixes/use-fixes.js";
 import { count } from "../format.js";
+import { useBeside } from "../inbox/queue.js";
 import { usePageCommands } from "../page-commands.js";
 import { PlatformMark } from "../platform-mark.js";
 import { SinceBar, sinceFiles, useSince } from "../pull/changes-since.js";
@@ -29,6 +30,7 @@ import { methodLabels } from "../pull/merge-method.js";
 import { MergeWhenReadyBox } from "../pull/merge-when-ready-box.js";
 import { OcraReviewBox } from "../pull/ocra-review-box.js";
 import { OUTCOME } from "../pull/outcome.js";
+import { pullPath } from "../pull/path.js";
 import { QueueBox } from "../pull/queue-box.js";
 import { ReadinessBox, useReadiness } from "../pull/readiness-box.js";
 import { ReviewBox } from "../pull/review-box.js";
@@ -101,9 +103,10 @@ export function PullPage(props: {
   useEffect(() => {
     if (data?.title) setPageTitle(`#${props.number} ${data.title}`);
   }, [data?.title, props.number]);
+  const beside = useBeside(pullPath(platform, props.repo, number));
   usePageCommands(
     "This pull request",
-    pullCommands({ data, code, review: () => setReviewing(true) }),
+    pullCommands({ data, code, review: () => setReviewing(true), beside }),
   );
   if (error && !data) {
     return (
