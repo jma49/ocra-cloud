@@ -285,6 +285,13 @@ describe("ocra's review of the user's pull request", () => {
     expect(posted).toHaveLength(2);
     expect(posted.filter((t) => t.includes("ocra found 1 critical finding"))).toHaveLength(1);
     expect(posted.filter((t) => t.startsWith("ocra reviewed"))).toHaveLength(1);
+    // Its notification centre holds it once too: as the critical finding, not again as a review.
+    const listed = await call("/api/notifications/feed", { auth: me.auth });
+    expect(listed.status).toBe(200);
+    const { items } = (await listed.json()) as { items: { kind: string; link: string }[] };
+    expect(items.map((i) => [i.kind, i.link])).toEqual([
+      ["review_blocking", "/pull/github/octo%2Fapi/5"],
+    ]);
   });
 });
 
