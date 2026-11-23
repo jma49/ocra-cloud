@@ -113,18 +113,28 @@
 .tier-label {
   width: 150px;
 }
+/* A tier's effort: a select or a line of text, on the first model's line either way. */
+.tier-effort {
+  flex: none;
+  width: 128px;
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
 .list-row.row-top > .grow {
   flex: 1 1 0;
   min-width: 0;
 }
 /* On a phone a tier's name sits over its models, which then have the row. */
 @media (max-width: 760px) {
-  .tier-label {
+  .tier-label,
+  .tier-effort {
     width: 100%;
   }
-  .chain-model {
-    min-width: 0;
-    flex-basis: 140px;
+  .tier-effort {
+    justify-content: flex-start;
+    min-height: 0;
   }
 }
 /* An agent turned off fades, but its switch stays legible. */
@@ -136,16 +146,20 @@
 }
 .chain {
   display: grid;
-  gap: 6px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
 }
 .chain-row {
   display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.chain-row select {
+  flex: none;
+  max-width: 40%;
 }
 .chain-model {
   flex: 1;
-  min-width: 180px;
 }
 
 /* Device sign-in */
