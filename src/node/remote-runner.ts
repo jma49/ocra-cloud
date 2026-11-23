@@ -58,6 +58,7 @@ const claim = {
     .object({ token: z.string(), login: z.string().optional() })
     .transform(({ token, login }) => ({ token, ...(login ? { login } : {}) })),
 };
+const flag = z.string().regex(/^--[a-z][a-z-]{0,40}$/);
 const assignment = z
   .object({
     ...claim,
@@ -73,15 +74,17 @@ const assignment = z
     // What the server sends here reaches the CLI's command line: a flag, never a value.
     answered: z
       .object({
-        flag: z
-          .string()
-          .regex(/^--[a-z][a-z-]{0,40}$/)
-          .optional(),
+        flag: flag.optional(),
         input: z.unknown(),
+        more: z
+          .array(z.object({ flag, input: z.unknown() }))
+          .max(4)
+          .optional(),
       })
-      .transform(({ flag, input }) => ({
+      .transform(({ flag, input, more }) => ({
         ...(flag !== undefined ? { flag } : {}),
         ...(input !== undefined ? { input } : {}),
+        ...(more ? { more } : {}),
       }))
       .optional(),
   })

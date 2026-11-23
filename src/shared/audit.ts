@@ -46,6 +46,8 @@ export type AuditDetails = {
   "auto_review.automatic_changed": { repo: string; automatic: boolean };
   "auto_review.learn_changed": { repo: string; learn: string };
   "auto_review.restack_changed": { repo: string; restack: boolean };
+  /** How far a fix asked of ocra goes in the repository: proposed, or committed by the bot. */
+  "auto_review.mend_changed": { repo: string; mend: string };
   "auto_review.unenrolled": { repo: string };
   "auto_review.renamed": { repo: string; previous: string };
   "auto_review.paused": { repo: string; reason: string };
@@ -67,6 +69,10 @@ export type AuditDetails = {
   "pull.fix_requested": Pull & { finding: string };
   /** What `ocra fix` answered such a request: a proposed fix is the finding's from then on. */
   "pull.fix_answered": Pull & { finding: string; outcome: string };
+  /** Findings asked of the pull request's fix loop, which commits what it fixes. */
+  "pull.mend_requested": Pull & { findings: number };
+  /** The bot committed a round's fixes on top of `head`. */
+  "pull.mend_committed": Pull & { head: string; commit: string; fixed: number };
   "pull.reviewers_changed": Pull & People;
   "pull.assignees_changed": Pull & People;
   "pull.branch_updated": Pull & { head: string };
@@ -126,6 +132,7 @@ export const AUDIT_FIELDS: { readonly [K in AuditKind]: readonly (keyof AuditDet
   "auto_review.automatic_changed": ["repo", "automatic"],
   "auto_review.learn_changed": ["repo", "learn"],
   "auto_review.restack_changed": ["repo", "restack"],
+  "auto_review.mend_changed": ["repo", "mend"],
   "auto_review.unenrolled": ["repo"],
   "auto_review.renamed": ["repo", "previous"],
   "auto_review.paused": ["repo", "reason"],
@@ -145,6 +152,8 @@ export const AUDIT_FIELDS: { readonly [K in AuditKind]: readonly (keyof AuditDet
   "pull.fix_applied": ["pull", "finding"],
   "pull.fix_requested": ["pull", "finding"],
   "pull.fix_answered": ["pull", "finding", "outcome"],
+  "pull.mend_requested": ["pull", "findings"],
+  "pull.mend_committed": ["pull", "head", "commit", "fixed"],
   "pull.reviewers_changed": ["pull", "added", "removed"],
   "pull.assignees_changed": ["pull", "added", "removed"],
   "pull.branch_updated": ["pull", "head"],

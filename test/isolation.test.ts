@@ -59,6 +59,8 @@ const changes = {
   generateJobs: { state: "done" as const },
   restackJobs: { state: "done" as const },
   fixJobs: { state: "done" as const },
+  mendJobs: { state: "done" as const },
+  mendItems: { outcome: "fixed" as const },
   learnJobs: { state: "done" as const },
   pullCommands: { outcome: "done" as const },
   pausedPulls: { number: 2 },
@@ -168,15 +170,20 @@ describe.each(withIds)("%s", (name) => {
   beforeEach(async () => {
     // A finding needs a review to belong to (foreign key).
     if (
-      ["findings", "reviewWalkthroughs", "reviewChatMessages", "findingIssues", "fixJobs"].includes(
-        name,
-      )
+      [
+        "findings",
+        "reviewWalkthroughs",
+        "reviewChatMessages",
+        "findingIssues",
+        "fixJobs",
+        "mendItems",
+      ].includes(name)
     ) {
       await db
         .insert(schema.reviews)
         .values({ id: "review-of-a", accountId: A, runId: "r", repoHash: "h", source: "local" });
     }
-    if (name === "findingIssues" || name === "fixJobs") {
+    if (name === "findingIssues" || name === "fixJobs" || name === "mendItems") {
       await db.insert(schema.findings).values({ ...rows.findings("finding-of-a"), accountId: A });
     }
     if (
@@ -197,6 +204,8 @@ describe.each(withIds)("%s", (name) => {
         "generateJobs",
         "restackJobs",
         "fixJobs",
+        "mendJobs",
+        "mendItems",
         "learnJobs",
         "pullCommands",
         "pausedPulls",
@@ -205,6 +214,9 @@ describe.each(withIds)("%s", (name) => {
       await db
         .insert(schema.reviewRepos)
         .values({ ...rows.reviewRepos("review-repo-of-a"), accountId: A });
+    }
+    if (name === "mendItems") {
+      await db.insert(schema.mendJobs).values({ ...rows.mendJobs("mend-job-of-a"), accountId: A });
     }
     if (["liveGrants", "liveComments"].includes(name)) {
       await db.insert(schema.liveRuns).values({ ...rows.liveRuns("live-run-of-a"), accountId: A });

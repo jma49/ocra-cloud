@@ -418,6 +418,14 @@ export const rows = {
     findingId: "finding-of-a",
     head: `h-${id}`,
   }),
+  mendJobs: (id: string) => ({ id, reviewRepoId: "review-repo-of-a", number: 1 }),
+  // The loop and the finding it belongs to are made in beforeEach (the foreign keys need them).
+  mendItems: (id: string) => ({
+    id,
+    jobId: "mend-job-of-a",
+    findingId: "finding-of-a",
+    fingerprint: `fp-${id}`,
+  }),
   // The merge it belongs to is made in beforeEach (the foreign key needs one).
   stackMergeLayers: (id: string) => ({
     id,

@@ -10,6 +10,7 @@ import {
   graphRepos,
   learnJobs,
   liveRuns,
+  mendJobs,
   mergeIntents,
   pullFileViews,
   pullSeen,
@@ -99,7 +100,15 @@ export function githubReposOf(
 }
 
 /** What pausing gives up: the queued jobs of every kind. */
-const JOBS = [reviewJobs, replyJobs, generateJobs, learnJobs, restackJobs, fixJobs] as const;
+const JOBS = [
+  reviewJobs,
+  replyJobs,
+  generateJobs,
+  learnJobs,
+  restackJobs,
+  fixJobs,
+  mendJobs,
+] as const;
 
 /** The pauses each one replaces: none replaces a deleted repository's. */
 const OUTRANKS: Record<RepoPause, readonly RepoPause[]> = {

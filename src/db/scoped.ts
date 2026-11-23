@@ -52,6 +52,7 @@ import {
 import { accountLearnJobs } from "./learn-jobs.js";
 import { learningUsage } from "./learning-usage.js";
 import { accountLive } from "./live.js";
+import { accountMendJobs } from "./mend-jobs.js";
 import { accountMergeChecks } from "./merge-checks.js";
 import { accountMergeIntents } from "./merge-intents.js";
 import { accountNotificationFeed } from "./notification-feed.js";
@@ -509,6 +510,7 @@ export function scoped(db: Db, accountId: string) {
     generations: accountGenerateJobs(db, accountId),
     restacks: accountRestackJobs(db, accountId),
     fixes: accountFixJobs(db, accountId),
+    mends: accountMendJobs(db, accountId),
     learning: accountLearnJobs(db, accountId),
     commands: accountPullCommands(db, accountId),
     audit: accountAuditEvents(db, accountId),

@@ -49,9 +49,10 @@ class RunFailed extends Error {
 
 /**
  * The most an answered run's output is read: `ocra fix --json` prints one
- * line around a fix of at most MAX_FIELD characters, escaped.
+ * line around a fix of at most MAX_FIELD characters, escaped, and
+ * `ocra mend --json` a round's edits, a few hundred added lines, and its state.
  */
-const MAX_ANSWER = 64 * 1024;
+const MAX_ANSWER = 256 * 1024;
 
 /** Runs the assignment to its end, or to its lease's; the failure it ended with, or null. */
 export async function run(
@@ -178,6 +179,12 @@ async function inCheckout(
     const { answered } = work;
     const input = answered?.flag !== undefined ? join(dir, "input.json") : undefined;
     if (input) await writeFile(input, JSON.stringify(answered?.input ?? null), { mode: 0o600 });
+    const more: string[] = [];
+    for (const [n, file] of (answered?.more ?? []).entries()) {
+      const path = join(dir, `input-${n + 2}.json`);
+      await writeFile(path, JSON.stringify(file.input), { mode: 0o600 });
+      more.push(file.flag, path);
+    }
     const ran = await exec(
       process.execPath,
       [
@@ -185,6 +192,7 @@ async function inCheckout(
         ...work.args,
         ...(graph ? ["--graph", graph.file] : []),
         ...(input && answered?.flag ? [answered.flag, input] : []),
+        ...more,
         "--config",
         config,
       ],

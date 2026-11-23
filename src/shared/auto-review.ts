@@ -1,4 +1,4 @@
-import type { GenerateKind } from "@open-cr-agent/cloud-contract";
+import type { GenerateKind, MendLevel } from "@open-cr-agent/cloud-contract";
 import type { CodePlatformKind } from "./domain.js";
 import type { ReviewDepth } from "./review-depths.js";
 
@@ -84,6 +84,8 @@ export type AutoReviewRepoView = {
   learn: LearnMode;
   /** Whether the bot rebases and force-pushes the pull requests stacked on one that merged. */
   restack: boolean;
+  /** How far a fix asked of ocra goes: proposed for a person to commit, or committed by the bot. */
+  mend: MendLevel;
   /** Whether the account gave the GitLab project its own access token, never the token itself. */
   hasAccessToken: boolean;
   /** The username of that token's bot user; null without one. */

@@ -23,6 +23,7 @@ export * from "./impact.js";
 export * from "./insights-impact.js";
 export * from "./learnings.js";
 export * from "./live.js";
+export * from "./mend.js";
 export * from "./merge-checks.js";
 export * from "./merge-readiness.js";
 export * from "./merge-when-ready.js";

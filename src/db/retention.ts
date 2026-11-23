@@ -20,6 +20,7 @@ import {
   inboundEvents,
   learnJobs,
   liveRuns,
+  mendJobs,
   mergeCheckRuns,
   mergeIntents,
   notificationFeed,
@@ -105,7 +106,8 @@ export async function enforceRetention(db: Db, now = new Date()): Promise<void> 
       | typeof generateJobs
       | typeof learnJobs
       | typeof restackJobs
-      | typeof fixJobs,
+      | typeof fixJobs
+      | typeof mendJobs,
   ) =>
     db.delete(job).where(
       and(
@@ -234,6 +236,8 @@ export async function enforceRetention(db: Db, now = new Date()): Promise<void> 
     ["learn_jobs", () => ended(learnJobs)],
     ["restack_jobs", () => ended(restackJobs)],
     ["fix_jobs", () => ended(fixJobs)],
+    // Its items go with it: mend_items cascades from mend_jobs.
+    ["mend_jobs", () => ended(mendJobs)],
     [
       "pull_commands",
       () =>

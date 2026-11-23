@@ -6,6 +6,7 @@ import {
   fixJobs,
   generateJobs,
   learnJobs,
+  mendJobs,
   pullCommands,
   replyJobs,
   restackJobs,
@@ -40,7 +41,8 @@ type JobTable =
   | typeof generateJobs
   | typeof learnJobs
   | typeof restackJobs
-  | typeof fixJobs;
+  | typeof fixJobs
+  | typeof mendJobs;
 
 /**
  * Queues again the job's runs whose lease lapsed while it has attempts
@@ -66,7 +68,15 @@ export async function recoverLapsed(db: Db, j: JobTable, now: Date): Promise<voi
  */
 export async function recoverJobs(db: Db, now = new Date()): Promise<void> {
   const stale = new Date(now.getTime() - QUEUED_DAYS * DAY);
-  for (const j of [reviewJobs, replyJobs, generateJobs, learnJobs, restackJobs, fixJobs]) {
+  for (const j of [
+    reviewJobs,
+    replyJobs,
+    generateJobs,
+    learnJobs,
+    restackJobs,
+    fixJobs,
+    mendJobs,
+  ]) {
     await recoverLapsed(db, j, now);
     await db
       .update(j)

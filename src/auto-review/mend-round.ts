@@ -1,0 +1,44 @@
+import { SEVERITIES } from "@open-cr-agent/cloud-contract";
+import type { Row, Scoped } from "../db/scoped.js";
+import { findingInput } from "../findings.js";
+import type { AnsweredRun } from "./work.js";
+
+// What a round of a pull request's fix loop (./mend-work.ts) is given: the
+// findings that wait for it and the state the last round printed.
+
+/** Clicks in a row on one pull request share a round, and so a commit. */
+export const MEND_DEBOUNCE_MS = 15_000;
+
+/**
+ * Findings a round is given: it works on a few (the engine's cap) and puts
+ * the others off, which the next round takes.
+ */
+const MAX_ROUND_FINDINGS = 20;
+
+/** Why a round ran nothing, as the loop's `error` says. */
+const MEND_SKIPS = ["switched_off", "nothing_waiting"] as const;
+
+/**
+ * What the loop's next round reads, as files `ocra mend` is given (the
+ * findings that wait, the most severe first, and the state the last round
+ * printed), or why it has none to run: the repository's level is no longer
+ * `commit`, or no finding waits.
+ */
+export async function mendInput(
+  data: Scoped,
+  jobId: string,
+  repo: Row<"reviewRepos">,
+): Promise<AnsweredRun | (typeof MEND_SKIPS)[number]> {
+  if (repo.mend !== "commit") return "switched_off";
+  const job = await data.get("mendJobs", jobId);
+  const waiting = job ? await data.mends.waitingFindings(job.id, MAX_ROUND_FINDINGS) : [];
+  // A finding decided since it was asked for needs no fix.
+  const open = waiting.filter((f) => f.status === "open");
+  if (!job || open.length === 0) return "nothing_waiting";
+  const rank = (f: Row<"findings">) => SEVERITIES.indexOf(f.severity);
+  return {
+    flag: "--findings",
+    input: open.sort((a, b) => rank(a) - rank(b)).map(findingInput),
+    more: job.loop ? [{ flag: "--state", input: job.loop }] : [],
+  };
+}

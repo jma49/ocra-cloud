@@ -1,6 +1,7 @@
 import { and, desc, eq, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
 import {
   DEFAULT_LEARN_MODE,
+  DEFAULT_MEND_LEVEL,
   DEFAULT_REVIEW_DEPTH,
   REPO_CONFIG_IGNORED,
   type ReviewDepth,
@@ -48,7 +49,7 @@ export function accountReviewJobs(db: Db, accountId: string) {
       const [row] = await db
         .insert(t)
         .select(sql`SELECT ${crypto.randomUUID()}, ${accountId}, ${repo.platform}, ${repo.host},
-          ${repo.platformRepoId}, ${repo.fullName}, ${repo.webhookSecretHash ?? null}, ${Date.now()}, 1, ${DEFAULT_REVIEW_DEPTH}, ${repo.automatic ? 1 : 0}, ${DEFAULT_LEARN_MODE}, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0
+          ${repo.platformRepoId}, ${repo.fullName}, ${repo.webhookSecretHash ?? null}, ${Date.now()}, 1, ${DEFAULT_REVIEW_DEPTH}, ${repo.automatic ? 1 : 0}, ${DEFAULT_LEARN_MODE}, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, ${DEFAULT_MEND_LEVEL}
         WHERE (SELECT count(*) FROM ${t} WHERE account_id = ${accountId}) < ${cap}
           OR EXISTS (SELECT 1 FROM ${t} WHERE account_id = ${accountId} AND platform = ${repo.platform}
             AND host = ${repo.host} AND platform_repo_id = ${repo.platformRepoId})`)

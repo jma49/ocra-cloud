@@ -1,4 +1,5 @@
 import { settleFixAnswer } from "./fix-work.js";
+import { settleMendAnswer } from "./mend-work.js";
 import {
   ANSWERED_KINDS,
   type AnsweredKind,
@@ -23,7 +24,7 @@ type Settler = (
   now: Date,
 ) => Promise<void>;
 
-const SETTLERS: Record<AnsweredKind, Settler> = { fix: settleFixAnswer };
+const SETTLERS: Record<AnsweredKind, Settler> = { fix: settleFixAnswer, mend: settleMendAnswer };
 
 export const isAnswered = (kind: string): kind is AnsweredKind =>
   (ANSWERED_KINDS as readonly string[]).includes(kind);
