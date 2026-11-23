@@ -61,6 +61,9 @@ export type AutoReviewWebhookView = {
   problem?: string;
 };
 
+/** A new secret for adding a GitLab project's webhook by hand, answered once. */
+export type AutoReviewWebhookSecretView = { url: string; secret: string; events: string[] };
+
 /** What enrolling a repository answers. */
 export type AutoReviewEnrolledView = { repo: AutoReviewRepoView; webhook: AutoReviewWebhookView };
 

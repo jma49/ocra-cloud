@@ -74,6 +74,13 @@ describe("a repository enrolled for auto review", () => {
       webhook: { url: `${ORIGIN}/api/webhooks/github` },
     });
     expect(body.webhook).not.toHaveProperty("secret");
+    const id = (body as unknown as { repo: { id: string } }).repo.id;
+    const secret = await s.call(`/api/auto-review/repos/${id}/webhook/secret`, {
+      method: "POST",
+      headers: auth,
+    });
+    expect(secret.status).toBe(400);
+    expect(await secret.json()).toMatchObject({ error: "invalid_body" });
     const listed = await (await s.call("/api/auto-review/repos", { headers: auth })).json();
     expect(listed).toMatchObject({ repos: [{ fullName: "Octo/API" }] });
   });
