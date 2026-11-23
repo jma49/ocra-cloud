@@ -21,6 +21,7 @@ import {
   reminderSummary,
 } from "../notifications/reminders-drawer.js";
 import { ReportSlot } from "../notifications/report-slot.js";
+import { SecretOnce, WebhookDrawer } from "../notifications/webhook-drawer.js";
 import { ActionError, LoadError, Loading, PageHead, useAction, useLoad } from "../ui.js";
 
 // The chats and email addresses that hear about reviews: a Slack or WeCom
@@ -57,6 +58,7 @@ export function Notifications(props: { platforms: readonly CodePlatformKind[] })
   const [tested, setTested] = useState<{ id: string; delivered: boolean } | null>(null);
   const [linkSent, setLinkSent] = useState<string | null>(null);
   const [reminding, setReminding] = useState<NotifyChannelView | null>(null);
+  const [inspecting, setInspecting] = useState<NotifyChannelView | null>(null);
   const change = useAction(
     (
       id: string,
@@ -160,23 +162,31 @@ export function Notifications(props: { platforms: readonly CodePlatformKind[] })
                       <span className="cell-name" aria-hidden="true">
                         Digest
                       </span>
-                      <Switch
-                        aria-label={`Daily digest to ${c.name}`}
-                        checked={c.digest}
-                        disabled={change.busy}
-                        onCheckedChange={() => after(change.run(c.id, { digest: !c.digest }))}
-                      />
+                      {c.kind === "webhook" ? (
+                        <span className="subtle small">Not sent</span>
+                      ) : (
+                        <Switch
+                          aria-label={`Daily digest to ${c.name}`}
+                          checked={c.digest}
+                          disabled={change.busy}
+                          onCheckedChange={() => after(change.run(c.id, { digest: !c.digest }))}
+                        />
+                      )}
                     </td>
                     <td>
                       <span className="cell-name" aria-hidden="true">
                         Weekly
                       </span>
-                      <Switch
-                        aria-label={`Weekly report to ${c.name}`}
-                        checked={c.weekly}
-                        disabled={change.busy}
-                        onCheckedChange={() => after(change.run(c.id, { weekly: !c.weekly }))}
-                      />
+                      {c.kind === "webhook" ? (
+                        <span className="subtle small">Not sent</span>
+                      ) : (
+                        <Switch
+                          aria-label={`Weekly report to ${c.name}`}
+                          checked={c.weekly}
+                          disabled={change.busy}
+                          onCheckedChange={() => after(change.run(c.id, { weekly: !c.weekly }))}
+                        />
+                      )}
                     </td>
                     <td>
                       <span className="cell-name" aria-hidden="true">
@@ -212,6 +222,19 @@ export function Notifications(props: { platforms: readonly CodePlatformKind[] })
                       )}
                     </td>
                     <td className="num nobreak">
+                      {c.kind === "webhook" && (
+                        <>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            aria-label={`Deliveries to ${c.name}`}
+                            onClick={() => setInspecting(c)}
+                          >
+                            Deliveries
+                          </Button>{" "}
+                        </>
+                      )}
                       {c.confirmed ? (
                         <Button
                           type="button"
@@ -263,6 +286,7 @@ export function Notifications(props: { platforms: readonly CodePlatformKind[] })
         </div>
       )}
       <ReportSlot />
+      {inspecting && <WebhookDrawer channel={inspecting} onClose={() => setInspecting(null)} />}
       {reminding && (
         <RemindersDrawer
           channel={reminding}
@@ -393,11 +417,7 @@ function AddChannel(props: {
           Each event is posted as signed JSON to an https address of a public host.
         </span>
       )}
-      {secret !== null && (
-        <p className="small" role="status">
-          Signing secret, shown only now: <code className="mono">{secret}</code>
-        </p>
-      )}
+      {secret !== null && <SecretOnce secret={secret} what="Signing secret" />}
       {props.full && <span className="subtle small">An account has at most 10 channels.</span>}
       {add.error !== null && (
         <p className="error" role="alert">
