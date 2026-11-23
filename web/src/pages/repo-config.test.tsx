@@ -179,4 +179,18 @@ describe("the Review config page", () => {
     await act(async () => void fireEvent.click(screen.getByRole("button", { name: "Rules" })));
     expect(asked.at(-1)).toContain("file=rules");
   });
+
+  it("says what a hosted review takes from the config file, and nothing of the kind for rules", async () => {
+    serve(view(), () => Response.json({}));
+    render(<RepoConfig />);
+    await editor();
+    const note = screen.getByText("What hosted reviews take from this file").closest("details");
+    expect(note?.textContent).toContain("reads the file on main");
+    for (const key of ["include", "reviewers.<id>.minTier", "github.requestChanges", "maxCostUsd"])
+      expect(note?.textContent).toContain(key);
+    expect(note?.textContent).not.toContain("model");
+    await act(async () => void fireEvent.click(screen.getByRole("button", { name: "Rules" })));
+    await editor();
+    expect(screen.queryByText("What hosted reviews take from this file")).toBeNull();
+  });
 });
