@@ -18,6 +18,24 @@ export type LearnMode = (typeof LEARN_MODES)[number];
 /** As the engine's `ocra learn --propose` does unless told to leave it to a person. */
 export const DEFAULT_LEARN_MODE: LearnMode = "merge";
 
+/**
+ * What a comment that is an `@ocra` command asks of a pull request
+ * (src/auto-review/commands.ts); any other mention is a question.
+ */
+export const COMMENT_COMMANDS = [
+  "review",
+  "pause",
+  "resume",
+  "resolve",
+  "generate_tests",
+  "generate_docstrings",
+  "help",
+] as const;
+export type CommentCommand = (typeof COMMENT_COMMANDS)[number];
+/** How a command ended: `refused` when its author may not push to the repository. */
+export const COMMENT_COMMAND_OUTCOMES = ["pending", "done", "refused", "failed"] as const;
+export type CommentCommandOutcome = (typeof COMMENT_COMMAND_OUTCOMES)[number];
+
 /** A queued job's error while it waits for the account's daily gateway calls to reset. */
 export const DAILY_LIMIT_WAIT = "daily_limit";
 /**

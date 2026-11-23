@@ -1,6 +1,7 @@
 import { normaliseRemote } from "@open-cr-agent/cloud-contract";
 import { sha256Hex } from "../crypto.js";
 import type { CodePlatformKind } from "../shared/index.js";
+import type { RepoAccess } from "./access.js";
 import type { PullActions } from "./actions.js";
 import type { PullAutoMerge } from "./auto-merge.js";
 import type { PullDiffs } from "./changes.js";
@@ -89,6 +90,8 @@ export interface CodePlatform {
   readonly changes: PullDiffs;
   readonly since: PullSince;
   readonly actions: PullActions;
+  /** Read as the bot: who may give ocra a command on the repository. */
+  readonly access: RepoAccess;
   readonly queue: MergeQueue;
   readonly autoMerge: PullAutoMerge;
   readonly cycles: PullCycles;

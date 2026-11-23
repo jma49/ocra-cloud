@@ -23,6 +23,7 @@ import {
   notifyDeliveries,
   notifyHeld,
   notifySends,
+  pullCommands,
   pullFileViews,
   pullFlows,
   pullImpacts,
@@ -191,6 +192,13 @@ export async function enforceRetention(db: Db, now = new Date()): Promise<void> 
     ["reply_jobs", () => ended(replyJobs)],
     ["generate_jobs", () => ended(generateJobs)],
     ["learn_jobs", () => ended(learnJobs)],
+    [
+      "pull_commands",
+      () =>
+        db
+          .delete(pullCommands)
+          .where(and(ofEachAccount(pullCommands.accountId), lt(pullCommands.createdAt, cutoff))),
+    ],
     // A head's result, by when it was last posted: one evaluated again is posted again.
     [
       "merge_check_runs",

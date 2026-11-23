@@ -390,7 +390,20 @@ A hosted review still runs with `--no-repo-config`, so the CLI reads nothing fro
 
 A comment that mentions `@ocra` on an enrolled repository's pull request, written by a person (never a bot), queues an answer, once per comment: `ocra reply --pr <n> --comment <id>` (`--inline` for a review comment, `--mr` on GitLab) runs the same way, and the CLI answers in the comment's thread or decides there is nothing to answer. GitHub sends these as the App's issue comment and pull request review comment events; on GitLab, tick Comments (note events) on the same project hook. A failed answer is retried like a review.
 
-The daily retention deletes the record of a review, an answer and a generation of tests or docs (`review_jobs`, `reply_jobs`, `generate_jobs`, `learn_jobs`: the pull request, the commit or comment, the state and the error) 90 days after it ended, done, failed or superseded; one still queued or running is never deleted. After that, the same commit or comment can be queued again.
+A comment with a line that is only `@ocra` and a command (outside a quote or code block) is a command instead, run once per comment (`pull_commands`, unique on the repository and comment id) after the webhook's answer:
+
+| Command | What it does |
+|---|---|
+| `@ocra review` | queues a review of the pull request's current head, as Review now does (a head already reviewed is not reviewed again) |
+| `@ocra pause` | stops reviewing the pull request as it gains commits (`paused_pulls`); a review asked for still runs |
+| `@ocra resume` | reviews it as it gains commits again |
+| `@ocra resolve` | resolves ocra's open review threads (those whose first comment is a finding's), at most 20 per command |
+| `@ocra generate tests`, `@ocra generate docstrings` | queues `ocra generate` for the head, committed to the branch |
+| `@ocra help` | lists the commands |
+
+Only a person the platform says may push to the repository is obeyed, read as the bot: GitHub's write, maintain or admin permission (the App's Metadata read permission), GitLab's Developer role or above. Anyone else's command is recorded as `refused` and not answered, so no one outside the repository makes the bot write. Each command is answered with one comment in the pull request's conversation, as the bot; it makes at most 40 platform calls. Any other `@ocra` comment, an unknown word included, is a question as above. A pause lasts until `@ocra resume` or the repository is unenrolled.
+
+The daily retention deletes the record of a review, an answer and a generation of tests or docs (`review_jobs`, `reply_jobs`, `generate_jobs`, `learn_jobs`: the pull request, the commit or comment, the state and the error) 90 days after it ended, done, failed or superseded; one still queued or running is never deleted. A command's record (`pull_commands`) goes 90 days after it was made. After that, the same commit or comment can be queued again.
 
 A job whose run died (a process or runner that stopped mid-way) stays running until its lease lapses (45 minutes for a review, 10 for an answer, 20 for generated tests or docs), then is queued again when the next job is claimed, or by the daily retention run; a run that died counts as one of its three runs, so a job that has had three fails with `lease_lapsed` instead. A job still queued seven days after it was queued (no runner took it) fails with `never_started`. Each is moved by compare-and-set on its state, so a run that finishes meanwhile keeps its result, and neither calls a platform or model.
 

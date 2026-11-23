@@ -14,7 +14,7 @@ import { reviewJobs, reviewRepos } from "./schema.js";
 // scoped()), and the queries that start from a webhook's repository or
 // from the queue, before the account is known.
 
-type ReviewRepo = typeof reviewRepos.$inferSelect;
+export type ReviewRepo = typeof reviewRepos.$inferSelect;
 type NewReviewRepo = Omit<typeof reviewRepos.$inferInsert, "id" | "accountId" | "createdAt">;
 export type ReviewJobSummary = typeof reviewJobs.$inferSelect;
 

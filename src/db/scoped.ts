@@ -56,6 +56,7 @@ import { accountNotify } from "./notify.js";
 import { accountNotifyDeliveries } from "./notify-deliveries.js";
 import { type PreferencesSave, savePreferences } from "./preferences.js";
 import { pullsChangedAt } from "./pull-changes.js";
+import { accountPullCommands } from "./pull-commands.js";
 import { accountPullFileViews } from "./pull-file-views.js";
 import { accountPullFlows } from "./pull-flows.js";
 import { accountPullPaths } from "./pull-paths.js";
@@ -488,6 +489,7 @@ export function scoped(db: Db, accountId: string) {
     chat: accountReviewChat(db, accountId),
     generations: accountGenerateJobs(db, accountId),
     learning: accountLearnJobs(db, accountId),
+    commands: accountPullCommands(db, accountId),
     audit: accountAuditEvents(db, accountId),
     automations: accountAutomations(db, accountId),
     mergeChecks: accountMergeChecks(db, accountId),

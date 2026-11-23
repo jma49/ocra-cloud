@@ -472,6 +472,8 @@ describe("export and deletion", () => {
         "mergeCheckRuns",
         "generateJobs",
         "learnJobs",
+        "pullCommands",
+        "pausedPulls",
         "liveEvents",
         "liveGrants",
         "liveComments",
@@ -522,6 +524,8 @@ describe("export and deletion", () => {
       "mergeCheckRuns",
       "generateJobs",
       "learnJobs",
+      "pullCommands",
+      "pausedPulls",
     ] as const) {
       await d.insert(table, {
         ...rows[table](`x-${table}`),
