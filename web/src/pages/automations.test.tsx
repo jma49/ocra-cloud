@@ -144,7 +144,7 @@ describe("the Automations page", () => {
     const form = screen.getByRole("form", { name: "New rule" });
     fireEvent.change(within(form).getByLabelText("Action 1"), { target: { value: "skip_review" } });
     expect(within(form).getByText("The head is not reviewed.")).toBeTruthy();
-    fireEvent.click(within(form).getByRole("button", { name: "Reviewed" }));
+    fireEvent.change(within(form).getByLabelText("When"), { target: { value: "reviewed" } });
     expect(within(form).queryByText("The head is not reviewed.")).toBeNull();
     fireEvent.click(within(form).getByRole("button", { name: "Cancel" }));
 
@@ -164,5 +164,85 @@ describe("the Automations page", () => {
     });
     await waitFor(() => expect(within(tryIt).getByText("would request reviewers")).toBeTruthy());
     expect(within(tryIt).getByText("not decided: too many changed files to decide")).toBeTruthy();
+  });
+
+  it("asks a label rule for its labels and a quiet rule for its hours, and sends only what each takes", async () => {
+    const sent = serve([]);
+    render(<Automations me={me(true)} />);
+    await screen.findByText("No rules yet");
+    fireEvent.click(screen.getByRole("button", { name: "New rule" }));
+    const form = screen.getByRole("form", { name: "New rule" });
+    const add = within(form).getByRole("button", { name: "Add rule" }) as HTMLButtonElement;
+    const set = (label: string, value: string) =>
+      fireEvent.change(within(form).getByLabelText(label), { target: { value } });
+    set("Rule name", "Security label");
+    set("Base branches", "main");
+    set("Notify a channel, action 1", "n1");
+    expect(add.disabled).toBe(false);
+
+    set("When", "labeled");
+    expect(within(form).queryByLabelText("Hours without activity")).toBeNull();
+    expect(add.disabled).toBe(true);
+    set("Labels", "security, payments");
+    expect(add.disabled).toBe(false);
+
+    set("When", "stale");
+    expect(within(form).queryByLabelText("Labels")).toBeNull();
+    expect(within(form).queryByLabelText("Base branches")).toBeNull();
+    expect(add.disabled).toBe(true);
+    for (const bad of ["0", "721", "1.5", "soon"]) {
+      set("Hours without activity", bad);
+      expect(add.disabled).toBe(true);
+    }
+    set("Hours without activity", "72");
+    await act(async () => void fireEvent.click(add));
+    expect(sent[0]?.body).toEqual({
+      name: "Security label",
+      enabled: true,
+      trigger: "stale",
+      conditions: { staleHours: 72 },
+      actions: [{ kind: "notify", channelId: "n1" }],
+    });
+  });
+
+  it("says a rule's moment with what that moment requires", async () => {
+    const at = (trigger: string, conditions: object, id: string) => ({
+      ...rule,
+      id,
+      name: id,
+      trigger,
+      conditions,
+      actions: [{ kind: "notify", channelId: "n1" }],
+      runsHere: true,
+    });
+    serve([
+      at("labeled", { labels: ["security"], baseBranches: ["main"] }, "a"),
+      at("stale", { staleHours: 72 }, "b"),
+      at("stale", { staleHours: 5 }, "c"),
+      at("checks_failed", {}, "d"),
+      at("merged", { labels: ["payments"] }, "e"),
+    ]);
+    render(<Automations me={me(true)} />);
+    expect(
+      await screen.findByText("When labelled security, into main: notify #payments"),
+    ).toBeTruthy();
+    expect(screen.getByText("When quiet for 3 days: notify #payments")).toBeTruthy();
+    expect(screen.getByText("When quiet for 5 hours: notify #payments")).toBeTruthy();
+    expect(screen.getByText("When CI fails: notify #payments")).toBeTruthy();
+    expect(screen.getByText("When merged, labelled payments: notify #payments")).toBeTruthy();
+  });
+
+  it("tries the rules on a pull request quiet for some hours", async () => {
+    const sent = serve([rule]);
+    render(<Automations me={me(true)} />);
+    const tryIt = await screen.findByRole("form", { name: "Try the rules" });
+    fireEvent.change(within(tryIt).getByLabelText("Base branch"), { target: { value: "main" } });
+    fireEvent.change(within(tryIt).getByLabelText("Moment"), { target: { value: "stale" } });
+    expect(within(tryIt).queryByLabelText("Base branch")).toBeNull();
+    fireEvent.change(within(tryIt).getByLabelText("Hours without activity"), {
+      target: { value: "80" },
+    });
+    await act(async () => void fireEvent.click(within(tryIt).getByRole("button", { name: "Try" })));
+    expect(sent[0]?.body).toEqual({ trigger: "stale", pull: { quietHours: 80 } });
   });
 });
