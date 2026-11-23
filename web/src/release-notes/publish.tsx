@@ -2,7 +2,6 @@ import { type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   type HeldReleaseDraftView,
-  type HeldReleasePublishAnswer,
   MAX_RELEASE_NAME_CHARS,
   type ReleaseNotesView,
   type ReleasePublishAnswer,
@@ -10,6 +9,8 @@ import {
 } from "../../../src/shared/index.js";
 import { api } from "../api.js";
 import { ActionError, useAction } from "../ui.js";
+import { HeldDrafts } from "./held-drafts.js";
+import { REFUSAL } from "./refusal.js";
 
 // Saves the edited notes as a draft release on the platform, as the user;
 // on GitLab, which keeps no draft releases, ocra Cloud holds the draft
@@ -20,12 +21,6 @@ export function nextTag(tag: string): string | null {
   const m = /^(.*?)(\d+)(\D*)$/.exec(tag);
   return m ? `${m[1]}${Number(m[2]) + 1}${m[3]}` : null;
 }
-
-const REFUSAL: Record<"target_missing" | "refused" | "unsupported", string> = {
-  target_missing: "The target is not a branch or commit of this repository.",
-  refused: "The platform refused: your account may not make releases in this repository.",
-  unsupported: "This platform keeps no draft releases. Copy the Markdown into a release there.",
-};
 
 export function PublishDraft(props: { notes: ReleaseNotesView; body: string }) {
   const { notes } = props;
@@ -146,77 +141,8 @@ export function PublishDraft(props: { notes: ReleaseNotesView; body: string }) {
           </p>
         )}
       {held.length > 0 && (
-        <ul className="stack m-0" aria-label="Held drafts">
-          {held.map((d) => (
-            <HeldDraft
-              key={d.id}
-              draft={d}
-              gone={() => setHeld((h) => h.filter((x) => x.id !== d.id))}
-            />
-          ))}
-        </ul>
+        <HeldDrafts drafts={held} gone={(id) => setHeld((h) => h.filter((x) => x.id !== id))} />
       )}
     </form>
-  );
-}
-
-function HeldDraft(props: { draft: HeldReleaseDraftView; gone: () => void }) {
-  const { draft } = props;
-  const [answer, setAnswer] = useState<HeldReleasePublishAnswer | null>(null);
-  const publish = useAction(() =>
-    api<HeldReleasePublishAnswer>(`/release-notes/held/${encodeURIComponent(draft.id)}/publish`, {
-      method: "POST",
-      body: JSON.stringify({ version: draft.version }),
-    }),
-  );
-  const discard = useAction(() =>
-    api(`/release-notes/held/${encodeURIComponent(draft.id)}?version=${draft.version}`, {
-      method: "DELETE",
-    }),
-  );
-  return (
-    <li className="stack">
-      <div className="release-fields">
-        <span className="mono grow">
-          {draft.tag} <span className="muted small">{draft.name}</span>
-        </span>
-        {answer?.outcome === "published" ? (
-          <a href={answer.url} target="_blank" rel="noreferrer">
-            Open the release
-          </a>
-        ) : (
-          <>
-            <Button
-              type="button"
-              size="sm"
-              disabled={publish.busy}
-              onClick={async () => setAnswer((await publish.run()) ?? null)}
-            >
-              Publish {draft.tag}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={discard.busy}
-              onClick={async () => {
-                if (await discard.run()) props.gone();
-              }}
-            >
-              Discard
-            </Button>
-          </>
-        )}
-      </div>
-      {publish.error !== null && <ActionError what="publish the release" error={publish.error} />}
-      {discard.error !== null && <ActionError what="discard the draft" error={discard.error} />}
-      {answer && answer.outcome !== "published" && (
-        <p className="error m-0" role="alert">
-          {answer.outcome === "tag_exists"
-            ? "That tag, or a release of it, already exists."
-            : REFUSAL[answer.outcome]}
-        </p>
-      )}
-    </li>
   );
 }
