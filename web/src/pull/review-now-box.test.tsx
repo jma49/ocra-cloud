@@ -67,11 +67,14 @@ describe("the AI review card on a pull request", () => {
     expect(sent).toEqual([{ ...pull, force: false }]);
   });
 
-  it("shows nothing for a repository the account did not enroll", async () => {
+  it("leads to auto review for a repository the account did not enroll", async () => {
     serve("not_enrolled");
-    const { container } = render(<ReviewNowBox pull={pull} head={HEAD} />);
-    await act(async () => {});
-    expect(container.textContent).toBe("");
+    render(<ReviewNowBox pull={pull} head={HEAD} />);
+    expect(await screen.findByText(/This one is not among them/)).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Set up auto review" }).getAttribute("href")).toBe(
+      "/auto-review",
+    );
+    expect(screen.queryByRole("button")).toBeNull();
   });
 
   it("stops asking while the tab is hidden, and asks again once it shows", async () => {

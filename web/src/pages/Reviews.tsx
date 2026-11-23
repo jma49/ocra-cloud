@@ -1,10 +1,12 @@
+import GitPullRequest from "lucide-react/icons/git-pull-request";
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import { api, type Review, type Reviews as ReviewsData, why } from "../api.js";
 import { useCached } from "../cache.js";
 import { compact, count, num, period, sourceLabel, time } from "../format.js";
 import { CloseGlyph } from "../glyphs.js";
 import { Link } from "../router.js";
-import { Loading, PageHead, Seg, useAction } from "../ui.js";
+import { EmptyState, Loading, PageHead, Seg, useAction } from "../ui.js";
 
 const RANGES = [7, 30, 90].map(period);
 
@@ -24,7 +26,10 @@ function Verdict(props: { r: Review }) {
   return <span className="badge">–</span>;
 }
 
-export function Reviews() {
+export function Reviews(props: {
+  /** Whether this server runs reviews itself, so one need not come from the CLI. */
+  runner?: boolean;
+}) {
   const [days, setDays] = useState(30);
   const { data, error, reload } = useCached(`/reviews?days=${days}`, () =>
     api<ReviewsData>(`/reviews?days=${days}`),
@@ -39,7 +44,11 @@ export function Reviews() {
     <>
       <PageHead
         title="Reviews"
-        sub="Each review the CLI ran while signed in: its counts, and its findings when you share them in Settings."
+        sub={
+          props.runner
+            ? "Each review ocra ran on a pull request here, or from the CLI while signed in: its counts, and its findings."
+            : "Each review the CLI ran while signed in: its counts, and its findings when you share them in Settings."
+        }
         actions={<Seg label="Time range" value={days} options={RANGES} onChange={setDays} />}
       />
       {error ? <p className="error">Could not load reviews: {why(error)}.</p> : null}
@@ -192,11 +201,23 @@ export function Reviews() {
             </table>
           </div>
         ) : (
-          <div className="empty">
-            No reviews in the last {days} days. Sign in with{" "}
+          <EmptyState
+            icon={GitPullRequest}
+            title={`No reviews in the last ${days} days`}
+            action={
+              props.runner && (
+                <Button variant="outline" render={<Link to="/auto-review" />}>
+                  Set up auto review
+                </Button>
+              )
+            }
+          >
+            {props.runner
+              ? "Turn on auto review for a repository and ocra reviews each of its pull requests. From the CLI, sign in with "
+              : "Sign in with "}
             <span className="mono">ocra login</span> and run{" "}
             <span className="mono">ocra review</span>.
-          </div>
+          </EmptyState>
         )}
       </div>
     </>

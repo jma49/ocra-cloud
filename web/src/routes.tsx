@@ -83,7 +83,12 @@ const ROUTES: readonly Route[] = [
   { path: "/", place: "inbox", tab: "Inbox", page: () => <Inbox /> },
   // The inbox's address before it was the console's first page.
   { path: "/pulls", place: "inbox", page: () => <Inbox /> },
-  { path: "/reviews", place: "reviews", tab: "Reviews", page: () => <Reviews /> },
+  {
+    path: "/reviews",
+    place: "reviews",
+    tab: "Reviews",
+    page: (me) => <Reviews runner={me.autoReview} />,
+  },
   { path: "/activity", place: "reviews", tab: "Activity", page: () => <Activity /> },
   { path: "/live", place: "reviews", tab: "Live", page: () => <Live /> },
   { path: "/live/:id", place: "reviews", page: (_me, [id]) => <LivePage id={id ?? ""} /> },
@@ -104,7 +109,12 @@ const ROUTES: readonly Route[] = [
       />
     ),
   },
-  { path: "/findings", place: "findings", tab: "Findings", page: () => <Findings /> },
+  {
+    path: "/findings",
+    place: "findings",
+    tab: "Findings",
+    page: (me) => <Findings runner={me.autoReview} />,
+  },
   {
     path: "/repositories",
     place: "repositories",

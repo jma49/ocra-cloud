@@ -100,7 +100,10 @@ export function decided(page: Page, ids: Set<string>, shown: StatusFilter, d: De
   return { ...page, findings, statuses };
 }
 
-export function Findings() {
+export function Findings(props: {
+  /** Whether this server runs reviews itself, whose findings need no sharing. */
+  runner?: boolean;
+}) {
   const [filters, setFilters] = useState<Filters>({
     status: "open",
     severity: "",
@@ -309,13 +312,20 @@ export function Findings() {
             icon={Flag}
             title="No findings here"
             action={
-              <Button variant="outline" render={<Link to="/settings" />}>
-                Open settings
-              </Button>
+              props.runner ? (
+                <Button variant="outline" render={<Link to="/auto-review" />}>
+                  Set up auto review
+                </Button>
+              ) : (
+                <Button variant="outline" render={<Link to="/settings" />}>
+                  Open settings
+                </Button>
+              )
             }
           >
-            Findings appear once you turn on sharing in Settings and a signed-in review uploads
-            them.
+            {props.runner
+              ? "Findings come from ocra's reviews of pull requests in repositories with auto review on, and from CLI reviews once you turn on sharing in Settings."
+              : "Findings appear once you turn on sharing in Settings and a signed-in review uploads them."}
           </EmptyState>
         ) : (
           <div className="table-wrap">

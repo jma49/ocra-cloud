@@ -1,12 +1,13 @@
 import { Button } from "@/components/ui/button";
 import type { PullReviewJobView, PullReviewNowView } from "../../../src/shared/index.js";
-import { api, why } from "../api.js";
+import { ApiError, api, why } from "../api.js";
 import { ago } from "../format.js";
+import { Link } from "../router.js";
 import { useAction, useLoad, usePoll } from "../ui.js";
 
 // An AI review of the pull request's current head by the server's runner,
 // asked for inside the ocra review card. The server answers only for a
-// repository this account enrolled for reviews, so it shows for no other.
+// repository this account enrolled for reviews; any other leads to enrolling it.
 
 const STATE: Record<PullReviewJobView["state"], string> = {
   queued: "A review of this head is queued",
@@ -26,7 +27,7 @@ export function ReviewNowBox(props: { pull: Pull; head: string }) {
     repo: props.pull.repo,
     number: String(props.pull.number),
   }).toString();
-  const { data, reload } = useLoad(
+  const { data, error, reload } = useLoad(
     () => api<PullReviewNowView>(`/pulls/review-now?${query}`),
     [query],
   );
@@ -39,6 +40,20 @@ export function ReviewNowBox(props: { pull: Pull; head: string }) {
   const job = data?.job ?? null;
   const active = job?.state === "queued" || job?.state === "running";
   usePoll(active, reload, POLL_MS);
+  // The server answers 404 for a repository this account has not enrolled.
+  if (!data && error instanceof ApiError && error.status === 404) {
+    return (
+      <div className="stack">
+        <span className="subtle small">
+          ocra reviews pull requests on this server for repositories with auto review on. This one
+          is not among them.
+        </span>
+        <Link to="/auto-review" className="rail-link">
+          Set up auto review
+        </Link>
+      </div>
+    );
+  }
   if (!data) return null;
   const ofHead = job?.head === props.head ? job : null;
   const reviewed = ofHead?.state === "done";
