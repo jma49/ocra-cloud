@@ -54,6 +54,7 @@ export const KIND_GROUPS: { label: string; kinds: [AuditKind, string][] }[] = [
     label: "Automatic review",
     kinds: [
       ["auto_review.enrolled", "Repository enrolled"],
+      ["auto_review.auto_enroll_changed", "New repositories enrollment switched"],
       ["auto_review.profile_changed", "Profile changed"],
       ["auto_review.automatic_changed", "Automatic review switched"],
       ["auto_review.learn_changed", "Learning from declined findings changed"],
@@ -203,6 +204,8 @@ export function describe(e: AuditEventView): string {
       return "Removed an automation";
     case "auto_review.enrolled":
       return `Enrolled ${named(e.detail.repo, "a repository")} in automatic review`;
+    case "auto_review.auto_enroll_changed":
+      return `Turned ${e.detail.enabled === false ? "off" : "on"} enrolling the new repositories of ${named(e.detail.owner, "an installation")}`;
     case "auto_review.profile_changed":
       return `Set the review profile of ${named(e.detail.repo, "a repository")}${noted(e.detail.profile, " to ", "")}`;
     case "auto_review.automatic_changed":

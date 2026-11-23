@@ -393,6 +393,13 @@
       "when": 1795442288601,
       "tag": "0055_review_repo_webhook_id",
       "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1795445668146,
+      "tag": "0056_auto_enroll_installations",
+      "breakpoints": true
     }
   ]
 }

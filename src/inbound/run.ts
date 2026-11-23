@@ -1,3 +1,4 @@
+import { type EnrollWork, enrollAdded } from "../auto-review/auto-enroll.js";
 import { keepGitlabFindingThread, onceEach } from "../auto-review/finding-threads.js";
 import { keepReviewedPaths, type PathReader } from "../auto-review/paths.js";
 import { type CallBudget, item, uncapped } from "../calls.js";
@@ -29,14 +30,15 @@ import type { AppBindings } from "../types.js";
 // A delivery's side effects after its answer: telling the account's
 // channels (and, of a GitLab note, keeping what it says of a finding's
 // discussion), moving merge-when-ready intents and stack merges (and the
-// pull requests stacked on a merged one), and reading a reviewed pull
-// request's directories. Each is safe to run again (the notices' keys, the
+// pull requests stacked on a merged one), reading a reviewed pull
+// request's directories, and enrolling the repositories added to a GitHub
+// App installation. Each is safe to run again (the notices' keys, the
 // intents' compare-and-set, the paths' head), so a step that throws is
 // tried again with backoff, by the sweep, until MAX_ATTEMPTS; the steps
 // that succeeded are not. A restart mid-way leaves the row pending, and the
 // sweep takes it once its lease is over.
 
-export type InboundStep = "tell" | "intents" | "paths";
+export type InboundStep = "tell" | "intents" | "paths" | "enroll";
 
 /** What a delivery's side effects still need: never its whole body (./fields.ts). */
 export type InboundWork = {
@@ -52,6 +54,8 @@ export type InboundWork = {
   merged?: MergedPull;
   /** The repository's CI failed on a pull request's head, read when it arrived (src/notify/ci-hooks.ts). */
   ci?: CiFailure;
+  /** GitHub's: the repositories added to an installation, still to enroll (src/auto-review/auto-enroll.ts). */
+  enroll?: EnrollWork;
 };
 
 /** What a host gives the side effects, in a request or in its sweep. */
@@ -102,6 +106,10 @@ async function runStep(
   if (row.platform === "github" && step === "tell") {
     await tellGithubHook(db, row.host, out, row.event, body, runner.bots);
     if (work.ci) await tellGithubCi(db, row.host, out, row.repo, work.ci);
+    return;
+  }
+  if (row.platform === "github" && step === "enroll") {
+    if (work.enroll) await enrollAdded(runner, row.host, work.origin, work.enroll);
     return;
   }
   if (row.platform === "github" && step === "intents") {

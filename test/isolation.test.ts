@@ -48,6 +48,7 @@ const changes = {
   pullPaths: { head: "d".repeat(40) },
   reviewRequests: { doneAt: new Date(0) },
   reviewTeams: { name: "acme/renamed" },
+  autoEnrollInstallations: { automatic: true },
   reviewTargets: { mergeDays: 3 },
   replyJobs: { state: "done" as const },
   reviewWalkthroughs: { overview: "changed" },
