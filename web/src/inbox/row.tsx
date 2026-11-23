@@ -2,7 +2,8 @@ import Layers from "lucide-react/icons/layers";
 import MessageSquare from "lucide-react/icons/message-square";
 import type { MouseEvent } from "react";
 import { since } from "../format.js";
-import { CHECKS } from "../pull/check-state.js";
+import { PersonMark } from "../person-mark.js";
+import { CheckMark } from "../pull/check-mark.js";
 import { pullPath } from "../pull/path.js";
 import { navigate } from "../router.js";
 import type { Row } from "./sections.js";
@@ -28,7 +29,7 @@ function standingOf(r: Row): Standing | null {
 const runClass = (run: { first: boolean; last: boolean } | null) =>
   run ? ` in-stack${run.first ? " stack-first" : ""}${run.last ? " stack-last" : ""}` : "";
 
-/** One pull request on one line: unread mark, checks, number, title, repository, standing, author, age. */
+/** One pull request on one line: unread mark, checks, title, where it lives, standing, size, author, age. */
 export function PullRow(props: {
   r: Row;
   i: number;
@@ -39,7 +40,6 @@ export function PullRow(props: {
   onMark: (read: boolean) => void;
 }) {
   const { r } = props;
-  const checks = r.checks && CHECKS[r.checks];
   const review = standingOf(r);
   const when = r.mergedAt ?? r.updatedAt;
   const to = pullPath(r.platform, r.repo, r.number);
@@ -59,7 +59,7 @@ export function PullRow(props: {
         title={r.unread ? `${why ?? "Unread"}. Mark read` : "Mark unread"}
         onClick={() => props.onMark(r.unread)}
       />
-      <PullLink {...props} to={to} onClick={onClick} checks={checks} review={review} when={when} />
+      <PullLink {...props} to={to} onClick={onClick} review={review} when={when} />
     </div>
   );
 }
@@ -70,11 +70,10 @@ function PullLink(props: {
   current: boolean;
   to: string;
   onClick: (e: MouseEvent) => void;
-  checks: (typeof CHECKS)[keyof typeof CHECKS] | null | "";
   review: Standing | null;
   when: string;
 }) {
-  const { r, to, onClick, checks, review, when } = props;
+  const { r, to, onClick, review, when } = props;
   return (
     <a
       className={`pull-row${props.current ? " current" : ""}`}
@@ -83,17 +82,7 @@ function PullLink(props: {
       data-row={props.i}
       aria-current={props.current ? "true" : undefined}
     >
-      {checks ? (
-        <span
-          className={`chk ${checks.cls}`}
-          role="img"
-          aria-label={checks.label}
-          title={checks.label}
-        />
-      ) : (
-        <span className="chk" aria-hidden="true" />
-      )}
-      <span className="pull-num">#{r.number}</span>
+      <CheckMark checks={r.checks} />
       <span className="pull-title">{r.title}</span>
       {r.stack && (
         <span
@@ -113,7 +102,9 @@ function PullLink(props: {
           {r.repliesWaiting}
         </span>
       )}
-      <span className="pull-repo">{r.repo}</span>
+      <span className="pull-ref" title={`${r.repo} #${r.number}`}>
+        <span className="pull-repo">{r.repo}</span> <span className="pull-num">#{r.number}</span>
+      </span>
       <span className="pull-review">
         {review && <span className={`badge ${review.cls}`}>{review.label}</span>}
       </span>
@@ -122,7 +113,14 @@ function PullLink(props: {
           <span className="add">+{r.additions}</span> <span className="del">−{r.deletions}</span>
         </span>
       )}
-      <span className="pull-author">{r.author ?? ""}</span>
+      <span className="pull-author">
+        {r.author && (
+          <>
+            <PersonMark login={r.author} avatar={r.authorAvatar} size={18} />
+            <span className="pull-author-login">{r.author}</span>
+          </>
+        )}
+      </span>
       <time className="pull-time" dateTime={when} title={r.mergedAt ? "Merged" : "Updated"}>
         {since(when)}
       </time>

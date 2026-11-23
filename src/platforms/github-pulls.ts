@@ -1,4 +1,5 @@
 import type { PullChecks, PullReview } from "../shared/index.js";
+import { avatarOf } from "./changes.js";
 import type { GithubGraphql } from "./github-host.js";
 import {
   type ListedPull,
@@ -26,7 +27,7 @@ ${pullFragment(checks)}`;
 export const pullFragment = (checks: boolean) => `fragment P on PullRequest {
   id number title url isDraft state createdAt updatedAt mergedAt additions deletions reviewDecision
   headRefOid headRefName baseRefName isCrossRepository
-  author { login }
+  author { login avatarUrl }
   repository { nameWithOwner }
   labels(first: ${MAX_LABELS}) { nodes { name } }
   ${checks ? "commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }" : ""}
@@ -49,7 +50,7 @@ export type PullNode = {
   headRefName?: string;
   baseRefName?: string;
   isCrossRepository?: boolean;
-  author: { login: string } | null;
+  author: { login: string; avatarUrl?: string } | null;
   repository: { nameWithOwner: string };
   labels?: { nodes: ({ name: string } | null)[] } | null;
   commits?: { nodes: { commit: { statusCheckRollup: { state: string } | null } }[] };
@@ -79,6 +80,7 @@ export function pullNodeItem(n: PullNode): ListedPull {
     url: n.url,
     repo: n.repository.nameWithOwner,
     author: n.author?.login ?? null,
+    authorAvatar: avatarOf(n.author?.avatarUrl),
     draft: n.isDraft,
     state: n.state === "MERGED" ? "merged" : "open",
     createdAt: n.createdAt,

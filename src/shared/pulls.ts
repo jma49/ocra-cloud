@@ -14,6 +14,8 @@ export type PullItem = {
   url: string;
   repo: string;
   author: string | null;
+  /** The author's picture; null where there is none the console may load. */
+  authorAvatar: string | null;
   draft: boolean;
   state: "open" | "merged";
   createdAt: string;

@@ -55,6 +55,7 @@ const pullResult = (platform: CodePlatform, p: ListedPull): SearchPullResult => 
   url: p.url,
   repo: p.repo,
   author: p.author,
+  authorAvatar: p.authorAvatar,
   draft: p.draft,
   state: p.state,
   createdAt: p.createdAt,

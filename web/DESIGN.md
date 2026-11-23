@@ -81,6 +81,8 @@ Shared controls are coss ui (Base UI + Tailwind), copied into `web/src/component
 | A pull request's reviewers and assignees | `PeopleCard` (`web/src/pull/people.tsx`): each login with where they stand, a cross to take off one still asked or assigned, and Add, which opens `PeoplePicker` in place: a field that lists the repository's people by login prefix; Escape closes it |
 | Text a model wrote, or a description a person wrote | `Markdown` (`web/src/markdown.tsx`, `styles/markdown.css`): headings at their level (from `h3`), lists, tables, code and emphasis; links, images and HTML stay text, since a model's answer is about untrusted code. Only a person's text from the platform passes `links`: its `https` links open in a new tab |
 | A person on a line | `PersonMark` (`web/src/person-mark.tsx`): their picture where the server passed one the content policy allows, their initial on `--fill2` otherwise; the login follows it |
+| How a pull request's checks stand, on a row | `CheckMark` (`web/src/pull/check-mark.tsx`): a 14 px circle icon in the state's tone (check, cross, dashed while running), named for a screen reader; an empty box of the same width where unknown, so titles stay aligned |
+| A list's keys | `KeyHints` (`web/src/inbox/key-hints.tsx`): key caps (`Kbd`) with what each does, once under the list at `--text-sm`; never in the page's opening line |
 | How a list of requirements stands | `Tally` (`web/src/pull/tally.tsx`): a 3 px line over the list, a segment per state as wide as its share (green met, red blocking, amber warning, `--t4` waiting), named for a screen reader |
 
 A new shared control comes from coss ui first, then from a small component in `web/src/components/` styled with tokens.

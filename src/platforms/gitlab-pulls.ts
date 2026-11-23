@@ -1,3 +1,4 @@
+import { avatarOf } from "./changes.js";
 import { platformCall } from "./http.js";
 import {
   type ListedPull,
@@ -21,7 +22,7 @@ export type MergeRequest = {
   created_at: string;
   updated_at: string;
   merged_at?: string | null;
-  author: { username: string } | null;
+  author: { username: string; avatar_url?: string | null } | null;
   labels?: string[];
   sha?: string | null;
   source_branch?: string;
@@ -45,6 +46,7 @@ export const mergeRequestItem = (mr: MergeRequest): ListedPull => ({
   url: mr.web_url,
   repo: repoOf(mr),
   author: mr.author?.username ?? null,
+  authorAvatar: avatarOf(mr.author?.avatar_url),
   draft: Boolean(mr.draft ?? mr.work_in_progress),
   state: mr.state === "merged" ? "merged" : "open",
   createdAt: mr.created_at,

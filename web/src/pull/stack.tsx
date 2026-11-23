@@ -12,7 +12,7 @@ import {
 import { api, why } from "../api.js";
 import { Link } from "../router.js";
 import { useAction, useLoad } from "../ui.js";
-import { CHECKS } from "./check-state.js";
+import { CheckMark } from "./check-mark.js";
 import { stackMethodLabels } from "./merge-method.js";
 import { OUTCOME } from "./outcome.js";
 import { pullPath } from "./path.js";
@@ -61,7 +61,6 @@ export function StackPanel(props: {
       </div>
       <ol className="pull-stack-list">
         {data.pulls.map((p) => {
-          const checks = p.checks && CHECKS[p.checks];
           return (
             <li key={p.number} style={{ paddingInlineStart: `${depthOf(data.pulls, p) * 10}px` }}>
               <Link
@@ -69,11 +68,7 @@ export function StackPanel(props: {
                 className="pull-stack-link"
                 current={p.number === number}
               >
-                {checks ? (
-                  <span className={`chk ${checks.cls}`} role="img" aria-label={checks.label} />
-                ) : (
-                  <span className="chk" aria-hidden="true" />
-                )}
+                <CheckMark checks={p.checks} />
                 <span className="mono subtle">#{p.number}</span>
                 <span className="pull-stack-title" title={p.title}>
                   {p.title}

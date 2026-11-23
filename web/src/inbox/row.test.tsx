@@ -14,6 +14,7 @@ const row = (over: Partial<Row>): Row => ({
   url: "https://github.com/octo/api/pull/1",
   repo: "octo/api",
   author: "ada",
+  authorAvatar: null,
   draft: false,
   state: "open",
   createdAt: "2026-11-20T10:00:00Z",
@@ -57,4 +58,16 @@ it("says the one thing to know before opening a pull request", () => {
   );
   expect(standing({ verdict: "not_blocking" })).toBe("ocra passed");
   expect(standing({ state: "merged", draft: true, verdict: "blocking" })).toBe("");
+});
+
+it("names the state of the checks and shows the author with their mark", () => {
+  standing({ checks: "failing", author: "ada" });
+  expect(screen.getByRole("img", { name: "A check failed" }).className).toContain("fail");
+  expect(document.querySelector(".pull-author .person-mark")?.textContent).toBe("A");
+  expect(document.querySelector(".pull-ref")?.textContent).toBe("octo/api #1");
+  standing({ author: "ada", authorAvatar: "https://avatars.githubusercontent.com/u/1?v=4" });
+  expect(screen.queryByRole("img", { name: /check/i })).toBeNull();
+  expect(document.querySelector(".pull-author img")?.getAttribute("src")).toBe(
+    "https://avatars.githubusercontent.com/u/1?v=4",
+  );
 });

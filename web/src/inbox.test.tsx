@@ -28,6 +28,7 @@ const pull = (n: number, over: Partial<PullItem> = {}): PullItem => ({
   url: `https://github.com/octo/api/pull/${n}`,
   repo: "octo/api",
   author: "octo",
+  authorAvatar: null,
   draft: false,
   state: "open",
   createdAt: "2026-11-20T10:00:00Z",
