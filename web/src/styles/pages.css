@@ -862,6 +862,16 @@ td.finding-cell {
 .add-fields .input.grow {
   min-width: 260px;
 }
+/* On a phone each field takes the line; the last one shares it with the button. */
+@media (max-width: 560px) {
+  .add-fields > .input {
+    flex: 1 1 100%;
+  }
+  .add-fields > .input.grow {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+}
 .add-extras {
   display: flex;
   flex-wrap: wrap;

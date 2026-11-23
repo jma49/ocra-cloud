@@ -1,25 +1,24 @@
 import BellOff from "lucide-react/icons/bell-off";
 import ChevronRight from "lucide-react/icons/chevron-right";
 import Ellipsis from "lucide-react/icons/ellipsis";
-import { type FormEvent, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@/components/ui/menu";
 import { Switch } from "@/components/ui/switch";
 import {
   type CodePlatformKind,
-  NOTIFY_KINDS,
   NOTIFY_WHEN,
-  type NotifyChannelAdded,
   type NotifyChannelsView,
   type NotifyChannelView,
-  type NotifyKind,
   type NotifyWhen,
 } from "../../../src/shared/index.js";
-import { api, why } from "../api.js";
+import { api } from "../api.js";
 import { useCached } from "../cache.js";
 import { ago } from "../format.js";
-import { DeliveriesDrawer, SecretOnce } from "../notifications/deliveries-drawer.js";
+import { AddChannel } from "../notifications/add-channel.js";
+import { DeliveriesDrawer } from "../notifications/deliveries-drawer.js";
 import { EventsMenu } from "../notifications/events-menu.js";
+import { KIND_LABEL, WHEN_LABEL } from "../notifications/labels.js";
 import {
   type ReminderChange,
   RemindersDrawer,
@@ -36,29 +35,21 @@ import { ActionError, EmptyState, LoadError, Loading, PageHead, useAction } from
 // of the user's own pull requests it hears about, and its reminders.
 // The address is sent once and never shown again.
 
-const KIND_LABEL: Record<NotifyKind, string> = {
-  slack: "Slack",
-  wecom: "WeCom",
-  email: "Email",
-  webhook: "Webhook",
-  slack_dm: "Slack direct message",
-};
-const WHEN_LABEL: Record<NotifyWhen, string> = {
-  blocking: "Blocking reviews",
-  findings: "Reviews with findings",
-  every: "Every review",
-};
-const PLACEHOLDER: Record<NotifyKind, string> = {
-  slack: "https://hooks.slack.com/services/…",
-  wecom: "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=…",
-  email: "you@example.com",
-  webhook: "https://example.com/ocra-webhook",
-  slack_dm: "Slack email address or member ID",
-};
 const json = (method: string, body?: unknown): RequestInit => ({
   method,
   ...(body === undefined ? {} : { body: JSON.stringify(body) }),
 });
+
+/** Where a channel can go on this server, as the page's first line lists them. */
+function places(d: NotifyChannelsView | undefined): string {
+  const list = [
+    "a Slack or WeCom chat",
+    "a webhook",
+    ...(d?.email ? ["an email address"] : []),
+    ...(d?.slack ? ["a Slack direct message"] : []),
+  ];
+  return `${list.slice(0, -1).join(", ")} or ${list.at(-1)}`;
+}
 
 type ChannelEdit = Partial<Pick<NotifyChannelView, "when" | "digest" | "weekly" | "events">>;
 
@@ -107,11 +98,7 @@ export function Notifications(props: { platforms: readonly CodePlatformKind[] })
     <>
       <PageHead
         title="Notifications"
-        sub={
-          data?.email
-            ? "Send review results, a daily digest and a weekly report to a Slack or WeCom chat, a webhook or an email address."
-            : "Send review results, a daily digest and a weekly report to a Slack or WeCom chat or a webhook."
-        }
+        sub={`Send review results, a daily digest and a weekly report to ${places(data)}.`}
       />
       {linkSent && (
         <p className="note ok" role="status">
@@ -332,143 +319,5 @@ function LastSent(props: { c: NotifyChannelView; tested: boolean | null }) {
     <span className={c.lastStatus === "ok" ? "muted" : "error-inline"}>
       {c.lastStatus === "ok" ? "Delivered" : "Failed"} {ago(c.lastSentAt)}
     </span>
-  );
-}
-
-function AddChannel(props: {
-  /** Called with the channel's name when a confirmation link went to it. */
-  onAdded: (confirming: string | null) => void;
-  full: boolean;
-  email: boolean;
-  slack: boolean;
-}) {
-  const [kind, setKind] = useState<NotifyKind>("slack");
-  const [name, setName] = useState("");
-  const [when, setWhen] = useState<NotifyWhen>("blocking");
-  const [url, setUrl] = useState("");
-  const [digest, setDigest] = useState(false);
-  const [weekly, setWeekly] = useState(false);
-  const [secret, setSecret] = useState<string | null>(null);
-  const hook = kind === "webhook";
-  const add = useAction(() =>
-    api<NotifyChannelAdded>(
-      "/notifications/channels",
-      json("POST", {
-        kind,
-        name: name.trim(),
-        when,
-        digest: digest && !hook,
-        weekly: weekly && !hook,
-        ...(kind === "email"
-          ? { address: url.trim() }
-          : kind === "slack_dm"
-            ? { member: url.trim() }
-            : { url }),
-      }),
-    ),
-  );
-  const submit = async (e: FormEvent) => {
-    e.preventDefault();
-    const added = await add.run();
-    if (added === undefined) return;
-    setName("");
-    setUrl("");
-    setSecret(added.secret ?? null);
-    props.onAdded(added.confirmationSent ? name.trim() : null);
-  };
-  return (
-    <form className="card card-pad stack add-form" onSubmit={submit}>
-      <div className="strong">Add a channel</div>
-      <div className="add-fields">
-        <select
-          className="input"
-          aria-label="Where"
-          value={kind}
-          onChange={(e) => setKind(e.target.value as NotifyKind)}
-        >
-          {NOTIFY_KINDS.filter(
-            (k) => (k !== "email" || props.email) && (k !== "slack_dm" || props.slack),
-          ).map((k) => (
-            <option key={k} value={k}>
-              {KIND_LABEL[k]}
-            </option>
-          ))}
-        </select>
-        <input
-          className="input"
-          aria-label="Name"
-          placeholder="Name, e.g. #reviews"
-          maxLength={64}
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-        <select
-          className="input"
-          aria-label="Sends"
-          value={when}
-          onChange={(e) => setWhen(e.target.value as NotifyWhen)}
-        >
-          {NOTIFY_WHEN.map((w) => (
-            <option key={w} value={w}>
-              {WHEN_LABEL[w]}
-            </option>
-          ))}
-        </select>
-        <input
-          className="input grow mono"
-          aria-label={
-            kind === "email"
-              ? "Email address"
-              : kind === "slack_dm"
-                ? "Slack member"
-                : "Webhook address"
-          }
-          placeholder={PLACEHOLDER[kind]}
-          maxLength={hook ? 2048 : 512}
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-        />
-        <Button
-          type="submit"
-          size="sm"
-          disabled={add.busy || props.full || !name.trim() || !url.trim()}
-        >
-          Add
-        </Button>
-      </div>
-      <div className="add-extras" hidden={hook}>
-        <label className="check small">
-          <input type="checkbox" checked={digest} onChange={(e) => setDigest(e.target.checked)} />
-          Daily digest of yesterday's reviews
-        </label>
-        <label className="check small">
-          <input type="checkbox" checked={weekly} onChange={(e) => setWeekly(e.target.checked)} />
-          Weekly report
-        </label>
-      </div>
-      {kind === "email" && (
-        <span className="subtle small">
-          The address gets a link to confirm it first; nothing else is sent until it is opened.
-        </span>
-      )}
-      {kind === "slack_dm" && (
-        <span className="subtle small">
-          The member gets a direct message with a link to confirm first; nothing else is sent until
-          it is opened.
-        </span>
-      )}
-      {hook && (
-        <span className="subtle small">
-          Each event is posted as signed JSON to an https address of a public host.
-        </span>
-      )}
-      {secret !== null && <SecretOnce secret={secret} what="Signing secret" />}
-      {props.full && <span className="subtle small">An account has at most 10 channels.</span>}
-      {add.error !== null && (
-        <p className="error" role="alert">
-          Could not add it: {why(add.error)}.
-        </p>
-      )}
-    </form>
   );
 }
