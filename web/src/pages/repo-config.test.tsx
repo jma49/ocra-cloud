@@ -24,6 +24,7 @@ const view = (over: Partial<RepoConfigView> = {}): RepoConfigView => ({
   parseError: null,
   errors: [],
   moreErrors: false,
+  refusal: null,
   schema: "https://example.test/schema/config.json",
   lastCommit: null,
   ...over,

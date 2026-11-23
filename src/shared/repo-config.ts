@@ -31,6 +31,8 @@ export type RepoConfigView = {
   errors: RepoConfigIssue[];
   /** True when there were more issues than `errors` lists. */
   moreErrors: boolean;
+  /** The listed issues as the CLI words its refusal of the file; null when it fits, or did not parse. */
+  refusal: string | null;
   /** The JSON Schema `$schema` may name, for editors; null for the rules file, which has none. */
   schema: string | null;
   lastCommit: { sha: string; at: string | null } | null;
