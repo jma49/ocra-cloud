@@ -1,6 +1,6 @@
-import { sharedFindingSchema } from "@open-cr-agent/cloud-contract";
 import { z } from "zod";
 import {
+  ANSWERED_KINDS,
   type Assignment,
   type RUN_FAILURES,
   WORK_KINDS,
@@ -15,7 +15,7 @@ import { spawnExec } from "./checkout.js";
 import { type GraphMachine, runGraphBuild } from "./graph-job.js";
 import type { GitRead } from "./local-graph.js";
 import { runRestack } from "./restack-run.js";
-import { type Machine, run, runFix } from "./review-runner.js";
+import { type Machine, run, runAnswered } from "./review-runner.js";
 import { serverGraphs } from "./runner-graphs.js";
 
 // A remote runner (docs/runner.md): asks the server for the next hosted job
@@ -70,12 +70,25 @@ const assignment = z
     ok: z.array(z.number().int()),
     settled: z.array(z.number().int()),
     graph: z.object({ repoId: z.string(), pull: z.number().int() }).optional(),
-    finding: sharedFindingSchema.optional(),
+    // What the server sends here reaches the CLI's command line: a flag, never a value.
+    answered: z
+      .object({
+        flag: z
+          .string()
+          .regex(/^--[a-z][a-z-]{0,40}$/)
+          .optional(),
+        input: z.unknown(),
+      })
+      .transform(({ flag, input }) => ({
+        ...(flag !== undefined ? { flag } : {}),
+        ...(input !== undefined ? { input } : {}),
+      }))
+      .optional(),
   })
-  .transform(({ graph, finding, ...work }) => ({
+  .transform(({ graph, answered, ...work }) => ({
     ...work,
     ...(graph ? { graph } : {}),
-    ...(finding ? { finding } : {}),
+    ...(answered ? { answered } : {}),
   }));
 const graphBuild = z.object({
   ...claim,
@@ -143,7 +156,7 @@ export async function runRunner(options: RunnerOptions, stop: AbortSignal): Prom
           version: options.version,
           graphs: true,
           restack: true,
-          fix: true,
+          answers: ANSWERED_KINDS,
         }),
       );
       backoff = pollMs;
@@ -156,9 +169,9 @@ export async function runRunner(options: RunnerOptions, stop: AbortSignal): Prom
       const { kind, id, accountId, attempts } = work;
       console.log(JSON.stringify({ level: "info", event: "runner_job_started", kind, job: id }));
       let failure: (typeof RUN_FAILURES)[number] | null;
-      if (kind === "fix") {
-        const ran = await runFix(machine, work satisfies Assignment, new Date(), stop);
-        await settleWith(call, "settle-fix", { id, accountId, attempts, ran });
+      if (work.answered) {
+        const ran = await runAnswered(machine, work satisfies Assignment, new Date(), stop);
+        await settleWith(call, "settle-answer", { kind, id, accountId, attempts, ran });
         failure = "failure" in ran ? ran.failure : null;
       } else {
         failure = await run(machine, work satisfies Assignment, new Date(), stop);

@@ -1,4 +1,3 @@
-import { fixResultSchema } from "@open-cr-agent/cloud-contract";
 import { Hono, type MiddlewareHandler } from "hono";
 import { z } from "zod";
 import { config } from "../config.js";
@@ -16,8 +15,15 @@ import {
   settleRestack,
 } from "../stack-merge/restack-work.js";
 import type { AppEnv } from "../types.js";
-import { settleFix } from "./fix-work.js";
-import { type Assignment, assign, RUN_FAILURES, settle, WORK_KINDS } from "./work.js";
+import { isAnswered, settleAnswered } from "./answers.js";
+import {
+  ANSWERED_KINDS,
+  type Assignment,
+  assign,
+  RUN_FAILURES,
+  settle,
+  WORK_KINDS,
+} from "./work.js";
 
 // A remote runner's two calls (docs/runner.md): it asks for the next hosted
 // job, which this server claims and prepares for it (./work.ts), runs it on
@@ -39,29 +45,34 @@ const hello = z.object({
   graphs: z.boolean().optional(),
   /** Whether it restacks: one from before restacks is never given one. */
   restack: z.boolean().optional(),
-  /** Whether it runs `ocra fix` and reports its answer: one that does not is never given a fix. */
-  fix: z.boolean().optional(),
+  /**
+   * The answered kinds it runs and reports the answer of (ANSWERED_KINDS):
+   * one never named is never given. A kind this server does not know is ignored.
+   */
+  answers: z.array(z.string().max(40)).max(20).optional(),
 });
 
-const fixRef = {
+const jobRef = {
   id: z.string().min(1).max(100),
   accountId: z.string().min(1).max(100),
   attempts: z.number().int().min(1),
 };
 
-// A fix settles with its answer, at /settle-fix.
+// An answered kind settles with its answer, at /settle-answer.
 const outcome = z.object({
-  kind: z.enum(WORK_KINDS).exclude(["fix"]),
+  kind: z.enum(WORK_KINDS).exclude(ANSWERED_KINDS),
   id: z.string().min(1).max(100),
   accountId: z.string().min(1).max(100),
   attempts: z.number().int().min(1),
   failure: z.enum(RUN_FAILURES).nullable(),
 });
 
-const fixOutcome = z.object({
-  ...fixRef,
+const answeredOutcome = z.object({
+  kind: z.enum(ANSWERED_KINDS),
+  ...jobRef,
+  // Read with the kind's own schema by its settler (./answers.ts).
   ran: z.union([
-    z.object({ result: fixResultSchema }),
+    z.object({ answer: z.unknown().refine((a) => a !== undefined) }),
     z.object({ failure: z.enum(RUN_FAILURES) }),
   ]),
 });
@@ -92,7 +103,7 @@ export function runnerApi(access: RunnerAccess) {
   const route = new Hono<AppEnv>().use(proven(access.token));
 
   route.post("/claim", jsonBody(hello), async (c) => {
-    const { name, version, graphs, restack, fix } = c.req.valid("json");
+    const { name, version, graphs, restack, answers } = c.req.valid("json");
     await runnerSeen(c.var.db, name, version, new Date());
     const source = {
       db: c.var.db,
@@ -103,7 +114,7 @@ export function runnerApi(access: RunnerAccess) {
       ...(graphs && access.graphs ? { graphs: access.graphs } : {}),
     };
     for (const kind of WORK_KINDS) {
-      if (kind === "fix" && !fix) continue;
+      if (isAnswered(kind) && !answers?.includes(kind)) continue;
       for (let refused = 0; refused < MAX_REFUSED; refused++) {
         const work = await assign(source, kind);
         if (!work) break;
@@ -138,11 +149,12 @@ export function runnerApi(access: RunnerAccess) {
     return c.json({ ok: true });
   });
 
-  route.post("/settle-fix", jsonBody(fixOutcome), async (c) => {
+  route.post("/settle-answer", jsonBody(answeredOutcome), async (c) => {
     const { ran, ...job } = c.req.valid("json");
     const source = { db: c.var.db, dailyCalls: config(c.env).gatewayDailyCalls };
-    // Recorded only while the fix is still this attempt's, under its own account.
-    await settleFix(source, job, ran, new Date());
+    const answered = "failure" in ran ? { failure: ran.failure } : { answer: ran.answer };
+    // Recorded only while the job is still this attempt's, under its own account.
+    await settleAnswered(source, job, answered, new Date());
     return c.json({ ok: true });
   });
 

@@ -43,7 +43,7 @@ It writes one JSON line per event to its output (`runner_started`, `runner_job_s
 
 A runner also takes restacks: the pull requests stacked on one that merged, rebased onto its base and force-pushed with a lease as the bot, where the repository turned that on ([self-hosting.md](self-hosting.md), Restacking after a merge). It runs only git, never the repository's hooks or drivers.
 
-A runner also takes fixes asked for a stored finding ([self-hosting.md](self-hosting.md), Fix with ocra): it says so with `fix: true` in its claim, gets the finding with the job, runs `ocra fix --json` with it and reports the one line of JSON that prints to `/api/runner/settle-fix`. A runner from before fixes never asks for one and is never given one. The bot's token for a fix can read the repository only.
+A runner also takes fixes asked for a stored finding ([self-hosting.md](self-hosting.md), Fix with ocra), the first of the kinds whose run answers in one line of JSON. It names the kinds it runs that way with `answers` in its claim (`["fix"]`); such a job's assignment brings `answered: {flag, input}`, the input written to a file the CLI is given with that flag (`ocra fix --finding <file> --json`), and the runner reports the last line the CLI printed, as JSON, to `/api/runner/settle-answer` (`{kind, id, accountId, attempts, ran: {answer} | {failure}}`), where the server reads it with the kind's schema. A runner is never given a kind it did not name, so one from before fixes never gets one. The bot's token for a fix can read the repository only.
 
 Several runners may share one token; each job goes to one of them. A job whose runner disappears is queued again when its lease lapses (45 minutes for a review), or fails once it has had three runs.
 
