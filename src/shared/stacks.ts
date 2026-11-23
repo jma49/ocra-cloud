@@ -94,7 +94,8 @@ export type StackMergeJobView = {
  * What POST, GET and DELETE /api/pulls/merge-stack answer. A start is
  * `started`, or `running` when a merge of this stack is already under way
  * (that one is the job), or `stack_changed` when the stack is not the one
- * the page read, so nothing started; a read or a cancel is `done`.
+ * the page read, so nothing started; a read or a cancel, by any layer of
+ * the chain, is `done`, with the newest job holding it.
  */
 export type StackMergeAnswer = {
   outcome: "started" | "running" | "stack_changed" | "done";
