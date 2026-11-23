@@ -37,7 +37,7 @@ const changes = {
   notifyChannels: { name: "renamed" },
   notifySends: { eventKey: "changed" },
   notifyHeld: { line: "changed" },
-  webhookDeliveries: { status: 500 },
+  notifyDeliveries: { status: 500 },
   closedPulls: { merged: false },
   pullFlows: { draft: true },
   reviewThreads: { starterLogin: "changed" },

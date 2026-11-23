@@ -13,10 +13,10 @@ import { runAtRisk } from "../notify/at-risk.js";
 import { runDigests } from "../notify/digest.js";
 import type { Mailer } from "../notify/email.js";
 import { runHeld } from "../notify/held.js";
-import { retryOutbox } from "../notify/notify.js";
+import { retryNotifications } from "../notify/notify.js";
 import { runReminders } from "../notify/reminders.js";
 import { runReports } from "../notify/report.js";
-import { retryWebhooks, type WebhookPost } from "../notify/webhooks.js";
+import type { WebhookPost } from "../notify/webhooks.js";
 import { botTokens } from "../platforms/bot-tokens.js";
 import { githubHostOf, platformsOf } from "../platforms/registry.js";
 import type { AppBindings } from "../types.js";
@@ -179,9 +179,13 @@ export async function openHost(options: HostOptions) {
       const platforms = platformsOf(bindings, options.publicUrl);
       return retryAutomations({ db: shared, bots, platforms });
     },
-    /** Tries again the webhook deliveries due; how many it tried. */
-    webhookRetries: () =>
-      retryWebhooks(shared, retryOutbox({ keys: masterKeys(bindings), webhooks: webhookPost })),
+    /** Tries again the channels' deliveries due, of every kind; how many it tried. */
+    deliveryRetries: () =>
+      retryNotifications(shared, {
+        keys: masterKeys(bindings),
+        mailer: options.mailer,
+        webhooks: webhookPost,
+      }),
     /** The graph build worker, when graphs are on. */
     graphWorker: graphs?.worker,
     /** The review worker, when auto review is on. */

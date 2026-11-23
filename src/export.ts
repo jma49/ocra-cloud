@@ -46,7 +46,7 @@ export const EXPORTED = {
   notifyChannels: "notifyChannels",
   notifySends: "notifySends",
   notifyHeld: "notifyHeld",
-  webhookDeliveries: "webhookDeliveries",
+  notifyDeliveries: "notifyDeliveries",
   closedPulls: "closedPulls",
   pullFlows: "pullFlows",
   pullReviews: "pullReviews",

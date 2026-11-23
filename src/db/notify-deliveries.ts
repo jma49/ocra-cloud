@@ -1,31 +1,35 @@
 import { and, asc, desc, eq, inArray, isNotNull, lte, notInArray } from "drizzle-orm";
-import type { WebhookDeliveryState, WebhookError, WebhookEvent } from "../shared/index.js";
+import type {
+  NotifyDeliveryError,
+  NotifyDeliveryEvent,
+  NotifyDeliveryState,
+} from "../shared/index.js";
 import { changedRows, type Db, first } from "./client.js";
-import { webhookDeliveries } from "./schema.js";
+import { notifyDeliveries } from "./schema.js";
 
-// A webhook channel's deliveries (reached through scoped()): each attempt is
+// A channel's deliveries, of any kind (reached through scoped()): each attempt is
 // taken by one sender, a compare-and-set that moves attempts and retryAt
 // (past its lease) together, so that the request that made it and two
 // retry sweeps never send it twice at once; and the sweep, across accounts,
 // takes the due one waiting longest of the channels it has not tried yet.
 
 export type AttemptResult = {
-  state: WebhookDeliveryState;
+  state: NotifyDeliveryState;
   status: number | null;
-  error: WebhookError | null;
+  error: NotifyDeliveryError | null;
   latencyMs: number;
   retryAt: Date | null;
 };
 
-export function accountWebhookDeliveries(db: Db, accountId: string) {
-  const d = webhookDeliveries;
+export function accountNotifyDeliveries(db: Db, accountId: string) {
+  const d = notifyDeliveries;
   const own = eq(d.accountId, accountId);
   return {
     /** Records a delivery whose first attempt the caller makes now, leased until leaseUntil. */
     async start(row: {
       id: string;
       channelId: string;
-      event: WebhookEvent;
+      event: NotifyDeliveryEvent;
       payload: string;
       leaseUntil: Date;
     }): Promise<void> {
@@ -93,7 +97,7 @@ export type ClaimedDelivery = {
   id: string;
   accountId: string;
   channelId: string;
-  event: WebhookEvent;
+  event: NotifyDeliveryEvent;
   payload: string;
   attempts: number;
 };
@@ -102,13 +106,13 @@ export type ClaimedDelivery = {
  * Takes the next attempt of the delivery due longest, of a channel not in
  * skip, or undefined when none is due.
  */
-export async function claimWebhookRetry(
+export async function claimDeliveryRetry(
   db: Db,
   now: Date,
   leaseMs: number,
   skip: readonly string[] = [],
 ): Promise<ClaimedDelivery | undefined> {
-  const d = webhookDeliveries;
+  const d = notifyDeliveries;
   const due = await db
     .select({ id: d.id, attempts: d.attempts })
     .from(d)

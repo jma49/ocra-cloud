@@ -3,7 +3,8 @@ import { emailAddress, type Mail, type Mailer } from "../notify/email.js";
 
 // Email on the self-hosted server: SMTP_URL (smtp:// with STARTTLS when
 // the server offers it, smtps:// for TLS from the start) and SMTP_FROM.
-// Every wait is bounded; a message that fails is reported, not retried.
+// Every wait is bounded; a refusal throws with its SMTP reply code, and the
+// delivery queue (src/notify/deliveries.ts) decides whether to try again.
 
 const TIMEOUT_MS = 15_000;
 

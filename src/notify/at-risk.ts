@@ -61,6 +61,7 @@ function atRiskMessage(list: readonly AtRisk[], now: number, origin: string): Me
     due: new Date(a.due).toISOString(),
   }));
   return {
+    event: "pull_at_risk",
     subject: `ocra: ${plural(list.length, "pull request")} at risk of a review target`,
     lines: [[`At risk of a review target (${list.length}):`], ...shown, ...more],
     hooks: [{ event: "pull_at_risk", data: { pulls } }],

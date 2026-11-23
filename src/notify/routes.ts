@@ -12,24 +12,25 @@ import {
   type NotifyChannelAdded,
   type NotifyChannelsView,
   type NotifyChannelView,
+  type NotifyDeliveriesView,
+  type NotifyDeliveryView,
   type NotifyTimeZoneView,
   type QuietHours,
   REMINDER_HOURS,
   type ReminderHours,
   type ReportScheduleView,
-  type WebhookDeliveriesView,
-  type WebhookDeliveryView,
   type WebhookSecretView,
 } from "../shared/index.js";
 import type { AppEnv } from "../types.js";
 import { hookUrl, type Message, reviewMessage } from "./channels.js";
+import { KEPT_DELIVERIES } from "./deliveries.js";
 import { emailAddress, mailOf, sendMail } from "./email.js";
 import { CONFIRM_TTL_MS, confirmToken, linkUrl, unsubscribeUrl } from "./links.js";
 import { openHook, openWebhook, outboxOf, sealHook, sealWebhook, send } from "./notify.js";
 import { timeZoneOf } from "./reminders.js";
 import { nextSlot } from "./report.js";
 import { webhookUrl } from "./webhook-url.js";
-import { KEPT_DELIVERIES, newWebhookSecret } from "./webhooks.js";
+import { newWebhookSecret } from "./webhooks.js";
 
 // The account's channels: added with their webhook or email address, which
 // is stored encrypted and never answered (a webhook channel's signing
@@ -257,7 +258,7 @@ notifyRoute.delete("/channels/:id", async (c) => {
   const removed = await c.var.data.remove("notifyChannels", id);
   if (removed) {
     await c.var.data.removeWhere("notifyHeld", { channelId: id });
-    await c.var.data.webhooks.drop([id]);
+    await c.var.data.deliveries.drop([id]);
     await audit(c.var.data, "channel.removed", { channel: id });
   }
   return c.json({ removed });
@@ -268,7 +269,7 @@ notifyRoute.post("/channels/:id/test", perMinute("settings"), async (c) => {
   const channel = await c.var.data.get("notifyChannels", c.req.param("id"));
   if (!channel) return apiError(c, "not_found");
   if (!channel.confirmedAt) return refuse(c, "id", "the address is not confirmed yet");
-  const message: Message = reviewMessage({
+  const sample: Message = reviewMessage({
     pull: null,
     critical: 0,
     warning: 0,
@@ -278,9 +279,13 @@ notifyRoute.post("/channels/:id/test", perMinute("settings"), async (c) => {
     titles: [{ title: "Test message from ocra: this channel is connected", file: "example" }],
     consoleUrl: new URL("/settings", c.req.url).toString(),
   });
-  message.hooks = [
-    { event: "ping", data: { message: "Test event from ocra: this webhook is connected" } },
-  ];
+  const message: Message = {
+    ...sample,
+    event: "ping",
+    hooks: [
+      { event: "ping", data: { message: "Test event from ocra: this webhook is connected" } },
+    ],
+  };
   const ok = await send(c.var.data, outboxOf(c), channel, message);
   return c.json({ delivered: ok });
 });
@@ -301,7 +306,7 @@ notifyRoute.post("/channels/:id/secret", perMinute("settings"), async (c) => {
   return c.json({ secret } satisfies WebhookSecretView);
 });
 
-const deliveryView = (r: Row<"webhookDeliveries">) =>
+const deliveryView = (r: Row<"notifyDeliveries">) =>
   ({
     id: r.id,
     event: r.event,
@@ -312,14 +317,14 @@ const deliveryView = (r: Row<"webhookDeliveries">) =>
     latencyMs: r.latencyMs,
     retryAt: r.state === "pending" ? (r.retryAt?.toISOString() ?? null) : null,
     createdAt: r.createdAt.toISOString(),
-  }) satisfies WebhookDeliveryView;
+  }) satisfies NotifyDeliveryView;
 
-/** A webhook channel's newest deliveries: how each went, never what was sent or answered. */
+/** A channel's newest deliveries, of any kind: how each went, never what was sent or answered. */
 notifyRoute.get("/channels/:id/deliveries", async (c) => {
   const channel = await c.var.data.get("notifyChannels", c.req.param("id"));
-  if (channel?.kind !== "webhook") return apiError(c, "not_found");
-  const rows = await c.var.data.webhooks.recent(channel.id, KEPT_DELIVERIES);
-  return c.json({ deliveries: rows.map(deliveryView) } satisfies WebhookDeliveriesView);
+  if (!channel) return apiError(c, "not_found");
+  const rows = await c.var.data.deliveries.recent(channel.id, KEPT_DELIVERIES);
+  return c.json({ deliveries: rows.map(deliveryView) } satisfies NotifyDeliveriesView);
 });
 
 const scheduleView = (s: { weekday: number; hour: number }) =>

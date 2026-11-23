@@ -75,6 +75,7 @@ function reportMessage(w: Week, origin: string): Message {
   const median = w.medianToMerge === null ? "" : ` · median time to merge ${span(w.medianToMerge)}`;
   const top = w.topRepos.map((r) => `${plain(repoName(r.repo))} (${r.reviews})`).join(", ");
   return {
+    event: "weekly_report",
     subject: `ocra weekly report, ${w.from} to ${w.to}: ${reviews}, ${w.merges.merged} merged`,
     lines: [
       [`ocra's week from ${w.from} to ${w.to} (UTC): ${reviews}`],

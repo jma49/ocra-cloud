@@ -7,10 +7,9 @@ import { masterKeys } from "./keyring.js";
 import { runAtRisk } from "./notify/at-risk.js";
 import { runDigests } from "./notify/digest.js";
 import { runHeld } from "./notify/held.js";
-import { retryOutbox } from "./notify/notify.js";
+import { retryNotifications } from "./notify/notify.js";
 import { runReminders } from "./notify/reminders.js";
 import { runReports } from "./notify/report.js";
-import { retryWebhooks } from "./notify/webhooks.js";
 import { githubHostOf } from "./platforms/registry.js";
 
 // The Cloudflare Worker: D1, its rate limiting bindings and its crons: the
@@ -34,7 +33,7 @@ export default {
   async scheduled(controller, env, ctx) {
     const db = drizzle(env.DB);
     if (controller.cron !== HOURLY) ctx.waitUntil(enforceRetention(db));
-    else ctx.waitUntil(retryWebhooks(db, retryOutbox({ keys: masterKeys(env) })));
+    else ctx.waitUntil(retryNotifications(db, { keys: masterKeys(env), mailer: undefined }));
     if (env.PUBLIC_URL) {
       const out = {
         keys: masterKeys(env),

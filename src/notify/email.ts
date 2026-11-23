@@ -1,4 +1,5 @@
-import { type Message, textOf } from "./channels.js";
+import { type MessageText, textOf } from "./channels.js";
+import { type Attempt, DELIVERED, type Outcome, REFUSED } from "./deliveries.js";
 
 // An email channel's address and its messages. The host brings the mailer
 // (SMTP on Node, src/node/mailer.ts); a host without one sends no email.
@@ -14,7 +15,13 @@ export type Mail = {
   headers: Record<string, string>;
 };
 
-/** Sends one email; whether the server took it. */
+/** An email's content, as the queue keeps it: everything but the address. */
+export type MailBody = Omit<Mail, "to">;
+
+/**
+ * Sends one email; whether the server took it. A refusal throws, with the
+ * SMTP reply's code as `responseCode` when the server answered one.
+ */
 export type Mailer = { send(mail: Mail): Promise<boolean> };
 
 const LOCAL = /^[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*$/;
@@ -57,7 +64,7 @@ const HTML_ESCAPES: Record<string, string> = {
 const escapeHtml = (text: string): string =>
   text.replace(/[&<>"']/g, (ch) => HTML_ESCAPES[ch] ?? ch);
 
-function htmlOf(m: Message, footer: string): string {
+function htmlOf(m: MessageText, footer: string): string {
   const paragraphs = m.lines.map(
     (line) =>
       `<p>${line
@@ -72,10 +79,15 @@ function htmlOf(m: Message, footer: string): string {
 }
 
 /** The email of a message to one address, with its one-click unsubscribe link. */
-export function mailOf(m: Message, to: string, unsubscribeUrl: string): Mail {
+export const mailOf = (m: MessageText, to: string, unsubscribeUrl: string): Mail => ({
+  to,
+  ...mailBody(m, unsubscribeUrl),
+});
+
+/** The email of a message, its address left out, with its one-click unsubscribe link. */
+export function mailBody(m: MessageText, unsubscribeUrl: string): MailBody {
   const why = "You get this because this address was added to an ocra account's notifications.";
   return {
-    to,
     subject: m.subject.replace(/[\p{Cc}\s]+/gu, " ").trim(),
     text: `${textOf(m)}\n\n--\n${why}\nUnsubscribe: ${unsubscribeUrl}\n`,
     html: htmlOf(m, `${escapeHtml(why)} <a href="${escapeHtml(unsubscribeUrl)}">Unsubscribe</a>`),
@@ -97,12 +109,46 @@ function headersSafe(mail: Mail): boolean {
   return values.every((v) => !/[\r\n\p{Cc}]/u.test(v)) && emailAddress(mail.to) === mail.to;
 }
 
+/** The reply code an SMTP refusal carried, when it is one. */
+function replyCode(err: unknown): number | undefined {
+  const code = (err as { responseCode?: unknown } | null)?.responseCode;
+  return typeof code === "number" && code >= 200 && code < 600 ? code : undefined;
+}
+
+/**
+ * Sends the mail when its headers are safe, and says how it went: a 5xx
+ * reply is permanent, a 4xx or no reply (no connection, a timeout)
+ * transient. The error itself, which can name the address, is dropped.
+ */
+async function mailOutcome(mailer: Mailer, mail: Mail): Promise<Outcome> {
+  if (!headersSafe(mail)) return REFUSED;
+  try {
+    if (await mailer.send(mail)) return DELIVERED(null);
+    return { status: null, error: "rejected", transient: false };
+  } catch (err) {
+    const code = replyCode(err);
+    if (code === undefined) {
+      const timedOut = (err as { code?: unknown } | null)?.code === "ETIMEDOUT";
+      return { status: null, error: timedOut ? "timeout" : "network", transient: true };
+    }
+    return { status: code, error: "status", transient: code < 500 };
+  }
+}
+
 /** Sends the mail when its headers are safe; whether the server took it. Never throws. */
 export async function sendMail(mailer: Mailer, mail: Mail): Promise<boolean> {
-  if (!headersSafe(mail)) return false;
-  try {
-    return await mailer.send(mail);
-  } catch {
-    return false;
-  }
+  return (await mailOutcome(mailer, mail)).error === null;
+}
+
+/** One attempt of a queued email (its MailBody as JSON) to the address. */
+export function mailAttempt(mailer: Mailer, to: string): Attempt {
+  return async (delivery) => {
+    let body: MailBody;
+    try {
+      body = JSON.parse(delivery.payload) as MailBody;
+    } catch {
+      return REFUSED;
+    }
+    return mailOutcome(mailer, { ...body, to });
+  };
 }

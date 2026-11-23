@@ -46,8 +46,11 @@ import {
   type MergeChecksConclusion,
   type MergeCheckVerdictView,
   type ModelChains,
+  NOTIFY_DELIVERY_ERRORS,
+  NOTIFY_DELIVERY_STATES,
   NOTIFY_KINDS,
   NOTIFY_WHEN,
+  type NotifyDeliveryEvent,
   type NotifyEvent,
   type PullFilters,
   REVIEW_CHAT_ROLES,
@@ -57,9 +60,6 @@ import {
   type ReviewSettings,
   type ReviewWalkthroughView,
   SIGN_IN_PROVIDERS,
-  WEBHOOK_DELIVERY_STATES,
-  WEBHOOK_ERRORS,
-  type WebhookEvent,
 } from "../shared/index.js";
 
 // Every table but accounts carries accountId, and is read and written only
@@ -799,31 +799,32 @@ export const notifyHeld = sqliteTable(
   ],
 );
 
-// A delivery to a webhook channel (src/notify/webhooks.ts): how its last
-// attempt went, never what the endpoint answered. Its body is kept only
+// A delivery to a channel of any kind (src/notify/deliveries.ts): how its
+// last attempt went, never what the endpoint, chat or mail server answered.
+// Its body (what is sent, without the channel's address) is kept only
 // while a retry is due (retryAt; a runner claims an attempt by moving it
 // past its lease, compare-and-set on attempts) and cleared once it is
 // delivered or given up. A channel keeps its newest deliveries only.
-export const webhookDeliveries = sqliteTable(
-  "webhook_deliveries",
+export const notifyDeliveries = sqliteTable(
+  "notify_deliveries",
   {
     id: text("id").primaryKey(),
     accountId: accountId(),
     channelId: text("channel_id").notNull(),
-    event: text("event").$type<WebhookEvent>().notNull(),
-    state: text("state", { enum: WEBHOOK_DELIVERY_STATES }).notNull().default("pending"),
+    event: text("event").$type<NotifyDeliveryEvent>().notNull(),
+    state: text("state", { enum: NOTIFY_DELIVERY_STATES }).notNull().default("pending"),
     attempts: integer("attempts").notNull().default(0),
     status: integer("status"),
-    error: text("error", { enum: WEBHOOK_ERRORS }),
+    error: text("error", { enum: NOTIFY_DELIVERY_ERRORS }),
     latencyMs: integer("latency_ms"),
     payload: text("payload"),
     retryAt: integer("retry_at", { mode: "timestamp_ms" }),
     createdAt: createdAt(),
   },
   (t) => [
-    index("webhook_deliveries_channel_created").on(t.accountId, t.channelId, t.createdAt),
-    index("webhook_deliveries_account_created").on(t.accountId, t.createdAt),
-    index("webhook_deliveries_retry").on(t.retryAt),
+    index("notify_deliveries_channel_created").on(t.accountId, t.channelId, t.createdAt),
+    index("notify_deliveries_account_created").on(t.accountId, t.createdAt),
+    index("notify_deliveries_retry").on(t.retryAt),
   ],
 );
 
@@ -1406,7 +1407,7 @@ export const accountTables = {
   notifyChannels,
   notifySends,
   notifyHeld,
-  webhookDeliveries,
+  notifyDeliveries,
   closedPulls,
   pullFlows,
   pullReviews,

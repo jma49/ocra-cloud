@@ -10,8 +10,9 @@ import { type Outbox, send } from "./notify.js";
 // The daily digest: yesterday's reviews and merges (UTC) of each account with a
 // channel that takes it, sent once per account and day whichever host and
 // process runs it, and however often (the Worker's cron, the Node server's
-// timer). The day is claimed before anything is sent, so a send that fails
-// is not retried: the digest is a summary, not a record.
+// timer). The day is claimed before anything is sent, so it is made once;
+// each channel's delivery of it is retried like any message
+// (./deliveries.ts).
 
 const ACCOUNTS_AT_ONCE = 4;
 /** Merged pull requests a digest names. */
@@ -44,6 +45,7 @@ function digestMessage(day: string, n: DigestNumbers, m: Merges, origin: string)
   const pulls = n.pulls > 0 ? ` of ${plural(n.pulls, "pull request")}` : "";
   const reviews = `${plural(n.reviews, "review")}${pulls}`;
   return {
+    event: "digest",
     subject: `ocra digest for ${day}: ${reviews}, ${n.critical} critical, ${m.merged} merged`,
     lines: [
       [`ocra's digest for ${day} (UTC): ${reviews}`],

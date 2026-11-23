@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { NotifyChannelView, WebhookDeliveryView } from "../../../src/shared/index.js";
+import type { NotifyChannelView, NotifyDeliveryView } from "../../../src/shared/index.js";
 import { Notifications } from "../pages/Notifications.js";
 
 afterEach(() => {
@@ -26,7 +26,7 @@ const channel = (more: Partial<NotifyChannelView> = {}): NotifyChannelView => ({
   createdAt: "2026-11-20T10:00:00Z",
   ...more,
 });
-const delivery = (id: string, more: Partial<WebhookDeliveryView>): WebhookDeliveryView => ({
+const delivery = (id: string, more: Partial<NotifyDeliveryView>): NotifyDeliveryView => ({
   id,
   event: "review_completed",
   state: "delivered",
@@ -39,7 +39,7 @@ const delivery = (id: string, more: Partial<WebhookDeliveryView>): WebhookDelive
   ...more,
 });
 
-function serve(channels: NotifyChannelView[], deliveries: WebhookDeliveryView[]) {
+function serve(channels: NotifyChannelView[], deliveries: NotifyDeliveryView[]) {
   const sent: { url: string; method: string }[] = [];
   const writeText = vi.fn(async () => {});
   vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
@@ -77,7 +77,6 @@ describe("a webhook channel", () => {
     );
     render(<Notifications platforms={["github"]} />);
     fireEvent.click(await screen.findByRole("button", { name: "Deliveries to Deploy bot" }));
-    expect(screen.queryByRole("button", { name: "Deliveries to #reviews" })).toBeNull();
     const list = await screen.findByRole("region", { name: "Recent deliveries" });
     const rows = within(list).getAllByRole("row").slice(1);
     expect(rows.map((r) => r.textContent)).toEqual([
@@ -108,6 +107,19 @@ describe("a webhook channel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
     fireEvent.click(screen.getByRole("button", { name: "Deliveries to Deploy bot" }));
     expect(screen.queryByText(SECRET)).toBeNull();
+  });
+
+  it("is not the only kind with deliveries: a chat's show, without a signing secret", async () => {
+    serve(
+      [channel({ id: "n2", kind: "slack", name: "#reviews" })],
+      [delivery("d1", { state: "failed", status: 404, error: "status", latencyMs: 12 })],
+    );
+    render(<Notifications platforms={["github"]} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Deliveries to #reviews" }));
+    const list = await screen.findByRole("region", { name: "Recent deliveries" });
+    const rows = within(list).getAllByRole("row").slice(1);
+    expect(rows.map((r) => r.textContent)).toEqual(["review_completedFailedHTTP 404, 12 ms1h ago"]);
+    expect(screen.queryByRole("region", { name: "Signing secret" })).toBeNull();
   });
 
   it("has no quiet hours among its reminders, which a chat has", async () => {

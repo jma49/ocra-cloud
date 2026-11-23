@@ -98,6 +98,9 @@ emailLinks.post("/unsubscribe", async (c) => {
   }
   const data = scoped(c.var.db, parts.accountId);
   const channel = await data.get("notifyChannels", parts.channelId);
-  if (channel?.kind === "email") await data.remove("notifyChannels", channel.id);
+  if (channel?.kind === "email") {
+    await data.remove("notifyChannels", channel.id);
+    await data.deliveries.drop([channel.id]);
+  }
   return c.html(page("Unsubscribed", "<p>This address gets no more email from this account.</p>"));
 });

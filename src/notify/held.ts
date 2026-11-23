@@ -34,6 +34,7 @@ function heldMessage(held: readonly Held[], origin: string): Message {
   ]);
   const more = held.length > LISTED ? [[`… and ${held.length - LISTED} more`]] : [];
   return {
+    event: "held_notices",
     subject: `ocra: ${plural(held.length, "notice")} from your quiet hours`,
     lines: [
       [`While your quiet hours lasted (${plural(held.length, "notice")}):`],

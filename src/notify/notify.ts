@@ -1,5 +1,6 @@
 import type { Context } from "hono";
 import { decryptWithAny, encryptSecret, type MasterKeys } from "../crypto.js";
+import type { Db } from "../db/client.js";
 import type { Row, Scoped } from "../db/scoped.js";
 import { masterKeys } from "../keyring.js";
 import { consolePullUrl } from "../merge-checks/run.js";
@@ -7,7 +8,7 @@ import type { CodePlatform } from "../platforms/platform.js";
 import { pullOfReview, pullOnPlatform, pullPageUrl } from "../review-pull.js";
 import type { AppEnv } from "../types.js";
 import {
-  deliver,
+  chatAttempt,
   type Message,
   messageOf,
   plain,
@@ -15,21 +16,24 @@ import {
   reviewMessage,
   whensFor,
 } from "./channels.js";
-import { type Mailer, mailOf, sendMail } from "./email.js";
+import { type Attempt, deliver, type Outgoing, REFUSED, retryDeliveries } from "./deliveries.js";
+import { type Mailer, mailAttempt, mailBody } from "./email.js";
 import { unsubscribeUrl } from "./links.js";
 import {
-  deliverHooks,
   fetchWebhook,
   type HookEvent,
-  type RetryOutbox,
+  hookOutgoing,
   type WebhookPost,
   type WebhookTarget,
+  webhookAttempt,
 } from "./webhooks.js";
 
 // Announcing a stored review in the account's chats and confirmed email
 // addresses: each channel whose setting takes it gets one message, and
-// keeps how that went. A channel whose address no longer decrypts counts as
-// failed; nothing is retried but a webhook's deliveries (./webhooks.ts).
+// keeps how that went. Every message, of every kind, goes through the
+// channel's delivery queue (./deliveries.ts), which retries what failed for
+// a reason that may pass; a channel whose address no longer decrypts is
+// refused.
 
 /** What sending needs from the host: the keys, its mailer if it has one, and its links. */
 export type Outbox = {
@@ -97,26 +101,51 @@ export async function openWebhook(
   }
 }
 
-/** What the retry sweep needs of an outbox. */
-export const retryOutbox = (out: Pick<Outbox, "keys" | "webhooks">): RetryOutbox => ({
-  post: out.webhooks ?? fetchWebhook,
-  open: (channel) => openWebhook(out.keys, channel),
-});
+/** What sending needs to make an attempt: the keys, the mailer, how webhooks are posted. */
+export type Transports = Pick<Outbox, "keys" | "mailer" | "webhooks">;
 
-async function deliverTo(
-  out: Outbox,
-  channel: Row<"notifyChannels">,
-  address: string,
-  m: Message,
-): Promise<boolean> {
-  if (channel.kind === "webhook") return false;
-  if (channel.kind !== "email") return deliver(channel.kind, address, messageOf(channel.kind, m));
-  if (!out.mailer || !channel.confirmedAt) return false;
-  const unsubscribe = await unsubscribeUrl(out, channel.accountId, channel.id);
-  return sendMail(out.mailer, mailOf(m, address, unsubscribe));
+/**
+ * How the channel is sent to, its address opened again for each send and
+ * retry: one that no longer opens, or an email channel on a host without
+ * a mailer, is refused.
+ */
+async function attemptOn(out: Transports, channel: Row<"notifyChannels">): Promise<Attempt> {
+  if (channel.kind === "webhook") {
+    const target = await openWebhook(out.keys, channel);
+    return target ? webhookAttempt(out.webhooks ?? fetchWebhook, target) : refused;
+  }
+  const address = await openHook(out.keys, channel);
+  if (address === undefined) return refused;
+  if (channel.kind !== "email") return chatAttempt(channel.kind, address);
+  return out.mailer && channel.confirmedAt ? mailAttempt(out.mailer, address) : refused;
 }
 
-/** Sends the message to the channel and records how it went; whether it was taken. */
+const refused: Attempt = async () => REFUSED;
+
+/** Tries again every account's deliveries due; how many it tried. */
+export const retryNotifications = (db: Db, out: Transports, now?: () => Date) =>
+  retryDeliveries(db, (channel) => attemptOn(out, channel), now);
+
+/** What the channel's kind is sent: a webhook's events, or the message as its medium shows it. */
+async function outgoingOf(
+  out: Outbox,
+  channel: Row<"notifyChannels">,
+  m: Message,
+): Promise<Outgoing[]> {
+  if (channel.kind === "webhook") return (m.hooks ?? []).map(hookOutgoing);
+  if (channel.kind !== "email") {
+    const body = JSON.stringify(messageOf(channel.kind, m));
+    return [{ event: m.event, payload: () => body }];
+  }
+  const unsubscribe = await unsubscribeUrl(out, channel.accountId, channel.id);
+  const body = JSON.stringify(mailBody(m, unsubscribe));
+  return [{ event: m.event, payload: () => body }];
+}
+
+/**
+ * Sends the message to the channel through its delivery queue and records
+ * how its first attempt went; whether every delivery was taken at once.
+ */
 export async function send(
   data: Scoped,
   out: Outbox,
@@ -125,9 +154,14 @@ export async function send(
 ): Promise<boolean> {
   // A digest, report or held notice has no webhook event; a webhook channel never takes one.
   if (channel.kind === "webhook" && !m.hooks?.length) return false;
-  const ok = await (channel.kind === "webhook"
-    ? sendHooks(out, data, channel, m)
-    : sendText(out, channel, m));
+  // A server without a mailer, or an address not confirmed, has nothing to deliver.
+  if (channel.kind === "email" && (!out.mailer || !channel.confirmedAt)) return false;
+  const ok = await deliver(
+    data,
+    channel,
+    await attemptOn(out, channel),
+    await outgoingOf(out, channel, m),
+  );
   await data.batch((w) => [
     w.update("notifyChannels", channel.id, {
       lastStatus: ok ? "ok" : "failed",
@@ -135,17 +169,6 @@ export async function send(
     }),
   ]);
   return ok;
-}
-
-async function sendText(out: Outbox, channel: Row<"notifyChannels">, m: Message) {
-  const address = await openHook(out.keys, channel);
-  return address !== undefined && (await deliverTo(out, channel, address, m));
-}
-
-async function sendHooks(out: Outbox, data: Scoped, channel: Row<"notifyChannels">, m: Message) {
-  const target = await openWebhook(out.keys, channel);
-  if (!target) return false;
-  return deliverHooks(data, out.webhooks ?? fetchWebhook, channel, target, m.hooks ?? []);
 }
 
 const SEVERE = { critical: 0, warning: 1 } as Record<string, number>;
