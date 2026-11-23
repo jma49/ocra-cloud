@@ -803,12 +803,31 @@ td.finding-cell {
     width: auto;
   }
 }
+/* On a phone a row takes two lines: the whole title, then what it is and when. */
 @media (max-width: 560px) {
   .pull-team-name {
     display: none;
   }
   .pull-review:empty {
     display: none;
+  }
+  .pull-row {
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    padding: 10px 16px;
+  }
+  .pull-title {
+    flex: 1 0 calc(100% - 24px);
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+  .pull-title + * {
+    margin-left: 24px;
+  }
+  .pull-time {
+    margin-left: auto;
   }
 }
 .view-group {

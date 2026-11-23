@@ -262,7 +262,7 @@ describe("loading and load errors", () => {
 
   it("Overview does not say no requests while they load", async () => {
     fakeApi(never);
-    render(<Overview login="ada" />);
+    render(<Overview />);
     await screen.findByText(/Loading requests/);
     expect(screen.queryByText(/No requests yet/)).toBeNull();
   });
@@ -283,7 +283,7 @@ describe("addresses and crashes", () => {
     fakeApi(never);
     render(pageFor("/no-such-page", me));
     screen.getByText("Page not found");
-    expect(screen.queryByText(/Welcome/)).toBeNull();
+    expect(screen.queryByText("Requests today")).toBeNull();
   });
 
   it("a page that throws is caught, not a blank app", () => {

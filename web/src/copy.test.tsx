@@ -87,7 +87,7 @@ describe("links", () => {
 describe("provider count", () => {
   it("Overview counts the providers and does not call ocra login coming soon", async () => {
     fakeApi();
-    render(<Overview login="ada" />);
+    render(<Overview />);
     await screen.findByText(/any of 46 providers/);
     expect(screen.queryByText(/coming soon/i)).toBeNull();
     expect(document.body.textContent).not.toContain("45");
