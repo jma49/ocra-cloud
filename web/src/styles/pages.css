@@ -1345,7 +1345,7 @@ td.finding-cell {
   white-space: pre-line;
 }
 
-/* A webhook channel's drawer */
-.webhook-deliveries {
+/* A channel's deliveries drawer */
+.channel-deliveries {
   margin-top: 28px;
 }
