@@ -42,6 +42,8 @@ export function pullCommands(page: {
   review: () => void;
   /** Ticks or unticks a file as viewed, by its path. */
   toggleViewed: (path: string) => void;
+  /** Draws the diffs the other way, unified or split; undefined where only one fits. */
+  switchLayout?: { to: "unified" | "split"; run: () => void } | undefined;
   /** The pull requests beside this one in the inbox it was opened from. */
   beside: Beside | null;
 }): PageCommand[] {
@@ -73,6 +75,14 @@ export function pullCommands(page: {
         if (path !== undefined) page.toggleViewed(path);
       },
     },
+    ...(page.switchLayout
+      ? [
+          {
+            label: page.switchLayout.to === "split" ? "Show diffs split" : "Show diffs unified",
+            run: page.switchLayout.run,
+          },
+        ]
+      : []),
     ...(open
       ? [{ label: "Go to merge", key: "m", run: () => to(document.getElementById(MERGE_ID)) }]
       : []),

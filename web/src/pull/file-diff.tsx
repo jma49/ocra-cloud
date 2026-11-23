@@ -1,5 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import type {
   FixProposalView,
   LineComment,
@@ -7,17 +6,22 @@ import type {
   PullFilesView,
   PullFindingView,
 } from "../../../src/shared/index.js";
-import { FixProposal } from "../fixes/fix-proposal.js";
 import { anchorOf, type DiffLine, parsePatch, placeOnLines, splitPath } from "./diff.js";
+import { DiffRowView, type LineLook } from "./diff-row.js";
+import { chunksOf, type DiffLayout, type DiffRow, linesOfRow, rowsOf } from "./diff-rows.js";
+import { wordChanges } from "./diff-words.js";
 import { FileTypeIcon } from "./file-icon.js";
-import { FindingNote, underLine } from "./findings.js";
+import { underLine } from "./findings.js";
+import { FOLD_LABEL, foldReason } from "./generated.js";
 import { type CodeRun, highlightDiff } from "./highlight.js";
-import { SuggestionText } from "./suggestion.js";
+import { LazyBody, watchNear } from "./lazy-body.js";
+import { CommentBox, hasNotes, LineNotes, type Notes } from "./line-notes.js";
 
 // One changed file of a pull request: its header and its diff, where a
 // line's number opens a comment box, and ocra's findings and fixes under the
-// lines they are about. Comments wait in the page's review until it is sent. Every text
-// is plain text: the diff is untrusted code.
+// lines they are about. Comments wait in the page's review until it is sent.
+// The diff is drawn in runs of rows, each only while it is near the window,
+// so a pull request of thousands of lines scrolls as lightly as a short one.
 
 type File = PullFilesView["files"][number];
 
@@ -28,18 +32,20 @@ const STATUS: Record<File["status"], string> = {
   renamed: "Renamed",
 };
 
-const sameAnchor = (c: LineComment, path: string, line: DiffLine) => {
-  const a = anchorOf(line);
-  return a !== null && c.path === path && c.line === a.line && c.side === a.side;
-};
+/** Rows per run drawn or left out as one. */
+const RUN = 48;
+/** The diff's line height (pages.css `.diff`), and a guess at a note's, until each is measured. */
+const ROW_PX = 22;
+const NOTE_PX = 160;
 
-const lineName = (line: DiffLine) => {
-  const a = anchorOf(line);
-  return a?.side === "old" ? `removed line ${a.line}` : `line ${a?.line}`;
+const sameAnchor = (c: LineComment, path: string, line: DiffLine | undefined) => {
+  const a = line && anchorOf(line);
+  return Boolean(a) && c.path === path && c.line === a?.line && c.side === a?.side;
 };
 
 export function FileDiff(props: {
   file: File;
+  layout: DiffLayout;
   viewed: boolean;
   /** Ticks or unticks the file; a tick folds it. */
   onViewed: (viewed: boolean) => void;
@@ -56,72 +62,84 @@ export function FileDiff(props: {
   /** Shows the diff without a way to comment on its lines. */
   readOnly?: boolean;
 }) {
-  const { file } = props;
+  const { file, layout } = props;
   const lines = useMemo(() => (file.patch ? parsePatch(file.patch) : []), [file.patch]);
+  const words = useMemo(() => wordChanges(lines), [lines]);
+  const rows = useMemo(() => rowsOf(lines, layout), [lines, layout]);
   const fixesAt = useMemo(() => placeOnLines(lines, props.fixes), [lines, props.fixes]);
   const findingsAt = useMemo(
     () => placeOnLines(lines, props.findings.map(underLine)),
     [lines, props.findings],
   );
-  const { review } = props;
-  // What is wrong, then what would fix it.
-  const fixRows = (i: number) => (
-    <>
-      {review &&
-        findingsAt.get(i)?.map((f) => (
-          <tr key={f.id} className="diff-note">
-            <td colSpan={3}>
-              <FindingNote finding={f} onDecided={(d) => props.onDecided(f.id, d)} />
-            </td>
-          </tr>
-        ))}
-      {fixesAt.get(i)?.map((fix) => (
-        <tr key={fix.finding} className="diff-note">
-          <td colSpan={3}>
-            <FixProposal fix={fix} onDone={props.onFixDone} />
-          </td>
-        </tr>
-      ))}
-    </>
+  const reason = foldReason(file.path);
+  const [folded, setFolded] = useState(
+    file.status === "removed" || props.viewed || reason !== null,
   );
-  const [open, setOpen] = useState<number | null>(null);
-  const [draft, setDraft] = useState("");
-  // A suggestion replaces the commented new line; null while the comment carries none.
-  const [suggestion, setSuggestion] = useState<string | null>(null);
-  const [folded, setFolded] = useState(file.status === "removed" || props.viewed);
   // A tick, from the box or the page's key, folds the file.
   useEffect(() => {
     if (props.viewed) setFolded(true);
   }, [props.viewed]);
-  const { dir, name } = splitPath(file.path);
-  const [runs, setRuns] = useState<Map<number, CodeRun[]>>(NO_RUNS);
+  const [open, setOpen] = useState<number | null>(null);
+  const section = useRef<HTMLElement>(null);
+  const [near, setNear] = useState(false);
   useEffect(() => {
-    if (folded) return;
+    const el = section.current;
+    if (!el || near) return;
+    return watchNear(el, (now) => now && setNear(true));
+  }, [near]);
+  const [runs, setRuns] = useState<ReadonlyMap<number, CodeRun[]>>(NO_RUNS);
+  useEffect(() => {
+    // Colours wait until the file is open and near the window: a long page reads only what is read.
+    if (folded || !near) return;
     let live = true;
     // A diff the highlighter cannot read is drawn plain, as it was before.
-    highlightDiff(file.path, lines).then(
+    highlightDiff(file.path, lines, (part) => live && setRuns(part)).then(
       (r) => live && setRuns(r),
       () => {},
     );
     return () => {
       live = false;
     };
-  }, [folded, file.path, lines]);
-  const add = (line: DiffLine) => {
-    const a = anchorOf(line);
-    if (!a || (!draft.trim() && suggestion === null)) return;
-    props.onComment({
-      path: file.path,
-      ...a,
-      body: draft.trim(),
-      ...(suggestion !== null && a.side === "new" ? { suggestion } : {}),
-    });
-    setDraft("");
-    setSuggestion(null);
-    setOpen(null);
+  }, [folded, near, file.path, lines]);
+  const columns = layout === "split" ? 4 : 3;
+  const look: LineLook = {
+    lines,
+    runs,
+    words,
+    onOpen: props.readOnly ? undefined : (at) => setOpen(open === at ? null : at),
   };
+  const notes: Notes = {
+    findingsAt: props.review ? findingsAt : NO_NOTES,
+    fixesAt,
+    review: props.review,
+    onDecided: props.onDecided,
+    onFixDone: props.onFixDone,
+    pendingAt: (at) => props.pending.filter((c) => sameAnchor(c, file.path, lines[at])),
+    onDrop: props.onDrop,
+  };
+  const chunks = useMemo(() => chunksOf(rows, RUN), [rows]);
+  const { dir, name } = splitPath(file.path);
+  const rowNotes = (row: DiffRow) =>
+    linesOfRow(row).map((at) => (
+      <Fragment key={at}>
+        <LineNotes at={at} notes={notes} columns={columns} />
+        {open === at && lines[at] && (
+          <CommentBox
+            path={file.path}
+            line={lines[at]}
+            columns={columns}
+            onAdd={(c) => {
+              props.onComment(c);
+              setOpen(null);
+            }}
+            onCancel={() => setOpen(null)}
+          />
+        )}
+      </Fragment>
+    ));
   return (
     <section
+      ref={section}
       className={`card diff-file${props.viewed ? " is-viewed" : ""}`}
       id={`file-${file.path}`}
       data-path={file.path}
@@ -142,6 +160,7 @@ export function FileDiff(props: {
             <span className="diff-name">{name}</span>
           </span>
           {STATUS[file.status] && <span className="badge">{STATUS[file.status]}</span>}
+          {reason && <span className="badge">{FOLD_LABEL[reason]}</span>}
           {/* A file without lines (an image, a binary) has no counts to show. */}
           {file.additions + file.deletions > 0 && (
             <span className="diff-count">
@@ -166,170 +185,55 @@ export function FileDiff(props: {
             The platform sent no diff for this file (binary or too large).
           </p>
         ) : (
-          <div className="diff-scroll">
-            <table className="diff">
+          <table className={`diff is-${layout}`}>
+            <colgroup>
+              {layout === "split" ? (
+                <>
+                  <col className="diff-no-col" />
+                  <col />
+                  <col className="diff-no-col" />
+                  <col />
+                </>
+              ) : (
+                <>
+                  <col className="diff-no-col" />
+                  <col className="diff-no-col" />
+                  <col />
+                </>
+              )}
+            </colgroup>
+            {hasNotes(notes, -1) && (
               <tbody>
-                {fixRows(-1)}
-                {lines.map((line, i) => {
-                  const here = props.pending.filter((c) => sameAnchor(c, file.path, line));
-                  return (
-                    // biome-ignore lint/suspicious/noArrayIndexKey: a diff's lines have no id; their order is fixed.
-                    <Fragment key={i}>
-                      <Row
-                        line={line}
-                        runs={runs.get(i)}
-                        onOpen={
-                          props.readOnly
-                            ? undefined
-                            : () => {
-                                setOpen(open === i ? null : i);
-                                setSuggestion(null);
-                              }
-                        }
-                      />
-                      {fixRows(i)}
-                      {here.map((c) => (
-                        <tr key={props.pending.indexOf(c)} className="diff-note">
-                          <td colSpan={3}>
-                            <div className="diff-comment">
-                              <div className="stack grow">
-                                {c.body && <span className="pre-wrap">{c.body}</span>}
-                                {c.suggestion !== undefined && (
-                                  <SuggestionText text={c.suggestion} />
-                                )}
-                              </div>
-                              <Button variant="outline" size="sm" onClick={() => props.onDrop(c)}>
-                                Remove
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                      {open === i && (
-                        <tr className="diff-note">
-                          <td colSpan={3}>
-                            <div className="diff-comment-box">
-                              <textarea
-                                className="input"
-                                aria-label={`Your comment on ${lineName(line)}`}
-                                placeholder="Leave a comment"
-                                rows={3}
-                                value={draft}
-                                onChange={(e) => setDraft(e.target.value)}
-                              />
-                              {line.kind !== "del" &&
-                                (suggestion === null ? (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setSuggestion(line.text)}
-                                  >
-                                    Suggest a change
-                                  </Button>
-                                ) : (
-                                  <div className="stack-tight">
-                                    <div className="row-gap suggest-head">
-                                      <span className="subtle small grow">
-                                        Replaces {lineName(line)} when committed
-                                      </span>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => setSuggestion(null)}
-                                      >
-                                        Remove suggestion
-                                      </Button>
-                                    </div>
-                                    <textarea
-                                      className="input mono suggest-input"
-                                      aria-label={`Suggested text for ${lineName(line)}`}
-                                      rows={Math.max(2, suggestion.split("\n").length)}
-                                      spellCheck={false}
-                                      value={suggestion}
-                                      onChange={(e) => setSuggestion(e.target.value)}
-                                    />
-                                  </div>
-                                ))}
-                              <div className="row-gap">
-                                <Button
-                                  size="sm"
-                                  disabled={!draft.trim() && suggestion === null}
-                                  onClick={() => add(line)}
-                                >
-                                  Add to review
-                                </Button>
-                                <Button variant="outline" size="sm" onClick={() => setOpen(null)}>
-                                  Cancel
-                                </Button>
-                              </div>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </Fragment>
-                  );
-                })}
+                <LineNotes at={-1} notes={notes} columns={columns} />
               </tbody>
-            </table>
-          </div>
+            )}
+            {chunks.map((chunk, k) => {
+              const held = chunk.flatMap(linesOfRow);
+              const noted = held.filter((at) => hasNotes(notes, at)).length;
+              return (
+                <LazyBody
+                  // biome-ignore lint/suspicious/noArrayIndexKey: a run is its place in the diff.
+                  key={k}
+                  columns={columns}
+                  estimate={chunk.length * ROW_PX + noted * NOTE_PX}
+                  pinned={open !== null && held.includes(open)}
+                >
+                  {() =>
+                    chunk.map((row) => (
+                      <Fragment key={row.kind === "pair" ? `${row.left}:${row.right}` : row.line}>
+                        <DiffRowView row={row} look={look} columns={columns} />
+                        {rowNotes(row)}
+                      </Fragment>
+                    ))
+                  }
+                </LazyBody>
+              );
+            })}
+          </table>
         ))}
     </section>
   );
 }
 
-const NO_RUNS: Map<number, CodeRun[]> = new Map();
-
-function Row(props: {
-  line: DiffLine;
-  /** The line's text by kind of token, once its language was read. */
-  runs: CodeRun[] | undefined;
-  onOpen: (() => void) | undefined;
-}) {
-  const { line } = props;
-  if (line.kind === "hunk") {
-    return (
-      <tr className="diff-hunk">
-        <td colSpan={3}>{line.text}</td>
-      </tr>
-    );
-  }
-  const comment = (n: number) =>
-    props.onOpen ? (
-      <button
-        type="button"
-        className="diff-add-comment"
-        aria-label={`Comment on ${lineName(line)}`}
-        onClick={props.onOpen}
-      >
-        {n}
-      </button>
-    ) : (
-      n
-    );
-  // The button sits on the number its comment anchors to: old for a removed line, new otherwise.
-  return (
-    <tr className={`diff-${line.kind}`}>
-      <td className="diff-no">
-        {line.kind === "del" ? comment(line.old) : line.kind === "context" ? line.old : ""}
-      </td>
-      <td className="diff-no">{line.kind === "del" ? "" : comment(line.new)}</td>
-      <td className="diff-code">
-        <span className="diff-sign" aria-hidden="true">
-          {line.kind === "add" ? "+" : line.kind === "del" ? "−" : " "}
-        </span>
-        {props.runs
-          ? props.runs.map((run, i) =>
-              run.kind ? (
-                // biome-ignore lint/suspicious/noArrayIndexKey: a line's runs have no id; their order is fixed.
-                <span key={i} className={`tok-${run.kind}`}>
-                  {run.text}
-                </span>
-              ) : (
-                run.text
-              ),
-            )
-          : line.text}
-      </td>
-    </tr>
-  );
-}
+const NO_RUNS: ReadonlyMap<number, CodeRun[]> = new Map();
+const NO_NOTES: ReadonlyMap<number, PullFindingView[]> = new Map();

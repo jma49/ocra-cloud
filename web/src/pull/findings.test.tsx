@@ -38,6 +38,7 @@ const show = (findings: PullFindingView[], review: string | null = "r1") =>
   render(
     <FileDiff
       file={file}
+      layout="unified"
       viewed={false}
       onViewed={() => undefined}
       pending={[]}
