@@ -159,6 +159,28 @@ describe("running a build", () => {
       { state: "queued", error: "build_failed" },
     ]);
   });
+
+  it("records a lease that lapses while the tree is read as the build's failure", async () => {
+    await data.graphs.queueBuild(repoId, C1);
+    vi.spyOn(globalThis, "fetch").mockImplementation(
+      (_, init) =>
+        new Promise((_, reject) =>
+          init?.signal?.addEventListener("abort", () => reject(init.signal?.reason), {
+            once: true,
+          }),
+        ),
+    );
+    await runNextBuild({
+      db: host.db,
+      env: bindings,
+      platforms,
+      builder: fakeBuilder().builder,
+      leaseMs: 50,
+    });
+    expect(await data.find("graphBuilds", {})).toMatchObject([
+      { state: "queued", error: "build_failed" },
+    ]);
+  });
 });
 
 describe("the graph history", () => {
