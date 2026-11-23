@@ -34,6 +34,7 @@ import { mergeWhenReady } from "./merge-when-ready/routes.js";
 import type { Mailer } from "./notify/email.js";
 import { emailLinks } from "./notify/links.js";
 import { notifyRoute } from "./notify/routes.js";
+import { scheduledReportsRoute } from "./notify/scheduled-report-routes.js";
 import type { WebhookPost } from "./notify/webhooks.js";
 import { oidc } from "./oidc.js";
 import { platformConnect } from "./platform-connect.js";
@@ -180,6 +181,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
   app.route("/merge-checks", mergeChecksRoute);
   app.route("/notifications", notifyRoute);
   app.route("/automations", automationsRoute);
+  app.route("/scheduled-reports", scheduledReportsRoute);
   app.route("/email", emailLinks);
   app.route(
     "/search",

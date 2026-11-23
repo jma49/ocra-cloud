@@ -35,6 +35,9 @@ export type AuditDetails = {
   "automation.added": { rule: string; trigger: string };
   "automation.changed": { rule: string; trigger: string; enabled: boolean };
   "automation.removed": { rule: string };
+  "report.added": { report: string; cadence: string };
+  "report.changed": { report: string; cadence: string; enabled: boolean };
+  "report.removed": { report: string };
   "auto_review.enrolled": { repo: string; platform: string };
   "auto_review.auto_enroll_changed": { owner: string; enabled: boolean; automatic: boolean };
   "auto_review.profile_changed": { repo: string; profile: string };
@@ -104,6 +107,9 @@ export const AUDIT_FIELDS: { readonly [K in AuditKind]: readonly (keyof AuditDet
   "automation.added": ["rule", "trigger"],
   "automation.changed": ["rule", "trigger", "enabled"],
   "automation.removed": ["rule"],
+  "report.added": ["report", "cadence"],
+  "report.changed": ["report", "cadence", "enabled"],
+  "report.removed": ["report"],
   "auto_review.enrolled": ["repo", "platform"],
   "auto_review.auto_enroll_changed": ["owner", "enabled", "automatic"],
   "auto_review.profile_changed": ["repo", "profile"],

@@ -19,6 +19,7 @@ import { runHeld } from "./notify/held.js";
 import { retryNotifications } from "./notify/notify.js";
 import { runReminders } from "./notify/reminders.js";
 import { runReports } from "./notify/report.js";
+import { runScheduledReports } from "./notify/scheduled-reports.js";
 import { githubHostOf, platformsOf } from "./platforms/registry.js";
 import { reconcileRun } from "./reconcile.js";
 import { sweepStackMerges } from "./stack-merge/advance.js";
@@ -103,7 +104,12 @@ export default {
         origin: new URL(env.PUBLIC_URL).origin,
       };
       jobs.digests = (calls) => runDigests(db, out, undefined, calls);
-      jobs.reports = (calls) => runReports(db, out, undefined, calls);
+      const reportPlatforms = platformsOf(env, env.PUBLIC_URL);
+      // The weekly report, then the reports accounts defined, in one share.
+      jobs.reports = async (calls) => {
+        await runReports(db, out, undefined, calls);
+        await runScheduledReports(db, out, reportPlatforms, undefined, calls);
+      };
       jobs.reminders = (calls) => runReminders(db, out, githubHostOf(env).host, undefined, calls);
       jobs.held = (calls) => runHeld(db, out, undefined, calls);
       jobs.atRisk = (calls) => runAtRisk(db, out, undefined, calls);

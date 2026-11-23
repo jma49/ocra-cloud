@@ -21,6 +21,7 @@ import { runHeld } from "../notify/held.js";
 import { retryNotifications } from "../notify/notify.js";
 import { runReminders } from "../notify/reminders.js";
 import { runReports } from "../notify/report.js";
+import { runScheduledReports } from "../notify/scheduled-reports.js";
 import type { WebhookPost } from "../notify/webhooks.js";
 import { botTokens } from "../platforms/bot-tokens.js";
 import { githubHostOf, platformsOf } from "../platforms/registry.js";
@@ -180,7 +181,7 @@ export async function openHost(options: HostOptions) {
         : site.fetch(request);
     },
     /**
-     * Sends the daily digests, weekly reports, review reminders, quiet
+     * Sends the daily digests, weekly and scheduled reports, review reminders, quiet
      * hours' held notices and pull requests at risk not sent yet, and runs
      * the automation rules on pull requests gone stale; needs
      * publicUrl, which their links point to.
@@ -198,6 +199,7 @@ export async function openHost(options: HostOptions) {
       await Promise.all([
         runDigests(shared, out),
         runReports(shared, out),
+        runScheduledReports(shared, out, platformsOf(bindings, origin)),
         runReminders(shared, out, githubHostOf(bindings).host),
         runHeld(shared, out),
         runAtRisk(shared, out),
