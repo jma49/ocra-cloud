@@ -1,15 +1,15 @@
-import { REVIEW_PROFILE_SETTINGS, type ReviewProfile } from "../shared/index.js";
+import { REVIEW_DEPTH_SETTINGS, type ReviewDepth } from "../shared/index.js";
 
 /**
- * What a hosted review's profile adds: keys of its configuration file
+ * What a hosted review's depth adds: keys of its configuration file
  * (written with --config, a layer above the account's settings, which only
- * fill what it leaves out) and CLI flags. Balanced adds nothing.
+ * fill what it leaves out) and CLI flags. Standard adds nothing.
  */
-export function profileRun(profile: ReviewProfile): {
+export function depthRun(depth: ReviewDepth): {
   config: { reviewers?: Record<string, { enabled: false }>; showPreExisting?: boolean };
   flags: string[];
 } {
-  const settings = REVIEW_PROFILE_SETTINGS[profile];
+  const settings = REVIEW_DEPTH_SETTINGS[depth];
   const off = settings.reviewersOff ?? [];
   return {
     config: {

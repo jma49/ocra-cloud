@@ -1,6 +1,6 @@
 import type { GenerateKind } from "@open-cr-agent/cloud-contract";
 import type { CodePlatformKind } from "./domain.js";
-import type { ReviewProfile } from "./review-profiles.js";
+import type { ReviewDepth } from "./review-depths.js";
 
 // Pull requests reviewed by the server itself when they open or gain
 // commits (ADR-0046): the repositories an account enrolled and their jobs.
@@ -77,7 +77,7 @@ export type AutoReviewRepoView = {
   platform: CodePlatformKind;
   host: string;
   fullName: string;
-  profile: ReviewProfile;
+  depth: ReviewDepth;
   /** Whether pull requests are reviewed as they open or gain commits; off, only when a person asks. */
   automatic: boolean;
   learn: LearnMode;
@@ -215,9 +215,15 @@ export type PullReviewJobView = {
   jobId: string;
   head: string;
   queuedAt: string;
+  /** The depth chosen for this review; null when it takes the repository's. */
+  depth: ReviewDepth | null;
 };
 
-export type PullReviewNowView = { job: PullReviewJobView | null };
+export type PullReviewNowView = {
+  job: PullReviewJobView | null;
+  /** The repository's depth, which a review takes unless one is chosen for it. */
+  depth: ReviewDepth;
+};
 
 /**
  * The remote runners that asked this deployment for jobs lately, newest

@@ -80,7 +80,7 @@ describe("a repository renamed or transferred on GitHub", () => {
     const salt = await accountSalt(db, me.id);
     const oldHash = await repoHashOf(salt, site, "octo/api");
     const newHash = await repoHashOf(salt, site, "acme/service");
-    await db.update(schema.reviewRepos).set({ reviewProfile: "quiet" });
+    await db.update(schema.reviewRepos).set({ reviewDepth: "quick" });
     await db.insert(schema.graphRepos).values({
       ...rows.graphRepos("g"),
       accountId: me.id,
@@ -119,7 +119,7 @@ describe("a repository renamed or transferred on GitHub", () => {
     });
 
     const repo = await repoOf("repo-api");
-    expect(repo).toMatchObject({ fullName: "acme/service", reviewProfile: "quiet", paused: null });
+    expect(repo).toMatchObject({ fullName: "acme/service", reviewDepth: "quick", paused: null });
     expect(await me.data.list("pullFlows")).toHaveLength(1);
     expect((await me.data.list("graphRepos"))[0]?.fullName).toBe("acme/service");
     expect((await me.data.list("mergeIntents"))[0]?.fullName).toBe("acme/service");
@@ -154,7 +154,7 @@ describe("a repository GitHub no longer gives the App", () => {
       { state: "failed", error: "repository_paused" },
     ]);
     // Asked for again while paused, it waits: no runner claims it.
-    await me.data.autoReview.request("repo-api", 4, "b".repeat(40), false, new Date());
+    await me.data.autoReview.request("repo-api", 4, "b".repeat(40), false, null, new Date());
     expect(await claimJob(db, new Date(), 60_000, 1000)).toBeUndefined();
 
     await deliver("installation_repositories", {

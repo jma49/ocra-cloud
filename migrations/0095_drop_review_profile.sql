@@ -1,0 +1,1 @@
+ALTER TABLE `review_repos` DROP COLUMN `review_profile`;

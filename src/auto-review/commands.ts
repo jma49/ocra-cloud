@@ -164,7 +164,7 @@ async function headOf({ platform, bot, repo }: Run, number: number) {
 async function review(run: Run, number: number): Promise<Answer> {
   const head = await headOf(run, number);
   if (!head) return UNREAD;
-  const job = await run.data.autoReview.request(run.repo.id, number, head, false, new Date());
+  const job = await run.data.autoReview.request(run.repo.id, number, head, false, null, new Date());
   if (!job) return UNREAD;
   if (job.state === "queued") run.service.kick();
   const text =

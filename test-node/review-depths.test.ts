@@ -7,10 +7,10 @@ import {
   securityReviewerPlugin,
 } from "@open-cr-agent/core";
 import { describe, expect, it } from "vitest";
-import { profileRun } from "../src/auto-review/profiles.js";
-import { DEFAULT_REVIEW_PROFILE, REVIEW_PROFILES } from "../src/shared/index.js";
+import { depthRun } from "../src/auto-review/depths.js";
+import { DEFAULT_REVIEW_DEPTH, REVIEW_DEPTHS } from "../src/shared/index.js";
 
-// A review profile only sets what the pinned engine already reads: each
+// A review depth only sets what the pinned engine already reads: each
 // one's configuration fits the engine's schema, and names its reviewers.
 
 const engineReviewers = () => {
@@ -33,14 +33,14 @@ const engineReviewers = () => {
   return ids;
 };
 
-describe("a hosted review's profile", () => {
-  it("is balanced by default, which sets nothing: today's review", () => {
-    expect(DEFAULT_REVIEW_PROFILE).toBe("balanced");
-    expect(profileRun("balanced")).toEqual({ config: {}, flags: [] });
+describe("a hosted review's depth", () => {
+  it("is standard by default, which sets nothing: today's review", () => {
+    expect(DEFAULT_REVIEW_DEPTH).toBe("standard");
+    expect(depthRun("standard")).toEqual({ config: {}, flags: [] });
   });
 
-  it("maps quiet to correctness and security on changed lines, thorough to --ultra", () => {
-    expect(profileRun("quiet")).toEqual({
+  it("maps quick to correctness and security on changed lines, deep to --ultra", () => {
+    expect(depthRun("quick")).toEqual({
       config: {
         reviewers: {
           performance: { enabled: false },
@@ -51,14 +51,14 @@ describe("a hosted review's profile", () => {
       },
       flags: [],
     });
-    expect(profileRun("thorough")).toEqual({ config: {}, flags: ["--ultra"] });
+    expect(depthRun("deep")).toEqual({ config: {}, flags: ["--ultra"] });
   });
 
   it("writes only configuration the engine accepts, naming its own reviewers", () => {
     const known = engineReviewers();
     expect(known).toEqual(expect.arrayContaining(["correctness", "security"]));
-    for (const profile of REVIEW_PROFILES) {
-      const { config } = profileRun(profile);
+    for (const depth of REVIEW_DEPTHS) {
+      const { config } = depthRun(depth);
       expect(configSchema.safeParse(config).success).toBe(true);
       for (const id of Object.keys(config.reviewers ?? {})) expect(known).toContain(id);
     }

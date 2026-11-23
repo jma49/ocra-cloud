@@ -25,7 +25,7 @@ const REPO = {
   platform: "gitlab",
   host: "gitlab.example.com",
   fullName: "pay/api",
-  profile: "balanced",
+  depth: "standard",
   automatic: true,
   learn: "merge",
   latest: {
@@ -271,14 +271,14 @@ describe("the auto review page", () => {
     expect(screen.queryByRole("region", { name: "Access token of pay/api" })).toBeNull();
   });
 
-  it("sets a repository's review profile", async () => {
+  it("sets a repository's review depth", async () => {
     const sent: unknown[] = [];
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string, init?: RequestInit) => {
         if (init?.method === "PUT") {
           sent.push({ url, body: JSON.parse(String(init.body)) });
-          return Response.json({ profile: "quiet" });
+          return Response.json({ depth: "quick" });
         }
         if (url.startsWith("/api/review-targets")) {
           return Response.json({ default: { firstReviewHours: null, mergeDays: null }, repos: [] });
@@ -288,18 +288,16 @@ describe("the auto review page", () => {
     );
     render(<AutoReview platforms={["github", "gitlab"]} />);
     fireEvent.click(
-      await screen.findByRole("button", { name: "Review profile of pay/api: Balanced" }),
+      await screen.findByRole("button", { name: "Review depth of pay/api: Standard" }),
     );
-    const quiet = await screen.findByRole("menuitemradio", { name: /^Quiet/ });
-    expect(quiet.textContent).toContain("on the changed lines only");
-    expect(screen.getByRole("menuitemradio", { name: /^Thorough/ }).textContent).toContain(
+    const quick = await screen.findByRole("menuitemradio", { name: /^Quick/ });
+    expect(quick.textContent).toContain("Changed lines only");
+    expect(screen.getByRole("menuitemradio", { name: /^Deep/ }).textContent).toContain(
       "About twice the cost",
     );
-    await act(async () => void fireEvent.click(quiet));
-    expect(sent).toEqual([
-      { url: "/api/auto-review/repos/rr1/profile", body: { profile: "quiet" } },
-    ]);
-    expect(screen.getByRole("button", { name: "Review profile of pay/api: Quiet" })).toBeTruthy();
+    await act(async () => void fireEvent.click(quick));
+    expect(sent).toEqual([{ url: "/api/auto-review/repos/rr1/depth", body: { depth: "quick" } }]);
+    expect(screen.getByRole("button", { name: "Review depth of pay/api: Quick" })).toBeTruthy();
   });
 
   it("switches a repository's automatic reviews off, and back when the save fails", async () => {

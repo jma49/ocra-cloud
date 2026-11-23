@@ -1,8 +1,9 @@
 import { and, desc, eq, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
 import {
   DEFAULT_LEARN_MODE,
-  DEFAULT_REVIEW_PROFILE,
+  DEFAULT_REVIEW_DEPTH,
   REPO_CONFIG_IGNORED,
+  type ReviewDepth,
 } from "../shared/index.js";
 import { changedRows, type Db, first } from "./client.js";
 import { mayStart } from "./counters.js";
@@ -47,7 +48,7 @@ export function accountReviewJobs(db: Db, accountId: string) {
       const [row] = await db
         .insert(t)
         .select(sql`SELECT ${crypto.randomUUID()}, ${accountId}, ${repo.platform}, ${repo.host},
-          ${repo.platformRepoId}, ${repo.fullName}, ${repo.webhookSecretHash ?? null}, ${Date.now()}, 1, ${DEFAULT_REVIEW_PROFILE}, ${repo.automatic ? 1 : 0}, ${DEFAULT_LEARN_MODE}, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0
+          ${repo.platformRepoId}, ${repo.fullName}, ${repo.webhookSecretHash ?? null}, ${Date.now()}, 1, ${DEFAULT_REVIEW_DEPTH}, ${repo.automatic ? 1 : 0}, ${DEFAULT_LEARN_MODE}, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0
         WHERE (SELECT count(*) FROM ${t} WHERE account_id = ${accountId}) < ${cap}
           OR EXISTS (SELECT 1 FROM ${t} WHERE account_id = ${accountId} AND platform = ${repo.platform}
             AND host = ${repo.host} AND platform_repo_id = ${repo.platformRepoId})`)
@@ -84,13 +85,14 @@ export function accountReviewJobs(db: Db, accountId: string) {
      * unless the head has a job that was not superseded or, with force,
      * unless one is queued or running; a forced one is the head's next run.
      * The unique index on the run keeps two requests at once to one job.
-     * Answers the head's current job.
+     * A depth chosen for it applies to that job only. Answers the head's current job.
      */
     async request(
       reviewRepoId: string,
       number: number,
       head: string,
       force: boolean,
+      depth: ReviewDepth | null,
       now: Date,
     ): Promise<ReviewJobSummary | undefined> {
       const sameHead = sql`r.review_repo_id = ${reviewRepoId} AND r.number = ${number} AND r.head = ${head}`;
@@ -99,7 +101,7 @@ export function accountReviewJobs(db: Db, accountId: string) {
         .insert(j)
         .select(sql`SELECT ${crypto.randomUUID()}, ${accountId}, ${reviewRepoId}, ${number}, ${head},
           (SELECT coalesce(max(r.run), -1) + 1 FROM ${j} r WHERE ${sameHead}),
-          'queued', 0, NULL, NULL, NULL, NULL, NULL, ${now.getTime()}
+          'queued', 0, NULL, NULL, NULL, NULL, NULL, ${now.getTime()}, ${depth}
         WHERE EXISTS (SELECT 1 FROM ${reviewRepos} WHERE id = ${reviewRepoId} AND account_id = ${accountId})
           AND NOT EXISTS (SELECT 1 FROM ${j} r WHERE ${sameHead} AND ${blocking})`)
         .onConflictDoNothing({ target: [j.reviewRepoId, j.number, j.head, j.run] });
@@ -220,6 +222,8 @@ export type ClaimedJob = {
   head: string;
   attempts: number;
   leaseUntil: Date;
+  /** The depth a person chose for this review; null takes the repository's. */
+  depth: ReviewDepth | null;
 };
 
 /**
@@ -286,6 +290,7 @@ export async function claimJob(
       number: j.number,
       head: j.head,
       attempts: j.attempts,
+      depth: j.depth,
     });
   return claimed ? { ...claimed, leaseUntil } : undefined;
 }

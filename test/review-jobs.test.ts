@@ -57,14 +57,16 @@ describe("the auto review queue", () => {
     const data = scoped(db, (await signIn(1, "me")).account.id);
     const id = (await data.autoReview.enroll(repo(), 100)) ?? "";
     const now = new Date();
-    const asked = await data.autoReview.request(id, 7, A, false, now);
+    const asked = await data.autoReview.request(id, 7, A, false, null, now);
     expect(asked).toMatchObject({ head: A, run: 0, state: "queued" });
-    expect((await data.autoReview.request(id, 7, A, true, now))?.id).toBe(asked?.id);
+    expect((await data.autoReview.request(id, 7, A, true, null, now))?.id).toBe(asked?.id);
     const claimed = await claimJob(db, now, 60_000, CALLS);
     await data.autoReview.finishJob(claimed?.id ?? "", 1, null, now);
-    expect(await data.autoReview.request(id, 7, A, false, now)).toMatchObject({ state: "done" });
+    expect(await data.autoReview.request(id, 7, A, false, null, now)).toMatchObject({
+      state: "done",
+    });
     const forced = await Promise.all(
-      [1, 2].map(() => data.autoReview.request(id, 7, A, true, new Date(now.getTime() + 1))),
+      [1, 2].map(() => data.autoReview.request(id, 7, A, true, null, new Date(now.getTime() + 1))),
     );
     expect(forced.map((j) => [j?.run, j?.state])).toEqual([
       [1, "queued"],
@@ -77,7 +79,7 @@ describe("the auto review queue", () => {
     const owner = scoped(db, (await signIn(1, "owner")).account.id);
     const id = (await owner.autoReview.enroll(repo(), 100)) ?? "";
     const other = scoped(db, (await signIn(2, "other")).account.id);
-    expect(await other.autoReview.request(id, 7, A, true, new Date())).toBeUndefined();
+    expect(await other.autoReview.request(id, 7, A, true, null, new Date())).toBeUndefined();
     expect(await owner.autoReview.latestPullJob(id, 7)).toBeUndefined();
   });
 

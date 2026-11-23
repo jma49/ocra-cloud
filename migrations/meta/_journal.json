@@ -659,6 +659,20 @@
       "when": 1795469688156,
       "tag": "0093_release_drafts",
       "breakpoints": true
+    },
+    {
+      "idx": 94,
+      "version": "6",
+      "when": 1795471432832,
+      "tag": "0094_review_depths",
+      "breakpoints": true
+    },
+    {
+      "idx": 95,
+      "version": "6",
+      "when": 1795471442990,
+      "tag": "0095_drop_review_profile",
+      "breakpoints": true
     }
   ]
 }

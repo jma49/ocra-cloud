@@ -40,6 +40,8 @@ export type AuditDetails = {
   "report.removed": { report: string };
   "auto_review.enrolled": { repo: string; platform: string };
   "auto_review.auto_enroll_changed": { owner: string; enabled: boolean; automatic: boolean };
+  "auto_review.depth_changed": { repo: string; depth: string };
+  // Recorded before depths replaced profiles; kept so those entries still read.
   "auto_review.profile_changed": { repo: string; profile: string };
   "auto_review.automatic_changed": { repo: string; automatic: boolean };
   "auto_review.learn_changed": { repo: string; learn: string };
@@ -115,6 +117,7 @@ export const AUDIT_FIELDS: { readonly [K in AuditKind]: readonly (keyof AuditDet
   "report.removed": ["report"],
   "auto_review.enrolled": ["repo", "platform"],
   "auto_review.auto_enroll_changed": ["owner", "enabled", "automatic"],
+  "auto_review.depth_changed": ["repo", "depth"],
   "auto_review.profile_changed": ["repo", "profile"],
   "auto_review.automatic_changed": ["repo", "automatic"],
   "auto_review.learn_changed": ["repo", "learn"],

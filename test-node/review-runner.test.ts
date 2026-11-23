@@ -399,7 +399,7 @@ describe("a review job's run", () => {
     ]);
   });
 
-  it("runs the repository's review profile: quiet in the configuration, thorough as --ultra", async () => {
+  it("runs the review's depth, else its repository's: quick in the configuration, deep as --ultra", async () => {
     const data = scoped(s.host.db, accountId);
     const runs: { args: readonly string[]; config: unknown }[] = [];
     const exec: Exec = async (command, args) => {
@@ -410,14 +410,17 @@ describe("a review job's run", () => {
       runs.push({ args, config: JSON.parse(await readFile(args.at(-1) ?? "", "utf8")) });
       return { code: 0 };
     };
-    await data.update("reviewRepos", repoId, { reviewProfile: "quiet" });
+    await data.update("reviewRepos", repoId, { reviewDepth: "quick" });
     expect(await run(exec)).toBe(true);
-    await data.update("reviewRepos", repoId, { reviewProfile: "thorough" });
+    await data.update("reviewRepos", repoId, { reviewDepth: "deep" });
     await data.autoReview.queue(repoId, 8, C1, new Date());
     expect(await run(exec)).toBe(true);
+    await data.autoReview.request(repoId, 9, C1, false, "quick", new Date());
+    expect(await run(exec)).toBe(true);
 
-    const [quiet, thorough] = runs;
-    expect(quiet?.config).toEqual({
+    const [quick, deep, asked] = runs;
+    expect(asked?.config).toEqual(quick?.config);
+    expect(quick?.config).toEqual({
       runtime: "direct",
       reviewers: {
         performance: { enabled: false },
@@ -428,13 +431,13 @@ describe("a review job's run", () => {
       github: { botLogin: "ocra-review[bot]" },
       maxCostUsd: 10,
     });
-    expect(quiet?.args).not.toContain("--ultra");
-    expect(thorough?.config).toEqual({
+    expect(quick?.args).not.toContain("--ultra");
+    expect(deep?.config).toEqual({
       runtime: "direct",
       github: { botLogin: "ocra-review[bot]" },
       maxCostUsd: 10,
     });
-    expect(thorough?.args.slice(-4)).toEqual([
+    expect(deep?.args.slice(-4)).toEqual([
       "--no-repo-config",
       "--ultra",
       "--config",

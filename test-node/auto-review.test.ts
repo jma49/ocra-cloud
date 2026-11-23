@@ -104,32 +104,32 @@ describe("a repository enrolled for auto review", () => {
   });
 });
 
-describe("an enrolled repository's review profile", () => {
-  it("is balanced until the account picks another, and only the account sees or sets it", async () => {
+describe("an enrolled repository's review depth", () => {
+  it("is standard until the account picks another, and only the account sees or sets it", async () => {
     const first = await s.signIn(1);
     const second = await s.signIn(2);
     const enrolled = (await (
       await enroll(first.auth, { platform: "github", fullName: "octo/api" })
-    ).json()) as { repo: { id: string; profile: string } };
-    expect(enrolled.repo.profile).toBe("balanced");
-    const path = `/api/auto-review/repos/${enrolled.repo.id}/profile`;
+    ).json()) as { repo: { id: string; depth: string } };
+    expect(enrolled.repo.depth).toBe("standard");
+    const path = `/api/auto-review/repos/${enrolled.repo.id}/depth`;
     expect(await (await s.call(path, { headers: first.auth })).json()).toEqual({
-      profile: "balanced",
+      depth: "standard",
     });
 
     const set = await s.call(path, {
       method: "PUT",
       headers: first.auth,
-      json: { profile: "quiet" },
+      json: { depth: "quick" },
     });
-    expect(await set.json()).toEqual({ profile: "quiet" });
+    expect(await set.json()).toEqual({ depth: "quick" });
     const listed = await (await s.call("/api/auto-review/repos", { headers: first.auth })).json();
-    expect(listed).toMatchObject({ repos: [{ profile: "quiet" }] });
+    expect(listed).toMatchObject({ repos: [{ depth: "quick" }] });
 
     const wrong = await s.call(path, {
       method: "PUT",
       headers: first.auth,
-      json: { profile: "loud" },
+      json: { depth: "loud" },
     });
     expect(wrong.status).toBe(400);
     expect(await wrong.json()).toMatchObject({ error: "invalid_body" });
@@ -137,13 +137,13 @@ describe("an enrolled repository's review profile", () => {
     const theirs = await s.call(path, {
       method: "PUT",
       headers: second.auth,
-      json: { profile: "thorough" },
+      json: { depth: "deep" },
     });
     expect(theirs.status).toBe(404);
     expect((await s.call(path, { headers: second.auth })).status).toBe(404);
 
     const [row] = await s.host.db.select().from(schema.reviewRepos);
-    expect(row?.reviewProfile).toBe("quiet");
+    expect(row?.reviewDepth).toBe("quick");
 
     const id = enrolled.repo.id;
     await s.call(`/api/auto-review/repos/${id}`, { method: "DELETE", headers: second.auth });
@@ -153,7 +153,7 @@ describe("an enrolled repository's review profile", () => {
     expect(auditLines(await log(first.auth))).toEqual(
       lines(
         ["auto_review.unenrolled", { repo: "Octo/API" }],
-        ["auto_review.profile_changed", { repo: "Octo/API", profile: "quiet" }],
+        ["auto_review.depth_changed", { repo: "Octo/API", depth: "quick" }],
         ["auto_review.enrolled", { repo: "Octo/API", platform: "github" }],
       ),
     );
