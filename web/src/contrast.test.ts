@@ -58,6 +58,21 @@ describe.each([
   });
 });
 
+// A switch that is off is still a control: its track and its thumb each keep 3:1 (WCAG 1.4.11).
+describe.each([
+  ["light", light, ["panel", "raised"]],
+  ["dark", dark, ["panel", "raised"]],
+])("%s theme switch", (_, css, surfaces) => {
+  it("shows its off track at 3:1 on every surface, and its thumb at 3:1 on the track", () => {
+    for (const s of surfaces) {
+      const surface = solid(css, s);
+      const track = tone(token(css, "switch-off"), surface);
+      expect(ratio(track, surface), s).toBeGreaterThanOrEqual(3);
+      expect(ratio(solid(css, "panel"), track), `thumb on ${s}`).toBeGreaterThanOrEqual(3);
+    }
+  });
+});
+
 const badges = [...forms.matchAll(/color-mix\(in srgb, var\(--(\w+)\) (\d+)%, transparent\)/g)];
 const TONES = { critical: "red", warning: "amber", green: "green", blue: "blue" } as const;
 
