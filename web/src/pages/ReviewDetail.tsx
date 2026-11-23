@@ -131,7 +131,7 @@ export function ReviewDetail(props: { id: string; graphs: boolean }) {
         {data.walkthrough && <Walkthrough w={data.walkthrough} />}
         <ReviewChat reviewId={r.id} />
         <div className="review-tabs">
-          <span className="caps">
+          <span className="quiet-label">
             Activity · {data.findings.length} finding{data.findings.length === 1 ? "" : "s"} in{" "}
             {files} file{files === 1 ? "" : "s"}
           </span>

@@ -144,7 +144,7 @@ export function LivePage(props: { id: string }) {
           <h1>{progress.target || r.target || "Review"}</h1>
         </div>
         <div className="review-tabs">
-          <span className="caps">
+          <span className="quiet-label">
             {findings.length} finding{findings.length === 1 ? "" : "s"}
             {ended ? "" : " so far"}
           </span>
