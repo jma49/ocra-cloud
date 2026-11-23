@@ -19,6 +19,7 @@ import type {
 } from "../../src/shared/index.js";
 import { ApiError, api, why } from "./api.js";
 import { useToast } from "./toast.js";
+import { LoadError, Loading } from "./ui.js";
 
 // The account's preferences, shared by the configuration pages: one saved
 // copy, one draft, a save bar when they differ, and a toast after saving.
@@ -54,6 +55,9 @@ type Ctx = {
   // Counts Discard and Reload: a field holding text that never reached the
   // draft (such as "abc" in a number field) shows the saved value again.
   resets: number;
+  // Why the first load failed, until a retry brings the settings.
+  loadError: unknown;
+  retryLoad: () => void;
 };
 
 const PrefsContext = createContext<Ctx | null>(null);
@@ -117,6 +121,13 @@ export function PrefsProvider(props: {
     if (!props.idle) setWanted(true);
   }, [props.idle]);
 
+  const [loadError, setLoadError] = useState<unknown>(null);
+  const [attempt, setAttempt] = useState(0);
+  const retryLoad = useCallback(() => {
+    setLoadError(null);
+    setAttempt((n) => n + 1);
+  }, []);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a retry is a new attempt
   useEffect(() => {
     if (!wanted) return;
     api<Prefs>("/preferences").then(
@@ -124,9 +135,9 @@ export function PrefsProvider(props: {
         setSaved(p);
         setDraft(p);
       },
-      () => setError("Could not load your settings."),
+      (e: unknown) => setLoadError(e ?? new Error("refused")),
     );
-  }, [wanted]);
+  }, [wanted, attempt]);
 
   // Before the preferences load there is no draft to update.
   const update = useCallback((p: Prefs | ((prev: Prefs) => Prefs)) => {
@@ -204,8 +215,24 @@ export function PrefsProvider(props: {
       stale,
       reload,
       resets,
+      loadError,
+      retryLoad,
     }),
-    [saved, draft, update, dirty, saving, error, save, discard, stale, reload, resets],
+    [
+      saved,
+      draft,
+      update,
+      dirty,
+      saving,
+      error,
+      save,
+      discard,
+      stale,
+      reload,
+      resets,
+      loadError,
+      retryLoad,
+    ],
   );
   return (
     <PrefsContext.Provider value={value}>
@@ -237,6 +264,21 @@ export function PrefsProvider(props: {
         </section>
       )}
     </PrefsContext.Provider>
+  );
+}
+
+/** What a settings page shows until its settings arrive: a skeleton, or why they did not. */
+export function PrefsPending(props: { inCard?: boolean }) {
+  const { loadError, retryLoad } = usePrefs();
+  return loadError ? (
+    <LoadError
+      what="your settings"
+      error={loadError}
+      retry={retryLoad}
+      inCard={props.inCard === true}
+    />
+  ) : (
+    <Loading what="your settings" inCard={props.inCard === true} />
   );
 }
 

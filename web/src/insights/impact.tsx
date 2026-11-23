@@ -50,13 +50,9 @@ export function ImpactSection(props: { days: number; quiet?: boolean }) {
         </h2>
       </div>
       {error && !data ? (
-        <div className="card-pad">
-          <LoadError what="what ocra changed" error={error} retry={reload} />
-        </div>
+        <LoadError what="what ocra changed" error={error} retry={reload} inCard />
       ) : !data ? (
-        <div className="card-pad">
-          <Loading what="what ocra changed" />
-        </div>
+        <Loading what="what ocra changed" inCard />
       ) : nothing ? (
         <p className="card-pad subtle small m-0">
           Nothing recorded in this period. This counts ocra's reviews of pull requests, uploaded by

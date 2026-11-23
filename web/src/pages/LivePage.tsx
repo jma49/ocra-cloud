@@ -1,4 +1,6 @@
+import CircleCheck from "lucide-react/icons/circle-check";
 import EyeOff from "lucide-react/icons/eye-off";
+import Radio from "lucide-react/icons/radio";
 import Share2 from "lucide-react/icons/share-2";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -150,13 +152,15 @@ export function LivePage(props: { id: string }) {
           </span>
         </div>
         {findings.length === 0 ? (
-          <div className="card empty-hero">
-            <h2>{ended ? "No findings" : "No findings yet"}</h2>
-            <p>
+          <div className="card">
+            <EmptyState
+              icon={ended ? CircleCheck : Radio}
+              title={ended ? "No findings" : "No findings yet"}
+            >
               {ended
                 ? "The review ended without a finding."
                 : "Findings appear here as the reviewers report them."}
-            </p>
+            </EmptyState>
           </div>
         ) : (
           <ol className="timeline">

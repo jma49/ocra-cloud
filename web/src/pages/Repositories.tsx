@@ -1,3 +1,4 @@
+import FolderGit2 from "lucide-react/icons/folder-git-2";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { CodePlatformKind } from "../../../src/shared/index.js";
@@ -6,7 +7,8 @@ import { useCached, useRead } from "../cache.js";
 import { ago, count, num } from "../format.js";
 import { PlatformMark } from "../platform-mark.js";
 import { PLATFORM_NAME } from "../platform-names.js";
-import { LoadError, Loading, PageHead, useAction } from "../ui.js";
+import { Link } from "../router.js";
+import { EmptyState, LoadError, Loading, PageHead, useAction } from "../ui.js";
 
 // The repositories the account's reviews came from, by name: the one the
 // account gave, else the platform's name for its hash, else the path a pull
@@ -284,11 +286,23 @@ export function Repositories(props: { me: Me }) {
       ) : !data ? (
         <Loading what="repositories" />
       ) : data.repositories.length === 0 ? (
-        <div className="section card empty-hero">
-          <h2>No repositories yet</h2>
-          <p>
-            Run a signed-in review (ocra login, then ocra review) and its repository appears here.
-          </p>
+        <div className="section card">
+          <EmptyState
+            icon={FolderGit2}
+            title="No repositories yet"
+            action={
+              props.me.autoReview && (
+                <Button variant="outline" render={<Link to="/auto-review" />}>
+                  Set up auto review
+                </Button>
+              )
+            }
+          >
+            A repository appears here after its first review.{" "}
+            {props.me.autoReview ? "Turn on auto review for it, or sign in" : "Sign in"} with{" "}
+            <span className="mono">ocra login</span> and run{" "}
+            <span className="mono">ocra review</span>.
+          </EmptyState>
         </div>
       ) : (
         <div className="section card">

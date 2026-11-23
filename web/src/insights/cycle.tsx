@@ -53,9 +53,7 @@ export function Cycle(props: { days: number; platforms: readonly CodePlatformKin
       ) : error && !data ? (
         <LoadError what="your pull requests" error={error} retry={reload} inCard />
       ) : !data ? (
-        <div className="card-pad">
-          <Loading what="your pull requests" />
-        </div>
+        <Loading what="your pull requests" inCard />
       ) : data.pulls.length === 0 ? (
         <p className="card-pad subtle small m-0">
           No pull requests of yours merged in this period.

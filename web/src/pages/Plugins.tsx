@@ -1,7 +1,7 @@
 import Puzzle from "lucide-react/icons/puzzle";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { useSettings } from "../prefs.js";
+import { PrefsPending, usePrefs, useSettings } from "../prefs.js";
 import { Link } from "../router.js";
 import { EmptyState, PageHead } from "../ui.js";
 
@@ -11,6 +11,7 @@ import { EmptyState, PageHead } from "../ui.js";
 const PACKAGE = /^(@[a-z0-9][a-z0-9._~-]*\/)?[a-z0-9][a-z0-9._~-]*$/;
 
 export function Plugins() {
+  const { draft } = usePrefs();
   const { settings, set, setMany } = useSettings();
   const plugins = settings.plugins ?? [];
   const pluginSettings = settings.pluginSettings ?? {};
@@ -63,9 +64,10 @@ export function Plugins() {
       <div className="card">
         <div className="card-head">
           <h2>Your plugins</h2>
-          <span className="subtle small">{plugins.length} of 20</span>
+          {draft && <span className="subtle small">{plugins.length} of 20</span>}
         </div>
-        {plugins.length === 0 && (
+        {!draft && <PrefsPending inCard />}
+        {draft && plugins.length === 0 && (
           <EmptyState icon={Puzzle} title="No plugins yet">
             Name an npm package below to add its reviewers, rules or runtime. The built-in reviewers
             are under <Link to="/agents">Agents & models</Link>.

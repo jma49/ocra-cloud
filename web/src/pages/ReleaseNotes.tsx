@@ -1,3 +1,4 @@
+import GitMerge from "lucide-react/icons/git-merge";
 import { type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,8 +10,9 @@ import { ApiError, api, why } from "../api.js";
 import { useRead } from "../cache.js";
 import { PublishDraft } from "../release-notes/publish.js";
 import { ReleasePulls } from "../release-notes/pulls.js";
+import { Link } from "../router.js";
 import { useToast } from "../toast.js";
-import { LoadError, Loading, PageHead, useAction } from "../ui.js";
+import { EmptyNote, EmptyState, LoadError, Loading, PageHead, useAction } from "../ui.js";
 
 type Platforms = {
   platforms: {
@@ -74,10 +76,20 @@ export function ReleaseNotes() {
       ) : !repos.data ? (
         <Loading what="your repositories" />
       ) : choices.length === 0 ? (
-        <p className="subtle small">
-          Connect a code platform under Repositories first: the pull requests are read from it as
-          you.
-        </p>
+        <div className="card">
+          <EmptyState
+            icon={GitMerge}
+            title="No repository to read"
+            action={
+              <Button variant="outline" render={<Link to="/repositories" />}>
+                Connect under Repositories
+              </Button>
+            }
+          >
+            Connect a code platform under Repositories. The merged pull requests are read from it as
+            you.
+          </EmptyState>
+        </div>
       ) : (
         <form className="card card-pad stack" aria-label="Range" onSubmit={submit}>
           <div className="release-fields">
@@ -160,7 +172,7 @@ export function ReleaseNotes() {
               </div>
             </div>
             {notes.pulls.length === 0 ? (
-              <p className="subtle small card-pad m-0">Nothing was merged in this range.</p>
+              <EmptyNote>Nothing was merged in this range</EmptyNote>
             ) : (
               <div className="card-pad stack">
                 {notes.truncated && (

@@ -1,3 +1,4 @@
+import FolderGit2 from "lucide-react/icons/folder-git-2";
 import { Fragment, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,7 +21,7 @@ import { PLATFORM_NAME } from "../platform-names.js";
 import { pullPath } from "../pull/path.js";
 import { ReviewTargetsCard } from "../review-targets/targets-card.js";
 import { Link } from "../router.js";
-import { ActionError, LoadError, Loading, PageHead, useAction } from "../ui.js";
+import { ActionError, EmptyState, LoadError, Loading, PageHead, useAction } from "../ui.js";
 
 // The repositories whose pull requests this server reviews itself when they
 // open or gain commits (ADR-0046), as the ocra bot. A GitLab hook's secret is
@@ -76,7 +77,12 @@ export function AutoReview(props: { platforms: readonly CodePlatformKind[] }) {
       ) : !data ? (
         <Loading what="repositories" />
       ) : data.repos.length === 0 ? (
-        <p className="subtle small">No repositories yet.</p>
+        <div className="card">
+          <EmptyState icon={FolderGit2} title="No repositories yet">
+            Add one above. ocra reviews its pull requests when you ask, or each one as it opens once
+            you switch Automatic on.
+          </EmptyState>
+        </div>
       ) : (
         <div className="card">
           <div className="table-wrap">

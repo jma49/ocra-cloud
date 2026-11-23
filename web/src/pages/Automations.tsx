@@ -187,7 +187,7 @@ export function Automations(props: { me: Me }) {
         {runs.error && !runs.data ? (
           <LoadError what="the runs" error={runs.error} retry={runs.reload} inCard />
         ) : !runs.data ? (
-          <Loading what="runs" />
+          <Loading what="runs" inCard />
         ) : (
           <Runs runs={runs.data.runs} />
         )}

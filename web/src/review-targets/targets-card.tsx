@@ -121,7 +121,7 @@ export function ReviewTargetsCard() {
         {error && !data ? (
           <LoadError what="the review targets" error={error} retry={reload} inCard />
         ) : !data ? (
-          <Loading what="the review targets" />
+          <Loading what="the review targets" inCard />
         ) : (
           <>
             <div className="stack-tight">

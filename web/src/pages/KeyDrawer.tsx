@@ -4,7 +4,7 @@ import { ApiError, api, type KeyCheck, type ProviderInfo } from "../api.js";
 import { Drawer } from "../drawer.js";
 import { DoneGlyph } from "../glyphs.js";
 import { ProviderLogo } from "../provider-logo.js";
-import { ActionError } from "../ui.js";
+import { ActionError, EmptyNote } from "../ui.js";
 
 // Adding or replacing a key: a drawer that starts with the common providers,
 // then takes the key and says what the provider made of it.
@@ -154,7 +154,7 @@ export function AddKeyDrawer(props: {
               <PickList items={matches} configured={props.configured} onPick={setChosen} />
             </>
           ) : (
-            <div className="empty">No provider matches “{q}”.</div>
+            <EmptyNote>No provider matches “{q}”</EmptyNote>
           )}
         </>
       ) : (

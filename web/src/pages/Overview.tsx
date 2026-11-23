@@ -6,7 +6,15 @@ import { compact, num } from "../format.js";
 import { DoneGlyph } from "../glyphs.js";
 import { Link } from "../router.js";
 import { anyProvider } from "../site.js";
-import { LoadError, Loading, PageHead, StackedBars, useLoad, useProviders } from "../ui.js";
+import {
+  EmptyNote,
+  LoadError,
+  Loading,
+  PageHead,
+  StackedBars,
+  useLoad,
+  useProviders,
+} from "../ui.js";
 
 export function Overview() {
   const {
@@ -76,11 +84,9 @@ export function Overview() {
           ) : usageError && !usage ? (
             <LoadError what="your requests" error={usageError} retry={reloadUsage} inCard />
           ) : !usage ? (
-            <Loading what="requests" />
+            <Loading what="requests" inCard />
           ) : (
-            <div className="empty">
-              No requests yet. They appear here once the CLI uses your keys.
-            </div>
+            <EmptyNote>No requests yet. They appear here once a review uses your keys.</EmptyNote>
           )}
         </div>
       </div>

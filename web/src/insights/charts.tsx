@@ -6,6 +6,7 @@ import {
 } from "@dynatrace/strato-components/charts";
 import { AppRoot } from "@dynatrace/strato-components/core";
 import type { ReactNode } from "react";
+import { EmptyNote } from "../ui.js";
 import { type Daily, flat, type Point } from "./series.js";
 
 // The insights charts, drawn with Dynatrace's Strato charts (Apache-2.0).
@@ -41,22 +42,26 @@ export default function Charts(props: ChartsProps) {
     <AppRoot>
       <div className="charts">
         <Chart title="Findings by severity" sub="per day" wide>
-          <TimeseriesChart
-            variant="bar"
-            height={220}
-            colorPalette={{ Critical: tone("red"), Warning: tone("amber"), Suggestion: muted }}
-            data={[
-              line("Critical", daily.critical),
-              line("Warning", daily.warning),
-              line("Suggestion", daily.suggestion),
-            ]}
-          >
-            <TimeseriesChart.Legend position="bottom" />
-          </TimeseriesChart>
+          {flat(daily.critical) && flat(daily.warning) && flat(daily.suggestion) ? (
+            <EmptyNote>No findings in this period</EmptyNote>
+          ) : (
+            <TimeseriesChart
+              variant="bar"
+              height={220}
+              colorPalette={{ Critical: tone("red"), Warning: tone("amber"), Suggestion: muted }}
+              data={[
+                line("Critical", daily.critical),
+                line("Warning", daily.warning),
+                line("Suggestion", daily.suggestion),
+              ]}
+            >
+              <TimeseriesChart.Legend position="bottom" />
+            </TimeseriesChart>
+          )}
         </Chart>
         <Chart title="Acceptance by reviewer" sub="% of decided findings">
           {props.acceptance.length === 0 ? (
-            <p className="chart-empty">No decided findings yet.</p>
+            <EmptyNote>No decided findings yet</EmptyNote>
           ) : (
             <CategoricalBarChart
               height={220}
@@ -73,7 +78,7 @@ export default function Charts(props: ChartsProps) {
         </Chart>
         <Chart title="Spend" sub="USD per day" wide>
           {flat(daily.spend) ? (
-            <p className="chart-empty">Nothing spent in this period.</p>
+            <EmptyNote>Nothing spent in this period</EmptyNote>
           ) : (
             <TimeseriesChart
               variant="area"
@@ -88,7 +93,7 @@ export default function Charts(props: ChartsProps) {
         </Chart>
         <Chart title="Review time" sub="seconds, p50 and p95">
           {daily.p50.length === 0 ? (
-            <p className="chart-empty">No reviews in this period.</p>
+            <EmptyNote>No reviews in this period</EmptyNote>
           ) : (
             <TimeseriesChart
               variant="line"

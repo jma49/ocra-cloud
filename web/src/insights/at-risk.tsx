@@ -50,13 +50,9 @@ export function AtRiskSection() {
         )}
       </div>
       {error && !data ? (
-        <div className="card-pad">
-          <LoadError what="the pull requests at risk" error={error} retry={reload} inCard />
-        </div>
+        <LoadError what="the pull requests at risk" error={error} retry={reload} inCard />
       ) : !data ? (
-        <div className="card-pad">
-          <Loading what="the pull requests at risk" />
-        </div>
+        <Loading what="the pull requests at risk" inCard />
       ) : !data.targetsSet ? (
         <p className="card-pad subtle small m-0">
           No review target is set. <Link to="/auto-review">Set review targets</Link> on the Auto

@@ -12,16 +12,22 @@ import { LoadError, Loading, PageHead } from "../ui.js";
 
 export function BudgetPage() {
   const { data, error, reload } = useCached("/budget", () => api<Budget>("/budget"));
-  if (error && !data) return <LoadError what="the budget" error={error} retry={reload} />;
-  if (!data) return <Loading what="the budget" />;
   return (
     <>
       <PageHead
         title="Budget"
         sub="Limit what your reviews cost and how many model calls ocra Cloud's gateway forwards for you. Each limit starts at a default you can change or turn off. Days and months are UTC."
       />
-      <SpendCard spend={data.spend} onSaved={reload} />
-      <CallsCard budget={data} onSaved={reload} />
+      {error && !data ? (
+        <LoadError what="the budget" error={error} retry={reload} />
+      ) : !data ? (
+        <Loading what="the budget" rows={4} />
+      ) : (
+        <>
+          <SpendCard spend={data.spend} onSaved={reload} />
+          <CallsCard budget={data} onSaved={reload} />
+        </>
+      )}
     </>
   );
 }
