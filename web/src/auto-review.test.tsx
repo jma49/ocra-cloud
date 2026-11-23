@@ -10,7 +10,10 @@ vi.mock("./account-keys.js", () => ({
 }));
 
 // Its own tests are in auto-review/bulk-enroll.test.tsx.
-vi.mock("./auto-review/auto-enroll.js", () => ({ AutoEnroll: () => null }));
+vi.mock("./auto-review/auto-enroll.js", () => ({
+  AutoEnroll: () => null,
+  GroupEnroll: () => null,
+}));
 
 afterEach(() => {
   cleanup();
