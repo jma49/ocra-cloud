@@ -2,6 +2,7 @@ import type { LineComment, MergeMethod } from "../shared/index.js";
 import { outcomeOf, type PullActions } from "./actions.js";
 import { fixedFile, fromBase64, MAX_FIX_FILE_BYTES, toBase64 } from "./fix.js";
 import { type DiffRefs, gitlabHeaders, mergeRequestUrl } from "./gitlab-changes.js";
+import { gitlabUserIds } from "./gitlab-roster.js";
 import { platformCall, platformSend } from "./http.js";
 import { withSuggestion } from "./suggestions.js";
 
@@ -109,15 +110,9 @@ export function gitlabActions(origin: string): PullActions {
       const mr = await platformCall<{ reviewers?: { id: number }[] }>(url, headers);
       if (!mr) return null;
       // GitLab names reviewers by id, and sets them all at once: the ones it has are kept.
-      const found = await Promise.all(
-        logins.map((login) =>
-          platformCall<{ id: number }[]>(
-            `${origin}/api/v4/users?username=${encodeURIComponent(login)}`,
-            headers,
-          ),
-        ),
-      );
-      const ids = found.flatMap((users) => users?.[0]?.id ?? []);
+      const found = await gitlabUserIds(origin, token, logins);
+      if (!found) return null;
+      const ids = found.filter((id) => id !== null);
       if (ids.length === 0) return "refused";
       const kept = (mr.reviewers ?? []).map((r) => r.id);
       return outcomeOf(

@@ -13,6 +13,7 @@ import { gitlabQueue } from "./gitlab-queue.js";
 import { gitlabReadiness } from "./gitlab-readiness.js";
 import { gitlabReleases } from "./gitlab-releases.js";
 import { gitlabReviewers } from "./gitlab-reviewers.js";
+import { gitlabRoster } from "./gitlab-roster.js";
 import { gitlabSearch } from "./gitlab-search.js";
 import { gitlabSince } from "./gitlab-since.js";
 import { gitlabStacks } from "./gitlab-stack.js";
@@ -78,6 +79,7 @@ export function gitlab(client: GitlabClient, redirectUri: string): CodePlatform 
     mergeStatus: gitlabMergeStatus(client.url),
     readiness: gitlabReadiness(client.url, files),
     reviewers: gitlabReviewers(client.url),
+    roster: gitlabRoster(client.url),
     threads: gitlabThreads(client.url),
     edits: gitlabEdits(client.url),
     issues: gitlabIssues(client.url),

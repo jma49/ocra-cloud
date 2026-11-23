@@ -3,6 +3,8 @@
 // token, an address or a body.
 
 type Pull = { pull: string };
+/** Logins, which the platforms show to anyone who reaches the pull request. */
+type People = { added: string[]; removed: string[] };
 type MergeEnded = Pull & { mode: string; method: string; head: string; reason: string | null };
 
 /** What each kind of event keeps, by kind. */
@@ -36,6 +38,8 @@ export type AuditDetails = {
   "pull.reviewed": Pull & { verdict: string };
   "pull.merged": Pull & { method: string };
   "pull.fix_applied": Pull & { finding: string };
+  "pull.reviewers_changed": Pull & People;
+  "pull.assignees_changed": Pull & People;
   "merge_when_ready.armed": Pull & {
     mode: string;
     method: string;
@@ -81,6 +85,8 @@ export const AUDIT_FIELDS: { readonly [K in AuditKind]: readonly (keyof AuditDet
   "pull.reviewed": ["pull", "verdict"],
   "pull.merged": ["pull", "method"],
   "pull.fix_applied": ["pull", "finding"],
+  "pull.reviewers_changed": ["pull", "added", "removed"],
+  "pull.assignees_changed": ["pull", "added", "removed"],
   "merge_when_ready.armed": ["pull", "mode", "method", "head", "keepOnPush"],
   "merge_when_ready.cancelled": ["pull", "mode", "method", "head", "reason"],
   "merge_when_ready.merged": ["pull", "mode", "method", "head", "reason"],

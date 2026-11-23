@@ -69,6 +69,8 @@ export const KIND_GROUPS: { label: string; kinds: [AuditKind, string][] }[] = [
       ["pull.reviewed", "Review sent"],
       ["pull.merged", "Merged"],
       ["pull.fix_applied", "Fix applied"],
+      ["pull.reviewers_changed", "Reviewers changed"],
+      ["pull.assignees_changed", "Assignees changed"],
       ["merge_when_ready.armed", "Merge when ready set"],
       ["merge_when_ready.cancelled", "Merge when ready cancelled"],
       ["merge_when_ready.merged", "Merged when ready"],
@@ -97,6 +99,13 @@ const named = (value: string | undefined, fallback: string) => value ?? fallback
 const noted = (value: string | null | undefined, open = " (", close = ")") =>
   value ? `${open}${value}${close}` : "";
 const listed = (keys: string[] | undefined) => (keys?.length ? `: ${keys.join(", ")}` : "");
+const people = (d: { added?: string[]; removed?: string[] }) => {
+  const parts = [
+    d.added?.length ? `added ${d.added.join(", ")}` : "",
+    d.removed?.length ? `removed ${d.removed.join(", ")}` : "",
+  ].filter(Boolean);
+  return parts.length ? `: ${parts.join("; ")}` : "";
+};
 
 const apiToken = (prefix: string | undefined) =>
   prefix ? `the API token ${prefix}` : "an API token";
@@ -175,6 +184,10 @@ export function describe(e: AuditEventView): string {
       return `Merged ${named(e.detail.pull, "a pull request")}${noted(e.detail.method)}`;
     case "pull.fix_applied":
       return `Applied a fix to ${named(e.detail.pull, "a pull request")}`;
+    case "pull.reviewers_changed":
+      return `Changed the reviewers of ${named(e.detail.pull, "a pull request")}${people(e.detail)}`;
+    case "pull.assignees_changed":
+      return `Changed the assignees of ${named(e.detail.pull, "a pull request")}${people(e.detail)}`;
     case "merge_when_ready.armed":
       return `Set ${named(e.detail.pull, "a pull request")} to merge when ready${noted(e.detail.method)}`;
     case "merge_when_ready.cancelled":
