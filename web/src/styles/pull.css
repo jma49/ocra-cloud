@@ -335,3 +335,9 @@
 .people-picker .input {
   width: 100%;
 }
+/* Inside merge readiness: what the user can do about a branch that fell behind. */
+.update-branch {
+  justify-items: start;
+  padding-top: 12px;
+  border-top: 0.5px solid var(--hair);
+}

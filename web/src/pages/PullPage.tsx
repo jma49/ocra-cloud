@@ -39,6 +39,7 @@ import { ReviewersPanel } from "../pull/reviewers.js";
 import { StackPanel } from "../pull/stack.js";
 import { nextStep, PullStatus } from "../pull/status.js";
 import { ThreadsPanel } from "../pull/threads.js";
+import { UpdateBranch } from "../pull/update-branch.js";
 import { setPageTitle } from "../title.js";
 import { LoadError, Loading, PageHead, useLoad } from "../ui.js";
 
@@ -90,7 +91,8 @@ export function PullPage(props: {
   const [said, setSaid] = useState<{ what: string; outcome: PullActionOutcome } | null>(null);
   const [reviewing, setReviewing] = useState(false);
   const [peopleRev, setPeopleRev] = useState(0);
-  const readiness = useReadiness(ref, head);
+  const [readinessRev, setReadinessRev] = useState(0);
+  const readiness = useReadiness(ref, head, readinessRev);
   const description = useLoad(
     () =>
       head
@@ -226,7 +228,20 @@ export function PullPage(props: {
           <ThreadsPanel pull={ref} onDone={(o) => done("Review threads", o)} />
         </div>
         <aside className="pull-rail" aria-label="Status">
-          {!settled && <ReadinessBox view={readiness} />}
+          {!settled && (
+            <ReadinessBox view={readiness}>
+              {readiness?.canUpdateBranch && (
+                <UpdateBranch
+                  pull={ref}
+                  head={data.head}
+                  onChanged={() => {
+                    reload();
+                    setReadinessRev((n) => n + 1);
+                  }}
+                />
+              )}
+            </ReadinessBox>
+          )}
           <div id={MERGE_ID} className="pull-merge">
             {settled ? null : queue.data?.enabled ? (
               <QueueBox
