@@ -21,6 +21,8 @@ import {
   type ReviewRunnersView,
 } from "../shared/index.js";
 import type { AppEnv } from "../types.js";
+import { enrollRepo, MAX_REVIEW_REPOS } from "./enroll.js";
+import { enrollRoute } from "./enroll-routes.js";
 import { generateRoute } from "./generate.js";
 import { repoTokenRoute } from "./repo-token-routes.js";
 import { autoReviewWebhooks } from "./webhooks.js";
@@ -36,8 +38,6 @@ export type AutoReviewService = {
   /** The GitHub App the checks are posted as, whose re-runs of them are taken (src/merge-checks/rerun.ts). */
   githubAppId?: string;
 };
-
-const MAX_REVIEW_REPOS = 100;
 
 const enrollSchema = z.object({
   platform: z.enum(CODE_PLATFORMS),
@@ -83,6 +83,7 @@ export function autoReviewRoute(service: AutoReviewService) {
   route.route("/webhooks", autoReviewWebhooks(service));
   route.route("/generate", generateRoute(service));
   route.route("/", repoTokenRoute());
+  route.route("/", enrollRoute(repoView));
 
   route.get("/repos", requireSession(), async (c) => {
     const [repos, latest] = await Promise.all([
@@ -116,24 +117,15 @@ export function autoReviewRoute(service: AutoReviewService) {
       if (!platform) return apiError(c, "not_found");
       const token = await accessToken(c.var.data, c.env, platform);
       if (!token) return apiError(c, "github_user");
-      // Reading it as the user proves they reach it; the platform's id is what hooks name.
-      const head = await platform.contents.head(token, body.fullName);
-      if (!head) return apiError(c, "not_found");
       // GitLab's project hook proves itself with a secret of its own;
       // GitHub's with the App's signature.
       const secret = platform.kind === "gitlab" ? randomToken("ocra_hook_") : undefined;
-      const id = await c.var.data.autoReview.enroll(
-        {
-          platform: platform.kind,
-          host: platform.host,
-          platformRepoId: head.platformRepoId,
-          fullName: head.fullName,
-          webhookSecretHash: secret ? await sha256Hex(secret) : null,
-          automatic: body.automatic,
-        },
-        MAX_REVIEW_REPOS,
-      );
-      if (!id) {
+      const enrolled = await enrollRepo(c.var.data, platform, token, body.fullName, {
+        automatic: body.automatic,
+        webhookSecretHash: secret ? await sha256Hex(secret) : null,
+      });
+      if (enrolled.outcome === "refused") {
+        if (enrolled.reason === "not_found") return apiError(c, "not_found");
         return apiError(c, "invalid_body", {
           issues: [
             {
@@ -143,12 +135,7 @@ export function autoReviewRoute(service: AutoReviewService) {
           ],
         });
       }
-      const repo = await c.var.data.get("reviewRepos", id);
-      if (!repo) return apiError(c, "not_found");
-      await audit(c.var.data, "auto_review.enrolled", {
-        repo: repo.fullName,
-        platform: repo.platform,
-      });
+      const repo = enrolled.repo;
       const hook =
         platform.kind === "gitlab" ? "/api/auto-review/webhooks/gitlab" : "/api/webhooks/github";
       return c.json({

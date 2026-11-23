@@ -44,6 +44,7 @@ export const EXPORTED = {
   graphChunks: "graphChunks",
   pullImpacts: "pullImpacts",
   reviewRepos: "reviewRepos",
+  autoEnrollInstallations: "autoEnrollInstallations",
   reviewJobs: "reviewJobs",
   notifyChannels: "notifyChannels",
   notifySends: "notifySends",

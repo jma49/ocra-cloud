@@ -16,6 +16,7 @@ import type { BatchItem } from "drizzle-orm/batch";
 import { getTableConfig, type SQLiteColumn } from "drizzle-orm/sqlite-core";
 import { accountApiTokens } from "./api-tokens.js";
 import { accountAuditEvents } from "./audit-events.js";
+import { accountAutoEnroll } from "./auto-enroll.js";
 import { accountAutomations } from "./automations.js";
 import { changedRows, type Db, first } from "./client.js";
 import { accountClosedPulls } from "./closed-pulls.js";
@@ -457,6 +458,7 @@ export function scoped(db: Db, accountId: string) {
     findingIssues: accountFindingIssues(db, accountId),
     graphs: accountGraphs(db, accountId),
     autoReview: accountReviewJobs(db, accountId),
+    autoEnroll: accountAutoEnroll(db, accountId),
     notify: accountNotify(db, accountId),
     deliveries: accountNotifyDeliveries(db, accountId),
     reports: accountReports(db, accountId),

@@ -842,6 +842,29 @@ export const reviewRepos = sqliteTable(
   ],
 );
 
+// A GitHub App installation whose repositories one account enrolls for
+// auto review as they are added to it (src/auto-review/auto-enroll.ts).
+// One account per installation, as one per repository: the unique index
+// decides which.
+export const autoEnrollInstallations = sqliteTable(
+  "auto_enroll_installations",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    host: text("host").notNull(),
+    installationId: text("installation_id").notNull(),
+    /** The user or organisation it is installed on, as GitHub names it. */
+    owner: text("owner").notNull(),
+    /** Whether the repositories it enrolls are reviewed as their pull requests open. */
+    automatic: integer("automatic", { mode: "boolean" }).notNull().default(false),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("auto_enroll_installations_installation").on(t.host, t.installationId),
+    index("auto_enroll_installations_account").on(t.accountId),
+  ],
+);
+
 // A chat or an email address the account's reviews are announced in: the
 // webhook's address or the email address, encrypted like a model key (a
 // webhook is the chat's credential). An email address gets nothing until
@@ -1704,6 +1727,7 @@ export const accountTables = {
   graphChunks,
   pullImpacts,
   reviewRepos,
+  autoEnrollInstallations,
   reviewJobs,
   notifyChannels,
   notifySends,

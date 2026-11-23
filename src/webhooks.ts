@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { z } from "zod";
+import { githubInstallationAdds } from "./auto-review/auto-enroll.js";
 import { recordGithubClose } from "./auto-review/closes.js";
 import { recordGithubFindingThread } from "./auto-review/finding-threads.js";
 import { recordGithubFlow } from "./auto-review/flows.js";
@@ -27,7 +28,8 @@ import type { AppEnv } from "./types.js";
 // comment its answer and a re-run of the pre-merge check its evaluation,
 // where the host does them. A pull request's change, review, check or status also moves the
 // intents armed to merge it when ready, and a failed check suite tells the
-// author of its pull request. Each delivery with something to
+// author of its pull request; the repositories added to an installation
+// are enrolled where an account asked for that. Each delivery with something to
 // run after the answer is acted on once, and that is tried again when it
 // fails (src/inbound/).
 // GitLab's hooks are per repository, with secrets of their own.
@@ -59,6 +61,7 @@ export function githubWebhook(host: WebhookHost) {
       const repo = z.object({ repository: z.object({ id: z.number() }) }).safeParse(body);
       const ci = githubCiFailure(event, body, review?.githubAppId);
       const steps = await githubSteps(c.var.db, github, event, body, !!ci);
+      const enroll = githubInstallationAdds(event, body);
       const received = await receive(c, {
         platform: "github",
         host: github,
@@ -69,6 +72,7 @@ export function githubWebhook(host: WebhookHost) {
           steps,
           ...(steps.length > 0 ? { body: githubFields(body) } : {}),
           ...(ci && steps.includes("tell") ? { ci } : {}),
+          ...(enroll && steps.includes("enroll") ? { enroll } : {}),
         },
       });
       if (!received) return c.json({ queued: 0, duplicate: true }, 202);
