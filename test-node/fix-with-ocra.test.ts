@@ -2,7 +2,9 @@ import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { reviewUploadSchema } from "@open-cr-agent/cloud-contract";
+import { eq } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import * as schema from "../src/db/schema.js";
 import { scoped } from "../src/db/scoped.js";
 import { parseFindings } from "../src/findings.js";
 import type { Exec } from "../src/node/checkout.js";
@@ -201,6 +203,20 @@ describe("asking for a fix", () => {
       job: null,
     });
     expect(await jobs()).toEqual([]);
+  });
+
+  it("answers a request already made once the day's requests are used up", async () => {
+    await ask({ finding: findingId });
+    const [count] = await scoped(s.host.db, accountId).find("usageCounters", {
+      kind: "fix_requests",
+    });
+    await s.host.db
+      .update(schema.usageCounters)
+      .set({ n: MAX_DAILY_FIX_REQUESTS })
+      .where(eq(schema.usageCounters.day, count?.day ?? ""));
+    expect(await (await ask({ finding: findingId })).json()).toMatchObject({
+      outcome: "requested",
+    });
   });
 
   it("stops at the account's requests for the day", async () => {
