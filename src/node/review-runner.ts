@@ -40,7 +40,11 @@ export type Machine = {
 export type ReviewRunner = WorkSource & Machine;
 
 class RunFailed extends Error {
-  constructor(readonly reason: RunFailure) {
+  constructor(
+    readonly reason: RunFailure,
+    /** What the command exited with; null when it was killed at the lease. */
+    readonly code?: number | null,
+  ) {
     super(reason);
   }
 }
@@ -58,8 +62,12 @@ export async function run(
     await inCheckout(machine, work, signal);
     return null;
   } catch (e) {
-    logError("review_run_failed", { job: work.id, error: errorName(e) });
-    return e instanceof RunFailed ? e.reason : "review_failed";
+    if (!(e instanceof RunFailed)) {
+      logError("review_run_failed", { job: work.id, error: errorName(e) });
+      return "review_failed";
+    }
+    logError("review_run_failed", { job: work.id, reason: e.reason, code: e.code ?? null });
+    return e.reason;
   }
 }
 
@@ -98,7 +106,7 @@ async function inCheckout(machine: Machine, work: Assignment, signal: AbortSigna
       ["clone", "--quiet", "--no-tags", "--", repoUrl(repo.url, repo.fullName), checkout],
       { cwd: dir, env: { ...baseEnv(home), ...gitConfigEnv(repo.url, auth) }, signal },
     );
-    if (cloned.code !== 0) throw new RunFailed("clone_failed");
+    if (cloned.code !== 0) throw new RunFailed("clone_failed", cloned.code);
     // ocra fetches the pull request's commits with the checkout's credentials, as in CI.
     await appendFile(
       join(checkout, ".git", "config"),
@@ -115,8 +123,10 @@ async function inCheckout(machine: Machine, work: Assignment, signal: AbortSigna
         signal,
       },
     );
-    if (ran.code !== null && work.settled.includes(ran.code)) throw new RunFailed("not_committed");
-    if (ran.code === null || !work.ok.includes(ran.code)) throw new RunFailed("review_failed");
+    if (ran.code !== null && work.settled.includes(ran.code))
+      throw new RunFailed("not_committed", ran.code);
+    if (ran.code === null || !work.ok.includes(ran.code))
+      throw new RunFailed("review_failed", ran.code);
   } finally {
     await rm(dir, { recursive: true, force: true }).catch(() => {});
   }
