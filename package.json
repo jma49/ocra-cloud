@@ -42,7 +42,7 @@
     "@cloudflare/vitest-pool-workers": "^0.23.0",
     "@dynatrace-sdk/app-environment": "^1.1.6",
     "@dynatrace-sdk/client-app-engine-registry": "^3.3.1",
-    "@dynatrace-sdk/client-filter-segment-management": "^1.7.1",
+    "@dynatrace-sdk/client-filter-segment-management": "^2.0.3",
     "@dynatrace-sdk/client-notification-v2": "^2.5.0",
     "@dynatrace-sdk/client-platform-management-service": "^1.9.1",
     "@dynatrace-sdk/client-query": "^1.29.0",
