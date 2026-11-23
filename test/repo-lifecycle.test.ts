@@ -181,6 +181,28 @@ describe("a repository GitHub no longer gives the App", () => {
   });
 });
 
+describe("a paused repository enrolled again", () => {
+  it("has its pause lifted, since enrolling reads it as the user", async () => {
+    const me = await enrolled(1, [{ name: "api", githubId: 501 }]);
+    await deliver("repository", {
+      action: "deleted",
+      repository: { id: 501, full_name: "octo/api" },
+    });
+    const id = await me.data.autoReview.enroll(
+      {
+        platform: "github",
+        host: "github.com",
+        platformRepoId: "501",
+        fullName: "octo/api",
+        automatic: false,
+      },
+      100,
+    );
+    expect(id).toBe("repo-api");
+    expect((await repoOf("repo-api"))?.paused).toBeNull();
+  });
+});
+
 describe("an installation suspended or uninstalled", () => {
   it("pauses every repository of its owner, and resumes them when unsuspended or installed again", async () => {
     const me = await enrolled(1, [
