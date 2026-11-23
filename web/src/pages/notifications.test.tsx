@@ -199,6 +199,6 @@ describe("a pull request's time", () => {
     expect(span(45 * 60_000)).toBe("45m");
     expect(span(5.5 * 3_600_000)).toBe("5.5h");
     expect(span(30 * 3_600_000)).toBe("30h");
-    expect(span(3 * 86_400_000)).toBe("3.0d");
+    expect(span(3 * 86_400_000)).toBe("3d");
   });
 });

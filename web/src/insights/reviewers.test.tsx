@@ -62,7 +62,7 @@ describe("the reviewer workload on Insights", () => {
     const section = await screen.findByRole("region", { name: "Reviewer workload" });
     expect(fetch).toHaveBeenCalledWith("/api/insights/reviewers?days=30", expect.anything());
     const weeks = within(section).getAllByRole("listitem");
-    expect(weeks[0]?.textContent).toMatch(/3\.0h median · p90 30h · 5 reviews/);
+    expect(weeks[0]?.textContent).toMatch(/3h median · p90 30h · 5 reviews/);
     expect(weeks[0]?.textContent).toMatch(/2 waited over a day/);
     expect(weeks[1]?.textContent).toMatch(/No reviews/);
     const median = weeks[0]?.querySelector<HTMLElement>(".median");
@@ -72,7 +72,7 @@ describe("the reviewer workload on Insights", () => {
       within(ada as HTMLElement)
         .getAllByRole("cell")
         .map((c) => c.textContent),
-    ).toEqual(["ada", "7", "9", "2.0h · p90 20h", "3", "1"]);
+    ).toEqual(["ada", "7", "9", "2h · p90 20h", "3", "1"]);
     expect(within(lin as HTMLElement).getAllByRole("cell")[3]?.textContent).toBe("–");
   });
 

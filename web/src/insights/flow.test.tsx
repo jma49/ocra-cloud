@@ -60,15 +60,15 @@ describe("the review flow on Insights", () => {
     );
     render(<FlowSection days={30} />);
     const section = await screen.findByRole("region", { name: "Review flow" });
-    expect(await within(section).findByText("2.0h")).toBeTruthy();
+    expect(await within(section).findByText("2h")).toBeTruthy();
     expect(fetch).toHaveBeenCalledWith("/api/insights/flow?days=30", expect.anything());
     expect(within(section).getByText(/p90 20h · 8 pull requests/)).toBeTruthy();
-    expect(within(section).getByText(/p90 3\.0h · 1 pull request$/)).toBeTruthy();
+    expect(within(section).getByText(/p90 3h · 1 pull request$/)).toBeTruthy();
     expect(within(section).getByText("Under 100")).toBeTruthy();
     expect(within(section).queryByText("Under 1,000")).toBeNull();
     expect(within(section).getByText("Retry the ledger post")).toBeTruthy();
     expect(within(section).getByText(/acme\/payments #491 · no reviewer asked/)).toBeTruthy();
-    expect(within(section).getByText("3.0d")).toBeTruthy();
+    expect(within(section).getByText("3d")).toBeTruthy();
     expect(within(section).getByText("grace")).toBeTruthy();
     expect(within(section).getByText(/these are the newest/)).toBeTruthy();
   });

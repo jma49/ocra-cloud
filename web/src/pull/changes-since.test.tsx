@@ -89,6 +89,8 @@ describe("the changes since a head", () => {
     await waitFor(() => expect(screen.queryByRole("region", { name: "src/refund.ts" })).toBeNull());
     expect(screen.getByRole("region", { name: "src/ledger.ts" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: /^Comment on line/ })).toBeNull();
+    expect(screen.getByText("Line comments are made on the whole diff.")).toBeTruthy();
+    expect(screen.queryByText(/Click a line number/)).toBeNull();
     await pick(/All changes/);
     expect(await screen.findByRole("region", { name: "src/refund.ts" })).toBeTruthy();
   });
