@@ -28,7 +28,7 @@ import type { AppBindings } from "../types.js";
 export type StackRunner = {
   db: Db;
   env: Pick<AppBindings, "MASTER_KEY" | "MASTER_KEY_PREVIOUS"> &
-    Partial<Pick<AppBindings, "PUBLIC_URL" | "SESSION_SECRET">>;
+    Partial<Pick<AppBindings, "PUBLIC_URL" | "SESSION_SECRET" | "SLACK_BOT_TOKEN">>;
   platforms: readonly CodePlatform[];
   /** Where the end is told from; without it, the env's PUBLIC_URL with no mailer, or nowhere. */
   out?: Outbox | undefined;
@@ -108,6 +108,7 @@ const outboxOf = ({ out, env }: StackRunner): Outbox | undefined =>
         keys: masterKeys(env),
         mailer: undefined,
         linkSecret: env.SESSION_SECRET,
+        slack: env.SLACK_BOT_TOKEN,
         origin: new URL(env.PUBLIC_URL).origin,
       }
     : undefined);

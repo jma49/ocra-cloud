@@ -59,6 +59,7 @@ export function startAutoReview(
       mailer: options.mailer,
       webhooks: options.webhookPost,
       linkSecret: env.SESSION_SECRET,
+      slack: env.SLACK_BOT_TOKEN,
       origin: new URL(publicUrl).origin,
     },
     ...(options.exec ? { exec: options.exec } : {}),

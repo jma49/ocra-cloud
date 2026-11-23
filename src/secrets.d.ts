@@ -40,6 +40,8 @@ interface __BaseEnv_Env {
   RUNNER_TOKEN?: string;
   /** off: the remote runners build no code graphs and none is kept (src/graph/remote.ts); kept when unset. */
   CODE_GRAPH?: string;
+  /** A Slack app's bot token (xoxb-), which sends Slack direct messages; none are sent when unset (docs/self-hosting.md). */
+  SLACK_BOT_TOKEN?: string;
   /** The address people open: the daily digest's links, sent from the cron with no request to read it from. */
   PUBLIC_URL?: string;
 }

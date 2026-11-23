@@ -3,8 +3,12 @@
 // digest and the weekly report, and which events of its own pull requests
 // it hears about.
 
-/** webhook: an HTTPS endpoint of the account's own, sent signed JSON (./webhooks.ts). */
-export const NOTIFY_KINDS = ["slack", "wecom", "email", "webhook"] as const;
+/**
+ * webhook: an HTTPS endpoint of the account's own, sent signed JSON
+ * (./webhooks.ts); slack_dm: a Slack member's direct messages from the
+ * server's Slack app, where the server has one.
+ */
+export const NOTIFY_KINDS = ["slack", "wecom", "email", "webhook", "slack_dm"] as const;
 export type NotifyKind = (typeof NOTIFY_KINDS)[number];
 
 /** blocking: a review with a critical finding; findings: one with any; every: all of them. */
@@ -73,7 +77,7 @@ export type NotifyChannelView = {
   when: NotifyWhen;
   /** The address's last four characters; the address itself is never answered. */
   last4: string;
-  /** False for an email address until its owner opens the link sent to it; it gets nothing before. */
+  /** False for an email address or a Slack member until they open the link sent to them; it gets nothing before. */
   confirmed: boolean;
   /** Whether it gets the daily digest of yesterday's reviews (UTC). */
   digest: boolean;
@@ -95,11 +99,13 @@ export type NotifyChannelsView = {
   channels: NotifyChannelView[];
   /** Whether this server can send email; a server without it refuses email channels. */
   email: boolean;
+  /** Whether this server can send Slack direct messages; a server without it refuses slack_dm channels. */
+  slack: boolean;
 };
 
 export type NotifyChannelAdded = {
   channel: NotifyChannelView;
-  /** For an email address: whether the confirmation link was sent. */
+  /** For an email address or a Slack member: whether the confirmation link was sent. */
   confirmationSent?: boolean;
   /** For a webhook: the secret its deliveries are signed with, answered only here. */
   secret?: string;

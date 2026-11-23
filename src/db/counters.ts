@@ -10,7 +10,7 @@ import { budgets, usageCounters } from "./schema.js";
 // account's counter rows, never counts its records, so checking it costs
 // the same however much the account stored. Only scoped() calls these.
 
-export type DailyKind = "uploads" | "gateway_calls" | "email_confirmations";
+export type DailyKind = "uploads" | "gateway_calls" | "email_confirmations" | "slack_confirmations";
 
 const c = usageCounters;
 

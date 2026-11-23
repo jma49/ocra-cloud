@@ -20,6 +20,7 @@ import {
 import { type Attempt, deliver, type Outgoing, REFUSED, retryDeliveries } from "./deliveries.js";
 import { type Mailer, mailAttempt, mailBody } from "./email.js";
 import { unsubscribeUrl } from "./links.js";
+import { slackDmAttempt, slackTargetOf } from "./slack-dm.js";
 import {
   fetchWebhook,
   type HookEvent,
@@ -46,6 +47,8 @@ export type Outbox = {
   origin: string;
   /** How webhooks are posted; fetch where the host gives none. */
   webhooks?: WebhookPost | undefined;
+  /** The Slack app's bot token (SLACK_BOT_TOKEN); no Slack direct message goes without it. */
+  slack?: string | undefined;
 };
 
 /** The outbox of a request: its links point to the origin it came to. */
@@ -55,6 +58,7 @@ export const outboxOf = (c: Context<AppEnv>): Outbox => ({
   linkSecret: c.env.SESSION_SECRET,
   origin: new URL(c.req.url).origin,
   webhooks: c.var.webhookPost,
+  slack: c.env.SLACK_BOT_TOKEN || undefined,
 });
 
 /** The outbox of a request whose links point to PUBLIC_URL where it is set (a webhook's). */
@@ -102,13 +106,13 @@ export async function openWebhook(
   }
 }
 
-/** What sending needs to make an attempt: the keys, the mailer, how webhooks are posted. */
-export type Transports = Pick<Outbox, "keys" | "mailer" | "webhooks">;
+/** What sending needs to make an attempt: the keys, the mailer, how webhooks are posted, the Slack token. */
+export type Transports = Pick<Outbox, "keys" | "mailer" | "webhooks" | "slack">;
 
 /**
  * How the channel is sent to, its address opened again for each send and
- * retry: one that no longer opens, or an email channel on a host without
- * a mailer, is refused.
+ * retry: one that no longer opens, an email channel on a host without
+ * a mailer, or a Slack member's on a host without a Slack token, is refused.
  */
 async function attemptOn(out: Transports, channel: Row<"notifyChannels">): Promise<Attempt> {
   if (channel.kind === "webhook") {
@@ -117,6 +121,10 @@ async function attemptOn(out: Transports, channel: Row<"notifyChannels">): Promi
   }
   const address = await openHook(out.keys, channel);
   if (address === undefined) return refused;
+  if (channel.kind === "slack_dm") {
+    const target = slackTargetOf(address);
+    return out.slack && target && channel.confirmedAt ? slackDmAttempt(out.slack, target) : refused;
+  }
   if (channel.kind !== "email") return chatAttempt(channel.kind, address);
   return out.mailer && channel.confirmedAt ? mailAttempt(out.mailer, address) : refused;
 }
@@ -135,7 +143,8 @@ async function outgoingOf(
 ): Promise<Outgoing[]> {
   if (channel.kind === "webhook") return (m.hooks ?? []).map(hookOutgoing);
   if (channel.kind !== "email") {
-    const body = JSON.stringify(messageOf(channel.kind, m));
+    // A direct message is Slack's text, as its incoming webhooks take it.
+    const body = JSON.stringify(messageOf(channel.kind === "slack_dm" ? "slack" : channel.kind, m));
     return [{ event: m.event, payload: () => body }];
   }
   const unsubscribe = await unsubscribeUrl(out, channel.accountId, channel.id);
@@ -157,6 +166,7 @@ export async function send(
   if (channel.kind === "webhook" && !m.hooks?.length) return false;
   // A server without a mailer, or an address not confirmed, has nothing to deliver.
   if (channel.kind === "email" && (!out.mailer || !channel.confirmedAt)) return false;
+  if (channel.kind === "slack_dm" && (!out.slack || !channel.confirmedAt)) return false;
   const ok = await deliver(
     data,
     channel,

@@ -566,7 +566,14 @@ export const usageCounters = sqliteTable(
   {
     accountId: accountId(),
     kind: text("kind", {
-      enum: ["uploads", "gateway_calls", "findings", "email_confirmations", "spend"],
+      enum: [
+        "uploads",
+        "gateway_calls",
+        "findings",
+        "email_confirmations",
+        "slack_confirmations",
+        "spend",
+      ],
     }).notNull(),
     /** The UTC date, YYYY-MM-DD. */
     day: text("day").notNull(),

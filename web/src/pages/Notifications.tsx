@@ -41,6 +41,7 @@ const KIND_LABEL: Record<NotifyKind, string> = {
   wecom: "WeCom",
   email: "Email",
   webhook: "Webhook",
+  slack_dm: "Slack direct message",
 };
 const WHEN_LABEL: Record<NotifyWhen, string> = {
   blocking: "Blocking reviews",
@@ -52,6 +53,7 @@ const PLACEHOLDER: Record<NotifyKind, string> = {
   wecom: "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=…",
   email: "you@example.com",
   webhook: "https://example.com/ocra-webhook",
+  slack_dm: "Slack email address or member ID",
 };
 const json = (method: string, body?: unknown): RequestInit => ({
   method,
@@ -123,6 +125,7 @@ export function Notifications(props: { platforms: readonly CodePlatformKind[] })
         }}
         full={(data?.channels.length ?? 0) >= 10}
         email={data?.email ?? false}
+        slack={data?.slack ?? false}
       />
       {resend.error !== null && <ActionError what="send the link again" error={resend.error} />}
       {change.error !== null && <ActionError what="change the channel" error={change.error} />}
@@ -337,6 +340,7 @@ function AddChannel(props: {
   onAdded: (confirming: string | null) => void;
   full: boolean;
   email: boolean;
+  slack: boolean;
 }) {
   const [kind, setKind] = useState<NotifyKind>("slack");
   const [name, setName] = useState("");
@@ -355,7 +359,11 @@ function AddChannel(props: {
         when,
         digest: digest && !hook,
         weekly: weekly && !hook,
-        ...(kind === "email" ? { address: url.trim() } : { url }),
+        ...(kind === "email"
+          ? { address: url.trim() }
+          : kind === "slack_dm"
+            ? { member: url.trim() }
+            : { url }),
       }),
     ),
   );
@@ -378,7 +386,9 @@ function AddChannel(props: {
           value={kind}
           onChange={(e) => setKind(e.target.value as NotifyKind)}
         >
-          {NOTIFY_KINDS.filter((k) => k !== "email" || props.email).map((k) => (
+          {NOTIFY_KINDS.filter(
+            (k) => (k !== "email" || props.email) && (k !== "slack_dm" || props.slack),
+          ).map((k) => (
             <option key={k} value={k}>
               {KIND_LABEL[k]}
             </option>
@@ -406,7 +416,13 @@ function AddChannel(props: {
         </select>
         <input
           className="input grow mono"
-          aria-label={kind === "email" ? "Email address" : "Webhook address"}
+          aria-label={
+            kind === "email"
+              ? "Email address"
+              : kind === "slack_dm"
+                ? "Slack member"
+                : "Webhook address"
+          }
           placeholder={PLACEHOLDER[kind]}
           maxLength={hook ? 2048 : 512}
           value={url}
@@ -433,6 +449,12 @@ function AddChannel(props: {
       {kind === "email" && (
         <span className="subtle small">
           The address gets a link to confirm it first; nothing else is sent until it is opened.
+        </span>
+      )}
+      {kind === "slack_dm" && (
+        <span className="subtle small">
+          The member gets a direct message with a link to confirm first; nothing else is sent until
+          it is opened.
         </span>
       )}
       {hook && (
