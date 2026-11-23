@@ -134,7 +134,7 @@ select.input {
   gap: 8px;
   padding: 12px;
   border-radius: var(--r-chip);
-  font-size: var(--text-md);
+  font-size: var(--text-base);
   border: 0.5px solid var(--hair2);
   background: var(--bg-subtle);
   color: var(--fg-muted);
@@ -226,6 +226,7 @@ select.input {
   border: 0.5px solid var(--hair2);
   background: var(--bg-subtle);
   font: var(--text-sm) var(--mono);
+  line-height: 16px;
 }
 .chip-x button {
   border: 0;

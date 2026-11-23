@@ -29,6 +29,8 @@ Pages and components style only through the custom properties in `base.css`.
 - **Fonts:** Geist for text, JetBrains Mono for code, diffs, file paths and ids, Noto Sans SC for Chinese (both stacks fall through to it). Ligatures are off everywhere: code reads as typed.
 - **Scale (test):** sizes only through `--text-2xs` (10) … `--text-4xl` (30); no literal font sizes in stylesheets. Body is `--text-base` (13).
 - **Roles:** page title `--text-2xl`/600; section and card titles `--text-base`/600; table headers, stat labels and group labels (`.quiet-label`) `--text-sm`/500 in sentence case, `--t3`, never uppercase or tracked; big numbers `--text-3xl`/600 with tabular figures.
+- **Line heights:** 20 px for body text, 16 px for labels, tags and code chips at `--text-sm` and under, 28 px for a page title and a big number. A `font` shorthand is followed by its `line-height`, since the shorthand resets it.
+- **Weights:** 400, 500 and 600; `b` and `strong` are 600. A card's title is an `h2` (`.card-head h2` or `.card-title`), never a `div` at 500.
 - **Numbers** in tables, stats and badges use tabular figures and align right in columns (`.num`).
 - Chinese text gets no letter-spacing.
 

@@ -189,7 +189,7 @@ function Hook(props: { added: Added; onDone: () => void }) {
   const { repo, webhook } = props.added;
   return (
     <section className="card card-pad stack hook-card" aria-label="Webhook">
-      <div className="strong">One step on {PLATFORM_NAME[repo.platform]}</div>
+      <h2 className="card-title">One step on {PLATFORM_NAME[repo.platform]}</h2>
       {repo.platform === "gitlab" ? (
         <p className="m-0">
           In <span className="mono">{repo.fullName}</span>, open Settings, Webhooks, and add this

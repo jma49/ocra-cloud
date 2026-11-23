@@ -137,6 +137,7 @@
 }
 .group-label {
   font: 400 var(--text-sm) var(--mono);
+  line-height: 16px;
   color: var(--fg-muted);
   margin: 24px 0 8px;
 }

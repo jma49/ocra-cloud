@@ -69,7 +69,7 @@ export function AddRepo(props: {
   const offered = offeredRepos(props.listed, platform, props.enrolled);
   return (
     <form className="card card-pad stack add-form" onSubmit={submit}>
-      <div className="strong">Add a repository</div>
+      <h2 className="card-title">Add a repository</h2>
       <div className="add-fields">
         <PlatformSelect platforms={props.platforms} value={platform} onChange={setPlatform} />
         <div className="grow add-repo-field">
