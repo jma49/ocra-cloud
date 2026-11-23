@@ -1,11 +1,13 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { clearCache } from "../cache.js";
 import { span } from "../insights/cycle.js";
 import { Notifications } from "./Notifications.js";
 
-afterEach(() => {
+afterEach(async () => {
   cleanup();
   vi.unstubAllGlobals();
+  await clearCache();
 });
 
 const channel = {
@@ -118,6 +120,24 @@ describe("an email channel", () => {
       method: "PATCH",
       body: { digest: true },
     });
+  });
+
+  it("moves a switch at once, and back when the save is refused", async () => {
+    let refuse: (r: Response) => void = () => {};
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (init?.method === "PATCH") return new Promise<Response>((r) => (refuse = r));
+        if (url === "/api/notifications/report") return Response.json(SLOT);
+        return Response.json({ email: true, channels: [channel] });
+      }),
+    );
+    render(<Notifications platforms={["github"]} />);
+    const digest = await screen.findByRole("switch", { name: "Daily digest to #reviews" });
+    await act(async () => void fireEvent.click(digest));
+    expect(digest.getAttribute("aria-checked")).toBe("true");
+    await act(async () => refuse(Response.json({ error: "internal" }, { status: 500 })));
+    await waitFor(() => expect(digest.getAttribute("aria-checked")).toBe("false"));
   });
 
   it("is not offered where this server cannot send mail", async () => {

@@ -14,6 +14,7 @@ import { ruleSummary } from "../automations/describe.js";
 import { DryRun } from "../automations/dry-run.js";
 import { type Choice, RuleForm } from "../automations/rule-form.js";
 import { Runs } from "../automations/runs.js";
+import { useCached } from "../cache.js";
 import { AddGlyph } from "../glyphs.js";
 import {
   ActionError,
@@ -33,7 +34,9 @@ const MAX_RULES = 50;
 
 export function Automations(props: { me: Me }) {
   const queued = props.me.autoReview;
-  const rules = useLoad(() => api<{ rules: AutomationRuleView[] }>("/automations/rules"));
+  const rules = useCached("/automations/rules", () =>
+    api<{ rules: AutomationRuleView[] }>("/automations/rules"),
+  );
   const runs = useLoad(() => api<{ runs: AutomationRunView[] }>("/automations/runs"));
   const channels = useLoad(() => api<{ channels: NotifyChannelView[] }>("/notifications/channels"));
   const repos = useLoad(
@@ -71,6 +74,14 @@ export function Automations(props: { me: Me }) {
   };
   const after = async (p: Promise<unknown>) => {
     if ((await p) !== undefined) rules.reload();
+  };
+  // The switch moves at once; a refused save puts it back.
+  const flip = async (r: AutomationRuleView) => {
+    const undo = rules.change((d) => ({
+      rules: d.rules.map((x) => (x.id === r.id ? { ...x, enabled: !r.enabled } : x)),
+    }));
+    if ((await toggle.run(r)) === undefined) undo();
+    else rules.reload();
   };
   const form = (rule?: AutomationRuleView) => (
     <RuleForm
@@ -144,7 +155,7 @@ export function Automations(props: { me: Me }) {
                   aria-label={`${r.name} on`}
                   checked={r.enabled}
                   disabled={toggle.busy}
-                  onCheckedChange={() => after(toggle.run(r))}
+                  onCheckedChange={() => flip(r)}
                 />
                 <div className={r.enabled ? "grow" : "grow rule-off"}>
                   <div className="strong">{r.name}</div>
