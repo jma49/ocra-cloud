@@ -12,8 +12,8 @@ const token = (tokenFile ? readFileSync(tokenFile, "utf8") : process.env.OCRA_RU
 if (!server || !token) {
   throw new Error("set OCRA_CLOUD_URL, and OCRA_RUNNER_TOKEN_FILE or OCRA_RUNNER_TOKEN");
 }
-const poll = process.env.OCRA_RUNNER_POLL_SECONDS || "5";
-if (!/^[1-9]\d*$/.test(poll)) {
+const poll = process.env.OCRA_RUNNER_POLL_SECONDS;
+if (poll && !/^[1-9]\d*$/.test(poll)) {
   throw new Error(`OCRA_RUNNER_POLL_SECONDS must be a whole number above 0, not ${poll}`);
 }
 
@@ -24,7 +24,13 @@ const name = process.env.OCRA_RUNNER_NAME || hostname();
 const version = installedCliVersion();
 console.log(JSON.stringify({ level: "info", event: "runner_started", name, version, server }));
 await runRunner(
-  { server: new URL(server).origin, token, name, version, pollMs: Number(poll) * 1000 },
+  {
+    server: new URL(server).origin,
+    token,
+    name,
+    version,
+    ...(poll ? { pollMs: Number(poll) * 1000 } : {}),
+  },
   stop.signal,
 );
 console.log(JSON.stringify({ level: "info", event: "runner_stopped", name }));
