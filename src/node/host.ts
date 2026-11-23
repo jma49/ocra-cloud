@@ -34,6 +34,7 @@ import { type GraphOptions, startGraphs } from "./graph-worker.js";
 import { type RateLimitStore, rateLimits } from "./limits.js";
 import { type MetricsOptions, metricsEndpoint } from "./metrics.js";
 import { openPostgres } from "./postgres.js";
+import { postgresHub } from "./pull-events-pg.js";
 import { type AutoReviewOptions, startAutoReview } from "./review-worker.js";
 import { nodeWebhookPost } from "./webhook-transport.js";
 
@@ -92,10 +93,11 @@ export type HostOptions = {
 export async function openHost(options: HostOptions) {
   const startedAt = Date.now();
   const migrate = options.migrate ?? true;
-  const { db: shared, close } = await openDatabase(options.databaseUrl, {
+  const opened = await openDatabase(options.databaseUrl, {
     migrations: options.migrations,
     migrate,
   });
+  const { db: shared, close } = opened;
   const bindings =
     options.rateLimits === "database"
       ? { ...options.bindings, ...rateLimits({ db: shared }) }
@@ -120,7 +122,10 @@ export async function openHost(options: HostOptions) {
   const bots = options.autoReview
     ? (options.autoReview.tokens ?? botTokens(options.autoReview.bots))
     : undefined;
-  const pullsHub = memoryHub();
+  // Postgres carries the streams' events between the processes sharing it; a
+  // libSQL database has no such channel, and each process tells its own.
+  const sharedHub = opened.pool && (await postgresHub(options.databaseUrl, opened.pool));
+  const pullsHub = sharedHub || memoryHub();
   const api = createApp({
     openDb: () => shared,
     clientAddress: (c) => addresses.get(c.req.raw),
@@ -302,6 +307,7 @@ export async function openHost(options: HostOptions) {
       while (deferred.size > 0) await Promise.allSettled(deferred);
     },
     close: () => {
+      sharedHub?.stop();
       pullsHub.endAll();
       graphs?.worker.stop();
       reviews?.stop();
@@ -336,7 +342,7 @@ async function openLibsql(url: string, options: { migrations: string; migrate: b
   if (options.migrate) await migrate(db, { migrationsFolder: options.migrations });
   // The one place the libSQL database is taken as the type every query uses:
   // the same Drizzle SQLite API, its write results read by changedRows.
-  return { db: db as unknown as Db, close: () => client.close() };
+  return { db: db as unknown as Db, pool: undefined, close: () => client.close() };
 }
 
 function rebase(url: string, origin: string): string {

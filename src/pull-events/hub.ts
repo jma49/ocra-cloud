@@ -1,9 +1,10 @@
 import type { PullsChangedEvent } from "../shared/index.js";
 
-// Where a webhook tells an account's open consoles that its pull requests
-// changed (#472): a Durable Object per account on Workers (./durable.ts),
-// this process's memory on Node. It holds nothing: an event no console
-// hears is gone, and a console that reconnects reads /pulls/changed once.
+// Where a webhook or an upload tells an account's open consoles that its
+// pull requests changed (#472): a Durable Object per account on Workers
+// (./durable.ts), the process's memory on Node, shared by LISTEN/NOTIFY on
+// Postgres. It holds nothing: an event no console hears is gone, and a
+// console that reconnects reads /pulls/changed once.
 
 /** Streams one account may hold open at once: a few tabs and windows. */
 export const MAX_STREAMS = 6;
@@ -28,9 +29,10 @@ export type PullsHub = {
 };
 
 /**
- * The hub of one Node process. Several processes behind one address each
- * have their own: a console hears the webhooks its own process received,
- * and the rest when its stream reconnects (src/pull-events/stream.ts).
+ * The hub of one Node process. On Postgres the processes share their events
+ * (src/node/pull-events-pg.ts); on SQLite or libSQL each has only its own: a
+ * console hears the changes its own process received, and the rest when
+ * its stream reconnects (src/pull-events/stream.ts).
  */
 export function memoryHub(): PullsHub & { endAll(): void } {
   const open = new Map<string, Set<(events: PullsChangedEvent[]) => void>>();
