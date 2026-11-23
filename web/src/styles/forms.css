@@ -59,8 +59,12 @@ select.input {
 }
 
 .seg {
+  --glide-fill: var(--fill2);
   min-width: 0;
   flex-wrap: wrap;
+}
+.seg [data-slot="toggle"][data-pressed] {
+  background: transparent;
 }
 /* A pill: a soft fill in its tone. */
 .badge {

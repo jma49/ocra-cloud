@@ -41,3 +41,58 @@
     transform: none;
   }
 }
+
+/* One highlight that glides to the item under the pointer or the picked one
+   (glide.ts), in place of a fill on each item. */
+.glide {
+  position: relative;
+  isolation: isolate;
+}
+.glide::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  left: 0;
+  width: var(--glide-w, 0);
+  height: var(--glide-h, 0);
+  border-radius: var(--r-tab);
+  background: var(--glide-fill, var(--fill));
+  transform: translate(var(--glide-x, 0), var(--glide-y, 0));
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--d-fast) var(--e-std);
+}
+.glide[data-glide="jump"]::before {
+  transition: none;
+}
+.glide[data-glide="on"]::before {
+  opacity: 1;
+  transition:
+    transform var(--d-settle) var(--e-settle),
+    width var(--d-settle) var(--e-settle),
+    height var(--d-settle) var(--e-settle),
+    opacity var(--d-fast) var(--e-std);
+}
+/* A fold opens and closes instead of snapping, where the browser can
+   animate to a height it has to measure. */
+@supports (interpolate-size: allow-keywords) {
+  details::details-content {
+    height: 0;
+    overflow: clip;
+    overflow-clip-margin: 4px;
+    interpolate-size: allow-keywords;
+    transition:
+      height var(--d-settle) var(--e-settle),
+      content-visibility var(--d-settle) allow-discrete;
+  }
+  details[open]::details-content {
+    height: auto;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .glide::before,
+  details::details-content {
+    transition: none;
+  }
+}

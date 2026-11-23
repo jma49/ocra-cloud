@@ -96,6 +96,7 @@
   --d-press: 80ms;
   --d-fast: 120ms;
   --d-move: 160ms;
+  --d-settle: 220ms;
   --e-std: cubic-bezier(0.4, 0, 0.2, 1);
   --e-enter: cubic-bezier(0.22, 1, 0.36, 1);
   --e-settle: cubic-bezier(0.2, 0.75, 0.15, 1);

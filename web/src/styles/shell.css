@@ -222,8 +222,10 @@
   color: var(--t1);
 }
 .place-tab.on {
-  background: var(--fill2);
   color: var(--t1);
+}
+.place-tabs {
+  --glide-fill: var(--fill2);
 }
 .panel-body {
   flex: 1;
@@ -256,7 +258,6 @@
 }
 .settings-link:hover {
   color: var(--t1);
-  background: var(--fill);
 }
 .settings-link.on {
   color: var(--t1);
