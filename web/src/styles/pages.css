@@ -1345,3 +1345,8 @@ td.finding-cell {
   font-size: var(--text-sm);
   white-space: pre-line;
 }
+
+/* A webhook channel's drawer */
+.webhook-deliveries {
+  margin-top: 28px;
+}

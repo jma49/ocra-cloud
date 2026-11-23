@@ -136,47 +136,49 @@ export function RemindersDrawer(props: {
           ))}
         </select>
       </label>
-      <fieldset className="view-group">
-        <legend>Quiet hours</legend>
-        <label>
-          <input
-            type="checkbox"
-            checked={quiet !== null}
-            onChange={() => setQuiet(quiet ? null : DEFAULT_QUIET)}
-          />{" "}
-          Send no reminder, comment or mention during these hours
-        </label>
-        {quiet && (
-          <div className="quiet-hours">
-            <span>From</span>
-            <select
-              className="input"
-              aria-label="Quiet from"
-              value={quiet.start}
-              onChange={(e) => setQuiet({ ...quiet, start: Number(e.target.value) })}
-            >
-              {HOURS.map((h) => (
-                <option key={h} value={h} disabled={h === quiet.end}>
-                  {clock(h)}
-                </option>
-              ))}
-            </select>
-            <span>to</span>
-            <select
-              className="input"
-              aria-label="Quiet until"
-              value={quiet.end}
-              onChange={(e) => setQuiet({ ...quiet, end: Number(e.target.value) })}
-            >
-              {HOURS.map((h) => (
-                <option key={h} value={h} disabled={h === quiet.start}>
-                  {clock(h)}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-      </fieldset>
+      {channel.kind !== "webhook" && (
+        <fieldset className="view-group">
+          <legend>Quiet hours</legend>
+          <label>
+            <input
+              type="checkbox"
+              checked={quiet !== null}
+              onChange={() => setQuiet(quiet ? null : DEFAULT_QUIET)}
+            />{" "}
+            Send no reminder, comment or mention during these hours
+          </label>
+          {quiet && (
+            <div className="quiet-hours">
+              <span>From</span>
+              <select
+                className="input"
+                aria-label="Quiet from"
+                value={quiet.start}
+                onChange={(e) => setQuiet({ ...quiet, start: Number(e.target.value) })}
+              >
+                {HOURS.map((h) => (
+                  <option key={h} value={h} disabled={h === quiet.end}>
+                    {clock(h)}
+                  </option>
+                ))}
+              </select>
+              <span>to</span>
+              <select
+                className="input"
+                aria-label="Quiet until"
+                value={quiet.end}
+                onChange={(e) => setQuiet({ ...quiet, end: Number(e.target.value) })}
+              >
+                {HOURS.map((h) => (
+                  <option key={h} value={h} disabled={h === quiet.start}>
+                    {clock(h)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </fieldset>
+      )}
       <label className="field">
         Time zone
         <select

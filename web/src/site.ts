@@ -2,6 +2,8 @@
 
 export const DOCS = "https://ocracloud.com/docs";
 export const GITHUB = "https://github.com/jma49/Open-CR-Agent";
+export const WEBHOOK_DOCS =
+  "https://github.com/jma49/ocra-cloud/blob/main/docs/self-hosting.md#outgoing-webhooks";
 const PRODUCTION_HOST = "app.ocracloud.com";
 
 /** The tag beside the brand: "dev" marks every host but production. */
