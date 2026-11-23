@@ -1,5 +1,6 @@
-import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { changedRows, type Db } from "./client.js";
+import type { RepoScope } from "./scheduled-reports.js";
 import { closedPulls, reviewRepos } from "./schema.js";
 
 // How an enrolled repository's pull requests ended, as its platform's
@@ -22,8 +23,13 @@ const MAX_TITLE = 256;
 
 export function accountClosedPulls(db: Db, accountId: string) {
   const t = closedPulls;
-  const between = (from: Date, to: Date) =>
-    and(eq(t.accountId, accountId), gte(t.closedAt, from), lt(t.closedAt, to));
+  const between = (from: Date, to: Date, scope?: RepoScope) =>
+    and(
+      eq(t.accountId, accountId),
+      gte(t.closedAt, from),
+      lt(t.closedAt, to),
+      scope ? inArray(t.reviewRepoId, [...scope.repoIds]) : undefined,
+    );
   return {
     /** Records the close unless the pull request's stored one is newer. */
     async record(close: PullClose): Promise<void> {
@@ -62,8 +68,8 @@ export function accountClosedPulls(db: Db, accountId: string) {
     },
 
     /** How many were merged between from and to, and the newest of them, up to limit. */
-    async mergedBetween(from: Date, to: Date, limit: number) {
-      const where = and(between(from, to), eq(t.merged, true));
+    async mergedBetween(from: Date, to: Date, limit: number, scope?: RepoScope) {
+      const where = and(between(from, to, scope), eq(t.merged, true));
       const [counted, newest] = await Promise.all([
         db.select({ n: sql<number>`count(*)` }).from(t).where(where),
         limit > 0
@@ -96,11 +102,11 @@ export function accountClosedPulls(db: Db, accountId: string) {
     },
 
     /** Opened to merged, for every pull request merged between from and to that says when it opened. */
-    async mergeTimes(from: Date, to: Date, cap: number): Promise<number[]> {
+    async mergeTimes(from: Date, to: Date, cap: number, scope?: RepoScope): Promise<number[]> {
       const rows = await db
         .select({ openedAt: t.openedAt, closedAt: t.closedAt })
         .from(t)
-        .where(and(between(from, to), eq(t.merged, true), sql`${t.openedAt} IS NOT NULL`))
+        .where(and(between(from, to, scope), eq(t.merged, true), sql`${t.openedAt} IS NOT NULL`))
         .orderBy(desc(t.closedAt))
         .limit(cap);
       return rows.flatMap((r) =>

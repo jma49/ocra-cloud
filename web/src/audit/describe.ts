@@ -51,6 +51,14 @@ export const KIND_GROUPS: { label: string; kinds: [AuditKind, string][] }[] = [
     ],
   },
   {
+    label: "Scheduled reports",
+    kinds: [
+      ["report.added", "Report added"],
+      ["report.changed", "Report changed"],
+      ["report.removed", "Report removed"],
+    ],
+  },
+  {
     label: "Automatic review",
     kinds: [
       ["auto_review.enrolled", "Repository enrolled"],
@@ -207,6 +215,12 @@ export function describe(e: AuditEventView): string {
       return `${e.detail.enabled === false ? "Turned off" : "Changed"} an automation${noted(e.detail.trigger, " on ", "")}`;
     case "automation.removed":
       return "Removed an automation";
+    case "report.added":
+      return `Added a ${e.detail.cadence ? `${e.detail.cadence} ` : ""}scheduled report`;
+    case "report.changed":
+      return `${e.detail.enabled === false ? "Turned off" : "Changed"} a scheduled report`;
+    case "report.removed":
+      return "Removed a scheduled report";
     case "auto_review.enrolled":
       return `Enrolled ${named(e.detail.repo, "a repository")} in automatic review`;
     case "auto_review.auto_enroll_changed":

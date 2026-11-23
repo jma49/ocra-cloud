@@ -58,9 +58,11 @@ import {
   type NotifyWhen,
   type PullFilters,
   REPO_PAUSES,
+  REPORT_CADENCES,
   REVIEW_CHAT_ROLES,
   REVIEW_JOB_STATES,
   REVIEW_PROFILES,
+  type ReportSection,
   type ReviewerCounts,
   type ReviewSettings,
   type ReviewWalkthroughView,
@@ -576,6 +578,7 @@ export const usageCounters = sqliteTable(
         "email_confirmations",
         "slack_confirmations",
         "slack_lookups",
+        "report_sends",
         "spend",
       ],
     }).notNull(),
@@ -1510,6 +1513,55 @@ export const automationRuns = sqliteTable(
   ],
 );
 
+// A report the account defined (src/notify/scheduled-reports.ts): when it
+// goes, in the account's time zone, which repositories it counts (null:
+// every one), its sections and the channels it goes to.
+export const scheduledReports = sqliteTable(
+  "scheduled_reports",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    name: text("name").notNull(),
+    enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+    cadence: text("cadence", { enum: REPORT_CADENCES }).notNull(),
+    hour: integer("hour").notNull(),
+    weekday: integer("weekday"),
+    monthDay: integer("month_day"),
+    repoIds: text("repo_ids", { mode: "json" }).$type<string[]>(),
+    sections: text("sections", { mode: "json" }).$type<ReportSection[]>().notNull(),
+    channelIds: text("channel_ids", { mode: "json" }).$type<string[]>().notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("scheduled_reports_account_created").on(t.accountId, t.createdAt),
+    // The hourly run finds the accounts with an enabled report.
+    index("scheduled_reports_enabled").on(t.enabled, t.accountId),
+  ],
+);
+
+// One period of a report, claimed by the unique index before it is made, so
+// two runs or two processes send it once. Kept after its report is
+// deleted, until retention.
+export const scheduledReportSends = sqliteTable(
+  "scheduled_report_sends",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    reportId: text("report_id").notNull(),
+    period: text("period").notNull(),
+    periodFrom: integer("period_from", { mode: "timestamp_ms" }).notNull(),
+    periodTo: integer("period_to", { mode: "timestamp_ms" }).notNull(),
+    /** The channels it went to; 0 for an empty period, which sends nothing. */
+    channels: integer("channels").notNull().default(0),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("scheduled_report_sends_period").on(t.reportId, t.period),
+    index("scheduled_report_sends_account_created").on(t.accountId, t.createdAt),
+  ],
+);
+
 // A pre-merge check an account asks of an enrolled repository's pull
 // requests; its settings are checked against its kind's schema on the way
 // in and out (src/merge-checks/settings.ts).
@@ -1835,6 +1887,8 @@ export const accountTables = {
   automationRules,
   automationRuns,
   automationAssignments,
+  scheduledReports,
+  scheduledReportSends,
   mergeChecks,
   mergeCheckRuns,
   mergeIntents,

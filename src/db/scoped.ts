@@ -74,6 +74,7 @@ import { accountReviewRequests } from "./review-requests.js";
 import { accountReviewTargets } from "./review-targets.js";
 import { accountReviewTeams } from "./review-teams.js";
 import { accountReviewThreads } from "./review-threads.js";
+import { accountScheduledReports } from "./scheduled-reports.js";
 import { accountTables } from "./schema.js";
 import { accountSearch } from "./search.js";
 import { accountStackMerges } from "./stack-merges.js";
@@ -496,6 +497,7 @@ export function scoped(db: Db, accountId: string) {
     commands: accountPullCommands(db, accountId),
     audit: accountAuditEvents(db, accountId),
     automations: accountAutomations(db, accountId),
+    scheduledReports: accountScheduledReports(db, accountId),
     mergeChecks: accountMergeChecks(db, accountId),
     mergeIntents: accountMergeIntents(db, accountId),
     stackMerges: accountStackMerges(db, accountId),

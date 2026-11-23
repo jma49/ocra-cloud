@@ -3,6 +3,7 @@ import { DAY } from "../time.js";
 import { keepsStored } from "./accounts.js";
 import { type Db, first } from "./client.js";
 import { countWhere } from "./dialect.js";
+import { findingsIn, type RepoScope, reviewsIn } from "./scheduled-reports.js";
 import { accounts, findings, notifyChannels, reviews } from "./schema.js";
 
 // The weekly report's side of the account row (reached through scoped()):
@@ -65,9 +66,19 @@ export function accountReports(db: Db, accountId: string) {
     },
 
     /** What the weekly report adds to the digest's numbers for the reviews between from and to. */
-    async numbersOf(from: Date, to: Date, shareFindings: boolean): Promise<ReportNumbers> {
+    async numbersOf(
+      from: Date,
+      to: Date,
+      shareFindings: boolean,
+      scope?: RepoScope,
+    ): Promise<ReportNumbers> {
       const r = reviews;
-      const when = and(eq(r.accountId, accountId), gte(r.createdAt, from), lt(r.createdAt, to));
+      const when = and(
+        eq(r.accountId, accountId),
+        gte(r.createdAt, from),
+        lt(r.createdAt, to),
+        reviewsIn(scope),
+      );
       const f = findings;
       const [outcomes, repos, open] = await Promise.all([
         db
@@ -90,7 +101,14 @@ export function accountReports(db: Db, accountId: string) {
           ? db
               .select({ n: countWhere(sql`${f.status} = 'open'`) })
               .from(f)
-              .where(and(eq(f.accountId, accountId), gte(f.createdAt, from), lt(f.createdAt, to)))
+              .where(
+                and(
+                  eq(f.accountId, accountId),
+                  gte(f.createdAt, from),
+                  lt(f.createdAt, to),
+                  findingsIn(db, accountId, scope, from, to),
+                ),
+              )
               .limit(1)
               .then(first)
           : Promise.resolve(undefined),

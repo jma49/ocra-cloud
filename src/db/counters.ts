@@ -15,7 +15,8 @@ export type DailyKind =
   | "gateway_calls"
   | "email_confirmations"
   | "slack_confirmations"
-  | "slack_lookups";
+  | "slack_lookups"
+  | "report_sends";
 
 const c = usageCounters;
 
