@@ -221,4 +221,16 @@ describe("updating a GitLab merge request's branch", () => {
     expect(await (await update(a, lab)).json()).toEqual({ outcome: "forbidden" });
     expect(await branchAudit(a)).toEqual([]);
   });
+
+  it("answers GitLab's 429 as a used-up allowance, not as no permission", async () => {
+    platform({
+      [diverged]: mr(),
+      [`PUT ${MR}/rebase`]: refusal(429, "Retry later", { "retry-after": "30" }),
+    });
+    const a = await signInWithGithub();
+    await (await connectGitlab(a))("code=c&state=STATE");
+    const res = await update(a, lab);
+    expect(res.status).toBe(502);
+    expect(await res.json()).toMatchObject({ reason: "platform_rate_limited" });
+  });
 });
