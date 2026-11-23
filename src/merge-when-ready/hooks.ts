@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { Db } from "../db/client.js";
 import type { MergeIntent } from "../db/merge-intents.js";
 import { reviewRepoFor } from "../db/review-jobs.js";
 import { type Row, scoped } from "../db/scoped.js";
@@ -159,6 +160,28 @@ async function onIntent(scope: IntentScope, intent: MergeIntent, signal: PullSig
   await advance(scope, intent, now);
 }
 
+function activeFor(
+  data: ReturnType<typeof scoped>,
+  repo: Row<"reviewRepos">,
+  fullName: string,
+  signal: PullSignal,
+  limit: number,
+) {
+  const key = { platform: repo.platform, host: repo.host, fullName };
+  const at = "head" in signal ? { head: signal.head } : { number: signal.number };
+  return data.mergeIntents.active(key, at, limit);
+}
+
+/** Whether the signal concerns an armed intent of the enrolled repository. */
+export async function hasIntents(
+  db: Db,
+  repo: Row<"reviewRepos">,
+  fullName: string,
+  signal: PullSignal,
+): Promise<boolean> {
+  return (await activeFor(scoped(db, repo.accountId), repo, fullName, signal, 1)).length > 0;
+}
+
 /** Moves the armed intents of the enrolled repository that the signal concerns. */
 export async function moveIntents(
   runner: MergeRunner,
@@ -170,9 +193,7 @@ export async function moveIntents(
   const platform = runner.platforms.find((p) => p.kind === repo.platform && p.host === repo.host);
   if (!platform) return;
   const data = scoped(runner.db, repo.accountId);
-  const key = { platform: repo.platform, host: repo.host, fullName };
-  const at = "head" in signal ? { head: signal.head } : { number: signal.number };
-  const intents = await data.mergeIntents.active(key, at, MAX_PER_SIGNAL);
+  const intents = await activeFor(data, repo, fullName, signal, MAX_PER_SIGNAL);
   const scope = { runner, data, platform, repo };
   for (const intent of intents) {
     try {

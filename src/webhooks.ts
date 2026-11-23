@@ -12,7 +12,7 @@ import { MAX_HOOK_BODY, queueGithubPush } from "./graph/webhooks.js";
 import { signedBody } from "./http.js";
 import { githubFields } from "./inbound/fields.js";
 import { receive } from "./inbound/receive.js";
-import type { InboundStep } from "./inbound/run.js";
+import { githubSteps } from "./inbound/steps.js";
 import { rerunGithubChecks } from "./merge-checks/rerun.js";
 import { githubHostOf } from "./platforms/registry.js";
 import type { AppEnv } from "./types.js";
@@ -23,25 +23,10 @@ import type { AppEnv } from "./types.js";
 // reviewed one changes, and its user told of what concerns them), an @ocra
 // comment its answer and a re-run of the pre-merge check its evaluation,
 // where the host does them. A pull request's change, review, check or status also moves the
-// intents armed to merge it when ready. Each delivery is acted on once,
-// and what runs after the answer is tried again when it fails (src/inbound/).
+// intents armed to merge it when ready. Each delivery with something to
+// run after the answer is acted on once, and that is tried again when it
+// fails (src/inbound/).
 // GitLab's hooks are per repository, with secrets of their own.
-
-/** The events whose side effects tell the account's channels (src/notify/pull-hooks.ts). */
-const TELLS = new Set([
-  "pull_request",
-  "pull_request_review",
-  "issue_comment",
-  "pull_request_review_comment",
-]);
-/** The events that may move merge-when-ready intents (src/merge-when-ready/hooks.ts). */
-const SIGNALS = new Set([
-  "pull_request",
-  "pull_request_review",
-  "check_suite",
-  "check_run",
-  "status",
-]);
 
 export type WebhookHost = {
   githubWebhookSecret?: string;
@@ -68,10 +53,7 @@ export function githubWebhook(host: WebhookHost) {
       const review = host.autoReview;
       const github = githubHostOf(c.env).host;
       const repo = z.object({ repository: z.object({ id: z.number() }) }).safeParse(body);
-      const steps: InboundStep[] = [
-        ...(TELLS.has(event) ? (["tell"] as const) : []),
-        ...(SIGNALS.has(event) ? (["intents"] as const) : []),
-      ];
+      const steps = await githubSteps(c.var.db, github, event, body);
       const received = await receive(c, {
         platform: "github",
         host: github,

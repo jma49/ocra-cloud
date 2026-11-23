@@ -196,6 +196,59 @@ describe("a platform's delivery", () => {
   });
 });
 
+describe("a delivery with nothing to run after its answer", () => {
+  const repository = { id: 11, full_name: "octo/api" };
+  const check = (action: string) =>
+    JSON.stringify({ action, check_run: { head_sha: HEAD, name: "ci" }, repository });
+  const completed: [string, string] = ["check_run", check("completed")];
+
+  it("writes no record: checks, statuses and pushes without an armed intent", async () => {
+    await enrolled();
+    github(() => Response.json([]));
+    const hook = appWith(bot().bots);
+    const deliveries: [string, string][] = [
+      ["check_run", check("created")],
+      completed,
+      [
+        "check_suite",
+        JSON.stringify({ action: "completed", check_suite: { head_sha: HEAD }, repository }),
+      ],
+      ["status", JSON.stringify({ sha: HEAD, state: "success", repository })],
+      ["status", JSON.stringify({ sha: HEAD, state: "pending", repository })],
+      ["push", JSON.stringify({ ref: "refs/heads/main", after: HEAD, repository })],
+      // Of a repository no account enrolled.
+      ["pull_request_review", reviewed.replace('"id":11', '"id":12')],
+    ];
+    for (const [i, [event, body]] of deliveries.entries()) {
+      const res = await hook(body, { "x-github-event": event, "x-github-delivery": `s-${i}-aaaa` });
+      expect(res).toEqual({ status: 202, answer: { queued: 0 } });
+    }
+    // A redelivery of one is answered again: it had no side effect to repeat.
+    const again = { "x-github-event": completed[0], "x-github-delivery": "s-1-aaaa" };
+    expect((await hook(completed[1], again)).answer).toEqual({ queued: 0 });
+    expect(await events()).toEqual([]);
+  });
+
+  it("is recorded, and acted on once, while an intent waits on its commit", async () => {
+    const data = await enrolled();
+    github(() => Response.json([]));
+    // The platform's own merge when ready: the check moves nothing on ocra's side, the intent stays.
+    await data.insert("mergeIntents", {
+      ...rows.mergeIntents("i-1"),
+      fullName: "octo/api",
+      head: HEAD,
+      mode: "native",
+    });
+    const hook = appWith(bot().bots);
+    const headers = { "x-github-event": completed[0], "x-github-delivery": "w-0001-aaaa" };
+    expect((await hook(completed[1], headers)).answer).toEqual({ queued: 0 });
+    expect((await hook(completed[1], headers)).answer).toEqual({ queued: 0, duplicate: true });
+    expect(await events()).toMatchObject([
+      { event: "check_run", deliveryId: "w-0001-aaaa", state: "done" },
+    ]);
+  });
+});
+
 describe("the retry sweep", () => {
   async function due(id: string, repo: string) {
     const past = new Date(Date.now() - 1000);

@@ -23,8 +23,8 @@ export type ClaimedInbound = {
 };
 
 /**
- * Records a delivery; false when the same one was recorded before. With
- * work it is pending, held by the caller until leaseUntil.
+ * Records a delivery, pending and held by the caller until leaseUntil;
+ * false when the same one was recorded before.
  */
 export async function receiveInbound(
   db: Db,
@@ -40,10 +40,10 @@ export async function receiveInbound(
       deliveryId: row.deliveryId,
       event: row.event,
       repo: row.repo,
-      state: row.work === null ? "done" : "pending",
+      state: "pending",
       attempts: 1,
       work: row.work,
-      retryAt: row.work === null ? null : row.leaseUntil,
+      retryAt: row.leaseUntil,
     })
     .onConflictDoNothing({ target: [t.platform, t.host, t.deliveryId] });
   return changedRows(result) > 0;

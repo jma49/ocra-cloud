@@ -74,9 +74,12 @@ function means(runner: InboundRunner, origin: string) {
   return { out, reader, merges };
 }
 
+/** Where a delivery came from; a delivery run without a record has no id or work of its own. */
+type From = Pick<ClaimedInbound, "platform" | "host" | "event" | "repo" | "attempts">;
+
 async function runStep(
   runner: InboundRunner,
-  row: ClaimedInbound,
+  row: From,
   work: InboundWork,
   step: InboundStep,
 ): Promise<void> {
@@ -106,17 +109,12 @@ async function runStep(
   }
 }
 
-/** Runs the attempt's steps and records how it went; the steps left. */
-export async function runInbound(
+/** Runs the work's steps once; the steps that failed. */
+export async function runSteps(
   runner: InboundRunner,
-  row: ClaimedInbound,
-  now = () => new Date(),
+  row: From,
+  work: InboundWork,
 ): Promise<InboundStep[]> {
-  const work = row.work as InboundWork | null;
-  if (!work) {
-    await finishInbound(runner.db, row.id, row.attempts, { state: "failed" });
-    return [];
-  }
   const failed: InboundStep[] = [];
   for (const step of work.steps) {
     try {
@@ -133,6 +131,21 @@ export async function runInbound(
       });
     }
   }
+  return failed;
+}
+
+/** Runs the attempt's steps and records how it went; the steps left. */
+export async function runInbound(
+  runner: InboundRunner,
+  row: ClaimedInbound,
+  now = () => new Date(),
+): Promise<InboundStep[]> {
+  const work = row.work as InboundWork | null;
+  if (!work) {
+    await finishInbound(runner.db, row.id, row.attempts, { state: "failed" });
+    return [];
+  }
+  const failed = await runSteps(runner, row, work);
   const delay = RETRY_DELAYS_MS[row.attempts - 1];
   const outcome: InboundOutcome =
     failed.length === 0
