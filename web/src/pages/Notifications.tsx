@@ -15,7 +15,7 @@ import {
 import { api } from "../api.js";
 import { useCached } from "../cache.js";
 import { ago } from "../format.js";
-import { AddChannel } from "../notifications/add-channel.js";
+import { AddChannel, type LinkSent } from "../notifications/add-channel.js";
 import { DeliveriesDrawer } from "../notifications/deliveries-drawer.js";
 import { EventsMenu } from "../notifications/events-menu.js";
 import { KIND_LABEL, WHEN_LABEL } from "../notifications/labels.js";
@@ -63,7 +63,7 @@ export function Notifications(props: { platforms: readonly CodePlatformKind[] })
     api<NotifyChannelsView>("/notifications/channels"),
   );
   const [tested, setTested] = useState<{ id: string; delivered: boolean } | null>(null);
-  const [linkSent, setLinkSent] = useState<string | null>(null);
+  const [linkSent, setLinkSent] = useState<LinkSent | null>(null);
   const [reminding, setReminding] = useState<NotifyChannelView | null>(null);
   const [inspecting, setInspecting] = useState<NotifyChannelView | null>(null);
   const change = useAction((id: string, body: ChannelEdit | ReminderChange) =>
@@ -102,7 +102,10 @@ export function Notifications(props: { platforms: readonly CodePlatformKind[] })
       />
       {linkSent && (
         <p className="note ok" role="status">
-          A link to confirm {linkSent} is on its way. Nothing is sent there until it is opened.
+          {linkSent.slack
+            ? `If the address or ID given for ${linkSent.name} is a member's of the Slack workspace, they get a direct message with a link to confirm.`
+            : `A link to confirm ${linkSent.name} is on its way.`}{" "}
+          Nothing is sent there until it is opened.
         </p>
       )}
       <AddChannel
@@ -262,7 +265,7 @@ export function Notifications(props: { platforms: readonly CodePlatformKind[] })
                               disabled={resend.busy}
                               onClick={async () => {
                                 if ((await resend.run(c.id)) === undefined) return;
-                                setLinkSent(c.name);
+                                setLinkSent({ name: c.name, slack: c.kind === "slack_dm" });
                                 reload();
                               }}
                             >

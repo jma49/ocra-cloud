@@ -572,6 +572,7 @@ export const usageCounters = sqliteTable(
         "findings",
         "email_confirmations",
         "slack_confirmations",
+        "slack_lookups",
         "spend",
       ],
     }).notNull(),

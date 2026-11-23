@@ -2,9 +2,10 @@ import { type Context, Hono } from "hono";
 import { z } from "zod";
 import { audit } from "../audit.js";
 import { newId, type Row } from "../db/scoped.js";
+import { defer } from "../defer.js";
 import { apiError, jsonBody } from "../http.js";
 import { masterKeys } from "../keyring.js";
-import { perMinute } from "../rate.js";
+import { perMinute, retryTomorrow } from "../rate.js";
 import { requireSession } from "../session.js";
 import {
   NOTIFY_EVENTS,
@@ -29,7 +30,15 @@ import { CONFIRM_TTL_MS, confirmToken, linkUrl, unsubscribeUrl } from "./links.j
 import { openHook, openWebhook, outboxOf, sealHook, sealWebhook, send } from "./notify.js";
 import { timeZoneOf } from "./reminders.js";
 import { nextSlot } from "./report.js";
-import { findSlackMember, slackDmAttempt, slackTargetOf } from "./slack-dm.js";
+import {
+  findSlackMember,
+  openSlackDm,
+  type SlackDmSealed,
+  slackDmAttempt,
+  slackMemberInput,
+  slackMemberOf,
+  slackTargetOf,
+} from "./slack-dm.js";
 import { webhookUrl } from "./webhook-url.js";
 import { newWebhookSecret } from "./webhooks.js";
 
@@ -46,6 +55,8 @@ export const notifyRoute = new Hono<AppEnv>().use(requireSession(["web"]));
 const MAX_CHANNELS = 10;
 /** Confirmation links an account may send a day, by email or Slack, so the server cannot be used to message strangers. */
 const DAILY_CONFIRMATIONS = 10;
+/** Slack members an account may look up a day: each answer is the same, but every lookup asks Slack. */
+const DAILY_SLACK_LOOKUPS = 20;
 
 const name = z.string().trim().min(1).max(64);
 /** Each event once, in NOTIFY_EVENTS' order. */
@@ -145,14 +156,45 @@ async function newConfirmLink(c: Context<AppEnv>, channelId: string) {
   return linkUrl(outboxOf(c).origin, "confirm", token);
 }
 
-/** Sends the Slack member of a slack_dm channel a new link to confirm it; whether it went. */
+/**
+ * Sends the Slack member of a slack_dm channel a new link to confirm it;
+ * whether it is on its way. The answer comes before Slack is called, and
+ * is the same for a channel whose typed member was found as for one whose
+ * was not (which nobody can ever confirm), so it cannot tell them apart.
+ */
 async function sendSlackConfirmation(c: Context<AppEnv>, channelId: string, sealed: string) {
   const token = c.env.SLACK_BOT_TOKEN;
-  const target = slackTargetOf(sealed);
-  if (!token || !target) return false;
+  if (!token) return false;
   if (!(await c.var.data.take("slack_confirmations", DAILY_CONFIRMATIONS))) return false;
   const link = await newConfirmLink(c, channelId);
   if (!link) return false;
+  if (slackMemberOf(sealed)) defer(c, dmConfirmLink(c, token, channelId, sealed, link));
+  return true;
+}
+
+/** Opens the member's conversation with the app if it is not yet, and posts the link there. */
+async function dmConfirmLink(
+  c: Context<AppEnv>,
+  token: string,
+  channelId: string,
+  sealed: string,
+  link: string,
+) {
+  let target = slackTargetOf(sealed);
+  if (!target) {
+    const user = slackMemberOf(sealed);
+    const channel = user ? await openSlackDm(token, user) : undefined;
+    if (!user || !channel) return;
+    target = { user, channel };
+    const data = c.var.data;
+    const resealed = await sealHook(
+      c.env.MASTER_KEY,
+      data.accountId,
+      channelId,
+      JSON.stringify(target),
+    );
+    await data.update("notifyChannels", channelId, resealed);
+  }
   const text: MessageText = {
     subject: "",
     lines: [
@@ -162,11 +204,10 @@ async function sendSlackConfirmation(c: Context<AppEnv>, channelId: string, seal
       ["If you did not ask for this, ignore this message."],
     ],
   };
-  const sent = await slackDmAttempt(token, target)(
+  await slackDmAttempt(token, target)(
     { id: channelId, event: "ping", payload: JSON.stringify(messageOf("slack", text)) },
     new Date(),
   );
-  return sent.error === null;
 }
 
 /** Mails the channel a new link to confirm its address; whether it went. */
@@ -198,12 +239,6 @@ async function sendConfirmation(c: Context<AppEnv>, channelId: string, address: 
   );
 }
 
-const SLACK_REFUSALS = {
-  invalid: "not a Slack member ID or email address",
-  not_found: "no member of the Slack workspace has this email address or ID",
-  not_a_person: "a bot or a deactivated Slack member",
-} as const;
-
 const refuse = (c: Context<AppEnv>, path: string, message: string) =>
   apiError(c, "invalid_body", { issues: [{ path: [path], message }] });
 
@@ -216,11 +251,20 @@ notifyRoute.post("/channels", perMinute("settings"), jsonBody(addBody), async (c
     return refuse(c, "kind", "this server does not send Slack direct messages");
   }
   let address: string | undefined;
+  let last4: string | undefined;
   if (body.kind === "slack_dm") {
-    const found = await findSlackMember(slackToken ?? "", body.member);
+    const member = slackMemberInput(body.member);
+    if (!member) return refuse(c, "member", "not a Slack member ID or email address");
+    if (!(await c.var.data.take("slack_lookups", DAILY_SLACK_LOOKUPS))) {
+      retryTomorrow(c);
+      return apiError(c, "daily_limit", { limit: DAILY_SLACK_LOOKUPS });
+    }
+    const found = await findSlackMember(slackToken ?? "", member);
     if ("unreachable" in found) return apiError(c, "upstream_unreachable");
-    if ("refused" in found) return refuse(c, "member", SLACK_REFUSALS[found.refused]);
-    address = JSON.stringify(found.target);
+    // Nobody to send to is kept as a channel like any other, so neither
+    // this answer nor a later listing says whether the member exists.
+    address = JSON.stringify(("user" in found ? { user: found.user } : {}) satisfies SlackDmSealed);
+    last4 = member.slice(-4);
   } else {
     address =
       body.kind === "email"
@@ -254,8 +298,8 @@ notifyRoute.post("/channels", perMinute("settings"), jsonBody(addBody), async (c
     quietStart: body.quietHours?.start ?? null,
     quietEnd: body.quietHours?.end ?? null,
     ...sealed,
-    // A Slack member's is their member ID's.
-    last4: (slackTargetOf(address)?.user ?? address).slice(-4),
+    // A Slack member's is what the user typed: the member's ID would say they exist.
+    last4: last4 ?? address.slice(-4),
     // A webhook address is its chat's own credential: whoever has it may post there.
     confirmedAt: email || body.kind === "slack_dm" ? null : new Date(),
   };
