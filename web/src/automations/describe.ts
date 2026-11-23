@@ -10,6 +10,7 @@ import type {
   AutomationTrigger,
   Verdict,
 } from "../../../src/shared/index.js";
+import { count } from "../format.js";
 
 // What the automations page says about a rule, its actions and their runs.
 
@@ -35,6 +36,33 @@ export const VERDICT_LABEL: Record<Verdict, string> = {
   minor_issues: "Minor issues",
   significant_concerns: "Significant concerns",
 };
+/** A rule's moment, as the choice of one names it. */
+export const TRIGGER_LABEL: Record<AutomationTrigger, string> = {
+  queued: "Queued for review",
+  reviewed: "Reviewed",
+  ready_for_review: "Marked ready for review",
+  approved: "Approved",
+  checks_failed: "CI failed",
+  labeled: "Label added",
+  merged: "Merged",
+  stale: "Gone quiet",
+};
+
+const WHEN: Record<AutomationTrigger, string> = {
+  queued: "When queued",
+  reviewed: "When reviewed",
+  ready_for_review: "When ready for review",
+  approved: "When approved",
+  checks_failed: "When CI fails",
+  labeled: "When labelled",
+  merged: "When merged",
+  stale: "When quiet",
+};
+
+/** Hours as a rule says them: whole days where they are. */
+const span = (hours: number) =>
+  hours % 24 === 0 ? count(hours / 24, "day") : count(hours, "hour");
+
 export const VERDICT_LIST = Object.keys(VERDICT_LABEL) as Verdict[];
 
 export const OUTCOME_LABEL: Record<AutomationActionOutcome, string> = {
@@ -117,8 +145,15 @@ function actionText(a: AutomationAction, names: Names): string {
 }
 
 export function ruleSummary(r: AutomationRuleView, names: Names): string {
-  const when = r.trigger === "queued" ? "When queued" : "When reviewed";
-  const conds = conditionText(r.conditions, names);
+  // What the trigger requires is part of the moment, not one more condition.
+  const { labels, staleHours, ...rest } = r.conditions;
+  const when =
+    r.trigger === "labeled" && labels?.length
+      ? `${WHEN.labeled} ${any(labels)}`
+      : r.trigger === "stale" && staleHours
+        ? `${WHEN.stale} for ${span(staleHours)}`
+        : WHEN[r.trigger];
+  const conds = conditionText(r.trigger === "labeled" ? rest : { ...rest, labels }, names);
   return `${when}${conds.length ? `, ${conds.join(", ")}` : ""}: ${r.actions
     .map((a) => actionText(a, names))
     .join(", ")}`;

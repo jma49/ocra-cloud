@@ -26,9 +26,9 @@ import {
   useLoad,
 } from "../ui.js";
 
-// Rules the account sets for its pull requests: when one is queued or
-// reviewed, and it matches, ocra labels it, asks reviewers, comments,
-// notifies a chat or skips the review.
+// Rules the account sets for its pull requests: at a moment of one (queued,
+// reviewed, approved, merged, gone quiet, ...) that matches, ocra labels it,
+// asks reviewers, comments, notifies a chat or skips the review.
 
 const MAX_RULES = 50;
 
@@ -103,7 +103,7 @@ export function Automations(props: { me: Me }) {
         title="Automations"
         sub={
           queued
-            ? "Rules for your pull requests: when one is queued or reviewed and matches, ocra labels it, asks reviewers, comments, notifies a chat or skips the review."
+            ? "Rules for your pull requests: when one is queued, reviewed, approved, merged or goes quiet and matches, ocra labels it, asks reviewers, comments, notifies a chat or skips the review."
             : "Rules for your reviews: when one is uploaded and matches, ocra notifies a chat. Labels, reviewer requests and comments need a self-hosted server."
         }
         actions={
