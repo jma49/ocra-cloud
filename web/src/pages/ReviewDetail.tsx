@@ -187,8 +187,8 @@ export function ReviewDetail(props: { id: string; graphs: boolean }) {
                 </Button>
               }
             >
-              Findings are kept only when you share them (Settings). Counts are always kept; turn
-              sharing on to see findings of later reviews here.
+              Findings are kept for reviews ocra runs here, and for CLI reviews once you turn on
+              sharing (Settings). This review's were not kept; its counts always are.
             </EmptyState>
           </div>
         )}
