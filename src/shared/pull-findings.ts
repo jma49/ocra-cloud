@@ -15,6 +15,8 @@ export type PullFindingView = {
   lineEnd: number | null;
   /** Whether a checked fix of it is offered beside it (GET /api/pulls/fixes). */
   hasFix: boolean;
+  /** A finding ocra is unsure of: no fix is asked for one. */
+  lowConfidence: boolean;
 };
 
 /** GET /api/pulls/findings?platform=&repo=&number=&head= */

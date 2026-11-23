@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { DismissReason, FindingStatus, PullFindingView } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
@@ -15,6 +15,8 @@ type Answer = { changed: number; remembered: number; memoryFull?: boolean };
 export function FindingDecide(props: {
   finding: PullFindingView;
   onDecided: (decided: boolean) => void;
+  /** What else can be done with the finding, beside the two answers. */
+  children?: ReactNode;
 }) {
   const { finding: f } = props;
   const [asking, setAsking] = useState(false);
@@ -62,6 +64,7 @@ export function FindingDecide(props: {
         <Button size="sm" variant="outline" disabled={busy} onClick={() => setAsking(true)}>
           Dismiss
         </Button>
+        {props.children}
       </div>
     );
   }

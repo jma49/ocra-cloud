@@ -29,6 +29,7 @@ const finding = (over: Partial<PullFindingView>): PullFindingView => ({
   lineStart: 11,
   lineEnd: 11,
   hasFix: false,
+  lowConfidence: false,
   ...over,
 });
 
