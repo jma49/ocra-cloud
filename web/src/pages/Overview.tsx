@@ -1,29 +1,19 @@
 import { Button } from "@/components/ui/button";
 import { loadKeys } from "../account-keys.js";
-import { api, type Reviews, type Session, type Usage } from "../api.js";
+import { api, type Me, type Usage } from "../api.js";
 import { useCached } from "../cache.js";
+import { GetStarted } from "../first-run/get-started.js";
 import { compact, num } from "../format.js";
-import { DoneGlyph } from "../glyphs.js";
 import { Link } from "../router.js";
-import { anyProvider } from "../site.js";
-import {
-  EmptyNote,
-  LoadError,
-  Loading,
-  PageHead,
-  StackedBars,
-  useLoad,
-  useProviders,
-} from "../ui.js";
+import { EmptyNote, LoadError, Loading, PageHead, StackedBars, useLoad } from "../ui.js";
 
-export function Overview() {
+export function Overview(props: { me?: Me }) {
   const {
     data: usage,
     error: usageError,
     reload: reloadUsage,
   } = useCached("/usage?days=14", () => api<Usage>("/usage?days=14"));
   const { data: keys } = useLoad(loadKeys);
-  const providers = useProviders();
   const week = usage?.series.slice(-7) ?? [];
   const sum = (f: (d: Usage["series"][number]) => number) => week.reduce((n, d) => n + f(d), 0);
   const calls7 = sum((d) => d.calls);
@@ -32,13 +22,6 @@ export function Overview() {
   const pct = usage ? Math.min(100, (usage.today / usage.dailyLimit) * 100) : 0;
   const keyCount = keys?.keys.length ?? 0;
   const anyCalls = (usage?.series ?? []).some((d) => d.calls > 0);
-  const { data: sessions } = useCached("/sessions", () =>
-    api<{ sessions: Session[] }>("/sessions"),
-  );
-  const { data: reviews } = useCached("/reviews?days=30", () => api<Reviews>("/reviews?days=30"));
-  const cli = sessions?.sessions.some((x) => x.kind === "cli") ?? false;
-  const reviewed = anyCalls || (reviews?.summary.reviews ?? 0) > 0;
-  const started = keyCount > 0 && cli && reviewed;
 
   return (
     <>
@@ -91,38 +74,7 @@ export function Overview() {
         </div>
       </div>
 
-      {!started && (
-        <div className="section">
-          <div className="section-title">Get started</div>
-          <div className="card steps">
-            <Step n={1} done={keyCount > 0} title="Add a provider key">
-              Bring your own key from {anyProvider(providers?.length)}.{" "}
-              <Link to="/keys">Add a key</Link>
-            </Step>
-            <Step n={2} done={cli} title="Install the CLI">
-              <span className="cmd">npm install -g @open-cr-agent/cli</span>
-            </Step>
-            <Step n={3} done={cli} title="Sign in from the terminal">
-              <span className="cmd">ocra login</span>
-            </Step>
-            <Step n={4} done={reviewed} title="Review a change">
-              <span className="cmd">ocra review</span>
-            </Step>
-          </div>
-        </div>
-      )}
+      {props.me && <GetStarted me={props.me} />}
     </>
-  );
-}
-
-function Step(props: { n: number; done?: boolean; title: string; children: React.ReactNode }) {
-  return (
-    <div className={`step${props.done ? " done" : ""}`}>
-      <span className="step-n">{props.done ? <DoneGlyph size={14} /> : props.n}</span>
-      <div>
-        <div className="strong">{props.title}</div>
-        <div className="muted small">{props.children}</div>
-      </div>
-    </div>
   );
 }

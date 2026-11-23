@@ -1,6 +1,7 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { forgetKeys } from "../account-keys.js";
+import type { Me } from "../api.js";
 import { clearCache } from "../cache.js";
 import { Overview } from "./Overview.js";
 
@@ -34,6 +35,9 @@ function fakeApi(state: { keys: number; cli: boolean; reviews: number }) {
         return Response.json({
           sessions: [session("web"), ...(state.cli ? [session("cli")] : [])],
         });
+      if (path.endsWith("/api/auto-review/repos"))
+        return Response.json({ error: "not_found" }, { status: 404 });
+      if (path.endsWith("/api/platforms/repos")) return Response.json({ platforms: [] });
       if (path.includes("/api/reviews"))
         return Response.json({ summary: { reviews: state.reviews } });
       return Response.json({ days: 14, today: 0, dailyLimit: 500, series: [] });
@@ -41,20 +45,32 @@ function fakeApi(state: { keys: number; cli: boolean; reviews: number }) {
   );
 }
 
+const ME: Me = {
+  login: "ada",
+  githubId: 1,
+  githubUrl: "https://github.com",
+  avatarUrl: null,
+  session: "web",
+  since: "",
+  codeGraphs: "off",
+  autoReview: false,
+  platforms: ["github"],
+};
+
 const step = (title: string) => screen.getByText(title).closest(".step");
 
 describe("getting started", () => {
   it("ticks signing in from the terminal and reviewing once the account has done them", async () => {
     fakeApi({ keys: 0, cli: true, reviews: 2 });
-    render(<Overview />);
+    render(<Overview me={ME} />);
     await waitFor(() => expect(step("Review a change")?.classList.contains("done")).toBe(true));
-    expect(step("Sign in from the terminal")?.classList.contains("done")).toBe(true);
+    expect(step("Install the CLI and sign in")?.classList.contains("done")).toBe(true);
     expect(step("Add a provider key")?.classList.contains("done")).toBe(false);
   });
 
   it("goes away once every step is done", async () => {
     fakeApi({ keys: 1, cli: true, reviews: 1 });
-    render(<Overview />);
-    await waitFor(() => expect(screen.queryByText("Get started")).toBeNull());
+    render(<Overview me={ME} />);
+    await waitFor(() => expect(screen.queryByText("Set up reviews")).toBeNull());
   });
 });

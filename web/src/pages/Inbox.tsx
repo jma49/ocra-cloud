@@ -3,8 +3,9 @@ import Plug from "lucide-react/icons/plug";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { PullView } from "../../../src/shared/index.js";
-import { api, why } from "../api.js";
+import { api, type Me, why } from "../api.js";
 import { useCached } from "../cache.js";
+import { GetStarted } from "../first-run/get-started.js";
 import { ago } from "../format.js";
 import { useCollapsed } from "../inbox/collapsed.js";
 import { inboxCommands } from "../inbox/commands.js";
@@ -42,7 +43,7 @@ const readBefore = (at: number | undefined) =>
     ? `This list was read ${ago(new Date(at).toISOString())}.`
     : "";
 
-export function Inbox() {
+export function Inbox(props: { me?: Me }) {
   const { data, error, reload, stale, change, readAt } = useCached("/platforms/pulls", () =>
     api<InboxAnswer>("/platforms/pulls"),
   );
@@ -184,6 +185,7 @@ export function Inbox() {
         </p>
       ) : null}
       <PlatformNotes data={data} retry={reload} />
+      {props.me && <GetStarted me={props.me} hideable />}
       {error && !data ? (
         <LoadError what="pull requests" error={error} retry={reload} />
       ) : !data || !views.ready ? (
