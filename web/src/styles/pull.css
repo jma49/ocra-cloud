@@ -167,3 +167,53 @@
   padding-top: 12px;
   border-top: 0.5px solid var(--hair);
 }
+/* Reviewers and assignees: a login, where they stand, and a way to take them off. */
+.people-list {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.people-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+}
+.people-login {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.people-part {
+  padding-top: 12px;
+  border-top: 0.5px solid var(--hair);
+}
+.people-found {
+  display: grid;
+  gap: 2px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.people-option {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  min-height: 32px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--r-tab);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.people-option:hover {
+  background: var(--tint);
+}

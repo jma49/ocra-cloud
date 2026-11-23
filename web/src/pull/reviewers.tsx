@@ -37,12 +37,17 @@ const detail = (s: SuggestedReviewer, days: number) =>
     .filter(Boolean)
     .join(" · ");
 
-export function ReviewersPanel(props: { pull: Ref }) {
+export function ReviewersPanel(props: {
+  pull: Ref;
+  /** Bumped when reviewers changed elsewhere on the page. */
+  rev?: number;
+  onChanged?: () => void;
+}) {
   const { platform, repo, number } = props.pull;
   const query = new URLSearchParams({ platform, repo, number: String(number) }).toString();
   const { data, reload } = useLoad(
     () => api<PullReviewersView>(`/pulls/reviewers?${query}`),
-    [query],
+    [query, props.rev],
   );
   const ask = useAction((login: string) =>
     api<RequestReviewersView>("/pulls/reviewers", {
@@ -57,7 +62,9 @@ export function ReviewersPanel(props: { pull: Ref }) {
     setAsking(login);
     const sent = await ask.run(login);
     setRefused(sent && sent.outcome !== "done" ? sent.outcome : null);
-    if (sent?.outcome === "done") reload();
+    if (sent?.outcome !== "done") return;
+    reload();
+    props.onChanged?.();
   };
   const teams = data.owners.filter((o) => o.kind !== "user");
   return (
