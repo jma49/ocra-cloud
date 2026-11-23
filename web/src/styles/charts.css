@@ -1,29 +1,170 @@
-/* The charts' library takes its fonts and body type from these tokens, set
-   to the console's (its fonts are never fetched from its makers' servers).
-   Its stylesheet sets the body outside any cascade layer, so these stay
-   outside layers too. */
-:root {
-  --dt-typography-code-base-default-family: var(--mono);
-  --dt-typography-code-base-emphasized-family: var(--mono);
-  --dt-typography-code-small-default-family: var(--mono);
-  --dt-typography-code-small-emphasized-family: var(--mono);
-  --dt-typography-display-level-1-family: var(--font);
-  --dt-typography-display-level-2-family: var(--font);
-  --dt-typography-display-level-3-family: var(--font);
-  --dt-typography-heading-level-1-family: var(--font);
-  --dt-typography-heading-level-2-family: var(--font);
-  --dt-typography-heading-level-3-family: var(--font);
-  --dt-typography-heading-level-4-family: var(--font);
-  --dt-typography-heading-level-5-family: var(--font);
-  --dt-typography-heading-level-6-family: var(--font);
-  --dt-typography-subtitle-display-level-1-family: var(--font);
-  --dt-typography-subtitle-display-level-2-family: var(--font);
-  --dt-typography-subtitle-display-level-3-family: var(--font);
-  --dt-typography-subtitle-heading-level-1-family: var(--font);
-  --dt-typography-subtitle-heading-level-2-family: var(--font);
-  --dt-typography-subtitle-heading-level-3-family: var(--font);
-  --dt-typography-text-base-default-family: var(--font);
-  --dt-typography-text-base-emphasized-family: var(--font);
-  --dt-typography-text-small-default-family: var(--font);
-  --dt-typography-text-small-emphasized-family: var(--font);
+/* Charts (web/src/charts/): a value per day, and bar lists. Marks take the
+   series tokens; text stays in the text tokens; grid and axes stay quiet. */
+
+.dchart {
+  margin: 0;
+  padding: 12px var(--gutter) 8px;
+}
+.dchart-frame {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+}
+.dchart-ticks {
+  position: relative;
+  min-width: 24px;
+  font-size: var(--text-xs);
+  color: var(--fg-subtle);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.dchart-ticks span {
+  position: absolute;
+  right: 0;
+  transform: translateY(50%);
+  line-height: 1;
+  white-space: nowrap;
+}
+.dchart-plot {
+  position: relative;
+  height: 180px;
+  border-radius: var(--r-tag);
+  touch-action: pan-y;
+}
+.dchart-plot:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 4px;
+}
+.dchart-plot svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.dchart-grid {
+  stroke: var(--hair);
+  stroke-width: 1;
+}
+.dchart-base {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+.dchart-cross {
+  stroke: var(--fg-subtle);
+  stroke-width: 1;
+}
+.dchart-line {
+  fill: none;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+/* A zero-length stroke with round caps: a dot that stays round however the plot stretches. */
+.dchart-marks {
+  fill: none;
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+.dchart-dim {
+  opacity: 0.4;
+}
+.dchart-dot {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 2px var(--card);
+  pointer-events: none;
+}
+.dchart-tip {
+  position: absolute;
+  top: 8px;
+  z-index: 2;
+  min-width: 120px;
+  padding: 8px 12px;
+  border-radius: var(--r-ctl);
+  background: var(--popover);
+  box-shadow: var(--float);
+  font-size: var(--text-sm);
+  pointer-events: none;
+  white-space: nowrap;
+  transform: translateX(16px);
+}
+/* Past the middle, the tooltip opens to the left of the day, so it stays in the plot. */
+.dchart-tip[data-side="before"] {
+  transform: translateX(calc(-100% - 16px));
+}
+.dchart-tip-day {
+  color: var(--fg-subtle);
+  margin-bottom: 4px;
+}
+.dchart-tip-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 20px;
+}
+.dchart-tip-row i {
+  width: 12px;
+  height: 2px;
+  border-radius: 1px;
+  flex: none;
+}
+.dchart-tip-row b {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.dchart-tip-row span {
+  color: var(--fg-muted);
+}
+.dchart-axis {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--text-xs);
+  color: var(--fg-subtle);
+}
+.dchart .legend {
+  padding: 8px 0 0;
+}
+.legend i.legend-line {
+  height: 2px;
+  width: 12px;
+  border-radius: 1px;
+}
+
+.bar-list {
+  list-style: none;
+  margin: 0;
+  padding: 12px var(--gutter);
+  display: grid;
+  grid-template-columns: minmax(0, max-content) minmax(64px, 1fr) auto;
+  gap: 12px 12px;
+  align-items: center;
+  font-size: var(--text-sm);
+}
+.bar-list li {
+  display: contents;
+}
+.bar-list-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 200px;
+}
+.bar-list-track {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--fill2);
+  overflow: hidden;
+}
+.bar-list-track span {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+}
+.bar-list-value {
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
 }

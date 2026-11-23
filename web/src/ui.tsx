@@ -17,6 +17,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@/components/ui/tooltip";
 import type { SignInMethod } from "../../src/shared/index.js";
 import { api, type Day, needsSignIn, type ProviderInfo, why } from "./api.js";
+import { DayChart } from "./charts/day-chart.js";
 import { compact } from "./format.js";
 import { usePickedGlide } from "./glide.js";
 import { Link } from "./router.js";
@@ -392,103 +393,51 @@ export function StackedBars(props: { series: Day[]; metric: "calls" | "tokens" }
     .sort((a, b) => b[1] - a[1])
     .slice(0, COLORS.length)
     .map(([m]) => m);
-  const hasOther = totals.size > top.length;
-  const stacks = series.map((d) => {
-    const parts = top.map((m) => d.byModel[m]?.[metric] ?? 0);
-    const other = Object.entries(d.byModel)
+  const others = series.map((d) =>
+    Object.entries(d.byModel)
       .filter(([m]) => !top.includes(m))
-      .reduce((n, [, v]) => n + v[metric], 0);
-    return { day: d.day, parts, other, total: parts.reduce((a, b) => a + b, 0) + other };
-  });
-  const max = Math.max(1, ...stacks.map((s) => s.total));
-  const W = 1000;
-  const H = 180;
-  const gap = series.length > 40 ? 2 : 6;
-  const bw = (W - gap * (series.length - 1)) / series.length;
-  const [hover, setHover] = useState<number | null>(null);
-  const h = hover === null ? null : stacks[hover];
+      .reduce((n, [, v]) => n + v[metric], 0),
+  );
   return (
+    <DayChart
+      label={metric === "calls" ? "Requests per day, by model" : "Tokens per day, by model"}
+      kind="bars"
+      days={series.map((d) => d.day)}
+      format={compact}
+      legend
+      series={[
+        ...top.map((m, j) => ({
+          name: m,
+          color: COLORS[j] ?? OTHER,
+          values: series.map((d) => d.byModel[m]?.[metric] ?? 0),
+        })),
+        ...(others.some((n) => n > 0) ? [{ name: "Other", color: OTHER, values: others }] : []),
+      ]}
+    />
+  );
+}
+
+/** A number on a card; with `to`, the card opens the list the number counts. */
+export function Stat(props: {
+  label: string;
+  value: ReactNode;
+  note?: ReactNode;
+  to?: string;
+  children?: ReactNode;
+}) {
+  const body = (
     <>
-      <div className="chart">
-        <div className="small subtle chart-caption">
-          {h
-            ? `${h.day} · ${compact(h.total)} ${metric}`
-            : `Peak ${compact(max === 1 && stacks.every((s) => s.total === 0) ? 0 : max)} ${metric} a day`}
-        </div>
-        <svg
-          viewBox={`0 0 ${W} ${H}`}
-          preserveAspectRatio="none"
-          role="img"
-          aria-label={`${metric} per day`}
-        >
-          {[0.25, 0.5, 0.75].map((f) => (
-            <line
-              key={f}
-              x1="0"
-              x2={W}
-              y1={H * f}
-              y2={H * f}
-              stroke="var(--border)"
-              strokeWidth="1"
-              vectorEffect="non-scaling-stroke"
-            />
-          ))}
-          {stacks.map((s, i) => {
-            const x = i * (bw + gap);
-            let y = H;
-            const segs = [
-              ...s.parts.map((v, j) => ({ v, c: COLORS[j] })),
-              { v: s.other, c: OTHER },
-            ];
-            return (
-              // biome-ignore lint/a11y/noStaticElementInteractions: hover only shows the day's total, also in the table
-              <g key={s.day} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}>
-                <rect x={x} y={0} width={bw} height={H} fill="transparent" />
-                {s.total === 0 && (
-                  <rect x={x} y={H - 2} width={bw} height={2} fill="var(--border)" />
-                )}
-                {segs.map((seg) => {
-                  if (seg.v === 0) return null;
-                  const hh = (seg.v / max) * (H - 4);
-                  y -= hh;
-                  return (
-                    <rect
-                      key={seg.c}
-                      x={x}
-                      y={y}
-                      width={bw}
-                      height={hh}
-                      fill={seg.c}
-                      rx="1.5"
-                      opacity={hover === null || hover === i ? 1 : 0.45}
-                    />
-                  );
-                })}
-              </g>
-            );
-          })}
-        </svg>
-        <div className="chart-axis">
-          <span>{series[0]?.day.slice(5)}</span>
-          <span>{series.at(-1)?.day.slice(5)}</span>
-        </div>
-      </div>
-      {top.length > 0 && (
-        <div className="legend">
-          {top.map((m, j) => (
-            <span key={m}>
-              <i style={{ background: COLORS[j] }} />
-              {m}
-            </span>
-          ))}
-          {hasOther && (
-            <span>
-              <i style={{ background: OTHER }} />
-              Other
-            </span>
-          )}
-        </div>
-      )}
+      <div className="stat-label">{props.label}</div>
+      <div className="stat-value">{props.value}</div>
+      {props.children}
+      {props.note !== undefined && <div className="stat-note">{props.note}</div>}
     </>
+  );
+  return props.to ? (
+    <Link to={props.to} className="card stat stat-link">
+      {body}
+    </Link>
+  ) : (
+    <div className="card stat">{body}</div>
   );
 }

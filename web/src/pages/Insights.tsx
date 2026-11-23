@@ -1,5 +1,5 @@
 import ChartColumn from "lucide-react/icons/chart-column";
-import { lazy, Suspense, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   type CodePlatformKind,
@@ -11,24 +11,20 @@ import { api, type Reviews } from "../api.js";
 import { useCached } from "../cache.js";
 import { count, num, period, usd } from "../format.js";
 import { AtRiskSection } from "../insights/at-risk.js";
+import { Charts } from "../insights/charts.js";
 import { Cycle } from "../insights/cycle.js";
 import { FlowSection } from "../insights/flow.js";
 import { ImpactSection } from "../insights/impact.js";
 import { ReviewLoadSection } from "../insights/reviewers.js";
 import { daily, quantile } from "../insights/series.js";
 import { Link } from "../router.js";
-import { EmptyState, LoadError, Loading, PageHead, Seg } from "../ui.js";
+import { EmptyState, LoadError, Loading, PageHead, Seg, Stat } from "../ui.js";
 
 // How the reviews went: what they found, what they cost and how long they
 // took, from the uploaded reviews; and what the decisions in the findings
 // inbox say about them: of the findings someone marked fixed or dismissed,
 // how many were right, per reviewer, severity, category, verification and rule,
 // and why the rest were dismissed. Only shared findings count there.
-
-// The charts measure their labels once, so they wait for the console's font.
-const Charts = lazy(() =>
-  Promise.all([import("../insights/charts.js"), document.fonts.ready]).then(([m]) => m),
-);
 
 type Row = FindingInsightRow;
 type Insights = FindingInsightsView;
@@ -171,7 +167,7 @@ export function Insights(props: { runner: boolean; platforms: readonly CodePlatf
         </div>
       ) : (
         <>
-          <Kpis runs={runs.data} quality={data} />
+          <Kpis runs={runs.data} quality={data} days={days} />
           <p className="muted small">
             Spend is the cost reviews uploaded to ocra Cloud reported, plus what ocra Cloud's fixes,
             fix-loop rounds, Ask ocra answers and CI explanations cost at listed prices. Not
@@ -185,20 +181,18 @@ export function Insights(props: { runner: boolean; platforms: readonly CodePlatf
             </p>
           )}
           <div className="chart-grid">
-            <Suspense fallback={<Loading what="the charts" />}>
-              <Charts
-                daily={series}
-                acceptance={data.byReviewer.flatMap((r) =>
-                  r.key && r.acceptanceRate !== null
-                    ? [{ reviewer: r.key, rate: r.acceptanceRate, decided: r.fixed + r.dismissed }]
-                    : [],
-                )}
-                reasons={data.dismissReasons.map((r) => ({
-                  reason: REASON[r.key ?? ""] ?? r.key ?? "No reason",
-                  n: r.n,
-                }))}
-              />
-            </Suspense>
+            <Charts
+              daily={series}
+              acceptance={data.byReviewer.flatMap((r) =>
+                r.key && r.acceptanceRate !== null
+                  ? [{ reviewer: r.key, rate: r.acceptanceRate, decided: r.fixed + r.dismissed }]
+                  : [],
+              )}
+              reasons={data.dismissReasons.map((r) => ({
+                reason: REASON[r.key ?? ""] ?? r.key ?? "No reason",
+                n: r.n,
+              }))}
+            />
           </div>
           <SharedNote reported={runs.data.summary.findings} quality={data} />
           <Breakdown title="By reviewer" column="Reviewer" rows={data.byReviewer} none="(none)" />
@@ -265,49 +259,51 @@ function SharedNote(props: { reported: number; quality: Insights }) {
   );
 }
 
-function Kpis(props: { runs: Reviews; quality: Insights }) {
+function Kpis(props: { runs: Reviews; quality: Insights; days: number }) {
   const s = props.runs.summary;
   const times = props.runs.reviews.map((r) => r.durationMs / 1000).sort((a, b) => a - b);
   const median = quantile(times, 0.5);
   const t = props.quality.total;
   const spent = props.runs.spend.reduce((sum, d) => sum + d.usd, 0);
+  const reviews = `/reviews?days=${props.days}`;
   return (
     <div className="stats stats-6">
-      <div className="card stat">
-        <div className="stat-label">Reviews</div>
-        <div className="stat-value">{num(s.reviews)}</div>
-        <div className="stat-note">{count(s.repositories, "repository", "repositories")}</div>
-      </div>
-      <div className="card stat">
-        <div className="stat-label">Findings</div>
-        <div className="stat-value">{num(s.findings)}</div>
-        <div className="stat-note">{count(s.blocking, "blocking review")}</div>
-      </div>
-      <div className="card stat">
-        <div className="stat-label">Critical</div>
-        <div className="stat-value">{num(s.critical)}</div>
-        <div className="stat-note">{num(s.fixed)} fixed on a later review</div>
-      </div>
-      <div className="card stat">
-        <div className="stat-label">Accepted</div>
-        <div className="stat-value">{rate(t.acceptanceRate)}</div>
-        <div className="stat-note">
-          of {num(t.fixed + t.dismissed)} decided
-          {t.reacted > 0 && ` · ${rate(t.thumbsUpRate)} upvoted`}
-        </div>
-      </div>
-      <div className="card stat">
-        <div className="stat-label">Review time</div>
-        <div className="stat-value">{median === null ? "–" : `${Math.round(median)}s`}</div>
-        <div className="stat-note">median</div>
-      </div>
-      <div className="card stat">
-        <div className="stat-label">Spend</div>
-        <div className="stat-value">{usd(spent)}</div>
-        <div className="stat-note">
-          {s.reviews ? `${usd(s.costUsd / s.reviews)} a review` : "–"}
-        </div>
-      </div>
+      <Stat
+        label="Reviews"
+        value={num(s.reviews)}
+        note={count(s.repositories, "repository", "repositories")}
+        to={reviews}
+      />
+      <Stat
+        label="Findings"
+        value={num(s.findings)}
+        note={count(s.blocking, "blocking review")}
+        to="/findings?status=all"
+      />
+      <Stat
+        label="Critical"
+        value={num(s.critical)}
+        note={`${num(s.fixed)} fixed on a later review`}
+        to="/findings?status=all&severity=critical"
+      />
+      <Stat
+        label="Accepted"
+        value={rate(t.acceptanceRate)}
+        note={`of ${num(t.fixed + t.dismissed)} decided${t.reacted > 0 ? ` · ${rate(t.thumbsUpRate)} upvoted` : ""}`}
+        to="/findings?status=fixed"
+      />
+      <Stat
+        label="Review time"
+        value={median === null ? "–" : `${Math.round(median)}s`}
+        note="median"
+        to={reviews}
+      />
+      <Stat
+        label="Spend"
+        value={usd(spent)}
+        note={s.reviews ? `${usd(s.costUsd / s.reviews)} a review` : "–"}
+        to={reviews}
+      />
     </div>
   );
 }

@@ -18,7 +18,7 @@ import { FindingsEmpty } from "../findings-empty.js";
 import { ago } from "../format.js";
 import { useListCursor } from "../list-cursor.js";
 import { usePageCommands } from "../page-commands.js";
-import { Link } from "../router.js";
+import { Link, searchParam } from "../router.js";
 import { StackTable } from "../stack-table.js";
 import { useToast } from "../toast.js";
 import { LoadError, Loading, PageHead, Seg, useAction } from "../ui.js";
@@ -80,6 +80,22 @@ function query(f: Filters, after?: string): string {
   return s ? `?${s}` : "";
 }
 
+const STATUSES: StatusFilter[] = ["open", "fixed", "dismissed", "all"];
+const SEVERITIES: Severity[] = ["critical", "warning", "suggestion"];
+const pick = <T extends string>(raw: string | null, from: readonly T[], fallback: T): T =>
+  from.find((v) => v === raw) ?? fallback;
+
+/** The filters a link asked for (a number on Insights), open findings otherwise. */
+function linkedFilters(): Filters {
+  return {
+    status: pick(searchParam("status"), STATUSES, "open"),
+    severity: pick(searchParam("severity"), SEVERITIES, ""),
+    verification: "",
+    repo: "",
+    rule: "",
+  };
+}
+
 const lines = (f: Listed) =>
   f.lineStart === null
     ? ""
@@ -136,13 +152,7 @@ export function Findings(props: {
   /** Whether this server runs reviews itself, whose findings need no sharing. */
   runner?: boolean;
 }) {
-  const [filters, setFilters] = useState<Filters>({
-    status: "open",
-    severity: "",
-    verification: "",
-    repo: "",
-    rule: "",
-  });
+  const [filters, setFilters] = useState<Filters>(linkedFilters);
   const path = `/findings${query(filters)}`;
   const { data, error, reload, change } = useCached(path, () => api<Page>(path));
   const [more, setMore] = useState<{ for: Page; rows: Listed[]; next: string | null }>();

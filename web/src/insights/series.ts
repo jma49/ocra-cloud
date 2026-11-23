@@ -2,7 +2,7 @@ import type { Review, Reviews } from "../api.js";
 
 // Daily series for the insights charts: findings by severity and review
 // time from the listed reviews, spend from the account's spend per day.
-// Pure, so the charts' numbers are tested without the chart library.
+// Pure, so the charts' numbers are tested without a DOM.
 
 export type Point = { start: Date; end: Date; value: number };
 export type Daily = {
@@ -69,15 +69,3 @@ export function acceptanceChart(rows: Acceptance[]): { bars: Acceptance[] } | { 
   const decided = rows.reduce((n, r) => n + r.decided, 0);
   return decided < FEW_DECIDED ? { decided } : { bars: rows.filter((r) => r.decided > 0) };
 }
-
-/**
- * Each reason named with its share and count: the legend says what a slice
- * label would, which a narrow card cuts short.
- */
-export const shares = (reasons: { reason: string; n: number }[]) => {
-  const all = reasons.reduce((sum, r) => sum + r.n, 0);
-  return reasons.map((r) => ({
-    category: `${r.reason} · ${Math.round((r.n / all) * 100)}% (${r.n})`,
-    value: r.n,
-  }));
-};

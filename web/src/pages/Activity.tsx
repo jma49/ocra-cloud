@@ -3,13 +3,14 @@ import { Status } from "@/components/status";
 import { api, type Usage } from "../api.js";
 import { useCached } from "../cache.js";
 import { compact, num, period, time } from "../format.js";
+import { daysParam } from "../router.js";
 import { StackTable } from "../stack-table.js";
 import { EmptyNote, LoadError, Loading, PageHead, Seg, StackedBars } from "../ui.js";
 
 const RANGES = [7, 14, 30, 90].map(period);
 
 export function Activity() {
-  const [days, setDays] = useState(30);
+  const [days, setDays] = useState(() => daysParam(RANGES, 30));
   const [metric, setMetric] = useState<"calls" | "tokens">("calls");
   const {
     data: usage,

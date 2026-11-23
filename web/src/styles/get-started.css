@@ -23,3 +23,6 @@
   align-items: center;
   margin-bottom: 16px;
 }
+.get-started .card-head .row-gap {
+  align-items: center;
+}
