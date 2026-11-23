@@ -29,7 +29,7 @@ const FAILURES: Record<string, string> = {
   platform_gone: "This server no longer connects to that platform.",
   unlinked: "Your account is no longer connected to the platform; sign in again.",
   tree_unreadable: "The platform did not return the commit's files.",
-  build_failed: "The parser could not build the graph.",
+  build_failed: "The graph could not be built, or not within its time limit.",
 };
 const failure = (code: string) => FAILURES[code] ?? "The build failed.";
 
