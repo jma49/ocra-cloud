@@ -6,25 +6,27 @@ import { since } from "../format.js";
 import { PersonMark } from "../person-mark.js";
 import { CheckMark } from "../pull/check-mark.js";
 import { pullPath } from "../pull/path.js";
+import { QUEUE_STATE } from "../pull/queue-words.js";
 import { navigate, prepare, useIntent } from "../router.js";
 import type { Row } from "./sections.js";
 import { UNREAD_REASON } from "./unread.js";
 
 const REVIEW = {
-  approved: { label: "Approved", cls: "badge-ok" },
-  changes_requested: { label: "Changes requested", cls: "badge-warn" },
-  required: { label: "Review required", cls: "" },
+  approved: { label: "Approved", tone: "badge badge-ok" },
+  changes_requested: { label: "Changes requested", tone: "badge badge-warn" },
+  required: { label: "Review required", tone: "badge" },
 } as const;
 
-type Standing = { label: string; cls: string };
+type Standing = { label: string; tone: string };
 
-/** The one thing to know before opening it: what it is, then what blocks it, then how its review stands. */
+/** The one thing to know before opening it: what it is, where its merge stands, then what blocks it, then how its review stands. */
 function standingOf(r: Row): Standing | null {
   if (r.state !== "open") return null;
-  if (r.draft) return { label: "Draft", cls: "" };
-  if (r.verdict === "blocking") return { label: "ocra blocks", cls: "badge-err" };
+  if (r.draft) return { label: "Draft", tone: "badge" };
+  if (r.queued) return QUEUE_STATE[r.queued];
+  if (r.verdict === "blocking") return { label: "ocra blocks", tone: "badge badge-err" };
   if (r.review) return REVIEW[r.review];
-  return r.verdict === "not_blocking" ? { label: "ocra passed", cls: "badge-ok" } : null;
+  return r.verdict === "not_blocking" ? { label: "ocra passed", tone: "badge badge-ok" } : null;
 }
 
 const runClass = (run: { first: boolean; last: boolean } | null) =>
@@ -123,7 +125,7 @@ function PullLink(props: {
         <span className="pull-repo">{r.repo}</span> <span className="pull-num">#{r.number}</span>
       </span>
       <span className="pull-review">
-        {review && <span className={`badge ${review.cls}`}>{review.label}</span>}
+        {review && <span className={review.tone}>{review.label}</span>}
       </span>
       {r.additions !== null && r.deletions !== null && (
         <span className="pull-diff mono">

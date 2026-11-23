@@ -169,7 +169,11 @@ export function PullPage(props: {
         <div className="pull-head-row">
           <h1>{title}</h1>
           <div className="pull-actions">
-            <PullStatus state={data.state} view={readiness} />
+            <PullStatus
+              state={data.state}
+              view={readiness}
+              queued={queue.data?.entry?.state ?? null}
+            />
             {data.verdicts.length > 0 && (
               <Button
                 size="sm"

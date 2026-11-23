@@ -1,6 +1,7 @@
 import type { PullChecks, PullReview } from "../shared/index.js";
 import { avatarOf } from "./changes.js";
 import type { GithubGraphql } from "./github-host.js";
+import { queueStateOf } from "./github-queue.js";
 import {
   type ListedPull,
   labelsOf,
@@ -18,18 +19,19 @@ type List = (typeof LISTS)[number];
 // One request per list, sent together: GitHub answers a request's searches
 // one after another, so one request with all four took the sum of them
 // (3.5 s for the inbox, live).
-const query = (list: List, checks: boolean) => `query($q: String!, $n: Int!) {
+const query = (list: List, checks: boolean, queue: boolean) => `query($q: String!, $n: Int!) {
   ${list}: search(query: $q, type: ISSUE, first: $n) { issueCount nodes { ...P } }
 }
-${pullFragment(checks)}`;
+${pullFragment(checks, queue)}`;
 
-export const pullFragment = (checks: boolean) => `fragment P on PullRequest {
+export const pullFragment = (checks: boolean, queue = false) => `fragment P on PullRequest {
   id number title url isDraft state createdAt updatedAt mergedAt additions deletions reviewDecision
   headRefOid headRefName baseRefName isCrossRepository
   author { login avatarUrl }
   repository { nameWithOwner }
   labels(first: ${MAX_LABELS}) { nodes { name } }
   ${checks ? "commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }" : ""}
+  ${queue ? "mergeQueueEntry { state }" : ""}
 }`;
 
 export type PullNode = {
@@ -53,6 +55,7 @@ export type PullNode = {
   repository: { nameWithOwner: string };
   labels?: { nodes: ({ name: string } | null)[] } | null;
   commits?: { nodes: { commit: { statusCheckRollup: { state: string } | null } }[] };
+  mergeQueueEntry?: { state: string } | null;
 };
 type Search = { issueCount: number; nodes: (PullNode | null)[] };
 type Answer = { data?: Partial<Record<List, Search>>; errors?: unknown[] };
@@ -72,6 +75,7 @@ export const REVIEW: Record<string, PullReview> = {
 
 export function pullNodeItem(n: PullNode): ListedPull {
   const rollup = n.commits?.nodes[0]?.commit.statusCheckRollup?.state;
+  const queued = n.mergeQueueEntry ? queueStateOf(n.mergeQueueEntry.state) : undefined;
   return {
     id: n.id ?? `${n.repository.nameWithOwner}#${n.number}`,
     number: n.number,
@@ -95,6 +99,7 @@ export function pullNodeItem(n: PullNode): ListedPull {
       n.headRefName && n.baseRefName && n.isCrossRepository === false
         ? { head: n.headRefName, base: n.baseRefName }
         : null,
+    ...(queued ? { queued } : {}),
   };
 }
 
@@ -112,13 +117,15 @@ export async function githubPulls(
     assigned: { q: "is:pr is:open archived:false assignee:@me", n: OPEN_PER_LIST },
     merged: { q: `is:pr is:merged author:@me merged:>=${since}`, n: MERGED_PER_LIST },
   };
-  const ask = (list: List, checks: boolean) =>
-    post<Answer>({ query: query(list, checks), variables: searches[list] });
+  const ask = (list: List, checks: boolean, queue: boolean) =>
+    post<Answer>({ query: query(list, checks, queue), variables: searches[list] });
   const search = async (list: List) => {
-    const answer = await ask(list, true);
+    const full = await ask(list, true, true);
+    // A GitHub without merge queues refuses the whole query for the field it does not know.
+    const answer = full?.errors && !full.data ? await ask(list, true, false) : full;
     // Without the App's checks permission GitHub nulls the whole pull.
     const lost = answer?.data?.[list]?.nodes.some((n) => n === null);
-    return (answer?.errors && lost ? await ask(list, false) : answer)?.data?.[list];
+    return (answer?.errors && lost ? await ask(list, false, false) : answer)?.data?.[list];
   };
   const [review, authored, assigned, merged] = await Promise.all(LISTS.map(search));
   if (!review || !authored || !assigned || !merged) return null;
