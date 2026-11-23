@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { api, type Review, type Reviews as ReviewsData, why } from "../api.js";
 import { useCached } from "../cache.js";
-import { compact, count, num, period, sourceLabel, time } from "../format.js";
+import { compact, count, num, period, since, sourceLabel, time } from "../format.js";
 import { CloseGlyph } from "../glyphs.js";
 import { Link } from "../router.js";
 import { EmptyState, Loading, PageHead, Seg, useAction } from "../ui.js";
@@ -24,6 +24,24 @@ function Verdict(props: { r: Review }) {
   if (verdict === "approved_with_comments") return <span className="badge">Comments</span>;
   if (verdict === "approved") return <span className="badge badge-ok">Approved</span>;
   return <span className="badge">–</span>;
+}
+
+/** What a review was of, as its link: the pull request where it had one, then how it ran. */
+function ReviewOf(props: { r: Review }) {
+  const { r } = props;
+  const repo = r.name ?? r.repo;
+  return (
+    <div className="review-of">
+      <Link to={`/reviews/${r.id}`}>
+        <span className="mono">{repo}</span>
+        {r.prNumber != null && <span className="review-of-num"> #{r.prNumber}</span>}
+      </Link>
+      <span className="subtle small">
+        {sourceLabel(r.source)}
+        {r.prHeadSha && <span className="mono"> {r.prHeadSha.slice(0, 7)}</span>}
+      </span>
+    </div>
+  );
 }
 
 export function Reviews(props: {
@@ -149,9 +167,7 @@ export function Reviews(props: {
             <table>
               <thead>
                 <tr>
-                  <th>Time</th>
-                  <th>Repository</th>
-                  <th>Source</th>
+                  <th>Review</th>
                   <th>Result</th>
                   <th className="num">Critical</th>
                   <th className="num">Warning</th>
@@ -159,6 +175,7 @@ export function Reviews(props: {
                   <th className="num">Files</th>
                   <th className="num">Tokens</th>
                   <th className="num">Duration</th>
+                  <th className="num">When</th>
                   <th />
                 </tr>
               </thead>
@@ -166,10 +183,8 @@ export function Reviews(props: {
                 {data.reviews.map((r) => (
                   <tr key={r.id}>
                     <td>
-                      <Link to={`/reviews/${r.id}`}>{time(r.createdAt)}</Link>
+                      <ReviewOf r={r} />
                     </td>
-                    <td className="mono">{r.name ?? r.repo}</td>
-                    <td className="muted">{sourceLabel(r.source)}</td>
                     <td>
                       <Verdict r={r} />
                     </td>
@@ -184,6 +199,11 @@ export function Reviews(props: {
                     </td>
                     <td className="num">{compact(r.tokensIn + r.tokensOut)}</td>
                     <td className="num">{(r.durationMs / 1000).toFixed(0)}s</td>
+                    <td className="num subtle">
+                      <time dateTime={r.createdAt} title={time(r.createdAt)}>
+                        {since(r.createdAt)}
+                      </time>
+                    </td>
                     <td className="num">
                       <button
                         type="button"

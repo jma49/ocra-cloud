@@ -234,6 +234,9 @@ export type Review = {
   costUsd: number;
   durationMs: number;
   ocraVersion: string | null;
+  /** The pull request a PR-mode review was of; null or absent for other reviews. */
+  prNumber?: number | null;
+  prHeadSha?: string | null;
   createdAt: string;
 };
 export type Reviews = {
