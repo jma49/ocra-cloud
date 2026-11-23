@@ -1,6 +1,7 @@
 import { type Context, Hono } from "hono";
 import { z } from "zod";
 import { audit } from "../audit.js";
+import { unconfirmedRemovesAt } from "../db/notify.js";
 import { newId, type Row } from "../db/scoped.js";
 import { defer } from "../defer.js";
 import { apiError, jsonBody } from "../http.js";
@@ -122,6 +123,7 @@ const channelView = (r: Row<"notifyChannels">) =>
     when: r.when,
     last4: r.last4,
     confirmed: r.confirmedAt !== null,
+    removesAt: unconfirmedRemovesAt(r)?.toISOString() ?? null,
     digest: r.digest,
     weekly: r.weekly,
     events: r.events,

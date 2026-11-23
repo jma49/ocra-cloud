@@ -125,6 +125,65 @@ describe("a channel never confirmed", () => {
     expect(await ids()).toEqual([confirmed, chat].sort());
   });
 
+  it("answers when it may be removed, the same for a member or not, and a resend moves it", async () => {
+    const t0 = Date.now();
+    at(t0);
+    const { auth, account } = await signIn(1, "ann");
+    let member = true;
+    const { sent, call } = server(() => member);
+    const add = async (json: Record<string, unknown>) => {
+      const res = await call("/api/notifications/channels", {
+        method: "POST",
+        auth,
+        json: { name: "n", when: "every", ...json },
+      });
+      expect(res.status).toBe(200);
+      return ((await res.json()) as { channel: { id: string } }).channel.id;
+    };
+    const slackMember = await add({ kind: "slack_dm", member: "ann@example.com" });
+    member = false;
+    const slackNobody = await add({ kind: "slack_dm", member: "bob@example.com" });
+    const email = await add({ kind: "email", address: "cat@example.com" });
+    const confirmed = await add({ kind: "email", address: "dan@example.com" });
+    const link = sent.at(-1)?.text.match(new RegExp(`${ORIGIN}(/api/email/confirm\\?t=\\S+)`));
+    expect((await call(link?.[1] ?? "", { method: "POST" })).status).toBe(200);
+    const chat = await add({ kind: "slack", url: "https://hooks.slack.com/services/T0/B0/XXXX" });
+    const hook = await add({ kind: "webhook", url: "https://example.com/hook" });
+    await scoped(db, account.id).insert("notifyChannels", {
+      ...rows.notifyChannels("unsent"),
+      kind: "email",
+      createdAt: new Date(t0),
+    });
+
+    const removesAt = async () => {
+      const res = await call("/api/notifications/channels", { auth });
+      const { channels } = (await res.json()) as {
+        channels: { id: string; removesAt: string | null }[];
+      };
+      return Object.fromEntries(channels.map((c) => [c.id, c.removesAt]));
+    };
+    const week = new Date(t0 + UNCONFIRMED_DAYS * DAY).toISOString();
+    expect(await removesAt()).toEqual({
+      [slackMember]: week,
+      [slackNobody]: week,
+      [email]: week,
+      unsent: week,
+      [confirmed]: null,
+      [chat]: null,
+      [hook]: null,
+    });
+
+    at(t0 + 5 * DAY);
+    const again = await call(`/api/notifications/channels/${email}/confirm`, {
+      method: "POST",
+      auth,
+    });
+    expect(await again.json()).toEqual({ confirmationSent: true });
+    expect((await removesAt())[email]).toBe(
+      new Date(t0 + (5 + UNCONFIRMED_DAYS) * DAY).toISOString(),
+    );
+  });
+
   it("is never one a link confirms meanwhile", async () => {
     const { account } = await signIn(1, "ann");
     const d = scoped(db, account.id);
