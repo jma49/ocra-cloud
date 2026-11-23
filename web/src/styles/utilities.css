@@ -46,6 +46,9 @@
 .error-inline {
   color: var(--critical);
 }
+.warn-inline {
+  color: var(--warning);
+}
 .capitalize {
   text-transform: capitalize;
 }

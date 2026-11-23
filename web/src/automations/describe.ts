@@ -106,10 +106,13 @@ function actionText(a: AutomationAction, names: Names): string {
       return `notify ${names.channel(a.channelId)}`;
     case "skip_review":
       return "skip the review";
-    case "assign_reviewers":
-      return a.strategy === "suggested"
-        ? `assign ${a.count} suggested`
-        : `assign ${a.count} of ${a.logins?.join(", ") ?? ""}, ${STRATEGY_LABEL[a.strategy]}`;
+    case "assign_reviewers": {
+      const who =
+        a.strategy === "suggested"
+          ? `assign ${a.count} suggested`
+          : `assign ${a.count} of ${a.logins?.join(", ") ?? ""}, ${STRATEGY_LABEL[a.strategy]}`;
+      return a.codeOwnersFirst ? `${who}, code owners first` : who;
+    }
   }
 }
 
