@@ -166,8 +166,24 @@ Tested against a stand-in server (`test-node/github-enterprise.test.ts`: sign-in
 | `auth` | no | `bearer` (the default) or `x-api-key`: how the key goes on the request |
 | `models` | no | a GET that lists the models in OpenAI's shape; it also checks a key |
 | `key` | no | the server's own key: every account's calls use it and nobody stores one. Without it, each person adds their own key for the endpoint on the keys page |
+| `prices` | no | what its models cost, by model id, in US dollars per million tokens: `{"qwen3-coder": {"input": 0.4, "output": 1.2, "cachedInput": 0.1}}` (`cachedInput` is optional). The CLI counts a review's cost and its spend limit (`maxCostUsd`) with them. A model without a price is counted at $0, and each review says so in a warning |
 
 An endpoint with a `key` is the company's bill: every account calls it through `/api/gateway`, held back only by the per-account daily caps. Without `SIGN_IN_ALLOW`, anyone who can sign in gets an account, and so does anyone with a GitHub account when people sign in with GitHub, so set it whenever an endpoint has a `key`; the server warns at start (`open_sign_in_with_server_key`) when one does and no list is set.
+
+A gateway that speaks Anthropic's Messages protocol instead is declared with its path and key header, and reviews then run on the Direct runtime:
+
+```json
+{ "id": "corp-claude", "label": "Corp Claude gateway", "base": "https://llm.corp.example/anthropic", "paths": ["/v1/messages"], "auth": "x-api-key", "key": "..." }
+```
+
+What a company gateway usually needs:
+
+- **Model names** are passed as the gateway spells them, with `/`, `:`, `@` and capitals (`ocra-corp/Corp/Qwen3-Coder:32k@v2`).
+- **A private certificate authority** goes in `NODE_EXTRA_CA_CERTS`, and a **proxy** in `HTTPS_PROXY` with `NO_PROXY` for the hosts that are reached directly (Variables). The server's calls to the endpoint and each review's CLI both use them.
+- **Rate limits:** a `429` from the endpoint reaches the CLI as it is, which waits for its `Retry-After` and sends the request again; a quota that outlasts the review ends it with the files it did not reach named.
+- **The daily cap** (`GATEWAY_DAILY_CALLS`, 500 calls per account when unset) is sized for a public service. Raise it for a team that reviews every merge request, or let an account lower its own on the Budget page.
+- **Prices** are yours to declare (`prices`); the server knows none for a company's models.
+- **Function calling:** the models must call tools. For an endpoint that refuses them, see the engine's manual (Providers, An endpoint without function calling).
 
 With `DEFAULT_MODELS` naming them, a colleague who signs in for the first time reviews with the company's models without setting anything. The endpoints appear in the console's "Your company" group, and the CLI reaches them through the gateway like any other provider, with the same metering and daily caps. A declaration the server cannot read stops it from starting, naming the field. Keep the filled-in environment file secret when it holds a `key`.
 
