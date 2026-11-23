@@ -303,6 +303,23 @@ export const rows = {
     actions: [],
   }),
   // The enrolled repository it belongs to is made in beforeEach (the foreign key needs one).
+  scheduledReports: (id: string) => ({
+    id,
+    name: `report ${id}`,
+    cadence: "weekly" as const,
+    hour: 9,
+    weekday: 1,
+    sections: ["reviews" as const],
+    channelIds: [],
+    updatedAt: new Date(),
+  }),
+  scheduledReportSends: (id: string) => ({
+    id,
+    reportId: `report-${id}`,
+    period: `weekly:${id}`,
+    periodFrom: new Date(0),
+    periodTo: new Date(1000),
+  }),
   automationAssignments: (id: string) => ({
     id,
     ruleId: `rule-${id}`,

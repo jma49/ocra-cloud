@@ -4,6 +4,7 @@ import { DAY } from "../time.js";
 import { keepsStored } from "./accounts.js";
 import { changedRows, type Db, first } from "./client.js";
 import { jsonElements } from "./dialect.js";
+import { findingsIn, type RepoScope, reviewsIn } from "./scheduled-reports.js";
 import { accounts, findings, notifyChannels, notifyHeld, notifySends, reviews } from "./schema.js";
 
 // The account's channels (reached through scoped()): added in one statement
@@ -265,9 +266,19 @@ export function accountNotify(db: Db, accountId: string) {
     },
 
     /** What the account's reviews between from and to found, and what of it is still open. */
-    async digestOf(from: Date, to: Date, shareFindings: boolean): Promise<DigestNumbers> {
+    async digestOf(
+      from: Date,
+      to: Date,
+      shareFindings: boolean,
+      scope?: RepoScope,
+    ): Promise<DigestNumbers> {
       const r = reviews;
-      const when = and(eq(r.accountId, accountId), gte(r.createdAt, from), lt(r.createdAt, to));
+      const when = and(
+        eq(r.accountId, accountId),
+        gte(r.createdAt, from),
+        lt(r.createdAt, to),
+        reviewsIn(scope),
+      );
       const [counts, open] = await Promise.all([
         db
           .select({
@@ -294,6 +305,7 @@ export function accountNotify(db: Db, accountId: string) {
                   gte(findings.createdAt, from),
                   lt(findings.createdAt, to),
                   inArray(findings.severity, ["critical", "warning"]),
+                  findingsIn(db, accountId, scope, from, to),
                 ),
               )
               .orderBy(

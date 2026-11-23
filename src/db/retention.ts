@@ -38,6 +38,7 @@ import {
   reviews,
   reviewTeams,
   reviewThreads,
+  scheduledReportSends,
   serviceCounters,
   sessions,
   stackMerges,
@@ -46,7 +47,7 @@ import {
 import { scoped } from "./scoped.js";
 
 // What the data policy (web /privacy) promises: review records, live runs, gateway call
-// records, merged and closed pull requests, their review flow, the inbox's index of pull requests (closed ones after PULL_INDEX_CLOSED_DAYS), review threads and the threads of ocra's findings, who a rule assigned to review them, the inbox's read marks, the finished jobs of auto review (reviews, answers, generated
+// records, merged and closed pull requests, the periods scheduled reports sent, their review flow, the inbox's index of pull requests (closed ones after PULL_INDEX_CLOSED_DAYS), review threads and the threads of ocra's findings, who a rule assigned to review them, the inbox's read marks, the finished jobs of auto review (reviews, answers, generated
 // tests and docs), the pre-merge checks' results, the daily counts and the audit log are deleted after
 // RETENTION_DAYS; expired login codes, sessions and API tokens go at once; a notice held in
 // quiet hours after HELD_FOR; a channel's delivery record after DELIVERY_DAYS, a platform's
@@ -271,6 +272,18 @@ export async function enforceRetention(db: Db, now = new Date()): Promise<void> 
             and(
               ofEachAccount(automationRuns.accountId),
               lt(automationRuns.createdAt, new Date(now.getTime() - AUTOMATION_RUN_DAYS * DAY)),
+            ),
+          ),
+    ],
+    [
+      "scheduled_report_sends",
+      () =>
+        db
+          .delete(scheduledReportSends)
+          .where(
+            and(
+              ofEachAccount(scheduledReportSends.accountId),
+              lt(scheduledReportSends.createdAt, cutoff),
             ),
           ),
     ],

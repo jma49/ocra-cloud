@@ -61,6 +61,8 @@ const changes = {
   automationRules: { name: "renamed" },
   automationRuns: { outcome: "failed" as const },
   automationAssignments: { logins: ["hubot"] },
+  scheduledReports: { name: "renamed" },
+  scheduledReportSends: { channels: 3 },
   mergeChecks: { mode: "block" as const },
   mergeCheckRuns: { conclusion: "failure" as const },
   mergeIntents: { state: "cancelled" as const },

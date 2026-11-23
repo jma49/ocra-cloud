@@ -70,6 +70,8 @@ export const EXPORTED = {
   automationRules: "automationRules",
   automationRuns: "automationRuns",
   automationAssignments: "automationAssignments",
+  scheduledReports: "scheduledReports",
+  scheduledReportSends: "scheduledReportSends",
   mergeChecks: "mergeChecks",
   mergeCheckRuns: "mergeCheckRuns",
   mergeIntents: "mergeIntents",

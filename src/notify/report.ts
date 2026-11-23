@@ -61,7 +61,7 @@ type Week = {
 };
 
 /** A repository's address as its path, `octo/api`. */
-function repoName(address: string): string {
+export function repoName(address: string): string {
   try {
     return new URL(address).pathname.replace(/^\/+|\/+$/g, "").replace(/\.git$/, "") || address;
   } catch {
