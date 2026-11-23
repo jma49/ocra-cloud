@@ -159,7 +159,13 @@ describe("a review job's run", () => {
   };
   const fakeExec = (
     cliCode: number,
-    seen: { credentials?: unknown; config?: string; ocra?: unknown; salt?: string },
+    seen: {
+      credentials?: unknown;
+      config?: string;
+      ocra?: unknown;
+      salt?: string;
+      consent?: string;
+    },
   ) => {
     const calls: Call[] = [];
     const exec: Exec = async (command, args, options) => {
@@ -173,6 +179,10 @@ describe("a review job's run", () => {
       );
       seen.salt = await readFile(
         join(options.env.XDG_CONFIG_HOME ?? "", "ocra", "upload-salt"),
+        "utf8",
+      ).catch(() => "");
+      seen.consent = await readFile(
+        join(options.env.XDG_CONFIG_HOME ?? "", "ocra", "share-findings"),
         "utf8",
       ).catch(() => "");
       seen.config = await readFile(join(options.cwd, ".git", "config"), "utf8");
@@ -194,9 +204,16 @@ describe("a review job's run", () => {
     });
 
   it("clones, runs the CLI on the pull request as the account and the bot, and leaves nothing", async () => {
-    const seen: { credentials?: Record<string, unknown>; config?: string; salt?: string } = {};
+    const seen: {
+      credentials?: Record<string, unknown>;
+      config?: string;
+      salt?: string;
+      consent?: string;
+    } = {};
     const { exec, calls } = fakeExec(1, seen);
     expect(await run(exec)).toBe(true);
+    // What `ocra login` records on a person's machine: without it the CLI sends counts only.
+    expect(seen.consent).toBe("on\n");
     // The account's salt, not one made in the run's new home: the CLI
     // names the repository the same in every run.
     expect(seen.salt).toBe(`${await accountSalt(s.host.db, accountId)}\n`);

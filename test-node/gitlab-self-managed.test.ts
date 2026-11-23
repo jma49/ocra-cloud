@@ -266,13 +266,20 @@ describe("ocra Cloud with a self-managed GitLab", () => {
       await vi.waitFor(
         async () => {
           const listed = (await (await visit("/api/reviews")).json()) as {
-            reviews: { prRepository: string | null; prNumber: number | null }[];
+            reviews: { id: string; prRepository: string | null; prNumber: number | null }[];
           };
           expect(listed.reviews).toEqual([
             expect.objectContaining({
               prRepository: repoIdentity({ url: gitlab.url }, PROJECT.path),
               prNumber: MR,
             }),
+          ]);
+          // The server keeps the findings of a review it ran itself.
+          const kept = (await (await visit(`/api/reviews/${listed.reviews[0]?.id}`)).json()) as {
+            findings: { title: string; file: string }[];
+          };
+          expect(kept.findings).toEqual([
+            expect.objectContaining({ title: FINDING.title, file: FINDING.file }),
           ]);
         },
         { timeout: 15_000, interval: 250 },
