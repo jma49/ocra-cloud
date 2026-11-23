@@ -135,6 +135,8 @@ export function gitlabHookRoute() {
 
   // For the hook added by hand: the secret replaces the one any existing hook
   // proves itself with, so that hook is refused until it is given this one.
+  // A hook ocra added is the user's from then on: it is no longer updated or
+  // removed by ocra, since only the user can give it the new secret.
   route.post(
     "/repos/:id/webhook/secret",
     requireSession(["web"]),
@@ -147,7 +149,7 @@ export function gitlabHookRoute() {
       const replaced = await c.var.data.update(
         "reviewRepos",
         repo.id,
-        { webhookSecretHash: await sha256Hex(secret) },
+        { webhookSecretHash: await sha256Hex(secret), webhookId: null },
         { webhookSecretHash: repo.webhookSecretHash },
       );
       if (!replaced) return apiError(c, "stale");

@@ -243,6 +243,24 @@ describe("a GitLab project's webhook", () => {
     }
   });
 
+  it("leaves the hook ocra added to the user once it gets a new secret by hand", async () => {
+    const { auth } = await s.signIn(1);
+    const { repo } = await enroll(auth);
+    expect(repo.webhookManaged).toBe(true);
+    expect((await newSecret(auth, repo.id)).status).toBe(200);
+    const listed = await (await s.call("/api/auto-review/repos", { headers: auth })).json();
+    expect(listed).toMatchObject({ repos: [{ id: repo.id, webhookManaged: false }] });
+
+    const before = calls.length;
+    const res = await s.call(`/api/auto-review/repos/${repo.id}`, {
+      method: "DELETE",
+      headers: auth,
+    });
+    expect(await res.json()).toEqual({ removed: true });
+    expect(calls.slice(before).map((c) => c.method)).toEqual([]);
+    expect(hooks).toHaveLength(1);
+  });
+
   it("gets a new secret only for the account that enrolled the project", async () => {
     const first = await s.signIn(1);
     const second = await s.signIn(2);
