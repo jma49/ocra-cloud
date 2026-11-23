@@ -1,13 +1,20 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import type { PullActionOutcome, PullThreadsView } from "../../../src/shared/index.js";
+import type {
+  PullActionOutcome,
+  PullThreadsView,
+  ReviewThreadView,
+} from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
+import { useToast } from "../toast.js";
 import { useAction, useLoad } from "../ui.js";
+import { OUTCOME } from "./outcome.js";
 import { ThreadItem } from "./thread-item.js";
 
 // The pull request's review threads: their comments as Markdown, the
 // suggestions in them, applied together as one commit of the head the
-// threads were read at, and each thread resolved or reopened.
+// threads were read at, and each thread resolved or reopened. Resolving
+// and replying show at once and are taken back if the platform refuses.
 
 type Pull = { platform: string; repo: string; number: number };
 type Answer = { outcome: PullActionOutcome };
@@ -15,39 +22,108 @@ type Answer = { outcome: PullActionOutcome };
 const post = (path: string, body: unknown) =>
   api<Answer>(`/pulls/${path}`, { method: "POST", body: JSON.stringify(body) });
 
+/**
+ * What this page did ahead of the platform's answer, laid over what it read.
+ * A step the platform took stays until a read newer than `seen` replaces it,
+ * so nothing flickers back while the page reads again.
+ */
+type Step = {
+  thread: string;
+  resolved?: boolean;
+  reply?: string;
+  seen?: PullThreadsView | undefined;
+};
+
+function laidOver(t: ReviewThreadView, steps: Step[]): ReviewThreadView {
+  const mine = steps.filter((s) => s.thread === t.id);
+  if (mine.length === 0) return t;
+  const resolved = mine.reduce((r, s) => s.resolved ?? r, t.resolved);
+  const sending = mine.flatMap((s, i) =>
+    s.reply === undefined
+      ? []
+      : [
+          {
+            id: `sending:${t.id}:${i}`,
+            author: null,
+            body: s.reply,
+            createdAt: null,
+            suggestions: [],
+          },
+        ],
+  );
+  return { ...t, resolved, comments: [...t.comments, ...sending] };
+}
+
 export function ThreadsPanel(props: { pull: Pull; onDone: (o: PullActionOutcome) => void }) {
   const query = new URLSearchParams({ ...props.pull, number: String(props.pull.number) });
   const { data, error, reload } = useLoad(
     () => api<PullThreadsView>(`/pulls/threads?${query}`),
     [query.toString()],
   );
+  const toast = useToast();
   const [picked, setPicked] = useState<string[]>([]);
-  const [resolving, setResolving] = useState<string | null>(null);
-  const write = useAction(post);
-  const after = (r: Answer | undefined) => {
-    setResolving(null);
-    if (!r) return;
-    props.onDone(r.outcome);
-    if (r.outcome === "done") {
-      setPicked([]);
-      reload();
+  const [steps, setSteps] = useState<Step[]>([]);
+  const [sendError, setSendError] = useState<unknown>(null);
+  const commit = useAction(post);
+  const shown = useRef(data);
+  shown.current = data;
+  // Steps the platform took are in every read after the one they were taken at.
+  useEffect(() => {
+    setSteps((all) => all.filter((s) => s.seen === undefined || s.seen === data));
+  }, [data]);
+
+  const send = async (path: string, body: object): Promise<PullActionOutcome | null> => {
+    setSendError(null);
+    try {
+      return (await post(path, body)).outcome;
+    } catch (e) {
+      setSendError(e);
+      return null;
     }
   };
+  const take = async (step: Step, path: string, body: object) => {
+    setSteps((all) => [...all, step]);
+    const outcome = await send(path, { ...props.pull, thread: step.thread, ...body });
+    if (outcome !== "done") {
+      setSteps((all) => all.filter((s) => s !== step));
+      if (outcome) toast(OUTCOME[outcome], "error");
+      return false;
+    }
+    setSteps((all) => all.map((s) => (s === step ? { ...s, seen: shown.current } : s)));
+    reload();
+    return true;
+  };
+
+  const resolve = async (thread: string, to: boolean) => {
+    if (await take({ thread, resolved: to }, "resolve-thread", { resolved: to })) {
+      toast(to ? "Thread resolved" : "Thread reopened", "success", {
+        label: "Undo",
+        run: () => void resolve(thread, !to),
+      });
+    }
+  };
+
+  const reply = (thread: string, body: string) =>
+    take({ thread, reply: body }, "reply-thread", { body });
+
   if (error && !data) {
     return <p className="error small">Could not read the review threads: {why(error)}.</p>;
   }
   if (!data || data.threads.length === 0) return null;
+  const live = steps.filter((s) => s.seen === undefined || s.seen === data);
+  const threads = data.threads.map((t) => laidOver(t, live));
   const toggle = (id: string) =>
     setPicked(picked.includes(id) ? picked.filter((p) => p !== id) : [...picked, id]);
   const fileOf = (id: string) =>
-    data.threads.find((t) => t.comments.some((c) => c.suggestions.some((s) => s.id === id)))?.path;
+    threads.find((t) => t.comments.some((c) => c.suggestions.some((s) => s.id === id)))?.path;
   // GitHub commits suggestions together only within one file.
   const only = props.pull.platform === "github" && picked[0] ? fileOf(picked[0]) : undefined;
-  const open = data.threads.filter((t) => !t.resolved).length;
-  const resolved = data.threads.length - open;
-  const offers = data.threads.some(
+  const open = threads.filter((t) => !t.resolved).length;
+  const resolved = threads.length - open;
+  const offers = threads.some(
     (t) => !t.resolved && t.comments.some((c) => c.suggestions.some((s) => s.applicable)),
   );
+  const failed = sendError ?? commit.error;
   return (
     <section className="stack" aria-label="Review threads">
       <div className="row-gap checks-head">
@@ -59,7 +135,7 @@ export function ThreadsPanel(props: { pull: Pull; onDone: (o: PullActionOutcome)
         </span>
       </div>
       <ul className="thread-list">
-        {data.threads.map((t) => (
+        {threads.map((t) => (
           <ThreadItem
             key={t.id}
             t={t}
@@ -70,25 +146,8 @@ export function ThreadsPanel(props: { pull: Pull; onDone: (o: PullActionOutcome)
                 : null
             }
             toggle={toggle}
-            resolving={resolving === t.id}
-            busy={write.busy}
-            reply={async (body) => {
-              // Not this thread's id: only the reply's own button shows it is being sent.
-              setResolving(`reply:${t.id}`);
-              const r = await write.run("reply-thread", { ...props.pull, thread: t.id, body });
-              after(r);
-              return r?.outcome === "done";
-            }}
-            resolve={async () => {
-              setResolving(t.id);
-              after(
-                await write.run("resolve-thread", {
-                  ...props.pull,
-                  thread: t.id,
-                  resolved: !t.resolved,
-                }),
-              );
-            }}
+            reply={(body) => reply(t.id, body)}
+            resolve={() => void resolve(t.id, !t.resolved)}
           />
         ))}
       </ul>
@@ -98,17 +157,21 @@ export function ThreadsPanel(props: { pull: Pull; onDone: (o: PullActionOutcome)
       {offers && (
         <div className="row-gap thread-commit">
           <Button
-            loading={write.busy && resolving === null}
-            disabled={picked.length === 0 || write.busy}
-            onClick={async () =>
-              after(
-                await write.run("apply-suggestions", {
-                  ...props.pull,
-                  head: data.head,
-                  suggestions: picked,
-                }),
-              )
-            }
+            loading={commit.busy}
+            disabled={picked.length === 0 || commit.busy}
+            onClick={async () => {
+              const r = await commit.run("apply-suggestions", {
+                ...props.pull,
+                head: data.head,
+                suggestions: picked,
+              });
+              if (!r) return;
+              props.onDone(r.outcome);
+              if (r.outcome === "done") {
+                setPicked([]);
+                reload();
+              }
+            }}
           >
             {picked.length === 1
               ? "Commit suggestion"
@@ -120,9 +183,9 @@ export function ThreadsPanel(props: { pull: Pull; onDone: (o: PullActionOutcome)
           </span>
         </div>
       )}
-      {write.error !== null && (
+      {failed !== null && (
         <p className="error" role="alert">
-          Could not send it: {why(write.error)}.
+          Could not send it: {why(failed)}.
         </p>
       )}
     </section>

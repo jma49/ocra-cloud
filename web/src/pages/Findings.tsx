@@ -13,6 +13,7 @@ import { ago } from "../format.js";
 import { useListCursor } from "../list-cursor.js";
 import { usePageCommands } from "../page-commands.js";
 import { Link } from "../router.js";
+import { useToast } from "../toast.js";
 import { EmptyState, LoadError, Loading, PageHead, Seg, useAction } from "../ui.js";
 import { findingsCommands } from "./findings-commands.js";
 
@@ -103,6 +104,12 @@ export function decided(page: Page, ids: Set<string>, shown: StatusFilter, d: De
   return { ...page, findings, statuses };
 }
 
+const STATUS_DONE: Record<FindingStatus, string> = {
+  open: "reopened",
+  fixed: "marked fixed",
+  dismissed: "dismissed",
+};
+
 const rowClass = (selected: boolean, current: boolean) =>
   [selected && "selected", current && "is-current"].filter(Boolean).join(" ") || undefined;
 
@@ -123,7 +130,7 @@ export function Findings(props: {
   const [reason, setReason] = useState<DismissReason>("false_positive");
   const [note, setNote] = useState("");
   const [remember, setRemember] = useState(false);
-  const [done, setDone] = useState("");
+  const toast = useToast();
 
   const extra = more && more.for === data ? more : undefined;
   const rows = [...(data?.findings ?? []), ...(extra?.rows ?? [])];
@@ -146,7 +153,6 @@ export function Findings(props: {
     setFilters((f) => ({ ...f, ...change }));
     setSelected(new Set());
     cursor.reset();
-    setDone("");
   };
   const toggle = (id: string) =>
     setSelected((s) => {
@@ -163,7 +169,10 @@ export function Findings(props: {
       status === "dismissed"
         ? { ids, status, reason, ...(note.trim() ? { note: note.trim() } : {}), remember }
         : { ids, status };
-    setDone("");
+    // Open findings only: what a dismissal remembered stays remembered.
+    const undoable =
+      !(status === "dismissed" && remember) &&
+      ids.every((id) => rows.find((r) => r.id === id)?.status === "open");
     const undo = change((page) => decided(page, new Set(ids), filters.status, body));
     const answer = await decide.run(body);
     if (!answer) {
@@ -173,7 +182,13 @@ export function Findings(props: {
     const memory =
       answer.remembered > 0 ? `, ${answer.remembered} remembered for their repository` : "";
     const full = answer.memoryFull ? " (a repository's memory is full; forget some first)" : "";
-    setDone(`${answer.changed} updated${memory}${full}.`);
+    toast(
+      `${answer.changed} ${STATUS_DONE[status]}${memory}${full}`,
+      "success",
+      undoable && status !== "open"
+        ? { label: "Undo", run: () => void apply("open", ids) }
+        : undefined,
+    );
     setSelected(new Set());
     setNote("");
     reload();
@@ -326,13 +341,7 @@ export function Findings(props: {
           <p className="error" role="alert">
             Could not update them: {why(decide.error)}.
           </p>
-        ) : (
-          done && (
-            <p className="muted small" role="status">
-              {done}
-            </p>
-          )
-        )}
+        ) : null}
 
         {error && !data ? (
           <LoadError what="findings" error={error} retry={reload} />

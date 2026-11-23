@@ -141,6 +141,10 @@
 .thread-foot {
   padding: 8px 12px 12px 46px;
 }
+/* A reply on its way: in place at once, quiet until the platform has it. */
+.thread-comment.is-sending {
+  opacity: 0.6;
+}
 .thread-card.is-resolved .thread-head {
   box-shadow: none;
 }
