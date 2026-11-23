@@ -3,7 +3,7 @@ import type { Context, MiddlewareHandler } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import type { z } from "zod";
 import { readJson, readText, SMALL_BODY } from "./body.js";
-import { RETENTION_DAYS } from "./db/retention.js";
+import { config } from "./config.js";
 import type { AppEnv } from "./types.js";
 
 // The API's boundary: every request body goes through jsonBody (a schema,
@@ -89,10 +89,12 @@ export function queryLimit(c: Context, max: number): number {
 }
 
 /**
- * The `days` query, clamped to 1..`max` (by default RETENTION_DAYS: older
- * records are gone); `fallback` when it is missing or not a number.
+ * The `days` query, clamped to 1..`max` and never past the retention
+ * window (older records are gone); `fallback` when it is missing or not a
+ * number.
  */
-export function queryDays(c: Context, fallback: number, max = RETENTION_DAYS): number {
+export function queryDays(c: Context<AppEnv>, fallback: number, max = Infinity): number {
   const v = c.req.query("days");
-  return Math.min(Math.max(Math.trunc(Number(v ?? fallback)) || fallback, 1), max);
+  const most = Math.min(max, config(c.env).retentionDays);
+  return Math.min(Math.max(Math.trunc(Number(v ?? fallback)) || fallback, 1), most);
 }

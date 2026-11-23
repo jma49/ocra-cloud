@@ -1,5 +1,6 @@
 import { and, eq, inArray, lt, notInArray, or, sql } from "drizzle-orm";
 import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
+import { DEFAULT_RETENTION_DAYS } from "../config.js";
 import { errorName, logError } from "../log.js";
 import { FEED_DAYS } from "../shared/index.js";
 import { DAY, utcDay } from "../time.js";
@@ -53,15 +54,15 @@ import { scoped } from "./scoped.js";
 // What the data policy (web /privacy) promises: review records, live runs, gateway call
 // records, merged and closed pull requests, the periods scheduled reports sent, their review flow, the inbox's index of pull requests (closed ones after PULL_INDEX_CLOSED_DAYS), review threads and the threads of ocra's findings, who a rule assigned to review them, the inbox's read marks, the finished jobs of auto review (reviews, answers, generated
 // tests and docs), the pre-merge checks' results, the daily counts and the audit log are deleted after
-// RETENTION_DAYS; expired login codes, sessions and API tokens go at once; a notice held in
+// RETENTION_DAYS (src/config.ts, 90 unless the deployment sets it); expired login codes, sessions and API tokens go at once; a notice held in
 // quiet hours after HELD_FOR; a channel's delivery record after DELIVERY_DAYS, a platform's
 // delivery to us after INBOUND_EVENT_DAYS, a team's members TEAM_DAYS after
 // they were read, a channel never confirmed UNCONFIRMED_DAYS after its last link, a
 // notification centre's notice after FEED_DAYS, a held release draft RETENTION_DAYS after its
 // last save. Runs daily
-// from the cron trigger.
+// from the cron trigger. The fixed windows below are at most 30 days, the
+// least RETENTION_DAYS may be, so none outlasts it.
 
-export const RETENTION_DAYS = 90;
 /** An automation's run is kept for a month: enough to see why a rule acted. */
 export const AUTOMATION_RUN_DAYS = 30;
 /** A merge-when-ready intent that ended, kept to show how it ended. */
@@ -90,8 +91,12 @@ const INBOUND_EVENT_DAYS = 7;
  * run shows as failed. Only our own message is logged, never the error's
  * text, which could quote a row.
  */
-export async function enforceRetention(db: Db, now = new Date()): Promise<void> {
-  const cutoff = new Date(now.getTime() - RETENTION_DAYS * DAY);
+export async function enforceRetention(
+  db: Db,
+  now = new Date(),
+  days = DEFAULT_RETENTION_DAYS,
+): Promise<void> {
+  const cutoff = new Date(now.getTime() - days * DAY);
   // Account by account, so a delete finds its rows through the index that
   // starts with account_id instead of reading the whole table (audit C3).
   const ofEachAccount = (column: SQLiteColumn) =>

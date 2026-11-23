@@ -1,7 +1,7 @@
 import { REPO_HASH } from "@open-cr-agent/cloud-contract";
 import { Hono } from "hono";
 import { z } from "zod";
-import { RETENTION_DAYS } from "./db/retention.js";
+import { config } from "./config.js";
 import type { Scoped } from "./db/scoped.js";
 import { apiError, jsonBody } from "./http.js";
 import { perMinute } from "./rate.js";
@@ -50,7 +50,7 @@ export async function repoNames(data: Scoped): Promise<Map<string, string>> {
 }
 
 repositoriesRoute.get("/", requireSession(), async (c) => {
-  const since = new Date(Date.now() - RETENTION_DAYS * DAY);
+  const since = new Date(Date.now() - config(c.env).retentionDays * DAY);
   const [reviewed, named, pulled] = await Promise.all([
     c.var.data.reviewedRepos(since),
     c.var.data.find("repositories", {}, MAX_NAMED),

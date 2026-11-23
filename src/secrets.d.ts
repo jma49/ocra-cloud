@@ -23,6 +23,8 @@ interface __BaseEnv_Env {
   OIDC_NAME?: string;
   /** Who may sign in, as org:, user:, domain: and group: entries (docs/self-hosting.md); anyone when unset. */
   SIGN_IN_ALLOW?: string;
+  /** Days the daily retention keeps an account's records, 30 to 3650; 90 when unset, as the hosted data policy says. */
+  RETENTION_DAYS?: string;
   /** A self-hosted server's own model endpoints, as JSON (docs/self-hosting.md); may hold their keys. */
   MODEL_ENDPOINTS?: string;
   /** off: forward to MODEL_ENDPOINTS only, never to the built-in public providers. */

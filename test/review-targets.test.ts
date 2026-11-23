@@ -36,7 +36,7 @@ const out: Outbox = {
 async function hourly(at: number) {
   vi.setSystemTime(at);
   const run = await import("../src/notify/at-risk.js").catch(() => undefined);
-  await run?.runAtRisk(db, out, new Date(at));
+  await run?.runAtRisk(db, out, 90, new Date(at));
 }
 
 async function account(githubId: number, login: string, repos: string[] = ["repo"]) {

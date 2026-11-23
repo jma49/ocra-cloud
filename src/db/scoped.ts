@@ -341,7 +341,7 @@ export function scoped(db: Db, accountId: string) {
      *
      * An upload past dailyUploads today writes nothing and comes back
      * `limited`. Findings that would take the account past maxFindings
-     * uploaded within the retention window are not stored, and
+     * uploaded within the retention window (findingsDays, 90 by default) are not stored, and
      * `findingsSkipped` comes back; the review itself is kept. Deleting
      * findings does not give the allowance back: it bounds the rows written,
      * not only the rows kept. Both caps read counter rows (./counters.ts),
@@ -351,7 +351,7 @@ export function scoped(db: Db, accountId: string) {
     async insertReview(
       counts: Omit<NewRow<"reviews">, "id">,
       list: Omit<NewRow<"findings">, "id" | "reviewId">[],
-      limits: { dailyUploads: number; maxFindings: number },
+      limits: { dailyUploads: number; maxFindings: number; findingsDays?: number },
       now = new Date(),
     ): Promise<StoredUpload> {
       const r = accountTables.reviews;
@@ -393,7 +393,7 @@ export function scoped(db: Db, accountId: string) {
           je."fixStartLine", je."fixEndLine", je."fixReplacement", NULL, NULL
         FROM ${jsonRecords(db, rows, FINDING_FIELDS)}
         WHERE EXISTS (SELECT 1 FROM reviews WHERE id = ${review.id} AND account_id = ${accountId})
-          AND ${findingsCounted(accountId, now)} + ${list.length} <= ${limits.maxFindings}`);
+          AND ${findingsCounted(accountId, now, limits.findingsDays)} + ${list.length} <= ${limits.maxFindings}`);
       const spend = countSpendOf(db, accountId, review.id, counts.costUsd ?? 0, now);
       const counted = spend ? [spend] : [];
       const [stored, kept] =

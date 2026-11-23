@@ -70,7 +70,13 @@ function atRiskMessage(list: readonly AtRisk[], now: number, origin: string): Me
 }
 
 /** Sends one account's pull requests newly at risk, one message per channel; the channels told. */
-async function sendAtRisk(db: Db, out: Outbox, accountId: string, now: Date): Promise<string[]> {
+async function sendAtRisk(
+  db: Db,
+  out: Outbox,
+  accountId: string,
+  now: Date,
+  retentionDays: number,
+): Promise<string[]> {
   const data = scoped(db, accountId);
   const all = await data.notify.subscribed("pull_at_risk");
   if (all.length === 0) return [];
@@ -78,7 +84,7 @@ async function sendAtRisk(db: Db, out: Outbox, accountId: string, now: Date): Pr
   const channels = all.filter((ch) => !isQuiet(ch, hour));
   if (channels.length === 0) return [];
   const t = now.getTime();
-  const { found } = await readAtRisk(data, null, t);
+  const { found } = await readAtRisk(data, null, t, retentionDays);
   const due = found
     .filter((a) => t - a.nearAt <= WINDOW)
     .sort((a, b) => b.nearAt - a.nearAt)
@@ -99,13 +105,14 @@ async function sendAtRisk(db: Db, out: Outbox, accountId: string, now: Date): Pr
 export async function runAtRisk(
   db: Db,
   out: Outbox,
+  retentionDays: number,
   now = new Date(),
   calls?: CallBudget,
 ): Promise<void> {
   await forAccounts(
     await targetAccounts(db),
     "at_risk_failed",
-    (id) => sendAtRisk(db, out, id, now),
+    (id) => sendAtRisk(db, out, id, now, retentionDays),
     calls,
   );
 }

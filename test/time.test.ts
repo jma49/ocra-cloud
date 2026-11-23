@@ -37,8 +37,10 @@ describe("config", () => {
       reviewMaxFindings: 20000,
       deviceDailyCodes: 50,
       deviceDailyCodesPerNetwork: 5,
+      retentionDays: 90,
     });
     expect(config(env)).toBe(first);
     expect(config({ ...env, GATEWAY_DAILY_CALLS: "7" }).gatewayDailyCalls).toBe(7);
+    expect(config({ ...env, RETENTION_DAYS: "60" }).retentionDays).toBe(60);
   });
 });

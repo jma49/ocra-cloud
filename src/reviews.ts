@@ -143,10 +143,11 @@ reviews.post("/", requireSession(["web", "cli"]), perMinute("upload"), uploadBod
   // not a second review. Uploads per UTC day and shared findings are capped
   // per account (audits S3, C1): a loop of uploads cannot fill the database
   // or use up the plan's daily writes.
-  const { reviewDailyUploads: limit, reviewMaxFindings } = config(c.env);
+  const { reviewDailyUploads: limit, reviewMaxFindings, retentionDays } = config(c.env);
   const stored = await c.var.data.insertReview(row, parsed.rows, {
     dailyUploads: limit,
     maxFindings: reviewMaxFindings,
+    findingsDays: retentionDays,
   });
   if (stored.outcome === "duplicate") return c.json({ id: stored.id, duplicate: true });
   if (stored.outcome === "limited") {

@@ -1,9 +1,9 @@
 import { type AnyColumn, and, eq, gt, gte, type SQL, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
+import { DEFAULT_RETENTION_DAYS } from "../config.js";
 import { DEFAULT_SPEND_LIMITS, dailyCallCeiling, LIMIT_OFF } from "../shared/index.js";
 import { DAY, utcDay, utcMonthStartDay } from "../time.js";
 import type { Db } from "./client.js";
-import { RETENTION_DAYS } from "./retention.js";
 import { budgets, usageCounters } from "./schema.js";
 
 // An account's use, counted as it happens (audit C1): a cap reads the
@@ -175,14 +175,14 @@ export function uncountOne(
  * review and its findings RETENTION_DAYS after the upload, so the findings
  * counted from here on are at least all those still stored.
  */
-const findingsWindowStart = (now: Date): string =>
-  utcDay(new Date(now.getTime() - RETENTION_DAYS * DAY));
+const findingsWindowStart = (now: Date, days: number): string =>
+  utcDay(new Date(now.getTime() - days * DAY));
 
 /** The account's shared findings uploaded since findingsWindowStart, as a subquery. */
-export function findingsCounted(accountId: string, now: Date): SQL {
+export function findingsCounted(accountId: string, now: Date, days = DEFAULT_RETENTION_DAYS): SQL {
   return sql`(SELECT coalesce(sum(${c.n}), 0) FROM ${c}
     WHERE ${c.accountId} = ${accountId} AND ${c.kind} = 'findings'
-      AND ${c.day} >= ${findingsWindowStart(now)})`;
+      AND ${c.day} >= ${findingsWindowStart(now, days)})`;
 }
 
 /**
