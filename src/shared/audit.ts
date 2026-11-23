@@ -30,6 +30,8 @@ export type AuditDetails = {
   "channel.added": { channel: string; kind: string };
   "channel.changed": { channel: string; keys: string[] };
   "channel.removed": { channel: string };
+  /** Never confirmed, deleted by the daily retention. */
+  "channel.expired": { channel: string; kind: string };
   "automation.added": { rule: string; trigger: string };
   "automation.changed": { rule: string; trigger: string; enabled: boolean };
   "automation.removed": { rule: string };
@@ -89,6 +91,7 @@ export const AUDIT_FIELDS: { readonly [K in AuditKind]: readonly (keyof AuditDet
   "channel.added": ["channel", "kind"],
   "channel.changed": ["channel", "keys"],
   "channel.removed": ["channel"],
+  "channel.expired": ["channel", "kind"],
   "automation.added": ["rule", "trigger"],
   "automation.changed": ["rule", "trigger", "enabled"],
   "automation.removed": ["rule"],

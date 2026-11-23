@@ -15,6 +15,16 @@ import { accounts, findings, notifyChannels, notifyHeld, notifySends, reviews } 
 // in the channel's quiet hours held by the same key, then claimed for its
 // message by a compare-and-set on claimedAt.
 
+/** How long a link to confirm a channel can be taken. */
+const CONFIRM_TTL = DAY;
+
+/**
+ * How long a channel that needs confirming (an email address, a Slack
+ * member) waits for it after its last link was sent, or after it was added
+ * when none was; then it is deleted, freeing its place under the cap.
+ */
+const UNCONFIRMED_DAYS = 7;
+
 /** How long a notice held in quiet hours waits for them to end; no quiet hours last longer. */
 export const HELD_FOR = 2 * DAY;
 
@@ -26,6 +36,9 @@ type NewChannel = Omit<
 >;
 
 const DIGEST_TITLES = 5;
+
+/** The kinds a link must confirm before anything else is sent. */
+const CONFIRMABLE_KINDS = ["email", "slack_dm"] as const;
 
 export type DigestNumbers = {
   reviews: number;
@@ -179,11 +192,14 @@ export function accountNotify(db: Db, accountId: string) {
         .where(and(own, eq(t.weekly, true), inArray(t.when, [...whens]), isNotNull(t.confirmedAt)));
     },
 
-    /** A new link for an unconfirmed address; false once it is confirmed or gone. */
-    async rearm(id: string, tokenHash: string, expiresAt: Date): Promise<boolean> {
+    /** A new link, sent now, for an unconfirmed address; false once it is confirmed or gone. */
+    async rearm(id: string, tokenHash: string, now: Date): Promise<boolean> {
       const res = await db
         .update(t)
-        .set({ confirmTokenHash: tokenHash, confirmExpiresAt: expiresAt })
+        .set({
+          confirmTokenHash: tokenHash,
+          confirmExpiresAt: new Date(now.getTime() + CONFIRM_TTL),
+        })
         .where(and(own, eq(t.id, id), isNull(t.confirmedAt)));
       return changedRows(res) > 0;
     },
@@ -302,4 +318,30 @@ export async function heldAccounts(db: Db, since: Date, limit: number): Promise<
     .where(and(isNull(h.claimedAt), gte(h.createdAt, since)))
     .limit(limit);
   return rows.map((r) => r.accountId);
+}
+
+/**
+ * Deletes every channel of a kind that needs confirming still unconfirmed
+ * UNCONFIRMED_DAYS after its last link was sent, account by account, by
+ * compare-and-set on its confirmation; the channels it deleted. A Slack
+ * member who was never found goes like any other, so the expiry says
+ * nothing about who exists.
+ */
+export async function expireUnconfirmed(db: Db, now: Date) {
+  const t = notifyChannels;
+  const sentBefore = now.getTime() - UNCONFIRMED_DAYS * DAY;
+  return db
+    .delete(t)
+    .where(
+      and(
+        inArray(t.accountId, db.select({ id: accounts.id }).from(accounts)),
+        inArray(t.kind, CONFIRMABLE_KINDS),
+        isNull(t.confirmedAt),
+        or(
+          lt(t.confirmExpiresAt, new Date(sentBefore + CONFIRM_TTL)),
+          and(isNull(t.confirmExpiresAt), lt(t.createdAt, new Date(sentBefore))),
+        ),
+      ),
+    )
+    .returning({ id: t.id, accountId: t.accountId, kind: t.kind });
 }

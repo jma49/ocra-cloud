@@ -26,7 +26,7 @@ import type { AppEnv } from "../types.js";
 import { hookUrl, type Message, type MessageText, messageOf, reviewMessage } from "./channels.js";
 import { KEPT_DELIVERIES } from "./deliveries.js";
 import { emailAddress, mailOf, sendMail } from "./email.js";
-import { CONFIRM_TTL_MS, confirmToken, linkUrl, unsubscribeUrl } from "./links.js";
+import { confirmToken, linkUrl, unsubscribeUrl } from "./links.js";
 import { openHook, openWebhook, outboxOf, sealHook, sealWebhook, send } from "./notify.js";
 import { timeZoneOf } from "./reminders.js";
 import { nextSlot } from "./report.js";
@@ -150,7 +150,7 @@ notifyRoute.get("/channels", async (c) => {
 async function newConfirmLink(c: Context<AppEnv>, channelId: string) {
   const data = c.var.data;
   const { token, hash } = await confirmToken(data.accountId, channelId);
-  if (!(await data.notify.rearm(channelId, hash, new Date(Date.now() + CONFIRM_TTL_MS)))) {
+  if (!(await data.notify.rearm(channelId, hash, new Date()))) {
     return undefined;
   }
   return linkUrl(outboxOf(c).origin, "confirm", token);
