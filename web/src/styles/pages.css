@@ -1400,3 +1400,10 @@ td.finding-cell {
 .channel-deliveries-head {
   align-items: center;
 }
+.add-repo-field {
+  min-width: 260px;
+}
+.inbox-old {
+  align-items: center;
+  margin: 0 0 8px;
+}

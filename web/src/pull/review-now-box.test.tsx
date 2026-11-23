@@ -19,12 +19,19 @@ const job = (over: Partial<PullReviewJobView> = {}): PullReviewJobView => ({
 });
 
 /** Serves the card: the job it reads first, and the one a request answers with. */
-function serve(first: PullReviewJobView | null | "not_enrolled", asked = job({ state: "queued" })) {
+function serve(
+  first: PullReviewJobView | null | "not_enrolled",
+  asked = job({ state: "queued" }),
+  callsToday = 0,
+) {
   const sent: unknown[] = [];
   let current = first;
   vi.stubGlobal(
     "fetch",
-    vi.fn(async (_url: string, init?: RequestInit) => {
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (String(url).endsWith("/budget")) {
+        return Response.json({ serviceDailyCalls: 500, dailyCalls: null, callsToday });
+      }
       if (init?.method === "POST") {
         sent.push(JSON.parse(String(init.body)));
         current = asked;
@@ -65,6 +72,20 @@ describe("the AI review card on a pull request", () => {
     expect(await screen.findByText(/was of bbbbbbb, before the newest commits/)).toBeTruthy();
     await act(async () => void fireEvent.click(button("Review now")));
     expect(sent).toEqual([{ ...pull, force: false }]);
+  });
+
+  it("says a review asked now waits, once the day's model calls are used", async () => {
+    serve(null, undefined, 500);
+    render(<ReviewNowBox pull={pull} head={HEAD} />);
+    expect(await screen.findByText(/waits until the limit resets at/)).toBeTruthy();
+    expect(button("Review now").disabled).toBe(false);
+  });
+
+  it("says nothing of the limit while calls are left", async () => {
+    serve(null, undefined, 499);
+    render(<ReviewNowBox pull={pull} head={HEAD} />);
+    expect(await screen.findByText(/has not reviewed this pull request/)).toBeTruthy();
+    expect(screen.queryByText(/Daily limit reached/)).toBeNull();
   });
 
   it("leads to auto review for a repository the account did not enroll", async () => {

@@ -1,11 +1,12 @@
-import { type FormEvent, Fragment, useState } from "react";
+import { Fragment, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   type AutoReviewRepoView,
   type CodePlatformKind,
   DAILY_LIMIT_WAIT,
 } from "../../../src/shared/index.js";
-import { api, why } from "../api.js";
+import { api } from "../api.js";
+import { type Added, AddRepo, type ListedRepos, listedOn } from "../auto-review/add-repo.js";
 import { AutomaticSwitch } from "../auto-review/automatic-switch.js";
 import { DailyLimitNotice } from "../auto-review/daily-limit.js";
 import { ProfileMenu } from "../auto-review/profile-menu.js";
@@ -13,7 +14,7 @@ import { RunnerStatus } from "../auto-review/runner-status.js";
 import { ago } from "../format.js";
 import { RepoChecks } from "../merge-checks/repo-checks.js";
 import { PlatformMark } from "../platform-mark.js";
-import { PLATFORM_NAME, PlatformSelect } from "../platform-names.js";
+import { PLATFORM_NAME } from "../platform-names.js";
 import { pullPath } from "../pull/path.js";
 import { ReviewTargetsCard } from "../review-targets/targets-card.js";
 import { Link } from "../router.js";
@@ -24,7 +25,6 @@ import { ActionError, LoadError, Loading, PageHead, useAction, useLoad } from ".
 // shown once, when the repository is added.
 
 type Repos = { repos: AutoReviewRepoView[] };
-type Added = { repo: AutoReviewRepoView; webhook: { url: string; secret?: string } };
 type Job = NonNullable<AutoReviewRepoView["latest"]>;
 
 const STATE: Record<Job["state"], { label: string; tone: string }> = {
@@ -37,6 +37,7 @@ const STATE: Record<Job["state"], { label: string; tone: string }> = {
 
 export function AutoReview(props: { platforms: readonly CodePlatformKind[] }) {
   const { data, error, reload } = useLoad(() => api<Repos>("/auto-review/repos"));
+  const listed = useLoad(() => api<ListedRepos>("/platforms/repos")).data;
   const [added, setAdded] = useState<Added | null>(null);
   const [checking, setChecking] = useState<string | null>(null);
   const remove = useAction((id: string) =>
@@ -58,8 +59,11 @@ export function AutoReview(props: { platforms: readonly CodePlatformKind[] }) {
       <AddRepo
         platforms={props.platforms}
         full={(data?.repos.length ?? 0) >= 100}
+        listed={listed}
+        enrolled={data?.repos ?? []}
         onAdded={(a) => {
-          setAdded(a);
+          // The App already sends this repository's events: nothing is left to do on GitHub.
+          setAdded(a.repo.platform === "github" && listedOn(listed, a.repo) ? null : a);
           reload();
         }}
       />
@@ -202,54 +206,5 @@ function Hook(props: { added: Added; onDone: () => void }) {
         </Button>
       </div>
     </section>
-  );
-}
-
-function AddRepo(props: {
-  full: boolean;
-  platforms: readonly CodePlatformKind[];
-  onAdded: (a: Added) => void;
-}) {
-  const [platform, setPlatform] = useState<CodePlatformKind>(props.platforms[0] ?? "github");
-  const [fullName, setFullName] = useState("");
-  const add = useAction(() =>
-    api<Added>("/auto-review/repos", {
-      method: "POST",
-      body: JSON.stringify({ platform, fullName: fullName.trim() }),
-    }),
-  );
-  const submit = async (e: FormEvent) => {
-    e.preventDefault();
-    const a = await add.run();
-    if (!a) return;
-    setFullName("");
-    props.onAdded(a);
-  };
-  return (
-    <form className="card card-pad stack add-form" onSubmit={submit}>
-      <div className="strong">Add a repository</div>
-      <div className="add-fields">
-        <PlatformSelect platforms={props.platforms} value={platform} onChange={setPlatform} />
-        <input
-          className="input grow mono"
-          aria-label="Repository"
-          placeholder={platform === "gitlab" ? "group/project" : "owner/repo"}
-          maxLength={400}
-          value={fullName}
-          onChange={(e) => setFullName(e.target.value)}
-        />
-        <Button type="submit" disabled={add.busy || props.full || !fullName.trim()}>
-          Add
-        </Button>
-      </div>
-      {props.full && (
-        <span className="subtle small">An account reviews at most 100 repositories.</span>
-      )}
-      {add.error !== null && (
-        <p className="error" role="alert">
-          Could not add it: {why(add.error)}.
-        </p>
-      )}
-    </form>
   );
 }
