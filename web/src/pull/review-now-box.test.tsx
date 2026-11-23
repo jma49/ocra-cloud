@@ -23,6 +23,7 @@ function serve(
   first: PullReviewJobView | null | "not_enrolled",
   asked = job({ state: "queued" }),
   callsToday = 0,
+  spentTodayUsd = 0,
 ) {
   const sent: unknown[] = [];
   let current = first;
@@ -30,7 +31,18 @@ function serve(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
       if (String(url).endsWith("/budget")) {
-        return Response.json({ serviceDailyCalls: 500, dailyCalls: null, callsToday });
+        return Response.json({
+          serviceDailyCalls: 500,
+          dailyCalls: null,
+          callsToday,
+          spend: {
+            dailyUsd: null,
+            monthlyUsd: null,
+            spentTodayUsd,
+            spentMonthUsd: spentTodayUsd,
+            defaults: { dailyUsd: 10, monthlyUsd: 100 },
+          },
+        });
       }
       if (init?.method === "POST") {
         sent.push(JSON.parse(String(init.body)));
@@ -77,7 +89,16 @@ describe("the AI review card on a pull request", () => {
   it("says a review asked now waits, once the day's model calls are used", async () => {
     serve(null, undefined, 500);
     render(<ReviewNowBox pull={pull} head={HEAD} />);
-    expect(await screen.findByText(/waits until the limit resets at/)).toBeTruthy();
+    expect(await screen.findByText(/waits and starts at .*, when the limit resets\./)).toBeTruthy();
+    expect(button("Review now").disabled).toBe(false);
+  });
+
+  it("says a review asked now waits, once the day's spend limit is reached", async () => {
+    serve(null, undefined, 0, 10.4);
+    render(<ReviewNowBox pull={pull} head={HEAD} />);
+    expect(await screen.findByText("Daily spend limit reached")).toBeTruthy();
+    expect(screen.getByText(/Reviews cost \$10\.40 today, of a \$10\.00 limit\./)).toBeTruthy();
+    expect(screen.getByText(/or once you raise it/)).toBeTruthy();
     expect(button("Review now").disabled).toBe(false);
   });
 

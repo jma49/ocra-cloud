@@ -30,6 +30,7 @@ export const KIND_GROUPS: { label: string; kinds: [AuditKind, string][] }[] = [
       ["sharing.changed", "Sharing changed"],
       ["sharing.hosted_changed", "Hosted findings changed"],
       ["budget.changed", "Budget changed"],
+      ["budget.spend_changed", "Spend limit changed"],
     ],
   },
   {
@@ -166,6 +167,11 @@ export function describe(e: AuditEventView): string {
       return e.detail.dailyCalls === null
         ? "Removed the daily budget"
         : `Set the daily budget to ${e.detail.dailyCalls} calls`;
+    case "budget.spend_changed": {
+      const limit = (usd: number | null | undefined) =>
+        usd == null ? "the default" : `$${usd.toFixed(2)}`;
+      return `Set the spend limit to ${limit(e.detail.dailyUsd)} a day and ${limit(e.detail.monthlyUsd)} a month`;
+    }
     case "key.saved":
       return `Saved the ${named(e.detail.provider, "provider")} key${checked(e.detail.check)}`;
     case "key.checked":

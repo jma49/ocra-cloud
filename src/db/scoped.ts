@@ -23,8 +23,10 @@ import {
   countCall,
   countFindingsOf,
   countOne,
+  countSpendOf,
   type DailyKind,
   findingsCounted,
+  spent,
   uncountOne,
 } from "./counters.js";
 import { countWhere, jsonMembers, jsonNumber, jsonRecords, utcDayOf } from "./dialect.js";
@@ -373,10 +375,17 @@ export function scoped(db: Db, accountId: string) {
         FROM ${jsonRecords(db, rows, FINDING_FIELDS)}
         WHERE EXISTS (SELECT 1 FROM reviews WHERE id = ${review.id} AND account_id = ${accountId})
           AND ${findingsCounted(accountId, now)} + ${list.length} <= ${limits.maxFindings}`);
+      const spend = countSpendOf(db, accountId, review.id, counts.costUsd ?? 0, now);
+      const counted = spend ? [spend] : [];
       const [stored, kept] =
         list.length > 0
-          ? await db.batch([insert, findings, countFindingsOf(db, accountId, review.id, now)])
-          : await db.batch([insert]);
+          ? await db.batch([
+              insert,
+              findings,
+              countFindingsOf(db, accountId, review.id, now),
+              ...counted,
+            ])
+          : await db.batch([insert, ...counted]);
       if (changedRows(stored) > 0) {
         const findingsSkipped = list.length > 0 && (kept ? changedRows(kept) : 0) === 0;
         return { outcome: "stored", id: review.id, findingsSkipped };
@@ -471,6 +480,8 @@ export function scoped(db: Db, accountId: string) {
     stackMerges: accountStackMerges(db, accountId),
     live: accountLive(db, accountId),
     search: accountSearch(db, accountId),
+    /** What this account's reviews cost on now's UTC day and in its calendar month. */
+    spent: (now = new Date()) => spent(db, accountId, now),
     /** The findings of one of this account's reviews. */
     findingsOf(reviewId: string): Promise<Row<"findings">[]> {
       const f = accountTables.findings;

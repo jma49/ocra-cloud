@@ -23,6 +23,7 @@ export type AuditDetails = {
   "sharing.changed": { shareFindings: boolean; deleted: number };
   "sharing.hosted_changed": { hostedFindings: boolean; deleted: number };
   "budget.changed": { dailyCalls: number | null };
+  "budget.spend_changed": { dailyUsd: number | null; monthlyUsd: number | null };
   "key.saved": { provider: string; check: string };
   "key.checked": { provider: string; check: string };
   "key.deleted": { provider: string };
@@ -78,6 +79,7 @@ export const AUDIT_FIELDS: { readonly [K in AuditKind]: readonly (keyof AuditDet
   "sharing.changed": ["shareFindings", "deleted"],
   "sharing.hosted_changed": ["hostedFindings", "deleted"],
   "budget.changed": ["dailyCalls"],
+  "budget.spend_changed": ["dailyUsd", "monthlyUsd"],
   "key.saved": ["provider", "check"],
   "key.checked": ["provider", "check"],
   "key.deleted": ["provider"],

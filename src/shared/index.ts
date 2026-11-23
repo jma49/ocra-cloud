@@ -42,6 +42,7 @@ export * from "./review-targets.js";
 export * from "./reviewers.js";
 export * from "./search.js";
 export * from "./sign-in.js";
+export * from "./spend.js";
 export * from "./stacks.js";
 export * from "./walkthrough.js";
 export * from "./webhooks.js";

@@ -1,6 +1,7 @@
-import { type AnyColumn, and, eq, gt, type SQL, sql } from "drizzle-orm";
+import { type AnyColumn, and, eq, gt, gte, type SQL, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
-import { DAY, utcDay } from "../time.js";
+import { DEFAULT_SPEND_LIMITS } from "../shared/index.js";
+import { DAY, utcDay, utcMonthStartDay } from "../time.js";
 import type { Db } from "./client.js";
 import { RETENTION_DAYS } from "./retention.js";
 import { budgets, usageCounters } from "./schema.js";
@@ -70,12 +71,74 @@ export async function countCall(
  * call on now's UTC day: countCall's test, without counting. A hosted job
  * of an account that may not would only be refused, so it is not claimed.
  */
-export function callsLeft(account: AnyColumn | SQL, cap: number, now: Date): SQL {
+function callsLeft(account: AnyColumn | SQL, cap: number, now: Date): SQL {
   const own = sql`(SELECT ${budgets.dailyCalls} FROM ${budgets} WHERE ${budgets.accountId} = ${account})`;
   const used = sql`(SELECT ${c.n} FROM ${c} WHERE ${c.accountId} = ${account}
     AND ${c.kind} = 'gateway_calls' AND ${c.day} = ${utcDay(now)})`;
   return sql`coalesce(${used}, 0) < CASE WHEN ${own} < ${cap} THEN ${own} ELSE ${cap} END`;
 }
+
+/** The spend counter's unit: millionths of a US dollar, so the count stays a whole number. */
+const MICRO_USD = 1_000_000;
+
+/**
+ * Adds what the stored review cost to the account's spend for now's day,
+ * in the batch that stores it and only when that review row is there, so a
+ * retry of the run counts nothing. Undefined for a review that cost nothing.
+ */
+export function countSpendOf(
+  db: Db,
+  accountId: string,
+  reviewId: string,
+  costUsd: number,
+  now: Date,
+): BatchItem<"sqlite"> | undefined {
+  const micro = Math.round(costUsd * MICRO_USD);
+  if (!(micro > 0) || !Number.isSafeInteger(micro)) return undefined;
+  // In the table's column order: insert … select names every column.
+  return db
+    .insert(c)
+    .select(sql`SELECT ${accountId}, 'spend', ${utcDay(now)}, ${micro}, ${now.getTime()}
+      WHERE EXISTS (SELECT 1 FROM reviews WHERE id = ${reviewId} AND account_id = ${accountId})`)
+    .onConflictDoUpdate({
+      target: [c.accountId, c.kind, c.day],
+      set: { n: sql`${c.n} + excluded.n` },
+    });
+}
+
+/** What the account's reviews cost on now's UTC day and in its calendar month, in dollars. */
+export async function spent(
+  db: Db,
+  accountId: string,
+  now: Date,
+): Promise<{ todayUsd: number; monthUsd: number }> {
+  const today = utcDay(now);
+  const days = await db
+    .select({ day: c.day, n: c.n })
+    .from(c)
+    .where(and(eq(c.accountId, accountId), eq(c.kind, "spend"), gte(c.day, utcMonthStartDay(now))));
+  const sum = (rows: typeof days) => rows.reduce((total, r) => total + Number(r.n), 0) / MICRO_USD;
+  return { todayUsd: sum(days.filter((d) => d.day === today)), monthUsd: sum(days) };
+}
+
+/**
+ * Whether the account a row names in `account` is under both of its spend
+ * limits, its own or the defaults: a hosted job of an account at one would
+ * spend past it, so it is not claimed.
+ */
+function spendLeft(account: AnyColumn | SQL, now: Date): SQL {
+  const spentSince = (day: string) =>
+    sql`(SELECT coalesce(sum(${c.n}), 0) FROM ${c} WHERE ${c.accountId} = ${account}
+      AND ${c.kind} = 'spend' AND ${c.day} >= ${day})`;
+  const limit = (own: AnyColumn, fallback: number) =>
+    sql`coalesce((SELECT ${own} FROM ${budgets} WHERE ${budgets.accountId} = ${account}), ${fallback}) * ${MICRO_USD}`;
+  return sql`${spentSince(utcDay(now))} < ${limit(budgets.dailyUsd, DEFAULT_SPEND_LIMITS.dailyUsd)}
+    AND ${spentSince(utcMonthStartDay(now))} < ${limit(budgets.monthlyUsd, DEFAULT_SPEND_LIMITS.monthlyUsd)}`;
+}
+
+/** Whether the account may start hosted work now: gateway calls left for the day, and under its spend limits. */
+export const mayStart = (account: AnyColumn | SQL, cap: number, now: Date): SQL =>
+  sql`(${callsLeft(account, cap, now)}) AND (${spendLeft(account, now)})`;
 
 /** Takes back one countOne, for an upload that turned out to be a retry. */
 export function uncountOne(

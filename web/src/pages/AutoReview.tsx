@@ -8,7 +8,7 @@ import {
 import { api } from "../api.js";
 import { type Added, AddRepo, type ListedRepos, listedOn } from "../auto-review/add-repo.js";
 import { AutomaticSwitch } from "../auto-review/automatic-switch.js";
-import { DailyLimitNotice } from "../auto-review/daily-limit.js";
+import { LimitReachedNotice } from "../auto-review/limit-reached.js";
 import { ProfileMenu } from "../auto-review/profile-menu.js";
 import { RunnerStatus } from "../auto-review/runner-status.js";
 import { ago } from "../format.js";
@@ -55,7 +55,7 @@ export function AutoReview(props: { platforms: readonly CodePlatformKind[] }) {
         sub="This server reviews pull requests in these repositories as the ocra bot: any one when you ask on its page, and each one as it opens or gains commits once you switch Automatic on, which starts off. Their findings are kept here, to read on each pull request; Settings, Account & privacy turns that off."
       />
       <RunnerStatus />
-      <DailyLimitNotice />
+      <LimitReachedNotice />
       <AddRepo
         platforms={props.platforms}
         full={(data?.repos.length ?? 0) >= 100}

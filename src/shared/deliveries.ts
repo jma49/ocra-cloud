@@ -4,8 +4,13 @@ import type { WebhookEvent } from "./webhooks.js";
 // last attempt went, never the body sent or what came back
 // (docs/self-hosting.md, Notifications).
 
-/** A webhook event, or a message only people's channels take: the daily digest, the weekly report, the notices held in quiet hours. */
-export type NotifyDeliveryEvent = WebhookEvent | "digest" | "weekly_report" | "held_notices";
+/** A webhook event, or a message only people's channels take: the daily digest, the weekly report, the notices held in quiet hours, the account's spend nearing or at its limit. */
+export type NotifyDeliveryEvent =
+  | WebhookEvent
+  | "digest"
+  | "weekly_report"
+  | "held_notices"
+  | "spend_limit";
 
 /** pending: a retry is due; delivered: taken; failed: given up. */
 export const NOTIFY_DELIVERY_STATES = ["pending", "delivered", "failed"] as const;

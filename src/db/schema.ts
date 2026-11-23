@@ -220,6 +220,7 @@ export const serviceCounters = sqliteTable(
     name: text("name").notNull(),
     /** The UTC date, YYYY-MM-DD. */
     day: text("day").notNull(),
+    /** A count; for spend, millionths of a US dollar. */
     n: integer("n").notNull().default(0),
   },
   // Day first: retention deletes past days by it.
@@ -564,7 +565,7 @@ export const usageCounters = sqliteTable(
   {
     accountId: accountId(),
     kind: text("kind", {
-      enum: ["uploads", "gateway_calls", "findings", "email_confirmations"],
+      enum: ["uploads", "gateway_calls", "findings", "email_confirmations", "spend"],
     }).notNull(),
     /** The UTC date, YYYY-MM-DD. */
     day: text("day").notNull(),
@@ -602,9 +603,13 @@ export const platformLinks = sqliteTable(
 
 // The account's own limits, under the service's: one row per account.
 // dailyCalls caps the gateway's calls a UTC day; null leaves the service's.
+// dailyUsd and monthlyUsd cap what its reviews cost a UTC day and calendar
+// month; null leaves the default (src/shared/spend.ts).
 export const budgets = sqliteTable("budgets", {
   accountId: accountId().primaryKey(),
   dailyCalls: integer("daily_calls"),
+  dailyUsd: real("daily_usd"),
+  monthlyUsd: real("monthly_usd"),
   createdAt: createdAt(),
 });
 

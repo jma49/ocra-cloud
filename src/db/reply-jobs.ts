@@ -1,6 +1,6 @@
 import { and, eq, isNull, lt, lte, or, sql } from "drizzle-orm";
 import { changedRows, type Db, first } from "./client.js";
-import { callsLeft } from "./counters.js";
+import { mayStart } from "./counters.js";
 import { replyJobs } from "./schema.js";
 
 // Answers to @ocra comments (reached through scoped() for an account's own,
@@ -71,7 +71,7 @@ export async function claimReply(
       and(
         eq(j.state, "queued"),
         or(isNull(j.notBefore), lte(j.notBefore, now)),
-        callsLeft(j.accountId, dailyCalls, now),
+        mayStart(j.accountId, dailyCalls, now),
       ),
     )
     .orderBy(j.createdAt)
