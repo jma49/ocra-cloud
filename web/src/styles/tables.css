@@ -146,3 +146,21 @@ tr.selected td {
 .audit-list time {
   font-variant-numeric: tabular-nums;
 }
+/* What a review was of: the pull request as the link, how it ran under it. */
+.review-of {
+  display: grid;
+  gap: 2px;
+}
+.review-of a {
+  justify-self: start;
+  color: var(--t1);
+  font-weight: 500;
+  text-decoration: none;
+}
+.review-of a:hover {
+  text-decoration: underline;
+}
+.review-of-num {
+  color: var(--t2);
+  font-variant-numeric: tabular-nums;
+}
