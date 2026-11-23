@@ -70,7 +70,10 @@ async function accountOf(login: string): Promise<string> {
   return row.id;
 }
 
-/** A pull request review of octo/api #12 with one finding, and an enrolled repository. */
+/**
+ * A pull request review of octo/api #12 with one finding, and an enrolled repository.
+ * Every id and name carries the whole account id, so another account's row shows in output.
+ */
 async function seed(accountId: string, title: string) {
   const d = scoped(db, accountId);
   const reviewId = `review-${accountId}`;
