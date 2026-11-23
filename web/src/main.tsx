@@ -1,7 +1,7 @@
 import { lazy, StrictMode, Suspense, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { completeAgents } from "./agent-prefs.js";
-import { ApiError, api, type Me } from "./api.js";
+import { ApiError, api, type Me, prefetch } from "./api.js";
 import { cacheFor, clearCache } from "./cache.js";
 import { Footer, TopBar } from "./chrome.js";
 import { PrefsProvider } from "./prefs.js";
@@ -25,7 +25,9 @@ function App() {
     // With /me, not after it, in a browser that was signed in: the first
     // page's reads are already on their way.
     if (wasSignedIn()) {
-      for (const load of matchRoute(location.pathname)?.route.loads ?? []) load().catch(() => {});
+      const found = matchRoute(location.pathname);
+      for (const load of found?.route.loads ?? []) load().catch(() => {});
+      for (const read of found?.route.reads?.(found.params) ?? []) prefetch(read);
     }
     api<Me>("/me").then(
       (m) => {
