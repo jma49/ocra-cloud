@@ -1,6 +1,6 @@
 import type { CodeGraph } from "@open-cr-agent/code-graph";
-import type { ChangedFile, Hunk } from "../platforms/changes.js";
-import type { ImpactSymbol, ImpactUse } from "../shared/index.js";
+import type { ChangedFile, Hunk, PullChanges } from "../platforms/changes.js";
+import type { ImpactSymbol, ImpactUse, ImpactView } from "../shared/index.js";
 
 // The impact of a pull request on the base side's graph, without its code:
 // a definition is changed when a hunk's old range has a line whose innermost
@@ -10,7 +10,7 @@ import type { ImpactSymbol, ImpactUse } from "../shared/index.js";
 type FileSymbols = NonNullable<ReturnType<CodeGraph["symbols"]["get"]>>;
 type Definition = FileSymbols["definitions"][number];
 
-const MAX_SYMBOLS = 60;
+export const MAX_SYMBOLS = 60;
 export const MAX_USES = 200;
 /** Old lines looked at per hunk: a larger one is a rewrite, and its first lines decide. */
 const MAX_HUNK_LINES = 2000;
@@ -91,6 +91,25 @@ function symbolOf(graph: CodeGraph, c: Changed, own: ReadonlySet<string>): Impac
     useCount: uses.length,
     fileCount: new Set(uses.map((u) => u.path)).size,
   };
+}
+
+/** Uses whose code line an answer reads, from at most as many files. */
+export const CODE_LINES = 40;
+/** A file larger than this is not read for its uses' lines. */
+export const MAX_FILE_BYTES = 1_000_000;
+
+export const pullView = (changes: PullChanges): NonNullable<ImpactView["pull"]> => ({
+  base: changes.base,
+  head: changes.head,
+  files: changes.files.length,
+  truncated: changes.truncated,
+  unread: changes.files.filter((f) => f.hunks === null && f.status === "modified").length,
+});
+
+/** The id of a file's blob, from the graph's key of it. */
+export function blobIdOf(graph: CodeGraph, path: string): string | undefined {
+  const key = graph.files.get(path);
+  return key?.slice(key.lastIndexOf(":") + 1);
 }
 
 /** Fills the code line of the first `cap` uses, reading each file once; the rest stay null. */

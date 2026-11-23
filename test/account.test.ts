@@ -113,6 +113,8 @@ describe("deleting an account", () => {
           "findingIssues",
           "stackMergeLayers",
           "graphBuilds",
+          "graphChunks",
+          "pullImpacts",
           "reviewJobs",
           "replyJobs",
           "generateJobs",
@@ -154,6 +156,14 @@ describe("deleting an account", () => {
     });
     await d.insert("graphBuilds", {
       ...rows.graphBuilds(id("graphBuilds")),
+      graphRepoId: id("graphRepos"),
+    });
+    await d.insert("graphChunks", {
+      ...rows.graphChunks(id("graphChunks")),
+      buildId: id("graphBuilds"),
+    });
+    await d.insert("pullImpacts", {
+      ...rows.pullImpacts(id("pullImpacts")),
       graphRepoId: id("graphRepos"),
     });
     await d.insert("reviewJobs", {

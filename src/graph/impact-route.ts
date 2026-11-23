@@ -3,7 +3,6 @@ import { Hono } from "hono";
 import { z } from "zod";
 import type { BuildSummary } from "../db/graphs.js";
 import { apiError } from "../http.js";
-import type { PullChanges } from "../platforms/changes.js";
 import { accessToken } from "../platforms/links.js";
 import { platformsOf } from "../platforms/registry.js";
 import { perMinute } from "../rate.js";
@@ -11,22 +10,18 @@ import { requireSession } from "../session.js";
 import type { ImpactView } from "../shared/index.js";
 import type { AppEnv } from "../types.js";
 import { gunzip } from "./gzip.js";
-import { impactOf, withCode } from "./impact.js";
+import { blobIdOf, CODE_LINES, impactOf, MAX_FILE_BYTES, pullView, withCode } from "./impact.js";
 
 /** Reads a stored graph's text; undefined for one of a format it does not read. */
 export type GraphParser = (text: string) => CodeGraph | undefined;
 
-/** Uses whose code line is read per request, from at most as many files. */
-const CODE_LINES = 40;
-const MAX_FILE_BYTES = 1_000_000;
-
-const pullNumber = z.coerce
+export const pullNumber = z.coerce
   .number()
   .int()
   .min(1)
   .max(2 ** 31 - 1);
 
-/** GET /:id/impact?pull=N: what pull request N of the graph repository :id reaches. */
+/** GET /:id/impact?pull=N: what pull request N of the graph repository :id reaches, read from its graph on request. */
 export function impactRoute(parse: GraphParser) {
   const route = new Hono<AppEnv>();
   route.get("/:id/impact", requireSession(["web"]), perMinute("platform"), async (c) => {
@@ -47,16 +42,11 @@ export function impactRoute(parse: GraphParser) {
     ]);
     if (!changes) return apiError(c, "not_found");
     const latest = builds.find((b) => b.graphRepoId === repo.id);
-    const graph = stored?.content ? parse(await gunzip(new Uint8Array(stored.content))) : undefined;
+    const graph = stored ? parse(await gunzip(stored.content)) : undefined;
     const readLines = async (path: string) => {
-      const key = graph?.files.get(path);
-      if (!key) return undefined;
-      const bytes = await platform.contents.blob(
-        token,
-        repo,
-        key.slice(key.lastIndexOf(":") + 1),
-        MAX_FILE_BYTES,
-      );
+      const blobId = graph && blobIdOf(graph, path);
+      if (!blobId) return undefined;
+      const bytes = await platform.contents.blob(token, repo, blobId, MAX_FILE_BYTES);
       return bytes && new TextDecoder().decode(bytes).split("\n");
     };
     const impact = graph ? impactOf(graph, changes.files) : { symbols: [], more: 0 };
@@ -80,16 +70,8 @@ export function impactRoute(parse: GraphParser) {
   return route;
 }
 
-const pullView = (changes: PullChanges): ImpactView["pull"] => ({
-  base: changes.base,
-  head: changes.head,
-  files: changes.files.length,
-  truncated: changes.truncated,
-  unread: changes.files.filter((f) => f.hunks === null && f.status === "modified").length,
-});
-
 /** The newest build, when it is not the graph answered from. */
-function buildView(latest: BuildSummary | undefined, shown: string | undefined) {
+export function buildView(latest: BuildSummary | undefined, shown: string | undefined) {
   if (!latest || (latest.state === "done" && latest.commit === shown)) return null;
   return { state: latest.state, commit: latest.commit, error: latest.error };
 }

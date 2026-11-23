@@ -14,15 +14,24 @@ import { requireSession } from "../session.js";
 import { CODE_PLATFORMS, type GraphPolicy, type GraphRepoView } from "../shared/index.js";
 import type { AppEnv } from "../types.js";
 import { gunzip } from "./gzip.js";
-import { type GraphParser, impactRoute } from "./impact-route.js";
 import { graphWebhooks } from "./webhooks.js";
 
-/** What a host that builds graphs gives the API. */
+/** What a host that keeps graphs gives the API. */
 export type GraphService = {
   policy: Exclude<GraphPolicy, "off">;
   /** Wakes the build runner after a build is queued. */
   kick: () => void;
-  parse: GraphParser;
+  /** GET /repos/:id/impact, as this host answers it: from the graph, or from what a runner kept. */
+  impact: Hono<AppEnv>;
+  /** Set where remote runners build the graphs (./runner-api.ts) and the database is small. */
+  remote?: RemoteGraphs;
+};
+
+export type RemoteGraphs = {
+  /** Repositories an account may keep a graph of. */
+  maxRepos: number;
+  /** The largest gzipped graph kept. */
+  maxGraphBytes: number;
 };
 
 const addSchema = z.object({
@@ -65,16 +74,27 @@ const repoView = (
   } satisfies GraphRepoView;
 };
 
+/**
+ * Bytes that are already gzipped, sent as they are. A Worker compresses a
+ * body whose headers name an encoding unless told it already is.
+ */
+const gzipped = (bytes: Uint8Array<ArrayBuffer>, headers: Record<string, string>) =>
+  new Response(bytes, {
+    headers: { ...headers, "content-encoding": "gzip" },
+    encodeBody: "manual",
+  });
+
 export function graphsRoute(service: GraphService) {
   const route = new Hono<AppEnv>();
+  const maxRepos = service.remote?.maxRepos ?? MAX_GRAPH_REPOS;
 
   route.route("/webhooks", graphWebhooks(service));
-  route.route("/repos", impactRoute(service.parse));
+  route.route("/repos", service.impact);
 
   route.get("/repos", requireSession(["web", "cli"]), async (c) => {
     const graphs = c.var.data.graphs;
     const [repos, latest] = await Promise.all([
-      c.var.data.find("graphRepos", {}, MAX_GRAPH_REPOS),
+      c.var.data.find("graphRepos", {}, maxRepos),
       graphs.latestBuilds(),
     ]);
     const byRepo = new Map(latest.map((b) => [b.graphRepoId, b]));
@@ -108,11 +128,11 @@ export function graphsRoute(service: GraphService) {
         webhookSecretHash: secret ? await sha256Hex(secret) : null,
         consentedAt: body.consent ? new Date() : null,
       },
-      MAX_GRAPH_REPOS,
+      maxRepos,
     );
     if (!id) {
       return apiError(c, "invalid_body", {
-        issues: [{ path: [], message: `at most ${MAX_GRAPH_REPOS} repositories keep a graph` }],
+        issues: [{ path: [], message: `at most ${maxRepos} repositories keep a graph` }],
       });
     }
     if (await c.var.data.graphs.queueBuild(id, head.commit)) service.kick();
@@ -182,13 +202,11 @@ export function graphsRoute(service: GraphService) {
     const repo = await c.var.data.get("graphRepos", c.req.param("id"));
     if (!repo) return apiError(c, "not_found");
     const graph = await c.var.data.graphs.newestGraph(repo.id, commit);
-    if (!graph?.content) return apiError(c, "not_found");
-    const bytes = new Uint8Array(graph.content);
+    if (!graph) return apiError(c, "not_found");
     const headers = { "content-type": "application/json", [GRAPH_COMMIT_HEADER]: graph.commit };
-    if (/\bgzip\b/.test(c.req.header("accept-encoding") ?? "")) {
-      return c.body(bytes, 200, { ...headers, "content-encoding": "gzip" });
-    }
-    return c.body(await gunzip(bytes), 200, headers);
+    if (/\bgzip\b/.test(c.req.header("accept-encoding") ?? ""))
+      return gzipped(graph.content, headers);
+    return c.body(await gunzip(graph.content), 200, headers);
   });
 
   return route;

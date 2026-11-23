@@ -7,7 +7,7 @@ import { githubIdentity, upsertAccount } from "../src/db/accounts.js";
 import { claimBuild, GRAPH_HISTORY_DAYS, pruneGraphBuilds } from "../src/db/graphs.js";
 import * as schema from "../src/db/schema.js";
 import { type Scoped, scoped } from "../src/db/scoped.js";
-import { gzip } from "../src/graph/gzip.js";
+import { gunzip, gzipBase64 } from "../src/graph/gzip.js";
 import { runNextBuild } from "../src/graph/runner.js";
 import { bindingsFrom } from "../src/node/env.js";
 import { openHost } from "../src/node/host.js";
@@ -94,7 +94,7 @@ describe("claiming a build", () => {
     expect(await stateOf()).toMatchObject({ [C1]: "superseded" });
     // The dead run's late result is not kept over the newer claim.
     const late = {
-      content: await gzip("{}"),
+      content: await gzipBase64("{}"),
       files: 0,
       parsed: 0,
       reused: 0,
@@ -102,6 +102,35 @@ describe("claiming a build", () => {
       truncated: false,
     };
     expect(await data.graphs.finishBuild(first?.id ?? "", 1, late, at(LEASE + 2))).toBe(false);
+    expect(await data.list("graphChunks")).toEqual([]);
+  });
+
+  it("keeps a graph of several pieces whole, and without history only the newest", async () => {
+    // Random bytes compress little: the graph is kept in more than one piece.
+    const big = Buffer.from(crypto.getRandomValues(new Uint8Array(65_536))).toString("hex");
+    const text = JSON.stringify({ filler: big.repeat(16) });
+    const counts = { files: 1, parsed: 1, reused: 0, skipped: 0, truncated: false };
+    for (const [commit, graph, history] of [
+      [C1, text, true],
+      [C2, "{}", true],
+      [C3, text, false],
+    ] as const) {
+      await data.graphs.queueBuild(repoId, commit);
+      const build = await claimBuild(host.db, new Date(), LEASE);
+      const built = { content: await gzipBase64(graph), ...counts };
+      expect(await data.graphs.finishBuild(build?.id ?? "", 1, built, new Date(), history)).toBe(
+        true,
+      );
+    }
+    const pieces = await data.list("graphChunks");
+    expect(pieces.map((p) => p.seq).sort()).toEqual([0, 1]);
+    expect(new Set(pieces.map((p) => p.buildId)).size).toBe(1);
+    const kept = await data.graphs.newestGraph(repoId);
+    expect(kept?.commit).toBe(C3);
+    expect(await gunzip(kept?.content ?? new Uint8Array())).toBe(text);
+    // An older build's graph went with the history; its record stays.
+    expect(await data.graphs.newestGraph(repoId, C1)).toBeUndefined();
+    expect(await stateOf()).toMatchObject({ [C1]: "done", [C2]: "done", [C3]: "done" });
   });
 
   it("gives each build to one of two runners claiming at once", async () => {
@@ -189,7 +218,7 @@ describe("the graph history", () => {
     const [row] = await data.find("graphBuilds", { commit });
     await host.db
       .update(schema.graphBuilds)
-      .set({ state: "done", content: Buffer.from("x"), createdAt: finishedAt, finishedAt })
+      .set({ state: "done", createdAt: finishedAt, finishedAt })
       .where(eq(schema.graphBuilds.id, row?.id ?? ""));
   }
 

@@ -88,7 +88,7 @@ export type Host<E extends AppBindings> = {
   openDb: (env: E) => Db;
   /** The address the request came from, as the host's network vouches for it. */
   clientAddress: (c: Context) => string | undefined;
-  /** Code graphs, where the host builds them (src/node/). */
+  /** Code graphs, where the host builds them (src/node/) or its remote runners do (src/graph/remote.ts). */
   graphs?: GraphService;
   /** Pull requests reviewed by the host itself (ADR-0046), where it runs them. */
   autoReview?: AutoReviewService;
@@ -199,7 +199,14 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
   if (host.graphs) app.route("/graphs", graphsRoute(host.graphs));
   if (host.autoReview) app.route("/auto-review", autoReviewRoute(host.autoReview));
   if (host.runnerToken && host.bots) {
-    app.route("/runner", runnerApi({ token: host.runnerToken, bots: host.bots }));
+    app.route(
+      "/runner",
+      runnerApi({
+        token: host.runnerToken,
+        bots: host.bots,
+        ...(host.graphs ? { graphs: host.graphs } : {}),
+      }),
+    );
   }
 
   app.notFound((c) => apiError(c, "not_found"));

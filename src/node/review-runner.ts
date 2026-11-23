@@ -1,5 +1,4 @@
-import { spawn } from "node:child_process";
-import { appendFile, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -14,6 +13,8 @@ import {
 import { errorName, logError } from "../log.js";
 import type { BotCredential } from "../platforms/bot.js";
 import { githubHost } from "../platforms/github-host.js";
+import { baseEnv, cloneAsBot, type Exec, spawnExec } from "./checkout.js";
+import { keepReviewImpact, type ReviewGraphs, writeReviewGraph } from "./review-graph.js";
 
 // The machine's half of a hosted job (ADR-0046, 4): clones the repository's
 // default branch into a new directory and runs the released CLI there on
@@ -23,18 +24,12 @@ import { githubHost } from "../platforms/github-host.js";
 // bot. The directory is removed on every exit path. What to run comes from
 // the server's half (src/auto-review/work.ts), which records how it went.
 
-type ExecResult = { code: number | null };
-/** Runs a command to its end; aborting the signal kills it with its children. */
-export type Exec = (
-  command: string,
-  args: readonly string[],
-  options: { cwd: string; env: Record<string, string>; signal: AbortSignal },
-) => Promise<ExecResult>;
-
 export type Machine = {
   exec?: Exec;
   /** The CLI's entry; the installed @open-cr-agent/cli by default. */
   cli?: string;
+  /** The code graphs its server keeps, where a review reads one (./review-graph.ts). */
+  keptGraphs?: ReviewGraphs;
 };
 
 export type ReviewRunner = WorkSource & Machine;
@@ -105,23 +100,23 @@ async function inCheckout(machine: Machine, work: Assignment, signal: AbortSigna
     // login` records there. This run's machine is the server, which keeps what
     // it is sent only while the account keeps hosted findings.
     await writeFile(join(credentials, "share-findings"), "on\n", { mode: 0o600 });
-    const auth = gitAuth(repo.platform, bot);
-    const cloned = await exec(
-      "git",
-      ["clone", "--quiet", "--no-tags", "--", repoUrl(repo.url, repo.fullName), checkout],
-      { cwd: dir, env: { ...baseEnv(home), ...gitConfigEnv(repo.url, auth) }, signal },
-    );
-    if (cloned.code !== 0) throw new RunFailed("clone_failed", cloned.code);
-    // ocra fetches the pull request's commits with the checkout's credentials, as in CI.
-    await appendFile(
-      join(checkout, ".git", "config"),
-      `[http "${repo.url}/"]\n\textraHeader = ${auth}\n`,
-    );
+    const cloned = await cloneAsBot(exec, { repo, bot, dir, home, checkout }, signal);
+    if (cloned !== 0) throw new RunFailed("clone_failed", cloned);
+    const kept = work.graph && machine.keptGraphs && { graphs: machine.keptGraphs, at: work.graph };
+    const graph = kept
+      ? await writeReviewGraph(kept, work, { checkout, home }, join(dir, "graph.json"), signal)
+      : undefined;
     const config = join(dir, "ocra.json");
     await writeFile(config, JSON.stringify(work.config));
     const ran = await exec(
       process.execPath,
-      [machine.cli ?? installedCli(), ...work.args, "--config", config],
+      [
+        machine.cli ?? installedCli(),
+        ...work.args,
+        ...(graph ? ["--graph", graph.file] : []),
+        "--config",
+        config,
+      ],
       {
         cwd: checkout,
         env: { ...baseEnv(home), OCRA_CLOUD_URL: work.cloudUrl, ...botEnv(repo, bot) },
@@ -132,69 +127,16 @@ async function inCheckout(machine: Machine, work: Assignment, signal: AbortSigna
       throw new RunFailed("not_committed", ran.code);
     if (ran.code === null || !work.ok.includes(ran.code))
       throw new RunFailed("review_failed", ran.code);
+    if (kept && graph) await keepReviewImpact(kept, work, { checkout, home }, graph);
   } finally {
     await rm(dir, { recursive: true, force: true }).catch(() => {});
   }
 }
 
-const repoUrl = (url: string, fullName: string) =>
-  `${url}/${fullName.split("/").map(encodeURIComponent).join("/")}.git`;
-
-/** HTTP basic auth as each platform names a token's user. */
-const gitAuth = (platform: Assignment["repo"]["platform"], bot: BotCredential) =>
-  `Authorization: Basic ${Buffer.from(
-    `${platform === "github" ? "x-access-token" : "oauth2"}:${bot.token}`,
-  ).toString("base64")}`;
-
-// Given in the environment, not the command line, where any process could read it.
-const gitConfigEnv = (url: string, auth: string) => ({
-  GIT_CONFIG_COUNT: "1",
-  GIT_CONFIG_KEY_0: `http.${url}/.extraHeader`,
-  GIT_CONFIG_VALUE_0: auth,
-});
-
 const botEnv = (repo: Assignment["repo"], bot: BotCredential): Record<string, string> =>
   repo.platform === "github"
     ? { GITHUB_TOKEN: bot.token, GITHUB_API_URL: githubHost(repo.url).api }
     : { GITLAB_TOKEN: bot.token, CI_API_V4_URL: `${repo.url}/api/v4` };
-
-/**
- * How this host reaches the company's network, which git and the CLI need
- * too: its certificate authorities and its proxy.
- */
-const NETWORK = [
-  "NODE_EXTRA_CA_CERTS",
-  "NODE_USE_SYSTEM_CA",
-  "SSL_CERT_FILE",
-  "SSL_CERT_DIR",
-  "GIT_SSL_CAINFO",
-  "GIT_SSL_CAPATH",
-  "HTTPS_PROXY",
-  "HTTP_PROXY",
-  "NO_PROXY",
-  "https_proxy",
-  "http_proxy",
-  "no_proxy",
-] as const;
-
-const networkEnv = (): Record<string, string> =>
-  Object.fromEntries(
-    NETWORK.flatMap((name) => {
-      const value = (process.env as Record<string, string | undefined>)[name];
-      return value ? [[name, value]] : [];
-    }),
-  );
-
-/** Only what git and the CLI need: no secret of this server reaches the child. */
-const baseEnv = (home: string): Record<string, string> => ({
-  ...networkEnv(),
-  PATH: process.env.PATH ?? "/usr/bin:/bin",
-  HOME: home,
-  XDG_CONFIG_HOME: join(home, ".config"),
-  XDG_CACHE_HOME: join(home, ".cache"),
-  GIT_TERMINAL_PROMPT: "0",
-  LANG: "C.UTF-8",
-});
 
 function cliManifest() {
   const require = createRequire(import.meta.url);
@@ -209,28 +151,3 @@ function installedCli(): string {
 
 /** The installed CLI's version, which a remote runner names itself with. */
 export const installedCliVersion = () => cliManifest().version;
-
-/** spawn in its own process group, so that an abort kills what it started too. */
-const spawnExec: Exec = (command, args, options) =>
-  new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
-      cwd: options.cwd,
-      // The Worker's typing of process.env names its bindings; a child gets none of them.
-      env: options.env as unknown as NodeJS.ProcessEnv,
-      stdio: "ignore",
-      detached: true,
-    });
-    const kill = () => {
-      if (child.pid) {
-        try {
-          process.kill(-child.pid, "SIGKILL");
-        } catch {}
-      }
-    };
-    options.signal.addEventListener("abort", kill, { once: true });
-    child.once("error", reject);
-    child.once("exit", (code) => {
-      options.signal.removeEventListener("abort", kill);
-      resolve({ code });
-    });
-  });

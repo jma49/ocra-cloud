@@ -1,20 +1,7 @@
-import {
-  and,
-  desc,
-  eq,
-  getTableColumns,
-  inArray,
-  isNull,
-  lt,
-  lte,
-  ne,
-  notInArray,
-  or,
-  sql,
-} from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, lt, lte, ne, notInArray, or, sql } from "drizzle-orm";
 import { DAY } from "../time.js";
 import { changedRows, type Db, first } from "./client.js";
-import { graphBuilds, graphRepos } from "./schema.js";
+import { graphBuilds, graphChunks, graphRepos, pullImpacts } from "./schema.js";
 
 // The code graphs the server keeps: an account's graph repositories and
 // their builds (accountGraphs, reached through scoped()), and the queries
@@ -27,9 +14,12 @@ type NewGraphRepo = Omit<typeof graphRepos.$inferInsert, "id" | "accountId" | "c
 /** Older builds than this are deleted, except each repository's newest graph. */
 export const GRAPH_HISTORY_DAYS = 14;
 
-/** What a build kept: the gzipped graph and its counts. */
+/** Base64 characters a piece of a graph holds: a multiple of four, well under D1's 2 MB a value. */
+const CHUNK_CHARS = 1_200_000;
+
+/** What a build kept: the gzipped graph, in base64, and its counts. */
 export type BuiltGraph = {
-  content: Uint8Array;
+  content: string;
   files: number;
   parsed: number;
   reused: number;
@@ -37,13 +27,22 @@ export type BuiltGraph = {
   truncated: boolean;
 };
 
-export type BuildSummary = Omit<typeof graphBuilds.$inferSelect, "content">;
+export type BuildSummary = typeof graphBuilds.$inferSelect;
 
-const { content: _content, ...buildSummary } = getTableColumns(graphBuilds);
+/** A stored graph: the build it is of, and its gzipped bytes. */
+export type StoredGraph = {
+  commit: string;
+  content: Uint8Array<ArrayBuffer>;
+  files: number | null;
+  truncated: boolean;
+};
 
 export function accountGraphs(db: Db, accountId: string) {
   const b = graphBuilds;
+  const c = graphChunks;
   const own = eq(b.accountId, accountId);
+  const dropChunks = (buildId: string) =>
+    db.delete(c).where(and(eq(c.accountId, accountId), eq(c.buildId, buildId)));
   return {
     /**
      * Adds a repository, or brings an added one's name and branch up to
@@ -99,7 +98,6 @@ export function accountGraphs(db: Db, accountId: string) {
             notBefore: null,
             leaseUntil: null,
             error: null,
-            content: null,
             bytes: null,
             files: null,
             parsed: null,
@@ -110,26 +108,23 @@ export function accountGraphs(db: Db, accountId: string) {
             createdAt: now,
           },
           setWhere: sql`${own} AND ${notInArray(b.state, ["queued", "running"])}`,
-        });
-      return changedRows(result) > 0;
+        })
+        .returning({ id: b.id });
+      const [queued] = result;
+      if (queued) await dropChunks(queued.id);
+      return queued !== undefined;
     },
 
     /** Each repository's newest build, without its graph. */
     latestBuilds(): Promise<BuildSummary[]> {
       const newest = sql`${b.createdAt} = (SELECT max(n.created_at) FROM ${b} n WHERE n.graph_repo_id = ${b.graphRepoId})`;
-      return db.select(buildSummary).from(b).where(and(own, newest));
+      return db.select().from(b).where(and(own, newest));
     },
 
     /** The repository's graph of the commit, or its newest graph when commit is undefined. */
-    newestGraph(graphRepoId: string, commit?: string) {
-      return db
-        .select({
-          commit: b.commit,
-          content: b.content,
-          files: b.files,
-          truncated: b.truncated,
-          finishedAt: b.finishedAt,
-        })
+    async newestGraph(graphRepoId: string, commit?: string): Promise<StoredGraph | undefined> {
+      const build = await db
+        .select({ id: b.id, commit: b.commit, files: b.files, truncated: b.truncated })
         .from(b)
         .where(
           and(
@@ -142,20 +137,48 @@ export function accountGraphs(db: Db, accountId: string) {
         .orderBy(desc(b.finishedAt))
         .limit(1)
         .then(first);
+      if (!build) return undefined;
+      const pieces = await db
+        .select({ data: c.data })
+        .from(c)
+        .where(and(eq(c.accountId, accountId), eq(c.buildId, build.id)))
+        .orderBy(c.seq);
+      if (pieces.length === 0) return undefined;
+      const content = new Uint8Array(Buffer.from(pieces.map((p) => p.data).join(""), "base64"));
+      return { commit: build.commit, content, files: build.files, truncated: build.truncated };
     },
 
     /**
      * Keeps a running build's graph, only while it is still the run that
      * claimed it (attempts unchanged): a run whose lease lapsed and was
-     * claimed again writes nothing. Returns whether it was kept.
+     * claimed again writes nothing. Without `history` the repository's
+     * older graphs go. Returns whether it was kept.
      */
-    async finishBuild(id: string, attempts: number, built: BuiltGraph, now: Date) {
-      const result = await db
+    async finishBuild(
+      id: string,
+      attempts: number,
+      built: BuiltGraph,
+      now: Date,
+      history = true,
+    ): Promise<boolean> {
+      const claimed = sql`EXISTS (SELECT 1 FROM ${b} WHERE ${b.id} = ${id} AND ${own}
+        AND ${b.state} = 'running' AND ${b.attempts} = ${attempts})`;
+      await dropChunks(id);
+      for (let seq = 0; seq * CHUNK_CHARS < built.content.length; seq++) {
+        const data = built.content.slice(seq * CHUNK_CHARS, (seq + 1) * CHUNK_CHARS);
+        await db
+          .insert(c)
+          .select(
+            sql`SELECT ${crypto.randomUUID()}, ${accountId}, ${id}, ${seq}, ${data}, ${now.getTime()}
+              WHERE ${claimed}`,
+          )
+          .onConflictDoNothing();
+      }
+      const [done] = await db
         .update(b)
         .set({
           state: "done",
-          content: Buffer.from(built.content),
-          bytes: built.content.byteLength,
+          bytes: Buffer.byteLength(built.content, "base64"),
           files: built.files,
           parsed: built.parsed,
           reused: built.reused,
@@ -165,8 +188,44 @@ export function accountGraphs(db: Db, accountId: string) {
           leaseUntil: null,
           finishedAt: now,
         })
-        .where(and(own, eq(b.id, id), eq(b.state, "running"), eq(b.attempts, attempts)));
-      return changedRows(result) > 0;
+        .where(and(own, eq(b.id, id), eq(b.state, "running"), eq(b.attempts, attempts)))
+        .returning({ graphRepoId: b.graphRepoId });
+      if (done && !history) {
+        const older = db
+          .select({ id: b.id })
+          .from(b)
+          .where(and(own, eq(b.graphRepoId, done.graphRepoId), ne(b.id, id)));
+        await db.delete(c).where(and(eq(c.accountId, accountId), inArray(c.buildId, older)));
+      }
+      return done !== undefined;
+    },
+
+    /** Keeps what the pull request reached at its newest review, in place of the last one kept. */
+    async keepImpact(graphRepoId: string, number: number, head: string, view: string, now: Date) {
+      const t = pullImpacts;
+      await db
+        .insert(t)
+        .select(sql`SELECT ${crypto.randomUUID()}, ${accountId}, ${graphRepoId}, ${number}, ${head},
+          ${view}, ${now.getTime()}
+          WHERE EXISTS (SELECT 1 FROM ${graphRepos} WHERE ${graphRepos.id} = ${graphRepoId}
+            AND ${graphRepos.accountId} = ${accountId})`)
+        .onConflictDoUpdate({
+          target: [t.graphRepoId, t.number],
+          set: { head: sql`excluded.head`, view: sql`excluded.view`, createdAt: now },
+        });
+    },
+
+    /** The JSON kept of what the pull request reached; undefined when none was. */
+    keptImpact(graphRepoId: string, number: number): Promise<string | undefined> {
+      const t = pullImpacts;
+      return db
+        .select({ view: t.view })
+        .from(t)
+        .where(
+          and(eq(t.accountId, accountId), eq(t.graphRepoId, graphRepoId), eq(t.number, number)),
+        )
+        .limit(1)
+        .then((rows) => rows[0]?.view);
     },
 
     /** Queues the build again at retryAt, or gives it up with the error when retryAt is null. */

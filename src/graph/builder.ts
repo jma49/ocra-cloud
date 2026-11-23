@@ -13,7 +13,7 @@ export type GraphBuildInput = {
   signal: AbortSignal;
 };
 
-type GraphBuildOutput = {
+export type GraphBuildOutput = {
   graph: string;
   files: number;
   parsed: number;

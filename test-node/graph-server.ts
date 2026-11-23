@@ -28,7 +28,7 @@ const VARS = {
   GITLAB_CLIENT_SECRET: "lab-secret",
   GITLAB_URL: GITLAB,
 };
-const bindings = bindingsFrom(VARS);
+export const bindings = bindingsFrom(VARS);
 const githubClient = githubClientOf(bindings);
 if (!githubClient) throw new Error("the test bindings configure GitHub");
 const githubPlatform = github(githubClient);

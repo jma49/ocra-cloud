@@ -7,12 +7,8 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { accountSalt } from "../src/db/accounts.js";
 import { scoped } from "../src/db/scoped.js";
 import { instructionCheckId } from "../src/merge-checks/instruction.js";
-import {
-  type Exec,
-  runNextGeneration,
-  runNextReply,
-  runNextReview,
-} from "../src/node/review-runner.js";
+import type { Exec } from "../src/node/checkout.js";
+import { runNextGeneration, runNextReply, runNextReview } from "../src/node/review-runner.js";
 import type { BotTokens } from "../src/platforms/bot.js";
 import { appJwt, botTokens } from "../src/platforms/bot-tokens.js";
 import { github } from "../src/platforms/github.js";

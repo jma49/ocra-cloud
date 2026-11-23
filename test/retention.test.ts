@@ -454,6 +454,8 @@ describe("export and deletion", () => {
       const later = [
         "reviews",
         "graphBuilds",
+        "graphChunks",
+        "pullImpacts",
         "reviewJobs",
         "replyJobs",
         "closedPulls",
@@ -486,6 +488,14 @@ describe("export and deletion", () => {
     });
     await d.insert("graphBuilds", {
       ...rows.graphBuilds("x-graphBuilds"),
+      graphRepoId: "x-graphRepos",
+    });
+    await d.insert("graphChunks", {
+      ...rows.graphChunks("x-graphChunks"),
+      buildId: "x-graphBuilds",
+    });
+    await d.insert("pullImpacts", {
+      ...rows.pullImpacts("x-pullImpacts"),
       graphRepoId: "x-graphRepos",
     });
     await d.insert("reviewJobs", {

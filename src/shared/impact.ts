@@ -32,6 +32,7 @@ export type ImpactSymbol = {
 };
 
 export type ImpactView = {
+  /** null where a runner works the impact out when it reviews, and none has yet. */
   pull: {
     base: string;
     head: string;
@@ -40,7 +41,7 @@ export type ImpactView = {
     truncated: boolean;
     /** Changed files the platform sent no diff for. */
     unread: number;
-  };
+  } | null;
   /** The graph the answer comes from: the newest finished build. */
   graph: {
     commit: string;

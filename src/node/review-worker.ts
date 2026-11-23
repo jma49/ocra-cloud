@@ -1,6 +1,9 @@
 import type { AutoReviewService } from "../auto-review/routes.js";
 import { config } from "../config.js";
 import type { Db } from "../db/client.js";
+import { scoped } from "../db/scoped.js";
+import { gunzip } from "../graph/gzip.js";
+import type { GraphService } from "../graph/routes.js";
 import { masterKeys } from "../keyring.js";
 import { errorName, logError } from "../log.js";
 import { postChecks } from "../merge-checks/publish.js";
@@ -10,7 +13,8 @@ import type { BotTokens } from "../platforms/bot.js";
 import { type BotSettings, botTokens } from "../platforms/bot-tokens.js";
 import { platformsOf } from "../platforms/registry.js";
 import type { AppBindings } from "../types.js";
-import { type Exec, runNextGeneration, runNextReply, runNextReview } from "./review-runner.js";
+import type { Exec } from "./checkout.js";
+import { runNextGeneration, runNextReply, runNextReview } from "./review-runner.js";
 
 export type AutoReviewOptions = {
   bots: BotSettings;
@@ -36,6 +40,7 @@ export function startAutoReview(
   db: Db,
   env: AppBindings,
   publicUrl: string,
+  graphs?: GraphService,
 ): { service: AutoReviewService; stop: () => void; busy: () => boolean } {
   const runner = {
     db,
@@ -53,6 +58,18 @@ export function startAutoReview(
     },
     ...(options.exec ? { exec: options.exec } : {}),
     ...(options.cli ? { cli: options.cli } : {}),
+    // A review reads the graph this server keeps of its repository.
+    ...(graphs
+      ? {
+          graphs,
+          keptGraphs: {
+            newest: async (accountId: string, repoId: string) => {
+              const kept = await scoped(db, accountId).graphs.newestGraph(repoId);
+              return kept && gunzip(kept.content);
+            },
+          },
+        }
+      : {}),
   };
   let running = 0;
   let stopped = false;

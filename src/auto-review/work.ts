@@ -4,7 +4,9 @@ import { claimGenerate } from "../db/generate-jobs.js";
 import { claimReply } from "../db/reply-jobs.js";
 import { claimJob } from "../db/review-jobs.js";
 import { scoped } from "../db/scoped.js";
-import { logError } from "../log.js";
+import { reviewGraphRepo } from "../graph/review-graph.js";
+import type { GraphService } from "../graph/routes.js";
+import { errorName, logError } from "../log.js";
 import { engineMergeChecks } from "../merge-checks/instruction.js";
 import { checksOf } from "../merge-checks/run.js";
 import type { BotAccess, BotCredential, BotTokens } from "../platforms/bot.js";
@@ -69,6 +71,11 @@ export type Assignment = WorkRef & {
   /** Exit codes that mean done, and those that end the job without a retry. */
   ok: number[];
   settled: number[];
+  /**
+   * A review of a repository the account keeps a code graph of: the run
+   * reads that graph and answers what the pull request reaches in it.
+   */
+  graph?: { repoId: string; pull: number };
 };
 
 export type WorkSource = {
@@ -79,6 +86,8 @@ export type WorkSource = {
   publicUrl: string;
   /** The service's daily cap on an account's gateway calls: an account at it waits. */
   dailyCalls: number;
+  /** Code graphs, where the host keeps them and the machine that runs the job reads them. */
+  graphs?: GraphService;
   /** A review's lease, when not the default. */
   leaseMs?: number;
   now?: () => Date;
@@ -192,6 +201,14 @@ export async function assign(
   // A run that died left its session behind: this attempt's replaces it.
   await data.remove("sessions", claimed.id);
   const tokens = await startCliSession(source.db, claimed.accountId, "auto review", claimed.id);
+  // A review runs without a graph when its repository's cannot be found or added.
+  const graphRepoId =
+    source.graphs && kind === "review"
+      ? await reviewGraphRepo(source.graphs, data, platform, repo, bot).catch((e) => {
+          logError("review_graph_repo_failed", { job: claimed.id, error: errorName(e) });
+          return undefined;
+        })
+      : undefined;
   return {
     ...ref,
     leaseUntil: claimed.leaseUntil,
@@ -217,6 +234,7 @@ export async function assign(
     },
     ok: command.ok,
     settled: command.settled ?? [],
+    ...(graphRepoId ? { graph: { repoId: graphRepoId, pull: claimed.number } } : {}),
   };
 }
 

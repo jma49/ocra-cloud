@@ -24,6 +24,7 @@ import {
   notifySends,
   pullFileViews,
   pullFlows,
+  pullImpacts,
   pullPaths,
   pullReviews,
   pullSeen,
@@ -153,6 +154,13 @@ export async function enforceRetention(db: Db, now = new Date()): Promise<void> 
         db
           .delete(findingThreads)
           .where(and(ofEachAccount(findingThreads.accountId), lt(findingThreads.seenAt, cutoff))),
+    ],
+    [
+      "pull_impacts",
+      () =>
+        db
+          .delete(pullImpacts)
+          .where(and(ofEachAccount(pullImpacts.accountId), lt(pullImpacts.createdAt, cutoff))),
     ],
     [
       "review_requests",
