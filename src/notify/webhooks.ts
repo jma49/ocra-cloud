@@ -20,7 +20,8 @@ import { webhookUrl } from "./webhook-url.js";
 // redirect, within TIMEOUT_MS, reading at most MAX_ANSWER of the answer. An
 // attempt with no answer, a 408, 429 or 5xx is tried again after its
 // backoff until MAX_ATTEMPTS, by the retry sweep (retryWebhooks); its body
-// is kept only until then. What the endpoint answered is never stored or
+// is kept only until then, and a channel keeps only its newest
+// KEPT_DELIVERIES, pending or not. What the endpoint answered is never stored or
 // logged, only its status and how long it took.
 
 /** A webhook event and its data, as a message carries it. */
@@ -166,12 +167,22 @@ export type RetryOutbox = {
   open: (channel: Row<"notifyChannels">) => Promise<WebhookTarget | undefined>;
 };
 
-/** Tries the deliveries due again; how many it tried. */
+/**
+ * Tries the deliveries due again; how many it tried. It goes round the
+ * channels, one delivery each in turn, so that one account's failing
+ * endpoint cannot take a whole sweep from everyone else's.
+ */
 export async function retryWebhooks(db: Db, out: RetryOutbox, now = () => new Date()) {
   let tried = 0;
+  const round = new Set<string>();
   for (; tried < PER_SWEEP; tried++) {
-    const due = await claimWebhookRetry(db, now(), LEASE_MS);
+    let due = await claimWebhookRetry(db, now(), LEASE_MS, [...round]);
+    if (!due && round.size > 0) {
+      round.clear();
+      due = await claimWebhookRetry(db, now(), LEASE_MS);
+    }
     if (!due) break;
+    round.add(due.channelId);
     const data = scoped(db, due.accountId);
     const channel = await data.get("notifyChannels", due.channelId);
     const target = channel?.kind === "webhook" ? await out.open(channel) : undefined;

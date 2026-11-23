@@ -116,6 +116,8 @@ export function webhookUrl(raw: string): URL | undefined {
 function hostAllowed(hostname: string): boolean {
   if (hostname.startsWith("[")) return publicAddress(hostname.slice(1, -1));
   const host = hostname.replace(/\.$/, "");
+  // An empty label (`localhost..`) is no name a resolver should be asked for.
+  if (host.split(".").includes("")) return false;
   if (v4Octets(host)) return publicAddress(host);
   // Anything else new URL took as a number is not a name to resolve.
   if (/^[\d.]+$/.test(host) || /^0x/i.test(host)) return false;
