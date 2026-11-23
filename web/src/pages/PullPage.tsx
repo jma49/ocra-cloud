@@ -30,6 +30,7 @@ import { MergeCard } from "../pull/merge-card.js";
 import { OcraReviewBox } from "../pull/ocra-review-box.js";
 import { OUTCOME } from "../pull/outcome.js";
 import { pullPath } from "../pull/path.js";
+import { PeopleCard } from "../pull/people.js";
 import { QueueBox } from "../pull/queue-box.js";
 import { ReadinessBox, useReadiness } from "../pull/readiness-box.js";
 import { ReviewBox } from "../pull/review-box.js";
@@ -88,6 +89,7 @@ export function PullPage(props: {
   const [pending, setPending] = useState<LineComment[]>([]);
   const [said, setSaid] = useState<{ what: string; outcome: PullActionOutcome } | null>(null);
   const [reviewing, setReviewing] = useState(false);
+  const [peopleRev, setPeopleRev] = useState(0);
   const readiness = useReadiness(ref, head);
   const description = useLoad(
     () =>
@@ -256,7 +258,13 @@ export function PullPage(props: {
             {props.runner && !settled ? <ReviewNowBox pull={ref} head={data.head} /> : undefined}
           </OcraReviewBox>
           <ChecksBox pull={ref} head={data.head} />
-          <ReviewersPanel pull={ref} />
+          <PeopleCard
+            pull={ref}
+            editable={!settled}
+            rev={peopleRev}
+            onChanged={() => setPeopleRev((n) => n + 1)}
+          />
+          <ReviewersPanel pull={ref} rev={peopleRev} onChanged={() => setPeopleRev((n) => n + 1)} />
           <LabelsBox pull={ref} onDone={(o) => done("Labels", o)} />
           {props.runner && !settled && <GenerateBox pull={ref} head={data.head} />}
         </aside>
