@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/button";
 import { ApiError, api, type KeyCheck, type ProviderInfo } from "../api.js";
 import { Drawer } from "../drawer.js";
 import { DoneGlyph } from "../glyphs.js";
-import { ActionError, ProviderLogo } from "../ui.js";
+import { ProviderLogo } from "../provider-logo.js";
+import { ActionError } from "../ui.js";
 
 // Adding or replacing a key: a drawer that starts with the common providers,
 // then takes the key and says what the provider made of it.
@@ -125,7 +126,7 @@ export function AddKeyDrawer(props: {
                       className="tile"
                       onClick={() => setChosen(x.name)}
                     >
-                      <ProviderLogo label={x.label} size={30} />
+                      <ProviderLogo name={x.name} label={x.label} size={30} />
                       <span>
                         <div className="t-name">{x.label}</div>
                         <div className="t-sub">
@@ -159,7 +160,7 @@ export function AddKeyDrawer(props: {
       ) : (
         <>
           <div className="chosen">
-            <ProviderLogo label={p.label} size={36} />
+            <ProviderLogo name={p.name} label={p.label} size={36} />
             <div className="grow">
               <div className="semibold">{p.label}</div>
               <div className="subtle small mono">{new URL(p.base).host}</div>
@@ -232,7 +233,7 @@ function PickList(props: {
     <div className="pick-list">
       {props.items.map((x) => (
         <button key={x.name} type="button" className="pick" onClick={() => props.onPick(x.name)}>
-          <ProviderLogo label={x.label} size={24} />
+          <ProviderLogo name={x.name} label={x.label} size={24} />
           <span className="grow">{x.label}</span>
           {props.configured.has(x.name) ? (
             <span className="badge badge-ok">Configured</span>
