@@ -130,14 +130,85 @@ const pushed = () =>
   });
 
 describe("commands on GitHub", () => {
+  let auth: Record<string, string>;
+  let repoId: string;
   beforeEach(async () => {
-    const { auth } = await s.signIn(1);
+    auth = (await s.signIn(1)).auth;
     const res = await s.call("/api/auto-review/repos", {
       method: "POST",
       headers: auth,
       json: { platform: "github", fullName: "octo/api", automatic: true },
     });
     expect(res.status).toBe(200);
+    repoId = ((await res.json()) as { repo: { id: string } }).repo.id;
+  });
+
+  const paused = () => s.host.db.select().from(schema.pausedPulls);
+  const closed = (closedAt: Date) =>
+    fromGithub("pull_request", {
+      action: "closed",
+      number: 7,
+      pull_request: { title: "t", merged: true, merged_at: closedAt.toISOString() },
+      repository,
+    });
+
+  it("ends the pause when the pull request closes, not one made after a reopen", async () => {
+    await fromGithub("issue_comment", said("@ocra pause"));
+    expect(await paused()).toHaveLength(1);
+    await closed(new Date());
+    expect(await paused()).toEqual([]);
+    await fromGithub("issue_comment", said("@ocra pause"));
+    // A close redelivered after the pull request was reopened and paused again.
+    await closed(new Date(Date.now() - 60_000));
+    expect(await paused()).toHaveLength(1);
+  });
+
+  it("lists the pull request's commands and pauses it from the console, never naming the comment", async () => {
+    await fromGithub("issue_comment", said("@ocra help", "alice", 901));
+    await fromGithub("issue_comment", said("@ocra pause", "bob", 902));
+    const url = `/api/auto-review/repos/${repoId}/pulls/7`;
+    const listed = async () => (await s.call(`${url}/commands`, { headers: auth })).json();
+    expect(await listed()).toEqual({
+      paused: false,
+      commands: [
+        expect.objectContaining({ command: "pause", outcome: "refused" }),
+        {
+          command: "help",
+          outcome: "done",
+          createdAt: expect.any(String),
+          finishedAt: expect.any(String),
+        },
+      ],
+    });
+    const put = await s.call(`${url}/pause`, { method: "PUT", headers: auth });
+    expect(await put.json()).toEqual({ paused: true });
+    expect(await pushed()).toEqual({ queued: 0 });
+    expect((await listed()) as { paused: boolean }).toMatchObject({ paused: true });
+    const del = await s.call(`${url}/pause`, { method: "DELETE", headers: auth });
+    expect(await del.json()).toEqual({ paused: false });
+    expect(await pushed()).toEqual({ queued: 1 });
+    const events = (await (await s.call("/api/audit", { headers: auth })).json()) as {
+      events: { kind: string; detail: unknown }[];
+    };
+    expect(events.events.filter((e) => e.kind.startsWith("auto_review.pull_"))).toEqual([
+      expect.objectContaining({ kind: "auto_review.pull_resumed", detail: { pull: "Octo/API#7" } }),
+      expect.objectContaining({ kind: "auto_review.pull_paused", detail: { pull: "Octo/API#7" } }),
+    ]);
+  });
+
+  it("answers not found for another account's repository or a number that is not one", async () => {
+    const other = (await s.signIn(2)).auth;
+    const base = `/api/auto-review/repos/${repoId}/pulls`;
+    for (const [path, headers, method] of [
+      [`${base}/7/commands`, other, "GET"],
+      [`${base}/7/pause`, other, "PUT"],
+      [`${base}/7/pause`, other, "DELETE"],
+      [`${base}/0/commands`, auth, "GET"],
+      [`${base}/x/pause`, auth, "PUT"],
+    ] as const) {
+      expect((await s.call(path, { method, headers })).status, path).toBe(404);
+    }
+    expect(await paused()).toEqual([]);
   });
 
   it("answers help once per comment, as the bot, and queues no question", async () => {

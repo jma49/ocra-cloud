@@ -105,3 +105,34 @@ describe.each(Object.keys(TABLES) as Kind[])("a %s job left behind", (kind) => {
     ]);
   });
 });
+
+describe("an @ocra command left pending", () => {
+  const command = (id: string, minutesAgo: number, outcome = "pending") =>
+    db.insert(schema.pullCommands).values({
+      ...rows.pullCommands(id),
+      accountId,
+      commentId: id,
+      outcome,
+      createdAt: new Date(Date.now() - minutesAgo * MINUTE),
+    } as never);
+
+  it("is failed by the daily run after an hour, never run again; one ended or recent is kept", async () => {
+    await command("stuck", 90);
+    await command("fresh", 10);
+    await command("done", 90, "done");
+    await daily();
+    const got = await db
+      .select({
+        id: schema.pullCommands.id,
+        outcome: schema.pullCommands.outcome,
+        finished: schema.pullCommands.finishedAt,
+      })
+      .from(schema.pullCommands)
+      .orderBy(asc(schema.pullCommands.id));
+    expect(got.map((c) => [c.id, c.outcome, c.finished !== null])).toEqual([
+      ["done", "done", false],
+      ["fresh", "pending", false],
+      ["stuck", "failed", true],
+    ]);
+  });
+});

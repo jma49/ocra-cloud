@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, lte } from "drizzle-orm";
 import type { CommentCommand, CommentCommandOutcome } from "../shared/index.js";
 import { changedRows, type Db, first } from "./client.js";
 import { pausedPulls, pullCommands } from "./schema.js";
@@ -48,6 +48,33 @@ export function accountPullCommands(db: Db, accountId: string) {
         .delete(p)
         .where(and(ownPause, eq(p.reviewRepoId, reviewRepoId), eq(p.number, number)));
       return changedRows(result) > 0;
+    },
+    /** Drops the pause of a pull request that closed at closedAt; one made after it, on a reopened pull request, stays. */
+    async closed(reviewRepoId: string, number: number, closedAt: Date): Promise<void> {
+      await db
+        .delete(p)
+        .where(
+          and(
+            ownPause,
+            eq(p.reviewRepoId, reviewRepoId),
+            eq(p.number, number),
+            lte(p.createdAt, closedAt),
+          ),
+        );
+    },
+    /** The pull request's newest commands, found through the repository's index. */
+    newest(reviewRepoId: string, number: number, limit: number) {
+      return db
+        .select({
+          command: c.command,
+          outcome: c.outcome,
+          createdAt: c.createdAt,
+          finishedAt: c.finishedAt,
+        })
+        .from(c)
+        .where(and(own, eq(c.reviewRepoId, reviewRepoId), eq(c.number, number)))
+        .orderBy(desc(c.createdAt))
+        .limit(limit);
     },
     async paused(reviewRepoId: string, number: number): Promise<boolean> {
       const row = await db

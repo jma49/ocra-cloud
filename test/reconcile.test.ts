@@ -220,6 +220,25 @@ describe("the daily reconciliation", () => {
     expect(flows.get(6)).toMatchObject({ draft: false, author: "dev", authorId: "99" });
   });
 
+  it("ends the pause of a pull request whose close the webhooks missed, not one made since", async () => {
+    const now = Date.now();
+    const a = await account(1, [{ name: "octo/api" }]);
+    const reviewRepoId = a.repo("octo/api");
+    const pause = (number: number, createdAt: Date) =>
+      a.data.insert("pausedPulls", { reviewRepoId, number, createdAt });
+    await pause(1, new Date(now - 3 * HOUR));
+    await pause(2, new Date(now - 30 * 60_000));
+    const closed = new Date(now - HOUR);
+    platformsWith({
+      "octo/api": [
+        { number: 1, state: "closed", merged: closed, updated: closed },
+        { number: 2, state: "closed", closed, updated: closed },
+      ],
+    });
+    await hourly();
+    expect((await a.data.list("pausedPulls")).map((p) => p.number)).toEqual([2]);
+  });
+
   it("reads a GitLab project's merge requests through the account's link", async () => {
     const a = await account(1, [{ name: "group/app", platform: "gitlab" }]);
     const merged = new Date(Date.now() - 3 * HOUR);

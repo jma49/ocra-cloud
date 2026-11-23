@@ -1,7 +1,14 @@
-import { and, eq, gte, lt } from "drizzle-orm";
-import { DAY } from "../time.js";
+import { and, eq, gte, inArray, lt } from "drizzle-orm";
+import { DAY, HOUR } from "../time.js";
 import type { Db } from "./client.js";
-import { generateJobs, learnJobs, replyJobs, reviewJobs } from "./schema.js";
+import {
+  accounts,
+  generateJobs,
+  learnJobs,
+  pullCommands,
+  replyJobs,
+  reviewJobs,
+} from "./schema.js";
 
 // The jobs of auto review a run or a runner left behind: a run that died
 // keeps its job running until its lease lapses, and a job nothing claims
@@ -13,6 +20,13 @@ import { generateJobs, learnJobs, replyJobs, reviewJobs } from "./schema.js";
 export const JOB_ATTEMPTS = 3;
 /** A job no run took for this long is given up: whatever it answered is long stale. */
 const QUEUED_DAYS = 7;
+
+/**
+ * An `@ocra` command still pending this long had its run die after the
+ * webhook's answer (src/auto-review/commands.ts): it is failed, never run
+ * again, so a late retry cannot surprise anyone with a second action.
+ */
+const COMMAND_PENDING_MS = HOUR;
 
 /** Why a job was given up here, as its `error` says. */
 const LEASE_LAPSED = "lease_lapsed";
@@ -39,8 +53,8 @@ export async function recoverLapsed(db: Db, j: JobTable, now: Date): Promise<voi
 
 /**
  * Every table's lapsed runs, as above, and the jobs queued for more than
- * QUEUED_DAYS failed with NEVER_STARTED. Runs daily with retention; it
- * calls nothing outside the database.
+ * QUEUED_DAYS failed with NEVER_STARTED, and the commands left pending
+ * failed. Runs daily with retention; it calls nothing outside the database.
  */
 export async function recoverJobs(db: Db, now = new Date()): Promise<void> {
   const stale = new Date(now.getTime() - QUEUED_DAYS * DAY);
@@ -51,4 +65,16 @@ export async function recoverJobs(db: Db, now = new Date()): Promise<void> {
       .set({ state: "failed", error: NEVER_STARTED, finishedAt: now })
       .where(and(eq(j.state, "queued"), lt(j.createdAt, stale)));
   }
+  const c = pullCommands;
+  await db
+    .update(c)
+    .set({ outcome: "failed", finishedAt: now })
+    .where(
+      and(
+        // Account by account, through the index that starts with account_id.
+        inArray(c.accountId, db.select({ id: accounts.id }).from(accounts)),
+        lt(c.createdAt, new Date(now.getTime() - COMMAND_PENDING_MS)),
+        eq(c.outcome, "pending"),
+      ),
+    );
 }

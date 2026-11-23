@@ -46,6 +46,8 @@ export type AuditDetails = {
   "auto_review.webhook_added": { repo: string };
   "auto_review.webhook_removed": { repo: string; removed: boolean };
   "auto_review.webhook_secret_rotated": { repo: string };
+  "auto_review.pull_paused": Pull;
+  "auto_review.pull_resumed": Pull;
   "live.link_changed": { run: string; role: string | null };
   "live.person_added": { run: string; login: string; role: string };
   "live.person_removed": { run: string };
@@ -110,6 +112,8 @@ export const AUDIT_FIELDS: { readonly [K in AuditKind]: readonly (keyof AuditDet
   "auto_review.webhook_added": ["repo"],
   "auto_review.webhook_removed": ["repo", "removed"],
   "auto_review.webhook_secret_rotated": ["repo"],
+  "auto_review.pull_paused": ["pull"],
+  "auto_review.pull_resumed": ["pull"],
   "live.link_changed": ["run", "role"],
   "live.person_added": ["run", "login", "role"],
   "live.person_removed": ["run"],

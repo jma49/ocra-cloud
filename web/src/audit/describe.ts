@@ -64,6 +64,8 @@ export const KIND_GROUPS: { label: string; kinds: [AuditKind, string][] }[] = [
       ["auto_review.webhook_added", "GitLab webhook added"],
       ["auto_review.webhook_removed", "GitLab webhook removed"],
       ["auto_review.webhook_secret_rotated", "GitLab webhook secret replaced"],
+      ["auto_review.pull_paused", "Pull request's reviews paused"],
+      ["auto_review.pull_resumed", "Pull request's reviews resumed"],
     ],
   },
   {
@@ -226,6 +228,10 @@ export function describe(e: AuditEventView): string {
         : `Removed the GitLab webhook of ${named(e.detail.repo, "a repository")}`;
     case "auto_review.webhook_secret_rotated":
       return `Made a new webhook secret for ${named(e.detail.repo, "a repository")}: a hook with the old one is no longer accepted`;
+    case "auto_review.pull_paused":
+      return `Paused the automatic reviews of ${named(e.detail.pull, "a pull request")}`;
+    case "auto_review.pull_resumed":
+      return `Resumed the automatic reviews of ${named(e.detail.pull, "a pull request")}`;
     case "live.link_changed":
       return e.detail.role
         ? `Shared a live review by link (${e.detail.role})`
