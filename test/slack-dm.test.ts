@@ -264,6 +264,7 @@ describe("Slack direct messages", () => {
     expect(over).toBeInstanceOf(Response);
     const res = over as Response;
     expect(res.status).toBe(429);
+    expect(Number(res.headers.get("retry-after"))).toBeGreaterThan(0);
     expect(await res.json()).toMatchObject({ error: "daily_limit", limit: 20 });
     expect(lookups()).toBe(20);
     expect(await tryOnce(other.auth)).toBe(200);
