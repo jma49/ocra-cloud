@@ -75,7 +75,7 @@ export async function assignBuild(source: BuildSource): Promise<GraphAssignment 
     const repo = await scoped(source.db, build.accountId).get("graphRepos", build.graphRepoId);
     const platform =
       repo && source.platforms.find((p) => p.kind === repo.platform && p.host === repo.host);
-    const bot = platform && (await source.bots.forRepo(repo.platform, repo.fullName));
+    const bot = platform && (await source.bots.forRepo(repo));
     if (repo && platform && bot) {
       return {
         id: build.id,

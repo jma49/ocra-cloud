@@ -19,6 +19,10 @@ export type AutoReviewRepoView = {
   profile: ReviewProfile;
   /** Whether pull requests are reviewed as they open or gain commits; off, only when a person asks. */
   automatic: boolean;
+  /** Whether the account gave the GitLab project its own access token, never the token itself. */
+  hasAccessToken: boolean;
+  /** The username of that token's bot user; null without one. */
+  accessTokenBot: string | null;
   latest: {
     number: number;
     head: string;
@@ -27,6 +31,9 @@ export type AutoReviewRepoView = {
     finishedAt: string | null;
   } | null;
 };
+
+/** What setting or clearing an enrolled GitLab project's access token answers. */
+export type RepoAccessTokenView = { hasAccessToken: boolean; accessTokenBot: string | null };
 
 /** What the automatic switch of an enrolled repository answers. */
 export type AutoReviewSwitchView = { automatic: boolean };

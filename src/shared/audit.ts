@@ -37,6 +37,8 @@ export type AuditDetails = {
   "auto_review.profile_changed": { repo: string; profile: string };
   "auto_review.automatic_changed": { repo: string; automatic: boolean };
   "auto_review.unenrolled": { repo: string };
+  "auto_review.access_token_set": { repo: string; bot: string };
+  "auto_review.access_token_cleared": { repo: string };
   "live.link_changed": { run: string; role: string | null };
   "live.person_added": { run: string; login: string; role: string };
   "live.person_removed": { run: string };
@@ -93,6 +95,8 @@ export const AUDIT_FIELDS: { readonly [K in AuditKind]: readonly (keyof AuditDet
   "auto_review.profile_changed": ["repo", "profile"],
   "auto_review.automatic_changed": ["repo", "automatic"],
   "auto_review.unenrolled": ["repo"],
+  "auto_review.access_token_set": ["repo", "bot"],
+  "auto_review.access_token_cleared": ["repo"],
   "live.link_changed": ["run", "role"],
   "live.person_added": ["run", "login", "role"],
   "live.person_removed": ["run"],
