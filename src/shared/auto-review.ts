@@ -34,6 +34,8 @@ export type AutoReviewRepoView = {
   hasAccessToken: boolean;
   /** The username of that token's bot user; null without one. */
   accessTokenBot: string | null;
+  /** Whether ocra added the GitLab project's webhook itself, and removes it on unenroll. */
+  webhookManaged: boolean;
   latest: {
     number: number;
     head: string;
@@ -45,6 +47,22 @@ export type AutoReviewRepoView = {
 
 /** What setting or clearing an enrolled GitLab project's access token answers. */
 export type RepoAccessTokenView = { hasAccessToken: boolean; accessTokenBot: string | null };
+
+/**
+ * Where a repository's webhook delivers: GitHub's is the App's. A GitLab
+ * project's has its own secret, shown once, and `managed` says whether ocra
+ * added the hook itself; `problem` says why it could not, when it tried, and
+ * the hook is then added by hand with that address and secret.
+ */
+export type AutoReviewWebhookView = {
+  url: string;
+  secret?: string;
+  managed?: boolean;
+  problem?: string;
+};
+
+/** What enrolling a repository answers. */
+export type AutoReviewEnrolledView = { repo: AutoReviewRepoView; webhook: AutoReviewWebhookView };
 
 /** What the automatic switch of an enrolled repository answers. */
 export type AutoReviewSwitchView = { automatic: boolean };
