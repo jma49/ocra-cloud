@@ -1,7 +1,9 @@
+import Puzzle from "lucide-react/icons/puzzle";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useSettings } from "../prefs.js";
-import { PageHead } from "../ui.js";
+import { Link } from "../router.js";
+import { EmptyState, PageHead } from "../ui.js";
 
 // Plugins run code, so the account only names them (ADR-0027): each machine
 // installs and allows a pinned version itself, and only then loads it.
@@ -64,7 +66,10 @@ export function Plugins() {
           <span className="subtle small">{plugins.length} of 20</span>
         </div>
         {plugins.length === 0 && (
-          <div className="empty">No plugins. Built-in reviewers are on the Agents page.</div>
+          <EmptyState icon={Puzzle} title="No plugins yet">
+            Name an npm package below to add its reviewers, rules or runtime. The built-in reviewers
+            are under <Link to="/agents">Agents & models</Link>.
+          </EmptyState>
         )}
         {plugins.map((p) => (
           <div key={p}>

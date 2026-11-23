@@ -97,9 +97,7 @@ suite("the audit log page", () => {
     expect(Date.now() - since).toBeGreaterThan(29 * 86_400_000);
     expect(Date.now() - since).toBeLessThan(31 * 86_400_000);
     fireEvent.change(screen.getByLabelText("Kind of event"), { target: { value: "key.deleted" } });
-    expect(
-      await screen.findByText(/No such event in the last 30 days. Events are kept for 90 days./),
-    ).toBeTruthy();
+    expect(await screen.findByText(/No such event in the last 30 days/)).toBeTruthy();
     expect(asked.at(-1)?.get("kind")).toBe("key.deleted");
     expect(asked.at(-1)?.get("after")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "7 days" }));

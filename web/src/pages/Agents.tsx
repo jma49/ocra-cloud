@@ -1,4 +1,5 @@
 import KeyRound from "lucide-react/icons/key-round";
+import Plus from "lucide-react/icons/plus";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -74,7 +75,7 @@ export function Agents() {
   if (keys && usable.length === 0) {
     return (
       <>
-        <PageHead title="Agents" />
+        <PageHead title="Agents & models" />
         <div className="card">
           <EmptyState
             icon={KeyRound}
@@ -88,7 +89,7 @@ export function Agents() {
       </>
     );
   }
-  if (!draft) return <PageHead title="Agents" />;
+  if (!draft) return <PageHead title="Agents & models" />;
 
   // Every write starts from the latest draft, never this render's copy, so
   // two writes before a render cannot drop one (the W1 bug class).
@@ -443,7 +444,8 @@ function ChainEditor(props: {
           disabled={rows.length >= 4}
           onClick={() => props.onChange([...rows, formatModelId(props.usable[0]?.name ?? "")])}
         >
-          + {rows.length ? "Fallback" : "Model"}
+          <Plus aria-hidden="true" />
+          {rows.length ? "Fallback" : "Model"}
         </Button>
       </div>
     </div>

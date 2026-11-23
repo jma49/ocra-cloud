@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { api, why } from "../api.js";
-import { type Budget, dailyLimit } from "../budget.js";
+import { type Budget, dailyLimit, resetsAt } from "../budget.js";
 import { useCached } from "../cache.js";
 import { num } from "../format.js";
 import { LoadError, Loading, PageHead, useAction } from "../ui.js";
@@ -19,6 +19,8 @@ export function BudgetPage() {
   if (!data) return <Loading what="the budget" />;
   const value = draft ?? (data.dailyCalls === null ? "" : String(data.dailyCalls));
   const limit = dailyLimit(data);
+  const used = limit > 0 ? Math.min(data.callsToday / limit, 1) : 0;
+  const reset = resetsAt().toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
   const parsed = value.trim() === "" ? null : Math.trunc(Number(value));
   const valid = parsed === null || (parsed >= 1 && Number.isFinite(parsed));
   const submit = async () => {
@@ -38,11 +40,28 @@ export function BudgetPage() {
           <h3>Daily calls</h3>
         </div>
         <div className="card-pad stack">
-          <p>
-            Today: {num(data.callsToday)} of {num(limit)} calls
-            {data.callsToday >= limit * 0.8 ? " (80% or more used)" : ""}. The service allows{" "}
-            {num(data.serviceDailyCalls)} a day.
-          </p>
+          <div>
+            <div className="budget-use">
+              <span>
+                <b>{num(data.callsToday)}</b> of {num(limit)} calls today
+              </span>
+              <span className="subtle small">Resets at {reset}</span>
+            </div>
+            <div className="meter" aria-hidden="true">
+              <span
+                style={{ width: `${used * 100}%` }}
+                data-tone={used >= 0.8 ? "warn" : undefined}
+              />
+            </div>
+            <p className="subtle small budget-note">
+              {used >= 1
+                ? "The limit is reached: reviews wait until it resets."
+                : used >= 0.8
+                  ? "Over 80% used."
+                  : null}{" "}
+              The service allows {num(data.serviceDailyCalls)} calls a day for an account.
+            </p>
+          </div>
           <form
             className="row-gap wrap center"
             onSubmit={(e) => {

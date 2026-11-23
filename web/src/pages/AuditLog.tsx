@@ -1,10 +1,11 @@
+import ScrollText from "lucide-react/icons/scroll-text";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { AuditEventView, AuditKind, AuditPage } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
 import { describe, KIND_GROUPS } from "../audit/describe.js";
 import { period } from "../format.js";
-import { LoadError, Loading, PageHead, Seg } from "../ui.js";
+import { EmptyState, LoadError, Loading, PageHead, Seg } from "../ui.js";
 
 const RANGES = [7, 30, 90].map(period);
 const DAY_MS = 86_400_000;
@@ -82,46 +83,51 @@ export function AuditLog() {
         title="Audit log"
         sub="What changed on your account and when. It never holds a key, a token or a message's text."
         actions={
-          <Seg
-            label="Time range"
-            value={filter.days}
-            options={RANGES}
-            onChange={(days) => setFilter({ ...filter, days })}
-          />
+          <div className="row-gap center wrap">
+            <select
+              className="input audit-kind"
+              aria-label="Kind of event"
+              value={filter.kind}
+              onChange={(e) => setFilter({ ...filter, kind: e.target.value as AuditKind | "" })}
+            >
+              <option value="">Every kind of event</option>
+              {KIND_GROUPS.map((g) => (
+                <optgroup key={g.label} label={g.label}>
+                  {g.kinds.map(([kind, label]) => (
+                    <option key={kind} value={kind}>
+                      {label}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+            <Seg
+              label="Time range"
+              value={filter.days}
+              options={RANGES}
+              onChange={(days) => setFilter({ ...filter, days })}
+            />
+          </div>
         }
       />
-      <select
-        className="input audit-kind"
-        aria-label="Kind of event"
-        value={filter.kind}
-        onChange={(e) => setFilter({ ...filter, kind: e.target.value as AuditKind | "" })}
-      >
-        <option value="">Every kind of event</option>
-        {KIND_GROUPS.map((g) => (
-          <optgroup key={g.label} label={g.label}>
-            {g.kinds.map(([kind, label]) => (
-              <option key={kind} value={kind}>
-                {label}
-              </option>
-            ))}
-          </optgroup>
-        ))}
-      </select>
       {first && log.error ? (
         <LoadError what="the audit log" error={log.error} retry={log.retry} />
       ) : first && log.loading ? (
         <Loading what="the audit log" />
       ) : first ? (
-        <div className="section card">
-          <div className="empty">
-            {filter.kind ? "No such event" : "Nothing recorded"} in the last {filter.days} days.
-            Events are kept for 90 days.
-          </div>
+        <div className="card">
+          <EmptyState
+            icon={ScrollText}
+            title={`${filter.kind ? "No such event" : "Nothing recorded"} in the last ${filter.days} days`}
+          >
+            Sign-ins, key changes and setting changes are listed here as they happen, and kept for
+            90 days.
+          </EmptyState>
         </div>
       ) : (
         <>
-          {byDay(log.events).map((d) => (
-            <section key={d.day} className="section card" aria-label={d.day}>
+          {byDay(log.events).map((d, i) => (
+            <section key={d.day} className={i === 0 ? "card" : "section card"} aria-label={d.day}>
               <div className="card-head">
                 <h3>{d.day}</h3>
               </div>
