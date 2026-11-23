@@ -112,7 +112,8 @@ describe("an account out of gateway calls for the day", () => {
     // Another account's reviews are not held back by it.
     const other = scoped(db, (await signIn(2, "other")).account.id);
     const theirs = (await other.autoReview.enroll(repo("12"), 100)) ?? "";
-    await other.autoReview.queue(theirs, 8, B, now);
+    // Queued after it, so the order of the two is not a tie the database breaks either way.
+    await other.autoReview.queue(theirs, 8, B, new Date(now.getTime() + 1));
     expect(await claimJob(db, now, 60_000, 1)).toMatchObject({ number: 8 });
     expect(await claimJob(db, nextDay, 60_000, 1)).toMatchObject({ number: 7, head: A });
   });
