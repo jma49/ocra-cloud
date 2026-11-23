@@ -30,8 +30,9 @@ import { sweepStackMerges } from "./stack-merge/advance.js";
 // waits for the hour), all within one budget of external calls
 // (src/cron-calls.ts). It has no mailer: no email API is
 // configured for it, so they go to its chats only. It runs no hosted job
-// itself: with the GitHub App's key, its webhook secret and a runner token
-// set, it queues them for remote runners (docs/runner.md), which also build
+// itself: with a runner token and the GitHub App's key and webhook secret,
+// GitLab's bot token or both, it queues them for remote runners
+// (docs/runner.md), which also build
 // the code graphs it keeps (src/graph/remote.ts) unless CODE_GRAPH is off.
 const HOURLY = "47 * * * *";
 const remote = remoteReviews(env);

@@ -1,16 +1,19 @@
+import type { BotTokens } from "../platforms/bot.js";
 import { type BotSettings, botTokens } from "../platforms/bot-tokens.js";
 import { githubHostOf } from "../platforms/registry.js";
 
 // A host that runs no job itself (the Worker) still reviews pull requests
-// when remote runners ask it for them (./runner-api.ts): it needs the
-// GitHub App's key for the bot, the App's webhook secret for the queue, and
-// the token its runners prove themselves with.
+// when remote runners ask it for them (./runner-api.ts): it needs the token
+// its runners prove themselves with and a bot on at least one platform: the
+// GitHub App's key with its webhook secret, or GitLab's bot token, whose
+// webhooks each enrolled project proves with its own secret.
 
 type Vars = {
   GITHUB_URL?: string | undefined;
   GITHUB_APP_ID?: string | undefined;
   GITHUB_APP_PRIVATE_KEY?: string | undefined;
   GITHUB_WEBHOOK_SECRET?: string | undefined;
+  GITLAB_BOT_TOKEN?: string | undefined;
   RUNNER_TOKEN?: string | undefined;
 };
 
@@ -28,7 +31,7 @@ export function runnerTokenFrom(value: string | undefined): string | undefined {
 }
 
 /** The bot's settings as the variables give them: a key pasted on one line keeps its line breaks as \n. */
-export const botSettingsFrom = (vars: Vars & { GITLAB_BOT_TOKEN?: string | undefined }) =>
+export const botSettingsFrom = (vars: Vars) =>
   ({
     githubApi: githubHostOf(vars.GITHUB_URL ? { GITHUB_URL: vars.GITHUB_URL } : {}).api,
     githubAppId: vars.GITHUB_APP_ID || undefined,
@@ -36,19 +39,25 @@ export const botSettingsFrom = (vars: Vars & { GITLAB_BOT_TOKEN?: string | undef
     gitlabBotToken: vars.GITLAB_BOT_TOKEN || undefined,
   }) satisfies BotSettings;
 
-/** What the app needs to queue jobs for remote runners; nothing unless every variable is set. */
-export function remoteReviews(vars: Vars) {
+type RemoteReviews = {
+  autoReview: { kick: () => void; remote: true };
+  bots: BotTokens;
+  runnerToken: string;
+  githubWebhookSecret?: string;
+};
+
+/** What the app needs to queue jobs for remote runners; nothing without a runner token and a whole bot. */
+export function remoteReviews(vars: Vars): RemoteReviews | Record<string, never> {
   const runnerToken = runnerTokenFrom(vars.RUNNER_TOKEN);
   const bots = botSettingsFrom(vars);
-  const githubWebhookSecret = vars.GITHUB_WEBHOOK_SECRET;
-  if (!runnerToken || !bots.githubAppId || !bots.githubAppPrivateKey || !githubWebhookSecret) {
-    return {};
-  }
+  const githubWebhookSecret = vars.GITHUB_WEBHOOK_SECRET || undefined;
+  const github = !!bots.githubAppId && !!bots.githubAppPrivateKey && !!githubWebhookSecret;
+  if (!runnerToken || (!github && !bots.gitlabBotToken)) return {};
   return {
     // Nothing to wake: a runner asks for work on its own clock.
     autoReview: { kick: () => {}, remote: true as const },
     bots: botTokens(bots),
     runnerToken,
-    githubWebhookSecret,
+    ...(githubWebhookSecret ? { githubWebhookSecret } : {}),
   };
 }
