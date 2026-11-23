@@ -71,6 +71,10 @@ function show(answer: (from: string | null) => unknown) {
         return Response.json({ applied: [], available: [], truncated: false });
       }
       if (url.startsWith("/api/pulls/draft")) return Response.json({ draft: false, state: "open" });
+      if (url.startsWith("/api/pulls/description-draft")) {
+        return Response.json({ head: HEAD, body: "", draft: null, review: null });
+      }
+      if (url.startsWith("/api/pulls/readiness")) return Response.json({ ready: null, items: [] });
       return Response.json({ enabled: false, entry: null });
     }),
   );
@@ -89,8 +93,10 @@ describe("the changes since a head", () => {
     await waitFor(() => expect(screen.queryByRole("region", { name: "src/refund.ts" })).toBeNull());
     expect(screen.getByRole("region", { name: "src/ledger.ts" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: /^Comment on line/ })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Review changes" }));
     expect(screen.getByText("Line comments are made on the whole diff.")).toBeTruthy();
     expect(screen.queryByText(/Click a line number/)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
     await pick(/All changes/);
     expect(await screen.findByRole("region", { name: "src/refund.ts" })).toBeTruthy();
   });

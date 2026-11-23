@@ -128,6 +128,8 @@ const readiness = {
   otherRules: [],
 };
 
+const noReadiness = { ready: null, items: [], codeOwners: [], staleApprovals: [], otherRules: [] };
+
 describe("a pull request's page", () => {
   const show = (
     queue: unknown = { enabled: false, entry: null },
@@ -143,13 +145,17 @@ describe("a pull request's page", () => {
           sent.push({ url, body: JSON.parse(String(init.body)) });
           return Response.json({ outcome: url.endsWith("/merge") ? "head_moved" : "done" });
         }
+        const routed = Object.entries(routes).find(([path]) => url.startsWith(path));
+        if (routed) return Response.json(routed[1]);
+        if (url.startsWith("/api/pulls/readiness")) return Response.json(noReadiness);
         if (url.startsWith("/api/pulls/stack")) return Response.json({ trunk: "", pulls: [] });
         if (url.startsWith("/api/pulls/reviewers")) return Response.json(noReviewers);
         if (url.startsWith("/api/pulls/threads")) return Response.json(threads);
         if (url.startsWith("/api/pulls/labels")) return Response.json(labels);
         if (url.startsWith("/api/pulls/draft")) return Response.json(draft);
-        const routed = Object.entries(routes).find(([path]) => url.startsWith(path));
-        if (routed) return Response.json(routed[1]);
+        if (url.startsWith("/api/pulls/description-draft")) {
+          return Response.json({ head: HEAD, body: "", draft: null, review: null });
+        }
         return Response.json(url.startsWith("/api/pulls/queue") ? queue : listed);
       }),
     );
@@ -178,6 +184,7 @@ describe("a pull request's page", () => {
       target: { value: "Why log?" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Add to review" }));
+    fireEvent.click(screen.getByRole("button", { name: "Review changes 1" }));
     fireEvent.click(screen.getByRole("button", { name: "Request changes" }));
     await act(
       async () => void fireEvent.click(screen.getByRole("button", { name: "Submit review" })),
@@ -197,6 +204,7 @@ describe("a pull request's page", () => {
       },
     ]);
     expect(await screen.findByText(/Review: Done/)).toBeTruthy();
+    expect(screen.queryByRole("dialog", { name: "Your review" })).toBeNull();
     expect(screen.queryByText("Why log?")).toBeNull();
   });
 
@@ -259,10 +267,11 @@ describe("a pull request's page", () => {
     await act(async () => {});
     expect(screen.queryByRole("region", { name: "Merge readiness" })).toBeNull();
     expect(screen.queryByRole("button", { name: /draft|ready for review/i })).toBeNull();
+    expect(screen.getByText("Merged").className).toContain("badge");
+    fireEvent.click(screen.getByRole("button", { name: "Review changes" }));
     expect(screen.getByRole("button", { name: "Submit review" })).toBeTruthy();
     expect(screen.queryByRole("group", { name: "Verdict" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Merge pull request" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Write the PR description" })).toBeNull();
   });
 
   it("names a rebase the way each platform does", async () => {
@@ -284,6 +293,7 @@ describe("a pull request's page", () => {
       target: { value: "if (amount > left) return;" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Add to review" }));
+    fireEvent.click(screen.getByRole("button", { name: "Review changes 1" }));
     await act(
       async () => void fireEvent.click(screen.getByRole("button", { name: "Submit review" })),
     );
@@ -355,10 +365,24 @@ describe("a pull request's page", () => {
     await waitFor(() => expect(within(panel).queryByLabelText("Reply")).toBeNull());
   });
 
-  it("marks a draft ready for review from the page's head", async () => {
-    const sent = show();
-    const ready = await screen.findByRole("button", { name: "Mark ready for review" });
-    expect(screen.getByText("Draft")).toBeTruthy();
+  it("leads a draft with marking it ready, and names what is in its way in the head", async () => {
+    const sent = show(undefined, files, "github", {
+      "/api/pulls/readiness": {
+        ...noReadiness,
+        ready: "unmet",
+        items: [
+          { kind: "draft", state: "unmet", detail: "Still a draft" },
+          { kind: "conflicts", state: "unmet", detail: "Conflicts with the base branch" },
+        ],
+      },
+    });
+    const head = within(await screen.findByRole("banner"));
+    expect((await head.findByText("Conflicts")).className).toContain("badge-err");
+    expect(head.getByText("Draft")).toBeTruthy();
+    const ready = head.getByRole("button", { name: "Mark ready for review" });
+    const primary = (b: HTMLElement) => b.className.includes("bg-primary");
+    expect(primary(ready)).toBe(true);
+    expect(primary(head.getByRole("button", { name: "Review changes" }))).toBe(false);
     await act(async () => void fireEvent.click(ready));
     expect(sent).toEqual([
       {
@@ -423,6 +447,10 @@ describe("a pull request's page", () => {
         if (url.startsWith("/api/pulls/threads")) return Response.json(threads);
         if (url.startsWith("/api/pulls/labels")) return Response.json(labels);
         if (url.startsWith("/api/pulls/draft")) return Response.json(draft);
+        if (url.startsWith("/api/pulls/description-draft")) {
+          return Response.json({ head: HEAD, body: "", draft: null, review: null });
+        }
+        if (url.startsWith("/api/pulls/readiness")) return Response.json(noReadiness);
         return Response.json(files);
       }),
     );

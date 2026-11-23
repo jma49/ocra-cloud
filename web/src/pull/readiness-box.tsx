@@ -2,6 +2,7 @@ import Clock from "lucide-react/icons/clock";
 import type {
   CodeOwnerGroupView,
   PullReadinessView,
+  ReadinessItem,
   ReadinessKind,
   ReadinessState,
 } from "../../../src/shared/index.js";
@@ -85,15 +86,47 @@ function Owners(props: { groups: CodeOwnerGroupView[] }) {
 
 type Pull = { platform: string; repo: string; number: number };
 
-export function ReadinessBox(props: { pull: Pull; head: string }) {
-  const q = new URLSearchParams({ ...props.pull, number: String(props.pull.number) });
+/** What stands between the pull request and its merge, read again when its head moves. */
+export function useReadiness(pull: Pull, head: string | undefined): PullReadinessView | undefined {
+  const q = new URLSearchParams({ ...pull, number: String(pull.number) }).toString();
   const { data } = useLoad(
-    () => api<PullReadinessView>(`/pulls/readiness?${q}`),
-    [q.toString(), props.head],
+    () => (head ? api<PullReadinessView>(`/pulls/readiness?${q}`) : Promise.resolve(undefined)),
+    [q, head],
   );
+  return data;
+}
+
+/** What is in the way first: it is what the user came to find. */
+const ORDER: ReadinessState[] = ["unmet", "pending", "unknown", "met"];
+
+function Item(props: { item: ReadinessItem; view: PullReadinessView }) {
+  const { item: i, view } = props;
+  return (
+    <li className={i.state === "unknown" ? "readiness-unread" : undefined}>
+      <Mark state={i.state} />
+      <div>
+        <div>{LABEL[i.kind]}</div>
+        <div className="subtle small">{i.detail}</div>
+        {i.kind === "code_owners" && view.codeOwners.length > 0 && (
+          <Owners groups={view.codeOwners} />
+        )}
+        {i.kind === "approvals" && view.staleApprovals.length > 0 && (
+          <div className="subtle small">
+            Approved an earlier head: {view.staleApprovals.join(", ")}
+          </div>
+        )}
+      </div>
+    </li>
+  );
+}
+
+export function ReadinessBox(props: { view: PullReadinessView | undefined }) {
+  const data = props.view;
   if (!data?.ready) return null;
   const s = SUMMARY[data.ready];
-  const met = data.items.filter((i) => i.state === "met").length;
+  const items = ORDER.flatMap((state) => data.items.filter((i) => i.state === state));
+  const open = items.filter((i) => i.state !== "met");
+  const met = items.filter((i) => i.state === "met");
   const unread = data.items.filter((i) => i.state === "unknown").length;
   return (
     <section className="card card-pad stack" aria-label="Merge readiness">
@@ -101,29 +134,27 @@ export function ReadinessBox(props: { pull: Pull; head: string }) {
         <span className="strong grow">Merge readiness</span>
         <span className={s.tone}>{s.text}</span>
       </div>
-      <span className="subtle small">
-        {met} of {data.items.length} met
-        {unread > 0 && `, ${unread} not readable with your sign-in`}
-      </span>
-      <ul className="check-results">
-        {data.items.map((i) => (
-          <li key={i.kind} className={i.state === "unknown" ? "readiness-unread" : undefined}>
-            <Mark state={i.state} />
-            <div>
-              <div>{LABEL[i.kind]}</div>
-              <div className="subtle small">{i.detail}</div>
-              {i.kind === "code_owners" && data.codeOwners.length > 0 && (
-                <Owners groups={data.codeOwners} />
-              )}
-              {i.kind === "approvals" && data.staleApprovals.length > 0 && (
-                <div className="subtle small">
-                  Approved an earlier head: {data.staleApprovals.join(", ")}
-                </div>
-              )}
-            </div>
-          </li>
-        ))}
-      </ul>
+      {open.length > 0 && (
+        <ul className="check-results">
+          {open.map((i) => (
+            <Item key={i.kind} item={i} view={data} />
+          ))}
+        </ul>
+      )}
+      {met.length > 0 && (
+        <details className="readiness-met" open={open.length === 0}>
+          <summary className="subtle small">
+            <span className="fold" aria-hidden="true" />
+            {met.length} of {data.items.length} met
+            {unread > 0 && `, ${unread} not readable with your sign-in`}
+          </summary>
+          <ul className="check-results">
+            {met.map((i) => (
+              <Item key={i.kind} item={i} view={data} />
+            ))}
+          </ul>
+        </details>
+      )}
       {data.otherRules.length > 0 && (
         <span className="subtle small">
           Also required by branch rules: {data.otherRules.map(ruleName).join(", ")}
