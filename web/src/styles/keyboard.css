@@ -1,0 +1,38 @@
+/* Where the keys act: the current row of a list read by j and k, and the shortcuts panel. */
+:is(.finding, tr).is-current {
+  background: color-mix(in srgb, var(--blue) 6%, transparent);
+}
+.finding.is-current.is-focused {
+  background: color-mix(in srgb, var(--blue) 9%, transparent);
+}
+
+.shortcuts-group + .shortcuts-group {
+  margin-top: 24px;
+}
+.shortcuts-group h3 {
+  margin: 0 0 8px;
+}
+.shortcuts-group dl {
+  margin: 0;
+}
+.shortcut {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 32px;
+  border-bottom: 0.5px solid var(--hair2);
+}
+.shortcut:last-child {
+  border-bottom: 0;
+}
+.shortcut dt {
+  color: var(--t1);
+}
+.shortcut dd {
+  margin: 0;
+}
+/* A selected row keeps its own tint; the keys' row also carries a bar, so the two read apart. */
+tr.is-current > td:first-child {
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--blue) 60%, transparent);
+}

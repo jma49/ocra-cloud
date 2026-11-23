@@ -1,0 +1,43 @@
+/* One motion for every hover and press the pages draw themselves (DESIGN.md,
+   Motion): colours fade over 120 ms, a press gives way over 80 ms. The coss
+   ui components keep their own. */
+:is(
+  .icon-btn,
+  .tile,
+  .pick,
+  .chip,
+  .chip-x button,
+  .impact-symbol-head,
+  .impact-use,
+  .pull-row,
+  .diff-viewed,
+  .diff-add-comment,
+  .file-link,
+  .pull-stack-link,
+  .people-option,
+  .place-tab,
+  .settings-link,
+  .avatar-btn,
+  .crumb-link,
+  .footer a,
+  .md a,
+  .pull-where a,
+  .review-of a,
+  tr
+) {
+  transition:
+    background-color 120ms var(--e-std),
+    color 120ms var(--e-std),
+    border-color 120ms var(--e-std),
+    box-shadow 120ms var(--e-std),
+    transform 120ms var(--e-std);
+}
+:is(.icon-btn, .tile, .chip-x button):active {
+  transform: scale(0.96);
+  transition-duration: 80ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  :is(.icon-btn, .tile, .chip-x button):active {
+    transform: none;
+  }
+}

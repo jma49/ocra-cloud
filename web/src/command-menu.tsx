@@ -13,11 +13,11 @@ import {
   CommandList,
   CommandPanel,
 } from "@/components/ui/command";
-import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { useOpenPageCommands } from "./page-commands.js";
 import { navigate } from "./router.js";
 import { resultSections, unanswered } from "./search/sections.js";
 import { useSearch } from "./search/use-search.js";
+import { KeyCaps } from "./shortcuts/keys.js";
 
 /** `within` names its section for the search too: "insights" finds every Insights tab. */
 export type CommandEntry = {
@@ -25,10 +25,12 @@ export type CommandEntry = {
   within: string;
   /** Said beside the label: a pull request's reference, a finding's file. */
   hint?: string;
+  /** The key or keys that do the same outside the menu. */
+  key?: string;
 } & (
   | { to: string; external?: boolean; run?: undefined }
-  /** Something the open page does, and the key that does it there. */
-  | { run: () => void; key?: string; to?: undefined }
+  /** Something the open page or the console does. */
+  | { run: () => void; to?: undefined }
 );
 export type CommandSection = { value: string; items: CommandEntry[] };
 
@@ -67,9 +69,10 @@ export function CommandMenu(props: { sections: CommandSection[] }) {
     return () => document.removeEventListener("keydown", onKey);
   }, []);
   const page = useOpenPageCommands();
-  const here: CommandSection[] = page?.commands.length
-    ? [{ value: page.title, items: page.commands.map((c) => ({ ...c, within: page.title })) }]
-    : [];
+  const here: CommandSection[] = page.map((p) => ({
+    value: p.title,
+    items: p.commands.map((c) => ({ ...c, within: p.title })),
+  }));
   const [query, setQuery] = useState("");
   const { results, searching } = useSearch(open ? query : "");
   const pick = (entry: CommandEntry) => {
@@ -114,7 +117,7 @@ export function CommandMenu(props: { sections: CommandSection[] }) {
                       >
                         <span className="command-label">{entry.label}</span>
                         {entry.hint && <span className="command-hint">{entry.hint}</span>}
-                        {entry.run && entry.key && <Kbd className="command-key">{entry.key}</Kbd>}
+                        {entry.key && <KeyCaps keys={entry.key} className="command-key" />}
                       </CommandItem>
                     )}
                   </CommandCollection>
@@ -124,14 +127,10 @@ export function CommandMenu(props: { sections: CommandSection[] }) {
           </CommandPanel>
           <CommandFooter>
             <span>
-              <KbdGroup>
-                <Kbd>↑</Kbd>
-                <Kbd>↓</Kbd>
-              </KbdGroup>{" "}
-              to move
+              <KeyCaps keys="ArrowUp ArrowDown" /> to move
             </span>
             <span>
-              <Kbd>↵</Kbd> to open
+              <KeyCaps keys="Enter" /> to open
             </span>
           </CommandFooter>
         </Command>

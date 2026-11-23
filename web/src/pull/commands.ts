@@ -14,6 +14,13 @@ function fileBeside(code: HTMLElement | null, step: 1 | -1): Element | undefined
   return step === 1 ? files.find((f) => top(f) > 1) : files.findLast((f) => top(f) < -1);
 }
 
+/** The file being read: the last whose top has reached the reading line, else the first. */
+function fileAtLine(code: HTMLElement | null): HTMLElement | undefined {
+  const files = [...(code?.querySelectorAll<HTMLElement>(".diff-file") ?? [])];
+  const line = Number.parseFloat(getComputedStyle(files[0] ?? document.body).scrollMarginTop) || 0;
+  return files.findLast((f) => f.getBoundingClientRect().top - line <= 1) ?? files[0];
+}
+
 const step = (label: string, key: string, to: string | null | undefined): PageCommand[] =>
   to ? [{ label, key, run: () => navigate(to) }] : [];
 
@@ -22,6 +29,8 @@ export function pullCommands(page: {
   data: PullFilesView | undefined;
   code: RefObject<HTMLElement | null>;
   review: () => void;
+  /** Ticks or unticks a file as viewed, by its path. */
+  toggleViewed: (path: string) => void;
   /** The pull requests beside this one in the inbox it was opened from. */
   beside: Beside | null;
 }): PageCommand[] {
@@ -35,6 +44,14 @@ export function pullCommands(page: {
     { label: "Jump to code", key: "c", run: () => to(code.current) },
     { label: "Next file", key: "j", run: () => to(fileBeside(code.current, 1)) },
     { label: "Previous file", key: "k", run: () => to(fileBeside(code.current, -1)) },
+    {
+      label: "Toggle file viewed",
+      key: "v",
+      run: () => {
+        const path = fileAtLine(code.current)?.dataset.path;
+        if (path !== undefined) page.toggleViewed(path);
+      },
+    },
     ...(open
       ? [{ label: "Go to merge", key: "m", run: () => to(document.getElementById(MERGE_ID)) }]
       : []),

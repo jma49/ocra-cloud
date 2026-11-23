@@ -35,7 +35,10 @@ const MERGED_WITHIN_MS = 7 * 24 * 60 * 60 * 1000;
 
 export const mergedSince = (now: number) => new Date(now - MERGED_WITHIN_MS);
 
-/** One item per pull, carrying every role it was listed under, newest change first. */
+/**
+ * One item per pull, carrying every role it was listed under, newest change
+ * first; assignee only on a pull listed under no other role.
+ */
 export function withRoles(lists: { role: PullRole; pulls: ListedPull[] }[]): PlatformPull[] {
   const byId = new Map<string, PlatformPull>();
   for (const { role, pulls } of lists) {
@@ -45,7 +48,9 @@ export function withRoles(lists: { role: PullRole; pulls: ListedPull[] }[]): Pla
       else if (!seen.roles.includes(role)) seen.roles.push(role);
     }
   }
-  return [...byId.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  return [...byId.values()]
+    .map((p) => (p.roles.length > 1 ? { ...p, roles: p.roles.filter((r) => r !== "assignee") } : p))
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
 /** What a search asks a platform for: words, or a number in one repository or in any. */

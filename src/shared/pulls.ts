@@ -1,7 +1,13 @@
 import type { CodePlatformKind } from "./domain.js";
 import type { PullStackPlace } from "./stacks.js";
 
-export type PullRole = "reviewer" | "author";
+/**
+ * Why a pull request is in the user's inbox: their review was asked, they
+ * opened it, or it is assigned to them. Assignee is listed only when neither
+ * of the others holds, so a pull the user opened and assigned to themselves,
+ * or was asked to review and assigned, stays where those roles put it.
+ */
+export type PullRole = "reviewer" | "author" | "assignee";
 export type PullChecks = "passing" | "failing" | "pending" | null;
 export type PullReview = "approved" | "changes_requested" | "required" | null;
 /** The account's newest ocra review of the pull request: blocking when its verdict blocks a merge; null before any. */
@@ -126,7 +132,7 @@ export function pullUnread(
 
 /** Every listed field narrows the view; within a field any value matches. */
 export type PullFilters = {
-  /** reviewer: my review was asked for; author: I opened it. */
+  /** reviewer: my review was asked for; author: I opened it; assignee: assigned to me, neither of those. */
   roles?: PullRole[] | undefined;
   /** me: I opened it; others: someone else did. */
   authoredBy?: "me" | "others" | undefined;
@@ -176,6 +182,7 @@ export const DEFAULT_PULL_VIEWS: readonly PullViewDraft[] = [
       reviews: ["required", "none"],
     },
   },
+  { name: "Assigned to me", filters: { roles: ["assignee"], states: ["open"] } },
   { name: "Recently merged", filters: { authoredBy: "me", states: ["merged"] } },
 ];
 

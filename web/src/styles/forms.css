@@ -83,19 +83,19 @@ select.input {
 }
 .badge-ok {
   color: var(--green);
-  background: color-mix(in srgb, var(--green) 11%, transparent);
+  background: color-mix(in srgb, var(--green) 8%, transparent);
 }
 .badge-warn {
   color: var(--amber);
-  background: color-mix(in srgb, var(--amber) 12%, transparent);
+  background: color-mix(in srgb, var(--amber) 8%, transparent);
 }
 .badge-run {
   color: var(--blue);
-  background: color-mix(in srgb, var(--blue) 11%, transparent);
+  background: color-mix(in srgb, var(--blue) 8%, transparent);
 }
 .badge-err {
   color: var(--critical);
-  background: color-mix(in srgb, var(--critical) 11%, transparent);
+  background: color-mix(in srgb, var(--critical) 8%, transparent);
 }
 .dot {
   width: 6px;

@@ -299,6 +299,7 @@ describe("the inbox", () => {
               data: {
                 review: { issueCount: 2, nodes: [node(5), node(6)] },
                 authored: { issueCount: 0, nodes: [] },
+                assigned: { issueCount: 0, nodes: [] },
                 merged: { issueCount: 0, nodes: [] },
               },
             })

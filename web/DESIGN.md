@@ -19,7 +19,7 @@ Pages and components style only through the custom properties in `base.css`.
 - **Surfaces:** `--ground` behind everything, `--panel` for the page, `--raised` for cards, menus and inputs. Depth comes from `--shadow` (resting) and `--float` (menus, drawers, dialogs), never from borders.
 - **Lines:** `--hair` between rows, `--hair2` under headers and around groups. Lines are 0.5 px.
 - **Fills:** `--fill` at rest, `--fill2` for hover and selected.
-- **Status tones:** `--critical` for critical findings, errors and destructive actions, `--warning` for warnings; pages name these semantic tokens, not `--red` and `--amber`, which are the palette behind them. `--green` is ok, `--blue` running or informational. Use them on text and soft fills (badges, notes), never as large backgrounds.
+- **Status tones:** `--critical` for critical findings, errors and destructive actions, `--warning` for warnings; pages name these semantic tokens, not `--red` and `--amber`, which are the palette behind them. `--green` is ok, `--blue` running or informational. Use them on text and soft fills (badges, notes), never as large backgrounds. Each reads at 4.5:1 as text on its own badge fill (an 8% tint), on the panel, on a card and inside a selected row, in both themes **(test, `contrast.test.ts`)**.
 - **Chart series:** `--c1` to `--c6`, in order of use.
 - **Radii:** `--r-tag` 4, `--r-chip` and `--r-tab` 6, `--r-ctl` 8 (controls, cards), `--r-sheet` 10 (panel, drawer).
 - **coss ui names** (`--background`, `--popover`, `--accent`, `--destructive`, …) are aliases of the same tokens, declared in `base.css`; `styles/coss.css` maps them into Tailwind.
@@ -99,15 +99,19 @@ A new shared control comes from coss ui first, then from a small component in `w
 
 - **Easings:** `--e-std` for state changes, `--e-enter` for things that appear, `--e-settle` for things that move into place.
 - **Durations:** 80 ms for press feedback, 120–160 ms for everything else that moves (hover, colour, menus, toasts, the drawer). Nothing longer, except the skeleton's fade-in and its shimmer, and the coss ui components' own tuned motion (a toast's stack settles over half a second), which pages leave as it is.
+- **Hover and press:** every hover and press a page draws itself takes one rule (`web/src/styles/motion.css`): colours fade over 120 ms, and an icon button or tile gives way (scale 0.96) over 80 ms on press. A new hoverable class joins that list rather than setting its own transition.
 - **What moves:** hover and selected states fade; menus, tooltips and toasts scale or rise in from their anchor; drawers slide from the right; nothing animates on scroll and nothing loops but loading.
 - **Continuity:** an element that stays on screen keeps its position across a state change (optimistic updates, no reflow flashes); the open place and tab stay highlighted.
 - **Reduced motion:** under `prefers-reduced-motion: reduce` every transition and animation stops and shows its end state.
 
 ## Accessibility
 
-- Focus is always visible, drawn only in `--focus` **(test, `styles.test.ts`)**.
+- Focus is always visible, drawn only in `--focus` **(test, `styles.test.ts`)**, the solid `--blue`, which keeps 3:1 against every surface **(test, `contrast.test.ts`)**.
 - **The page bar's crumb:** a page under a place (a pull request, a review) names itself after the place, and the place is a link back. A pull request opened from the inbox also shows where it stands there ("2 of 8") with previous and next, `[` and `]` (`web/src/inbox/queue-nav.tsx`); the inbox's order is kept only while the console is open.
-- **A page's commands** (`usePageCommands`, `web/src/page-commands.ts`): what a work page does is said once, as a label, an action and at most one unmodified key. The command menu lists them first under the page's name with the key beside each, and the key runs the same action on the page, never while typing or in a drawer. Keys keep one meaning everywhere: `j`/`k` next and previous, `o` open on the platform, `r` review or refresh, `c` code, `m` merge.
+- **A page's commands** (`usePageCommands`, `web/src/page-commands.ts`): what a work page does is said once, as a label, an action and at most one unmodified key. The command menu lists them first under the page's name with the key beside each, the shortcuts panel lists them, and the key runs the same action on the page, never while typing, in a drawer or a menu. A card may offer its own under the page's title (the ocra review card's `a`). Keys keep one meaning everywhere: `j`/`k` next and previous, `Enter` open here, `o` open on the platform, `x` select, `u` read or unread, `/` find, `r` review or refresh, `a` ask ocra to review, `v` viewed, `d` details or dismiss, `f` fixed, `c` code, `m` merge, `[`/`]` previous and next pull request.
+- **A list read by keys** (`useListCursor`, `web/src/list-cursor.ts`): `j`/`k` move a current row, kept in view and tinted `.is-current`. The inbox always shows it; elsewhere it shows from the first key press, at the first row.
+- **Keys everywhere** (`web/src/shortcuts/`): `?` opens the shortcuts panel (also in the command menu under Help), `g` then a place's letter goes there (`g i` inbox, `g r` reviews, `g f` findings, `g p` repositories, `g n` insights, `g s` settings; the command menu shows them beside each place), ⌘K (Ctrl+K) the command menu. Keys are written with `KeyCaps`.
+- **Drawers hold focus:** a drawer takes focus to its first field (else the panel) when it opens, keeps Tab inside it, closes on Escape, and gives focus back to what had it.
 - Every control is reachable and usable by keyboard; menus and the command menu follow the ARIA menu and combobox patterns (from Base UI).
 - Touch targets are at least 32 px; tone contrast as above.
 
