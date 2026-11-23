@@ -1,3 +1,4 @@
+import type { LucideIcon } from "lucide-react";
 import CircleAlert from "lucide-react/icons/circle-alert";
 import CircleDashed from "lucide-react/icons/circle-dashed";
 import Clock from "lucide-react/icons/clock";
@@ -5,7 +6,7 @@ import GitMerge from "lucide-react/icons/git-merge";
 import GitPullRequestClosed from "lucide-react/icons/git-pull-request-closed";
 import GitPullRequestDraft from "lucide-react/icons/git-pull-request-draft";
 import ListOrdered from "lucide-react/icons/list-ordered";
-import type { ComponentType } from "react";
+import { Status, type StatusTone } from "@/components/status";
 import type { PullReadinessView, PullState, QueueState } from "../../../src/shared/index.js";
 import { QUEUE_STATE } from "./queue-words.js";
 
@@ -13,11 +14,10 @@ import { QUEUE_STATE } from "./queue-words.js";
 // it is (a draft, merged) and the first thing in the way of its merge. It is
 // a state, read on the meta line as an icon and a word, not a control.
 
-type Icon = ComponentType<{ size?: number; "aria-hidden"?: boolean }>;
-type Badge = { text: string; tone: string; icon: Icon };
+type Badge = { text: string; tone: StatusTone; icon: LucideIcon };
 
-/** A badge's tone (`badge badge-err`) as the state's colour (`pull-state is-err`). */
-const toneOf = (badge: string) => badge.replace(/^badge ?/, "").replace("badge-", "is-");
+/** A badge's tone (`badge badge-err`) as the state's tone (`err`). */
+const toneOf = (badge: string) => (badge.replace(/^badge ?(badge-)?/, "") || "quiet") as StatusTone;
 
 /** What the user would do next on it: mark it ready, review it, or merge it. */
 export type NextStep = "ready" | "review" | "merge";
@@ -37,8 +37,8 @@ function badges(
   view: PullReadinessView | undefined,
   queued: QueueState | null,
 ): Badge[] {
-  if (state === "merged") return [{ text: "Merged", tone: "is-ok", icon: GitMerge }];
-  if (state === "closed") return [{ text: "Closed", tone: "", icon: GitPullRequestClosed }];
+  if (state === "merged") return [{ text: "Merged", tone: "ok", icon: GitMerge }];
+  if (state === "closed") return [{ text: "Closed", tone: "quiet", icon: GitPullRequestClosed }];
   // In the queue its merge is no longer the user's to start: the queue's word for it, as its card says it.
   if (queued) {
     const q = QUEUE_STATE[queued];
@@ -47,13 +47,13 @@ function badges(
   const draft = isDraft(view);
   const conflicts = unmet(view, "conflicts");
   const shown: Badge[] = [];
-  if (draft) shown.push({ text: "Draft", tone: "", icon: GitPullRequestDraft });
-  if (conflicts) shown.push({ text: "Conflicts", tone: "is-err", icon: CircleAlert });
+  if (draft) shown.push({ text: "Draft", tone: "quiet", icon: GitPullRequestDraft });
+  if (conflicts) shown.push({ text: "Conflicts", tone: "err", icon: CircleAlert });
   if (draft || conflicts || !view?.ready) return shown;
-  if (view.ready === "met") return [{ text: "Ready to merge", tone: "is-ok", icon: GitMerge }];
+  if (view.ready === "met") return [{ text: "Ready to merge", tone: "ok", icon: GitMerge }];
   // Quiet here: the readiness card marks each requirement that is not met.
-  if (view.ready === "unmet") return [{ text: "Not ready", tone: "", icon: CircleDashed }];
-  return view.ready === "pending" ? [{ text: "Waiting", tone: "", icon: Clock }] : [];
+  if (view.ready === "unmet") return [{ text: "Not ready", tone: "quiet", icon: CircleDashed }];
+  return view.ready === "pending" ? [{ text: "Waiting", tone: "quiet", icon: Clock }] : [];
 }
 
 export function PullStatus(props: {
@@ -65,10 +65,9 @@ export function PullStatus(props: {
   return (
     <>
       {badges(props.state, props.view, props.queued).map((b) => (
-        <span key={b.text} className={b.tone ? `pull-state ${b.tone}` : "pull-state"}>
-          <b.icon size={14} aria-hidden />
+        <Status key={b.text} tone={b.tone} icon={b.icon}>
           {b.text}
-        </span>
+        </Status>
       ))}
     </>
   );

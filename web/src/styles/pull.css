@@ -87,25 +87,6 @@
   color: var(--t2);
 }
 /* Where it stands, first on the meta line: an icon and a word in the state's colour, never a chip beside the buttons. */
-.pull-state {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--t2);
-  font-weight: 500;
-}
-.pull-state.is-ok {
-  color: var(--green);
-}
-.pull-state.is-err {
-  color: var(--critical);
-}
-.pull-state.is-warn {
-  color: var(--amber);
-}
-.pull-state.is-run {
-  color: var(--blue);
-}
 .pull-author-name {
   display: inline-flex;
   align-items: center;

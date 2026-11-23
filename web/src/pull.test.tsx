@@ -276,7 +276,7 @@ describe("a pull request's page", () => {
     await act(async () => {});
     expect(screen.queryByRole("region", { name: "Merge readiness" })).toBeNull();
     expect(screen.queryByRole("button", { name: /draft|ready for review/i })).toBeNull();
-    expect(screen.getByText("Merged").className).toContain("pull-state");
+    expect(screen.getByText("Merged").className).toContain("status-ok");
     fireEvent.click(screen.getByRole("button", { name: "Review changes" }));
     expect(screen.getByRole("button", { name: "Submit review" })).toBeTruthy();
     expect(screen.queryByRole("group", { name: "Verdict" })).toBeNull();
