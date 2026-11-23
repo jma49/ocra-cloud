@@ -199,6 +199,15 @@
 .pull-frame,
 .pull-frame .diff-file {
   scroll-margin-top: var(--pull-clear, 144px);
+  /* Clips to the card's corners without becoming a scroller, so its head can stick. */
+  overflow: clip;
+}
+/* A file's head stays under the page's head while its diff scrolls by. */
+.pull-frame .diff-head-row {
+  position: sticky;
+  top: calc(var(--pull-clear, 72px) - 12px);
+  z-index: 2;
+  background: var(--raised);
 }
 .pull-part-head {
   display: flex;
