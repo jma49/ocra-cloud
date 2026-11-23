@@ -1,16 +1,13 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { api, type Session, why } from "../api.js";
+import { useRead } from "../cache.js";
 import { ago, date } from "../format.js";
 import { StackTable } from "../stack-table.js";
-import { LoadError, Loading, PageHead, useAction, useLoad } from "../ui.js";
+import { LoadError, Loading, PageHead, useAction } from "../ui.js";
 
 export function Sessions() {
-  const {
-    data,
-    error: loadError,
-    reload,
-  } = useLoad(() => api<{ sessions: Session[] }>("/sessions"));
+  const { data, error: loadError, reload } = useRead<{ sessions: Session[] }>("/sessions");
   const [target, setTarget] = useState<Session | null>(null);
   const end = useAction((s: Session) => api(`/sessions/${s.id}`, { method: "DELETE" }));
   const revoke = async (s: Session) => {

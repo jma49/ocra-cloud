@@ -9,6 +9,7 @@ import type {
   PullFilesView,
 } from "../../../src/shared/index.js";
 import { api } from "../api.js";
+import { useRead } from "../cache.js";
 import { useFixes } from "../fixes/use-fixes.js";
 import { useBeside } from "../inbox/queue.js";
 import { usePageCommands } from "../page-commands.js";
@@ -61,13 +62,14 @@ export function PullPage(props: {
   const number = Number(props.number);
   const ref = { platform, repo: props.repo, number };
   const query = new URLSearchParams({ platform, repo: props.repo, number: props.number });
-  const { data, error, reload } = useLoad(
-    () => api<PullFilesView>(`/pulls/files?${query}`),
-    [query.toString()],
-  );
-  // Opening the page marks the pull request read as of what it read; the inbox shows it unread otherwise.
+  // A diff can be large: the last one shown is kept for this tab only.
+  const { data, error, reload, stale } = useRead<PullFilesView>(`/pulls/files?${query}`, {
+    memoryOnly: true,
+  });
+  // Opening the page marks the pull request read as of what it read now (not the copy shown
+  // while it reads); the inbox shows it unread otherwise.
   const { repo } = props;
-  const updatedAt = data?.updatedAt;
+  const updatedAt = stale ? undefined : data?.updatedAt;
   const head = data?.head;
   const since = useSince(query.toString());
   const compared = since.ready;
@@ -79,7 +81,7 @@ export function PullPage(props: {
   }, [platform, repo, number, updatedAt, head, compared]);
   const fixes = useFixes(head ? `/pulls/fixes?${query}&head=${head}` : null);
   const found = usePullFindings(head ? `/pulls/findings?${query}&head=${head}` : null);
-  const queue = useLoad(() => api<MergeQueueView>(`/pulls/queue?${query}`), [query.toString()]);
+  const queue = useRead<MergeQueueView>(`/pulls/queue?${query}`);
   const [pending, setPending] = useState<LineComment[]>([]);
   const toast = useToast();
   const said = (what: Done, outcome: PullActionOutcome) => {

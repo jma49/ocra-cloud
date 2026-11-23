@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { formatModelId, parseModelId } from "../../../src/shared/index.js";
 import { loadKeys } from "../account-keys.js";
 import { ApiError, api, why } from "../api.js";
+import { useRead } from "../cache.js";
 import { ago } from "../format.js";
 import { type Prefs, type Settings, usePrefs } from "../prefs.js";
 import { useToast } from "../toast.js";
@@ -137,11 +138,9 @@ export function Defaults() {
   const { draft, setDraft } = usePrefs();
   const toast = useToast();
   const { data: keys } = useLoad(loadKeys);
-  const { data: versions, reload: reloadVersions } = useLoad(() =>
-    api<{ versions: { id: string; createdAt: string; changed: string[] }[] }>(
-      "/preferences/versions",
-    ),
-  );
+  const { data: versions, reload: reloadVersions } = useRead<{
+    versions: { id: string; createdAt: string; changed: string[] }[];
+  }>("/preferences/versions");
   const [paste, setPaste] = useState("");
   const [result, setResult] = useState<{ notes: string[]; error?: string } | null>(null);
   const keyed = useMemo(() => new Set((keys?.keys ?? []).map((k) => k.provider)), [keys]);

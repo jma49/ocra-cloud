@@ -12,6 +12,7 @@ import { jobError } from "../auto-review/job-error.js";
 import { LimitReachedNotice } from "../auto-review/limit-reached.js";
 import { ProfileMenu } from "../auto-review/profile-menu.js";
 import { RunnerStatus } from "../auto-review/runner-status.js";
+import { useRead } from "../cache.js";
 import { ago } from "../format.js";
 import { RepoChecks } from "../merge-checks/repo-checks.js";
 import { PlatformMark } from "../platform-mark.js";
@@ -19,7 +20,7 @@ import { PLATFORM_NAME } from "../platform-names.js";
 import { pullPath } from "../pull/path.js";
 import { ReviewTargetsCard } from "../review-targets/targets-card.js";
 import { Link } from "../router.js";
-import { ActionError, LoadError, Loading, PageHead, useAction, useLoad } from "../ui.js";
+import { ActionError, LoadError, Loading, PageHead, useAction } from "../ui.js";
 
 // The repositories whose pull requests this server reviews itself when they
 // open or gain commits (ADR-0046), as the ocra bot. A GitLab hook's secret is
@@ -37,8 +38,8 @@ const STATE: Record<Job["state"], { label: string; tone: string }> = {
 };
 
 export function AutoReview(props: { platforms: readonly CodePlatformKind[] }) {
-  const { data, error, reload } = useLoad(() => api<Repos>("/auto-review/repos"));
-  const listed = useLoad(() => api<ListedRepos>("/platforms/repos")).data;
+  const { data, error, reload } = useRead<Repos>("/auto-review/repos");
+  const listed = useRead<ListedRepos>("/platforms/repos").data;
   const [added, setAdded] = useState<Added | null>(null);
   const [checking, setChecking] = useState<string | null>(null);
   const remove = useAction((id: string) =>

@@ -6,8 +6,9 @@ import type {
   ReviewThreadView,
 } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
+import { useRead } from "../cache.js";
 import { useToast } from "../toast.js";
-import { useAction, useLoad } from "../ui.js";
+import { useAction } from "../ui.js";
 import { OUTCOME } from "./outcome.js";
 import { ThreadItem } from "./thread-item.js";
 
@@ -56,10 +57,7 @@ function laidOver(t: ReviewThreadView, steps: Step[]): ReviewThreadView {
 
 export function ThreadsPanel(props: { pull: Pull; onDone: (o: PullActionOutcome) => void }) {
   const query = new URLSearchParams({ ...props.pull, number: String(props.pull.number) });
-  const { data, error, reload } = useLoad(
-    () => api<PullThreadsView>(`/pulls/threads?${query}`),
-    [query.toString()],
-  );
+  const { data, error, reload } = useRead<PullThreadsView>(`/pulls/threads?${query}`);
   const toast = useToast();
   const [picked, setPicked] = useState<string[]>([]);
   const [steps, setSteps] = useState<Step[]>([]);

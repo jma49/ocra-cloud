@@ -6,10 +6,11 @@ import {
   type ReleaseNotesView,
 } from "../../../src/shared/index.js";
 import { ApiError, api, why } from "../api.js";
+import { useRead } from "../cache.js";
 import { PublishDraft } from "../release-notes/publish.js";
 import { ReleasePulls } from "../release-notes/pulls.js";
 import { useToast } from "../toast.js";
-import { LoadError, Loading, PageHead, useAction, useLoad } from "../ui.js";
+import { LoadError, Loading, PageHead, useAction } from "../ui.js";
 
 type Platforms = {
   platforms: {
@@ -23,7 +24,7 @@ type Range = { repo: string; from: string; to: string; hidden: boolean; reviews:
 const SEP = "|";
 
 export function ReleaseNotes() {
-  const repos = useLoad(() => api<Platforms>("/platforms/repos"));
+  const repos = useRead<Platforms>("/platforms/repos");
   const [range, setRange] = useState<Range>({
     repo: "",
     from: "",

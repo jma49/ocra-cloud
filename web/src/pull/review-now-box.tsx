@@ -2,10 +2,11 @@ import { Button } from "@/components/ui/button";
 import type { PullReviewJobView, PullReviewNowView } from "../../../src/shared/index.js";
 import { ApiError, api, why } from "../api.js";
 import { useLimitReached } from "../auto-review/limit-reached.js";
+import { useRead } from "../cache.js";
 import { ago } from "../format.js";
 import { usePageCommands } from "../page-commands.js";
 import { Link } from "../router.js";
-import { useAction, useLoad, usePoll } from "../ui.js";
+import { useAction, usePoll } from "../ui.js";
 
 // An AI review of the pull request's current head by the server's runner,
 // asked for inside the ocra review card. The server answers only for a
@@ -29,10 +30,7 @@ export function ReviewNowBox(props: { pull: Pull; head: string }) {
     repo: props.pull.repo,
     number: String(props.pull.number),
   }).toString();
-  const { data, error, reload } = useLoad(
-    () => api<PullReviewNowView>(`/pulls/review-now?${query}`),
-    [query],
-  );
+  const { data, error, reload } = useRead<PullReviewNowView>(`/pulls/review-now?${query}`);
   const ask = useAction((force: boolean) =>
     api<PullReviewNowView>("/pulls/review-now", {
       method: "POST",

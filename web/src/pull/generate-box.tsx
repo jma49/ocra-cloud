@@ -2,7 +2,8 @@ import { Button } from "@/components/ui/button";
 import type { GenerateJobView, GenerateKind } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
 import { givenUp } from "../auto-review/job-error.js";
-import { useAction, useLoad, usePoll } from "../ui.js";
+import { useRead } from "../cache.js";
+import { useAction, usePoll } from "../ui.js";
 
 // Tests or docstrings for the head the page read, written by the server's
 // runner and committed to the pull request's branch as the ocra bot. Shown
@@ -34,10 +35,7 @@ export function GenerateBox(props: { pull: Pull; head: string }) {
     repo: props.pull.repo,
     number: String(props.pull.number),
   });
-  const { data, reload } = useLoad(
-    () => api<Listing>(`/auto-review/generate?${query}`),
-    [query.toString()],
-  );
+  const { data, reload } = useRead<Listing>(`/auto-review/generate?${query}`);
   const ask = useAction((kind: GenerateKind) =>
     api<{ queued: boolean }>("/auto-review/generate", {
       method: "POST",

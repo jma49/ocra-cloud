@@ -52,7 +52,7 @@ const since = (state: string, from: string | null, changed: unknown[] = []) => (
   truncated: false,
 });
 
-function show(answer: (from: string | null) => unknown) {
+function show(answer: (from: string | null) => unknown, filesAnswer = async () => files) {
   const asked: string[] = [];
   vi.stubGlobal(
     "fetch",
@@ -62,7 +62,7 @@ function show(answer: (from: string | null) => unknown) {
       if (url.startsWith("/api/pulls/since")) {
         return Response.json(answer(new URL(url, "http://x").searchParams.get("since")));
       }
-      if (url.startsWith("/api/pulls/files")) return Response.json(files);
+      if (url.startsWith("/api/pulls/files")) return Response.json(await filesAnswer());
       if (url.startsWith("/api/pulls/stack")) return Response.json({ trunk: "", pulls: [] });
       if (url.startsWith("/api/pulls/reviewers")) {
         return Response.json({ suggestions: [], owners: [] });
@@ -112,6 +112,23 @@ describe("the changes since a head", () => {
     const first = asked.findIndex((a) => a.startsWith("GET /api/pulls/since"));
     expect(first).toBeGreaterThanOrEqual(0);
     expect(first).toBeLessThan(asked.indexOf("POST /api/pulls/seen"));
+  });
+
+  it("marks it seen from what it reads now, not the copy shown from the last visit", async () => {
+    const first = show((from) => since("same", from ?? REVIEWED));
+    await waitFor(() => expect(first).toContain("POST /api/pulls/seen"));
+    cleanup();
+    let answer: (f: typeof files) => void = () => {};
+    const fresh = new Promise<typeof files>((r) => (answer = r));
+    const asked = show(
+      (from) => since("same", from ?? REVIEWED),
+      () => fresh,
+    );
+    expect(await screen.findByRole("region", { name: "src/refund.ts" })).toBeTruthy();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(asked).not.toContain("POST /api/pulls/seen");
+    answer({ ...files, updatedAt: "2026-01-03T00:00:00Z" });
+    await waitFor(() => expect(asked).toContain("POST /api/pulls/seen"));
   });
 
   it("asks again from the head of the last visit", async () => {

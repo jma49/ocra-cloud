@@ -8,6 +8,7 @@ import type {
   LearningView,
 } from "../../../src/shared/index.js";
 import { api } from "../api.js";
+import { useRead } from "../cache.js";
 import { AddGlyph } from "../glyphs.js";
 import { LearningCard } from "../learnings/learning-card.js";
 import { LearningForm } from "../learnings/learning-form.js";
@@ -45,10 +46,7 @@ function RepoLearnings(props: { at: RepoChoice }) {
     () => api<LearningsView>(`/learnings?${query}${after ? `&after=${after}` : ""}`),
     [query, after],
   );
-  const proposals = useLoad(
-    () => api<LearningProposalsView>(`/learnings/proposals?${query}`),
-    [query],
-  );
+  const proposals = useRead<LearningProposalsView>(`/learnings/proposals?${query}`);
   const [editing, setEditing] = useState<LearningView | "new" | null>(null);
   const [change, setChange] = useState<LearningChangeView | null>(null);
   const remove = useAction((l: LearningView) =>

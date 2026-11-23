@@ -7,8 +7,9 @@ import {
   type ReviewTargetsView,
 } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
+import { useRead } from "../cache.js";
 import { PlatformMark } from "../platform-mark.js";
-import { LoadError, Loading, useAction, useLoad } from "../ui.js";
+import { LoadError, Loading, useAction } from "../ui.js";
 
 // How fast the enrolled repositories' pull requests should get a first
 // review and merge: the account's default, and a repository's own in its
@@ -95,7 +96,7 @@ function TargetsForm(props: {
 }
 
 export function ReviewTargetsCard() {
-  const { data, error, reload } = useLoad(() => api<ReviewTargetsView>("/review-targets"));
+  const { data, error, reload } = useRead<ReviewTargetsView>("/review-targets");
   const [editing, setEditing] = useState<string | null>(null);
   const put = (path: string) => async (t: ReviewTargets) => {
     await api(`/review-targets/${path}`, { method: "PUT", body: JSON.stringify(t) });

@@ -2,7 +2,8 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import type { MergeCheckView, RepoChecksView } from "../../../src/shared/index.js";
 import { api } from "../api.js";
-import { ActionError, LoadError, Loading, useAction, useLoad } from "../ui.js";
+import { useRead } from "../cache.js";
+import { ActionError, LoadError, Loading, useAction } from "../ui.js";
 import { AddCheck } from "./add-check.js";
 import { KIND_LABEL, settingsText } from "./describe.js";
 
@@ -15,7 +16,7 @@ const MODE_LABEL: Record<Mode, string> = { off: "Off", warn: "Warns", block: "Bl
 
 export function RepoChecks(props: { repoId: string; fullName: string }) {
   const base = `/merge-checks/repos/${props.repoId}/checks`;
-  const { data, error, reload } = useLoad(() => api<RepoChecksView>(base), [base]);
+  const { data, error, reload } = useRead<RepoChecksView>(base);
   const hold = useAction((holdUnreviewed: boolean) =>
     api(`/merge-checks/repos/${props.repoId}`, {
       method: "PATCH",

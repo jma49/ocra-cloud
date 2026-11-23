@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { forgetPrefetched } from "./api.js";
+import { api, forgetPrefetched } from "./api.js";
 
 const DB = "ocra-cache";
 const STORE = "answers";
@@ -71,14 +71,18 @@ async function stored(key: string): Promise<Entry | undefined> {
   return e;
 }
 
-function keep(key: string, data: unknown): void {
+function keep(key: string, data: unknown, memoryOnly = false): void {
   const e = { data, at: Date.now() };
   memory.set(key, e);
-  void run("readwrite", (s) => s.put(e, key));
+  if (!memoryOnly) void run("readwrite", (s) => s.put(e, key));
 }
 
 /** Shows the cached answer for `key` at once, then refreshes it. `change` is an optimistic edit that returns its undo. */
-export function useCached<T>(key: string, load: () => Promise<T>) {
+export function useCached<T>(
+  key: string,
+  load: () => Promise<T>,
+  { memoryOnly = false }: { memoryOnly?: boolean } = {},
+) {
   const [state, setState] = useState<{
     key: string;
     data: T | undefined;
@@ -121,7 +125,7 @@ export function useCached<T>(key: string, load: () => Promise<T>) {
     });
     loadRef.current().then(
       (data) => {
-        keep(key, data);
+        keep(key, data, memoryOnly);
         if (mine()) setState({ key, data, at: Date.now(), error: null, stale: false });
       },
       (error) => {
@@ -143,17 +147,17 @@ export function useCached<T>(key: string, load: () => Promise<T>) {
         if (s.key !== key || s.data === undefined) return s;
         before = s.data;
         const data = edit(s.data);
-        keep(key, data);
+        keep(key, data, memoryOnly);
         return { ...s, data };
       });
       return () =>
         setState((s) => {
           if (s.key !== key || before === undefined) return s;
-          keep(key, before);
+          keep(key, before, memoryOnly);
           return { ...s, data: before };
         });
     },
-    [key],
+    [key, memoryOnly],
   );
   return {
     data: current.data,
@@ -164,4 +168,9 @@ export function useCached<T>(key: string, load: () => Promise<T>) {
     reload,
     change,
   };
+}
+
+/** `useCached` for a GET of the API: the path is the key. `memoryOnly` keeps large answers out of the browser's store. */
+export function useRead<T>(path: string, options: { memoryOnly?: boolean } = {}) {
+  return useCached(path, () => api<T>(path), options);
 }

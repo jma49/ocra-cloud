@@ -1,9 +1,10 @@
 import Brain from "lucide-react/icons/brain";
 import { Button } from "@/components/ui/button";
 import { api, why } from "../api.js";
+import { useRead } from "../cache.js";
 import { ago } from "../format.js";
 import { Link } from "../router.js";
-import { EmptyState, LoadError, Loading, PageHead, useAction, useLoad } from "../ui.js";
+import { EmptyState, LoadError, Loading, PageHead, useAction } from "../ui.js";
 
 // What the account remembers (ADR-0028, 4): applied with a repository's own
 // .ocra/memory.json, which wins on a conflict.
@@ -23,7 +24,7 @@ export function Memory() {
     data,
     error: loadError,
     reload,
-  } = useLoad(() => api<{ entries: Entry[]; total?: number }>("/memory"));
+  } = useRead<{ entries: Entry[]; total?: number }>("/memory");
   const forget = useAction((id: string) => api(`/memory/${id}`, { method: "DELETE" }));
   const remove = async (id: string) => {
     if ((await forget.run(id)) !== undefined) reload();

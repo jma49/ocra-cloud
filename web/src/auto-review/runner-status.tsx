@@ -1,7 +1,6 @@
 import type { ReviewRunnersView } from "../../../src/shared/index.js";
-import { api } from "../api.js";
+import { useRead } from "../cache.js";
 import { ago } from "../format.js";
-import { useLoad } from "../ui.js";
 
 // Where this server hands its reviews to remote runners: whether one is
 // asking for work, since a queued review starts only when one does.
@@ -10,7 +9,7 @@ import { useLoad } from "../ui.js";
 const ONLINE_WITHIN_MS = 3 * 60_000;
 
 export function RunnerStatus() {
-  const { data } = useLoad(() => api<ReviewRunnersView>("/auto-review/runners"));
+  const { data } = useRead<ReviewRunnersView>("/auto-review/runners");
   if (!data?.remote) return null;
   if (data.runners.length === 0) {
     return (
