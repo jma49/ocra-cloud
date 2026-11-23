@@ -6,7 +6,7 @@ import {
 } from "@dynatrace/strato-components/charts";
 import { AppRoot } from "@dynatrace/strato-components/core";
 import type { ReactNode } from "react";
-import type { Daily, Point } from "./series.js";
+import { type Daily, flat, type Point } from "./series.js";
 
 // The insights charts, drawn with Dynatrace's Strato charts (Apache-2.0).
 // This module and the library load only when Insights opens. Series take
@@ -72,15 +72,19 @@ export default function Charts(props: ChartsProps) {
           )}
         </Chart>
         <Chart title="Spend" sub="USD per day" wide>
-          <TimeseriesChart
-            variant="area"
-            height={220}
-            pointsDisplay="never"
-            colorPalette={{ Spend: tone("blue") }}
-            data={[line("Spend", daily.spend)]}
-          >
-            <TimeseriesChart.Legend hidden />
-          </TimeseriesChart>
+          {flat(daily.spend) ? (
+            <p className="chart-empty">Nothing spent in this period.</p>
+          ) : (
+            <TimeseriesChart
+              variant="area"
+              height={220}
+              pointsDisplay="never"
+              colorPalette={{ Spend: tone("blue") }}
+              data={[line("Spend", daily.spend)]}
+            >
+              <TimeseriesChart.Legend hidden />
+            </TimeseriesChart>
+          )}
         </Chart>
         <Chart title="Review time" sub="seconds, p50 and p95">
           {daily.p50.length === 0 ? (
