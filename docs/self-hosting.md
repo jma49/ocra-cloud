@@ -181,7 +181,7 @@ Each platform delivery whose signature (GitHub) or project secret (GitLab) check
 
 The body also carries `migrations` (`expected`, `applied`, `missing`, and `unknown`: applied migrations this build does not know, from a newer build, which do not fail the check). Each address may ask for a deep check 20 times a minute (`429 slow_down` past it), so point a readiness probe at it every 10 seconds or more, and keep the liveness probe on the plain one.
 
-With `METRICS_TOKEN` set, `GET /metrics` (beside `/api`, not under it) answers Prometheus' text format to a request that sends `Authorization: Bearer <METRICS_TOKEN>`, compared in constant time; any other answers 401. It counts across the whole deployment, never per account: the only labels are a queue, a kind or a state, so no account, repository, login or secret appears, and each scrape is a few aggregate queries.
+With `METRICS_TOKEN` set, `GET /metrics` (beside `/api`, not under it) answers Prometheus' text format to a request that sends `Authorization: Bearer <METRICS_TOKEN>`, compared in constant time; any other answers 401. It counts across the whole deployment, never per account: the counts are labelled by queue, kind or state alone, and the process series by collector, engine version and schema, so no account, repository, login or secret appears, and each scrape is a few aggregate queries.
 
 | Metric | Labels | Meaning |
 |---|---|---|
