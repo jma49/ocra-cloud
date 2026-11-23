@@ -1,16 +1,25 @@
 import { type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
-import type {
-  AutomationMatchView,
-  AutomationPullFacts,
-  AutomationSkipView,
-  AutomationTrigger,
-  Verdict,
+import {
+  AUTOMATION_TRIGGERS,
+  type AutomationConditionKey,
+  type AutomationMatchView,
+  type AutomationPullFacts,
+  type AutomationSkipView,
+  type AutomationTrigger,
+  TRIGGER_CONDITIONS,
+  type Verdict,
 } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
 import { listOf } from "../form.js";
-import { Seg, useAction } from "../ui.js";
-import { ACTION_LABEL, SKIP_LABEL, VERDICT_LABEL, VERDICT_LIST } from "./describe.js";
+import { useAction } from "../ui.js";
+import {
+  ACTION_LABEL,
+  SKIP_LABEL,
+  TRIGGER_LABEL,
+  VERDICT_LABEL,
+  VERDICT_LIST,
+} from "./describe.js";
 import type { Choice } from "./rule-form.js";
 
 // Describe a pull request and see which enabled rules would act on it;
@@ -27,19 +36,24 @@ export function DryRun(props: { queued: boolean; repos: Choice[] | null }) {
   const [labels, setLabels] = useState("");
   const [critical, setCritical] = useState(false);
   const [verdict, setVerdict] = useState<Verdict | "">("");
+  const [quietHours, setQuietHours] = useState("");
   const [paths, setPaths] = useState("");
+  const takes = (key: AutomationConditionKey) => TRIGGER_CONDITIONS[trigger].includes(key);
+  const quiet = Number(quietHours);
   const [tried, setTried] = useState<Tried | null>(null);
   const pull = (): AutomationPullFacts => ({
     repoId: repoId || undefined,
     paths: listOf(paths.replaceAll("\n", ",")),
-    ...(trigger === "queued"
-      ? {
-          author: author.trim() || undefined,
-          baseBranch: baseBranch.trim() || undefined,
-          title: title || undefined,
-          labels: listOf(labels),
-        }
-      : { critical, verdict: verdict || undefined }),
+    author: takes("authors") ? author.trim() || undefined : undefined,
+    baseBranch: takes("baseBranches") ? baseBranch.trim() || undefined : undefined,
+    title: takes("title") ? title || undefined : undefined,
+    labels: takes("labels") ? listOf(labels) : undefined,
+    critical: takes("critical") ? critical : undefined,
+    verdict: takes("verdicts") ? verdict || undefined : undefined,
+    quietHours:
+      takes("staleHours") && quietHours !== "" && Number.isInteger(quiet) && quiet >= 0
+        ? quiet
+        : undefined,
   });
   const run = useAction(() =>
     api<Tried>("/automations/dry-run", {
@@ -60,18 +74,21 @@ export function DryRun(props: { queued: boolean; repos: Choice[] | null }) {
       </p>
       <div className="add-fields">
         {props.queued && (
-          <Seg
-            label="Moment"
+          <select
+            className="input"
+            aria-label="Moment"
             value={trigger}
-            onChange={(t) => {
-              setTrigger(t);
+            onChange={(e) => {
+              setTrigger(e.target.value as AutomationTrigger);
               setTried(null);
             }}
-            options={[
-              { value: "queued", label: "Queued" },
-              { value: "reviewed", label: "Reviewed" },
-            ]}
-          />
+          >
+            {AUTOMATION_TRIGGERS.map((t) => (
+              <option key={t} value={t}>
+                {TRIGGER_LABEL[t]}
+              </option>
+            ))}
+          </select>
         )}
         {props.repos && props.repos.length > 0 && (
           <select
@@ -88,61 +105,76 @@ export function DryRun(props: { queued: boolean; repos: Choice[] | null }) {
             ))}
           </select>
         )}
-        {trigger === "queued" ? (
-          <>
+        {takes("staleHours") && (
+          <input
+            className="input"
+            inputMode="numeric"
+            aria-label="Hours without activity"
+            placeholder="hours quiet"
+            value={quietHours}
+            onChange={(e) => setQuietHours(e.target.value.trim())}
+          />
+        )}
+        {takes("authors") && (
+          <input
+            className="input mono"
+            aria-label="Author"
+            placeholder="author"
+            value={author}
+            onChange={(e) => setAuthor(e.target.value)}
+          />
+        )}
+        {takes("baseBranches") && (
+          <input
+            className="input mono"
+            aria-label="Base branch"
+            placeholder="main"
+            value={baseBranch}
+            onChange={(e) => setBaseBranch(e.target.value)}
+          />
+        )}
+        {takes("title") && (
+          <input
+            className="input grow"
+            aria-label="Title"
+            placeholder="Title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+        )}
+        {takes("labels") && (
+          <input
+            className="input"
+            aria-label={trigger === "labeled" ? "Label added" : "Labels on it"}
+            placeholder={trigger === "labeled" ? "label added" : "labels, comma-separated"}
+            value={labels}
+            onChange={(e) => setLabels(e.target.value)}
+          />
+        )}
+        {takes("verdicts") && (
+          <select
+            className="input"
+            aria-label="Verdict"
+            value={verdict}
+            onChange={(e) => setVerdict(e.target.value as Verdict | "")}
+          >
+            <option value="">No verdict</option>
+            {VERDICT_LIST.map((v) => (
+              <option key={v} value={v}>
+                {VERDICT_LABEL[v]}
+              </option>
+            ))}
+          </select>
+        )}
+        {takes("critical") && (
+          <label className="check">
             <input
-              className="input mono"
-              aria-label="Author"
-              placeholder="author"
-              value={author}
-              onChange={(e) => setAuthor(e.target.value)}
+              type="checkbox"
+              checked={critical}
+              onChange={(e) => setCritical(e.target.checked)}
             />
-            <input
-              className="input mono"
-              aria-label="Base branch"
-              placeholder="main"
-              value={baseBranch}
-              onChange={(e) => setBaseBranch(e.target.value)}
-            />
-            <input
-              className="input grow"
-              aria-label="Title"
-              placeholder="Title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
-            <input
-              className="input"
-              aria-label="Labels on it"
-              placeholder="labels, comma-separated"
-              value={labels}
-              onChange={(e) => setLabels(e.target.value)}
-            />
-          </>
-        ) : (
-          <>
-            <select
-              className="input"
-              aria-label="Verdict"
-              value={verdict}
-              onChange={(e) => setVerdict(e.target.value as Verdict | "")}
-            >
-              <option value="">No verdict</option>
-              {VERDICT_LIST.map((v) => (
-                <option key={v} value={v}>
-                  {VERDICT_LABEL[v]}
-                </option>
-              ))}
-            </select>
-            <label className="check">
-              <input
-                type="checkbox"
-                checked={critical}
-                onChange={(e) => setCritical(e.target.checked)}
-              />
-              Has a critical finding
-            </label>
-          </>
+            Has a critical finding
+          </label>
         )}
         <input
           className="input mono grow"

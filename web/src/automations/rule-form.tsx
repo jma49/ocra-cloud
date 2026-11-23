@@ -1,21 +1,31 @@
 import { type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
-import type {
-  AssignReviewers,
-  AutomationAction,
-  AutomationActionKind,
-  AutomationConditions,
-  AutomationRuleView,
-  AutomationTrigger,
-  Verdict,
+import {
+  type AssignReviewers,
+  AUTOMATION_TRIGGERS,
+  type AutomationAction,
+  type AutomationActionKind,
+  type AutomationConditionKey,
+  type AutomationConditions,
+  type AutomationRuleView,
+  type AutomationTrigger,
+  MAX_STALE_HOURS,
+  TRIGGER_CONDITIONS,
+  type Verdict,
 } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
 import { Drawer } from "../drawer.js";
 import { listOf, Row } from "../form.js";
 import { AddGlyph, CloseGlyph } from "../glyphs.js";
-import { Seg, useAction } from "../ui.js";
+import { useAction } from "../ui.js";
 import { AssignFields, assignAction, assignReady, newAssign } from "./assign-reviewers.js";
-import { ACTION_LABEL, actionsFor, VERDICT_LABEL, VERDICT_LIST } from "./describe.js";
+import {
+  ACTION_LABEL,
+  actionsFor,
+  TRIGGER_LABEL,
+  VERDICT_LABEL,
+  VERDICT_LIST,
+} from "./describe.js";
 import { PathsRow, pathsDraft, pathsOf } from "./paths-row.js";
 
 // One rule, new or changed: its trigger, the conditions that trigger may
@@ -91,27 +101,31 @@ export function RuleForm(props: {
     c.critical === undefined ? "any" : c.critical ? "yes" : "no",
   );
   const [verdicts, setVerdicts] = useState<Verdict[]>(c.verdicts ?? []);
+  const [staleHours, setStaleHours] = useState(c.staleHours?.toString() ?? "");
   const [paths, setPaths] = useState(() => pathsDraft(c.paths));
   const [actions, setActions] = useState<Draft[]>(
     r ? r.actions.map(draftOf) : [{ key: nextKey++, kind: "notify", text: "" }],
   );
   const allowed = actionsFor(trigger);
 
-  const conditions = (): AutomationConditions => ({
-    ...(repoIds.length ? { repoIds } : {}),
+  const takes = (key: AutomationConditionKey) => TRIGGER_CONDITIONS[trigger].includes(key);
+  const quiet = Number(staleHours);
+  const quietOk = Number.isInteger(quiet) && quiet >= 1 && quiet <= MAX_STALE_HOURS;
+
+  // Only what the trigger takes is sent: the server refuses a rule that sets another.
+  const all: AutomationConditions = {
+    repoIds: repoIds.length ? repoIds : undefined,
+    authors: listOf(authors),
+    baseBranches: listOf(branches),
+    title: title.trim() || undefined,
+    labels: listOf(labels),
+    critical: critical === "any" ? undefined : critical === "yes",
+    verdicts: verdicts.length ? verdicts : undefined,
+    staleHours: quietOk ? quiet : undefined,
     paths: pathsOf(paths),
-    ...(trigger === "queued"
-      ? {
-          authors: listOf(authors),
-          baseBranches: listOf(branches),
-          title: title.trim() || undefined,
-          labels: listOf(labels),
-        }
-      : {
-          critical: critical === "any" ? undefined : critical === "yes",
-          verdicts: verdicts.length ? verdicts : undefined,
-        }),
-  });
+  };
+  const conditions = () =>
+    Object.fromEntries(TRIGGER_CONDITIONS[trigger].map((k) => [k, all[k]])) as AutomationConditions;
   const save = useAction(() =>
     api(r ? `/automations/rules/${r.id}` : "/automations/rules", {
       method: r ? "PUT" : "POST",
@@ -136,6 +150,8 @@ export function RuleForm(props: {
     setActions((as) => as.map((a) => (a.key === key ? { ...a, ...change } : a)));
   const ready =
     name.trim() !== "" &&
+    (trigger !== "labeled" || all.labels !== undefined) &&
+    (trigger !== "stale" || quietOk) &&
     actions.length > 0 &&
     actions.every((a) =>
       a.kind === "assign_reviewers"
@@ -177,15 +193,18 @@ export function RuleForm(props: {
       </Row>
       <Row label="When" desc="The moment the rule is checked.">
         {props.queued ? (
-          <Seg
-            label="When"
+          <select
+            className="input"
+            aria-label="When"
             value={trigger}
-            onChange={changeTrigger}
-            options={[
-              { value: "queued", label: "Queued" },
-              { value: "reviewed", label: "Reviewed" },
-            ]}
-          />
+            onChange={(e) => changeTrigger(e.target.value as AutomationTrigger)}
+          >
+            {AUTOMATION_TRIGGERS.map((t) => (
+              <option key={t} value={t}>
+                {TRIGGER_LABEL[t]}
+              </option>
+            ))}
+          </select>
         ) : (
           <span className="muted small">A review is uploaded</span>
         )}
@@ -195,69 +214,99 @@ export function RuleForm(props: {
           <Checks items={props.repos} value={repoIds} onChange={setRepoIds} what="Repository" />
         </Row>
       )}
-      {trigger === "queued" ? (
-        <>
-          <Row label="Authors" desc="Logins, comma-separated; any of them.">
-            <input
-              className="input mono"
-              aria-label="Authors"
-              placeholder="octocat, hubot"
-              value={authors}
-              onChange={(e) => setAuthors(e.target.value)}
-            />
-          </Row>
-          <Row label="Into branch" desc="The branch it merges into; any of them.">
-            <input
-              className="input mono"
-              aria-label="Base branches"
-              placeholder="main, release/*"
-              value={branches}
-              onChange={(e) => setBranches(e.target.value)}
-            />
-          </Row>
-          <Row label="Title" desc="* matches any text, ? one character; case does not matter.">
-            <input
-              className="input"
-              aria-label="Title pattern"
-              maxLength={200}
-              placeholder="*hotfix*"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
-          </Row>
-          <Row label="Labels" desc="Any of these labels on it.">
-            <input
-              className="input"
-              aria-label="Labels"
-              placeholder="payments, security"
-              value={labels}
-              onChange={(e) => setLabels(e.target.value)}
-            />
-          </Row>
-        </>
-      ) : (
-        <>
-          <Row label="Critical finding" desc="Whether the review found something critical.">
-            <select
-              className="input"
-              aria-label="Critical finding"
-              value={critical}
-              onChange={(e) => setCritical(e.target.value)}
-            >
-              <option value="any">Either way</option>
-              <option value="yes">Found one</option>
-              <option value="no">Found none</option>
-            </select>
-          </Row>
-          <Row label="Verdict" desc="Any of these; none ticked means any verdict.">
-            <Checks
-              items={VERDICT_LIST.map((v) => ({ id: v, label: VERDICT_LABEL[v] }))}
-              value={verdicts}
-              onChange={(v) => setVerdicts(v as Verdict[])}
-              what="Verdict"
-            />
-          </Row>
-        </>
+      {takes("staleHours") && (
+        <Row
+          label="Quiet for"
+          desc={`Required. Whole hours with no activity on the open pull request, up to ${MAX_STALE_HOURS} (30 days).`}
+        >
+          <input
+            className="input"
+            inputMode="numeric"
+            aria-label="Hours without activity"
+            aria-invalid={staleHours !== "" && !quietOk}
+            style={staleHours !== "" && !quietOk ? { borderColor: "var(--critical)" } : undefined}
+            placeholder="72"
+            value={staleHours}
+            onChange={(e) => setStaleHours(e.target.value.trim())}
+          />
+          <span className="subtle small">hours</span>
+        </Row>
+      )}
+      {takes("authors") && (
+        <Row label="Authors" desc="Logins, comma-separated; any of them.">
+          <input
+            className="input mono"
+            aria-label="Authors"
+            placeholder="octocat, hubot"
+            value={authors}
+            onChange={(e) => setAuthors(e.target.value)}
+          />
+        </Row>
+      )}
+      {takes("baseBranches") && (
+        <Row label="Into branch" desc="The branch it merges into; any of them.">
+          <input
+            className="input mono"
+            aria-label="Base branches"
+            placeholder="main, release/*"
+            value={branches}
+            onChange={(e) => setBranches(e.target.value)}
+          />
+        </Row>
+      )}
+      {takes("title") && (
+        <Row label="Title" desc="* matches any text, ? one character; case does not matter.">
+          <input
+            className="input"
+            aria-label="Title pattern"
+            maxLength={200}
+            placeholder="*hotfix*"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+        </Row>
+      )}
+      {takes("labels") && (
+        <Row
+          label={trigger === "labeled" ? "Label added" : "Labels"}
+          desc={
+            trigger === "labeled"
+              ? "Required. The label just added is any of these."
+              : "Any of these labels on it."
+          }
+        >
+          <input
+            className="input"
+            aria-label="Labels"
+            placeholder="payments, security"
+            value={labels}
+            onChange={(e) => setLabels(e.target.value)}
+          />
+        </Row>
+      )}
+      {takes("critical") && (
+        <Row label="Critical finding" desc="Whether the review found something critical.">
+          <select
+            className="input"
+            aria-label="Critical finding"
+            value={critical}
+            onChange={(e) => setCritical(e.target.value)}
+          >
+            <option value="any">Either way</option>
+            <option value="yes">Found one</option>
+            <option value="no">Found none</option>
+          </select>
+        </Row>
+      )}
+      {takes("verdicts") && (
+        <Row label="Verdict" desc="Any of these; none ticked means any verdict.">
+          <Checks
+            items={VERDICT_LIST.map((v) => ({ id: v, label: VERDICT_LABEL[v] }))}
+            value={verdicts}
+            onChange={(v) => setVerdicts(v as Verdict[])}
+            what="Verdict"
+          />
+        </Row>
       )}
       <PathsRow value={paths} onChange={setPaths} />
       <div className="rule-actions">
