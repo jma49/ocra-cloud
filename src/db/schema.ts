@@ -1052,12 +1052,12 @@ export const reviewRequests = sqliteTable(
   ],
 );
 
-// Who is on a team a review was asked of (src/auto-review/teams.ts), read
-// with the App's Members permission when a team's ask arrives and the copy
+// Who is on a team (a GitHub team, a GitLab approval rule's group) a review
+// was asked of (src/auto-review/teams.ts), read when its ask arrives and the copy
 // here is older than its TTL: one row per account, platform host and team,
 // by the reviewer id its asks carry in review_requests ("team:<id>").
 // members holds the platform ids of its members as ",1,2,"; null when the
-// App was refused, so a refusal is not asked again before the TTL.
+// platform refused the read, so a refusal is not asked again before the TTL.
 export const reviewTeams = sqliteTable(
   "review_teams",
   {

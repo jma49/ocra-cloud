@@ -1,6 +1,8 @@
 import { env } from "cloudflare:workers";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { recordGithubRequest } from "../src/auto-review/requests.js";
+import { teamMembers } from "../src/auto-review/teams.js";
+import { CallBudget, item, withCalls } from "../src/calls.js";
 import * as schema from "../src/db/schema.js";
 import { scoped } from "../src/db/scoped.js";
 import { masterKeys } from "../src/keyring.js";
@@ -86,6 +88,8 @@ async function setUp(events: NotifyEvent[]) {
   });
   return { me, data };
 }
+
+const TEAM = { platform: "github" as const, host: "github.com", reviewerId: "team:300" };
 
 const teamAsk = (at: Date, slug = "core", teamId = 300, action = "review_requested") => ({
   action,
@@ -324,42 +328,95 @@ describe("the inbox", () => {
   });
 });
 
+async function appKey() {
+  const { privateKey } = (await crypto.subtle.generateKey(
+    {
+      name: "RSASSA-PKCS1-v1_5",
+      modulusLength: 2048,
+      publicExponent: new Uint8Array([1, 0, 1]),
+      hash: "SHA-256",
+    },
+    true,
+    ["sign"],
+  )) as CryptoKeyPair;
+  const der = new Uint8Array((await crypto.subtle.exportKey("pkcs8", privateKey)) as ArrayBuffer);
+  return `-----BEGIN PRIVATE KEY-----\n${btoa(String.fromCharCode(...der))}\n-----END PRIVATE KEY-----`;
+}
+
+/** GitHub with acme/core of `size` members, ids 1 to size, 100 a page; the URLs it was asked. */
+async function githubTeam(size: number | "refused") {
+  const urls: string[] = [];
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+    const url = new URL(new Request(input, init).url);
+    urls.push(url.toString());
+    if (url.pathname === "/orgs/acme/installation") return Response.json({ id: 9 });
+    if (url.pathname === "/app/installations/9/access_tokens") return Response.json({ token: "t" });
+    if (url.pathname === "/orgs/acme/teams/core/members") {
+      if (size === "refused") return new Response(null, { status: 403 });
+      const page = Number(url.searchParams.get("page") ?? "1");
+      const ids = Array.from({ length: size }, (_, i) => i + 1).slice((page - 1) * 100, page * 100);
+      return Response.json([
+        ...ids.map((id) => ({ id })),
+        ...(page === 1 ? [{ login: "no-id" }] : []),
+      ]);
+    }
+    return new Response(null, { status: 404 });
+  });
+  const bots = botTokens({
+    githubApi: "https://api.github.com",
+    githubAppId: "1",
+    githubAppPrivateKey: await appKey(),
+  });
+  const pages = () => urls.filter((u) => u.includes("/teams/core/members")).length;
+  return { bots, urls, pages };
+}
+
 describe("the App's team read", () => {
   it("answers the members' ids, or null when GitHub refuses", async () => {
-    const { privateKey } = (await crypto.subtle.generateKey(
-      {
-        name: "RSASSA-PKCS1-v1_5",
-        modulusLength: 2048,
-        publicExponent: new Uint8Array([1, 0, 1]),
-        hash: "SHA-256",
-      },
-      true,
-      ["sign"],
-    )) as CryptoKeyPair;
-    const der = new Uint8Array((await crypto.subtle.exportKey("pkcs8", privateKey)) as ArrayBuffer);
-    const pem = `-----BEGIN PRIVATE KEY-----\n${btoa(String.fromCharCode(...der))}\n-----END PRIVATE KEY-----`;
-    let members = 200;
-    const urls: string[] = [];
-    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
-      const url = new Request(input, init).url;
-      urls.push(url);
-      if (url.endsWith("/orgs/acme/installation")) return Response.json({ id: 9 });
-      if (url.endsWith("/app/installations/9/access_tokens")) return Response.json({ token: "t" });
-      if (url.includes("/orgs/acme/teams/core/members")) {
-        return members === 200
-          ? Response.json([{ id: 42, login: "mona" }, { id: 7 }, { login: "no-id" }])
-          : new Response(null, { status: members });
-      }
-      return new Response(null, { status: 404 });
-    });
-    const bots = botTokens({
-      githubApi: "https://api.github.com",
-      githubAppId: "1",
-      githubAppPrivateKey: pem,
-    });
-    expect(await bots.teamMembers?.("acme", "core")).toEqual(["42", "7"]);
-    expect(urls).toContain("https://api.github.com/orgs/acme/teams/core/members?per_page=100");
-    members = 403;
-    expect(await bots.teamMembers?.("acme", "core")).toBeNull();
+    const { bots, urls } = await githubTeam(2);
+    expect(await bots.teamMembers?.("acme", "core")).toEqual(["1", "2"]);
+    expect(urls).toContain(
+      "https://api.github.com/orgs/acme/teams/core/members?per_page=100&page=1",
+    );
+    const refused = await githubTeam("refused");
+    expect(await refused.bots.teamMembers?.("acme", "core")).toBeNull();
+  });
+
+  it("pages past 100 members until a page is short", async () => {
+    const { bots, pages } = await githubTeam(250);
+    const ids = await bots.teamMembers?.("acme", "core");
+    expect(ids).toHaveLength(250);
+    expect(ids?.at(-1)).toBe("250");
+    expect(pages()).toBe(3);
+  });
+
+  it("reads ten pages at most, the first 1,000 members", async () => {
+    const { bots, pages } = await githubTeam(1500);
+    expect(await bots.teamMembers?.("acme", "core")).toHaveLength(1000);
+    expect(pages()).toBe(10);
+  });
+
+  it("keeps every member read, up to 1,000", async () => {
+    const { data } = await setUp([]);
+    const { bots } = app(Array.from({ length: 1200 }, (_, i) => i + 1));
+    await deliver(teamAsk(ago(1)), bots);
+    const kept = await data.reviewTeams.find(TEAM);
+    expect(kept?.members?.split(",").filter(Boolean)).toHaveLength(1000);
+    expect(kept?.members).toContain(",1000,");
+  });
+
+  it("keeps nothing when the run's call budget cuts the pages short, so the read is tried again", async () => {
+    const { data } = await setUp([]);
+    const { bots } = await githubTeam(250);
+    const read = bots.teamMembers;
+    if (!read) throw new Error("no team read");
+    // The installation, its token and one page: the second page is refused.
+    const ran = await withCalls(new CallBudget(3), () =>
+      item(() =>
+        teamMembers(data, () => read("acme", "core"), { ...TEAM, name: "acme/core" }, now),
+      ),
+    );
+    expect(ran.cut).toBe(true);
+    expect(await data.reviewTeams.find(TEAM)).toBeNull();
   });
 });
