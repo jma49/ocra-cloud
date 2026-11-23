@@ -66,8 +66,10 @@ jobs:
           - name: worker 4/4
             args: --project worker --shard=4/4
             tmpdir: /dev/shm
-          - name: postgres
-            args: --project postgres
+          - name: postgres 1/2
+            args: --project postgres --shard=1/2
+          - name: postgres 2/2
+            args: --project postgres --shard=2/2
           - name: node
             args: --project node
           - name: web
