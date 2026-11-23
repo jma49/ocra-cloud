@@ -27,6 +27,15 @@
   box-shadow: inset 0 0 0 1px var(--hair);
 }
 /* A finding on the diff shares the fix's card; its text reads as prose, not as code. */
+/* What the reviewer does with a finding, under it: fixed, or dismissed with a reason. */
+.finding-decide {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font);
+  white-space: normal;
+}
 .finding-note-body {
   font-family: var(--font);
   white-space: normal;

@@ -49,6 +49,8 @@ export function FileDiff(props: {
   /** ocra's open findings in this file, and the review they are of. */
   findings: readonly PullFindingView[];
   review: string | null;
+  /** A finding marked fixed or dismissed here (true), or put back (false). */
+  onDecided: (finding: string, decided: boolean) => void;
   fixes: readonly FixProposalView[];
   onFixDone: (outcome: PullActionOutcome) => void;
   /** Shows the diff without a way to comment on its lines. */
@@ -69,7 +71,11 @@ export function FileDiff(props: {
         findingsAt.get(i)?.map((f) => (
           <tr key={f.id} className="diff-note">
             <td colSpan={3}>
-              <FindingNote finding={f} review={review} />
+              <FindingNote
+                finding={f}
+                review={review}
+                onDecided={(d) => props.onDecided(f.id, d)}
+              />
             </td>
           </tr>
         ))}
