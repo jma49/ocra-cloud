@@ -1,4 +1,3 @@
-import type { Context } from "hono";
 import type { Db } from "../db/client.js";
 import type { Row } from "../db/scoped.js";
 import { scoped } from "../db/scoped.js";
@@ -6,9 +5,8 @@ import type { BotTokens } from "../platforms/bot.js";
 import { COMMIT_ID } from "../platforms/contents.js";
 import { accessToken } from "../platforms/links.js";
 import type { CodePlatform } from "../platforms/platform.js";
-import { platformsOf } from "../platforms/registry.js";
 import { pathPrefixes } from "../review-paths.js";
-import type { AppBindings, AppEnv } from "../types.js";
+import type { AppBindings } from "../types.js";
 
 // After a review of an enrolled repository's pull request is kept, the
 // directories it changes are read once per head, as the bot or else the
@@ -27,13 +25,6 @@ export type PathReader = {
   platforms: readonly CodePlatform[];
   env: Pick<AppBindings, "MASTER_KEY" | "MASTER_KEY_PREVIOUS">;
 };
-
-export const pathReaderOf = (c: Context<AppEnv>): PathReader => ({
-  db: c.var.db,
-  bots: c.var.bots,
-  platforms: platformsOf(c.env, c.req.url),
-  env: c.env,
-});
 
 export async function keepReviewedPaths(
   reader: PathReader,

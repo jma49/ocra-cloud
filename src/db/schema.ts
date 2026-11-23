@@ -240,6 +240,40 @@ export const reviewRunners = sqliteTable("review_runners", {
   lastSeenAt: integer("last_seen_at", { mode: "timestamp_ms" }).notNull(),
 });
 
+/**
+ * A platform webhook delivery whose signature or secret proved it
+ * (src/inbound/), one per platform, host and the platform's delivery id, so
+ * a redelivery does nothing. `work` holds what its side effects still need,
+ * only the fields they read (src/inbound/fields.ts), until they are done or
+ * given up; a runner takes an attempt by moving retryAt past its lease,
+ * compare-and-set on attempts. No account's: it arrives for a repository
+ * before any account is known, and it may concern none.
+ */
+export const inboundEvents = sqliteTable(
+  "inbound_events",
+  {
+    id: text("id").primaryKey(),
+    platform: text("platform", { enum: ["github", "gitlab"] }).notNull(),
+    host: text("host").notNull(),
+    deliveryId: text("delivery_id").notNull(),
+    event: text("event").notNull(),
+    /** The platform's id of the repository, which a sweep takes turns by. */
+    repo: text("repo").notNull(),
+    state: text("state", { enum: ["pending", "done", "failed"] })
+      .notNull()
+      .default("pending"),
+    attempts: integer("attempts").notNull().default(1),
+    work: text("work", { mode: "json" }).$type<unknown>(),
+    retryAt: integer("retry_at", { mode: "timestamp_ms" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("inbound_events_delivery").on(t.platform, t.host, t.deliveryId),
+    index("inbound_events_retry").on(t.retryAt),
+    index("inbound_events_created").on(t.createdAt),
+  ],
+);
+
 // A model provider key, encrypted with a data key that the master key wraps.
 export const providerKeys = sqliteTable(
   "provider_keys",

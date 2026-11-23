@@ -50,7 +50,7 @@ const intentView = (i: MergeIntent) =>
   }) satisfies MergeIntentView;
 
 /** The work a request's webhooks or page hand to advance(). */
-export const runnerOf = (c: Context<AppEnv>): MergeRunner => ({
+const runnerOf = (c: Context<AppEnv>): MergeRunner => ({
   db: c.var.db,
   env: c.env,
   platforms: platformsOf(c.env, c.req.url),

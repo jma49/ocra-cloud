@@ -3,6 +3,7 @@ import { drizzle } from "drizzle-orm/d1";
 import { createApp } from "./app.js";
 import { remoteReviews } from "./auto-review/remote.js";
 import { enforceRetention } from "./db/retention.js";
+import { retryInbound } from "./inbound/run.js";
 import { masterKeys } from "./keyring.js";
 import { runAtRisk } from "./notify/at-risk.js";
 import { runDigests } from "./notify/digest.js";
@@ -16,17 +17,18 @@ import { githubHostOf } from "./platforms/registry.js";
 // The Cloudflare Worker: D1, its rate limiting bindings and its crons: the
 // daily one runs retention, the hourly one (HOURLY, in wrangler.jsonc) the
 // digests, weekly reports, review reminders, the notices held in quiet
-// hours and the pull requests at risk of a review target, which the database lets go once, and the webhook deliveries due
-// again (so on the Worker a retry waits for the hour). It has no mailer: no email API is
+// hours and the pull requests at risk of a review target, which the database lets go once, and the webhook deliveries,
+// outgoing and incoming, due again (so on the Worker a retry waits for the hour). It has no mailer: no email API is
 // configured for it, so they go to its chats only. It runs no hosted job
 // itself: with the GitHub App's key, its webhook secret and a runner token
 // set, it queues them for remote runners (docs/runner.md).
 const HOURLY = "47 * * * *";
+const remote = remoteReviews(env);
 export const app = createApp({
   openDb: (env: Env) => drizzle(env.DB),
   // Set by Cloudflare's edge, which drops any value the client sent.
   clientAddress: (c) => c.req.header("cf-connecting-ip"),
-  ...remoteReviews(env),
+  ...remote,
 });
 
 export default {
@@ -34,7 +36,10 @@ export default {
   async scheduled(controller, env, ctx) {
     const db = drizzle(env.DB);
     if (controller.cron !== HOURLY) ctx.waitUntil(enforceRetention(db));
-    else ctx.waitUntil(retryWebhooks(db, retryOutbox({ keys: masterKeys(env) })));
+    else {
+      ctx.waitUntil(retryWebhooks(db, retryOutbox({ keys: masterKeys(env) })));
+      ctx.waitUntil(retryInbound({ db, env, bots: "bots" in remote ? remote.bots : undefined }));
+    }
     if (env.PUBLIC_URL) {
       const out = {
         keys: masterKeys(env),

@@ -44,6 +44,9 @@ const githubStatus = z.object({
   repository: githubRepo,
 });
 
+/** Every part of a GitHub delivery that githubSignal reads. */
+export const GITHUB_SIGNAL_FIELDS = [githubPull, githubReview, githubCheck, githubStatus];
+
 /** A GitHub App delivery's signal and the repository it is of; null for one that says nothing here. */
 export function githubSignal(
   event: string | undefined,

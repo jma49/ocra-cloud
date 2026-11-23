@@ -7,17 +7,14 @@ import { scoped } from "../db/scoped.js";
 import { defer } from "../defer.js";
 import { MAX_HOOK_BODY } from "../graph/webhooks.js";
 import { apiError, jsonBody } from "../http.js";
-import { gitlabSignal, moveIntents } from "../merge-when-ready/hooks.js";
-import { runnerOf } from "../merge-when-ready/routes.js";
-import { gitlabStartOf } from "../notify/gitlab-starts.js";
-import { publicOutbox } from "../notify/notify.js";
-import { tellGitlabHook, tellGitlabNote } from "../notify/pull-hooks.js";
+import { gitlabFields } from "../inbound/fields.js";
+import { receive } from "../inbound/receive.js";
+import { gitlabSignal } from "../merge-when-ready/hooks.js";
 import { COMMIT_ID } from "../platforms/contents.js";
 import { githubHostOf, gitlabClientOf } from "../platforms/registry.js";
 import type { AppEnv } from "../types.js";
 import { recordGitlabClose } from "./closes.js";
 import { recordGitlabFlow } from "./flows.js";
-import { keepReviewedPaths, pathReaderOf } from "./paths.js";
 import { gitlabNote, queueGitlabNote } from "./replies.js";
 import { recordGitlabRequests } from "./requests.js";
 import type { AutoReviewService } from "./routes.js";
@@ -144,38 +141,48 @@ export function autoReviewWebhooks(service: AutoReviewService) {
       return apiError(c, "unauthenticated");
     }
     const signal = gitlabSignal(kind, body);
-    // The secret proves this project only: its intents are moved, whatever path the body names.
-    if (signal) defer(c, moveIntents(runnerOf(c), repo, repo.fullName, signal.signal));
-    if (note?.data) {
-      const startOf = gitlabStartOf(pathReaderOf(c), repo);
-      defer(c, tellGitlabNote(c.var.db, publicOutbox(c), repo, body, startOf));
-      return c.json({ queued: await queueGitlabNote(c.var.db, service, repo, note.data) }, 202);
-    }
-    if (mr) {
-      const reviewed = await recordGitlabFlow(c.var.db, repo, body);
-      if (reviewed) defer(c, keepReviewedPaths(pathReaderOf(c), reviewed));
-      await recordGitlabRequests(c.var.db, repo, body);
-      defer(c, tellGitlabHook(c.var.db, publicOutbox(c), repo, body));
-    }
-    if (mr && (await recordGitlabClose(c.var.db, repo, body))) return c.json({ queued: 0 }, 202);
-    const event = mr?.data;
-    if (event && gitlabEdited(event.object_attributes)) {
-      service.checkPull?.(repo.accountId, repo.id, event.object_attributes.iid);
-    }
-    if (!event || !gitlabQueues(event.object_attributes)) return c.json({ queued: 0 }, 202);
-    const a = event.object_attributes;
-    const queued = await queue(c, service, repo, {
-      fullName: event.project.path_with_namespace,
-      number: a.iid,
-      head: a.last_commit.id,
-      opened: a.action !== "update",
-      facts: {
-        ...(a.action === "open" && event.user ? { author: event.user.username } : {}),
-        ...(a.target_branch !== undefined ? { baseBranch: a.target_branch } : {}),
-        ...(a.title !== undefined ? { title: a.title } : {}),
-        ...(event.labels ? { labels: event.labels.map((l) => l.title) } : {}),
+    const tells = !!note?.data || !!mr;
+    const received = await receive(c, {
+      platform: "gitlab",
+      host,
+      deliveryId: c.req.header("idempotency-key") ?? c.req.header("x-gitlab-event-uuid"),
+      event: kind ?? "",
+      repo: String(projectId),
+      work: {
+        steps: [...(tells ? (["tell"] as const) : []), ...(signal ? (["intents"] as const) : [])],
+        ...(tells ? { body: gitlabFields(body) } : {}),
+        // The secret proves this project only: its intents are moved, whatever path the body names.
+        ...(signal ? { signal: { fullName: repo.fullName, signal: signal.signal } } : {}),
       },
     });
+    if (!received) return c.json({ queued: 0, duplicate: true }, 202);
+    const queued = await received.answer(async () => {
+      if (note?.data) return queueGitlabNote(c.var.db, service, repo, note.data);
+      if (mr) {
+        received.reviewed(await recordGitlabFlow(c.var.db, repo, body));
+        await recordGitlabRequests(c.var.db, repo, body);
+      }
+      if (mr && (await recordGitlabClose(c.var.db, repo, body))) return 0;
+      const event = mr?.data;
+      if (event && gitlabEdited(event.object_attributes)) {
+        service.checkPull?.(repo.accountId, repo.id, event.object_attributes.iid);
+      }
+      if (!event || !gitlabQueues(event.object_attributes)) return 0;
+      const a = event.object_attributes;
+      return queue(c, service, repo, {
+        fullName: event.project.path_with_namespace,
+        number: a.iid,
+        head: a.last_commit.id,
+        opened: a.action !== "update",
+        facts: {
+          ...(a.action === "open" && event.user ? { author: event.user.username } : {}),
+          ...(a.target_branch !== undefined ? { baseBranch: a.target_branch } : {}),
+          ...(a.title !== undefined ? { title: a.title } : {}),
+          ...(event.labels ? { labels: event.labels.map((l) => l.title) } : {}),
+        },
+      });
+    });
+    await received.start();
     return c.json({ queued }, 202);
   });
   return hooks;

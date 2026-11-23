@@ -109,6 +109,10 @@ function gitlabThreadNote(body: unknown, repoId: string, now: Date) {
   } satisfies ThreadNote;
 }
 
+/** Every part of a delivery that a review thread's start or reply reads. */
+export const GITHUB_THREAD_FIELDS = [githubReviewComment];
+export const GITLAB_THREAD_FIELDS = [gitlabNote];
+
 /** The first note of a merge request's discussion, from the platform; null when it does not say. */
 export type StartOf = (number: number, threadKey: string) => Promise<DiscussionStart | null>;
 
