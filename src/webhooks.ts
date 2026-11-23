@@ -4,6 +4,7 @@ import { githubInstallationAdds } from "./auto-review/auto-enroll.js";
 import { recordGithubClose } from "./auto-review/closes.js";
 import { recordGithubFindingThread } from "./auto-review/finding-threads.js";
 import { recordGithubFlow } from "./auto-review/flows.js";
+import { githubLifecycle } from "./auto-review/lifecycle.js";
 import { queueGithubComment } from "./auto-review/replies.js";
 import { recordGithubRequest } from "./auto-review/requests.js";
 import type { AutoReviewService } from "./auto-review/routes.js";
@@ -31,7 +32,9 @@ import type { AppEnv } from "./types.js";
 // where the host does them. A pull request's change, review, check or status also moves the
 // intents armed to merge it when ready, and a failed check suite tells the
 // author of its pull request; the repositories added to an installation
-// are enrolled where an account asked for that; one that changes a pull
+// are enrolled where an account asked for that; a repository renamed,
+// transferred, deleted or removed, or an installation suspended or
+// uninstalled, changes the enrollments it names (src/auto-review/lifecycle.ts); one that changes a pull
 // request of an enrolled repository moves its change time, which the inbox
 // watches. Each delivery with something to
 // run after the answer is acted on once, and that is tried again when it
@@ -84,6 +87,8 @@ export function githubWebhook(host: WebhookHost) {
         if (repo.success && githubTouchesPulls(event, body)) {
           await touchPulls(c.var.db, "github", github, String(repo.data.repository.id), new Date());
         }
+        const site = { kind: "github" as const, host: github, url: githubUrl };
+        await githubLifecycle(c.var.db, site, event, body, new Date());
         // A close is kept wherever the repository is enrolled, reviews or not.
         if (event === "pull_request") await recordGithubClose(c.var.db, github, body);
         received.reviewed(await recordGithubFlow(c.var.db, github, event, body));

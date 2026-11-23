@@ -57,6 +57,7 @@ import {
   type NotifyEvent,
   type NotifyWhen,
   type PullFilters,
+  REPO_PAUSES,
   REVIEW_CHAT_ROLES,
   REVIEW_JOB_STATES,
   REVIEW_PROFILES,
@@ -840,6 +841,8 @@ export const reviewRepos = sqliteTable(
     webhookId: text("webhook_id"),
     /** When a webhook last said one of its pull requests changed (src/db/pull-changes.ts), for the inbox's refresh. */
     pullsChangedAt: integer("pulls_changed_at", { mode: "timestamp_ms" }),
+    /** Why its jobs are paused (src/auto-review/lifecycle.ts); null while it runs. */
+    paused: text("paused", { enum: REPO_PAUSES }),
   },
   (t) => [
     uniqueIndex("review_repos_platform_repo").on(t.platform, t.host, t.platformRepoId),

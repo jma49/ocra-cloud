@@ -20,6 +20,7 @@ import { gitlabMerged } from "../stack-merge/hooks.js";
 import type { AppEnv } from "../types.js";
 import { recordGitlabClose } from "./closes.js";
 import { recordGitlabFlow } from "./flows.js";
+import { renameRepository } from "./lifecycle.js";
 import { gitlabNote, queueGitlabNote } from "./replies.js";
 import { recordGitlabRequests } from "./requests.js";
 import type { AutoReviewService } from "./routes.js";
@@ -31,6 +32,10 @@ import type { AutoReviewService } from "./routes.js";
 // answers (./replies.ts); its merge request and pipeline hooks also move
 // the intents armed to merge when ready (src/merge-when-ready/), and a
 // failed merge request pipeline tells its author (src/notify/ci-hooks.ts).
+// A GitHub pull request event naming the repository by a new path renames
+// it (./lifecycle.ts); a GitLab hook's path is not trusted for that (its
+// secret proves the project's id only), the daily reconciliation reads it.
+// A paused repository queues no review.
 
 type PullChange = {
   fullName: string;
@@ -75,6 +80,9 @@ export async function queueGithubPull(
     String(repository.id),
   );
   if (!repo) return 0;
+  if (repo.fullName !== repository.full_name) {
+    await renameRepository(c.var.db, githubSite(c), repo.platformRepoId, repository.full_name);
+  }
   if (!reviews) {
     service.checkPull?.(repo.accountId, repo.id, number);
     return 0;
@@ -113,6 +121,11 @@ const gitlabMergeRequest = z.object({
 });
 
 const gitlabProject = z.object({ project: z.object({ id: z.number() }) });
+
+const githubSite = (c: Context<AppEnv>) => {
+  const { host, url } = githubHostOf(c.env);
+  return { kind: "github" as const, host, url };
+};
 
 type MergeRequestChange = z.infer<typeof gitlabMergeRequest>["object_attributes"];
 
@@ -212,9 +225,6 @@ async function queue(
 ): Promise<number> {
   if (!COMMIT_ID.test(change.head)) return 0;
   const data = scoped(c.var.db, repo.accountId);
-  if (repo.fullName !== change.fullName) {
-    await data.update("reviewRepos", repo.id, { fullName: change.fullName });
-  }
   const { skipped, run } = await automate(c, data, {
     trigger: "queued",
     eventKey: `${repo.id}#${change.number}@${change.head}`,
@@ -227,8 +237,16 @@ async function queue(
   defer(c, run);
   // A pull request a rule skips the review of still has its checks.
   service.checkPull?.(repo.accountId, repo.id, change.number);
-  // Switched off, or paused on the pull request (./commands.ts), a review runs only when a person asks for one.
-  if (skipped || !repo.automatic || (await data.commands.paused(repo.id, change.number))) return 0;
+  // Switched off, or paused on the pull request (./commands.ts), a review runs only when a person
+  // asks for one; with the repository paused (./lifecycle.ts), none runs.
+  if (
+    skipped ||
+    !repo.automatic ||
+    repo.paused ||
+    (await data.commands.paused(repo.id, change.number))
+  ) {
+    return 0;
+  }
   const queued = await data.autoReview.queue(repo.id, change.number, change.head, new Date());
   if (queued) service.kick();
   return queued ? 1 : 0;

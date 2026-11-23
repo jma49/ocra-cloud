@@ -63,6 +63,7 @@ import { accountPullPaths } from "./pull-paths.js";
 import { accountPullSeen } from "./pull-seen.js";
 import { accountPullViews } from "./pull-views.js";
 import { accountReplyJobs } from "./reply-jobs.js";
+import { accountRepoLifecycle } from "./repo-lifecycle.js";
 import { accountReports } from "./reports.js";
 import { nameRepo, nameRepos, pulledRepos, reviewedRepos } from "./repos.js";
 import { accountReviewChat } from "./review-chat.js";
@@ -471,6 +472,7 @@ export function scoped(db: Db, accountId: string) {
     graphs: accountGraphs(db, accountId),
     autoReview: accountReviewJobs(db, accountId),
     autoEnroll: accountAutoEnroll(db, accountId),
+    repoLifecycle: accountRepoLifecycle(db, accountId),
     notify: accountNotify(db, accountId),
     deliveries: accountNotifyDeliveries(db, accountId),
     reports: accountReports(db, accountId),

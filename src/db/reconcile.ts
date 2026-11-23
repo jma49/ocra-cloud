@@ -3,7 +3,7 @@ import { type Db, first } from "./client.js";
 import { reviewRepos } from "./schema.js";
 
 // The daily reconciliation's turn (src/reconcile.ts), across accounts: each
-// enrolled repository is claimed once per UTC day, by a compare-and-set on
+// enrolled repository not paused is claimed once per UTC day, by a compare-and-set on
 // when it was last claimed, so two runs at once, or a run every hour, read
 // it once a day. A run that ran out of calls before it finished a
 // repository gives the claim back, so the next run reads it again. One whose
@@ -17,6 +17,7 @@ export type ReconcileTurn = {
   accountId: string;
   platform: (typeof reviewRepos.$inferSelect)["platform"];
   host: string;
+  platformRepoId: string;
   fullName: string;
   createdAt: Date;
   /** Its own GitLab access token, sealed (src/platforms/repo-token.ts). */
@@ -51,7 +52,13 @@ export async function claimReconcile(
     const next = await db
       .select({ id: t.id, reconciledAt: t.reconciledAt })
       .from(t)
-      .where(and(due, skip.length > 0 ? notInArray(t.accountId, [...skip]) : undefined))
+      .where(
+        and(
+          due,
+          isNull(t.paused),
+          skip.length > 0 ? notInArray(t.accountId, [...skip]) : undefined,
+        ),
+      )
       // Never read before first; then by when it was last read.
       .orderBy(sql`coalesce(${t.reconciledAt}, 0)`, asc(t.id))
       .limit(1)
@@ -67,6 +74,7 @@ export async function claimReconcile(
         accountId: t.accountId,
         platform: t.platform,
         host: t.host,
+        platformRepoId: t.platformRepoId,
         fullName: t.fullName,
         createdAt: t.createdAt,
         accessTokenWrappedKey: t.accessTokenWrappedKey,

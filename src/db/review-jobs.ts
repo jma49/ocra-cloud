@@ -7,6 +7,7 @@ import {
 import { changedRows, type Db, first } from "./client.js";
 import { mayStart } from "./counters.js";
 import { recoverLapsed } from "./job-recovery.js";
+import { repoRuns } from "./repo-lifecycle.js";
 import { reviewJobs, reviewRepos } from "./schema.js";
 
 // The pull requests the server reviews itself (ADR-0046): an account's
@@ -37,7 +38,7 @@ export function accountReviewJobs(db: Db, accountId: string) {
   return {
     /**
      * Enrolls a repository for this account, or brings its name and hook
-     * secret up to date, in one statement: a new one only while the account
+     * secret up to date and lifts its pause, in one statement: a new one only while the account
      * has fewer than cap. Undefined at the cap, or when another account
      * enrolled the repository (the unique index decides, not a check).
      */
@@ -46,7 +47,7 @@ export function accountReviewJobs(db: Db, accountId: string) {
       const [row] = await db
         .insert(t)
         .select(sql`SELECT ${crypto.randomUUID()}, ${accountId}, ${repo.platform}, ${repo.host},
-          ${repo.platformRepoId}, ${repo.fullName}, ${repo.webhookSecretHash ?? null}, ${Date.now()}, 1, ${DEFAULT_REVIEW_PROFILE}, ${repo.automatic ? 1 : 0}, ${DEFAULT_LEARN_MODE}, NULL, NULL, NULL, NULL, NULL, NULL
+          ${repo.platformRepoId}, ${repo.fullName}, ${repo.webhookSecretHash ?? null}, ${Date.now()}, 1, ${DEFAULT_REVIEW_PROFILE}, ${repo.automatic ? 1 : 0}, ${DEFAULT_LEARN_MODE}, NULL, NULL, NULL, NULL, NULL, NULL, NULL
         WHERE (SELECT count(*) FROM ${t} WHERE account_id = ${accountId}) < ${cap}
           OR EXISTS (SELECT 1 FROM ${t} WHERE account_id = ${accountId} AND platform = ${repo.platform}
             AND host = ${repo.host} AND platform_repo_id = ${repo.platformRepoId})`)
@@ -55,6 +56,8 @@ export function accountReviewJobs(db: Db, accountId: string) {
           set: {
             fullName: sql`excluded.full_name`,
             webhookSecretHash: sql`excluded.webhook_secret_hash`,
+            // Enrolled again by the account, which proved it reaches it: its pause is lifted.
+            paused: null,
           },
           setWhere: eq(t.accountId, accountId),
         })
@@ -242,7 +245,9 @@ export async function claimJob(
   const waiting = await db
     .select({ reviewRepoId: j.reviewRepoId, number: j.number })
     .from(j)
-    .where(and(due, sql`NOT ${busy}`, mayStart(j.accountId, dailyCalls, now)))
+    .where(
+      and(due, sql`NOT ${busy}`, mayStart(j.accountId, dailyCalls, now), repoRuns(j.reviewRepoId)),
+    )
     .orderBy(j.createdAt)
     .limit(1)
     .then(first);

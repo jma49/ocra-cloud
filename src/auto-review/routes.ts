@@ -70,6 +70,7 @@ const repoView = (r: Row<"reviewRepos">, latest: ReviewJobSummary | undefined) =
     hasAccessToken: !!r.accessTokenCiphertext,
     accessTokenBot: r.accessTokenCiphertext ? r.accessTokenBot : null,
     webhookManaged: r.webhookId !== null,
+    paused: r.paused,
     latest: latest
       ? {
           number: latest.number,

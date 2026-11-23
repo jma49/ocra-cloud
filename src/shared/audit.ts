@@ -41,6 +41,9 @@ export type AuditDetails = {
   "auto_review.automatic_changed": { repo: string; automatic: boolean };
   "auto_review.learn_changed": { repo: string; learn: string };
   "auto_review.unenrolled": { repo: string };
+  "auto_review.renamed": { repo: string; previous: string };
+  "auto_review.paused": { repo: string; reason: string };
+  "auto_review.resumed": { repo: string; reason: string };
   "auto_review.access_token_set": { repo: string; bot: string };
   "auto_review.access_token_cleared": { repo: string };
   "auto_review.webhook_added": { repo: string };
@@ -107,6 +110,9 @@ export const AUDIT_FIELDS: { readonly [K in AuditKind]: readonly (keyof AuditDet
   "auto_review.automatic_changed": ["repo", "automatic"],
   "auto_review.learn_changed": ["repo", "learn"],
   "auto_review.unenrolled": ["repo"],
+  "auto_review.renamed": ["repo", "previous"],
+  "auto_review.paused": ["repo", "reason"],
+  "auto_review.resumed": ["repo", "reason"],
   "auto_review.access_token_set": ["repo", "bot"],
   "auto_review.access_token_cleared": ["repo"],
   "auto_review.webhook_added": ["repo"],

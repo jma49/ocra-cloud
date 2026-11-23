@@ -2,6 +2,7 @@ import { and, eq, isNull, lte, or, sql } from "drizzle-orm";
 import { changedRows, type Db, first } from "./client.js";
 import { mayStart } from "./counters.js";
 import { recoverLapsed } from "./job-recovery.js";
+import { repoRuns } from "./repo-lifecycle.js";
 import { replyJobs } from "./schema.js";
 
 // Answers to @ocra comments (reached through scoped() for an account's own,
@@ -71,6 +72,7 @@ export async function claimReply(
         eq(j.state, "queued"),
         or(isNull(j.notBefore), lte(j.notBefore, now)),
         mayStart(j.accountId, dailyCalls, now),
+        repoRuns(j.reviewRepoId),
       ),
     )
     .orderBy(j.createdAt)

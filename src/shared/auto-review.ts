@@ -53,6 +53,17 @@ export type PullCommandsView = { paused: boolean; commands: PullCommandView[] };
 /** What PUT and DELETE of a pull request's pause answer. */
 export type PullPauseView = { paused: boolean };
 
+/**
+ * Why auto review of an enrolled repository is paused (src/auto-review/lifecycle.ts):
+ * removed from the GitHub App's installation, deleted, its installation
+ * suspended or uninstalled. A paused repository runs no jobs and keeps its history.
+ */
+export const REPO_PAUSES = ["removed", "deleted", "suspended", "uninstalled"] as const;
+export type RepoPause = (typeof REPO_PAUSES)[number];
+
+/** The error of a queued job given up when its repository was paused. */
+export const REPO_PAUSED_ERROR = "repository_paused";
+
 /** A queued job's error while it waits for the account's daily gateway calls to reset. */
 export const DAILY_LIMIT_WAIT = "daily_limit";
 /**
@@ -76,6 +87,8 @@ export type AutoReviewRepoView = {
   accessTokenBot: string | null;
   /** Whether ocra added the GitLab project's webhook itself, and removes it on unenroll. */
   webhookManaged: boolean;
+  /** Why its jobs are paused; null while it runs. Enrolling it again lifts the pause. */
+  paused: RepoPause | null;
   latest: {
     number: number;
     head: string;
