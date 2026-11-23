@@ -6,7 +6,7 @@ import type { PullsChangedEvent } from "../shared/index.js";
 // Postgres. It holds nothing: an event no console hears is gone, and a
 // console that reconnects reads /pulls/changed once.
 
-/** Streams one account may hold open at once: a few tabs and windows. */
+/** Streams one account may hold open at once (on Node, per process): a few tabs and windows. */
 export const MAX_STREAMS = 6;
 /** How long one stream stays open: a signed-out session, or a lost event, outlives it by this at most. */
 export const STREAM_MS = 5 * 60_000;
