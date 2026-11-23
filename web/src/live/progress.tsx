@@ -1,4 +1,5 @@
 import type { Stage } from "@open-cr-agent/cloud-contract";
+import { Elapsed } from "../elapsed.js";
 import { usd } from "../format.js";
 import type { LiveProgress } from "./fold.js";
 
@@ -18,7 +19,7 @@ const STAGE_NAMES: Record<Stage, string> = {
 const STAGES = Object.keys(STAGE_NAMES) as Stage[];
 
 export function LiveStages(props: { progress: LiveProgress; ended: boolean }) {
-  const { stage, stages } = props.progress;
+  const { stage, stageAt, stages } = props.progress;
   return (
     <ol className="live-stages" aria-label="Stages">
       {STAGES.map((s) => {
@@ -31,7 +32,14 @@ export function LiveStages(props: { progress: LiveProgress; ended: boolean }) {
             aria-current={state === "current" ? "step" : undefined}
           >
             <span className="live-stage-dot" aria-hidden="true" />
-            {STAGE_NAMES[s]}
+            {state === "current" ? (
+              <>
+                <span className="shimmer-text">{STAGE_NAMES[s]}</span>
+                {stageAt && <Elapsed since={Date.parse(stageAt)} />}
+              </>
+            ) : (
+              STAGE_NAMES[s]
+            )}
           </li>
         );
       })}

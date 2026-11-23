@@ -108,7 +108,7 @@ A new shared control comes from coss ui first, then from a small component in `w
 ## Motion
 
 - **Easings:** `--e-std` for state changes, `--e-enter` for things that appear, `--e-settle` for things that move into place.
-- **Durations:** 80 ms for press feedback, 120–160 ms for everything else that moves (hover, colour, menus, toasts, the drawer). Nothing longer, except the skeleton's fade-in and its shimmer, and the coss ui components' own tuned motion (a toast's stack settles over half a second), which pages leave as it is.
+- **Durations:** 80 ms for press feedback, 120–160 ms for everything else that moves (hover, colour, menus, toasts, the drawer). Nothing longer, except the skeleton's fade-in and its shimmer, work under way (`.shimmer-text` on its label with the seconds beside it, a task's ring), and the coss ui components' own tuned motion (a toast's stack settles over half a second), which pages leave as it is.
 - **Hover and press:** every hover and press a page draws itself takes one rule (`web/src/styles/motion.css`): colours fade over 120 ms, and an icon button or tile gives way (scale 0.96) over 80 ms on press. A new hoverable class joins that list rather than setting its own transition.
 - **What moves:** hover and selected states fade; menus, tooltips and toasts scale or rise in from their anchor; drawers slide from the right; nothing animates on scroll and nothing loops but loading.
 - **Continuity:** an element that stays on screen keeps its position across a state change (optimistic updates, no reflow flashes); the open place and tab stay highlighted.

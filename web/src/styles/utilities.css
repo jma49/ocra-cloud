@@ -85,6 +85,36 @@
   white-space: nowrap;
 }
 
+/* Work under way, said in words: a highlight sweeps the label, and the
+   seconds it has taken sit beside it. */
+.shimmer-text {
+  color: transparent;
+  background: linear-gradient(90deg, var(--t3) 35%, var(--t1) 50%, var(--t3) 65%) 0 0 / 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  animation: shimmer-text 1.6s linear infinite;
+}
+.elapsed {
+  color: var(--t3);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+@keyframes shimmer-text {
+  from {
+    background-position: 150% 0;
+  }
+  to {
+    background-position: -50% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce), (forced-colors: active) {
+  .shimmer-text {
+    color: inherit;
+    background: none;
+    animation: none;
+  }
+}
+
 /* Placeholder lines while data loads. They appear only after a beat, so a
    fast answer never flashes them, and shimmer unless motion is reduced. */
 .skeleton {

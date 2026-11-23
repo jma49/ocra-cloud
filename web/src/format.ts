@@ -21,6 +21,10 @@ export function bytes(n: number): string {
   return `${n} B`;
 }
 /** How long ago, in a list's narrow column: "2m", "6h", "3d", then "Oct 4", or "Oct 2025" in another year. */
+export function elapsed(ms: number): string {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, "0")}s`;
+}
 export function since(iso: string): string {
   const then = new Date(iso);
   const s = (Date.now() - then.getTime()) / 1000;

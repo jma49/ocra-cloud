@@ -1,5 +1,5 @@
 import fixture from "@open-cr-agent/cloud-contract/fixtures/events.json" with { type: "json" };
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { LiveEventView, LiveRunView, LiveShareView } from "../../src/shared/index.js";
 import { emptyProgress, fold } from "./live/fold.js";
@@ -27,6 +27,7 @@ describe("folding a run's events", () => {
     expect([...p.findings.values()].every((f) => !f.dropped)).toBe(true);
     expect(p.ending?.kind).toBe("finished");
     expect(p.tasks.size).toBe(1);
+    expect(p.stageAt).toBe(fixture.events.findLast((e) => e.kind === "stage")?.at);
   });
 
   it("changes nothing for events it already has, in any order", () => {
@@ -127,6 +128,25 @@ describe("the live page", () => {
     expect(await screen.findByText(kept?.title ?? "")).toBeTruthy();
     act(() => source.emit("end", "finished"));
     expect(source.closed).toBe(true);
+  });
+
+  it("lists each task while it runs and how it ended", async () => {
+    serve();
+    render(<LivePage id="lr1" />);
+    await screen.findByText("No findings yet");
+    const source = FakeSource.last as FakeSource;
+    const until = (kind: string) => events.findIndex((e) => e.kind === kind) + 1;
+    act(() => {
+      for (const e of events.slice(0, until("task.started"))) source.emit("review", e);
+    });
+    const task = within(await screen.findByRole("list", { name: "Tasks" })).getByRole("listitem");
+    expect(task.textContent).toBe("security2 filesRunning");
+    expect(within(screen.getByRole("list", { name: "Stages" })).getByText(/\ds$/)).toBeTruthy();
+    act(() => {
+      for (const e of events.slice(0, until("task.finished"))) source.emit("review", e);
+    });
+    await waitFor(() => expect(task.textContent).toBe("security2 filesCompleted"));
+    expect(task.querySelector(".task-mark.is-done")).toBeTruthy();
   });
 
   it("lets the owner turn the link on and comment, and a watcher only watch", async () => {
