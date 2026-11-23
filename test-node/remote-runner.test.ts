@@ -119,6 +119,7 @@ describe("a remote runner's calls", () => {
       bot: { token: "ghs_bot", login: "ocra-review[bot]" },
       cloudUrl: ORIGIN,
       credentials: { server: ORIGIN, login: "user-1" },
+      uploadSalt: expect.stringMatching(/^[0-9a-f]{64}$/),
       args: ["review", "--pr", "7", "--repo", "Octo/API", "--publish", "--no-repo-config"],
       config: { github: { botLogin: "ocra-review[bot]" } },
       ok: [0, 1, 3],
