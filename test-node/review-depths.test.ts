@@ -1,4 +1,4 @@
-import { configSchema } from "@open-cr-agent/cloud-contract";
+import { configSchema, REVIEW_DEPTHS as ENGINE_DEPTHS } from "@open-cr-agent/cloud-contract";
 import {
   agentsMdReviewerPlugin,
   correctnessReviewerPlugin,
@@ -39,7 +39,11 @@ describe("a hosted review's depth", () => {
     expect(depthRun("standard")).toEqual({ config: {}, flags: [] });
   });
 
-  it("maps quick to correctness and security on changed lines, at most ten warnings or worse inline, without ultra; deep to --ultra", () => {
+  it("names the engine's depths, in its order", () => {
+    expect(REVIEW_DEPTHS).toEqual(ENGINE_DEPTHS);
+  });
+
+  it("maps quick to the engine's quick, held to correctness and security on changed lines, at most ten warnings or worse inline, without ultra; deep to the engine's deep with --ultra", () => {
     expect(depthRun("quick")).toEqual({
       config: {
         reviewers: {
@@ -52,9 +56,9 @@ describe("a hosted review's depth", () => {
         maxInlineComments: 10,
         ultra: false,
       },
-      flags: [],
+      flags: ["--depth", "quick"],
     });
-    expect(depthRun("deep")).toEqual({ config: {}, flags: ["--ultra"] });
+    expect(depthRun("deep")).toEqual({ config: {}, flags: ["--depth", "deep", "--ultra"] });
   });
 
   it("writes only configuration the engine accepts, naming its own reviewers", () => {

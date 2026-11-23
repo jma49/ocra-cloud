@@ -136,6 +136,22 @@ describe("reading a repository's configuration", () => {
     expect(view.errors.map((e) => e.path)).toEqual([["rules", 0, "rule"]]);
   });
 
+  it("reads the rules in plain language as text, which only a length limit refuses", async () => {
+    const rules = "## services/billing/\n\nEvery handler checks the caller's account.\n";
+    platform(githubHead, githubBlobs({ ".ocra/rules.md": { oid: BLOB, text: rules } }));
+    const a = await signInWithGithub();
+    const view = (await (await read(a, "&file=rulesMarkdown")).json()) as RepoConfigView;
+    expect(view).toMatchObject({
+      file: "rulesMarkdown",
+      path: ".ocra/rules.md",
+      schema: null,
+      text: rules,
+      value: null,
+      parseError: null,
+      errors: [],
+    });
+  });
+
   it("answers not found for another file, or a repository the user does not reach", async () => {
     platform({});
     const a = await signInWithGithub();
@@ -228,6 +244,15 @@ describe("changing a repository's configuration on GitHub", () => {
     });
     const badRules = await save(a, { file: "rules", text: '{ "rules": {} }', expected: BLOB });
     expect(badRules.status).toBe(400);
+    const longRules = await save(a, {
+      file: "rulesMarkdown",
+      text: "x".repeat(20_001),
+      expected: BLOB,
+    });
+    expect(await longRules.json()).toMatchObject({
+      error: "invalid_body",
+      issues: [{ path: ["text"], message: ".ocra/rules.md is longer than 20000 characters" }],
+    });
     expect(fetched.mock.calls.length).toBe(calls);
   });
 });

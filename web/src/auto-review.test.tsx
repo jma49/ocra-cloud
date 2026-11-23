@@ -293,7 +293,7 @@ describe("the auto review page", () => {
     const quick = await screen.findByRole("menuitemradio", { name: /^Quick/ });
     expect(quick.textContent).toContain("Changed lines only");
     expect(screen.getByRole("menuitemradio", { name: /^Deep/ }).textContent).toContain(
-      "About twice the cost",
+      "Over twice the cost",
     );
     await act(async () => void fireEvent.click(quick));
     expect(sent).toEqual([{ url: "/api/auto-review/repos/rr1/depth", body: { depth: "quick" } }]);

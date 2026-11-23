@@ -399,7 +399,7 @@ describe("a review job's run", () => {
     ]);
   });
 
-  it("runs the review's depth, else its repository's: quick in the configuration, deep as --ultra", async () => {
+  it("runs the review's depth, else its repository's: the engine's --depth, quick held in the configuration, deep with --ultra", async () => {
     const data = scoped(s.host.db, accountId);
     const runs: { args: readonly string[]; config: unknown }[] = [];
     const exec: Exec = async (command, args) => {
@@ -435,13 +435,16 @@ describe("a review job's run", () => {
       maxCostUsd: 10,
     });
     expect(quick?.args).not.toContain("--ultra");
+    expect(quick?.args.join(" ")).toContain("--depth quick");
     expect(deep?.config).toEqual({
       runtime: "direct",
       github: { botLogin: "ocra-review[bot]" },
       maxCostUsd: 10,
     });
-    expect(deep?.args.slice(-4)).toEqual([
+    expect(deep?.args.slice(-6)).toEqual([
       "--no-repo-config",
+      "--depth",
+      "deep",
       "--ultra",
       "--config",
       expect.stringMatching(/ocra\.json$/),
