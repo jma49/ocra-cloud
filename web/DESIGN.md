@@ -77,6 +77,7 @@ Shared controls are coss ui (Base UI + Tailwind), copied into `web/src/component
 | A short note after something happened | `useToast()(message, tone)` (coss Toast), `"success"` or `"error"` when it is one |
 | Go anywhere | the command menu (`Command`) |
 | A finding's checked fix | `FixProposal` on a diff, `FixDiff` in a finding (`web/src/fixes/`): the lines it replaces, then what it writes, and Commit fix |
+| ocra's open finding on a pull request's diff | `FindingNote` (`web/src/pull/findings.tsx`): under the last line it is about, above that line's fix, with its severity, title, text and a link into the review; only for the review of the head shown |
 | Text a model wrote | `Markdown` (`web/src/markdown.tsx`): headings, lists, code and emphasis only; links, images and HTML stay text, since the answer is about untrusted code |
 
 A new shared control comes from coss ui first, then from a small component in `web/src/components/` styled with tokens.

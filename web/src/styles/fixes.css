@@ -26,6 +26,18 @@
   border-radius: var(--r-tab);
   box-shadow: inset 0 0 0 1px var(--hair);
 }
+/* A finding on the diff shares the fix's card; its text reads as prose, not as code. */
+.finding-note-body {
+  font-family: var(--font);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.finding-note-body > :first-child {
+  margin-top: 0;
+}
+.finding-note-body > :last-child {
+  margin-bottom: 0;
+}
 /* A fix's diff inside a note row of the file's diff keeps the diff's own cells. */
 .diff-note .fix-diff td {
   padding: 0;

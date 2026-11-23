@@ -13,14 +13,16 @@ const review = (current: boolean) => ({
 });
 
 it("says where ocra's review stands, and leads into it", () => {
-  render(<OcraReviewBox review={review(true)} />);
+  render(<OcraReviewBox review={review(true)} open={2} />);
+  expect(screen.getByText("2 open findings on the diff below.")).toBeTruthy();
   expect(screen.getByText("Reviewed").className).toContain("badge-ok");
   expect(screen.getByText(/ocra reviewed this head/)).toBeTruthy();
   expect(screen.getByRole("link", { name: "Open the review" }).getAttribute("href")).toBe(
     "/reviews/r1",
   );
   cleanup();
-  render(<OcraReviewBox review={review(false)} />);
+  render(<OcraReviewBox review={review(false)} open={2} />);
+  expect(screen.queryByText(/on the diff below/)).toBeNull();
   expect(screen.getByText("Out of date")).toBeTruthy();
   expect(screen.getByText(/of bbbbbbb, before the latest commits/)).toBeTruthy();
 });

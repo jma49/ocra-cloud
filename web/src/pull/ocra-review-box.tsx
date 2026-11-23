@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { PullDescriptionDraftView } from "../../../src/shared/index.js";
-import { ago } from "../format.js";
+import { ago, count } from "../format.js";
 import { Link } from "../router.js";
 
 // Where ocra's review of this pull request stands, and the way into it: the
@@ -9,6 +9,8 @@ import { Link } from "../router.js";
 export function OcraReviewBox(props: {
   /** The stored review, as the description's draft names it; undefined until read. */
   review: PullDescriptionDraftView["review"] | undefined;
+  /** Its open findings drawn on the diff below. */
+  open?: number;
   /** What the server's own runner adds: its queue's state and "Review now". */
   children?: ReactNode;
 }) {
@@ -38,6 +40,9 @@ export function OcraReviewBox(props: {
         </span>
       )}
       {props.children}
+      {review?.current && props.open !== undefined && props.open > 0 && (
+        <span className="small">{count(props.open, "open finding")} on the diff below.</span>
+      )}
       {review && (
         <Link to={`/reviews/${review.id}`} className="rail-link">
           Open the review
