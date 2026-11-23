@@ -90,7 +90,10 @@ beforeEach(async () => {
     return new Response(null, { status: 404 });
   });
 });
-afterEach(() => s.host.close());
+afterEach(async () => {
+  await s.host.idle();
+  s.host.close();
+});
 
 const ref = { platform: "github", repo: "octo/api", number: 7 };
 
@@ -147,7 +150,7 @@ const pushed = (head: string) =>
   });
 
 /** Lets the webhooks' work after the answer finish. */
-const settle = () => new Promise((r) => setTimeout(r, 50));
+const settle = () => s.host.idle();
 
 describe("merge when ready", () => {
   it("arms GitHub's own auto-merge where the repository allows it, and turns it off", async () => {

@@ -2,9 +2,9 @@ import type { Context } from "hono";
 import { errorName, logError } from "./log.js";
 
 /**
- * Work that may finish after the answer: on Workers it is handed to the
- * request's waitUntil; a Node server has no execution context and keeps
- * running it on its own. A failure is logged either way, never thrown.
+ * Work that may finish after the answer, handed to the request's waitUntil:
+ * the Worker's, or the Node host's, which waits for it before it closes.
+ * A failure is logged, never thrown.
  */
 export function defer(c: Context, work: Promise<unknown>): void {
   const logged = work.catch((err) => logError("deferred_failed", { error: errorName(err) }));

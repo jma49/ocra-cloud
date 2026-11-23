@@ -60,7 +60,10 @@ beforeEach(async () => {
     return base(input, init);
   });
 });
-afterEach(() => s.host.close());
+afterEach(async () => {
+  await s.host.idle();
+  s.host.close();
+});
 
 async function enrolledWithChecks() {
   const me = await s.signIn(1);
@@ -138,7 +141,7 @@ describe("pre-merge checks on an enrolled repository", () => {
 
     // The same head and result again: nothing more is posted.
     await pullEvent("synchronize");
-    await new Promise((r) => setTimeout(r, 200));
+    await s.host.idle();
     expect(sent).toHaveLength(1);
 
     // A retitled pull request changes the result: the same check run is updated.
@@ -170,7 +173,7 @@ describe("pre-merge checks on an enrolled repository", () => {
     await vi.waitFor(async () => expect((await runs())[0]?.postedDigest).toBeTruthy());
     // Another App's run is not ours to answer.
     await hook("check_run", { ...rerun, check_run: { ...rerun.check_run, app: { id: 43 } } });
-    await new Promise((r) => setTimeout(r, 200));
+    await s.host.idle();
     expect(sent).toHaveLength(2);
     expect(await runs()).toHaveLength(1);
   });
@@ -218,7 +221,7 @@ describe("pre-merge checks on an enrolled repository", () => {
       json: review("https://evil.example/octo/api"),
     });
     expect(forged.status).toBe(200);
-    await new Promise((r) => setTimeout(r, 200));
+    await s.host.idle();
     expect(sent).toHaveLength(1);
 
     await s.call("/api/reviews", {
@@ -248,7 +251,7 @@ describe("pre-merge checks on an enrolled repository", () => {
       json: { platform: "github", fullName: "octo/api" },
     });
     await pullEvent("opened");
-    await new Promise((r) => setTimeout(r, 200));
+    await s.host.idle();
     expect(sent).toHaveLength(0);
     expect(await runs()).toHaveLength(0);
   });
