@@ -28,6 +28,20 @@ let s: Server;
 let accountId: string;
 let auth: Record<string, string>;
 beforeEach(async () => {
+  // GitHub as a hosted review reads it: the default branch, without a .ocra/config.json.
+  const passed = globalThis.fetch;
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+    const url = new Request(input, init).url;
+    const api = `${GITHUB_COM.api}/repos/Octo/API`;
+    if (url === api)
+      return Response.json({ id: 11, full_name: "Octo/API", default_branch: "main" });
+    if (url === `${api}/branches/main`) return Response.json({ commit: { sha: C1 } });
+    if (url === GITHUB_COM.graphql) {
+      return Response.json({ data: { repository: { b0: null, at: { h0: { nodes: [] } } } } });
+    }
+    if (url.startsWith(GITHUB_COM.api)) return new Response(null, { status: 404 });
+    return passed(input, init);
+  });
   s = await graphServer(dir, `remote-${n++}.db`, "off", undefined, {
     bots: { githubApi: GITHUB_COM.api },
     tokens: { forRepo: async () => ({ token: "ghs_bot", login: "ocra-review[bot]" }) },
