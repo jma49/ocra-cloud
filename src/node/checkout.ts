@@ -8,13 +8,19 @@ import type { CodePlatformKind } from "../shared/index.js";
 // ocra bot into a directory of the job's own, with an environment that
 // holds nothing of this machine but its network settings.
 
-/** `stdout` only when asked for: what the command wrote, cut at MAX_STDOUT. */
+/** `stdout` only when asked for: what the command wrote, cut at MAX_STDOUT or `stdoutLimit`. */
 type ExecResult = { code: number | null; stdout?: string };
 /** Runs a command to its end; aborting the signal kills it with its children. */
 export type Exec = (
   command: string,
   args: readonly string[],
-  options: { cwd: string; env: Record<string, string>; signal: AbortSignal; stdout?: true },
+  options: {
+    cwd: string;
+    env: Record<string, string>;
+    signal: AbortSignal;
+    stdout?: true;
+    stdoutLimit?: number;
+  },
 ) => Promise<ExecResult>;
 
 /** What a command's output is read for is a line or two: an object id. */
@@ -114,9 +120,10 @@ export const spawnExec: Exec = (command, args, options) =>
       detached: true,
     });
     let stdout = "";
+    const limit = options.stdoutLimit ?? MAX_STDOUT;
     child.stdout?.setEncoding("utf8");
     child.stdout?.on("data", (chunk: string) => {
-      if (stdout.length < MAX_STDOUT) stdout = (stdout + chunk).slice(0, MAX_STDOUT);
+      if (stdout.length < limit) stdout = (stdout + chunk).slice(0, limit);
     });
     const kill = () => {
       if (child.pid) {

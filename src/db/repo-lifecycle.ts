@@ -5,6 +5,7 @@ import type { Db } from "./client.js";
 import {
   accountMemory,
   findingThreads,
+  fixJobs,
   generateJobs,
   graphRepos,
   learnJobs,
@@ -98,7 +99,7 @@ export function githubReposOf(
 }
 
 /** What pausing gives up: the queued jobs of every kind. */
-const JOBS = [reviewJobs, replyJobs, generateJobs, learnJobs, restackJobs] as const;
+const JOBS = [reviewJobs, replyJobs, generateJobs, learnJobs, restackJobs, fixJobs] as const;
 
 /** The pauses each one replaces: none replaces a deleted repository's. */
 const OUTRANKS: Record<RepoPause, readonly RepoPause[]> = {

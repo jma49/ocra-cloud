@@ -2,6 +2,8 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { fixResultSchema } from "@open-cr-agent/cloud-contract";
+import { type FixRan, settleFix } from "../auto-review/fix-work.js";
 import {
   type Assignment,
   assign,
@@ -19,7 +21,7 @@ import { keepReviewImpact, type ReviewGraphs, writeReviewGraph } from "./review-
 // The machine's half of a hosted job (ADR-0046, 4): clones the repository's
 // default branch into a new directory and runs the released CLI there on
 // the pull request (`ocra review … --no-repo-config`, `ocra reply`,
-// `ocra generate` or `ocra learn feedback … --propose`), signed in to the server as the enrolling account (its
+// `ocra generate`, `ocra learn feedback … --propose` or `ocra fix`), signed in to the server as the enrolling account (its
 // models, key, budget and rules, and the upload), and posting as the ocra
 // bot. The directory is removed on every exit path. What to run comes from
 // the server's half (src/auto-review/work.ts), which records how it went.
@@ -44,6 +46,9 @@ class RunFailed extends Error {
   }
 }
 
+/** The most `ocra fix --json` prints: one line around a fix of at most MAX_FIELD characters, escaped. */
+const MAX_FIX_ANSWER = 64 * 1024;
+
 /** Runs the assignment to its end, or to its lease's; the failure it ended with, or null. */
 export async function run(
   machine: Machine,
@@ -51,18 +56,49 @@ export async function run(
   now = new Date(),
   stop?: AbortSignal,
 ): Promise<RunFailure | null> {
+  const ran = await runCli(machine, work, now, stop);
+  return "failure" in ran ? ran.failure : null;
+}
+
+/** Runs a fix's assignment: `ocra fix`'s answer, read from its last line of output, or the failure. */
+export async function runFix(
+  machine: Machine,
+  work: Assignment,
+  now = new Date(),
+  stop?: AbortSignal,
+): Promise<FixRan> {
+  const ran = await runCli(machine, work, now, stop);
+  if ("failure" in ran) return ran;
+  const line = ran.stdout?.trim().split("\n").at(-1) ?? "";
+  let json: unknown;
+  try {
+    json = JSON.parse(line);
+  } catch {
+    json = undefined;
+  }
+  const answer = fixResultSchema.safeParse(json);
+  if (answer.success) return { result: answer.data };
+  logError("fix_answer_unreadable", { job: work.id });
+  return { failure: "review_failed" };
+}
+
+async function runCli(
+  machine: Machine,
+  work: Assignment,
+  now: Date,
+  stop: AbortSignal | undefined,
+): Promise<{ failure: RunFailure } | { stdout: string | undefined }> {
   const lease = AbortSignal.timeout(Math.max(work.leaseUntil.getTime() - now.getTime(), 0));
   const signal = stop ? AbortSignal.any([lease, stop]) : lease;
   try {
-    await inCheckout(machine, work, signal);
-    return null;
+    return { stdout: await inCheckout(machine, work, signal) };
   } catch (e) {
     if (!(e instanceof RunFailed)) {
       logError("review_run_failed", { job: work.id, error: errorName(e) });
-      return "review_failed";
+      return { failure: "review_failed" };
     }
     logError("review_run_failed", { job: work.id, reason: e.reason, code: e.code ?? null });
-    return e.reason;
+    return { failure: e.reason };
   }
 }
 
@@ -84,8 +120,25 @@ export const runNextGeneration = (runner: ReviewRunner) => runNext(runner, "gene
 /** A pull request's declined findings, drafted into learnings. */
 export const runNextLearning = (runner: ReviewRunner) => runNext(runner, "learn");
 
-/** Clones the repository and runs the CLI there, signed in and posting as the bot. */
-async function inCheckout(machine: Machine, work: Assignment, signal: AbortSignal) {
+/** A fix asked for a stored finding. */
+export async function runNextFix(runner: ReviewRunner): Promise<boolean> {
+  const work = await assign(runner, "fix");
+  if (!work) return false;
+  if (work === "refused") return true;
+  const now = runner.now ?? (() => new Date());
+  await settleFix(runner, work, await runFix(runner, work, now()), now());
+  return true;
+}
+
+/**
+ * Clones the repository and runs the CLI there, signed in and posting as
+ * the bot; what a fix's run printed.
+ */
+async function inCheckout(
+  machine: Machine,
+  work: Assignment,
+  signal: AbortSignal,
+): Promise<string | undefined> {
   const exec = machine.exec ?? spawnExec;
   const { repo, bot } = work;
   const dir = await mkdtemp(join(tmpdir(), "ocra-review-"));
@@ -110,12 +163,16 @@ async function inCheckout(machine: Machine, work: Assignment, signal: AbortSigna
       : undefined;
     const config = join(dir, "ocra.json");
     await writeFile(config, JSON.stringify(work.config));
+    // Beside the checkout, never in it: nothing of the run is left in the repository.
+    const finding = work.finding && join(dir, "finding.json");
+    if (finding) await writeFile(finding, JSON.stringify(work.finding), { mode: 0o600 });
     const ran = await exec(
       process.execPath,
       [
         machine.cli ?? installedCli(),
         ...work.args,
         ...(graph ? ["--graph", graph.file] : []),
+        ...(finding ? ["--finding", finding] : []),
         "--config",
         config,
       ],
@@ -123,6 +180,7 @@ async function inCheckout(machine: Machine, work: Assignment, signal: AbortSigna
         cwd: checkout,
         env: { ...baseEnv(home), OCRA_CLOUD_URL: work.cloudUrl, ...botEnv(repo, bot) },
         signal,
+        ...(finding ? { stdout: true as const, stdoutLimit: MAX_FIX_ANSWER } : {}),
       },
     );
     if (ran.code !== null && work.settled.includes(ran.code))
@@ -130,6 +188,7 @@ async function inCheckout(machine: Machine, work: Assignment, signal: AbortSigna
     if (ran.code === null || !work.ok.includes(ran.code))
       throw new RunFailed("review_failed", ran.code);
     if (kept && graph) await keepReviewImpact(kept, work, { checkout, home }, graph);
+    return ran.stdout;
   } finally {
     await rm(dir, { recursive: true, force: true }).catch(() => {});
   }

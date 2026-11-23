@@ -95,6 +95,8 @@ export const KIND_GROUPS: { label: string; kinds: [AuditKind, string][] }[] = [
       ["pull.reviewed", "Review sent"],
       ["pull.merged", "Merged"],
       ["pull.fix_applied", "Fix applied"],
+      ["pull.fix_requested", "Fix asked of ocra"],
+      ["pull.fix_answered", "Fix answered by ocra"],
       ["pull.reviewers_changed", "Reviewers changed"],
       ["pull.assignees_changed", "Assignees changed"],
       ["pull.branch_updated", "Branch updated"],
@@ -276,6 +278,12 @@ export function describe(e: AuditEventView): string {
       return `Merged ${named(e.detail.pull, "a pull request")}${noted(e.detail.method)}`;
     case "pull.fix_applied":
       return `Applied a fix to ${named(e.detail.pull, "a pull request")}`;
+    case "pull.fix_requested":
+      return `Asked ocra for a fix on ${named(e.detail.pull, "a pull request")}`;
+    case "pull.fix_answered":
+      return e.detail.outcome === "proposed"
+        ? `ocra proposed a fix on ${named(e.detail.pull, "a pull request")}`
+        : `ocra wrote no fix on ${named(e.detail.pull, "a pull request")}${noted(e.detail.outcome)}`;
     case "pull.reviewers_changed":
       return `Changed the reviewers of ${named(e.detail.pull, "a pull request")}${people(e.detail)}`;
     case "pull.assignees_changed":

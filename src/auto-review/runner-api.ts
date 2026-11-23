@@ -1,3 +1,4 @@
+import { fixResultSchema } from "@open-cr-agent/cloud-contract";
 import { Hono, type MiddlewareHandler } from "hono";
 import { z } from "zod";
 import { config } from "../config.js";
@@ -15,6 +16,7 @@ import {
   settleRestack,
 } from "../stack-merge/restack-work.js";
 import type { AppEnv } from "../types.js";
+import { settleFix } from "./fix-work.js";
 import { type Assignment, assign, RUN_FAILURES, settle, WORK_KINDS } from "./work.js";
 
 // A remote runner's two calls (docs/runner.md): it asks for the next hosted
@@ -37,14 +39,31 @@ const hello = z.object({
   graphs: z.boolean().optional(),
   /** Whether it restacks: one from before restacks is never given one. */
   restack: z.boolean().optional(),
+  /** Whether it runs `ocra fix` and reports its answer: one that does not is never given a fix. */
+  fix: z.boolean().optional(),
 });
 
+const fixRef = {
+  id: z.string().min(1).max(100),
+  accountId: z.string().min(1).max(100),
+  attempts: z.number().int().min(1),
+};
+
+// A fix settles with its answer, at /settle-fix.
 const outcome = z.object({
-  kind: z.enum(WORK_KINDS),
+  kind: z.enum(WORK_KINDS).exclude(["fix"]),
   id: z.string().min(1).max(100),
   accountId: z.string().min(1).max(100),
   attempts: z.number().int().min(1),
   failure: z.enum(RUN_FAILURES).nullable(),
+});
+
+const fixOutcome = z.object({
+  ...fixRef,
+  ran: z.union([
+    z.object({ result: fixResultSchema }),
+    z.object({ failure: z.enum(RUN_FAILURES) }),
+  ]),
 });
 
 const SKIPPED_BY_RUN = ["up_to_date", "push_refused"] as const;
@@ -73,7 +92,7 @@ export function runnerApi(access: RunnerAccess) {
   const route = new Hono<AppEnv>().use(proven(access.token));
 
   route.post("/claim", jsonBody(hello), async (c) => {
-    const { name, version, graphs, restack } = c.req.valid("json");
+    const { name, version, graphs, restack, fix } = c.req.valid("json");
     await runnerSeen(c.var.db, name, version, new Date());
     const source = {
       db: c.var.db,
@@ -84,6 +103,7 @@ export function runnerApi(access: RunnerAccess) {
       ...(graphs && access.graphs ? { graphs: access.graphs } : {}),
     };
     for (const kind of WORK_KINDS) {
+      if (kind === "fix" && !fix) continue;
       for (let refused = 0; refused < MAX_REFUSED; refused++) {
         const work = await assign(source, kind);
         if (!work) break;
@@ -115,6 +135,14 @@ export function runnerApi(access: RunnerAccess) {
       failure,
       new Date(),
     );
+    return c.json({ ok: true });
+  });
+
+  route.post("/settle-fix", jsonBody(fixOutcome), async (c) => {
+    const { ran, ...job } = c.req.valid("json");
+    const source = { db: c.var.db, dailyCalls: config(c.env).gatewayDailyCalls };
+    // Recorded only while the fix is still this attempt's, under its own account.
+    await settleFix(source, job, ran, new Date());
     return c.json({ ok: true });
   });
 

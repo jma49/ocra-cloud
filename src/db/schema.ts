@@ -1,4 +1,6 @@
 import {
+  FIX_OUTCOMES,
+  FIX_REASONS,
   GENERATE_KINDS,
   GRAPH_BUILD_STATES,
   REVIEW_SOURCES,
@@ -499,6 +501,11 @@ export const findings = sqliteTable(
     // When the user resolved its comment's thread from the console; cleared
     // when they reopen it. A resolved thread says neither fixed nor dismissed.
     threadResolvedAt: integer("thread_resolved_at", { mode: "timestamp_ms" }),
+    // Kept by --ultra though the judge would drop it: `ocra fix` asks no fix
+    // for it. False on a finding uploaded before this column was added.
+    lowConfidence: integer("low_confidence", { mode: "boolean" }).notNull().default(false),
+    // What the reviewer read to reach it, one redacted fact per entry; null when none was sent.
+    evidence: text("evidence", { mode: "json" }).$type<string[]>(),
   },
   // review_id: a review's delete cascades here (by the user or retention).
   // findings_account_status_created leads with account_id, so it also
@@ -596,6 +603,7 @@ export const usageCounters = sqliteTable(
         "slack_lookups",
         "report_sends",
         "spend",
+        "fix_requests",
       ],
     }).notNull(),
     /** The UTC date, YYYY-MM-DD. */
@@ -1496,6 +1504,43 @@ export const generateJobs = sqliteTable(
   ],
 );
 
+// A fix asked of `ocra fix` in the runner for a stored finding that came
+// without one (src/auto-review/fix-work.ts): one per finding and head, by
+// the unique index, so a second click answers the first request. A proposed
+// fix is written into the finding's fix columns, where the pull request page
+// commits it as it does a review's own.
+export const fixJobs = sqliteTable(
+  "fix_jobs",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    reviewRepoId: text("review_repo_id")
+      .notNull()
+      .references(() => reviewRepos.id, { onDelete: "cascade" }),
+    number: integer("number").notNull(),
+    findingId: text("finding_id")
+      .notNull()
+      .references(() => findings.id, { onDelete: "cascade" }),
+    /** The head the finding was reviewed at: `ocra fix --head`. */
+    head: text("head").notNull(),
+    state: text("state", { enum: REVIEW_JOB_STATES }).notNull().default("queued"),
+    outcome: text("outcome", { enum: FIX_OUTCOMES }),
+    reason: text("reason", { enum: FIX_REASONS }),
+    attempts: integer("attempts").notNull().default(0),
+    notBefore: integer("not_before", { mode: "timestamp_ms" }),
+    leaseUntil: integer("lease_until", { mode: "timestamp_ms" }),
+    error: text("error"),
+    finishedAt: integer("finished_at", { mode: "timestamp_ms" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("fix_jobs_account_finding_head").on(t.accountId, t.findingId, t.head),
+    index("fix_jobs_state").on(t.state, t.createdAt),
+    index("fix_jobs_account_pull").on(t.accountId, t.reviewRepoId, t.number),
+    index("fix_jobs_finding").on(t.findingId),
+  ],
+);
+
 // A pull request rebased by the bot onto its new base after the one it was
 // stacked on merged (src/stack-merge/restack.ts): one per pull request and
 // merge, by the unique index, so the merge's webhook and the stack merge
@@ -2063,6 +2108,7 @@ export const accountTables = {
   reviewWalkthroughs,
   generateJobs,
   restackJobs,
+  fixJobs,
   learnJobs,
   pullCommands,
   pausedPulls,

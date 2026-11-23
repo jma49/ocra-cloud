@@ -239,9 +239,10 @@ reviews.get("/:id", requireSession(), async (c) => {
 // {start, end} and `code`, the quoted code. Version 1 put the quoted code
 // in `evidence`, which in the report is a list of strings; v2 is a new
 // version because that field changed. A field the report makes optional
-// is left out when unknown, never null. The report's inDiff, status,
-// evidence and provenance were never uploaded, so they are absent; fix is
-// there when the CLI sent one, and the walkthrough beside the findings.
+// is left out when unknown, never null. The report's inDiff, status and
+// provenance were never uploaded, so they are absent; evidence, fix and
+// lowConfidence are there when the CLI sent them (evidence redacted), and
+// the walkthrough beside the findings.
 // Two fields are ocra Cloud's own: `redacted` (the server or the CLI
 // replaced a secret-looking string with [redacted]) and `truncated` (a
 // long field was cut).
@@ -327,6 +328,8 @@ function findingDto(f: FindingRow) {
     decidedAt: f.decidedAt,
     fixedVia: f.fixedVia,
     threadResolvedAt: f.threadResolvedAt,
+    lowConfidence: f.lowConfidence,
+    evidence: f.evidence,
     fix: fixOf(f),
   } satisfies Omit<FindingRow, "accountId" | "reviewId" | "position" | FixColumn> & {
     fix: unknown;
@@ -357,7 +360,9 @@ export function exportFinding(f: FindingRow) {
     body: f.body,
     ...(f.suggestion !== null ? { suggestion: f.suggestion } : {}),
     ...(f.code !== null ? { code: f.code } : {}),
+    ...(f.evidence ? { evidence: f.evidence } : {}),
     ...(fix ? { fix } : {}),
+    ...(f.lowConfidence ? { lowConfidence: true } : {}),
     redacted: f.redacted,
     truncated: f.truncated,
   };

@@ -15,6 +15,7 @@ export * from "./deliveries.js";
 export * from "./domain.js";
 export * from "./efforts.js";
 export * from "./finding-issues.js";
+export * from "./fix-jobs.js";
 export * from "./fix-proposals.js";
 export * from "./flow.js";
 export * from "./graphs.js";

@@ -316,6 +316,8 @@ describe("review export", () => {
       fixReplacement: null,
       fixedVia: null,
       threadResolvedAt: null,
+      lowConfidence: false,
+      evidence: null,
     };
     expect(exportFinding(bare)).toEqual({
       fingerprint: "fp-1",

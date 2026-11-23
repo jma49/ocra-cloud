@@ -484,6 +484,13 @@
       "when": 1795471444111,
       "tag": "0068_drop_review_profile",
       "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1795474590637,
+      "tag": "0069_fix_jobs",
+      "breakpoints": true
     }
   ]
 }

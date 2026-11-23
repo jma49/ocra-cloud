@@ -89,15 +89,18 @@ describe("the CLI's real upload", () => {
         ...f
       }) => f,
     );
-    // Not kept yet: a finding's evidence (engine 0.19).
+    // A finding uploaded without them is not low confidence and has no evidence.
     expect(stored).toEqual(
-      body.findingList.map(({ evidence: _e, ...f }) => ({
+      body.findingList.map((f) => ({
         redacted: false,
         truncated: false,
         fix: null,
         ...f,
+        lowConfidence: false,
+        evidence: f.evidence ?? null,
       })),
     );
+    expect(stored.some((f) => Array.isArray(f.evidence))).toBe(true);
   });
 });
 

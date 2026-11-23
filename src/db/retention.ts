@@ -14,6 +14,7 @@ import {
   closedPulls,
   deviceCodes,
   findingThreads,
+  fixJobs,
   gatewayCalls,
   generateJobs,
   inboundEvents,
@@ -103,7 +104,8 @@ export async function enforceRetention(db: Db, now = new Date()): Promise<void> 
       | typeof replyJobs
       | typeof generateJobs
       | typeof learnJobs
-      | typeof restackJobs,
+      | typeof restackJobs
+      | typeof fixJobs,
   ) =>
     db.delete(job).where(
       and(
@@ -231,6 +233,7 @@ export async function enforceRetention(db: Db, now = new Date()): Promise<void> 
     ["generate_jobs", () => ended(generateJobs)],
     ["learn_jobs", () => ended(learnJobs)],
     ["restack_jobs", () => ended(restackJobs)],
+    ["fix_jobs", () => ended(fixJobs)],
     [
       "pull_commands",
       () =>

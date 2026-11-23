@@ -3,6 +3,7 @@ import type { SQLiteColumn, SQLiteTable } from "drizzle-orm/sqlite-core";
 import type { Db } from "./client.js";
 import { countWhere } from "./dialect.js";
 import {
+  fixJobs,
   generateJobs,
   graphBuilds,
   inboundEvents,
@@ -65,6 +66,7 @@ const QUEUES: Record<string, QueueTable> = {
   generate: generateJobs,
   learn: learnJobs,
   restack: restackJobs,
+  fix: fixJobs,
   graph: graphBuilds,
 };
 
