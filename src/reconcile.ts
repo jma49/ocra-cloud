@@ -1,3 +1,4 @@
+import { type CallBudget, item, withCalls } from "./calls.js";
 import type { Db } from "./db/client.js";
 import { claimReconcile, type ReconcileTurn, releaseReconcile } from "./db/reconcile.js";
 import { type Scoped, scoped } from "./db/scoped.js";
@@ -5,7 +6,7 @@ import { errorName, logError } from "./log.js";
 import type { BotTokens } from "./platforms/bot.js";
 import { accessToken } from "./platforms/links.js";
 import type { CodePlatform } from "./platforms/platform.js";
-import { CallBudget, type ReconciledPull } from "./platforms/reconcile.js";
+import type { ReconciledPull } from "./platforms/reconcile.js";
 import type { AppBindings } from "./types.js";
 
 // The daily reconciliation of enrolled repositories: what their webhooks
@@ -17,24 +18,16 @@ import type { AppBindings } from "./types.js";
 // statement (closes and flows keep what a webhook recorded), so the two
 // never undo each other. Run hourly, it reads each repository once a UTC
 // day (the claim, src/db/reconcile.ts), a few per account per run, within
-// a budget of platform calls per run: a repository the budget cut short
-// is given back and read again by the next run.
+// its budget of calls (src/calls.ts): a repository the budget cut short is
+// given back and read again by the next run.
 
 export type Reconciler = {
   db: Db;
   env: Pick<AppBindings, "MASTER_KEY" | "MASTER_KEY_PREVIOUS">;
   platforms: readonly CodePlatform[];
   bots?: BotTokens | undefined;
-  /** Platform calls one run may make, tokens included; never fewer than one repository's most. */
-  calls: number;
 };
 
-/**
- * The Worker's calls per run: the Workers Free plan allows 50 external
- * subrequests per invocation, and the hourly cron's other work (deliveries,
- * digests, reports, reminders, held notices, stack merges) shares them.
- */
-export const WORKER_RECONCILE_CALLS = 20;
 /** The Node server's calls per run, where only the platforms' own rate limits bound them. */
 export const NODE_RECONCILE_CALLS = 200;
 
@@ -56,40 +49,50 @@ const BOT_TOKEN_CALLS = 4;
 const LINK_TOKEN_CALLS = 1;
 /** What a repository is started with at least: a token and one page of each listing. */
 const FEWEST_CALLS_PER_REPO = BOT_TOKEN_CALLS + 2;
-/** What one repository can take, so a budget of this many finishes any repository. */
-const MOST_CALLS_PER_REPO = BOT_TOKEN_CALLS + 2 * PAGES_PER_LIST + SINGLE_READS;
 
 type ReconcileOutcome =
   | { state: "done"; closes: number; flows: number }
   | { state: "no_platform" | "no_token" | "unreachable" | "cut" };
 
-/** Reads the repositories due, fairly across accounts; how many it claimed. */
-export async function reconcileRepos(r: Reconciler, now = new Date()): Promise<number> {
+/** Reads the repositories due, fairly across accounts, within `calls`; how many it claimed. */
+export const reconcileRepos = (r: Reconciler & { calls: CallBudget }, now = new Date()) =>
+  reconcileRun(r, now)(r.calls);
+
+/**
+ * One run's reconciliation: given more calls after its own ran out (the
+ * Worker's second round, src/cron-calls.ts), it goes on within the same
+ * caps per run and per account; how many it claimed in all.
+ */
+export function reconcileRun(r: Reconciler, now = new Date()) {
   const taken = new Map<string, number>();
   let round: string[] = [];
   let claimed = 0;
-  const calls = new CallBudget(Math.max(r.calls, MOST_CALLS_PER_REPO));
-  while (claimed < REPOS_PER_RUN && calls.left >= FEWEST_CALLS_PER_REPO) {
-    const full = [...taken].filter(([, n]) => n >= PER_ACCOUNT_PER_RUN).map(([a]) => a);
-    const turn = await claimReconcile(r.db, now, [...new Set([...round, ...full])]);
-    if (!turn) {
-      // Every account had its turn this round: the next round starts over.
-      if (round.length === 0) break;
-      round = [];
-      continue;
-    }
-    claimed++;
-    round.push(turn.accountId);
-    taken.set(turn.accountId, (taken.get(turn.accountId) ?? 0) + 1);
-    try {
-      const outcome = await reconcileRepo(r, turn, calls, now);
-      if (outcome.state === "cut") await releaseReconcile(r.db, turn);
-      else if (outcome.state !== "done") logError("reconcile_skipped", { reason: outcome.state });
-    } catch (e) {
-      logError("reconcile_failed", { error: errorName(e) });
-    }
-  }
-  return claimed;
+  return (calls: CallBudget): Promise<number> =>
+    withCalls(calls, async () => {
+      while (claimed < REPOS_PER_RUN && calls.has(FEWEST_CALLS_PER_REPO)) {
+        const full = [...taken].filter(([, n]) => n >= PER_ACCOUNT_PER_RUN).map(([a]) => a);
+        const turn = await claimReconcile(r.db, now, [...new Set([...round, ...full])]);
+        if (!turn) {
+          // Every account had its turn this round: the next round starts over.
+          if (round.length === 0) break;
+          round = [];
+          continue;
+        }
+        claimed++;
+        round.push(turn.accountId);
+        taken.set(turn.accountId, (taken.get(turn.accountId) ?? 0) + 1);
+        try {
+          const read = await item(() => reconcileRepo(r, turn, calls, now));
+          if (read.cut || read.value.state === "cut") await releaseReconcile(r.db, turn);
+          else if (read.value.state !== "done") {
+            logError("reconcile_skipped", { reason: read.value.state });
+          }
+        } catch (e) {
+          logError("reconcile_failed", { error: errorName(e) });
+        }
+      }
+      return claimed;
+    });
 }
 
 /** One claimed repository, read and filled in. */
@@ -102,7 +105,7 @@ async function reconcileRepo(
   const platform = r.platforms.find((p) => p.kind === repo.platform && p.host === repo.host);
   if (!platform) return { state: "no_platform" };
   const tokenCalls = r.bots && repo.platform === "github" ? BOT_TOKEN_CALLS : LINK_TOKEN_CALLS;
-  if (!calls.take(tokenCalls)) return { state: "cut" };
+  if (!calls.has(tokenCalls)) return { state: "cut" };
   const data = scoped(r.db, repo.accountId);
   const bot = r.bots ? await r.bots.forRepo(repo.platform, repo.fullName) : null;
   const token = bot?.token ?? (await accessToken(data, r.env, platform));

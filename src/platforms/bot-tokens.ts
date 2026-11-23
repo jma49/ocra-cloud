@@ -1,3 +1,4 @@
+import { outboundFetch } from "../calls.js";
 import type { BotTokens } from "./bot.js";
 
 // The ocra bot's credential for one review (ADR-0046, 5): on GitHub an
@@ -82,7 +83,7 @@ export async function appJwt(
 
 async function github(api: string, path: string, init: RequestInit & { token: string }) {
   const { token, ...rest } = init;
-  const res = await fetch(`${api}${path}`, {
+  const res = await outboundFetch(`${api}${path}`, {
     ...rest,
     redirect: "manual",
     signal: AbortSignal.timeout(10_000),
@@ -104,7 +105,7 @@ async function github(api: string, path: string, init: RequestInit & { token: st
 /** 204 a member, 404 not; an installation token answers no 302. Null for anything else. */
 async function memberStatus(api: string, path: string, token: string): Promise<boolean | null> {
   try {
-    const res = await fetch(`${api}${path}`, {
+    const res = await outboundFetch(`${api}${path}`, {
       redirect: "manual",
       signal: AbortSignal.timeout(10_000),
       headers: {

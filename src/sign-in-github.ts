@@ -1,3 +1,4 @@
+import { outboundFetch } from "./calls.js";
 import { deadline } from "./deadline.js";
 import type { BotTokens } from "./platforms/bot.js";
 import { type AllowList, anyIn, emailDomainOf } from "./sign-in-allow.js";
@@ -17,7 +18,7 @@ type Answer = { status: number; body: unknown };
 async function get(url: string, token: string): Promise<Answer | null> {
   const clock = deadline(TIMEOUT_MS);
   try {
-    const res = await fetch(url, {
+    const res = await outboundFetch(url, {
       redirect: "manual",
       signal: clock.signal,
       headers: {

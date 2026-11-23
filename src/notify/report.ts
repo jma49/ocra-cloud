@@ -1,3 +1,4 @@
+import type { CallBudget } from "../calls.js";
 import { quantile } from "../cycles.js";
 import type { Db } from "../db/client.js";
 import { type ReportSchedule, reportAccounts } from "../db/reports.js";
@@ -143,6 +144,16 @@ async function sendReport(
 }
 
 /** Every due account's weekly report; one that fails is logged and the rest still go. */
-export async function runReports(db: Db, out: Outbox, now = new Date()): Promise<void> {
-  await forAccounts(await reportAccounts(db), "report_failed", (a) => sendReport(db, out, a, now));
+export async function runReports(
+  db: Db,
+  out: Outbox,
+  now = new Date(),
+  calls?: CallBudget,
+): Promise<void> {
+  await forAccounts(
+    await reportAccounts(db),
+    "report_failed",
+    (a) => sendReport(db, out, a, now),
+    calls,
+  );
 }

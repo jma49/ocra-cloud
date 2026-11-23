@@ -1,6 +1,7 @@
 import { cloudModelSchema } from "@open-cr-agent/cloud-contract";
 import { type Context, Hono } from "hono";
 import { z } from "zod";
+import { outboundFetch } from "./calls.js";
 import { catalogOf } from "./catalog.js";
 import { chatEvent, chatRequest, ssePayloads, type Turn } from "./chat/model.js";
 import { type ChatContext, makeNonce, systemPrompt } from "./chat/prompt.js";
@@ -186,7 +187,7 @@ reviewChat.post(
     const clock = deadline(HEADERS_TIMEOUT_MS, client);
     let upstream: Response;
     try {
-      upstream = await fetch(new URL(provider.base + route.path), {
+      upstream = await outboundFetch(new URL(provider.base + route.path), {
         method: "POST",
         headers,
         body: request.body,

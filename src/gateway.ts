@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { readText } from "./body.js";
+import { outboundFetch } from "./calls.js";
 import { catalogOf } from "./catalog.js";
 import { config } from "./config.js";
 import { deadline } from "./deadline.js";
@@ -81,7 +82,7 @@ gateway.post("/:provider/*", async (c) => {
   let upstream: Response;
   try {
     // Not followed: a redirect would resend the user's key to another address.
-    upstream = await fetch(target, {
+    upstream = await outboundFetch(target, {
       method: "POST",
       headers,
       body,

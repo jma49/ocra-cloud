@@ -1,3 +1,4 @@
+import type { CallBudget } from "../calls.js";
 import type { Db } from "../db/client.js";
 import { HELD_FOR, heldAccounts } from "../db/notify.js";
 import { type Row, scoped } from "../db/scoped.js";
@@ -68,7 +69,12 @@ async function flushAccount(db: Db, out: Outbox, accountId: string, now: Date) {
 }
 
 /** Every account's held notices due now; one that fails is logged and the rest still go. */
-export async function runHeld(db: Db, out: Outbox, now = new Date()): Promise<void> {
+export async function runHeld(
+  db: Db,
+  out: Outbox,
+  now = new Date(),
+  calls?: CallBudget,
+): Promise<void> {
   const accounts = await heldAccounts(db, new Date(now.getTime() - HELD_FOR), ACCOUNTS);
-  await forAccounts(accounts, "held_notices_failed", (id) => flushAccount(db, out, id, now));
+  await forAccounts(accounts, "held_notices_failed", (id) => flushAccount(db, out, id, now), calls);
 }

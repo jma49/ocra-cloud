@@ -1,4 +1,5 @@
 import { MODEL_ID } from "@open-cr-agent/cloud-contract";
+import { outboundFetch } from "./calls.js";
 import { applyAuth, type KeyCall, modelsCall, type Provider } from "./providers.js";
 import { type Effort, effortLevels } from "./shared/index.js";
 
@@ -23,7 +24,7 @@ function keyGet(provider: Provider, call: KeyCall, key: string): Promise<Respons
   const headers = new Headers({ accept: "application/json" });
   if (call.auth === "x-api-key") headers.set("anthropic-version", ANTHROPIC_VERSION);
   applyAuth(headers, call.auth, key);
-  return fetch(provider.base + call.path, {
+  return outboundFetch(provider.base + call.path, {
     headers,
     redirect: "manual",
     signal: AbortSignal.timeout(CHECK_TIMEOUT_MS),

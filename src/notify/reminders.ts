@@ -1,3 +1,4 @@
+import type { CallBudget } from "../calls.js";
 import { githubIdOf } from "../db/accounts.js";
 import type { Db } from "../db/client.js";
 import { reminderAccounts } from "../db/notify.js";
@@ -195,8 +196,12 @@ export async function runReminders(
   out: Outbox,
   github: string,
   now = new Date(),
+  calls?: CallBudget,
 ): Promise<void> {
-  await forAccounts(await reminderAccounts(db), "reminders_failed", (id) =>
-    sendReminders(db, out, github, id, now),
+  await forAccounts(
+    await reminderAccounts(db),
+    "reminders_failed",
+    (id) => sendReminders(db, out, github, id, now),
+    calls,
   );
 }

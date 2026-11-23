@@ -1,3 +1,4 @@
+import { outboundFetch } from "../calls.js";
 import { hmacHex, randomToken } from "../crypto.js";
 import { deadline } from "../deadline.js";
 import { boundedBytes } from "../platforms/http.js";
@@ -51,7 +52,7 @@ export async function webhookSignature(secret: string, timestamp: number, body: 
 export const fetchWebhook: WebhookPost = async (url, init) => {
   const clock = deadline(TIMEOUT_MS);
   try {
-    const res = await fetch(url, {
+    const res = await outboundFetch(url, {
       method: "POST",
       headers: init.headers,
       body: init.body,

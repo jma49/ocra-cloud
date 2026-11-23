@@ -1,9 +1,11 @@
 import { keepReviewedPaths, type PathReader } from "../auto-review/paths.js";
+import { type CallBudget, item, uncapped } from "../calls.js";
 import type { Db } from "../db/client.js";
 import {
   type ClaimedInbound,
   claimInboundRetry,
   finishInbound,
+  giveBackInbound,
   type InboundOutcome,
 } from "../db/inbound-events.js";
 import { reviewRepoFor } from "../db/review-jobs.js";
@@ -115,18 +117,28 @@ async function runStep(
   }
 }
 
-/** Runs the work's steps once; the steps that failed. */
-export async function runSteps(
+/** Runs the work's steps once; the steps left, and whether the run's calls cut one short. */
+async function runEach(
   runner: InboundRunner,
   row: From,
   work: InboundWork,
-): Promise<InboundStep[]> {
-  const failed: InboundStep[] = [];
+): Promise<{ left: InboundStep[]; cut: boolean }> {
+  const left: InboundStep[] = [];
+  let cut = false;
   for (const step of work.steps) {
+    // A step after the calls ran out would only be refused.
+    if (cut) {
+      left.push(step);
+      continue;
+    }
     try {
-      await runStep(runner, row, work, step);
+      const ran = await item(() => runStep(runner, row, work, step));
+      if (ran.cut) {
+        cut = true;
+        left.push(step);
+      }
     } catch (e) {
-      failed.push(step);
+      left.push(step);
       // Only our own words: an error's text could quote the delivery.
       logError("inbound_step_failed", {
         platform: row.platform,
@@ -137,10 +149,23 @@ export async function runSteps(
       });
     }
   }
-  return failed;
+  return { left, cut };
 }
 
-/** Runs the attempt's steps and records how it went; the steps left. */
+/** Runs the work's steps once; the steps that failed. */
+export async function runSteps(
+  runner: InboundRunner,
+  row: From,
+  work: InboundWork,
+): Promise<InboundStep[]> {
+  return (await runEach(runner, row, work)).left;
+}
+
+/**
+ * Runs the attempt's steps and records how it went; the steps left. An
+ * attempt the run's calls cut short is given back with the steps it left,
+ * which are safe to run again, due at once.
+ */
 export async function runInbound(
   runner: InboundRunner,
   row: ClaimedInbound,
@@ -151,7 +176,11 @@ export async function runInbound(
     await finishInbound(runner.db, row.id, row.attempts, { state: "failed" });
     return [];
   }
-  const failed = await runSteps(runner, row, work);
+  const { left: failed, cut } = await runEach(runner, row, work);
+  if (cut) {
+    await giveBackInbound(runner.db, row.id, row.attempts, { ...work, steps: failed }, now());
+    return failed;
+  }
   const delay = RETRY_DELAYS_MS[row.attempts - 1];
   const outcome: InboundOutcome =
     failed.length === 0
@@ -168,14 +197,19 @@ export async function runInbound(
 }
 
 /**
- * Tries the deliveries due again; how many it tried. It goes round the
- * repositories, one delivery each in turn, so that one busy or failing
- * repository cannot take a whole sweep from every other account's.
+ * Tries the deliveries due again, while `calls` has room for one more; how
+ * many it tried. It goes round the repositories, one delivery each in turn,
+ * so that one busy or failing repository cannot take a whole sweep from
+ * every other account's.
  */
-export async function retryInbound(runner: InboundRunner, now = () => new Date()) {
+export async function retryInbound(
+  runner: InboundRunner,
+  now = () => new Date(),
+  calls: CallBudget = uncapped(),
+) {
   let tried = 0;
   const round = new Set<string>();
-  for (; tried < PER_SWEEP; tried++) {
+  for (; tried < PER_SWEEP && calls.has(); tried++) {
     let due = await claimInboundRetry(runner.db, now(), INBOUND_LEASE_MS, [...round]);
     if (!due && round.size > 0) {
       round.clear();

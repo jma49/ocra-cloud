@@ -1,8 +1,8 @@
 import { z } from "zod";
+import type { CallBudget } from "../calls.js";
 import { gitlabHeaders, mergeRequestUrl } from "./gitlab-changes.js";
 import { platformJson } from "./http.js";
 import {
-  type CallBudget,
   RECONCILE_PER_PAGE,
   type ReconciledPull,
   type ReconcileListing,
@@ -65,7 +65,7 @@ export function gitlabReconcile(origin: string): RepoReconcile {
   ): Promise<ReconcileListing | Spent | null> {
     const pulls: ReconciledPull[] = [];
     for (let page = 1; page <= pages; page++) {
-      if (!calls.take()) return "spent";
+      if (!calls.has()) return "spent";
       const answer = await platformJson<unknown[]>(
         `${listOf(fullName)}?${query}&per_page=${RECONCILE_PER_PAGE}&page=${page}`,
         { headers: gitlabHeaders(token) },
@@ -94,7 +94,7 @@ export function gitlabReconcile(origin: string): RepoReconcile {
     open: (token, fullName, pages, calls) =>
       list(token, fullName, "state=opened&order_by=created_at&sort=desc", pages, calls, () => true),
     async one(token, fullName, number, calls) {
-      if (!calls.take()) return "spent";
+      if (!calls.has()) return "spent";
       const answer = await platformJson<unknown>(
         mergeRequestUrl(origin, fullName, number),
         { headers: gitlabHeaders(token) },

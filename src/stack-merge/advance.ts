@@ -1,4 +1,5 @@
 import { audit } from "../audit.js";
+import { type CallBudget, item, uncapped } from "../calls.js";
 import type { Db } from "../db/client.js";
 import { type Scoped, scoped } from "../db/scoped.js";
 import { dueStackMerges, type StackMerge, type StackProgress } from "../db/stack-merges.js";
@@ -126,7 +127,9 @@ class Run {
       // Merged into a branch of the stack, not the trunk: what the next layer holds did not land.
       if (standing.base !== at.trunk) return stop(this.end("failed", "stack_changed"));
       // Merged by this run, or on the platform directly: the ones above it move on.
-      const restacked = await restack(this.scope, token, at, standing.headBranch);
+      const { restacked, cut } = await restack(this.scope, token, at, standing.headBranch);
+      // The run's calls ran out mid-way: what moved is kept, the next run moves the rest.
+      if (cut) return stop(this.save({ restacked }).then(() => this.wait("unreachable")));
       const above = at.chain[at.step + 1];
       const current = above ? { current: above.number, head: above.head } : {};
       return next({ step: at.step + 1, ...current, updatedFrom: null, restacked });
@@ -202,23 +205,28 @@ class Run {
 /**
  * Moves the open pull requests stacked on a merged branch, but not in the
  * chain (it moves those itself), onto the trunk; what it did, kept with the
- * merge's earlier ones.
+ * merge's earlier ones, and whether the run's calls ran out before the end.
  */
 async function restack(
   scope: StackScope,
   token: string,
   merge: StackMerge,
   branch: string,
-): Promise<StackMergeStep[]> {
-  const above = await scope.platform.stacks.children(token, merge.path, branch);
+): Promise<{ restacked: StackMergeStep[]; cut: boolean }> {
   const kept = [...merge.restacked];
+  const done = (cut: boolean) => ({ restacked: kept.slice(-MAX_STACK), cut });
+  const above = await item(() => scope.platform.stacks.children(token, merge.path, branch));
+  if (above.cut) return done(true);
   const inChain = new Set(merge.chain.map((l) => l.number));
-  for (const pull of (above ?? []).slice(0, MAX_STACK)) {
+  for (const pull of (above.value ?? []).slice(0, MAX_STACK)) {
     if (inChain.has(pull.number) || kept.some((s) => s.number === pull.number)) continue;
-    const moved = await scope.platform.stacks.retarget(token, merge.path, pull.number, merge.trunk);
-    kept.push({ number: pull.number, outcome: moved ?? "unreached" });
+    const moved = await item(() =>
+      scope.platform.stacks.retarget(token, merge.path, pull.number, merge.trunk),
+    );
+    if (moved.cut) return done(true);
+    kept.push({ number: pull.number, outcome: moved.value ?? "unreached" });
   }
-  return kept.slice(-MAX_STACK);
+  return done(false);
 }
 
 /** Merges a sweep moves; the rest wait for the next. */
@@ -226,10 +234,24 @@ const PER_SWEEP = 20;
 /** A waiting merge the webhooks have not moved for this long is read again. */
 const SWEEP_IDLE_MS = 60_000;
 
-/** Moves on the merges that waited longest, across accounts; how many it tried. */
-export async function sweepStackMerges(runner: StackRunner, now = new Date()): Promise<number> {
+/** What a merge is started with at least: the link's token, a read of its layer and one move. */
+const FEWEST_CALLS = 3;
+
+/**
+ * Moves on the merges that waited longest, across accounts, while `calls`
+ * has room for one more; how many it tried. One its calls cut short waits,
+ * as when the platform did not answer, for the next sweep.
+ */
+export async function sweepStackMerges(
+  runner: StackRunner,
+  now = new Date(),
+  calls: CallBudget = uncapped(),
+): Promise<number> {
   const due = await dueStackMerges(runner.db, now, SWEEP_IDLE_MS, PER_SWEEP);
+  let tried = 0;
   for (const row of due) {
+    if (!calls.has(FEWEST_CALLS)) break;
+    tried++;
     const platform = runner.platforms.find((p) => p.kind === row.platform && p.host === row.host);
     if (!platform) continue;
     const data = scoped(runner.db, row.accountId);
@@ -241,5 +263,5 @@ export async function sweepStackMerges(runner: StackRunner, now = new Date()): P
       logError("stack_merge_failed", { error: errorName(e) });
     }
   }
-  return due.length;
+  return tried;
 }
