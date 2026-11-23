@@ -1,13 +1,14 @@
 # Node.js from .nvmrc and node_modules, after the caller's checkout.
-# node_modules is restored whole, keyed by the lockfile; only main saves it,
-# so every pull request starts from main's. A lockfile change misses it, so
+# node_modules is restored whole, keyed by the lockfile; main saves it, so
+# every pull request starts from main's. A lockfile change misses it, so
 # npm ci then installs from npm's download cache, restored by prefix so the
-# last lockfile's packages are already there.
+# last lockfile's packages are already there, and the pull request saves
+# what it installed: its later runs do not install again (about 30 s a job).
 name: Set up the workspace
 description: Node.js from .nvmrc, then node_modules from main's cache or npm ci.
 inputs:
   save:
-    description: Save the caches on main. One job per run saves; the others would only race it for the same key.
+    description: Save the caches (on main, and node_modules on a pull request that changed the lockfile). One job per run saves; the others would only race it for the same key.
     default: "false"
 runs:
   using: composite
@@ -32,7 +33,7 @@ runs:
     - if: steps.restore.outputs.cache-hit != 'true'
       shell: bash
       run: npm ci --prefer-offline --no-audit --no-fund
-    - if: steps.restore.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main' && inputs.save == 'true'
+    - if: steps.restore.outputs.cache-hit != 'true' && (github.ref == 'refs/heads/main' || github.event_name == 'pull_request') && inputs.save == 'true'
       uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: node_modules

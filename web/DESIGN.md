@@ -26,7 +26,7 @@ Pages and components style only through the custom properties in `base.css`.
 
 ## Type
 
-- **Fonts:** Geist for text, Geist Mono for code, diffs, file paths and ids, Noto Sans SC for Chinese (both stacks fall through to it). Ligatures are off everywhere: code reads as typed.
+- **Fonts:** Geist for text, JetBrains Mono for code, diffs, file paths and ids, Noto Sans SC for Chinese (both stacks fall through to it). Ligatures are off everywhere: code reads as typed.
 - **Scale (test):** sizes only through `--text-2xs` (10) … `--text-4xl` (30); no literal font sizes in stylesheets. Body is `--text-base` (13).
 - **Roles:** page title `--text-2xl`/600; section and card titles `--text-base`/600; table headers, stat labels and group labels (`.quiet-label`) `--text-sm`/500 in sentence case, `--t3`, never uppercase or tracked; big numbers `--text-3xl`/600 with tabular figures.
 - **Numbers** in tables, stats and badges use tabular figures and align right in columns (`.num`).
