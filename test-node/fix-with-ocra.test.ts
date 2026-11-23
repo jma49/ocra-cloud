@@ -8,7 +8,7 @@ import * as schema from "../src/db/schema.js";
 import { scoped } from "../src/db/scoped.js";
 import { parseFindings } from "../src/findings.js";
 import type { Exec } from "../src/node/checkout.js";
-import { runNextFix } from "../src/node/review-runner.js";
+import { runNextAnswered } from "../src/node/review-runner.js";
 import type { BotAccess } from "../src/platforms/bot.js";
 import { github } from "../src/platforms/github.js";
 import { GITHUB_COM } from "../src/platforms/github-host.js";
@@ -137,7 +137,7 @@ function fakeExec(printed: string, code = 0) {
 }
 
 const runFix = (exec: Exec) =>
-  runNextFix({
+  runNextAnswered({
     db: s.host.db,
     platforms,
     bots,
@@ -249,7 +249,7 @@ describe("a fix's run", () => {
       C1,
       "--json",
       "--finding",
-      expect.stringMatching(/finding\.json$/),
+      expect.stringMatching(/input\.json$/),
       "--config",
       expect.stringMatching(/ocra\.json$/),
     ]);
@@ -340,18 +340,38 @@ describe("a remote runner", () => {
   it("is given a fix only when it says it runs them, and settles it with its answer", async () => {
     await ask({ finding: findingId });
     expect(await (await asRunner("claim", hello)).json()).toEqual({ assignment: null });
-    const claimed = (await (await asRunner("claim", { ...hello, fix: true })).json()) as {
+    // A kind this server does not run is ignored, not refused.
+    expect(await (await asRunner("claim", { ...hello, answers: ["mend"] })).json()).toEqual({
+      assignment: null,
+    });
+    const claimed = (await (await asRunner("claim", { ...hello, answers: ["fix"] })).json()) as {
       assignment: { id: string };
     };
     expect(claimed.assignment).toMatchObject({
       kind: "fix",
       args: ["fix", "--pr", "7", "--repo", "Octo/API", "--head", C1, "--json"],
       ok: [0, 3],
-      finding: { fingerprint: "fp-1234", lowConfidence: true },
+      answered: { flag: "--finding", input: { fingerprint: "fp-1234", lowConfidence: true } },
     });
     const ref = { id: claimed.assignment.id, accountId, attempts: 1 };
     expect((await asRunner("settle", { ...ref, kind: "fix", failure: null })).status).toBe(400);
-    const settled = await asRunner("settle-fix", { ...ref, ran: { result: answer() } });
+    const garbled = await asRunner("settle-answer", {
+      ...ref,
+      kind: "fix",
+      ran: { answer: { outcome: "proposed" } },
+    });
+    expect(garbled.status).toBe(200);
+    expect((await jobs())[0]).toMatchObject({ state: "queued", error: "review_failed" });
+    await scoped(s.host.db, accountId).update("fixJobs", ref.id, { notBefore: null });
+    const again = (await (await asRunner("claim", { ...hello, answers: ["fix"] })).json()) as {
+      assignment: { attempts: number };
+    };
+    const second = { ...ref, attempts: again.assignment.attempts };
+    const settled = await asRunner("settle-answer", {
+      ...second,
+      kind: "fix",
+      ran: { answer: answer() },
+    });
     expect(settled.status).toBe(200);
     expect((await jobs())[0]).toMatchObject({ state: "done", outcome: "proposed" });
     expect((await stored())?.fixReplacement).toBe(FIX.replacement);

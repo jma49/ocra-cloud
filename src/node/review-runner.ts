@@ -2,9 +2,10 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { fixResultSchema } from "@open-cr-agent/cloud-contract";
-import { type FixRan, settleFix } from "../auto-review/fix-work.js";
+import { type Answered, settleAnswered } from "../auto-review/answers.js";
 import {
+  ANSWERED_KINDS,
+  type AnsweredKind,
   type Assignment,
   assign,
   type RunFailure,
@@ -46,8 +47,11 @@ class RunFailed extends Error {
   }
 }
 
-/** The most `ocra fix --json` prints: one line around a fix of at most MAX_FIELD characters, escaped. */
-const MAX_FIX_ANSWER = 64 * 1024;
+/**
+ * The most an answered run's output is read: `ocra fix --json` prints one
+ * line around a fix of at most MAX_FIELD characters, escaped.
+ */
+const MAX_ANSWER = 64 * 1024;
 
 /** Runs the assignment to its end, or to its lease's; the failure it ended with, or null. */
 export async function run(
@@ -60,26 +64,25 @@ export async function run(
   return "failure" in ran ? ran.failure : null;
 }
 
-/** Runs a fix's assignment: `ocra fix`'s answer, read from its last line of output, or the failure. */
-export async function runFix(
+/**
+ * Runs an answered kind's assignment: the last line the CLI printed, as
+ * JSON, which the server reads with the kind's schema; or the failure.
+ */
+export async function runAnswered(
   machine: Machine,
   work: Assignment,
   now = new Date(),
   stop?: AbortSignal,
-): Promise<FixRan> {
+): Promise<Answered> {
   const ran = await runCli(machine, work, now, stop);
   if ("failure" in ran) return ran;
   const line = ran.stdout?.trim().split("\n").at(-1) ?? "";
-  let json: unknown;
   try {
-    json = JSON.parse(line);
+    return { answer: JSON.parse(line) };
   } catch {
-    json = undefined;
+    logError("run_answer_unreadable", { job: work.id, kind: work.kind });
+    return { failure: "review_failed" };
   }
-  const answer = fixResultSchema.safeParse(json);
-  if (answer.success) return { result: answer.data };
-  logError("fix_answer_unreadable", { job: work.id });
-  return { failure: "review_failed" };
 }
 
 async function runCli(
@@ -120,19 +123,27 @@ export const runNextGeneration = (runner: ReviewRunner) => runNext(runner, "gene
 /** A pull request's declined findings, drafted into learnings. */
 export const runNextLearning = (runner: ReviewRunner) => runNext(runner, "learn");
 
-/** A fix asked for a stored finding. */
-export async function runNextFix(runner: ReviewRunner): Promise<boolean> {
-  const work = await assign(runner, "fix");
+/** The next due job of an answered kind (a fix asked for a stored finding); false when there was none. */
+export async function runNextAnswered(runner: ReviewRunner): Promise<boolean> {
+  for (const kind of ANSWERED_KINDS) {
+    if (await runNextOf(runner, kind)) return true;
+  }
+  return false;
+}
+
+async function runNextOf(runner: ReviewRunner, kind: AnsweredKind): Promise<boolean> {
+  const work = await assign(runner, kind);
   if (!work) return false;
   if (work === "refused") return true;
   const now = runner.now ?? (() => new Date());
-  await settleFix(runner, work, await runFix(runner, work, now()), now());
+  const ran = await runAnswered(runner, work, now());
+  await settleAnswered(runner, { ...work, kind }, ran, now());
   return true;
 }
 
 /**
  * Clones the repository and runs the CLI there, signed in and posting as
- * the bot; what a fix's run printed.
+ * the bot; what an answered kind's run printed.
  */
 async function inCheckout(
   machine: Machine,
@@ -164,15 +175,16 @@ async function inCheckout(
     const config = join(dir, "ocra.json");
     await writeFile(config, JSON.stringify(work.config));
     // Beside the checkout, never in it: nothing of the run is left in the repository.
-    const finding = work.finding && join(dir, "finding.json");
-    if (finding) await writeFile(finding, JSON.stringify(work.finding), { mode: 0o600 });
+    const { answered } = work;
+    const input = answered?.flag !== undefined ? join(dir, "input.json") : undefined;
+    if (input) await writeFile(input, JSON.stringify(answered?.input ?? null), { mode: 0o600 });
     const ran = await exec(
       process.execPath,
       [
         machine.cli ?? installedCli(),
         ...work.args,
         ...(graph ? ["--graph", graph.file] : []),
-        ...(finding ? ["--finding", finding] : []),
+        ...(input && answered?.flag ? [answered.flag, input] : []),
         "--config",
         config,
       ],
@@ -180,7 +192,7 @@ async function inCheckout(
         cwd: checkout,
         env: { ...baseEnv(home), OCRA_CLOUD_URL: work.cloudUrl, ...botEnv(repo, bot) },
         signal,
-        ...(finding ? { stdout: true as const, stdoutLimit: MAX_FIX_ANSWER } : {}),
+        ...(answered ? { stdout: true as const, stdoutLimit: MAX_ANSWER } : {}),
       },
     );
     if (ran.code !== null && work.settled.includes(ran.code))

@@ -1,4 +1,3 @@
-import type { SharedFinding } from "@open-cr-agent/cloud-contract";
 import { accountSalt, loginOf, startHostedFindings } from "../db/accounts.js";
 import type { Db } from "../db/client.js";
 import { claimFix } from "../db/fix-jobs.js";
@@ -7,7 +6,7 @@ import { JOB_ATTEMPTS } from "../db/job-recovery.js";
 import { claimLearn } from "../db/learn-jobs.js";
 import { claimReply } from "../db/reply-jobs.js";
 import { claimJob } from "../db/review-jobs.js";
-import { type Row, scoped } from "../db/scoped.js";
+import { type Row, type Scoped, scoped } from "../db/scoped.js";
 import { findingInput } from "../findings.js";
 import { reviewGraphRepo } from "../graph/review-graph.js";
 import type { GraphService } from "../graph/routes.js";
@@ -43,6 +42,13 @@ import { readHostedConfig, tightenedBy, underServer } from "./hosted-config.js";
 
 export const WORK_KINDS = ["review", "reply", "generate", "learn", "fix"] as const;
 export type WorkKind = (typeof WORK_KINDS)[number];
+/**
+ * Kinds whose run answers in one line of JSON on stdout, which the server
+ * reads with the kind's schema (./answers.ts); a runner is given one only
+ * when its claim names the kind.
+ */
+export const ANSWERED_KINDS = ["fix"] as const satisfies readonly WorkKind[];
+export type AnsweredKind = (typeof ANSWERED_KINDS)[number];
 
 /** Why a run ended without its result; the last three are the machine's to report. */
 export const RUN_FAILURES = ["clone_failed", "review_failed", "not_committed"] as const;
@@ -53,7 +59,7 @@ type Failure =
   | "platform_gone"
   | "no_bot"
   | "token_rejected"
-  | "finding_gone"
+  | "input_gone"
   | "no_answer"
   | RunFailure;
 const RETRIED: ReadonlySet<Failure> = new Set(["clone_failed", "review_failed"]);
@@ -100,8 +106,11 @@ export type Assignment = WorkRef & {
    * reads that graph and answers what the pull request reaches in it.
    */
   graph?: { repoId: string; pull: number };
-  /** A fix's finding, which the run gives `ocra fix --finding`; its stdout is the answer. */
-  finding?: SharedFinding;
+  /**
+   * An answered kind's run: `input`, when given, is written to a file the
+   * CLI is given with `flag`, and the last line the CLI prints is the answer.
+   */
+  answered?: { flag?: string; input?: unknown };
 };
 
 export type WorkSource = {
@@ -126,8 +135,6 @@ type Claimed = {
   number: number;
   /** A review's own depth, chosen when a person asked for it. */
   depth?: ReviewDepth | null;
-  /** A fix's finding. */
-  findingId?: string;
 };
 type Command = {
   args: (pull: string[], repo: Row<"reviewRepos">) => string[];
@@ -140,6 +147,8 @@ type Command = {
    * and the settings of its default branch's .ocra/config.json (./hosted-config.ts) apply.
    */
   depth?: true;
+  /** An answered kind's input (Assignment's `answered`); undefined when what it needs is gone. */
+  answered?: (data: Scoped) => Promise<{ flag?: string; input?: unknown } | undefined>;
 };
 
 type ClaimedWork = Claimed & { attempts: number; leaseUntil: Date };
@@ -207,6 +216,10 @@ async function claim(
           args: (pull) => ["fix", ...pull, "--head", claimed.head, "--json"],
           // 3: the finding's code is gone at the head, or the head moved; the answer says which.
           ok: [0, 3],
+          answered: async (data) => {
+            const finding = await data.get("findings", claimed.findingId);
+            return finding && { flag: "--finding", input: findingInput(finding) };
+          },
         },
       }
     );
@@ -257,9 +270,9 @@ export async function assign(
     await settle(source, ref, !repo ? "repo_gone" : !platform ? "platform_gone" : "no_bot", now());
     return "refused";
   }
-  const finding = claimed.findingId ? await data.get("findings", claimed.findingId) : undefined;
-  if (kind === "fix" && !finding) {
-    await settle(source, ref, "finding_gone", now());
+  const answered = command.answered && (await command.answered(data));
+  if (command.answered && !answered) {
+    await settle(source, ref, "input_gone", now());
     return "refused";
   }
   // Switched off since it was queued: nothing is read.
@@ -343,7 +356,7 @@ export async function assign(
     ok: command.ok,
     settled: command.settled ?? [],
     ...(graphRepoId ? { graph: { repoId: graphRepoId, pull: claimed.number } } : {}),
-    ...(finding ? { finding: findingInput(finding) } : {}),
+    ...(answered ? { answered } : {}),
   };
 }
 
@@ -410,7 +423,7 @@ export async function settle(
     reply: data.replies,
     generate: data.generations,
     learn: data.learning,
-    // A fix's answer is recorded by settleFix (./fix-work.ts): a run settled here without one has none.
+    // A fix's answer is recorded by ./answers.ts: a run settled here without one has none.
     fix: {
       finish: (id: string, attempts: number, at: Date) =>
         data.fixes.release(id, attempts, "no_answer", null, at),

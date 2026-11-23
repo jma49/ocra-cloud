@@ -1,41 +1,39 @@
-import type { FixResult } from "@open-cr-agent/cloud-contract";
+import { fixResultSchema } from "@open-cr-agent/cloud-contract";
 import { audit } from "../audit.js";
 import { scoped } from "../db/scoped.js";
 import { errorName, logError } from "../log.js";
 import { fixNotice } from "../notify/feed.js";
-import { type RunFailure, settle, type WorkSource } from "./work.js";
+import { settle, type WorkRef, type WorkSource } from "./work.js";
 
 // The server's half of "fix with ocra" past the run (./work.ts claims and
-// prepares it as any hosted job): what `ocra fix --json` answered, checked
-// against the request, recorded on it, and a proposed fix written into the
-// finding's fix columns, where the pull request page commits it. The
-// machine's half is src/node/review-runner.ts (runFix).
+// prepares it as any answered job, ./answers.ts hands its answer here):
+// what `ocra fix --json` printed, read with the contract's fixResultSchema,
+// checked against the request, recorded on it, and a proposed fix written
+// into the finding's fix columns, where the pull request page commits it.
 
-/** The job a fix's run answers for: settled only while it is still this attempt's. */
-export type FixRef = { id: string; accountId: string; attempts: number };
-
-/** How a fix's run ended: `ocra fix`'s answer, or the failure to retry. */
-export type FixRan = { result: FixResult } | { failure: RunFailure };
-
-export async function settleFix(
+/** Records the answer of the fix's run that printed it; one that is not a fix's, or this request's, fails the run. */
+export async function settleFixAnswer(
   source: Pick<WorkSource, "db" | "dailyCalls">,
-  ref: FixRef,
-  ran: FixRan,
+  ref: WorkRef,
+  answer: unknown,
   now: Date,
 ): Promise<void> {
-  const work = { ...ref, kind: "fix" as const };
-  if ("failure" in ran) return settle(source, work, ran.failure, now);
+  const parsed = fixResultSchema.safeParse(answer);
+  if (!parsed.success) {
+    logError("fix_answer_unreadable", { job: ref.id });
+    return settle(source, ref, "review_failed", now);
+  }
   const data = scoped(source.db, ref.accountId);
   const job = await data.get("fixJobs", ref.id);
   const finding = job && (await data.get("findings", job.findingId));
-  const { result } = ran;
+  const result = parsed.data;
   // An answer for another finding or head is not this request's: the run failed.
   const answers =
     job &&
     finding &&
     result.fingerprint === finding.fingerprint &&
     (result.outcome === "head_moved" || result.headSha === job.head);
-  if (!job || !finding || !answers) return settle(source, work, "review_failed", now);
+  if (!job || !finding || !answers) return settle(source, ref, "review_failed", now);
   const recorded = await data.fixes.finish(
     ref.id,
     ref.attempts,
