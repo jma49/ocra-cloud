@@ -247,6 +247,36 @@
   box-shadow: var(--float);
   animation: jump-in var(--d-move) var(--e-enter);
 }
+.batch-bar {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 7;
+  display: grid;
+  gap: 8px;
+  width: min(560px, calc(100vw - 32px));
+  padding: 12px 16px;
+  translate: -50% 0;
+  border-radius: var(--r-ctl);
+  background: var(--raised);
+  box-shadow: var(--float);
+}
+.batch-row {
+  align-items: center;
+}
+.batch-skipped {
+  display: grid;
+  gap: 4px;
+  max-height: 160px;
+  margin: 0;
+  overflow-y: auto;
+  padding: 0;
+  list-style: none;
+}
+/* The bar takes the window's foot while a choice is open. */
+:root:has(.batch-bar) .jump-to-code {
+  display: none;
+}
 /* Out of the way while someone writes: it would sit over a reply box at the window's foot. */
 :root:has(textarea:focus) .jump-to-code {
   display: none;
@@ -357,4 +387,8 @@
   justify-items: start;
   padding-top: 12px;
   border-top: 0.5px solid var(--hair);
+}
+/* Room to scroll what the bar covers into view. */
+:root:has(.batch-bar) .pull-frame {
+  margin-bottom: 64px;
 }

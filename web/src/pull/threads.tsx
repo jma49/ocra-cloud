@@ -9,6 +9,7 @@ import { api, why } from "../api.js";
 import { useRead } from "../cache.js";
 import { useToast } from "../toast.js";
 import { useAction } from "../ui.js";
+import { useBatch } from "./batch.js";
 import { OUTCOME } from "./outcome.js";
 import { ThreadItem } from "./thread-item.js";
 
@@ -59,7 +60,8 @@ export function ThreadsPanel(props: { pull: Pull; onDone: (o: PullActionOutcome)
   const query = new URLSearchParams({ ...props.pull, number: String(props.pull.number) });
   const { data, error, reload } = useRead<PullThreadsView>(`/pulls/threads?${query}`);
   const toast = useToast();
-  const [picked, setPicked] = useState<string[]>([]);
+  const batch = useBatch();
+  const [own, setOwn] = useState<string[]>([]);
   const [steps, setSteps] = useState<Step[]>([]);
   const [sendError, setSendError] = useState<unknown>(null);
   const commit = useAction(post);
@@ -69,6 +71,11 @@ export function ThreadsPanel(props: { pull: Pull; onDone: (o: PullActionOutcome)
   useEffect(() => {
     setSteps((all) => all.filter((s) => s.seen === undefined || s.seen === data));
   }, [data]);
+  // A commit of the page's batch may have applied suggestions here.
+  const commits = batch?.commits ?? 0;
+  useEffect(() => {
+    if (commits > 0) reload();
+  }, [commits, reload]);
 
   const send = async (path: string, body: object): Promise<PullActionOutcome | null> => {
     setSendError(null);
@@ -110,12 +117,18 @@ export function ThreadsPanel(props: { pull: Pull; onDone: (o: PullActionOutcome)
   if (!data || data.threads.length === 0) return null;
   const live = steps.filter((s) => s.seen === undefined || s.seen === data);
   const threads = data.threads.map((t) => laidOver(t, live));
-  const toggle = (id: string) =>
-    setPicked(picked.includes(id) ? picked.filter((p) => p !== id) : [...picked, id]);
   const fileOf = (id: string) =>
     threads.find((t) => t.comments.some((c) => c.suggestions.some((s) => s.id === id)))?.path;
-  // GitHub commits suggestions together only within one file.
-  const only = props.pull.platform === "github" && picked[0] ? fileOf(picked[0]) : undefined;
+  // With a batch on the page, a suggestion joins it and is committed there, with ocra's fixes.
+  const picked = batch ? batch.picks.filter((p) => p.kind === "suggestion").map((p) => p.id) : own;
+  const toggle = (id: string) =>
+    batch
+      ? batch.toggle({ kind: "suggestion", id, label: `Suggestion on ${fileOf(id) ?? "a file"}` })
+      : setOwn(own.includes(id) ? own.filter((p) => p !== id) : [...own, id]);
+  // GitHub commits suggestions together only within one file; a batch has no such limit.
+  const only =
+    !batch && props.pull.platform === "github" && picked[0] ? fileOf(picked[0]) : undefined;
+  const full = batch?.full ? "One commit takes no more changes." : null;
   const open = threads.filter((t) => !t.resolved).length;
   const resolved = threads.length - open;
   const offers = threads.some(
@@ -141,7 +154,7 @@ export function ThreadsPanel(props: { pull: Pull; onDone: (o: PullActionOutcome)
             blocked={
               only !== undefined && t.path !== only
                 ? "On GitHub, suggestions committed together must be in one file."
-                : null
+                : full
             }
             toggle={toggle}
             reply={(body) => reply(t.id, body)}
@@ -152,7 +165,7 @@ export function ThreadsPanel(props: { pull: Pull; onDone: (o: PullActionOutcome)
       {data.truncated && (
         <span className="subtle small">More threads are on the platform than one page reads.</span>
       )}
-      {offers && (
+      {offers && !batch && (
         <div className="row-gap thread-commit">
           <Button
             loading={commit.busy}
@@ -166,7 +179,7 @@ export function ThreadsPanel(props: { pull: Pull; onDone: (o: PullActionOutcome)
               if (!r) return;
               props.onDone(r.outcome);
               if (r.outcome === "done") {
-                setPicked([]);
+                setOwn([]);
                 reload();
               }
             }}

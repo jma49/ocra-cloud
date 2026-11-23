@@ -1,6 +1,7 @@
 import Wrench from "lucide-react/icons/wrench";
 import { Button } from "@/components/ui/button";
 import type { FixProposalView, PullActionOutcome } from "../../../src/shared/index.js";
+import { BatchPick } from "../pull/batch.js";
 import { OUTCOME } from "../pull/outcome.js";
 import { SeverityBadge } from "../severity.js";
 import { FixDiff } from "./fix-diff.js";
@@ -41,9 +42,14 @@ export function FixProposal(props: {
         {state === "done" ? (
           <span className="badge badge-ok">Committed</span>
         ) : (
-          <Button size="sm" variant="outline" disabled={state === "sending"} onClick={commit}>
-            Commit fix
-          </Button>
+          <>
+            <BatchPick pick={{ kind: "finding", id: fix.finding, label: fix.title }}>
+              Commit with others
+            </BatchPick>
+            <Button size="sm" variant="outline" disabled={state === "sending"} onClick={commit}>
+              Commit fix
+            </Button>
+          </>
         )}
       </div>
       <FixDiff fix={fix} />
