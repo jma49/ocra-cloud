@@ -106,7 +106,8 @@ describe("the inbox grouped by views", () => {
       ["default:0", "Needs my review"],
       ["default:1", "My open PRs"],
       ["default:2", "Waiting on others"],
-      ["default:3", "Recently merged"],
+      ["default:3", "Assigned to me"],
+      ["default:4", "Recently merged"],
     ]);
     expect(numbers(grouped, "Needs my review")).toEqual([1]);
     expect(numbers(grouped, "My open PRs")).toEqual([2, 3]);
