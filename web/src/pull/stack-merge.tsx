@@ -150,7 +150,7 @@ export function StackMergeJob(props: {
   return (
     <section className="card card-pad stack" aria-label="Stack">
       <div className="row-gap checks-head">
-        <span className="strong grow">Stack merge</span>
+        <h2 className="card-title grow">Stack merge</h2>
         <span className={s.tone}>{s.text}</span>
       </div>
       <Tally
