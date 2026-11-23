@@ -30,8 +30,9 @@ import type { AutoReviewService } from "./routes.js";
 // opens, reopens, leaves draft or gains commits (ADR-0046, 2). A draft is
 // not. Its pre-merge checks are evaluated then, and again when its title or
 // description is edited; its later events run the automation rules on it
-// (src/automations/pull-events.ts). GitLab's note hook, on the same address, queues
-// answers (./replies.ts); its merge request and pipeline hooks also move
+// (src/automations/pull-events.ts). GitLab's note hook, on the same
+// address, queues answers (./replies.ts); its merge request and pipeline
+// hooks also move
 // the intents armed to merge when ready (src/merge-when-ready/), and a
 // failed merge request pipeline tells its author (src/notify/ci-hooks.ts).
 // A GitHub pull request event naming the repository by a new path renames
