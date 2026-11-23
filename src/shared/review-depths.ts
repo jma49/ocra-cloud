@@ -1,3 +1,5 @@
+import type { Severity } from "@open-cr-agent/cloud-contract";
+
 // How thorough a hosted review is, by the engine's depth names: a preset the
 // server turns into settings the pinned engine already has, written into the
 // review's configuration file (and, for one, a flag). A repository has one;
@@ -15,12 +17,28 @@ export type ReviewDepthSettings = {
   reviewersOff?: readonly string[];
   /** The engine's showPreExisting: findings on lines the change did not touch. */
   showPreExisting?: boolean;
-  /** The engine's --ultra: every reviewer at every tier, two samples each, about twice the cost. */
-  ultra?: true;
+  /** The engine's minInlineSeverity: findings below it are listed in the summary, not posted inline. */
+  minInlineSeverity?: Severity;
+  /** The engine's maxInlineComments: the most findings posted inline; the rest are listed in the summary. */
+  maxInlineComments?: number;
+  /**
+   * The engine's ultra: every reviewer at every tier, two samples each, about
+   * twice the cost. true adds --ultra; false, in the configuration file, turns
+   * off an ultra the account's settings turn on.
+   */
+  ultra?: boolean;
 };
 
 export const REVIEW_DEPTH_SETTINGS: Record<ReviewDepth, ReviewDepthSettings> = {
-  quick: { reviewersOff: ["performance", "docs", "agents-md"], showPreExisting: false },
+  // Ten inline comments is about what one pass over a pull request reads; the
+  // findings held back stay in the summary and the report.
+  quick: {
+    reviewersOff: ["performance", "docs", "agents-md"],
+    showPreExisting: false,
+    minInlineSeverity: "warning",
+    maxInlineComments: 10,
+    ultra: false,
+  },
   standard: {},
   deep: { ultra: true },
 };
