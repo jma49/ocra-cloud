@@ -19,6 +19,9 @@ export type ReconcileTurn = {
   host: string;
   fullName: string;
   createdAt: Date;
+  /** Its own GitLab access token, sealed (src/platforms/repo-token.ts). */
+  accessTokenWrappedKey: string | null;
+  accessTokenCiphertext: string | null;
   /** When it was claimed before this claim; null the first time. */
   previous: Date | null;
   claimedAt: Date;
@@ -66,6 +69,8 @@ export async function claimReconcile(
         host: t.host,
         fullName: t.fullName,
         createdAt: t.createdAt,
+        accessTokenWrappedKey: t.accessTokenWrappedKey,
+        accessTokenCiphertext: t.accessTokenCiphertext,
       })
       .then(first);
     if (claimed) return { ...claimed, previous: next.reconciledAt, claimedAt: now };

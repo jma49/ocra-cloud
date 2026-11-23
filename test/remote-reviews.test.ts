@@ -82,8 +82,10 @@ describe("hosted reviews for remote runners on a server with GitLab only", () =>
     const remote = remoteReviews(gitlabOnly);
     expect(remote).toMatchObject({ autoReview: { remote: true }, runnerToken: RUNNER });
     expect(remote).not.toHaveProperty("githubWebhookSecret");
-    expect(await remote.bots?.forRepo("gitlab", "acme/api")).toEqual({ token: "glpat-bot" });
-    expect(await remote.bots?.forRepo("github", "Octo/API")).toBeNull();
+    expect(await remote.bots?.forRepo({ platform: "gitlab", fullName: "acme/api" })).toEqual({
+      token: "glpat-bot",
+    });
+    expect(await remote.bots?.forRepo({ platform: "github", fullName: "Octo/API" })).toBeNull();
     expect(remoteReviews({ ...gitlabOnly, RUNNER_TOKEN: undefined })).toEqual({});
     expect(remoteReviews({ ...gitlabOnly, GITLAB_BOT_TOKEN: undefined })).toEqual({});
   });

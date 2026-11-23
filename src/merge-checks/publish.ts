@@ -35,7 +35,7 @@ export async function postChecks(
   const platform =
     repo && poster.platforms.find((p) => p.kind === repo.platform && p.host === repo.host);
   if (!repo || !platform) return "skipped";
-  const bot = await poster.bots.forRepo(repo.platform, repo.fullName);
+  const bot = await poster.bots.forRepo(repo);
   if (!bot) return "skipped";
   const evaluated = await evaluatePull(data, platform, bot.token, repo, number);
   if (!evaluated.report) return evaluated.reason === "unreachable" ? "failed" : "skipped";

@@ -120,7 +120,7 @@ async function reconcileRepo(
   const tokenCalls = r.bots && repo.platform === "github" ? BOT_TOKEN_CALLS : LINK_TOKEN_CALLS;
   if (!calls.has(tokenCalls)) return { state: "cut" };
   const data = scoped(r.db, repo.accountId);
-  const bot = r.bots ? await r.bots.forRepo(repo.platform, repo.fullName) : null;
+  const bot = r.bots ? await r.bots.forRepo(repo) : null;
   const token = bot?.token ?? (await accessToken(data, r.env, platform));
   if (!token) return { state: "no_token" };
   const read = platform.reconcile;

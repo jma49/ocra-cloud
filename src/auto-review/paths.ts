@@ -37,7 +37,7 @@ export async function keepReviewedPaths(
   if ((await data.pullPaths.headOf(repo.id, number)) === head) return false;
   const platform = reader.platforms.find((p) => p.kind === repo.platform && p.host === repo.host);
   if (!platform) return false;
-  const bot = reader.bots ? await reader.bots.forRepo(repo.platform, repo.fullName) : null;
+  const bot = reader.bots ? await reader.bots.forRepo(repo) : null;
   const token = bot?.token ?? (await accessToken(data, reader.env, platform));
   if (!token) return false;
   const listed = await platform.changes.changes(token, repo.fullName, number, MAX_PATH_FILES);

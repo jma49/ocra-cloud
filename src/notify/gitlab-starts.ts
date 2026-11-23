@@ -3,6 +3,7 @@ import type { Row } from "../db/scoped.js";
 import { scoped } from "../db/scoped.js";
 import { gitlabDiscussionStart } from "../platforms/gitlab-discussion.js";
 import { accessToken } from "../platforms/links.js";
+import type { RepoTokenFields } from "../platforms/repo-token.js";
 import type { StartOf } from "./thread-hooks.js";
 
 // A GitLab note hook says which discussion a note is in, not whether it is
@@ -12,12 +13,13 @@ import type { StartOf } from "./thread-hooks.js";
 
 export function gitlabStartOf(
   reader: PathReader,
-  repo: Pick<Row<"reviewRepos">, "accountId" | "platform" | "host" | "fullName">,
+  repo: Pick<Row<"reviewRepos">, "accountId" | "platform" | "host" | "fullName"> &
+    Partial<Pick<Row<"reviewRepos">, RepoTokenFields>>,
 ): StartOf {
   return async (number, threadKey) => {
     const platform = reader.platforms.find((p) => p.kind === repo.platform && p.host === repo.host);
     if (!platform) return null;
-    const bot = reader.bots ? await reader.bots.forRepo(repo.platform, repo.fullName) : null;
+    const bot = reader.bots ? await reader.bots.forRepo(repo) : null;
     const token =
       bot?.token ?? (await accessToken(scoped(reader.db, repo.accountId), reader.env, platform));
     if (!token) return null;

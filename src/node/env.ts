@@ -1,5 +1,5 @@
 import { createPrivateKey } from "node:crypto";
-import { botSettingsFrom, runnerTokenFrom } from "../auto-review/remote.js";
+import { botSettingsFrom, gitlabReviews, runnerTokenFrom } from "../auto-review/remote.js";
 import { catalogOf } from "../catalog.js";
 import { graphPolicy } from "../graph/policy.js";
 import { githubHostOf } from "../platforms/registry.js";
@@ -162,14 +162,18 @@ export function graphSettingsFrom(vars: Record<string, string | undefined>) {
 /**
  * AUTO_REVIEW_WORKERS (reviews at once; 1 when unset, 0 to only queue them)
  * and the ocra bot's credentials: GITHUB_APP_ID with GITHUB_APP_PRIVATE_KEY,
- * GITLAB_BOT_TOKEN. Off without any credential. RUNNER_TOKEN lets remote
- * runners take jobs too (docs/runner.md).
+ * GITLAB_BOT_TOKEN. Off without any credential, except that a server with
+ * the GitLab application and PUBLIC_URL reviews the projects given their
+ * own access token. RUNNER_TOKEN lets remote runners take jobs too
+ * (docs/runner.md).
  */
 export function autoReviewSettingsFrom(vars: Record<string, string | undefined>) {
   const bots = botSettingsFrom(vars);
   const github = !!bots.githubAppId || !!bots.githubAppPrivateKey;
   if (github) checkGithubApp(bots.githubAppId, bots.githubAppPrivateKey);
-  if (!github && !bots.gitlabBotToken) return undefined;
+  // Without PUBLIC_URL a server that would review only projects' own tokens stays as it was.
+  const gitlab = !!bots.gitlabBotToken || (gitlabReviews(vars) && !!vars.PUBLIC_URL);
+  if (!github && !gitlab) return undefined;
   const workers = vars.AUTO_REVIEW_WORKERS || "1";
   if (!/^\d+$/.test(workers)) {
     throw new Error(`AUTO_REVIEW_WORKERS must be a whole number, not ${workers}`);

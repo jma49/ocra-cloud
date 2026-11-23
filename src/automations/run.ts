@@ -246,7 +246,7 @@ export function botOf(
         (p) => p.kind === repo.platform && p.host === repo.host,
       );
       if (!platform) return null;
-      const credential = await runner.bots.forRepo(repo.platform, repo.fullName);
+      const credential = await runner.bots.forRepo(repo);
       return credential ? { platform, credential } : null;
     })();
     return minted;

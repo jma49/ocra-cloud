@@ -32,7 +32,7 @@ afterEach(() => vi.restoreAllMocks());
 function bot(fail = 0) {
   const asked: string[] = [];
   const bots = {
-    async forRepo(_platform: string, fullName: string) {
+    async forRepo({ fullName }: { fullName: string }) {
       asked.push(fullName);
       if (asked.length <= fail) throw new Error("bot token store unavailable");
       return { token: "bot-token" };

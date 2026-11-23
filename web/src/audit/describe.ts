@@ -57,6 +57,8 @@ export const KIND_GROUPS: { label: string; kinds: [AuditKind, string][] }[] = [
       ["auto_review.automatic_changed", "Automatic review switched"],
       ["auto_review.learn_changed", "Learning from declined findings changed"],
       ["auto_review.unenrolled", "Repository unenrolled"],
+      ["auto_review.access_token_set", "GitLab access token given"],
+      ["auto_review.access_token_cleared", "GitLab access token removed"],
     ],
   },
   {
@@ -203,6 +205,10 @@ export function describe(e: AuditEventView): string {
       return `Set learning from declined findings${noted(e.detail.learn, " to ", "")} for ${named(e.detail.repo, "a repository")}`;
     case "auto_review.unenrolled":
       return `Stopped automatic review of ${named(e.detail.repo, "a repository")}`;
+    case "auto_review.access_token_set":
+      return `Gave ${named(e.detail.repo, "a repository")} a GitLab access token${noted(e.detail.bot, " of ", "")}`;
+    case "auto_review.access_token_cleared":
+      return `Removed the GitLab access token of ${named(e.detail.repo, "a repository")}`;
     case "live.link_changed":
       return e.detail.role
         ? `Shared a live review by link (${e.detail.role})`
