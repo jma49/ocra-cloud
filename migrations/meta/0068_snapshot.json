@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "2a259642-7088-4340-b4d7-a26271160b06",
+  "id": "016f4276-9bb6-48b6-928f-31dd6978e264",
   "prevId": "a5f7201b-1073-4238-baa0-ec41f678b224",
   "tables": {
     "account_memory": {
@@ -187,34 +187,6 @@
           "notNull": true,
           "autoincrement": false,
           "default": "'UTC'"
-        },
-        "sign_in_allow_key": {
-          "name": "sign_in_allow_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "sign_in_allowed": {
-          "name": "sign_in_allowed",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "sign_in_checked_at": {
-          "name": "sign_in_checked_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "sign_in_tried_at": {
-          "name": "sign_in_tried_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
         }
       },
       "indexes": {
@@ -5160,6 +5132,14 @@
           "notNull": true,
           "autoincrement": false,
           "default": "'balanced'"
+        },
+        "automatic": {
+          "name": "automatic",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
         }
       },
       "indexes": {

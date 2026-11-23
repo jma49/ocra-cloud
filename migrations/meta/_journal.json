@@ -481,8 +481,15 @@
     {
       "idx": 68,
       "version": "6",
-      "when": 1795405846461,
-      "tag": "0068_sign_in_allow",
+      "when": 1795407723303,
+      "tag": "0068_auto_review_switch",
+      "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "6",
+      "when": 1795408542543,
+      "tag": "0069_sign_in_allow",
       "breakpoints": true
     }
   ]

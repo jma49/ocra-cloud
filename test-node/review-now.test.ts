@@ -74,6 +74,17 @@ describe("a review asked for on the console", () => {
     expect(await latest(8)).toEqual({ job: null });
   });
 
+  it("queues for a repository whose automatic reviews are switched off", async () => {
+    const [repo] = await s.host.db.select().from(schema.reviewRepos);
+    const off = await s.call(`/api/auto-review/repos/${repo?.id}/automatic`, {
+      method: "PUT",
+      headers: auth,
+      json: { automatic: false },
+    });
+    expect(await off.json()).toEqual({ automatic: false });
+    expect(await request()).toMatchObject({ status: 200, body: { job: { state: "queued" } } });
+  });
+
   it("answers a running review instead of a second, even when forced", async () => {
     const first = await request();
     await claimJob(s.host.db, new Date(), 60_000);

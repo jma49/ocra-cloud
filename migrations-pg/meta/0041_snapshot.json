@@ -1,5 +1,5 @@
 {
-  "id": "a70a9db5-cbed-408a-a535-e5f92a5752ec",
+  "id": "d6db5623-43ee-40d1-988f-bb1b16781c3e",
   "prevId": "178f1e4b-44b9-4581-afaa-cf522234ef20",
   "version": "7",
   "dialect": "postgresql",
@@ -199,30 +199,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'UTC'"
-        },
-        "sign_in_allow_key": {
-          "name": "sign_in_allow_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "sign_in_allowed": {
-          "name": "sign_in_allowed",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "sign_in_checked_at": {
-          "name": "sign_in_checked_at",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "sign_in_tried_at": {
-          "name": "sign_in_tried_at",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
         }
       },
       "indexes": {
@@ -5696,6 +5672,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'balanced'"
+        },
+        "automatic": {
+          "name": "automatic",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
         }
       },
       "indexes": {

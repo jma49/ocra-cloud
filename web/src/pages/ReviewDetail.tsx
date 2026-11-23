@@ -39,6 +39,7 @@ type Detail = {
     createdAt: string;
     prRepository: string | null;
     prNumber: number | null;
+    prHeadSha?: string | null;
     linkedTasks: LinkedTaskView[] | null;
     /** The ids of the learnings its reviewers were given; null where it did not say. */
     learnings: string[] | null;
@@ -123,10 +124,11 @@ export function ReviewDetail(props: { id: string; graphs: boolean }) {
       </aside>
       <section className="review-main" aria-label="Activity">
         <div className="review-title">
-          <span className="mono subtle">
-            {r.prRepository && r.prNumber ? `#${r.prNumber} · ${r.prRepository}` : r.repo}
+          <span className="subtle">
+            {sourceLabel(r.source)}
+            {r.prHeadSha && <span className="mono"> {r.prHeadSha.slice(0, 7)}</span>}
           </span>
-          <h1>Review of {r.repo}</h1>
+          <h1>{titleOf(r)}</h1>
         </div>
         {data.walkthrough && <Walkthrough w={data.walkthrough} />}
         <ReviewChat reviewId={r.id} />
@@ -193,6 +195,12 @@ export function ReviewDetail(props: { id: string; graphs: boolean }) {
       </section>
     </div>
   );
+}
+
+/** What the review was of, in words: its pull request where it names one, else the repository's hash. */
+function titleOf(r: Review): string {
+  const pull = pullOf(r);
+  return pull ? `Review of ${pull.repo} #${pull.number}` : `Review of ${r.repo}`;
 }
 
 /** The pull request a review names, on a platform the console reaches; null for a local review. */

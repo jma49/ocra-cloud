@@ -40,12 +40,14 @@ export async function pullVerdicts(
     const repo = identityOf(platform, pull.repo);
     const row = repo ? found.get(key(repo, pull.number)) : undefined;
     if (!row) return NONE;
-    // significant_concerns is the verdict that blocks a merge.
-    const verdict = row.verdict
-      ? row.verdict === "significant_concerns"
+    // significant_concerns is the verdict that blocks a merge; a review that
+    // left files unreviewed can block but cannot pass.
+    const verdict =
+      row.verdict === "significant_concerns"
         ? "blocking"
-        : "not_blocking"
-      : null;
+        : row.verdict && row.complete
+          ? "not_blocking"
+          : null;
     return { verdict, reviewedAt: row.reviewedAt };
   };
 }

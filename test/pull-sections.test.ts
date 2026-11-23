@@ -69,7 +69,7 @@ function inbox() {
 }
 
 let run = 0;
-async function review(githubId: number, number: number, verdict: string) {
+async function review(githubId: number, number: number, verdict: string | null, complete = true) {
   const cli = await signInCli(githubId, "octo");
   run += 1;
   const res = await call("/api/reviews", {
@@ -80,6 +80,7 @@ async function review(githubId: number, number: number, verdict: string) {
       repoHash: HASH,
       source: "github",
       verdict,
+      complete,
       findings: { critical: 0, warning: 0, suggestion: 0 },
       pullRequest: { repository: "https://github.com/octo/api", number, headSha: "9".repeat(40) },
     },
@@ -125,6 +126,10 @@ describe("the inbox grouped by views", () => {
     await new Promise((r) => setTimeout(r, 5));
     await review(42, 1, "significant_concerns");
     await review(42, 3, "minor_issues");
+    // A newer review that left files unreviewed takes the pass away.
+    await review(42, 4, "approved");
+    await new Promise((r) => setTimeout(r, 5));
+    await review(42, 4, "approved", false);
     // Another account's review of pull 2 says nothing of this account's inbox.
     await review(7, 2, "significant_concerns");
     const add = async (name: string, filters: unknown) =>

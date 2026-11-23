@@ -2,6 +2,7 @@ import { type FormEvent, Fragment, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { AutoReviewRepoView, CodePlatformKind } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
+import { AutomaticSwitch } from "../auto-review/automatic-switch.js";
 import { ProfileMenu } from "../auto-review/profile-menu.js";
 import { RunnerStatus } from "../auto-review/runner-status.js";
 import { ago } from "../format.js";
@@ -45,7 +46,7 @@ export function AutoReview(props: { platforms: readonly CodePlatformKind[] }) {
     <>
       <PageHead
         title="Auto review"
-        sub="Pull requests in these repositories are reviewed by this server when they open or gain commits, and the review is posted as the ocra bot."
+        sub="This server reviews pull requests in these repositories as the ocra bot: each one as it opens or gains commits while Automatic is on, and any one when you ask on its page."
       />
       <RunnerStatus />
       <AddRepo
@@ -57,7 +58,7 @@ export function AutoReview(props: { platforms: readonly CodePlatformKind[] }) {
         }}
       />
       {added && <Hook added={added} onDone={() => setAdded(null)} />}
-      {remove.error !== null && <ActionError what="stop reviewing it" error={remove.error} />}
+      {remove.error !== null && <ActionError what="remove it" error={remove.error} />}
       {error && !data ? (
         <LoadError what="your repositories" error={error} retry={reload} />
       ) : !data ? (
@@ -71,6 +72,7 @@ export function AutoReview(props: { platforms: readonly CodePlatformKind[] }) {
               <thead>
                 <tr>
                   <th>Repository</th>
+                  <th>Automatic</th>
                   <th>Profile</th>
                   <th>Last review</th>
                   <th />
@@ -88,6 +90,9 @@ export function AutoReview(props: { platforms: readonly CodePlatformKind[] }) {
                         <div className="subtle small">
                           {PLATFORM_NAME[r.platform]} · {r.host}
                         </div>
+                      </td>
+                      <td>
+                        <AutomaticSwitch r={r} />
                       </td>
                       <td>
                         <ProfileMenu r={r} />
@@ -112,13 +117,13 @@ export function AutoReview(props: { platforms: readonly CodePlatformKind[] }) {
                           disabled={remove.busy}
                           onClick={() => drop(r.id)}
                         >
-                          Stop reviewing
+                          Remove
                         </Button>
                       </td>
                     </tr>
                     {checking === r.id && (
                       <tr className="checks-row">
-                        <td colSpan={4}>
+                        <td colSpan={5}>
                           <RepoChecks repoId={r.id} fullName={r.fullName} />
                         </td>
                       </tr>

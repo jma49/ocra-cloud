@@ -55,6 +55,7 @@ describe("a review's properties", () => {
     render(<ReviewDetail id="r1" graphs={false} />);
     const props = await screen.findByRole("complementary", { name: "Properties" });
     expect(within(props).queryByText("Learnings")).toBeNull();
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Review of abcd1234");
   });
 });
 
@@ -90,6 +91,20 @@ describe("a finding's fix on its review", () => {
     },
     findings: [finding],
   };
+
+  it("is titled by the pull request it reviewed, with the head under how it ran", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        url === "/api/reviews/r1"
+          ? Response.json(ofPull)
+          : Response.json({ error: "not_found" }, { status: 404 }),
+      ),
+    );
+    render(<ReviewDetail id="r1" graphs={false} />);
+    const title = await screen.findByRole("heading", { name: "Review of octo/api #7" });
+    expect(title.parentElement?.textContent).toContain("GitHub PR aaaaaaa");
+  });
 
   it("shows as a diff of the lines it replaces at the reviewed head", async () => {
     vi.stubGlobal(
