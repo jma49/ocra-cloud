@@ -46,7 +46,7 @@ const WHERE: Record<NotifyKind, Where> = {
     label: "Slack member",
     name: "Name, e.g. My Slack",
     placeholder: "you@example.com or U012AB3CD",
-    hint: "If this is a member of the workspace, they get a direct message with a link to confirm first; nothing else is sent until it is opened.",
+    hint: "A member of the workspace gets a direct message with a link to confirm first; nothing else is sent until it is opened.",
   },
 };
 
@@ -60,6 +60,9 @@ function refusal(e: unknown, kind: NotifyKind): string {
     if (issue) return issue.message;
     if (kind === "slack_dm" && e.code === "upstream_unreachable") {
       return "Slack did not answer; try again";
+    }
+    if (kind === "slack_dm" && e.code === "daily_limit") {
+      return "this account has used today's Slack member lookups; try again tomorrow";
     }
   }
   return why(e);

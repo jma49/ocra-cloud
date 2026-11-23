@@ -103,7 +103,7 @@ export function Notifications(props: { platforms: readonly CodePlatformKind[] })
       {linkSent && (
         <p className="note ok" role="status">
           {linkSent.slack
-            ? `If the address or ID given for ${linkSent.name} is a member's of the Slack workspace, they get a direct message with a link to confirm.`
+            ? `If ${linkSent.name} is a member of the Slack workspace, a direct message with a link to confirm is on its way.`
             : `A link to confirm ${linkSent.name} is on its way.`}{" "}
           Nothing is sent there until it is opened.
         </p>
@@ -156,7 +156,13 @@ export function Notifications(props: { platforms: readonly CodePlatformKind[] })
                     <td className="channel-name">
                       <div className="strong">{c.name}</div>
                       <div className="subtle small">
-                        {KIND_LABEL[c.kind]} · <span className="mono">…{c.last4}</span>
+                        {KIND_LABEL[c.kind]}
+                        {c.kind !== "email" && c.kind !== "slack_dm" && (
+                          <>
+                            {" · "}
+                            <span className="mono">…{c.last4}</span>
+                          </>
+                        )}
                       </div>
                     </td>
                     <td>
