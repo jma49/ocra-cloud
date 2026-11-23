@@ -21,10 +21,10 @@
   --fill: rgb(0 0 0 / 0.04);
   --fill2: rgb(0 0 0 / 0.063);
   --ink: #1d1d1f;
-  --red: #d93a26;
-  --amber: #b26a00;
-  --green: #1f8a4c;
-  --blue: #3f6fe8;
+  --red: #b82c1a;
+  --amber: #925600;
+  --green: #17723d;
+  --blue: #3059c6;
   --teal: #2f9e8f;
   --violet: #8a6cf0;
   --shadow:
@@ -88,7 +88,7 @@
   --float:
     0 0 0 0.5px rgb(0 0 0 / 0.08), 0 8px 24px -6px rgb(0 0 0 / 0.16), 0 2px 6px rgb(0 0 0 / 0.05);
   --scrim: rgb(0 0 0 / 0.28);
-  --focus: color-mix(in srgb, var(--blue) 55%, transparent);
+  --focus: var(--blue);
   --e-std: cubic-bezier(0.4, 0, 0.2, 1);
   --e-enter: cubic-bezier(0.22, 1, 0.36, 1);
   --e-settle: cubic-bezier(0.2, 0.75, 0.15, 1);

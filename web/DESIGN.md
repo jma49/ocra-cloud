@@ -19,7 +19,7 @@ Pages and components style only through the custom properties in `base.css`.
 - **Surfaces:** `--ground` behind everything, `--panel` for the page, `--raised` for cards, menus and inputs. Depth comes from `--shadow` (resting) and `--float` (menus, drawers, dialogs), never from borders.
 - **Lines:** `--hair` between rows, `--hair2` under headers and around groups. Lines are 0.5 px.
 - **Fills:** `--fill` at rest, `--fill2` for hover and selected.
-- **Status tones:** `--critical` for critical findings, errors and destructive actions, `--warning` for warnings; pages name these semantic tokens, not `--red` and `--amber`, which are the palette behind them. `--green` is ok, `--blue` running or informational. Use them on text and soft fills (badges, notes), never as large backgrounds.
+- **Status tones:** `--critical` for critical findings, errors and destructive actions, `--warning` for warnings; pages name these semantic tokens, not `--red` and `--amber`, which are the palette behind them. `--green` is ok, `--blue` running or informational. Use them on text and soft fills (badges, notes), never as large backgrounds. Each reads at 4.5:1 as text on its own badge fill (an 8% tint), on the panel, on a card and inside a selected row, in both themes **(test, `contrast.test.ts`)**.
 - **Chart series:** `--c1` to `--c6`, in order of use.
 - **Radii:** `--r-tag` 4, `--r-chip` and `--r-tab` 6, `--r-ctl` 8 (controls, cards), `--r-sheet` 10 (panel, drawer).
 - **coss ui names** (`--background`, `--popover`, `--accent`, `--destructive`, …) are aliases of the same tokens, declared in `base.css`; `styles/coss.css` maps them into Tailwind.
@@ -104,7 +104,7 @@ A new shared control comes from coss ui first, then from a small component in `w
 
 ## Accessibility
 
-- Focus is always visible, drawn only in `--focus` **(test, `styles.test.ts`)**.
+- Focus is always visible, drawn only in `--focus` **(test, `styles.test.ts`)**, the solid `--blue`, which keeps 3:1 against every surface **(test, `contrast.test.ts`)**.
 - **The page bar's crumb:** a page under a place (a pull request, a review) names itself after the place, and the place is a link back. A pull request opened from the inbox also shows where it stands there ("2 of 8") with previous and next, `[` and `]` (`web/src/inbox/queue-nav.tsx`); the inbox's order is kept only while the console is open.
 - **A page's commands** (`usePageCommands`, `web/src/page-commands.ts`): what a work page does is said once, as a label, an action and at most one unmodified key. The command menu lists them first under the page's name with the key beside each, and the key runs the same action on the page, never while typing or in a drawer. Keys keep one meaning everywhere: `j`/`k` next and previous, `o` open on the platform, `r` review or refresh, `c` code, `m` merge.
 - Every control is reachable and usable by keyboard; menus and the command menu follow the ARIA menu and combobox patterns (from Base UI).
