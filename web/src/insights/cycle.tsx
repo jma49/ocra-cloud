@@ -51,9 +51,7 @@ export function Cycle(props: { days: number; platforms: readonly CodePlatformKin
           your pull requests.
         </p>
       ) : error && !data ? (
-        <div className="card-pad">
-          <LoadError what="your pull requests" error={error} retry={reload} />
-        </div>
+        <LoadError what="your pull requests" error={error} retry={reload} inCard />
       ) : !data ? (
         <div className="card-pad">
           <Loading what="your pull requests" />
