@@ -6,6 +6,7 @@ import { useCached } from "../cache.js";
 import { compact, count, num, period, since, sourceLabel, time } from "../format.js";
 import { CloseGlyph } from "../glyphs.js";
 import { Link } from "../router.js";
+import { StackTable } from "../stack-table.js";
 import { EmptyState, Loading, PageHead, Seg, useAction } from "../ui.js";
 
 const RANGES = [7, 30, 90].map(period);
@@ -163,7 +164,7 @@ export function Reviews(props: {
         {!data ? (
           <Loading what="reviews" />
         ) : data.reviews.length > 0 ? (
-          <div className="table-wrap">
+          <StackTable>
             <table>
               <thead>
                 <tr>
@@ -190,17 +191,45 @@ export function Reviews(props: {
                     <td>
                       <Verdict r={r} />
                     </td>
-                    <td className="num">{r.critical}</td>
-                    <td className="num">{r.warning}</td>
-                    <td className="num">{r.suggestion}</td>
+                    <td className="num">
+                      <span className="cell-name" aria-hidden="true">
+                        Critical
+                      </span>
+                      {r.critical}
+                    </td>
+                    <td className="num">
+                      <span className="cell-name" aria-hidden="true">
+                        Warning
+                      </span>
+                      {r.warning}
+                    </td>
+                    <td className="num">
+                      <span className="cell-name" aria-hidden="true">
+                        Suggestion
+                      </span>
+                      {r.suggestion}
+                    </td>
                     <td className="num" title={`${r.filesNotReviewed} not reviewed`}>
+                      <span className="cell-name" aria-hidden="true">
+                        Files
+                      </span>
                       {r.filesReviewed}
                       {r.filesNotReviewed ? (
                         <span className="subtle">/{r.filesReviewed + r.filesNotReviewed}</span>
                       ) : null}
                     </td>
-                    <td className="num">{compact(r.tokensIn + r.tokensOut)}</td>
-                    <td className="num">{(r.durationMs / 1000).toFixed(0)}s</td>
+                    <td className="num">
+                      <span className="cell-name" aria-hidden="true">
+                        Tokens
+                      </span>
+                      {compact(r.tokensIn + r.tokensOut)}
+                    </td>
+                    <td className="num">
+                      <span className="cell-name" aria-hidden="true">
+                        Duration
+                      </span>
+                      {(r.durationMs / 1000).toFixed(0)}s
+                    </td>
                     <td className="num subtle">
                       <time dateTime={r.createdAt} title={time(r.createdAt)}>
                         {since(r.createdAt)}
@@ -221,7 +250,7 @@ export function Reviews(props: {
                 ))}
               </tbody>
             </table>
-          </div>
+          </StackTable>
         ) : (
           <EmptyState
             icon={GitPullRequest}
