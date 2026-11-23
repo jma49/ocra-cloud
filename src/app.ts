@@ -18,6 +18,7 @@ import { findingIssues } from "./finding-issues.js";
 import { flow } from "./flow.js";
 import { gateway } from "./gateway.js";
 import { type GraphService, graphsRoute } from "./graph/routes.js";
+import { healthRoute } from "./health.js";
 import { apiError } from "./http.js";
 import { inbox } from "./inbox.js";
 import { impact } from "./insights-impact.js";
@@ -100,6 +101,8 @@ export type Host<E extends AppBindings> = {
   mailer?: Mailer;
   /** How webhooks are posted, where the host checks more than fetch can (src/node/webhook-transport.ts). */
   webhookPost?: WebhookPost;
+  /** Whether a deep health check asks that a remote runner reported in lately (src/node/). */
+  runnerHeartbeat?: boolean;
 };
 
 export function createApp<E extends AppBindings>(host: Host<E>) {
@@ -121,9 +124,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
   });
   app.use(platformLimits);
 
-  // Needs no session, so it reads nothing: on the Free plan D1's rows are a
-  // daily quota shared by every account (audit C1).
-  app.get("/health", (c) => c.json({ ok: true }));
+  app.route("/health", healthRoute({ runners: host.runnerHeartbeat ?? false }));
 
   app.route("/auth", auth);
   app.route("/auth/oidc", oidc);

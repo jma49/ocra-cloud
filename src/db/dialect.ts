@@ -98,3 +98,56 @@ export function isUniqueViolation(error: unknown): boolean {
   }
   return false;
 }
+
+/** Where a database records the migrations applied to it, and what it holds. */
+export type MigrationLedger = {
+  dialect: "sqlite" | "postgres";
+  table: string;
+  /** Each applied migration by the tag its file has (D1), or by its journal time (Drizzle). */
+  by: "tag" | "when";
+  applied: string[];
+};
+
+/**
+ * The applied migrations: wrangler's d1_migrations on D1 (`0001_x.sql`),
+ * Drizzle's ledger on libSQL and Postgres (by journal time). Undefined when
+ * a SQLite database has neither; a Postgres one without it throws.
+ */
+export async function appliedMigrations(db: Db): Promise<MigrationLedger | undefined> {
+  if (isPostgres(db)) {
+    const table = "drizzle.__drizzle_migrations";
+    const rows = await rawRows<{ key: unknown }>(
+      db,
+      sql`SELECT created_at AS key FROM ${sql.raw(table)}`,
+    );
+    return {
+      dialect: "postgres",
+      table,
+      by: "when",
+      applied: rows.map((r) => String(Number(r.key))),
+    };
+  }
+  const tables = await rawRows<{ name: string }>(
+    db,
+    sql`SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('d1_migrations', '__drizzle_migrations')`,
+  );
+  if (tables.some((t) => t.name === "d1_migrations")) {
+    const rows = await rawRows<{ key: string }>(db, sql`SELECT name AS key FROM d1_migrations`);
+    const applied = rows.map((r) => String(r.key).replace(/\.sql$/, ""));
+    return { dialect: "sqlite", table: "d1_migrations", by: "tag", applied };
+  }
+  if (tables.length === 0) return undefined;
+  const rows = await rawRows<{ key: unknown }>(
+    db,
+    sql`SELECT created_at AS key FROM __drizzle_migrations`,
+  );
+  const applied = rows.map((r) => String(Number(r.key)));
+  return { dialect: "sqlite", table: "__drizzle_migrations", by: "when", applied };
+}
+
+/** A raw SELECT's rows: SQLite's `all`, Postgres' `execute`, which answers them in `rows`. */
+async function rawRows<T>(db: Db, query: SQL): Promise<T[]> {
+  if (!isPostgres(db)) return db.all<T>(query);
+  const pg = db as unknown as { execute(q: SQL): Promise<{ rows: T[] }> };
+  return (await pg.execute(query)).rows;
+}

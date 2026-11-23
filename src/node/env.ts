@@ -112,6 +112,17 @@ export function trustedProxyHops(value: string | undefined): number {
   return Number(value);
 }
 
+/** METRICS_TOKEN: what GET /metrics asks for as a bearer; none (metrics off) when unset. */
+export function metricsTokenFrom(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  if (value.length < 32 || /\s/.test(value)) {
+    throw new Error(
+      "METRICS_TOKEN must be at least 32 characters, no spaces (openssl rand -hex 32)",
+    );
+  }
+  return value;
+}
+
 /** MIGRATE: on (the default) applies the migrations at start, off leaves them, only applies them and exits. */
 export function migrateMode(value: string | undefined): "on" | "off" | "only" {
   if (!value) return "on";

@@ -24,6 +24,7 @@ import type { AppBindings } from "../types.js";
 import { clientAddress } from "./client-address.js";
 import { type GraphOptions, startGraphs } from "./graph-worker.js";
 import { type RateLimitStore, rateLimits } from "./limits.js";
+import { type MetricsOptions, metricsEndpoint } from "./metrics.js";
 import { openPostgres } from "./postgres.js";
 import { type AutoReviewOptions, startAutoReview } from "./review-worker.js";
 import { nodeWebhookPost } from "./webhook-transport.js";
@@ -71,6 +72,8 @@ export type HostOptions = {
   mailer?: Mailer;
   /** How webhooks are posted; nodeWebhookPost() unless a test gives its own. */
   webhookPost?: WebhookPost;
+  /** GET /metrics (METRICS_TOKEN); answered 404 without it. */
+  metrics?: Omit<MetricsOptions, "startedAt">;
 };
 
 /**
@@ -79,6 +82,7 @@ export type HostOptions = {
  * requests with `fetch`, as the Worker does.
  */
 export async function openHost(options: HostOptions) {
+  const startedAt = Date.now();
   const migrate = options.migrate ?? true;
   const { db: shared, close } = /^postgres(ql)?:\/\//.test(options.databaseUrl)
     ? await openPostgres(options.databaseUrl, { migrations: `${options.migrations}-pg`, migrate })
@@ -116,7 +120,9 @@ export async function openHost(options: HostOptions) {
     ...(options.autoReview?.runnerToken ? { runnerToken: options.autoReview.runnerToken } : {}),
     ...(options.mailer ? { mailer: options.mailer } : {}),
     webhookPost,
+    runnerHeartbeat: !!options.autoReview?.runnerToken,
   });
+  const metrics = options.metrics && metricsEndpoint(shared, { ...options.metrics, startedAt });
 
   const origin = options.publicUrl ? new URL(options.publicUrl).origin : undefined;
   const site = new Hono();
@@ -148,6 +154,9 @@ export async function openHost(options: HostOptions) {
         ),
       );
       const { pathname } = new URL(request.url);
+      if (pathname === "/metrics") {
+        return metrics ? metrics(request) : new Response("not found\n", { status: 404 });
+      }
       return pathname === "/api" || pathname.startsWith("/api/")
         ? api.fetch(request, bindings)
         : site.fetch(request);

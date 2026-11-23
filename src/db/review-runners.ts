@@ -32,3 +32,14 @@ export function recentRunners(db: Db, now: Date) {
     .orderBy(desc(t.lastSeenAt))
     .limit(20);
 }
+
+/** When the runner heard from last asked for work, among those not yet forgotten; undefined with none. */
+export async function newestRunnerSeen(db: Db, now: Date): Promise<Date | undefined> {
+  const [newest] = await db
+    .select({ at: t.lastSeenAt })
+    .from(t)
+    .where(gt(t.lastSeenAt, new Date(now.getTime() - FORGOTTEN_AFTER_MS)))
+    .orderBy(desc(t.lastSeenAt))
+    .limit(1);
+  return newest?.at;
+}
