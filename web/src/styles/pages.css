@@ -1082,6 +1082,8 @@ td.finding-cell {
 }
 .pull-main {
   display: grid;
+  /* A file's one-line head must not widen the column past the window. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
   min-width: 0;
 }
@@ -1130,11 +1132,25 @@ td.finding-cell {
   text-align: left;
   cursor: pointer;
 }
+/* One line: the folders give way to an ellipsis before the file's own name does. */
 .diff-path {
   flex: 1;
+  display: flex;
   min-width: 0;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
   font-size: var(--text-base);
+}
+.diff-path > .subtle {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.diff-name {
+  flex: none;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .diff-count {
   flex: none;

@@ -134,10 +134,10 @@ export function FileDiff(props: {
         >
           <span className="fold" aria-hidden="true" />
           <FileTypeIcon name={name} />
-          <span className="mono diff-path">
+          <span className="mono diff-path" title={file.path}>
             {file.status === "renamed" && <span className="subtle">{file.oldPath} → </span>}
             <span className="subtle">{dir}</span>
-            {name}
+            <span className="diff-name">{name}</span>
           </span>
           {STATUS[file.status] && <span className="badge">{STATUS[file.status]}</span>}
           <span className="diff-count">
