@@ -1,3 +1,4 @@
+import { configSchema } from "@open-cr-agent/cloud-contract";
 import {
   agentsMdReviewerPlugin,
   correctnessReviewerPlugin,
@@ -6,9 +7,7 @@ import {
   securityReviewerPlugin,
 } from "@open-cr-agent/core";
 import { describe, expect, it } from "vitest";
-import { z } from "zod";
 import { profileRun } from "../src/auto-review/profiles.js";
-import { CONFIG_JSON_SCHEMA } from "../src/engine-schemas.js";
 import { DEFAULT_REVIEW_PROFILE, REVIEW_PROFILES } from "../src/shared/index.js";
 
 // A review profile only sets what the pinned engine already reads: each
@@ -56,12 +55,11 @@ describe("a hosted review's profile", () => {
   });
 
   it("writes only configuration the engine accepts, naming its own reviewers", () => {
-    const schema = z.fromJSONSchema(CONFIG_JSON_SCHEMA as z.core.JSONSchema.JSONSchema);
     const known = engineReviewers();
     expect(known).toEqual(expect.arrayContaining(["correctness", "security"]));
     for (const profile of REVIEW_PROFILES) {
       const { config } = profileRun(profile);
-      expect(schema.safeParse(config).success).toBe(true);
+      expect(configSchema.safeParse(config).success).toBe(true);
       for (const id of Object.keys(config.reviewers ?? {})) expect(known).toContain(id);
     }
   });

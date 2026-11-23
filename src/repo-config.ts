@@ -66,6 +66,7 @@ repoConfigRoute.get("/", requireSession(["web"]), perMinute("platform"), async (
     parseError: null,
     errors: [],
     moreErrors: false,
+    refusal: null,
     schema: schemaIdOf(query.data.file),
     lastCommit: read.lastCommit,
   };
@@ -80,6 +81,7 @@ repoConfigRoute.get("/", requireSession(["web"]), perMinute("platform"), async (
     value: checked.value,
     errors: checked.errors,
     moreErrors: checked.more,
+    refusal: checked.refusal,
   } satisfies RepoConfigView);
 });
 
@@ -106,6 +108,7 @@ repoConfigRoute.post(
       return apiError(c, "invalid_body", {
         issues: checked.errors.map((e) => ({ path: ["text", ...e.path], message: e.message })),
         more: checked.more,
+        refusal: checked.refusal,
       });
     }
     const reached = await reachRepo(c, body);

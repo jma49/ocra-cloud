@@ -48,6 +48,7 @@ describe("reading a repository's configuration", () => {
       parseError: null,
       errors: [],
       moreErrors: false,
+      refusal: null,
       schema: SCHEMA_ID,
       lastCommit: { sha: OTHER, at: "2026-11-01T00:00:00Z" },
     });
@@ -69,6 +70,51 @@ describe("reading a repository's configuration", () => {
     const broken = (await (await read(a)).json()) as RepoConfigView;
     expect(broken).toMatchObject({ text: "{ nope", value: null, errors: [] });
     expect(broken.parseError).toMatch(/not valid JSON/);
+  });
+
+  it("refuses what the CLI's own checks refuse, worded as the CLI words it", async () => {
+    // Each fits the configuration's JSON Schema; only the contract's refinements refuse them.
+    const provider = { type: "openai-compatible", models: { m: { input: 1, output: 2 } } };
+    const text = JSON.stringify({
+      providers: {
+        braces: { ...provider, baseUrl: "https://api.example/{env:HOME}/v1" },
+        token: { ...provider, baseUrl: "https://api.example/v1", apiKeyEnv: "GITHUB_TOKEN" },
+      },
+    });
+    platform(githubHead, githubBlobs({ [CONFIG]: { oid: BLOB, text } }));
+    const a = await signInWithGithub();
+    const view = (await (await read(a)).json()) as RepoConfigView;
+    expect(view.errors).toEqual([
+      { path: ["providers", "braces", "baseUrl"], message: "must not contain { or }" },
+      {
+        path: ["providers", "token", "apiKeyEnv"],
+        message: "must not name a platform or cloud credential",
+      },
+    ]);
+    expect(view.refusal).toBe(
+      "✖ must not contain { or }\n  → at providers.braces.baseUrl\n" +
+        "✖ must not name a platform or cloud credential\n  → at providers.token.apiKeyEnv",
+    );
+
+    const res = await save(a, { text, expected: BLOB });
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({
+      error: "invalid_body",
+      issues: [
+        { path: ["text", "providers", "braces", "baseUrl"] },
+        { path: ["text", "providers", "token", "apiKeyEnv"] },
+      ],
+      refusal: view.refusal,
+    });
+
+    // The contract's endpoint check throws on an address that is not a URL; that is a refusal too.
+    const notUrl = JSON.stringify({ providers: { x: { ...provider, baseUrl: "not a url" } } });
+    const thrown = await save(a, { text: notUrl, expected: BLOB });
+    expect(thrown.status).toBe(400);
+    expect(await thrown.json()).toMatchObject({
+      error: "invalid_body",
+      issues: [{ path: ["text"], message: expect.stringMatching(/could not check it/) }],
+    });
   });
 
   it("answers no blob for a repository without the file", async () => {
