@@ -48,3 +48,20 @@ describe("icons", () => {
     expect(barrel).toEqual([]);
   });
 });
+
+describe("control heights", () => {
+  // The sign-in page stands alone, with larger controls of its own.
+  const console = sheets.filter((sheet) => sheet !== "signin.css");
+  it.each(console)("%s leaves a control's height to --ctl-h and --ctl-h-lg", (sheet) => {
+    const rules =
+      css(sheet)
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .match(/[^{}]+\{[^{}]*\}/g) ?? [];
+    const fixed = rules.filter(
+      (rule) =>
+        /(?:\.input|\.icon-btn|button|select)[^,{]*\{/.test(rule) &&
+        /(?:^|[\s;{])(?:min-)?height:\s*\d+px/.test(rule),
+    );
+    expect(fixed.map((rule) => rule.trim().split("{")[0]?.trim())).toEqual([]);
+  });
+});

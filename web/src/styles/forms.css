@@ -1,10 +1,10 @@
 /* Controls and forms: inputs, segmented controls, badges, notes, chips, settings rows, switches. */
 /* Controls */
 .input {
-  height: 30px;
-  padding: 0 10px;
+  height: var(--ctl-h);
+  padding: 0 var(--ctl-pad);
   border: 0;
-  border-radius: var(--r-tab);
+  border-radius: var(--r-ctl);
   background: var(--raised);
   box-shadow: var(--shadow);
   color: var(--fg);
@@ -49,9 +49,6 @@ select.input {
   gap: 6px;
   font-size: var(--text-base);
   color: var(--fg-muted);
-}
-.toolbar .input {
-  height: 28px;
 }
 .toolbar.bulk {
   gap: 8px 10px;

@@ -35,6 +35,7 @@ Pages and components style only through the custom properties in `base.css`.
 ## Spacing and layout
 
 - **Steps:** 4, 8, 12, 16, 24, 32 px. Card padding 16; table cells 9×12 with 16 at the row's ends; sections 32 apart; page head 24 above content.
+- **Control heights (test, `styles.test.ts`):** two, from `--ctl-h` (28 px: buttons at `size="sm"`, inputs, selects, segmented controls, icon buttons, tabs) and `--ctl-h-lg` (32 px: a page's own actions in its head, and a view's one primary action). Controls on one line share one height: a line of fields ends in a `size="sm"` button. Both grow by 4 px under 640 px, where the coss ui controls grow for touch. No stylesheet sets a control's height in pixels. A control's text sits `--ctl-pad` (10 px) from its edge, and controls take `--r-ctl`.
 - **Frame:** a 56 px icon rail on the ground, the page on one panel beside it (`.frame`, `.rail`, `.panel`). The pagebar on top of the panel shows the breadcrumb and the place's tabs.
 - **Places:** Inbox, Reviews, Findings, Repositories, Insights, and Settings as its own mode with a grouped side list. A new page belongs to one place and appears as one of its tabs (`routes.tsx`); it is reachable from the command menu (Ctrl/⌘ K) automatically. The same menu searches: past two characters it lists what the server finds (pull requests, reviews, findings, repositories) under the matching pages, a pull request named by its reference first.
 - **Content width:** 1120 px max, centred, for lists, settings and reports. Work pages (below) take the panel's full width.

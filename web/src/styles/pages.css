@@ -117,7 +117,7 @@
 .tier-effort {
   flex: none;
   width: 128px;
-  min-height: 30px;
+  min-height: var(--ctl-h);
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -214,9 +214,6 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-}
-.graph-add .input {
-  height: 32px;
 }
 .graph-add .input.grow {
   min-width: 200px;
@@ -852,7 +849,6 @@ td.finding-cell {
   align-items: center;
 }
 .name-field .input {
-  height: 30px;
   width: 220px;
 }
 .repo-list {

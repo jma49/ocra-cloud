@@ -71,9 +71,9 @@
   margin-top: 14px;
 }
 .icon-btn {
-  width: 30px;
-  height: 30px;
-  border-radius: var(--r-tab);
+  width: var(--ctl-h);
+  height: var(--ctl-h);
+  border-radius: var(--r-ctl);
   border: 0;
   background: none;
   color: var(--fg-muted);

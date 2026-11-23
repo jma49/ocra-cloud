@@ -97,6 +97,10 @@
   --r-tab: 6px;
   --r-ctl: 8px;
   --r-sheet: 10px;
+  /* Control heights: compact in cards, rows and toolbars, large for a page's own actions. */
+  --ctl-h: 28px;
+  --ctl-h-lg: 32px;
+  --ctl-pad: 10px;
 
   /* The type scale: every size the console sets, 13px body. */
   --text-2xs: 10px;
@@ -145,6 +149,14 @@
     --on-primary: #111112;
     --on-button: #111112;
     color-scheme: dark;
+  }
+}
+
+/* Where the coss ui controls grow for touch (Tailwind's sm), the rest grow with them. */
+@media (max-width: 639.98px) {
+  :root {
+    --ctl-h: 32px;
+    --ctl-h-lg: 36px;
   }
 }
 
