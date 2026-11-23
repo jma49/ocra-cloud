@@ -1,13 +1,12 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu, MenuPopup, MenuRadioGroup, MenuRadioItem, MenuTrigger } from "@/components/ui/menu";
-import {
-  type AutoReviewLearnView,
-  type CodePlatformKind,
-  type DeclinedLearningView,
-  LEARN_MODES,
-  type LearnJobView,
-  type LearnMode,
+import type {
+  AutoReviewLearnView,
+  CodePlatformKind,
+  DeclinedLearningView,
+  LearnJobView,
+  LearnMode,
 } from "../../../src/shared/index.js";
 import { api } from "../api.js";
 import { ago } from "../format.js";
@@ -29,6 +28,8 @@ const MODE: Record<LearnMode, { name: string; says: string }> = {
   },
   off: { name: "Off", says: "Declined findings are not read." },
 };
+
+const ORDER: readonly LearnMode[] = ["merge", "propose", "off"];
 
 function status(j: LearnJobView): string {
   if (j.state === "queued") return "Waiting to be read";
@@ -67,7 +68,7 @@ export function DeclinedLearning(props: {
           </MenuTrigger>
           <MenuPopup align="end">
             <MenuRadioGroup value={learn} onValueChange={(next) => change(next as LearnMode)}>
-              {LEARN_MODES.map((m) => (
+              {ORDER.map((m) => (
                 <MenuRadioItem key={m} value={m} className="profile-item">
                   <span className="strong">{MODE[m].name}</span>
                   <span className="subtle small">{MODE[m].says}</span>
