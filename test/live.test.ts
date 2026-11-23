@@ -56,7 +56,7 @@ describe("relaying a run", () => {
     };
     expect(stored.events.map((e) => e.seq)).toEqual(events.slice(0, -1).map((e) => e.seq));
     const after = (await (
-      await get("GET", `/api/live/${id}/events?after=15`)
+      await get("GET", `/api/live/${id}/events?after=16`)
     ).json()) as typeof stored;
     expect(after.events.map((e) => e.kind)).toEqual(["warning", "finished"]);
     const view = (await (await get("GET", `/api/live/${id}`)).json()) as { run: LiveRunView };
@@ -250,11 +250,11 @@ describe("the live stream", () => {
     const id = idOf(answer.watch);
     const res = await call(`/api/live/${id}/stream`, {
       auth: o.web.auth,
-      headers: { "last-event-id": "15" },
+      headers: { "last-event-id": "16" },
     });
     expect(res.headers.get("content-type")).toContain("text/event-stream");
     const text = await res.text();
-    expect([...text.matchAll(/^id: (\d+)$/gm)].map((m) => m[1])).toEqual(["16", "17"]);
+    expect([...text.matchAll(/^id: (\d+)$/gm)].map((m) => m[1])).toEqual(["17", "18"]);
     expect(text).toContain("event: end\ndata: finished");
   });
 });

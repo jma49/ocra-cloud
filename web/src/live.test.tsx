@@ -18,7 +18,7 @@ const events = fixture.events
 describe("folding a run's events", () => {
   it("keeps the newest version of each finding and how the run ended", () => {
     const p = fold(emptyProgress(), events);
-    expect(p.seq).toBe(17);
+    expect(p.seq).toBe(18);
     expect(p.target).toBe(fixture.events[0]?.data.target);
     const stages = fixture.events
       .filter((e) => e.kind === "stage")
@@ -34,7 +34,7 @@ describe("folding a run's events", () => {
     const once = fold(emptyProgress(), events);
     expect(fold(once, events.slice(3, 8))).toBe(once);
     const shuffled = fold(fold(emptyProgress(), events.slice(8)), events.slice(0, 8));
-    expect(shuffled.seq).toBe(17);
+    expect(shuffled.seq).toBe(18);
   });
 });
 

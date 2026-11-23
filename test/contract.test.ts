@@ -89,8 +89,14 @@ describe("the CLI's real upload", () => {
         ...f
       }) => f,
     );
+    // Not kept yet: a finding's evidence (engine 0.19).
     expect(stored).toEqual(
-      body.findingList.map((f) => ({ redacted: false, truncated: false, fix: null, ...f })),
+      body.findingList.map(({ evidence: _e, ...f }) => ({
+        redacted: false,
+        truncated: false,
+        fix: null,
+        ...f,
+      })),
     );
   });
 });
