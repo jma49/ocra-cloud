@@ -1,4 +1,4 @@
-import { configJsonSchema } from "@open-cr-agent/cli/internal";
+import { configJsonSchema } from "@open-cr-agent/cloud-contract";
 import { repoRuleSchema } from "@open-cr-agent/core/internal";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
