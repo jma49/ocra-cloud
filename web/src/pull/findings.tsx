@@ -5,6 +5,7 @@ import { Markdown } from "../markdown.js";
 import { Link } from "../router.js";
 import { SeverityBadge } from "../severity.js";
 import { useLoad } from "../ui.js";
+import { FindingDecide } from "./finding-decide.js";
 
 // ocra's open findings on the pull request's diff: each under the line it
 // ends on, with what the reviewer wrote and the way into the review.
@@ -26,7 +27,11 @@ export const underLine = (f: PullFindingView) => ({
   endLine: f.lineEnd ?? f.lineStart ?? -1,
 });
 
-export function FindingNote(props: { finding: PullFindingView; review: string }) {
+export function FindingNote(props: {
+  finding: PullFindingView;
+  review: string;
+  onDecided: (decided: boolean) => void;
+}) {
   const { finding: f } = props;
   return (
     <section className="fix-proposal" aria-label={`ocra's finding: ${f.title}`}>
@@ -39,6 +44,7 @@ export function FindingNote(props: { finding: PullFindingView; review: string })
       <div className="finding-note-body">
         <Markdown text={f.body} />
       </div>
+      <FindingDecide finding={f} onDecided={props.onDecided} />
     </section>
   );
 }

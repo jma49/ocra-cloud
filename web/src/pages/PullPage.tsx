@@ -85,6 +85,16 @@ export function PullPage(props: {
   }, [platform, repo, number, updatedAt, head, compared]);
   const fixes = useFixes(head ? `/pulls/fixes?${query}&head=${head}` : null);
   const found = usePullFindings(head ? `/pulls/findings?${query}&head=${head}` : null);
+  // Findings marked fixed or dismissed on this page leave its diff at once.
+  const [decided, setDecided] = useState<ReadonlySet<string>>(new Set());
+  const decide = (id: string, gone: boolean) =>
+    setDecided((was) => {
+      const now = new Set(was);
+      if (gone) now.add(id);
+      else now.delete(id);
+      return now;
+    });
+  const findings = found.findings.filter((f) => !decided.has(f.id));
   const queue = useRead<MergeQueueView>(`/pulls/queue?${query}`);
   const [pending, setPending] = useState<LineComment[]>([]);
   const toast = useToast();
@@ -255,7 +265,7 @@ export function PullPage(props: {
               )
             )}
           </div>
-          <OcraReviewBox review={description.data?.review} open={found.findings.length}>
+          <OcraReviewBox review={description.data?.review} open={findings.length}>
             {props.runner && !settled ? (
               <>
                 <ReviewNowBox pull={ref} head={data.head} />
@@ -291,9 +301,14 @@ export function PullPage(props: {
               pending={pending}
               onComment={(c) => setPending([...pending, c])}
               onDrop={(c) => setPending(pending.filter((x) => x !== c))}
-              findings={narrowed === null ? found.findings.filter((x) => x.file === f.path) : []}
+              findings={narrowed === null ? findings.filter((x) => x.file === f.path) : []}
               review={found.review?.id ?? null}
-              fixes={narrowed === null ? fixes.filter((x) => x.file === f.path) : []}
+              onDecided={decide}
+              fixes={
+                narrowed === null
+                  ? fixes.filter((x) => x.file === f.path && !decided.has(x.finding))
+                  : []
+              }
               onFixDone={(o) => done("Fix", o)}
             />
           ))}

@@ -43,6 +43,7 @@ const show = (findings: PullFindingView[], review: string | null = "r1") =>
       onDrop={() => undefined}
       findings={findings}
       review={review}
+      onDecided={() => undefined}
       fixes={[]}
       onFixDone={() => undefined}
     />,
