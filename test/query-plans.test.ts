@@ -92,6 +92,7 @@ const TABLE: Record<string, string> = {
   mergeChecks: "merge_checks",
   mergeCheckRuns: "merge_check_runs",
   mergeIntents: "merge_intents",
+  stackMerges: "stack_merges",
   reviewChatMessages: "review_chat_messages",
   findingIssues: "finding_issues",
   liveRuns: "live_runs",
@@ -594,6 +595,7 @@ describe("retention", () => {
       "reviews",
       "service_counters",
       "sessions",
+      "stack_merges",
       "usage_counters",
       "webhook_deliveries",
     ]);

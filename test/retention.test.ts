@@ -155,6 +155,23 @@ describe("retention", () => {
     expect(kept).toEqual(["armed-month", "ended-new"]);
   });
 
+  it("deletes a stack merge a month after it was last moved", async () => {
+    const { account } = await signIn(1, "octo");
+    const d = scoped(db, account.id);
+    await d.insert("stackMerges", {
+      ...rows.stackMerges("old"),
+      state: "merged",
+      updatedAt: ago(31),
+    });
+    await d.insert("stackMerges", {
+      ...rows.stackMerges("new"),
+      state: "merged",
+      updatedAt: ago(29),
+    });
+    await enforceRetention(db, now);
+    expect((await d.list("stackMerges")).map((r) => r.id)).toEqual(["new"]);
+  });
+
   it("deletes a pull request's flow, directories, review threads and assignments 90 days after their last event, and reviews by when they were submitted", async () => {
     const { account } = await signIn(1, "octo");
     const d = scoped(db, account.id);

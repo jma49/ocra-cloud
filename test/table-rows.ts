@@ -273,6 +273,22 @@ export const rows = {
     state: "armed" as const,
     armedBy: "octo",
   }),
+  stackMerges: (id: string) => ({
+    id,
+    platform: "github" as const,
+    host: "github.com",
+    fullName: `octo/${id}`,
+    path: `octo/${id}`,
+    bottom: 1,
+    trunk: "main",
+    method: "squash" as const,
+    chain: [{ number: 1, head: "a".repeat(40) }],
+    current: 1,
+    head: "a".repeat(40),
+    restacked: [],
+    state: "waiting" as const,
+    startedBy: "octo",
+  }),
   // The finding it belongs to is made in beforeEach (the foreign key needs one).
   findingIssues: (id: string) => ({
     id,

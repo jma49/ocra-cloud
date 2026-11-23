@@ -79,6 +79,11 @@ export const KIND_GROUPS: { label: string; kinds: [AuditKind, string][] }[] = [
       ["merge_when_ready.closed", "Merge when ready: closed"],
       ["merge_when_ready.disarmed", "Merge when ready stopped"],
       ["merge_when_ready.failed", "Merge when ready failed"],
+      ["stack_merge.started", "Stack merge started"],
+      ["stack_merge.cancelled", "Stack merge cancelled"],
+      ["stack_merge.merged", "Stack merged"],
+      ["stack_merge.failed", "Stack merge stopped"],
+      ["stack.retargeted", "Moved onto a merged base"],
     ],
   },
 ];
@@ -206,5 +211,15 @@ export function describe(e: AuditEventView): string {
       return `Merge when ready stopped on ${named(e.detail.pull, "a pull request")}${noted(e.detail.reason, ": ", "")}`;
     case "merge_when_ready.failed":
       return `Merge when ready failed on ${named(e.detail.pull, "a pull request")}${noted(e.detail.reason, ": ", "")}`;
+    case "stack_merge.started":
+      return `Started merging the stack from ${named(e.detail.pull, "a pull request")}${noted(e.detail.method)}`;
+    case "stack_merge.cancelled":
+      return `Cancelled the stack merge from ${named(e.detail.pull, "a pull request")}`;
+    case "stack_merge.merged":
+      return `Merged the stack from ${named(e.detail.pull, "a pull request")}${noted(e.detail.method)}`;
+    case "stack_merge.failed":
+      return `The stack merge from ${named(e.detail.pull, "a pull request")} stopped${noted(e.detail.reason, ": ", "")}`;
+    case "stack.retargeted":
+      return `Moved ${named(e.detail.pull, "a pull request")} onto ${e.detail.base ?? "the merged base"}`;
   }
 }

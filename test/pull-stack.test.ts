@@ -1,17 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { PullStackView, StackMergeView } from "../src/shared/index.js";
+import type { PullStackView, StackMergeAnswer } from "../src/shared/index.js";
 import { resetDb } from "./helpers.js";
 import { connectGitlab, GITLAB, githubFake, signInWithGithub } from "./platform-fakes.js";
 
-// A pull request's stack read from the platform as the user, and its merge
-// from the bottom up, retargeting each to the trunk and stopping at the
-// first refusal (ADR-0052).
+// A pull request's stack read from the platform as the user (ADR-0052), and
+// a GitLab stack's merge; the merge's steps are in stack-merge.test.ts.
 
 beforeEach(resetDb);
 afterEach(() => vi.restoreAllMocks());
 
 const sha = (n: number) => String(n).repeat(40).slice(0, 40);
-const REPO = "https://api.github.com/repos/octo/api";
 const PROJECT = `${GITLAB}/api/v4/projects/${encodeURIComponent("Group/Sub/Project")}`;
 
 type Sent = { method: string; url: string; body: unknown };
@@ -77,7 +75,6 @@ const post = (
     body: JSON.stringify(body),
   });
 
-const ref = { platform: "github", repo: "octo/api" };
 const heads = (...ns: number[]) => ns.map((n) => ({ number: n, head: sha(n) }));
 
 describe("a GitHub pull request's stack", () => {
@@ -95,98 +92,6 @@ describe("a GitHub pull request's stack", () => {
     ]);
     expect(view.pulls[0]).toMatchObject({ checks: "passing", headSha: sha(1) });
     expect(view.pulls[2]).toMatchObject({ review: "approved" });
-  });
-
-  it("merges from the bottom, retargeting each one above to the trunk first, and the rest of the stack after", async () => {
-    const sent = platform({
-      ...githubOpen(),
-      [`PATCH ${REPO}/pulls/2`]: () => Response.json({}),
-      [`PATCH ${REPO}/pulls/3`]: () => Response.json({}),
-      [`PUT ${REPO}/pulls/1/merge`]: () => Response.json({ merged: true }),
-      [`PUT ${REPO}/pulls/2/merge`]: () => Response.json({ merged: true }),
-    });
-    const a = await signInWithGithub();
-    const res = await post(a.send, "/api/pulls/merge-stack", {
-      ...ref,
-      number: 2,
-      method: "squash",
-      heads: heads(1, 2),
-    });
-    const view = (await res.json()) as StackMergeView;
-    expect(view.steps).toEqual([
-      { number: 1, outcome: "done" },
-      { number: 2, outcome: "done" },
-    ]);
-    expect(view.restacked).toEqual([{ number: 3, outcome: "done" }]);
-    expect(sent).toEqual([
-      {
-        method: "PUT",
-        url: `${REPO}/pulls/1/merge`,
-        body: { merge_method: "squash", sha: sha(1) },
-      },
-      { method: "PATCH", url: `${REPO}/pulls/2`, body: { base: "main" } },
-      {
-        method: "PUT",
-        url: `${REPO}/pulls/2/merge`,
-        body: { merge_method: "squash", sha: sha(2) },
-      },
-      { method: "PATCH", url: `${REPO}/pulls/3`, body: { base: "main" } },
-    ]);
-  });
-
-  it("stops at the first merge the platform refuses, the ones below left merged", async () => {
-    const sent = platform({
-      ...githubOpen(),
-      [`PATCH ${REPO}/pulls/2`]: () => Response.json({}),
-      [`PUT ${REPO}/pulls/1/merge`]: () => Response.json({ merged: true }),
-      [`PUT ${REPO}/pulls/2/merge`]: () => new Response("{}", { status: 405 }),
-    });
-    const a = await signInWithGithub();
-    const res = await post(a.send, "/api/pulls/merge-stack", {
-      ...ref,
-      number: 3,
-      method: "merge",
-      heads: heads(1, 2, 3),
-    });
-    const view = (await res.json()) as StackMergeView;
-    expect(view.steps).toEqual([
-      { number: 1, outcome: "done" },
-      { number: 2, outcome: "not_mergeable" },
-    ]);
-    expect(view.restacked).toEqual([]);
-    expect(sent.map((s) => `${s.method} ${s.url}`)).not.toContain(`PUT ${REPO}/pulls/3/merge`);
-  });
-
-  it("merges nothing when the stack is not the one the page read", async () => {
-    const sent = platform(githubOpen());
-    const a = await signInWithGithub();
-    const res = await post(a.send, "/api/pulls/merge-stack", {
-      ...ref,
-      number: 3,
-      method: "merge",
-      heads: heads(2, 3),
-    });
-    expect(((await res.json()) as StackMergeView).steps).toEqual([
-      { number: 3, outcome: "head_moved" },
-    ]);
-    expect(sent).toEqual([]);
-  });
-
-  it("passes the head the page read, so a moved pull request is not merged", async () => {
-    platform({
-      ...githubOpen(),
-      [`PUT ${REPO}/pulls/1/merge`]: () => new Response("{}", { status: 409 }),
-    });
-    const a = await signInWithGithub();
-    const res = await post(a.send, "/api/pulls/merge-stack", {
-      ...ref,
-      number: 1,
-      method: "merge",
-      heads: heads(1),
-    });
-    expect(((await res.json()) as StackMergeView).steps).toEqual([
-      { number: 1, outcome: "head_moved" },
-    ]);
   });
 });
 
@@ -222,10 +127,24 @@ describe("a GitLab merge request's stack", () => {
     ]);
   });
 
-  it("retargets and merges, and stops when a retarget is refused", async () => {
+  it("merges the bottom as a job, and stops with the reason when a retarget is refused", async () => {
+    const standing = (iid: number, target: string) => ({
+      state: "opened",
+      sha: sha(iid),
+      source_branch: iid === 1 ? "a" : "b",
+      target_branch: target,
+      detailed_merge_status: "mergeable",
+    });
+    let merged = false;
     const sent = platform({
       ...open,
-      [`PUT ${PROJECT}/merge_requests/1/merge`]: () => Response.json({ state: "merged" }),
+      [`GET ${PROJECT}/merge_requests/1`]: () =>
+        Response.json({ ...standing(1, "main"), state: merged ? "merged" : "opened" }),
+      [`GET ${PROJECT}/merge_requests/2`]: () => Response.json(standing(2, "a")),
+      [`PUT ${PROJECT}/merge_requests/1/merge`]: () => {
+        merged = true;
+        return Response.json({ state: "merged" });
+      },
       [`PUT ${PROJECT}/merge_requests/2`]: () => new Response("{}", { status: 403 }),
     });
     const a = await signInWithGithub();
@@ -236,10 +155,11 @@ describe("a GitLab merge request's stack", () => {
       method: "squash",
       heads: heads(1, 2),
     });
-    expect(((await res.json()) as StackMergeView).steps).toEqual([
-      { number: 1, outcome: "done" },
-      { number: 2, outcome: "refused" },
-    ]);
+    expect(((await res.json()) as StackMergeAnswer).job).toMatchObject({
+      step: 1,
+      state: "failed",
+      reason: "refused",
+    });
     expect(sent).toEqual([
       {
         method: "PUT",

@@ -54,6 +54,7 @@ const changes = {
   mergeChecks: { mode: "block" as const },
   mergeCheckRuns: { conclusion: "failure" as const },
   mergeIntents: { state: "cancelled" as const },
+  stackMerges: { state: "cancelled" as const },
   reviewChatMessages: { text: "changed" },
   findingIssues: { url: "https://github.com/octo/api/issues/8" },
   liveRuns: { target: "changed" },

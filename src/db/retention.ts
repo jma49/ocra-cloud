@@ -29,6 +29,7 @@ import {
   reviewThreads,
   serviceCounters,
   sessions,
+  stackMerges,
   usageCounters,
   webhookDeliveries,
 } from "./schema.js";
@@ -244,6 +245,19 @@ export async function enforceRetention(db: Db, now = new Date()): Promise<void> 
         db
           .delete(inboundEvents)
           .where(lt(inboundEvents.createdAt, new Date(now.getTime() - INBOUND_EVENT_DAYS * DAY))),
+    ],
+    // A merge under way times out within days (src/stack-merge/advance.ts): one older is abandoned.
+    [
+      "stack_merges",
+      () =>
+        db
+          .delete(stackMerges)
+          .where(
+            and(
+              ofEachAccount(stackMerges.accountId),
+              lt(stackMerges.updatedAt, new Date(now.getTime() - MERGE_INTENT_DAYS * DAY)),
+            ),
+          ),
     ],
     // DEVICE_DAILY_CODES a day at most, so they are read whole.
     ["device_codes", () => db.delete(deviceCodes).where(lt(deviceCodes.expiresAt, now))],

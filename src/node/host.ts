@@ -20,6 +20,7 @@ import { runReports } from "../notify/report.js";
 import { retryWebhooks, type WebhookPost } from "../notify/webhooks.js";
 import { botTokens } from "../platforms/bot-tokens.js";
 import { githubHostOf, platformsOf } from "../platforms/registry.js";
+import { sweepStackMerges } from "../stack-merge/advance.js";
 import type { AppBindings } from "../types.js";
 import { clientAddress } from "./client-address.js";
 import { type GraphOptions, startGraphs } from "./graph-worker.js";
@@ -189,6 +190,13 @@ export async function openHost(options: HostOptions) {
       const platforms = platformsOf(bindings, options.publicUrl);
       return retryAutomations({ db: shared, bots, platforms });
     },
+    /** Moves on the stack merges left waiting; how many it tried. */
+    stackMerges: () =>
+      sweepStackMerges({
+        db: shared,
+        env: bindings,
+        platforms: platformsOf(bindings, options.publicUrl ?? "http://localhost"),
+      }),
     /** Tries again the webhook deliveries due; how many it tried. */
     webhookRetries: () =>
       retryWebhooks(shared, retryOutbox({ keys: masterKeys(bindings), webhooks: webhookPost })),

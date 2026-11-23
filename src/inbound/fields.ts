@@ -3,6 +3,7 @@ import { GITHUB_SIGNAL_FIELDS } from "../merge-when-ready/hooks.js";
 import { GITHUB_COMMENT_FIELDS, GITLAB_COMMENT_FIELDS } from "../notify/comment-hooks.js";
 import { GITHUB_HOOK_FIELDS, GITLAB_HOOK_FIELDS } from "../notify/pull-hooks.js";
 import { GITHUB_THREAD_FIELDS, GITLAB_THREAD_FIELDS } from "../notify/thread-hooks.js";
+import { GITHUB_STACK_FIELDS } from "../stack-merge/hooks.js";
 
 // What a delivery's work keeps of its body: the fields its side effects'
 // own schemas read, each schema's parse (which drops every key it does not
@@ -15,6 +16,7 @@ const GITHUB: readonly z.ZodType[] = [
   ...GITHUB_COMMENT_FIELDS,
   ...GITHUB_THREAD_FIELDS,
   ...GITHUB_SIGNAL_FIELDS,
+  ...GITHUB_STACK_FIELDS,
 ];
 const GITLAB: readonly z.ZodType[] = [
   ...GITLAB_HOOK_FIELDS,

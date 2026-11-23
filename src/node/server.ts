@@ -102,6 +102,13 @@ const inboundRetries = () =>
   host.inboundRetries().catch((err) => logError("inbound_retry_failed", { error: errorName(err) }));
 setInterval(inboundRetries, 60_000).unref();
 
+// A minute apart: a stack merge whose webhooks did not come is read again after a minute.
+const stackMerges = () =>
+  host
+    .stackMerges()
+    .catch((err) => logError("stack_merge_sweep_failed", { error: errorName(err) }));
+setInterval(stackMerges, 60_000).unref();
+
 const port = Number(process.env.PORT || 8787);
 const server = serve({ fetch: host.fetch, port });
 console.log({ level: "info", event: "listening", port });

@@ -21,15 +21,43 @@ const stacked = (number: number, parent: number | null) => ({
   review: null,
 });
 
-function show(pulls: unknown[], steps: unknown[] = [], restacked: unknown[] = []) {
-  const sent: { url: string; body: unknown }[] = [];
+const job = (
+  step: number,
+  state: string,
+  reason: string | null = null,
+  restacked: unknown[] = [],
+) => ({
+  id: "job",
+  platform: "github",
+  repo: "octo/api",
+  bottom: 1,
+  trunk: "main",
+  method: "squash",
+  chain: [
+    { number: 1, head: sha(1) },
+    { number: 2, head: sha(2) },
+  ],
+  step,
+  state,
+  reason,
+  restacked,
+  startedBy: "octo",
+  startedAt: "2026-11-23T00:00:00.000Z",
+  updatedAt: "2026-11-23T00:00:00.000Z",
+  finishedAt: null,
+});
+
+function show(pulls: unknown[], answer: unknown = { outcome: "started", job: job(0, "waiting") }) {
+  const sent: { url: string; method: string; body: unknown }[] = [];
   const onMerged = vi.fn();
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
-      if (init?.method === "POST") {
-        sent.push({ url, body: JSON.parse(String(init.body)) });
-        return Response.json({ steps, restacked });
+      if (init?.method === "POST" || init?.method === "DELETE") {
+        sent.push({ url, method: init.method, body: JSON.parse(String(init.body)) });
+        return Response.json(
+          init.method === "DELETE" ? { outcome: "done", job: job(0, "cancelled") } : answer,
+        );
       }
       return Response.json({
         platform: "github",
@@ -49,6 +77,13 @@ function show(pulls: unknown[], steps: unknown[] = [], restacked: unknown[] = []
   );
   return { sent, onMerged };
 }
+
+const confirm = async () => {
+  fireEvent.click(await screen.findByRole("button", { name: "Merge stack up to here" }));
+  await act(
+    async () => void fireEvent.click(screen.getByRole("button", { name: "Confirm: merge 2" })),
+  );
+};
 
 describe("a pull request's stack", () => {
   it("lists the stack bottom to top, each linking to its page, this one marked", async () => {
@@ -75,14 +110,11 @@ describe("a pull request's stack", () => {
     expect(screen.queryByRole("region", { name: "Stack" })).toBeNull();
   });
 
-  it("merges up to this one only once confirmed, with the heads it read, and says how each went", async () => {
-    const { sent, onMerged } = show(
-      [stacked(1, null), stacked(2, 1), stacked(3, 2)],
-      [
-        { number: 1, outcome: "done" },
-        { number: 2, outcome: "not_mergeable" },
-      ],
-    );
+  it("starts the merge up to this one only once confirmed, with the heads it read, and says where it waits", async () => {
+    const { sent, onMerged } = show([stacked(1, null), stacked(2, 1), stacked(3, 2)], {
+      outcome: "started",
+      job: job(1, "waiting", "waiting_checks"),
+    });
     fireEvent.click(await screen.findByRole("button", { name: "Merge stack up to here" }));
     expect(sent).toEqual([]);
     await act(
@@ -91,6 +123,7 @@ describe("a pull request's stack", () => {
     expect(sent).toEqual([
       {
         url: "/api/pulls/merge-stack",
+        method: "POST",
         body: {
           platform: "github",
           repo: "octo/api",
@@ -105,60 +138,42 @@ describe("a pull request's stack", () => {
     ]);
     const status = await screen.findByRole("status");
     expect(status.textContent).toContain("#1 Merged.");
-    expect(status.textContent).toContain("#2 The platform says it cannot be merged");
+    expect(status.textContent).toContain("#2 Waiting for its checks.");
     expect(onMerged).toHaveBeenCalledOnce();
   });
 
-  it("says which pull requests above the merged ones now sit on the trunk", async () => {
-    const { onMerged } = show(
-      [stacked(1, null), stacked(2, 1), stacked(3, 2)],
-      [
-        { number: 1, outcome: "done" },
-        { number: 2, outcome: "done" },
-      ],
-      [{ number: 3, outcome: "done" }],
-    );
-    fireEvent.click(await screen.findByRole("button", { name: "Merge stack up to here" }));
-    await act(
-      async () => void fireEvent.click(screen.getByRole("button", { name: "Confirm: merge 2" })),
-    );
+  it("says why a merge stopped, and which pull requests above now sit on the trunk", async () => {
+    show([stacked(1, null), stacked(2, 1), stacked(3, 2)], {
+      outcome: "started",
+      job: job(1, "failed", "checks_failed", [{ number: 3, outcome: "done" }]),
+    });
+    await confirm();
     const status = await screen.findByRole("status");
+    expect(status.textContent).toContain("#2 Stopped: a check failed.");
     expect(status.textContent).toContain("#3 Now onto main.");
     expect(screen.getByText(/still hold the merged commits/)).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Merge stack up to here" })).toBeNull();
-    expect(onMerged).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("button", { name: "Stop the stack merge" })).toBeNull();
   });
 
-  it("asks for no rebase after merge commits, which keep the commits the branches above are built on", async () => {
-    show(
-      [stacked(1, null), stacked(2, 1), stacked(3, 2)],
-      [
-        { number: 1, outcome: "done" },
-        { number: 2, outcome: "done" },
-      ],
-      [{ number: 3, outcome: "done" }],
+  it("stops a merge under way when asked", async () => {
+    const { sent, onMerged } = show([stacked(1, null), stacked(2, 1)]);
+    await confirm();
+    await act(
+      async () =>
+        void fireEvent.click(await screen.findByRole("button", { name: "Stop the stack merge" })),
     );
-    fireEvent.click(await screen.findByRole("button", { name: "Merge stack up to here" }));
-    fireEvent.change(screen.getByRole("combobox", { name: "Stack merge method" }), {
-      target: { value: "merge" },
+    expect(sent.at(-1)).toEqual({
+      url: "/api/pulls/merge-stack",
+      method: "DELETE",
+      body: { platform: "github", repo: "octo/api", number: 1 },
     });
-    await act(
-      async () => void fireEvent.click(screen.getByRole("button", { name: "Confirm: merge 2" })),
-    );
-    expect((await screen.findByRole("status")).textContent).toContain("#3 Now onto main.");
-    expect(screen.queryByText(/still hold the merged commits/)).toBeNull();
+    expect((await screen.findByRole("status")).textContent).toContain("#1 Cancelled.");
+    expect(onMerged).not.toHaveBeenCalled();
   });
 
-  it("leaves the page as it is when nothing merged", async () => {
-    const { onMerged } = show(
-      [stacked(1, null), stacked(2, 1)],
-      [{ number: 1, outcome: "refused" }],
-    );
-    fireEvent.click(await screen.findByRole("button", { name: "Merge stack up to here" }));
-    await act(
-      async () => void fireEvent.click(screen.getByRole("button", { name: "Confirm: merge 2" })),
-    );
-    expect((await screen.findByRole("status")).textContent).toContain("#1 The platform refused");
-    expect(onMerged).not.toHaveBeenCalled();
+  it("says the stack changed when the server would not start on what the page read", async () => {
+    show([stacked(1, null), stacked(2, 1)], { outcome: "stack_changed", job: null });
+    await confirm();
+    expect((await screen.findByRole("alert")).textContent).toContain("The stack changed");
   });
 });

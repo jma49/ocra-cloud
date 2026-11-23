@@ -57,6 +57,10 @@ import {
   type ReviewSettings,
   type ReviewWalkthroughView,
   SIGN_IN_PROVIDERS,
+  STACK_MERGE_REASONS,
+  STACK_MERGE_STATES,
+  type StackMergeLayer,
+  type StackMergeStep,
   WEBHOOK_DELIVERY_STATES,
   WEBHOOK_ERRORS,
   type WebhookEvent,
@@ -1301,6 +1305,51 @@ export const mergeIntents = sqliteTable(
   ],
 );
 
+// A stack merge the account started (src/stack-merge/): one row per stack
+// bottom, started again in place once the last one ended. full_name is
+// lowercased, as its webhooks are matched to it; path is the repository as
+// the page named it, which the platform is called with. current and head
+// are the layer it is on, as its webhooks are matched to it; claimed_at is
+// the compare-and-set of the one runner that moves it, and updated_from the
+// head it asked the platform to bring up to date (whose new head it takes).
+export const stackMerges = sqliteTable(
+  "stack_merges",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    platform: text("platform", { enum: CODE_PLATFORMS }).notNull(),
+    host: text("host").notNull(),
+    fullName: text("full_name").notNull(),
+    path: text("path").notNull(),
+    bottom: integer("bottom").notNull(),
+    trunk: text("trunk").notNull(),
+    method: text("method", { enum: MERGE_METHODS }).notNull(),
+    chain: text("chain", { mode: "json" }).notNull().$type<StackMergeLayer[]>(),
+    step: integer("step").notNull().default(0),
+    current: integer("current").notNull(),
+    head: text("head").notNull(),
+    updatedFrom: text("updated_from"),
+    restacked: text("restacked", { mode: "json" }).notNull().$type<StackMergeStep[]>(),
+    state: text("state", { enum: STACK_MERGE_STATES }).notNull(),
+    reason: text("reason", { enum: STACK_MERGE_REASONS }),
+    startedBy: text("started_by").notNull(),
+    claimedAt: integer("claimed_at", { mode: "timestamp_ms" }),
+    finishedAt: integer("finished_at", { mode: "timestamp_ms" }),
+    createdAt: createdAt(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch('subsec') * 1000)`),
+  },
+  (t) => [
+    uniqueIndex("stack_merges_bottom").on(t.accountId, t.platform, t.host, t.fullName, t.bottom),
+    index("stack_merges_current").on(t.accountId, t.platform, t.host, t.fullName, t.current),
+    index("stack_merges_head").on(t.accountId, t.platform, t.host, t.fullName, t.head),
+    index("stack_merges_account_updated").on(t.accountId, t.updatedAt),
+    // The sweep, across accounts: the merges that wait, oldest first.
+    index("stack_merges_due").on(t.state, t.updatedAt),
+  ],
+);
+
 // "Ask ocra" about a review: the account's questions and the answers, kept
 // as long as the review (deleted with it, by the user or retention) and at
 // most MAX_CHAT_MESSAGES of them (./review-chat.ts).
@@ -1459,6 +1508,7 @@ export const accountTables = {
   mergeChecks,
   mergeCheckRuns,
   mergeIntents,
+  stackMerges,
   reviewChatMessages,
   findingIssues,
   liveRuns,
