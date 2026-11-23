@@ -1,3 +1,4 @@
+import ChevronRight from "lucide-react/icons/chevron-right";
 import { type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -135,7 +136,7 @@ export function Notifications(props: { platforms: readonly CodePlatformKind[] })
               <tbody>
                 {data.channels.map((c) => (
                   <tr key={c.id}>
-                    <td className="text">
+                    <td className="nobreak">
                       <div className="strong">{c.name}</div>
                       <div className="subtle small">
                         {KIND_LABEL[c.kind]} · <span className="mono">…{c.last4}</span>
@@ -215,22 +216,23 @@ export function Notifications(props: { platforms: readonly CodePlatformKind[] })
                       </Button>
                     </td>
                     <td>
-                      {c.confirmed ? (
-                        <LastSent c={c} tested={tested?.id === c.id ? tested.delivered : null} />
-                      ) : (
-                        <span className="badge badge-warn">Awaiting confirmation</span>
-                      )}
-                    </td>
-                    <td className="num nobreak">
                       <Button
                         type="button"
-                        variant="outline"
+                        variant="ghost"
                         size="sm"
-                        aria-label={`Deliveries to ${c.name}`}
+                        className="channel-status"
                         onClick={() => setInspecting(c)}
                       >
-                        Deliveries
-                      </Button>{" "}
+                        {c.confirmed ? (
+                          <LastSent c={c} tested={tested?.id === c.id ? tested.delivered : null} />
+                        ) : (
+                          <span className="badge badge-warn">Awaiting confirmation</span>
+                        )}
+                        <span className="sr-only">, deliveries to {c.name}</span>
+                        <ChevronRight aria-hidden="true" />
+                      </Button>
+                    </td>
+                    <td className="num nobreak">
                       {c.confirmed ? (
                         <Button
                           type="button"
