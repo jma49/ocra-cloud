@@ -12,7 +12,9 @@ import { type Outbox, send } from "./notify.js";
 
 const usd = (n: number) => `$${n.toFixed(2)}`;
 
-function spendMessage(s: SpendWindowState, origin: string): Message {
+type Limited = SpendWindowState & { limitUsd: number };
+
+function spendMessage(s: Limited, origin: string): Message {
   const reached = s.level === "reached";
   const period = s.window === "daily" ? "today (UTC)" : "this month (UTC)";
   return {
@@ -34,7 +36,9 @@ function spendMessage(s: SpendWindowState, origin: string): Message {
 
 /** Sends each window's warning or stop that no channel was told of yet. */
 export async function tellSpend(data: Scoped, out: Outbox, now = new Date()): Promise<void> {
-  const due = spendStates(await spendOf(data, now)).filter((s) => s.level !== "ok");
+  const due = spendStates(await spendOf(data, now)).filter(
+    (s): s is Limited => s.level !== "ok" && s.limitUsd !== null,
+  );
   if (due.length === 0) return;
   const channels = (await data.notify.listening(NOTIFY_WHEN)).filter((ch) => ch.kind !== "webhook");
   for (const s of due) {

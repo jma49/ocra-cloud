@@ -60,6 +60,7 @@ describe("the spend limit card", () => {
 describe("the limit that holds hosted reviews back", () => {
   const budget = (s: SpendView, callsToday = 0) => ({
     serviceDailyCalls: 500,
+    maxDailyCalls: 20_000,
     dailyCalls: null,
     callsToday,
     spend: s,
@@ -71,5 +72,28 @@ describe("the limit that holds hosted reviews back", () => {
       "Monthly spend limit reached",
     );
     expect(limitReached(budget(spend(), 500))?.badge).toBe("Daily limit reached");
+  });
+});
+
+describe("a limit turned off", () => {
+  it("saves as off, and shows the window with no limit", async () => {
+    const sent: unknown[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init?: RequestInit) => {
+        sent.push(JSON.parse(String(init?.body)));
+        return Response.json({});
+      }),
+    );
+    render(<SpendCard spend={spend({ monthlyUsd: 0, spentMonthUsd: 140 })} onSaved={() => {}} />);
+    expect(screen.getByText("$140.00").parentElement?.textContent).toBe(
+      "This month $140.00, no limit",
+    );
+    expect(screen.getByLabelText("Monthly limit").hasAttribute("disabled")).toBe(true);
+    await act(
+      async () => void fireEvent.click(screen.getByRole("switch", { name: "Daily limit on" })),
+    );
+    await act(async () => void fireEvent.click(screen.getByRole("button", { name: "Save" })));
+    expect(sent).toEqual([{ dailyUsd: 0, monthlyUsd: 0 }]);
   });
 });

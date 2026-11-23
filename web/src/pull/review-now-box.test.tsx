@@ -33,6 +33,7 @@ function serve(
       if (String(url).endsWith("/budget")) {
         return Response.json({
           serviceDailyCalls: 500,
+          maxDailyCalls: 20_000,
           dailyCalls: null,
           callsToday,
           spend: {

@@ -15,6 +15,7 @@ import { startCliSession } from "../session.js";
 import {
   type CodePlatformKind,
   DAILY_LIMIT_WAIT,
+  dailyCallLimit,
   MIN_REVIEW_SPEND_USD,
   spendLeftUsd,
 } from "../shared/index.js";
@@ -240,7 +241,8 @@ export async function assign(
 
 /**
  * What a hosted review may spend: what is left before the account's nearer
- * spend limit, or its own limit per review where that is less. The run's
+ * spend limit, or its own limit per review where that is less; none with
+ * both spend limits off and no limit per review. The run's
  * configuration file replaces the account's settings key by key, so the
  * account's limit is read here rather than left to the CLI.
  */
@@ -248,9 +250,10 @@ async function reviewSpendCap(
   data: ReturnType<typeof scoped>,
   own: number | undefined,
   now: Date,
-): Promise<number> {
+): Promise<number | undefined> {
   const left = Math.max(MIN_REVIEW_SPEND_USD, spendLeftUsd(await spendOf(data, now)));
-  return Math.round(Math.min(left, own ?? left) * 100) / 100;
+  const cap = Math.min(left, own ?? left);
+  return Number.isFinite(cap) ? Math.round(cap * 100) / 100 : undefined;
 }
 
 /**
@@ -270,7 +273,7 @@ async function cutShortByDailyLimit(
     data.findOne("usageCounters", { kind: "gateway_calls", day: utcDay(now) }),
     data.get("reviewJobs", ref.id),
   ]);
-  if (!job || (today?.n ?? 0) < Math.min(cap, own?.dailyCalls ?? cap)) return false;
+  if (!job || (today?.n ?? 0) < dailyCallLimit(own?.dailyCalls, cap)) return false;
   const [review] = await data.listNewest("reviews", 1, {
     prNumber: job.number,
     prHeadSha: job.head,

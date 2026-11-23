@@ -1,6 +1,6 @@
 import { type AnyColumn, and, eq, gt, gte, type SQL, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
-import { DEFAULT_SPEND_LIMITS } from "../shared/index.js";
+import { DEFAULT_SPEND_LIMITS, dailyCallCeiling, LIMIT_OFF } from "../shared/index.js";
 import { DAY, utcDay, utcMonthStartDay } from "../time.js";
 import type { Db } from "./client.js";
 import { RETENTION_DAYS } from "./retention.js";
@@ -41,19 +41,28 @@ export async function countOne(
 }
 
 /**
- * countOne for a gateway call, under the smaller of cap and the account's
- * own daily budget (budgets.daily_calls), read in the same statement.
+ * The account's limit on gateway calls a day, as SQL that src/shared's
+ * dailyCallLimit mirrors: its own number (budgets.daily_calls), read in the
+ * statement that uses it, else the server's default; with its limit off,
+ * the server's ceiling.
  */
+function callLimit(account: AnyColumn | SQL | string, serviceDefault: number): SQL {
+  const own = sql`(SELECT ${budgets.dailyCalls} FROM ${budgets} WHERE ${budgets.accountId} = ${account})`;
+  const ceiling = dailyCallCeiling(serviceDefault);
+  return sql`CASE WHEN ${own} IS NULL THEN ${serviceDefault} WHEN ${own} = ${LIMIT_OFF} THEN ${ceiling}
+    WHEN ${own} < ${ceiling} THEN ${own} ELSE ${ceiling} END`;
+}
+
+/** countOne for a gateway call, under the account's call limit. */
 export async function countCall(
   db: Db,
   accountId: string,
-  cap: number,
+  serviceDefault: number,
   now: Date,
 ): Promise<boolean> {
-  if (!(cap >= 1)) return false;
-  const own = sql`(SELECT ${budgets.dailyCalls} FROM ${budgets} WHERE ${budgets.accountId} = ${accountId})`;
-  const limit = sql`CASE WHEN ${own} < ${cap} THEN ${own} ELSE ${cap} END`;
-  // A day's first call is always within a budget: the smallest is 1.
+  if (!(serviceDefault >= 1)) return false;
+  const limit = callLimit(accountId, serviceDefault);
+  // A day's first call is always within a limit: the smallest is 1.
   const counted = await db
     .insert(c)
     .values({ accountId, kind: "gateway_calls", day: utcDay(now), n: 1 })
@@ -71,11 +80,10 @@ export async function countCall(
  * call on now's UTC day: countCall's test, without counting. A hosted job
  * of an account that may not would only be refused, so it is not claimed.
  */
-function callsLeft(account: AnyColumn | SQL, cap: number, now: Date): SQL {
-  const own = sql`(SELECT ${budgets.dailyCalls} FROM ${budgets} WHERE ${budgets.accountId} = ${account})`;
+function callsLeft(account: AnyColumn | SQL, serviceDefault: number, now: Date): SQL {
   const used = sql`(SELECT ${c.n} FROM ${c} WHERE ${c.accountId} = ${account}
     AND ${c.kind} = 'gateway_calls' AND ${c.day} = ${utcDay(now)})`;
-  return sql`coalesce(${used}, 0) < CASE WHEN ${own} < ${cap} THEN ${own} ELSE ${cap} END`;
+  return sql`coalesce(${used}, 0) < ${callLimit(account, serviceDefault)}`;
 }
 
 /** The spend counter's unit: millionths of a US dollar, so the count stays a whole number. */
@@ -130,15 +138,18 @@ function spendLeft(account: AnyColumn | SQL, now: Date): SQL {
   const spentSince = (day: string) =>
     sql`(SELECT coalesce(sum(${c.n}), 0) FROM ${c} WHERE ${c.accountId} = ${account}
       AND ${c.kind} = 'spend' AND ${c.day} >= ${day})`;
-  const limit = (own: AnyColumn, fallback: number) =>
-    sql`coalesce((SELECT ${own} FROM ${budgets} WHERE ${budgets.accountId} = ${account}), ${fallback}) * ${MICRO_USD}`;
-  return sql`${spentSince(utcDay(now))} < ${limit(budgets.dailyUsd, DEFAULT_SPEND_LIMITS.dailyUsd)}
-    AND ${spentSince(utcMonthStartDay(now))} < ${limit(budgets.monthlyUsd, DEFAULT_SPEND_LIMITS.monthlyUsd)}`;
+  // A limit turned off passes: the comparison with NULL, an unset one, does not.
+  const under = (spent: SQL, column: AnyColumn, fallback: number) => {
+    const own = sql`(SELECT ${column} FROM ${budgets} WHERE ${budgets.accountId} = ${account})`;
+    return sql`(${own} = ${LIMIT_OFF} OR ${spent} < coalesce(${own}, ${fallback}) * ${MICRO_USD})`;
+  };
+  return sql`${under(spentSince(utcDay(now)), budgets.dailyUsd, DEFAULT_SPEND_LIMITS.dailyUsd)}
+    AND ${under(spentSince(utcMonthStartDay(now)), budgets.monthlyUsd, DEFAULT_SPEND_LIMITS.monthlyUsd)}`;
 }
 
 /** Whether the account may start hosted work now: gateway calls left for the day, and under its spend limits. */
-export const mayStart = (account: AnyColumn | SQL, cap: number, now: Date): SQL =>
-  sql`(${callsLeft(account, cap, now)}) AND (${spendLeft(account, now)})`;
+export const mayStart = (account: AnyColumn | SQL, serviceDefault: number, now: Date): SQL =>
+  sql`(${callsLeft(account, serviceDefault, now)}) AND (${spendLeft(account, now)})`;
 
 /** Takes back one countOne, for an upload that turned out to be a retry. */
 export function uncountOne(

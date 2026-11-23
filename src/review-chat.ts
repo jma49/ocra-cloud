@@ -21,6 +21,7 @@ import { perMinute, retryTomorrow } from "./rate.js";
 import { pullOfReview, pullOnPlatform } from "./review-pull.js";
 import { requireSession } from "./session.js";
 import {
+  dailyCallLimit,
   parseModelId,
   type ReviewChatEvent,
   type ReviewChatMessageView,
@@ -164,7 +165,7 @@ reviewChat.post(
       await unask();
       retryTomorrow(c);
       const own = (await data.findOne("budgets", {}))?.dailyCalls;
-      return apiError(c, "daily_limit", { limit: own != null && own < cap ? own : cap });
+      return apiError(c, "daily_limit", { limit: dailyCallLimit(own, cap) });
     }
     const callId = await data.insert("gatewayCalls", {
       provider: ref.provider,

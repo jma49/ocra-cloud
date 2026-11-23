@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { config } from "./config.js";
 import { queryDays } from "./http.js";
 import { requireSession } from "./session.js";
+import { dailyCallLimit } from "./shared/index.js";
 import { DAY, utcDay, utcDayStart } from "./time.js";
 import type { AppEnv } from "./types.js";
 
@@ -50,8 +51,7 @@ usage.get("/", async (c) => {
   return c.json({
     days,
     today: today?.calls ?? 0,
-    // The account's own budget when it is the smaller (./budget.ts).
-    dailyLimit: own != null && own < cap ? own : cap,
+    dailyLimit: dailyCallLimit(own, cap),
     series: [...series.values()].map((d) => ({ ...d, byModel: Object.fromEntries(d.byModel) })),
     models: sums.models,
     calls: latest.map((call) => ({

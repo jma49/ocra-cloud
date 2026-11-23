@@ -152,6 +152,7 @@ describe("the auto review page", () => {
         if (url.startsWith("/api/budget")) {
           return Response.json({
             serviceDailyCalls: 500,
+            maxDailyCalls: 20_000,
             dailyCalls: null,
             callsToday: 500,
             spend: {

@@ -282,6 +282,35 @@ describe("gateway", () => {
     expect((await post()).status).toBe(429);
   });
 
+  it("takes a daily limit above the default, or none, up to the server's ceiling", async () => {
+    const { auth } = await withKey();
+    upstreamFake(() => Response.json({ usage: { prompt_tokens: 1, completion_tokens: 1 } }));
+    const setLimit = (dailyCalls: number | null) =>
+      call("/api/budget", {
+        method: "PUT",
+        auth,
+        headers: { origin: ORIGIN },
+        json: { dailyCalls },
+      });
+    const post = () =>
+      call("/api/gateway/openrouter/v1/chat/completions", {
+        method: "POST",
+        auth: auth,
+        json: chatRequest(false),
+      });
+    expect((await setLimit(20_001)).status).toBe(400);
+    expect((await setLimit(-1)).status).toBe(400);
+    const raised = await setLimit(5);
+    expect(await raised.json()).toMatchObject({ dailyCalls: 5, maxDailyCalls: 20_000 });
+    // GATEWAY_DAILY_CALLS, the default, is 3 in the test configuration.
+    for (let i = 0; i < 5; i++) expect((await post()).status).toBe(200);
+    expect(await (await post()).json()).toMatchObject({ error: "daily_limit", limit: 5 });
+    await setLimit(0);
+    expect((await post()).status).toBe(200);
+    const used = (await (await call("/api/usage", { auth })).json()) as { dailyLimit: number };
+    expect(used.dailyLimit).toBe(20_000);
+  });
+
   it("forwards at most the cap of parallel calls", async () => {
     const { auth, account } = await withKey();
     const fake = upstreamFake(() =>

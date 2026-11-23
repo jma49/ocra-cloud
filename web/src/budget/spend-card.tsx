@@ -10,6 +10,7 @@ import { api, why } from "../api.js";
 import { usd } from "../format.js";
 import { useAction } from "../ui.js";
 import { type Budget, resetLabel } from "./budget.js";
+import { draftOf, type LimitDraft, LimitField, savedOf } from "./limit-field.js";
 
 // What the account's reviews may cost a UTC day and a calendar month. At a
 // limit the server starts no hosted review until it resets or is raised.
@@ -18,20 +19,25 @@ const TITLE = { daily: "Today", monthly: "This month" } as const;
 
 function Window(props: { state: SpendWindowState }) {
   const { window, spentUsd, limitUsd, used, level } = props.state;
-  const reset = resetLabel(window);
   return (
     <div>
       <div className="budget-use">
         <span>
-          <span className="subtle">{TITLE[window]}</span> <b>{usd(spentUsd)}</b> of {usd(limitUsd)}
+          <span className="subtle">{TITLE[window]}</span> <b>{usd(spentUsd)}</b>
+          {limitUsd === null ? ", no limit" : ` of ${usd(limitUsd)}`}
         </span>
         <span className="subtle small">
-          Resets {window === "daily" ? "at" : "on"} {reset}
+          Resets {window === "daily" ? "at" : "on"} {resetLabel(window)}
         </span>
       </div>
-      <div className="meter" aria-hidden="true">
-        <span style={{ width: `${used * 100}%` }} data-tone={level === "ok" ? undefined : "warn"} />
-      </div>
+      {limitUsd !== null && (
+        <div className="meter" aria-hidden="true">
+          <span
+            style={{ width: `${used * 100}%` }}
+            data-tone={level === "ok" ? undefined : "warn"}
+          />
+        </div>
+      )}
       {level !== "ok" && (
         <p className="subtle small budget-note">
           {level === "reached"
@@ -43,43 +49,30 @@ function Window(props: { state: SpendWindowState }) {
   );
 }
 
-/** A limit as typed: empty for the default, undefined when it is not a limit. */
-function parse(text: string): number | null | undefined {
-  if (text.trim() === "") return null;
+/** A dollar limit as typed, or undefined when it is not one. */
+function readUsd(text: string): number | undefined {
   const n = Math.round(Number(text) * 100) / 100;
   return n >= 0.01 && n <= MAX_SPEND_LIMIT_USD ? n : undefined;
 }
 
-const shown = (limit: number | null) => (limit === null ? "" : String(limit));
-
 export function SpendCard(props: { spend: SpendView; onSaved: () => void }) {
   const { spend } = props;
-  const [draft, setDraft] = useState<{ daily?: string; monthly?: string }>({});
+  const [draft, setDraft] = useState<{ daily?: LimitDraft; monthly?: LimitDraft }>({});
   const save = useAction((limits: Pick<SpendView, "dailyUsd" | "monthlyUsd">) =>
     api<Budget>("/budget/spend", { method: "PUT", body: JSON.stringify(limits) }),
   );
-  const daily = parse(draft.daily ?? shown(spend.dailyUsd));
-  const monthly = parse(draft.monthly ?? shown(spend.monthlyUsd));
-  const valid = daily !== undefined && monthly !== undefined;
+  const daily = draft.daily ?? draftOf(spend.dailyUsd);
+  const monthly = draft.monthly ?? draftOf(spend.monthlyUsd);
+  const dailyUsd = savedOf(daily, readUsd);
+  const monthlyUsd = savedOf(monthly, readUsd);
+  const valid = dailyUsd !== undefined && monthlyUsd !== undefined;
   const submit = async () => {
-    if (!valid) return;
-    if ((await save.run({ dailyUsd: daily, monthlyUsd: monthly })) !== undefined) {
+    if (dailyUsd === undefined || monthlyUsd === undefined) return;
+    if ((await save.run({ dailyUsd, monthlyUsd })) !== undefined) {
       setDraft({});
       props.onSaved();
     }
   };
-  const field = (window: "daily" | "monthly", label: string, own: number | null, base: number) => (
-    <label className="row-gap center">
-      <span className="nobreak">{label}</span>
-      <input
-        className="input"
-        inputMode="decimal"
-        placeholder={`${usd(base)} by default`}
-        value={draft[window] ?? shown(own)}
-        onChange={(e) => setDraft({ ...draft, [window]: e.target.value })}
-      />
-    </label>
-  );
   return (
     <div className="card spend-card">
       <div className="card-head">
@@ -97,8 +90,18 @@ export function SpendCard(props: { spend: SpendView; onSaved: () => void }) {
             void submit();
           }}
         >
-          {field("daily", "Daily limit", spend.dailyUsd, spend.defaults.dailyUsd)}
-          {field("monthly", "Monthly limit", spend.monthlyUsd, spend.defaults.monthlyUsd)}
+          <LimitField
+            label="Daily limit"
+            fallback={usd(spend.defaults.dailyUsd)}
+            draft={daily}
+            onChange={(d) => setDraft({ ...draft, daily: d })}
+          />
+          <LimitField
+            label="Monthly limit"
+            fallback={usd(spend.defaults.monthlyUsd)}
+            draft={monthly}
+            onChange={(d) => setDraft({ ...draft, monthly: d })}
+          />
           <Button type="submit" variant="outline" size="sm" disabled={!valid || save.busy}>
             Save
           </Button>
@@ -114,8 +117,8 @@ export function SpendCard(props: { spend: SpendView; onSaved: () => void }) {
           </p>
         ) : null}
         <p className="subtle small m-0">
-          You are warned at 80% of a limit. Each hosted review may spend at most what is left before
-          the nearer limit.
+          Leave a limit empty for its default, or turn it off. You are warned at 80% of a limit, and
+          each hosted review may spend at most what is left before the nearer one.
         </p>
       </div>
     </div>
