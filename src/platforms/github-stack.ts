@@ -3,7 +3,13 @@ import { githubHeaders, githubRepoPath } from "./github-changes.js";
 import type { GithubGraphql, GithubHost } from "./github-host.js";
 import { CHECKS, REVIEW } from "./github-pulls.js";
 import { platformCall, platformSend } from "./http.js";
-import { type LayerStanding, MAX_OPEN_PAGES, type OpenPull, type PullStacks } from "./stacks.js";
+import {
+  type BranchPair,
+  type LayerStanding,
+  MAX_OPEN_PAGES,
+  type OpenPull,
+  type PullStacks,
+} from "./stacks.js";
 
 const PER_PAGE = 100;
 
@@ -31,6 +37,20 @@ const STANDING = (checks: boolean) => `query($owner: String!, $name: String!, $n
     }
   }
 }`;
+
+/** One query for every pair: the head branch as the comparison's base says what it lacks of the other. */
+const behindQuery = (pairs: readonly BranchPair[]) => {
+  const names = pairs.map((_, i) => `$h${i}: String!, $b${i}: String!`).join(", ");
+  const refs = pairs.map(
+    (_, i) => `p${i}: ref(qualifiedName: $h${i}) { compare(headRef: $b${i}) { aheadBy } }`,
+  );
+  return `query($owner: String!, $name: String!, ${names}) {
+  repository(owner: $owner, name: $name) { ${refs.join(" ")} }
+}`;
+};
+type BehindAnswer = {
+  data?: { repository: Record<string, { compare: { aheadBy: number } | null } | null> | null };
+};
 
 type Rollup = {
   commits?: { nodes: { commit: { statusCheckRollup: { state: string } | null } }[] };
@@ -170,6 +190,22 @@ export function githubStacks(host: GithubHost, post: GithubGraphql): PullStacks 
         base: layer.baseRefName,
         blocker: blockerOf(layer),
       };
+    },
+    async behind(token, fullName, pairs) {
+      if (pairs.length === 0) return [];
+      const [owner, name] = fullName.split("/");
+      const branches = Object.fromEntries(
+        pairs.flatMap((p, i) => [
+          [`h${i}`, `refs/heads/${p.head}`],
+          [`b${i}`, `refs/heads/${p.base}`],
+        ]),
+      );
+      const answer = await post(token)<BehindAnswer>({
+        query: behindQuery(pairs),
+        variables: { owner, name, ...branches },
+      });
+      const refs = answer?.data?.repository;
+      return pairs.map((_, i) => refs?.[`p${i}`]?.compare?.aheadBy ?? null);
     },
     async retarget(token, fullName, number, base) {
       return outcomeOf(

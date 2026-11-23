@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { apiError } from "./http.js";
-import { stackOf } from "./platforms/stacks.js";
+import { stackOf, withBehind } from "./platforms/stacks.js";
 import { byKind, pullRef, reach } from "./pull-page.js";
 import { perMinute } from "./rate.js";
 import { requireSession } from "./session.js";
@@ -24,6 +24,7 @@ const stackedDto = (p: StackedPull) =>
     base: p.base,
     headSha: p.headSha,
     parent: p.parent,
+    behind: p.behind,
     checks: p.checks,
     review: p.review,
   }) satisfies StackedPull;
@@ -36,11 +37,14 @@ pullStack.get("/stack", requireSession(["web"]), perMinute("platform"), async (c
   const open = await reached.platform.stacks.open(reached.token, ref.data.repo);
   if (!open) return apiError(c, "upstream_unreachable");
   const stack = stackOf(open, ref.data.number);
+  const pulls = stack
+    ? await withBehind(reached.platform.stacks, reached.token, ref.data.repo, stack.pulls)
+    : [];
   return c.json({
     platform: reached.platform.kind,
     repo: ref.data.repo,
     number: ref.data.number,
     trunk: stack?.trunk ?? "",
-    pulls: stack?.pulls.map(stackedDto) ?? [],
+    pulls: pulls.map(stackedDto),
   } satisfies PullStackView);
 });

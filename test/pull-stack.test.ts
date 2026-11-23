@@ -14,7 +14,7 @@ const PROJECT = `${GITLAB}/api/v4/projects/${encodeURIComponent("Group/Sub/Proje
 
 type Sent = { method: string; url: string; body: unknown };
 
-function platform(routes: Record<string, (body: unknown) => Response>) {
+function platform(routes: Record<string, (body: unknown, url: string) => Response>) {
   const sent: Sent[] = [];
   githubFake({
     extra: async (req) => {
@@ -24,7 +24,7 @@ function platform(routes: Record<string, (body: unknown) => Response>) {
       if (req.method !== "GET" && !req.url.endsWith("/graphql")) {
         sent.push({ method: req.method, url: req.url, body });
       }
-      return route(body);
+      return route(body, req.url);
     },
   });
   return sent;
@@ -44,9 +44,18 @@ const node = (number: number, head: string, base: string, extra = {}) => ({
   ...extra,
 });
 
-const githubOpen = () => ({
-  "POST https://api.github.com/graphql": () =>
-    Response.json({
+type Compared = { query: string; variables: Record<string, string> };
+
+/** `behind`: what each stacked layer's comparison with its parent answers, bottom first. */
+const githubOpen = (behind: (number | null)[] = [], asked: Compared[] = []) => ({
+  "POST https://api.github.com/graphql": (body: unknown) => {
+    const sent = body as Compared;
+    if (sent.query.includes("compare(")) {
+      asked.push(sent);
+      const refs = behind.map((n, i) => [`p${i}`, n === null ? null : { compare: { aheadBy: n } }]);
+      return Response.json({ data: { repository: Object.fromEntries(refs) } });
+    }
+    return Response.json({
       data: {
         repository: {
           pullRequests: {
@@ -61,7 +70,8 @@ const githubOpen = () => ({
           },
         },
       },
-    }),
+    });
+  },
 });
 
 const post = (
@@ -92,6 +102,34 @@ describe("a GitHub pull request's stack", () => {
     ]);
     expect(view.pulls[0]).toMatchObject({ checks: "passing", headSha: sha(1) });
     expect(view.pulls[2]).toMatchObject({ review: "approved" });
+  });
+
+  it("says how far each layer's branch is behind the one it is stacked on", async () => {
+    const asked: Compared[] = [];
+    platform(githubOpen([0, 2], asked));
+    const a = await signInWithGithub();
+    const res = await a.send("/api/pulls/stack?platform=github&repo=octo/api&number=2");
+    const view = (await res.json()) as PullStackView;
+    expect(view.pulls.map((p) => [p.number, p.behind])).toEqual([
+      [1, null],
+      [2, 0],
+      [3, 2],
+    ]);
+    expect(asked).toHaveLength(1);
+    expect(asked[0]?.variables).toMatchObject({
+      h0: "refs/heads/step-2",
+      b0: "refs/heads/step-1",
+      h1: "refs/heads/step-3",
+      b1: "refs/heads/step-2",
+    });
+  });
+
+  it("leaves a layer's distance unknown when the platform does not answer it", async () => {
+    platform(githubOpen([null]));
+    const a = await signInWithGithub();
+    const res = await a.send("/api/pulls/stack?platform=github&repo=octo/api&number=2");
+    const view = (await res.json()) as PullStackView;
+    expect(view.pulls.map((p) => p.behind)).toEqual([null, null, null]);
   });
 });
 
@@ -125,6 +163,28 @@ describe("a GitLab merge request's stack", () => {
       [1, null, false],
       [2, 1, true],
     ]);
+  });
+
+  it("counts the commits of its parent a stacked merge request lacks", async () => {
+    const compared: string[] = [];
+    platform({
+      ...open,
+      [`GET ${PROJECT}/repository/compare`]: (_body, url) => {
+        compared.push(new URL(url).search);
+        return Response.json({ commits: [{}, {}, {}] });
+      },
+    });
+    const a = await signInWithGithub();
+    await (await connectGitlab(a))("code=c&state=STATE");
+    const res = await a.send(
+      `/api/pulls/stack?platform=gitlab&repo=${encodeURIComponent("Group/Sub/Project")}&number=1`,
+    );
+    const view = (await res.json()) as PullStackView;
+    expect(view.pulls.map((p) => [p.number, p.behind])).toEqual([
+      [1, null],
+      [2, 3],
+    ]);
+    expect(compared).toEqual(["?from=b&to=a"]);
   });
 
   it("merges the bottom as a job, and stops with the reason when a retarget is refused", async () => {
