@@ -87,6 +87,9 @@ export const accounts = sqliteTable(
     login: text("login").notNull(),
     // ADR-0028: findings and their quoted code are uploaded only when on.
     shareFindings: integer("share_findings", { mode: "boolean" }).notNull().default(false),
+    // Whether reviews this server runs keep their findings: null until it
+    // runs the account's first one, which turns it on; false once switched off.
+    hostedFindings: integer("hosted_findings", { mode: "boolean" }),
     // The repository-hash salt shared by the account's machines when sharing is on.
     salt: text("salt"),
     createdAt: createdAt(),

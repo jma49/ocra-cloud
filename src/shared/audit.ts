@@ -21,6 +21,7 @@ export type AuditDetails = {
   "platform.connected": { platform: string };
   "settings.changed": { keys: string[]; version: number };
   "sharing.changed": { shareFindings: boolean; deleted: number };
+  "sharing.hosted_changed": { hostedFindings: boolean; deleted: number };
   "budget.changed": { dailyCalls: number | null };
   "key.saved": { provider: string; check: string };
   "key.checked": { provider: string; check: string };
@@ -75,6 +76,7 @@ export const AUDIT_FIELDS: { readonly [K in AuditKind]: readonly (keyof AuditDet
   "platform.connected": ["platform"],
   "settings.changed": ["keys", "version"],
   "sharing.changed": ["shareFindings", "deleted"],
+  "sharing.hosted_changed": ["hostedFindings", "deleted"],
   "budget.changed": ["dailyCalls"],
   "key.saved": ["provider", "check"],
   "key.checked": ["provider", "check"],

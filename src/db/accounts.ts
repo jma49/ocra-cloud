@@ -196,6 +196,24 @@ export async function setSharing(db: Db, accountId: string, on: boolean): Promis
   await db.update(accounts).set({ shareFindings: on }).where(eq(accounts.id, accountId));
 }
 
+/** Whether the account has findings of its own to show: shared ones, or its hosted reviews'. */
+export const keepsStored = (account: {
+  shareFindings: boolean;
+  hostedFindings: boolean | null;
+}): boolean => account.shareFindings || account.hostedFindings === true;
+
+export async function setHostedFindings(db: Db, accountId: string, on: boolean): Promise<void> {
+  await db.update(accounts).set({ hostedFindings: on }).where(eq(accounts.id, accountId));
+}
+
+/** Turns keeping hosted findings on for an account that never chose: its own choice stands. */
+export async function startHostedFindings(db: Db, accountId: string): Promise<void> {
+  await db
+    .update(accounts)
+    .set({ hostedFindings: true })
+    .where(and(eq(accounts.id, accountId), isNull(accounts.hostedFindings)));
+}
+
 /** The account's salt, made on first use (64 hex characters). */
 export async function accountSalt(db: Db, accountId: string): Promise<string> {
   const row = await db

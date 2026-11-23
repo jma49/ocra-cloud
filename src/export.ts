@@ -179,6 +179,7 @@ async function* exportChunks(
     githubId: await githubId(),
     createdAt: a.createdAt,
     shareFindings: a.shareFindings,
+    hostedFindings: a.hostedFindings,
     // The repository-hash salt, held once findings were shared (null before).
     salt: a.salt,
     inboxSince: a.inboxSince,

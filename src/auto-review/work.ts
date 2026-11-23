@@ -1,4 +1,4 @@
-import { accountSalt, loginOf } from "../db/accounts.js";
+import { accountSalt, loginOf, startHostedFindings } from "../db/accounts.js";
 import type { Db } from "../db/client.js";
 import { claimGenerate } from "../db/generate-jobs.js";
 import { claimReply } from "../db/reply-jobs.js";
@@ -175,6 +175,8 @@ export async function assign(
     platform.kind === "github"
       ? ["--pr", String(claimed.number), "--repo", repo.fullName]
       : ["--mr", String(claimed.number), "--project", repo.fullName];
+  // The account's first hosted run starts keeping its findings; a choice it made stands.
+  await startHostedFindings(source.db, claimed.accountId);
   // A run that died left its session behind: this attempt's replaces it.
   await data.remove("sessions", claimed.id);
   const tokens = await startCliSession(source.db, claimed.accountId, "auto review", claimed.id);

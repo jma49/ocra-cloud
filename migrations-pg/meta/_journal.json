@@ -309,6 +309,13 @@
       "when": 1795409297126,
       "tag": "0043_sign_in_allow",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1795411022312,
+      "tag": "0044_hosted_findings",
+      "breakpoints": true
     }
   ]
 }

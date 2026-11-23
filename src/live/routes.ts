@@ -10,6 +10,7 @@ import { audit } from "../audit.js";
 import { loginOf } from "../db/accounts.js";
 import { accountByLogin, type LiveDoor, liveAccess, sharedWithMe } from "../db/live-access.js";
 import { scoped } from "../db/scoped.js";
+import { keepsFindings } from "../findings-kept.js";
 import { apiError, jsonBody } from "../http.js";
 import { perMinute } from "../rate.js";
 import { repoNames } from "../repositories.js";
@@ -54,7 +55,7 @@ liveRoute.post(
   async (c) => {
     const batch = c.req.valid("json");
     // The events carry paths and finding text, kept only while the account shares findings.
-    if (!c.var.session.account.shareFindings) return c.json({});
+    if (!(await keepsFindings(c))) return c.json({});
     const events = readEvents(batch.events);
     if (!events)
       return apiError(c, "invalid_body", {

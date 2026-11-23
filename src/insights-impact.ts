@@ -1,5 +1,6 @@
 import { type Context, Hono } from "hono";
 import { repoName, spread } from "./cycles.js";
+import { keepsFindings } from "./findings-kept.js";
 import { weekStart } from "./flow.js";
 import { apiError, queryDays } from "./http.js";
 import { repoIdentity } from "./platforms/platform.js";
@@ -64,7 +65,7 @@ impact.get("/", requireSession(["web"]), async (c: Context<AppEnv>) => {
   const days = queryDays(c, 30, MAX_DAYS);
   const now = Date.now();
   const since = new Date(now - days * DAY);
-  const sharing = c.var.session.account.shareFindings;
+  const sharing = await keepsFindings(c);
   const data = c.var.data;
   const q = data.impact;
   const [enrolled, reviewedRepos] = await Promise.all([

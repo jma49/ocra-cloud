@@ -28,6 +28,7 @@ export const KIND_GROUPS: { label: string; kinds: [AuditKind, string][] }[] = [
     kinds: [
       ["settings.changed", "Review settings changed"],
       ["sharing.changed", "Sharing changed"],
+      ["sharing.hosted_changed", "Hosted findings changed"],
       ["budget.changed", "Budget changed"],
     ],
   },
@@ -148,6 +149,11 @@ export function describe(e: AuditEventView): string {
       return e.detail.shareFindings
         ? "Turned on sharing findings"
         : `Turned off sharing findings${e.detail.deleted ? ` (${e.detail.deleted} removed)` : ""}`;
+    case "sharing.hosted_changed":
+      if (e.detail.hostedFindings === undefined) return "Changed keeping hosted findings";
+      return e.detail.hostedFindings
+        ? "Turned on keeping the findings of reviews ocra runs here"
+        : `Turned off keeping the findings of reviews ocra runs here${e.detail.deleted ? ` (${e.detail.deleted} removed)` : ""}`;
     case "budget.changed":
       if (e.detail.dailyCalls === undefined) return "Changed the daily budget";
       return e.detail.dailyCalls === null

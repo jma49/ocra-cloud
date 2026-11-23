@@ -9,9 +9,12 @@ type SharingLoad = ReturnType<typeof useSharing>;
 
 function useSharing() {
   return useLoad(() =>
-    api<{ shareFindings: boolean; findingsStored: number; findingsAllowance: number }>(
-      "/account/sharing",
-    ),
+    api<{
+      shareFindings: boolean;
+      hostedFindings: boolean;
+      findingsStored: number;
+      findingsAllowance: number;
+    }>("/account/sharing"),
   );
 }
 
@@ -19,11 +22,14 @@ function useSharing() {
  * What the account keeps, true for the sharing setting when it is known
  * (audit C2): with findings sent, their quoted code is kept too.
  */
-function dataKept(shareFindings: boolean | undefined): string {
+function dataKept(shareFindings: boolean | undefined, hosted: boolean): string {
   const kept =
     "Your GitHub id and login, encrypted provider keys, review counts and a record of each model call (model, status, token counts, duration)";
   if (shareFindings === true) {
     return `${kept}; while you send findings, also the findings and the code they quote. No prompts or answers.`;
+  }
+  if (hosted) {
+    return `${kept}; for reviews ocra runs here, also their findings and the code they quote. No prompts or answers.`;
   }
   if (shareFindings === false) return `${kept}. No code, prompts or answers.`;
   return `${kept}. No prompts or answers; code only in findings you choose to send.`;
@@ -63,11 +69,17 @@ export function Settings(props: { me: Me }) {
           <dt>Member since</dt>
           <dd>{date(props.me.since)}</dd>
           <dt>Data kept</dt>
-          <dd className="muted">{dataKept(sharing.data?.shareFindings)}</dd>
+          <dd className="muted">
+            {dataKept(
+              sharing.data?.shareFindings,
+              props.me.autoReview && sharing.data?.hostedFindings === true,
+            )}
+          </dd>
         </dl>
       </div>
 
       <Sharing load={sharing} />
+      {props.me.autoReview && <HostedFindings load={sharing} />}
 
       <div className="section card">
         <div className="card-head">
@@ -117,15 +129,15 @@ export function Settings(props: { me: Me }) {
   );
 }
 
-function Sharing({ load }: { load: SharingLoad }) {
-  const { data, error, reload } = load;
+/** A switch of the sharing setting: turning it off asks first whether to delete what is stored. */
+function useSharingSwitch(path: string, reload: () => void) {
   const [asking, setAsking] = useState(false);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState<unknown>(null);
   const put = async (enabled: boolean, deleteExisting = false) => {
     setBusy(true);
     setFailed(null);
-    const error = await api("/account/sharing", {
+    const error = await api(path, {
       method: "PUT",
       body: JSON.stringify({ enabled, deleteExisting }),
     }).then(
@@ -137,6 +149,79 @@ function Sharing({ load }: { load: SharingLoad }) {
     if (error === null) setAsking(false);
     reload();
   };
+  return { asking, setAsking, busy, failed, put };
+}
+
+/** Whether reviews this server runs keep their findings: on from the first one, until switched off. */
+function HostedFindings({ load }: { load: SharingLoad }) {
+  const { data, reload } = load;
+  const { asking, setAsking, busy, failed, put } = useSharingSwitch(
+    "/account/sharing/hosted",
+    reload,
+  );
+  if (!data) return null;
+  return (
+    <div className="section card">
+      <div className="card-head">
+        <h3>Keep the findings of reviews ocra runs here</h3>
+        <Switch
+          aria-label="Keep the findings of reviews ocra runs here"
+          checked={data.hostedFindings}
+          disabled={busy}
+          onCheckedChange={() => (data.hostedFindings ? setAsking(true) : put(true))}
+        />
+      </div>
+      <div className="card-pad small muted stack">
+        <span>
+          On by default. A review this server runs for a repository with auto review on keeps its
+          findings and <b>the code each finding quotes</b>, redacted the same way, so they show on
+          the pull request, the review and the findings pages. The server already read that code to
+          review it. Reviews from your own machine send theirs only with the switch above.
+        </span>
+        {failed !== null && (
+          <ActionError what="change this setting (nothing was deleted)" error={failed} />
+        )}
+        {asking && (
+          <div className="note confirm-note">
+            <span>
+              Stop keeping them.
+              {data.shareFindings
+                ? " Findings already stored stay while you send findings."
+                : ` Delete the ${data.findingsStored} already stored too?`}
+            </span>
+            {!data.shareFindings && (
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                disabled={busy}
+                onClick={() => put(false, true)}
+              >
+                Turn off and delete
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={busy}
+              onClick={() => put(false)}
+            >
+              {data.shareFindings ? "Turn off" : "Turn off, keep them"}
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => setAsking(false)}>
+              Cancel
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Sharing({ load }: { load: SharingLoad }) {
+  const { data, error, reload } = load;
+  const { asking, setAsking, busy, failed, put } = useSharingSwitch("/account/sharing", reload);
   const title = <h3>Send findings and the code they quote to ocra Cloud</h3>;
   if (!data) {
     return (

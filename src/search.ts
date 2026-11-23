@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import type { StoredSearch } from "./db/search.js";
+import { keepsFindings } from "./findings-kept.js";
 import { accessToken } from "./platforms/links.js";
 import type { CodePlatform } from "./platforms/platform.js";
 import { type ListedPull, MAX_SEARCHED, type PullSearch } from "./platforms/pulls.js";
@@ -75,12 +76,13 @@ export function searchRoute(features: { autoReview: boolean; codeGraphs: boolean
     const query = normaliseSearchQuery(c.req.query("q") ?? "");
     const limit = limitOf(c.req.query("limit"));
     const destinations = matchDestinations(query, features, limit);
+    const sharing = await keepsFindings(c);
     const empty: SearchResultsView = {
       query,
       jump: null,
       pulls: [],
       reviews: [],
-      findings: c.var.session.account.shareFindings ? [] : null,
+      findings: sharing ? [] : null,
       repositories: [],
       destinations,
     };
@@ -90,7 +92,6 @@ export function searchRoute(features: { autoReview: boolean; codeGraphs: boolean
     const named = reference?.repo ? repoName.safeParse(reference.repo).success : true;
     const search: PullSearch & StoredSearch = reference && named ? reference : { text: query };
     const data = c.var.data;
-    const sharing = c.var.session.account.shareFindings;
 
     const pulls = Promise.all(
       platformsOf(c.env, c.req.url).map(async (platform): Promise<SearchPlatformPulls> => {

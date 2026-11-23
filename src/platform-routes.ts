@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { accountSalt } from "./db/accounts.js";
+import { keepsFindings } from "./findings-kept.js";
 import { apiError } from "./http.js";
 import { rateLimited } from "./platform-limits.js";
 import { accessToken } from "./platforms/links.js";
@@ -50,7 +51,7 @@ async function listAll(c: {
 
 platformsRoute.get("/repos", requireSession(), async (c) => {
   const listed = await listAll(c);
-  const sharing = c.var.session.account.shareFindings;
+  const sharing = await keepsFindings(c);
   const salt = sharing ? await accountSalt(c.var.db, c.var.session.account.id) : null;
   return c.json({
     sharing,
@@ -149,7 +150,7 @@ platformsRoute.get("/pulls", requireSession(), perMinute("platform"), async (c) 
 // console shows it in place of the hash. Needs sharing: only then does the
 // CLI hash with the account's salt.
 platformsRoute.post("/sync-names", requireSession(), perMinute("settings"), async (c) => {
-  if (!c.var.session.account.shareFindings) return c.json({ named: 0, sharing: false });
+  if (!(await keepsFindings(c))) return c.json({ named: 0, sharing: false });
   const listed = await listAll(c);
   if (listed.every((l) => !l.linked)) return apiError(c, "github_user");
   const salt = await accountSalt(c.var.db, c.var.session.account.id);

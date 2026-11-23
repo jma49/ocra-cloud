@@ -1,5 +1,6 @@
 import { and, desc, eq, gte, isNotNull, isNull, lt, lte, or, sql } from "drizzle-orm";
 import { DAY } from "../time.js";
+import { keepsStored } from "./accounts.js";
 import { type Db, first } from "./client.js";
 import { countWhere } from "./dialect.js";
 import { accounts, findings, notifyChannels, reviews } from "./schema.js";
@@ -58,8 +59,9 @@ export function accountReports(db: Db, accountId: string) {
             or(isNull(a.reportSentFor), lte(a.reportSentFor, new Date(slot.getTime() - MIN_GAP))),
           ),
         )
-        .returning({ shareFindings: a.shareFindings });
-      return first(rows);
+        .returning({ shareFindings: a.shareFindings, hostedFindings: a.hostedFindings });
+      const row = first(rows);
+      return row && { shareFindings: keepsStored(row) };
     },
 
     /** What the weekly report adds to the digest's numbers for the reviews between from and to. */

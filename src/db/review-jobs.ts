@@ -136,6 +136,15 @@ export function accountReviewJobs(db: Db, accountId: string) {
       return db.select().from(j).where(and(own, newest));
     },
 
+    /** Whether this id names one of the account's review jobs: its run's session carries the same id. */
+    async isJob(id: string): Promise<boolean> {
+      const rows = await db
+        .select({ id: j.id })
+        .from(j)
+        .where(and(own, eq(j.id, id)))
+        .limit(1);
+      return rows.length > 0;
+    },
     /**
      * Records the job's review, only while it is still the run that claimed
      * it (attempts unchanged). Returns whether it was recorded.

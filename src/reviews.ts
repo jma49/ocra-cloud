@@ -7,6 +7,7 @@ import { config } from "./config.js";
 import type { Row, Scoped } from "./db/scoped.js";
 import { defer } from "./defer.js";
 import { parseFindings } from "./findings.js";
+import { keepsFindings } from "./findings-kept.js";
 import { apiError, jsonBody, queryDays } from "./http.js";
 import { notifyReview, outboxOf, publicOutbox } from "./notify/notify.js";
 import { tellReviewBlocking } from "./notify/pull-events.js";
@@ -100,7 +101,7 @@ reviews.post("/", requireSession(["web", "cli"]), perMinute("upload"), uploadBod
   const { reviewersDropped, ...counts } = reviewRow(upload);
   // Findings are kept only while the account shares them, whatever the CLI sent.
   const list = upload.findingList;
-  const sharing = c.var.session.account.shareFindings;
+  const sharing = await keepsFindings(c);
   const row = sharing ? counts : withoutSharedText(counts);
   const parsed =
     sharing && list !== undefined
@@ -147,7 +148,7 @@ async function announce(c: Context<AppEnv>, id: string) {
   const consoleUrl = new URL(`/reviews/${encodeURIComponent(id)}`, c.req.url).toString();
   const platforms = platformsOf(c.env, c.req.url);
   // Its author hears of it once: as their own pull request's, where that went.
-  const share = c.var.session.account.shareFindings;
+  const share = await keepsFindings(c);
   const told = await tellReviewBlocking(
     c.var.db,
     c.var.data,
