@@ -1,4 +1,4 @@
-import { and, eq, gt, type SQL, sql } from "drizzle-orm";
+import { type AnyColumn, and, eq, gt, type SQL, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 import { DAY, utcDay } from "../time.js";
 import type { Db } from "./client.js";
@@ -63,6 +63,18 @@ export async function countCall(
     })
     .returning({ n: c.n });
   return counted.length > 0;
+}
+
+/**
+ * Whether the account a row names in `account` may still make a gateway
+ * call on now's UTC day: countCall's test, without counting. A hosted job
+ * of an account that may not would only be refused, so it is not claimed.
+ */
+export function callsLeft(account: AnyColumn | SQL, cap: number, now: Date): SQL {
+  const own = sql`(SELECT ${budgets.dailyCalls} FROM ${budgets} WHERE ${budgets.accountId} = ${account})`;
+  const used = sql`(SELECT ${c.n} FROM ${c} WHERE ${c.accountId} = ${account}
+    AND ${c.kind} = 'gateway_calls' AND ${c.day} = ${utcDay(now)})`;
+  return sql`coalesce(${used}, 0) < CASE WHEN ${own} < ${cap} THEN ${own} ELSE ${cap} END`;
 }
 
 /** Takes back one countOne, for an upload that turned out to be a retry. */

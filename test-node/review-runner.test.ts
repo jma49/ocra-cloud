@@ -183,6 +183,7 @@ describe("a review job's run", () => {
       platforms,
       bots,
       publicUrl: ORIGIN,
+      dailyCalls: 1000,
       exec,
       cli: "/opt/ocra/main.js",
     });
@@ -286,6 +287,7 @@ describe("a review job's run", () => {
           platforms,
           bots,
           publicUrl: ORIGIN,
+          dailyCalls: 1000,
           exec,
           cli: "x",
           now: () => now,
@@ -306,6 +308,7 @@ describe("a review job's run", () => {
       platforms,
       bots: none,
       publicUrl: ORIGIN,
+      dailyCalls: 1000,
       exec,
       cli: "x",
     });
@@ -395,7 +398,15 @@ describe("a review job's run", () => {
     );
     const seen: { ocra?: unknown } = {};
     const { exec, calls } = fakeExec(0, seen);
-    const runner = { db: s.host.db, platforms, bots, publicUrl: ORIGIN, exec, cli: "/c.js" };
+    const runner = {
+      db: s.host.db,
+      platforms,
+      bots,
+      publicUrl: ORIGIN,
+      dailyCalls: 1000,
+      exec,
+      cli: "/c.js",
+    };
     expect(await runNextReply(runner)).toBe(true);
     expect(calls.at(-1)?.args).toEqual([
       "/c.js",
@@ -421,7 +432,15 @@ describe("a review job's run", () => {
   it("retries an answer the CLI failed", async () => {
     await scoped(s.host.db, accountId).replies.queue(repoId, 7, "503", false);
     const { exec } = fakeExec(3, {});
-    await runNextReply({ db: s.host.db, platforms, bots, publicUrl: ORIGIN, exec, cli: "x" });
+    await runNextReply({
+      db: s.host.db,
+      platforms,
+      bots,
+      publicUrl: ORIGIN,
+      dailyCalls: 1000,
+      exec,
+      cli: "x",
+    });
     const [reply] = await scoped(s.host.db, accountId).list("replyJobs");
     expect(reply).toMatchObject({ state: "queued", error: "review_failed", attempts: 1 });
   });
@@ -443,6 +462,7 @@ describe("a review job's run", () => {
       platforms,
       bots: committer,
       publicUrl: ORIGIN,
+      dailyCalls: 1000,
       exec,
       cli: "/c.js",
     };
@@ -468,7 +488,15 @@ describe("a review job's run", () => {
     const generations = scoped(s.host.db, accountId).generations;
     await generations.queue(repoId, 7, "b".repeat(40), "docstrings");
     const { exec } = fakeExec(3, {});
-    await runNextGeneration({ db: s.host.db, platforms, bots, publicUrl: ORIGIN, exec, cli: "x" });
+    await runNextGeneration({
+      db: s.host.db,
+      platforms,
+      bots,
+      publicUrl: ORIGIN,
+      dailyCalls: 1000,
+      exec,
+      cli: "x",
+    });
     const [job] = await generations.forPull(repoId, 7);
     expect(job).toMatchObject({ state: "failed", error: "not_committed", attempts: 1 });
   });

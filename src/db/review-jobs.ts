@@ -1,6 +1,7 @@
 import { and, desc, eq, inArray, isNull, lt, lte, ne, or, sql } from "drizzle-orm";
 import { DEFAULT_REVIEW_PROFILE } from "../shared/index.js";
 import { changedRows, type Db, first } from "./client.js";
+import { callsLeft } from "./counters.js";
 import { reviewJobs, reviewRepos } from "./schema.js";
 
 // The pull requests the server reviews itself (ADR-0046): an account's
@@ -192,13 +193,15 @@ export type ClaimedJob = {
  * Claims a review: of the pull request waiting longest, its newest queued
  * head (the older ones are superseded, a lapsed run's included), unless
  * that pull request has a review running under a live lease, so one pull
- * request is reviewed once at a time. The claim is a compare-and-set on
- * the queued state, so two runners never own one job.
+ * request is reviewed once at a time. An account out of gateway calls for
+ * the day keeps its reviews queued until the day turns. The claim is a
+ * compare-and-set on the queued state, so two runners never own one job.
  */
 export async function claimJob(
   db: Db,
   now: Date,
   leaseMs: number,
+  dailyCalls: number,
 ): Promise<ClaimedJob | undefined> {
   const j = reviewJobs;
   const due = and(eq(j.state, "queued"), or(isNull(j.notBefore), lte(j.notBefore, now)));
@@ -212,7 +215,7 @@ export async function claimJob(
   const waiting = await db
     .select({ reviewRepoId: j.reviewRepoId, number: j.number })
     .from(j)
-    .where(and(due, sql`NOT ${busy}`))
+    .where(and(due, sql`NOT ${busy}`, callsLeft(j.accountId, dailyCalls, now)))
     .orderBy(j.createdAt)
     .limit(1)
     .then(first);

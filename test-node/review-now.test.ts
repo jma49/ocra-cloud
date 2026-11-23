@@ -10,6 +10,9 @@ import type { PullReviewNowView } from "../src/shared/index.js";
 import { C1, C2, C3, repoFake } from "./graph-fakes.js";
 import { graphServer, type Server } from "./graph-server.js";
 
+/** A daily cap on gateway calls no test reaches unless it means to. */
+const CALLS = 1000;
+
 // "Review now": a review of a pull request's current head, asked for on the
 // console, for a repository the account enrolled for auto review.
 
@@ -87,7 +90,7 @@ describe("a review asked for on the console", () => {
 
   it("answers a running review instead of a second, even when forced", async () => {
     const first = await request();
-    await claimJob(s.host.db, new Date(), 60_000);
+    await claimJob(s.host.db, new Date(), 60_000, CALLS);
     const forced = await request({ force: true });
     expect(forced.body.job).toMatchObject({ jobId: first.body.job?.jobId, state: "running" });
     expect(await jobs()).toHaveLength(1);
@@ -95,7 +98,7 @@ describe("a review asked for on the console", () => {
 
   it("reviews a reviewed head again only when forced, as its next run", async () => {
     await request();
-    const claimed = await claimJob(s.host.db, new Date(), 60_000);
+    const claimed = await claimJob(s.host.db, new Date(), 60_000, CALLS);
     await s.host.db
       .update(schema.reviewJobs)
       .set({ state: "done", finishedAt: new Date() })

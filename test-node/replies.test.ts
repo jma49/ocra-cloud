@@ -9,6 +9,9 @@ import { GITHUB_COM } from "../src/platforms/github-host.js";
 import { C1, repoFake } from "./graph-fakes.js";
 import { graphServer, SECRET, type Server } from "./graph-server.js";
 
+/** A daily cap on gateway calls no test reaches unless it means to. */
+const CALLS = 1000;
+
 // An @ocra comment on an enrolled repository's pull request queues one
 // answer, from a person, never a bot.
 
@@ -109,13 +112,13 @@ describe("an @ocra comment on GitHub", () => {
       repository,
     });
     const now = new Date();
-    expect(await claimReply(s.host.db, now, 60_000)).toMatchObject({
+    expect(await claimReply(s.host.db, now, 60_000, CALLS)).toMatchObject({
       commentId: "501",
       attempts: 1,
     });
-    expect(await claimReply(s.host.db, now, 60_000)).toBeUndefined();
+    expect(await claimReply(s.host.db, now, 60_000, CALLS)).toBeUndefined();
     const later = new Date(now.getTime() + 120_000);
-    expect(await claimReply(s.host.db, later, 60_000)).toMatchObject({ attempts: 2 });
+    expect(await claimReply(s.host.db, later, 60_000, CALLS)).toMatchObject({ attempts: 2 });
   });
 });
 

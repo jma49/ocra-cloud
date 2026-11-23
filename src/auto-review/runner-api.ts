@@ -1,5 +1,6 @@
 import { Hono, type MiddlewareHandler } from "hono";
 import { z } from "zod";
+import { config } from "../config.js";
 import { sameText, sha256Hex } from "../crypto.js";
 import { runnerSeen } from "../db/review-runners.js";
 import { apiError, jsonBody } from "../http.js";
@@ -53,6 +54,7 @@ export function runnerApi(access: RunnerAccess) {
       platforms: platformsOf(c.env, c.req.url),
       bots: access.bots,
       publicUrl: c.env.PUBLIC_URL ?? new URL(c.req.url).origin,
+      dailyCalls: config(c.env).gatewayDailyCalls,
     };
     for (const kind of WORK_KINDS) {
       for (let refused = 0; refused < MAX_REFUSED; refused++) {
@@ -67,7 +69,12 @@ export function runnerApi(access: RunnerAccess) {
   route.post("/settle", jsonBody(outcome), async (c) => {
     const { failure, ...ref } = c.req.valid("json");
     // Recorded only while the job is still this attempt's, under its own account.
-    await settle(c.var.db, ref, failure, new Date());
+    await settle(
+      { db: c.var.db, dailyCalls: config(c.env).gatewayDailyCalls },
+      ref,
+      failure,
+      new Date(),
+    );
     return c.json({ ok: true });
   });
 

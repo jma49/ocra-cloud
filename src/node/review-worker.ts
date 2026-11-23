@@ -1,4 +1,5 @@
 import type { AutoReviewService } from "../auto-review/routes.js";
+import { config } from "../config.js";
 import type { Db } from "../db/client.js";
 import { masterKeys } from "../keyring.js";
 import { errorName, logError } from "../log.js";
@@ -42,6 +43,7 @@ export function startAutoReview(
     platforms: platformsOf(env, publicUrl),
     bots: options.tokens ?? botTokens(options.bots),
     publicUrl,
+    dailyCalls: config(env).gatewayDailyCalls,
     outbox: {
       keys: masterKeys(env),
       mailer: options.mailer,
