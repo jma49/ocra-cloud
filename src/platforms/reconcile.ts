@@ -1,6 +1,7 @@
 // What the daily reconciliation (src/reconcile.ts) reads of an enrolled
-// repository: its pull requests as the platform has them now, so a close or
-// an open state a webhook missed is filled in. Read as the bot or the
+// repository: its pull requests as the platform has them now, so a close,
+// an open state, an ask of a review or a review a webhook missed is filled
+// in. Read as the bot or the
 // enrolling account's link; nothing is written to the platform. A reader
 // checks the run's budget before each call, which counts it as it goes out
 // (src/calls.ts), and answers `spent` without calling when none is left.
@@ -23,6 +24,22 @@ export type ReconciledPull = {
   updatedAt: Date | null;
   /** When it was merged, or closed; null while open. */
   closedAt: Date | null;
+  /** Whose review it asks now, users and (on GitHub) teams, as a listing names them. */
+  asks: ReconciledAsk[];
+};
+
+/** An ask of a review the platform shows: of a user, or of a team (its org/slug as name). */
+export type ReconciledAsk = { team: boolean; id: string; name: string | null };
+
+/** A review submitted (a GitLab approval), keyed as its webhook keeps it in pull_reviews. */
+export type ReconciledReview = {
+  reviewKey: string;
+  reviewerId: string;
+  reviewer: string;
+  bot: boolean;
+  approved: boolean;
+  /** Null where the platform does not say (an approval on an older GitLab). */
+  submittedAt: Date | null;
 };
 
 export type ReconcileListing = {
@@ -57,6 +74,13 @@ export interface RepoReconcile {
     number: number,
     calls: CallBudget,
   ): Promise<ReconciledPull | "missing" | Spent | null>;
+  /** The reviews submitted on an open pull request, at most one page; null when the platform failed or refused. */
+  reviews(
+    token: string,
+    fullName: string,
+    number: number,
+    calls: CallBudget,
+  ): Promise<ReconciledReview[] | Spent | null>;
 }
 
 /** A time the platform wrote, or null when it is missing or not one. */

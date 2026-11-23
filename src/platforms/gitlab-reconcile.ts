@@ -5,15 +5,20 @@ import { platformJson } from "./http.js";
 import {
   RECONCILE_PER_PAGE,
   type ReconciledPull,
+  type ReconciledReview,
   type ReconcileListing,
   type RepoReconcile,
   type Spent,
   timeOf,
 } from "./reconcile.js";
+import { isBotLogin } from "./reviewers.js";
 
 // GitLab's list of a project's merge requests: those changed since, of any
 // state, newest change first, keeping the merged and closed ones; open ones
-// in full, up to the page cap. A locked merge request is still open.
+// in full, up to the page cap, each with its reviewers. A locked merge
+// request is still open. An open one's approvals are its reviews, as its
+// webhook keeps them; GitLab keeps a reviewer who approved among its
+// reviewers, so an approver's ask is not one it still waits for.
 
 const MAX_PAGE_BYTES = 8 * 1024 * 1024;
 
@@ -28,6 +33,18 @@ const mergeRequest = z.object({
   updated_at: z.string().nullish(),
   closed_at: z.string().nullish(),
   merged_at: z.string().nullish(),
+  reviewers: z.array(z.object({ username: z.string(), id: z.number() })).nullish(),
+});
+
+const approvals = z.object({
+  approved_by: z
+    .array(
+      z.object({
+        user: z.object({ username: z.string(), id: z.number() }).nullish(),
+        approved_at: z.string().nullish(),
+      }),
+    )
+    .nullish(),
 });
 
 function pullOf(raw: unknown): ReconciledPull | null {
@@ -48,6 +65,7 @@ function pullOf(raw: unknown): ReconciledPull | null {
       state === "open"
         ? null
         : (timeOf(state === "merged" ? m.merged_at : m.closed_at) ?? timeOf(m.updated_at)),
+    asks: (m.reviewers ?? []).map((u) => ({ team: false, id: String(u.id), name: u.username })),
   };
 }
 
@@ -103,6 +121,30 @@ export function gitlabReconcile(origin: string): RepoReconcile {
       if (answer?.status === 404) return "missing";
       if (answer?.status !== 200) return null;
       return pullOf(answer.body);
+    },
+    async reviews(token, fullName, number, calls) {
+      if (!calls.has()) return "spent";
+      const answer = await platformJson<unknown>(
+        `${mergeRequestUrl(origin, fullName, number)}/approvals`,
+        { headers: gitlabHeaders(token) },
+        MAX_PAGE_BYTES,
+      );
+      const parsed = answer?.status === 200 ? approvals.safeParse(answer.body) : null;
+      if (!parsed?.success) return null;
+      return (parsed.data.approved_by ?? []).flatMap(({ user, approved_at }): ReconciledReview[] =>
+        user
+          ? [
+              {
+                reviewKey: `gitlab:${number}:approval:${user.id}`,
+                reviewerId: String(user.id),
+                reviewer: user.username,
+                bot: isBotLogin(user.username),
+                approved: true,
+                submittedAt: timeOf(approved_at),
+              },
+            ]
+          : [],
+      );
     },
   };
 }
