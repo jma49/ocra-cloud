@@ -58,7 +58,7 @@ describe("the GitHub link", () => {
     expect(githubOf(before)).toMatchObject({
       host: "github.com",
       linked: true,
-      installUrl: "https://github.com/apps/ocra-cloud-dev/installations/new",
+      installUrl: "https://github.com/apps/ocra-cloud/installations/new",
     });
     expect(githubOf(before)?.repositories.map((r) => [r.fullName, r.repoHash])).toEqual([
       ["Octo/API", null],
