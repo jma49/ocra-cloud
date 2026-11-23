@@ -21,6 +21,8 @@ import { ChecksBox } from "../pull/checks-box.js";
 import { useClearance } from "../pull/clearance.js";
 import { MERGE_ID, pullCommands } from "../pull/commands.js";
 import { DescriptionBox } from "../pull/description-box.js";
+import { DiffBar } from "../pull/diff-bar.js";
+import { useDiffLayout } from "../pull/diff-layout.js";
 import { DraftToggle } from "../pull/draft-toggle.js";
 import { FileDiff } from "../pull/file-diff.js";
 import { FileList } from "../pull/file-list.js";
@@ -139,6 +141,8 @@ export function PullPage(props: {
   }, [data?.title, props.number]);
   const beside = useBeside(pullPath(platform, props.repo, number));
   const viewed = useViewed(ref, data, (o) => said("Viewed", o));
+  const layout = useDiffLayout();
+  const otherLayout = layout.picked === "split" ? "unified" : "split";
   usePageCommands(
     "This pull request",
     pullCommands({
@@ -146,6 +150,9 @@ export function PullPage(props: {
       code,
       review: () => setReviewing(true),
       toggleViewed: viewed.toggle,
+      switchLayout: layout.narrow
+        ? undefined
+        : { to: otherLayout, run: () => layout.pick(otherLayout) },
       beside,
     }),
   );
@@ -315,11 +322,13 @@ export function PullPage(props: {
           <FileList files={shown} isViewed={(f) => viewed.isViewed(f.path)} />
         </aside>
         <div className="pull-main">
+          <DiffBar layout={layout} />
           <SinceBar since={since} />
           <FixJobsOf query={query.toString()} onProposed={fixProposed}>
             {shown.map((f) => (
               <FileDiff
                 key={`${since.picked ?? ""}:${f.path}`}
+                layout={layout.drawn}
                 readOnly={narrowed !== null}
                 file={f}
                 viewed={viewed.isViewed(f.path)}

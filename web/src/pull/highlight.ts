@@ -91,6 +91,8 @@ export function languageOf(path: string): string | null {
 
 /** Past these a diff stays plain: a generated or minified file is not read line by line. */
 const MAX_LINES = 4000;
+/** Lines read between two turns of the page. */
+const SHARE = 40;
 const MAX_LINE_CHARS = 1000;
 
 const THEME = "css-variables";
@@ -144,10 +146,13 @@ function runsOf(core: HighlighterCore, lang: string, code: string): CodeRun[][] 
  * hunk is read twice, as the file was and as it is, so a removed line is
  * coloured in the code it stood in. A hunk that starts inside a comment or a
  * string is read as if it did not: the platform sends no more of the file.
+ * A long diff is read a few hunks at a time, the page drawn between two, and
+ * `progress` gets what is read so far after each.
  */
 export async function highlightDiff(
   path: string,
   lines: readonly DiffLine[],
+  progress?: (runs: ReadonlyMap<number, CodeRun[]>) => void,
 ): Promise<Map<number, CodeRun[]>> {
   const out = new Map<number, CodeRun[]>();
   const lang = languageOf(path);
@@ -155,8 +160,9 @@ export async function highlightDiff(
   if (lines.some((l) => l.text.length > MAX_LINE_CHARS)) return out;
   const core = await ready(lang);
   if (!core) return out;
-  // One diff at a time, the page drawn between two: a long pull request stays usable.
+  // A share of a diff at a time, the page drawn between two: a long pull request stays usable.
   await turn();
+  let since = 0;
   const side = (from: number, to: number, skip: "add" | "del") => {
     const at: number[] = [];
     for (let i = from; i < to; i++) if (lines[i]?.kind !== skip) at.push(i);
@@ -170,8 +176,14 @@ export async function highlightDiff(
   for (let i = 0; i <= lines.length; i++) {
     if (i < lines.length && lines[i]?.kind !== "hunk") continue;
     if (i > from) {
+      if (since >= SHARE) {
+        progress?.(new Map(out));
+        await turn();
+        since = 0;
+      }
       side(from, i, "del");
       if (lines.slice(from, i).some((l) => l.kind === "del")) side(from, i, "add");
+      since += i - from;
     }
     from = i + 1;
   }

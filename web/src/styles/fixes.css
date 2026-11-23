@@ -64,15 +64,6 @@
 .diff-note .fix-diff .diff-code {
   padding-right: 16px;
 }
-/* A diff wider than its card scrolls; the fix stays within the visible width. */
-.diff-file .diff-scroll {
-  container-type: inline-size;
-}
-.diff-note .fix-proposal {
-  position: sticky;
-  left: 14px;
-  max-width: calc(100cqi - 28px);
-}
 @media (max-width: 560px) {
   .fix-proposal-head > :last-child {
     margin-left: auto;
