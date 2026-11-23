@@ -16,7 +16,9 @@ export type NotifyWhen = (typeof NOTIFY_WHEN)[number];
  * account's own platform user: a review asked of them; on a pull request
  * they wrote, a reviewer's review, its merge or close, failed pre-merge
  * checks, or ocra's review with a critical finding; on one they set to
- * merge when ready, its merge or why it stopped. Two are reminders, sent
+ * merge when ready, its merge or why it stopped; a stack merge they
+ * started, its end or where it stopped (stack_merge, on any repository:
+ * the merge is theirs, enrolled or not). Two are reminders, sent
  * by the hourly run once a pull request has waited the channel's
  * reminderHours: a review asked of them still not given (review_waiting),
  * and a pull request they wrote that no one has reviewed (pull_waiting).
@@ -35,6 +37,7 @@ export const NOTIFY_EVENTS = [
   "checks_failed",
   "review_blocking",
   "merge_when_ready",
+  "stack_merge",
   "review_waiting",
   "pull_waiting",
   "pull_commented",

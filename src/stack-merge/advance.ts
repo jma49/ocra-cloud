@@ -1,9 +1,12 @@
 import { audit } from "../audit.js";
-import { type CallBudget, item, uncapped } from "../calls.js";
+import { type CallBudget, item, uncapped, withCallLimit } from "../calls.js";
 import type { Db } from "../db/client.js";
 import { type Scoped, scoped } from "../db/scoped.js";
 import { dueStackMerges, type StackMerge, type StackProgress } from "../db/stack-merges.js";
+import { masterKeys } from "../keyring.js";
 import { errorName, logError } from "../log.js";
+import type { Outbox } from "../notify/notify.js";
+import { tellOwnPullEvent } from "../notify/pull-events.js";
 import { accessToken } from "../platforms/links.js";
 import type { CodePlatform } from "../platforms/platform.js";
 import { MAX_STACK } from "../platforms/stacks.js";
@@ -17,12 +20,18 @@ import type { AppBindings } from "../types.js";
 // merge it; then the layers stacked on it are moved onto the trunk and the
 // next one is taken. It waits between steps on the layer's checks and the
 // platform's rules, moved on by webhooks, the sweep and the status page, and
-// stops with a reason on what waiting will not fix.
+// stops with a reason on what waiting will not fix. A run inside a request
+// makes only so many platform calls (a Worker's request may make 50): a
+// tall stack that could go on is left waiting, in progress, for the next
+// run. How it ended is told to the channels that hear about stack merges.
 
 export type StackRunner = {
   db: Db;
-  env: Pick<AppBindings, "MASTER_KEY" | "MASTER_KEY_PREVIOUS">;
+  env: Pick<AppBindings, "MASTER_KEY" | "MASTER_KEY_PREVIOUS"> &
+    Partial<Pick<AppBindings, "PUBLIC_URL" | "SESSION_SECRET">>;
   platforms: readonly CodePlatform[];
+  /** Where the end is told from; without it, the env's PUBLIC_URL with no mailer, or nowhere. */
+  out?: Outbox | undefined;
 };
 
 export type StackScope = { runner: StackRunner; data: Scoped; platform: CodePlatform };
@@ -33,41 +42,126 @@ const STACK_MERGE_TIMEOUT_MS = 3 * 24 * 60 * 60_000;
 /** One step is either a platform read, a write, or both: this many is every layer twice over. */
 const MAX_STEPS = MAX_STACK * 4;
 
+/**
+ * The platform calls a run inside a request makes at most, beside the
+ * request's own: together well under the 50 a Worker's request may make.
+ */
+export const REQUEST_CALLS = 20;
+
+/** What one more step may take: the layer's read, the repository's merge methods and the merge. */
+const STEP_CALLS = 3;
+
 const pullOf = (merge: StackMerge) => `${merge.path}#${merge.bottom}`;
 const topOf = (merge: StackMerge) => merge.chain[merge.chain.length - 1]?.number ?? merge.bottom;
 
 type Ended = "merged" | "failed";
 
 /**
- * Takes one claimed run of a merge as far as it goes now; the row as it then
+ * Takes one claimed run of a merge as far as it goes now, within `limit`
+ * platform calls (and the budget the caller runs in); the row as it then
  * stands. A caller that loses the claim changes nothing.
  */
 export async function advanceStack(
   scope: StackScope,
   merge: StackMerge,
   now = new Date(),
+  limit = Number.POSITIVE_INFINITY,
 ): Promise<StackMerge | undefined> {
   const merges = scope.data.stackMerges;
   const claim = await merges.claim(merge.id, now);
   if (!claim) return merges.byId(merge.id);
-  const run = new Run(scope, merge, claim, now);
-  try {
-    await run.steps();
-  } catch (e) {
-    await run.wait("unreachable");
-    throw e;
-  }
+  const ended = await withCallLimit(limit, async (calls) => {
+    const run = new Run(scope, merge, claim, now, calls);
+    try {
+      await run.steps();
+    } catch (e) {
+      await run.wait("unreachable");
+      // A call its budget refused was never sent: the merge waits for the next run.
+      if (calls.refused === 0) throw e;
+    }
+    return run.ended;
+  });
+  // Told outside the run's calls, which the merge may have used up.
+  if (ended) await tellEnd(scope, ended.at, ended.state, ended.reason);
   return merges.byId(merge.id);
+}
+
+const STOPPED: Record<StackMergeReason, string> = {
+  waiting_checks: "its checks did not finish",
+  waiting_platform: "the platform did not let it merge",
+  updating: "its branch was not brought up to date",
+  checks_failed: "its checks failed",
+  conflicts: "it has conflicts",
+  refused: "the platform refused",
+  head_moved: "it gained commits",
+  closed: "it was closed",
+  stack_changed: "the stack changed",
+  no_token: "connect the platform again",
+  unreachable: "the platform did not answer",
+  timed_out: "it waited too long",
+};
+
+const outboxOf = ({ out, env }: StackRunner): Outbox | undefined =>
+  out ??
+  (env.PUBLIC_URL && env.SESSION_SECRET
+    ? {
+        keys: masterKeys(env),
+        mailer: undefined,
+        linkSecret: env.SESSION_SECRET,
+        origin: new URL(env.PUBLIC_URL).origin,
+      }
+    : undefined);
+
+/**
+ * Tells the account's channels that hear about stack merges how this one
+ * ended, each once; the merge ended whether or not its notice goes.
+ */
+async function tellEnd(
+  scope: StackScope,
+  merge: StackMerge,
+  state: Ended,
+  reason: StackMergeReason | null,
+): Promise<void> {
+  try {
+    const out = outboxOf(scope.runner);
+    if (out) await tell(scope, out, merge, state, reason);
+  } catch (e) {
+    logError("stack_merge_notice_failed", { error: errorName(e) });
+  }
+}
+
+async function tell(
+  scope: StackScope,
+  out: Outbox,
+  merge: StackMerge,
+  state: Ended,
+  reason: StackMergeReason | null,
+): Promise<void> {
+  const layers = merge.chain.length;
+  const what =
+    state === "merged"
+      ? `Your stack merge finished: ${layers} pull request${layers === 1 ? "" : "s"} merged`
+      : `Your stack merge stopped at #${merge.current}: ${STOPPED[reason ?? "refused"]}`;
+  const repo = { platform: merge.platform, host: merge.host, fullName: merge.path };
+  await tellOwnPullEvent(scope.runner.db, scope.data, out, repo, {
+    kind: "stack_merge",
+    key: `stack-merge:${merge.id}:${state}`,
+    number: state === "merged" ? topOf(merge) : merge.current,
+    what,
+  });
 }
 
 /** One claimed run: every write names the claim, so a cancel or a takeover stops it. */
 class Run {
   private at: StackMerge;
+  /** How the run ended the merge, if it did. */
+  ended: { at: StackMerge; state: Ended; reason: StackMergeReason | null } | undefined;
   constructor(
     private readonly scope: StackScope,
     private readonly merge: StackMerge,
     private readonly claim: Date,
     private readonly now: Date,
+    private readonly calls: CallBudget,
   ) {
     this.at = merge;
   }
@@ -86,6 +180,7 @@ class Run {
     const detail = { pull: pullOf(merge), top: topOf(merge), method: merge.method };
     if (state === "merged") await audit(this.scope.data, "stack_merge.merged", detail);
     else await audit(this.scope.data, "stack_merge.failed", { ...detail, reason });
+    this.ended = { at: this.at, state, reason };
   }
 
   private save(progress: StackProgress): Promise<boolean> {
@@ -101,6 +196,8 @@ class Run {
       return this.end("failed", "timed_out");
     }
     for (let n = 0; n < MAX_STEPS; n++) {
+      // Out of calls with more to do: left in progress for the next run.
+      if (!this.calls.has(STEP_CALLS)) break;
       const moved = await this.step(token);
       if (moved !== "next") return;
     }

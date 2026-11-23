@@ -57,6 +57,7 @@ const changes = {
   mergeCheckRuns: { conclusion: "failure" as const },
   mergeIntents: { state: "cancelled" as const },
   stackMerges: { state: "cancelled" as const },
+  stackMergeLayers: { number: 2 },
   reviewChatMessages: { text: "changed" },
   findingIssues: { url: "https://github.com/octo/api/issues/8" },
   liveRuns: { target: "changed" },
@@ -183,6 +184,11 @@ describe.each(withIds)("%s", (name) => {
     }
     if (["liveGrants", "liveComments"].includes(name)) {
       await db.insert(schema.liveRuns).values({ ...rows.liveRuns("live-run-of-a"), accountId: A });
+    }
+    if (name === "stackMergeLayers") {
+      await db
+        .insert(schema.stackMerges)
+        .values({ ...rows.stackMerges("stack-merge-of-a"), accountId: A });
     }
     if (name === "graphBuilds") {
       await db

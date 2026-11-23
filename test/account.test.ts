@@ -111,6 +111,7 @@ describe("deleting an account", () => {
           "reviewWalkthroughs",
           "reviewChatMessages",
           "findingIssues",
+          "stackMergeLayers",
           "graphBuilds",
           "reviewJobs",
           "replyJobs",
@@ -146,6 +147,10 @@ describe("deleting an account", () => {
       ...rows.findingIssues(id("findingIssues")),
       findingId: id("findings"),
       reviewId: id("reviews"),
+    });
+    await d.insert("stackMergeLayers", {
+      ...rows.stackMergeLayers(id("stackMergeLayers")),
+      mergeId: id("stackMerges"),
     });
     await d.insert("graphBuilds", {
       ...rows.graphBuilds(id("graphBuilds")),

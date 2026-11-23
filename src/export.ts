@@ -66,6 +66,7 @@ export const EXPORTED = {
   mergeCheckRuns: "mergeCheckRuns",
   mergeIntents: "mergeIntents",
   stackMerges: "stackMerges",
+  stackMergeLayers: "stackMergeLayers",
   reviewChatMessages: "reviewChat",
   findingIssues: "findingIssues",
   liveRuns: "liveRuns",

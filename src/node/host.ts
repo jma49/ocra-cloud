@@ -198,6 +198,16 @@ export async function openHost(options: HostOptions) {
         db: shared,
         env: bindings,
         platforms: platformsOf(bindings, options.publicUrl ?? "http://localhost"),
+        // How a merge ended is told with links under publicUrl.
+        out: origin
+          ? {
+              keys: masterKeys(bindings),
+              mailer: options.mailer,
+              linkSecret: bindings.SESSION_SECRET,
+              origin,
+              webhooks: webhookPost,
+            }
+          : undefined,
       }),
     /** Reads the enrolled repositories due their daily reconciliation; how many it claimed. */
     reconcile: () =>

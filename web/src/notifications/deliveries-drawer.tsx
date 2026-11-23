@@ -46,6 +46,7 @@ const EVENT: Record<NotifyDeliveryEvent, string> = {
   checks_failed: "Checks failed",
   review_blocking: "Critical finding",
   merge_when_ready: "Merge when ready",
+  stack_merge: "Stack merge",
   pull_commented: "Comment",
   mentioned: "Mention",
   thread_replied: "Thread reply",

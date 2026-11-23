@@ -24,6 +24,8 @@ import type { HookEvent } from "./webhooks.js";
 // way, then held (./held.ts) instead of sent.
 
 export type EventRepo = Pick<Row<"reviewRepos">, "id" | "platform" | "host" | "fullName">;
+/** Where an event's pull request is: an enrolled repository, or one a stack merge ran on. */
+type EventPlace = Omit<EventRepo, "id">;
 
 /** A pull request event, before it is known to be the account's own. */
 export type PullEvent = {
@@ -105,7 +107,7 @@ async function hearing(
   return channels.map((channel) => ({ channel, quiet: holds && isQuiet(channel, hour) }));
 }
 
-function pullEventMessage(repo: EventRepo, e: PullEvent, origin: string): Message {
+function pullEventMessage(repo: EventPlace, e: PullEvent, origin: string): Message {
   const label = `${repo.fullName}#${e.number}`;
   const url = consolePullUrl(origin, repo, e.number);
   const hook = pullEventHook(repo, e, url);
@@ -122,7 +124,7 @@ function pullEventMessage(repo: EventRepo, e: PullEvent, origin: string): Messag
 }
 
 /** The event as a webhook gets it: the pull request and ocra's line, never the platform's text. */
-function pullEventHook(repo: EventRepo, e: PullEvent, consoleUrl: string): HookEvent {
+function pullEventHook(repo: EventPlace, e: PullEvent, consoleUrl: string): HookEvent {
   const data = {
     pull: { platform: repo.platform, repo: repo.fullName, number: e.number, consoleUrl },
     summary: e.what,
@@ -142,7 +144,7 @@ export async function tellPullEvent(
   db: Db,
   data: Scoped,
   out: Outbox,
-  repo: EventRepo,
+  repo: EventPlace,
   events: readonly PullEvent[],
   now = new Date(),
 ): Promise<string[]> {
@@ -177,7 +179,7 @@ export async function tellPullEvent(
 /** Holds the event for the channel until its quiet hours end: one plain line and its pull request. */
 async function hold(
   data: Scoped,
-  repo: EventRepo,
+  repo: EventPlace,
   ch: Row<"notifyChannels">,
   e: PullEvent,
   now: Date,
@@ -280,7 +282,7 @@ export async function tellOwnPullEvent(
   db: Db,
   data: Scoped,
   out: Outbox,
-  repo: EventRepo,
+  repo: EventPlace,
   event: Omit<PullEvent, "concerns" | "by">,
 ): Promise<string[]> {
   if ((await data.notify.subscribed(event.kind)).length === 0) return [];

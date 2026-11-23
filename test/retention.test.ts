@@ -164,7 +164,7 @@ describe("retention", () => {
     expect(kept).toEqual(["armed-month", "ended-new"]);
   });
 
-  it("deletes a stack merge a month after it was last moved", async () => {
+  it("deletes a stack merge a month after it was last moved, with the layers it held", async () => {
     const { account } = await signIn(1, "octo");
     const d = scoped(db, account.id);
     await d.insert("stackMerges", {
@@ -177,8 +177,16 @@ describe("retention", () => {
       state: "merged",
       updatedAt: ago(29),
     });
+    for (const id of ["old", "new"]) {
+      await d.insert("stackMergeLayers", {
+        ...rows.stackMergeLayers(`layer-${id}`),
+        mergeId: id,
+        fullName: `octo/${id}`,
+      });
+    }
     await enforceRetention(db, now);
     expect((await d.list("stackMerges")).map((r) => r.id)).toEqual(["new"]);
+    expect((await d.list("stackMergeLayers")).map((r) => r.id)).toEqual(["layer-new"]);
   });
 
   it("deletes a pull request's flow, directories, review threads and assignments 90 days after their last event, and reviews by when they were submitted", async () => {
@@ -421,6 +429,7 @@ describe("export and deletion", () => {
         "liveGrants",
         "liveComments",
         "findingIssues",
+        "stackMergeLayers",
       ];
       if (later.includes(table)) continue;
       await d.insert(table as keyof typeof rows, row(`x-${table}`) as never);
@@ -428,6 +437,10 @@ describe("export and deletion", () => {
     await d.insert("findingIssues", {
       ...rows.findingIssues("x-findingIssues"),
       findingId: "x-findings",
+    });
+    await d.insert("stackMergeLayers", {
+      ...rows.stackMergeLayers("x-stackMergeLayers"),
+      mergeId: "x-stackMerges",
     });
     await d.insert("graphBuilds", {
       ...rows.graphBuilds("x-graphBuilds"),

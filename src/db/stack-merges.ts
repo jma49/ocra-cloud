@@ -1,15 +1,19 @@
-import { and, asc, desc, eq, inArray, isNotNull, lt, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, lt, not, notInArray, or } from "drizzle-orm";
 import type { StackMergeReason, StackMergeState } from "../shared/index.js";
 import { changedRows, type Db, first } from "./client.js";
-import { jsonHoldsNumber } from "./dialect.js";
-import { stackMerges } from "./schema.js";
+import { isUniqueViolation, jsonHoldsNumber } from "./dialect.js";
+import { stackMergeLayers, stackMerges } from "./schema.js";
 
 // The account's stack merges (reached through scoped()). One row per stack
-// bottom, started again in place once the last one ended; each step is
-// taken by the one caller whose compare-and-set moved the row from waiting
-// to running, and a lease that lapsed (a runner that died) can be taken
-// again. A cancel moves the row out of running, so the runner's next write,
-// which names its claim, changes nothing.
+// bottom, replaced once the last one ended, and one merge under way per
+// pull request: a merge is inserted together with a row for each layer of
+// its chain (stack_merge_layers, unique per pull request), so of two starts
+// whose chains share a layer the database takes one, whatever bottom each
+// read; the rows go in the statement batch that ends the merge. Each step
+// is taken by the one caller whose compare-and-set moved the row from
+// waiting to running, and a lease that lapsed (a runner that died) can be
+// taken again. A cancel moves the row out of running, so the runner's next
+// write, which names its claim, changes nothing.
 
 export type StackMerge = typeof stackMerges.$inferSelect;
 
@@ -32,8 +36,21 @@ const ACTIVE = ["waiting", "running"] as const;
 /** The repository's path as rows hold it: platforms read paths without case. */
 const stackPath = (fullName: string) => fullName.toLowerCase();
 
+/** A start's answer: the merge it made, or the one under way that holds a layer of its chain. */
+export type StackStart = { merge: StackMerge; started: boolean };
+
 export function accountStackMerges(db: Db, accountId: string) {
   const t = stackMerges;
+  const l = stackMergeLayers;
+  const underWay = db
+    .select({ id: t.id })
+    .from(t)
+    .where(and(eq(t.accountId, accountId), inArray(t.state, ACTIVE)));
+  /** Gives up the layers of a merge that is no longer under way; run in the batch that ends it. */
+  const letGo = (id: string) =>
+    db
+      .delete(l)
+      .where(and(eq(l.accountId, accountId), eq(l.mergeId, id), notInArray(l.mergeId, underWay)));
   const ofRepo = (key: StackKey) =>
     and(
       eq(t.accountId, accountId),
@@ -44,14 +61,6 @@ export function accountStackMerges(db: Db, accountId: string) {
   const claimedBy = (id: string, claim: Date) =>
     and(eq(t.accountId, accountId), eq(t.id, id), eq(t.state, "running"), eq(t.claimedAt, claim));
   return {
-    of: (key: StackKey, bottom: number): Promise<StackMerge | undefined> =>
-      db
-        .select()
-        .from(t)
-        .where(and(ofRepo(key), eq(t.bottom, bottom)))
-        .limit(1)
-        .then(first),
-
     /** The newest merge whose chain holds `number`, whichever layer it is and whatever merged below it. */
     holding: (key: StackKey, number: number): Promise<StackMerge | undefined> =>
       db
@@ -59,6 +68,22 @@ export function accountStackMerges(db: Db, accountId: string) {
         .from(t)
         .where(and(ofRepo(key), jsonHoldsNumber(db, t.chain, "number", number)))
         .orderBy(desc(t.createdAt), desc(t.id))
+        .limit(1)
+        .then(first),
+
+    /** The merge under way that holds one of `numbers`, the oldest if a stack's earlier rows left several. */
+    heldBy: (key: StackKey, numbers: readonly number[]): Promise<StackMerge | undefined> =>
+      db
+        .select()
+        .from(t)
+        .where(
+          and(
+            ofRepo(key),
+            inArray(t.state, ACTIVE),
+            or(...numbers.map((n) => jsonHoldsNumber(db, t.chain, "number", n))),
+          ),
+        )
+        .orderBy(asc(t.createdAt), asc(t.id))
         .limit(1)
         .then(first),
 
@@ -81,49 +106,74 @@ export function accountStackMerges(db: Db, accountId: string) {
     },
 
     /**
-     * Starts a merge of the stack, replacing an earlier one of the same
-     * bottom unless that one is still under way (and its claim has not
-     * lapsed); the row as it now stands.
+     * Starts a merge of the stack unless one under way holds a layer of its
+     * chain, which is then the one answered. The merge and its layers go in
+     * one batch: a layer another start took meanwhile fails all of it.
      */
-    async start(merge: Starting, now: Date): Promise<StackMerge | undefined> {
+    async start(merge: Starting, now: Date): Promise<StackStart | undefined> {
       const [layer] = merge.chain;
       if (!layer) return undefined;
-      const fields = {
-        path: merge.fullName,
-        trunk: merge.trunk,
-        method: merge.method,
-        chain: merge.chain,
-        step: 0,
-        current: layer.number,
-        head: layer.head,
-        updatedFrom: null,
-        restacked: [],
-        startedBy: merge.startedBy,
-        state: "waiting" as const,
-        reason: null,
-        claimedAt: null,
-        finishedAt: null,
-        createdAt: now,
-        updatedAt: now,
-      };
-      await db
-        .insert(t)
-        .values({
-          id: crypto.randomUUID(),
-          accountId,
-          platform: merge.platform,
-          host: merge.host,
-          fullName: stackPath(merge.fullName),
-          bottom: merge.bottom,
-          ...fields,
-        })
-        .onConflictDoUpdate({
-          target: [t.accountId, t.platform, t.host, t.fullName, t.bottom],
-          set: fields,
-          // The conflict is on a key that starts with the account: the row is its own.
-          setWhere: sql`(${t.state} NOT IN ('waiting', 'running') OR (${t.state} = 'running' AND ${t.claimedAt} < ${now.getTime() - STACK_LEASE_MS}))`,
-        });
-      return this.of(merge, merge.bottom);
+      const numbers = merge.chain.map((c) => c.number);
+      const fullName = stackPath(merge.fullName);
+      const place = { accountId, platform: merge.platform, host: merge.host, fullName };
+      // Lost twice only when the holder ended between the refusal and its read.
+      for (let tries = 0; tries < 2; tries++) {
+        const held = await this.heldBy(merge, numbers);
+        if (held) return { merge: held, started: false };
+        const id = crypto.randomUUID();
+        try {
+          await db.batch([
+            // Layers a merge that ended some other way left behind hold nothing.
+            db
+              .delete(l)
+              .where(
+                and(
+                  eq(l.accountId, accountId),
+                  eq(l.platform, merge.platform),
+                  eq(l.host, merge.host),
+                  eq(l.fullName, fullName),
+                  inArray(l.number, numbers),
+                  notInArray(l.mergeId, underWay),
+                ),
+              ),
+            // The stack's last merge ended: this one takes its place.
+            db
+              .delete(t)
+              .where(and(ofRepo(merge), eq(t.bottom, merge.bottom), not(inArray(t.state, ACTIVE)))),
+            db.insert(t).values({
+              ...place,
+              id,
+              path: merge.fullName,
+              bottom: merge.bottom,
+              trunk: merge.trunk,
+              method: merge.method,
+              chain: merge.chain,
+              step: 0,
+              current: layer.number,
+              head: layer.head,
+              restacked: [],
+              startedBy: merge.startedBy,
+              state: "waiting",
+              createdAt: now,
+              updatedAt: now,
+            }),
+            db.insert(l).values(
+              numbers.map((number) => ({
+                ...place,
+                id: crypto.randomUUID(),
+                mergeId: id,
+                number,
+              })),
+            ),
+          ]);
+        } catch (e) {
+          if (!isUniqueViolation(e)) throw e;
+          continue;
+        }
+        const started = await this.byId(id);
+        return started && { merge: started, started: true };
+      }
+      return undefined;
     },
 
     /** Takes the next step of a waiting merge; the claim, for one caller, or null. */
@@ -171,19 +221,31 @@ export function accountStackMerges(db: Db, accountId: string) {
       reason: StackMergeReason | null,
       now: Date,
     ): Promise<boolean> {
-      const done = await db
-        .update(t)
-        .set({ state, reason, claimedAt: null, finishedAt: now, updatedAt: now })
-        .where(claimedBy(id, claim));
+      const [done] = await db.batch([
+        db
+          .update(t)
+          .set({ state, reason, claimedAt: null, finishedAt: now, updatedAt: now })
+          .where(claimedBy(id, claim)),
+        letGo(id),
+      ]);
       return changedRows(done) > 0;
     },
 
     /** Cancels a merge under way; a step already sent to the platform is not undone. */
     async cancel(id: string, now: Date): Promise<boolean> {
-      const cancelled = await db
-        .update(t)
-        .set({ state: "cancelled", reason: null, claimedAt: null, finishedAt: now, updatedAt: now })
-        .where(and(eq(t.accountId, accountId), eq(t.id, id), inArray(t.state, ACTIVE)));
+      const [cancelled] = await db.batch([
+        db
+          .update(t)
+          .set({
+            state: "cancelled",
+            reason: null,
+            claimedAt: null,
+            finishedAt: now,
+            updatedAt: now,
+          })
+          .where(and(eq(t.accountId, accountId), eq(t.id, id), inArray(t.state, ACTIVE))),
+        letGo(id),
+      ]);
       return changedRows(cancelled) > 0;
     },
   };
