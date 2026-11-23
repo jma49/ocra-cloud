@@ -17,6 +17,7 @@ import { getTableConfig, type SQLiteColumn } from "drizzle-orm/sqlite-core";
 import { accountApiTokens } from "./api-tokens.js";
 import { accountAuditEvents } from "./audit-events.js";
 import { accountAutoEnroll } from "./auto-enroll.js";
+import { accountAutoEnrollGroups } from "./auto-enroll-groups.js";
 import { accountAutomations } from "./automations.js";
 import { changedRows, type Db, first } from "./client.js";
 import { accountClosedPulls } from "./closed-pulls.js";
@@ -473,6 +474,7 @@ export function scoped(db: Db, accountId: string) {
     autoReview: accountReviewJobs(db, accountId),
     autoEnroll: accountAutoEnroll(db, accountId),
     repoLifecycle: accountRepoLifecycle(db, accountId),
+    autoEnrollGroups: accountAutoEnrollGroups(db, accountId),
     notify: accountNotify(db, accountId),
     deliveries: accountNotifyDeliveries(db, accountId),
     reports: accountReports(db, accountId),

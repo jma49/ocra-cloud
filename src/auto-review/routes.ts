@@ -25,6 +25,7 @@ import type { AppEnv } from "../types.js";
 import { enrollRepo, MAX_REVIEW_REPOS } from "./enroll.js";
 import { enrollRoute } from "./enroll-routes.js";
 import { generateRoute } from "./generate.js";
+import { groupRoute } from "./group-routes.js";
 import { enrolledGitlabHook, gitlabHookRoute, removeEnrolledHook } from "./hook-routes.js";
 import { pullCommandRoute } from "./pull-command-routes.js";
 import { repoTokenRoute } from "./repo-token-routes.js";
@@ -91,6 +92,7 @@ export function autoReviewRoute(service: AutoReviewService) {
   route.route("/", pullCommandRoute());
   route.route("/", gitlabHookRoute());
   route.route("/", enrollRoute(repoView));
+  route.route("/", groupRoute());
 
   route.get("/repos", requireSession(), async (c) => {
     const [repos, latest] = await Promise.all([

@@ -127,6 +127,12 @@ export type AutoReviewEnrolledView = { repo: AutoReviewRepoView; webhook: AutoRe
 export const MAX_BULK_ENROLL = 20;
 
 /**
+ * GitLab projects one bulk enrollment names at most: each is read twice and
+ * gets its hook, two calls more.
+ */
+export const MAX_BULK_ENROLL_GITLAB = 10;
+
+/**
  * Why a repository of a bulk enrollment was not enrolled: the user does not
  * reach it through the App, another account enrolls it, or this account has
  * as many as it may.
@@ -135,7 +141,13 @@ export type EnrollRefusal = "not_found" | "taken" | "limit";
 
 /** One repository of a bulk enrollment: enrolled now, enrolled before, or refused. */
 export type BulkEnrollResult =
-  | { fullName: string; outcome: "enrolled" | "already"; repo: AutoReviewRepoView }
+  | {
+      fullName: string;
+      outcome: "enrolled" | "already";
+      repo: AutoReviewRepoView;
+      /** A GitLab project enrolled now: its hook as ocra added it, or the problem to add it by hand. */
+      webhook?: AutoReviewWebhookView;
+    }
   | { fullName: string; outcome: "refused"; reason: EnrollRefusal };
 
 export type BulkEnrollView = { results: BulkEnrollResult[] };
@@ -155,6 +167,19 @@ export type AutoEnrollInstallationsView = {
   installations: AutoEnrollInstallationView[];
   more: boolean;
 };
+
+/** A GitLab group the user maintains, and whether this account enrolls its new projects. */
+export type AutoEnrollGroupView = {
+  id: string;
+  /** The group's path, its parents' included. */
+  fullPath: string;
+  enabled: boolean;
+  /** Whether the projects it enrolls are reviewed as their merge requests open; off, only when a person asks. */
+  automatic: boolean;
+};
+
+/** The user's GitLab groups; `more` when GitLab listed more than were read. */
+export type AutoEnrollGroupsView = { groups: AutoEnrollGroupView[]; more: boolean };
 
 /** What the automatic switch of an enrolled repository answers. */
 export type AutoReviewSwitchView = { automatic: boolean };
