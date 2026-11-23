@@ -12,11 +12,11 @@ import {
   type NotifyChannelAdded,
   type NotifyChannelsView,
   type NotifyChannelView,
-  type NotifyEvent,
   type NotifyKind,
   type NotifyWhen,
 } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
+import { useCached } from "../cache.js";
 import { ago } from "../format.js";
 import { DeliveriesDrawer, SecretOnce } from "../notifications/deliveries-drawer.js";
 import { EventsMenu } from "../notifications/events-menu.js";
@@ -27,15 +27,7 @@ import {
 } from "../notifications/reminders-drawer.js";
 import { ReportSlot } from "../notifications/report-slot.js";
 import { StackTable } from "../stack-table.js";
-import {
-  ActionError,
-  EmptyState,
-  LoadError,
-  Loading,
-  PageHead,
-  useAction,
-  useLoad,
-} from "../ui.js";
+import { ActionError, EmptyState, LoadError, Loading, PageHead, useAction } from "../ui.js";
 
 // The chats and email addresses that hear about reviews: a Slack or WeCom
 // incoming webhook, or an address confirmed by the link mailed to it, each
@@ -66,19 +58,23 @@ const json = (method: string, body?: unknown): RequestInit => ({
   ...(body === undefined ? {} : { body: JSON.stringify(body) }),
 });
 
+type ChannelEdit = Partial<Pick<NotifyChannelView, "when" | "digest" | "weekly" | "events">>;
+
 export function Notifications(props: { platforms: readonly CodePlatformKind[] }) {
-  const { data, error, reload } = useLoad(() => api<NotifyChannelsView>("/notifications/channels"));
+  const {
+    data,
+    error,
+    reload,
+    change: shown,
+  } = useCached("/notifications/channels", () =>
+    api<NotifyChannelsView>("/notifications/channels"),
+  );
   const [tested, setTested] = useState<{ id: string; delivered: boolean } | null>(null);
   const [linkSent, setLinkSent] = useState<string | null>(null);
   const [reminding, setReminding] = useState<NotifyChannelView | null>(null);
   const [inspecting, setInspecting] = useState<NotifyChannelView | null>(null);
-  const change = useAction(
-    (
-      id: string,
-      body:
-        | { when?: NotifyWhen; digest?: boolean; weekly?: boolean; events?: NotifyEvent[] }
-        | ReminderChange,
-    ) => api(`/notifications/channels/${id}`, json("PATCH", body)),
+  const change = useAction((id: string, body: ChannelEdit | ReminderChange) =>
+    api(`/notifications/channels/${id}`, json("PATCH", body)),
   );
   const remove = useAction((id: string) => api(`/notifications/channels/${id}`, json("DELETE")));
   const resend = useAction((id: string) =>
@@ -89,6 +85,15 @@ export function Notifications(props: { platforms: readonly CodePlatformKind[] })
   );
   const after = async (p: Promise<unknown>) => {
     if ((await p) !== undefined) reload();
+  };
+  // A switch or choice shows its new value at once; a refused save puts the old one back.
+  const set = async (id: string, edit: ChannelEdit) => {
+    const undo = shown((d) => ({
+      ...d,
+      channels: d.channels.map((c) => (c.id === id ? { ...c, ...edit } : c)),
+    }));
+    if ((await change.run(id, edit)) === undefined) undo();
+    else reload();
   };
   const sendTest = async (id: string) => {
     setTested(null);
@@ -165,9 +170,7 @@ export function Notifications(props: { platforms: readonly CodePlatformKind[] })
                         aria-label={`What ${c.name} hears about`}
                         value={c.when}
                         disabled={change.busy}
-                        onChange={(e) =>
-                          after(change.run(c.id, { when: e.target.value as NotifyWhen }))
-                        }
+                        onChange={(e) => set(c.id, { when: e.target.value as NotifyWhen })}
                       >
                         {NOTIFY_WHEN.map((w) => (
                           <option key={w} value={w}>
@@ -187,7 +190,7 @@ export function Notifications(props: { platforms: readonly CodePlatformKind[] })
                           aria-label={`Daily digest to ${c.name}`}
                           checked={c.digest}
                           disabled={change.busy}
-                          onCheckedChange={() => after(change.run(c.id, { digest: !c.digest }))}
+                          onCheckedChange={() => set(c.id, { digest: !c.digest })}
                         />
                       )}
                     </td>
@@ -202,7 +205,7 @@ export function Notifications(props: { platforms: readonly CodePlatformKind[] })
                           aria-label={`Weekly report to ${c.name}`}
                           checked={c.weekly}
                           disabled={change.busy}
-                          onCheckedChange={() => after(change.run(c.id, { weekly: !c.weekly }))}
+                          onCheckedChange={() => set(c.id, { weekly: !c.weekly })}
                         />
                       )}
                     </td>
@@ -215,7 +218,7 @@ export function Notifications(props: { platforms: readonly CodePlatformKind[] })
                         events={c.events}
                         quietHours={c.quietHours}
                         disabled={change.busy}
-                        change={(events) => after(change.run(c.id, { events }))}
+                        change={(events) => set(c.id, { events })}
                       />
                     </td>
                     <td>
