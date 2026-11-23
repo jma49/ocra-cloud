@@ -169,3 +169,17 @@ export type MergeQueueView = {
    */
   removed: { at: string; by: string | null; reason: string | null } | null;
 };
+
+/**
+ * GET /api/pulls/lines: lines `from` to `from + lines.length - 1` of a file
+ * at a pull request's head, to open the unchanged lines its diff left out.
+ * `total` is the file's length in lines; `lines` is null when the file could
+ * not be read as text (binary, or larger than the console reads).
+ */
+export type PullLinesView = {
+  path: string;
+  head: string;
+  from: number;
+  lines: string[] | null;
+  total: number | null;
+};

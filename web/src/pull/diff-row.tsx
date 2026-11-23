@@ -1,6 +1,9 @@
+import type { Expand } from "./context-lines.js";
 import { anchorOf, type DiffLine } from "./diff.js";
+import type { OpenGap } from "./diff-context.js";
 import type { DiffRow } from "./diff-rows.js";
 import { markRuns, type WordRange } from "./diff-words.js";
+import { GapRow } from "./gap-row.js";
 import type { CodeRun } from "./highlight.js";
 
 // One row of a file's diff, unified or split. Every text is plain text: the
@@ -18,15 +21,23 @@ export type LineLook = {
   words: ReadonlyMap<number, WordRange[]>;
   /** Opens the comment box under a line; undefined where lines take no comment. */
   onOpen: ((line: number) => void) | undefined;
+  /** The left-out lines before each hunk's head, by the head's index, and a way to show them. */
+  gaps: ReadonlyMap<number, OpenGap>;
+  expand: Expand | undefined;
+  busy: number | null;
 };
 
 export function DiffRowView(props: { row: DiffRow; look: LineLook; columns: number }) {
   const { row, look } = props;
   if (row.kind === "hunk") {
     return (
-      <tr className="diff-hunk">
-        <td colSpan={props.columns}>{look.lines[row.line]?.text}</td>
-      </tr>
+      <GapRow
+        text={look.lines[row.line]?.text ?? ""}
+        gap={look.gaps.get(row.line)}
+        busy={look.busy}
+        expand={look.expand}
+        columns={props.columns}
+      />
     );
   }
   if (row.kind === "line") return <UnifiedRow at={row.line} look={look} />;
