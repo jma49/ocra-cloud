@@ -230,7 +230,7 @@ describe("loading and load errors", () => {
     const status = screen.getByRole("status");
     expect(status.getAttribute("aria-busy")).toBe("true");
     expect(status.textContent).toBe("Loading reviews…");
-    expect(container.querySelectorAll(".skeleton-bar")).toHaveLength(3);
+    expect(container.querySelectorAll(".skeleton-row")).toHaveLength(3);
   });
 
   it("Sessions and Memory say when they could not load, and retry", async () => {

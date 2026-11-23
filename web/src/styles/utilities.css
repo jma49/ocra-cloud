@@ -89,26 +89,46 @@
    fast answer never flashes them, and shimmer unless motion is reduced. */
 .skeleton {
   display: grid;
-  gap: 10px;
-  padding: 20px;
+  padding: 4px 0;
   opacity: 0;
   animation: skeleton-in 200ms var(--e-std) 300ms forwards;
 }
+/* A list row's height and padding, a title and a short meta, as rows land. */
+.skeleton-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  height: 40px;
+  padding: 0 16px;
+}
+.skeleton-row + .skeleton-row {
+  border-top: 0.5px solid var(--hair);
+}
 .skeleton-bar {
-  height: 12px;
+  height: 10px;
+  width: 44%;
   border-radius: var(--r-tag);
   background:
     linear-gradient(90deg, var(--fill) 0%, var(--fill2) 50%, var(--fill) 100%) 0 0 / 200% 100%;
   animation: skeleton-shimmer 1.4s linear infinite;
 }
-.skeleton-bar:nth-child(2) {
-  width: 72%;
+.skeleton-bar + .skeleton-bar {
+  width: 64px;
 }
-.skeleton-bar:nth-child(3) {
-  width: 88%;
+.skeleton-row:nth-child(3n) > .skeleton-bar:first-child {
+  width: 58%;
 }
-.skeleton-bar:nth-child(4) {
-  width: 56%;
+.skeleton-row:nth-child(3n + 1) > .skeleton-bar:first-child {
+  width: 32%;
+}
+/* A part of a card with nothing in it yet (EmptyNote). */
+.empty {
+  margin: 0;
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--t3);
+  font-size: var(--text-base);
 }
 @keyframes skeleton-in {
   to {
