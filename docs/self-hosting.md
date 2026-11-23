@@ -85,6 +85,7 @@ Without Docker: `npm ci && npm run build:web && npm run build:node`, then `node 
 | `SMTP_FROM` | with `SMTP_URL` | the address email is sent from, such as `ocra@example.com` |
 | `NODE_EXTRA_CA_CERTS` | for a company certificate authority | its certificate (PEM), which the server and each review's CLI then trust; git reads the system's store or `GIT_SSL_CAINFO` (gitlab.md, Certificates and proxy) |
 | `HTTPS_PROXY`, `HTTP_PROXY`, `NO_PROXY` | behind a proxy | passed, with the certificate variables, to each review's git and CLI |
+| `METRICS_TOKEN` | for `/metrics` | the bearer token a Prometheus scrape sends (`openssl rand -hex 32`; at least 32 characters, no spaces); `/metrics` answers 404 without it (Health and metrics) |
 | `PORT` | no | 8787 |
 | `GATEWAY_DAILY_CALLS`, `REVIEW_DAILY_UPLOADS`, `REVIEW_MAX_FINDINGS`, `DEVICE_DAILY_CODES`, `DEVICE_DAILY_CODES_PER_NETWORK` | no | the Worker's defaults (`wrangler.jsonc`) |
 
@@ -164,6 +165,80 @@ A one-off `migrate` run (`MIGRATE=only`) applies the migrations first; the repli
 ## Incoming webhooks
 
 Each platform delivery whose signature (GitHub) or project secret (GitLab) checks is recorded in `inbound_events` before anything acts on it, unique per platform, host and the platform's delivery id (`X-GitHub-Delivery`; GitLab's `Idempotency-Key`, else `X-Gitlab-Event-UUID`), so a redelivery answers `202` with `"duplicate": true` and does nothing. If the answer itself fails, the record goes and the platform's redelivery is taken. What runs after the answer (the account's notices, merge-when-ready intents and a reviewed pull request's directories) runs from the record, which keeps only the fields those steps read (never a diff, description or the rest of the body) until they are done. A step that throws is tried again a minute, five minutes and half an hour later, four attempts in all, the steps that succeeded not again; a process that stops mid-way leaves the record to the next sweep once its ten-minute lease is over. The Node server sweeps every minute, the Worker in its hourly cron; each attempt is taken by compare-and-set, so several processes never run one twice, and a sweep takes repositories in turn. A platform call that is refused or not answered is not an error here: those steps end as they did before. Records are shared by the deployment, not an account's (a delivery arrives before any account is known, and may concern none), are not in an account's export, and go after 7 days.
+
+## Health and metrics
+
+`GET /api/health` answers `{"ok":true}` without reading anything: Docker's health check, Caddy and deploys call it, so it stays cheap. It says the process answers, nothing more.
+
+`GET /api/health?deep=1` reads the database, on Postgres, SQLite and D1 alike, and answers 200 with `"ok": true`, or 503 with `"ok": false` and `reasons`:
+
+| Reason | Meaning |
+|---|---|
+| `database_error`, `database_timeout` | the database refused a `SELECT 1`, or did not answer it within 5 seconds |
+| `migrations_missing` | a migration this build expects is not applied; `migrations.missing` names up to ten, oldest first. A replica started with `MIGRATE=off` before the `migrate` run finished, or a `migrate` run that failed |
+| `migrations_unrecorded`, `migrations_error`, `migrations_timeout` | the database keeps no record of applied migrations (Drizzle's `__drizzle_migrations`, or D1's `d1_migrations`), or it could not be read |
+| `runner_stale` | with `RUNNER_TOKEN` set: remote runners have reported in this week, but none in the last 5 minutes (a runner asks every few seconds; its row is written once a minute). Before the first runner reports in, there is nothing to check (`runnerSeenAt: null`) |
+
+The body also carries `migrations` (`expected`, `applied`, `missing`, and `unknown`: applied migrations this build does not know, from a newer build, which do not fail the check). Each address may ask for a deep check 20 times a minute (`429 slow_down` past it), so point a readiness probe at it every 10 seconds or more, and keep the liveness probe on the plain one.
+
+With `METRICS_TOKEN` set, `GET /metrics` (beside `/api`, not under it) answers Prometheus' text format to a request that sends `Authorization: Bearer <METRICS_TOKEN>`, compared in constant time; any other answers 401. It counts across the whole deployment, never per account: the only labels are a queue, a kind or a state, so no account, repository, login or secret appears, and each scrape is a few aggregate queries.
+
+| Metric | Labels | Meaning |
+|---|---|---|
+| `ocra_jobs` | `queue`, `state` (`queued`, `running`) | jobs waiting or held by a worker or runner; `queue` is `review`, `reply` (answers to `@ocra` comments), `generate` (generated tests or docstrings) or `graph` (code graph builds) |
+| `ocra_jobs_failed_last_hour` | `queue` | jobs that failed for good in the last hour (a job retried after an error is queued again, not failed) |
+| `ocra_jobs_oldest_queued_seconds` | `queue` | how long the oldest queued job has waited since it was queued; 0 with none |
+| `ocra_deliveries` | `kind` (`webhook`), `state` (`pending`, `failed`) | outgoing webhook deliveries kept still to be delivered, or given up on (a channel keeps its newest; retention drops them after 30 days) |
+| `ocra_delivery_retries_due` | `kind` | pending deliveries whose next attempt is due: the server tries them every minute, so a number that stays up means retries are not running |
+| `ocra_merge_intents` | `state` (`armed`, `merging`) | merge-when-ready intents not yet ended |
+| `ocra_process_uptime_seconds` | | seconds since this process started |
+| `ocra_build_info` | `engine`, `schema` | always 1: the engine (CLI) version the server runs reviews with, and the newest migration this build expects |
+| `ocra_metrics_collector_up` | `collector` (`jobs`, `deliveries`, `merge_intents`) | 1 when the collector read the database on this scrape, 0 when it failed (the failure is logged, the other collectors still answer) |
+
+Each process answers for the database it shares with the others, so with several processes, scrape one, or keep `ocra_process_uptime_seconds` and `ocra_build_info` from each and the rest from any. The Worker serves no `/metrics`: its reads would spend D1's daily rows.
+
+A scrape and alert rules to start from (tune the thresholds to the deployment):
+
+```yaml
+scrape_configs:
+  - job_name: ocra
+    scheme: https
+    metrics_path: /metrics
+    authorization: { type: Bearer, credentials_file: /etc/prometheus/ocra-metrics-token }
+    static_configs: [{ targets: ["ocra.example.com"] }]
+
+groups:
+  - name: ocra
+    rules:
+      - alert: OcraReviewQueueStuck
+        expr: ocra_jobs_oldest_queued_seconds{queue="review"} > 900
+        for: 5m
+        annotations: { summary: "A review has waited over 15 minutes: no worker or runner is taking jobs" }
+      - alert: OcraJobsFailing
+        expr: sum by (queue) (ocra_jobs_failed_last_hour) > 5
+        for: 10m
+        annotations: { summary: "{{ $labels.queue }} jobs are failing" }
+      - alert: OcraWebhookRetriesBehind
+        expr: ocra_delivery_retries_due{kind="webhook"} > 0
+        for: 10m
+        annotations: { summary: "Webhook retries are due but not being sent" }
+      - alert: OcraWebhookDeliveriesFailing
+        expr: delta(ocra_deliveries{kind="webhook",state="failed"}[1h]) > 3
+        annotations: { summary: "Webhook deliveries are being given up on" }
+      - alert: OcraMergeStuck
+        expr: ocra_merge_intents{state="merging"} > 0
+        for: 15m
+        annotations: { summary: "A merge when ready has been merging for 15 minutes" }
+      - alert: OcraMetricsCollectorDown
+        expr: ocra_metrics_collector_up == 0
+        for: 5m
+      - alert: OcraDown
+        expr: up{job="ocra"} == 0
+        for: 2m
+      - alert: OcraRestarting
+        expr: resets(ocra_process_uptime_seconds[30m]) > 2
+        annotations: { summary: "The server keeps restarting" }
+```
 
 ## Code graphs
 
