@@ -2,7 +2,7 @@ import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { clearCache } from "../cache.js";
 import { ReviewDetail } from "./ReviewDetail.js";
-import { dismissalLine } from "./review-finding.js";
+import { PlatformThread } from "./review-finding.js";
 
 afterEach(async () => {
   cleanup();
@@ -168,15 +168,26 @@ describe("what happened to a finding's thread on the platform", () => {
     truncated: false,
   };
 
-  it("says who resolved or reopened it, and the reply kept as the reason", () => {
-    expect(dismissalLine({ ...none, state: "resolved", by: "rita" })).toBe(
-      "Thread resolved on the platform by rita",
+  const lines = (d: Parameters<typeof PlatformThread>[0]["d"]) => {
+    cleanup();
+    const { container } = render(<PlatformThread d={d} />);
+    return Array.from(container.querySelectorAll("p"), (p) => p.textContent);
+  };
+  const hourAgo = new Date(Date.now() - 3_600_000).toISOString();
+
+  it("says who resolved or reopened it and when, and the reply kept as the reason", () => {
+    expect(lines({ ...none, state: "resolved", by: "rita", at: hourAgo })).toEqual([
+      "Resolved by rita, 1h ago",
+    ]);
+    expect(lines({ ...none, state: "unresolved", reason: "By design.", reasonBy: "lena" })).toEqual(
+      ["Reopened", "By design.", "lena"],
     );
+    expect(lines({ ...none, reason: "By design." })).toEqual(["By design.", "A reply"]);
+  });
+
+  it("says when the server replaced a secret-looking string of the reply, or cut it", () => {
     expect(
-      dismissalLine({ ...none, state: "unresolved", reason: "By design.", reasonBy: "lena" }),
-    ).toBe("Thread reopened on the platform. lena: By design.");
-    expect(dismissalLine({ ...none, reason: "By design.", reasonBy: "lena" })).toBe(
-      "lena: By design.",
-    );
+      lines({ ...none, reason: "x", reasonBy: "lena", redacted: true, truncated: true }),
+    ).toEqual(["x", "lena · a secret-looking string was replaced, cut short"]);
   });
 });
