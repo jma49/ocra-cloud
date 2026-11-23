@@ -1,5 +1,7 @@
+import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { resetDb } from "./helpers.js";
+import { reviewRepos } from "../src/db/schema.js";
+import { db, resetDb } from "./helpers.js";
 import { GITLAB } from "./platform-fakes.js";
 import { account, hourly } from "./reconcile-fakes.js";
 
@@ -306,5 +308,26 @@ describe("the daily reconciliation of reviews", () => {
     const byId = await asks(a);
     expect(byId.get("12")).toMatchObject({ requestedAt: webhookAsk, doneAt });
     expect(byId.get("13")).toMatchObject({ requestedAt: webhookAsk, doneAt: null });
+  });
+
+  it("keeps a repository whose platform the deployment does not serve for the next day", async () => {
+    const a = await account(1, [{ name: "octo/api" }]);
+    await db
+      .update(reviewRepos)
+      .set({ host: "git.example.test" })
+      .where(eq(reviewRepos.id, a.repo("octo/api")));
+    platformsWith({});
+    const claimed = async () =>
+      (
+        await db
+          .select()
+          .from(reviewRepos)
+          .where(eq(reviewRepos.id, a.repo("octo/api")))
+      )[0]?.reconciledAt;
+    await hourly();
+    const first = await claimed();
+    expect(first).toBeInstanceOf(Date);
+    await hourly();
+    expect(await claimed()).toEqual(first);
   });
 });
