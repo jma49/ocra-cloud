@@ -66,23 +66,22 @@
   margin-left: auto;
   font-weight: 400;
 }
-/* A row per reviewer task; the list scrolls once a large change opens many. */
+/* A row per reviewer task; the list scrolls once a large change opens many.
+   A mark sits on the stage dots' axis, a name on the stage names' edge. */
 .live-tasks {
   list-style: none;
-  margin: 0;
+  margin: 0 0 0 -4px;
   padding: 0;
   display: grid;
   gap: 8px;
   max-height: 232px;
   overflow-y: auto;
 }
-/* The mark sits on the stage dots' axis, the name on the stage names' edge. */
 .live-task {
   display: flex;
   align-items: center;
   gap: 4px;
   min-width: 0;
-  margin-left: -4px;
 }
 .live-task-name {
   flex: 1;
