@@ -96,6 +96,24 @@ const teamAsk = (at: Date, slug = "core", teamId = 300, action = "review_request
   repository: { id: 11, owner: { login: "acme" } },
 });
 
+const directAsk = (at: Date, action = "review_requested") => ({
+  action,
+  number: 5,
+  pull_request: { title: "Pull 5", updated_at: at.toISOString() },
+  requested_reviewer: { id: ME, login: "mona", type: "User" },
+  sender: { id: OTHER, login: "hubot", type: "User" },
+  repository: { id: 11, owner: { login: "acme" } },
+});
+
+/** ME's review of pull 5, as the App's webhook records it. */
+const myReview = (at: Date) =>
+  recordGithubRequest(db, "github.com", "pull_request_review", {
+    action: "submitted",
+    review: { user: { id: ME }, submitted_at: at.toISOString() },
+    pull_request: { number: 5 },
+    repository: { id: 11 },
+  });
+
 /** The webhook's part and its tell step, as the App's delivery runs them. */
 async function deliver(body: object, bots: BotTokens | undefined) {
   await recordGithubRequest(db, "github.com", "pull_request", body, now);
@@ -112,6 +130,39 @@ describe("a review asked of a team", () => {
     await deliver(teamAsk(ago(1), "web", 301), bots);
     expect(posted).toHaveLength(1);
     expect(posted[0]).toContain("hubot asked acme/core, a team you are on, for a review");
+  });
+
+  it("tells the user once when asked of them and of their team, whichever comes first", async () => {
+    await setUp(["review_requested"]);
+    const { bots } = app([ME]);
+    const posted = chats();
+    await deliver(directAsk(ago(3)), bots);
+    await deliver(teamAsk(ago(3)), bots);
+    expect(posted).toHaveLength(1);
+    expect(posted[0]).toContain("hubot asked for your review");
+
+    await resetDb();
+    await setUp(["review_requested"]);
+    posted.length = 0;
+    await deliver(teamAsk(ago(3)), bots);
+    await deliver(directAsk(ago(2)), bots);
+    expect(posted).toHaveLength(1);
+    expect(posted[0]).toContain("a team you are on");
+  });
+
+  it("tells the user again in the round after their review, never of an ask from before it", async () => {
+    await setUp(["review_requested"]);
+    const { bots } = app([ME]);
+    const posted = chats();
+    await deliver(directAsk(ago(4)), bots);
+    await myReview(ago(3));
+    // The team's ask of the round that ended, delivered late.
+    await deliver(teamAsk(ago(3.5)), bots);
+    expect(posted).toHaveLength(1);
+    await deliver(directAsk(ago(2)), bots);
+    await deliver(teamAsk(ago(1)), bots);
+    expect(posted).toHaveLength(2);
+    expect(posted[1]).toContain("hubot asked for your review");
   });
 
   it("tells nobody who is not on the team", async () => {

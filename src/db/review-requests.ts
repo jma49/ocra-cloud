@@ -128,6 +128,48 @@ export function accountReviewRequests(db: Db, accountId: string) {
     },
 
     /**
+     * When u's last round of review on the pull request ended, ms since the
+     * epoch: the latest end of an ask of u, or of a team the kept copy names
+     * u on; 0 when none has ended. A notice of an ask is claimed under it.
+     */
+    async roundOf(u: PlatformUser, reviewRepoId: string, number: number): Promise<number> {
+      const teams = memberIdOk(u.userId);
+      const direct = eq(r.reviewerId, u.userId);
+      const [row] = await db
+        .select({ at: sql<number>`coalesce(max(${r.doneAt}), 0)`.mapWith(Number) })
+        .from(r)
+        .leftJoin(
+          t,
+          teams
+            ? and(
+                eq(t.accountId, accountId),
+                eq(t.platform, u.platform),
+                eq(t.host, u.host),
+                eq(t.reviewerId, r.reviewerId),
+              )
+            : sql`1 = 0`,
+        )
+        .where(
+          and(
+            eq(r.accountId, accountId),
+            eq(r.reviewRepoId, reviewRepoId),
+            eq(r.number, number),
+            teams
+              ? or(
+                  direct,
+                  and(
+                    like(r.reviewerId, `${TEAM_PREFIX}%`),
+                    isNotNull(t.id),
+                    hasMember(t.members, u.userId),
+                  ),
+                )
+              : direct,
+          ),
+        );
+      return row?.at ?? 0;
+    },
+
+    /**
      * The open pull requests that asked u's review, or a team's u is on,
      * between from and to and still wait for it, waiting longest first, one
      * per pull request (an ask of u before a team's); drafts are left out.
