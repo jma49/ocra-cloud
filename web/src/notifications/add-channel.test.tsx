@@ -50,7 +50,7 @@ describe("adding a channel", () => {
     fill();
     expect(
       screen.getByText(
-        /If this is a member of the workspace, they get a direct message with a link to confirm first/,
+        /A member of the workspace gets a direct message with a link to confirm first/,
       ),
     ).toBeTruthy();
     await add();
@@ -98,6 +98,19 @@ describe("adding a channel", () => {
     await add();
     expect(screen.getByRole("alert").textContent).toBe(
       "Could not add it: Slack did not answer; try again.",
+    );
+  });
+
+  it("says the day's Slack lookups are used up, not that requests came too fast", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ error: "daily_limit", limit: 20 }, { status: 429 })),
+    );
+    form();
+    fill();
+    await add();
+    expect(screen.getByRole("alert").textContent).toBe(
+      "Could not add it: this account has used today's Slack member lookups; try again tomorrow.",
     );
   });
 });

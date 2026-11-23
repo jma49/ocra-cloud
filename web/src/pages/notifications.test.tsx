@@ -224,4 +224,23 @@ describe("a pull request's time", () => {
     expect(span(30 * 3_600_000)).toBe("30h");
     expect(span(3 * 86_400_000)).toBe("3d");
   });
+
+  it("shows the end of a webhook address, never the end of an inbox or a member", async () => {
+    const channels = [
+      channel,
+      { ...channel, id: "n2", kind: "email", name: "My inbox", last4: ".com" },
+      { ...channel, id: "n3", kind: "slack_dm", name: "Ada", last4: "B3CD" },
+    ];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        Response.json(url === "/api/notifications/report" ? SLOT : { channels }),
+      ),
+    );
+    render(<Notifications platforms={["github"]} />);
+    await screen.findByText("My inbox");
+    expect(screen.getByText("…Xy9Q")).toBeTruthy();
+    expect(screen.queryByText("….com")).toBeNull();
+    expect(screen.queryByText("…B3CD")).toBeNull();
+  });
 });
