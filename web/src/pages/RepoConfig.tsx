@@ -134,7 +134,7 @@ function Editor(props: { view: RepoConfigView; at: RepoChoice; reload: () => voi
       {change && <ChangeOutcome change={change} branch={view.branch} />}
       <form className="card section" aria-label={view.path} onSubmit={submit}>
         <div className="card-head">
-          <h3>
+          <h2>
             <span className="mono">{view.path}</span>{" "}
             <span className="muted">
               on {view.branch}
@@ -144,7 +144,7 @@ function Editor(props: { view: RepoConfigView; at: RepoChoice; reload: () => voi
                   ? ` · changed ${ago(view.lastCommit.at)}`
                   : ""}
             </span>
-          </h3>
+          </h2>
           {change?.outcome === "conflict" && (
             <Button type="button" variant="outline" size="sm" onClick={props.reload}>
               Read it again

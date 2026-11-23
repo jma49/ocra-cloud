@@ -147,7 +147,9 @@ export function Notifications(props: { platforms: readonly CodePlatformKind[] })
                   <th>My pull requests</th>
                   <th>Reminders</th>
                   <th>Last message</th>
-                  <th />
+                  <th>
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>

@@ -171,7 +171,7 @@ export function Automations(props: { me: Me }) {
       {list.length > 0 && <DryRun queued={queued} repos={repoChoices} />}
       <div className="card section">
         <div className="card-head">
-          <h3>Recent runs</h3>
+          <h2>Recent runs</h2>
         </div>
         {runs.error && !runs.data ? (
           <LoadError what="the runs" error={runs.error} retry={runs.reload} inCard />

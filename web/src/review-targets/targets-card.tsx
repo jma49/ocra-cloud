@@ -109,7 +109,7 @@ export function ReviewTargetsCard() {
   return (
     <section className="section card" id="review-targets" aria-label="Review targets">
       <div className="card-head">
-        <h3>Review targets</h3>
+        <h2>Review targets</h2>
       </div>
       <div className="card-pad stack">
         <p className="muted small m-0">

@@ -36,7 +36,7 @@ export function CallsCard(props: { budget: Budget; onSaved: () => void }) {
   return (
     <div className="card">
       <div className="card-head">
-        <h3>Daily calls</h3>
+        <h2>Daily calls</h2>
         <span className="subtle small">Model calls the gateway forwards for you</span>
       </div>
       <div className="card-pad stack">

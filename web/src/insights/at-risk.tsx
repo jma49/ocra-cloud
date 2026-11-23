@@ -30,9 +30,9 @@ export function AtRiskSection() {
   return (
     <section className="section card" aria-label="At risk">
       <div className="card-head">
-        <h3>
+        <h2>
           At risk <span className="subtle">open pull requests near or past a review target</span>
-        </h3>
+        </h2>
         {repos.length > 1 && (
           <select
             className="input at-risk-repo"

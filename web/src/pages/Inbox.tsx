@@ -316,7 +316,7 @@ function Section(props: {
           onClick={props.toggle}
         >
           <span className="fold" aria-hidden="true" />
-          <h3>{s.title}</h3>
+          <h2>{s.title}</h2>
           <span className="count">{s.rows.length}</span>
         </button>
         {props.menu}

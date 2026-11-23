@@ -51,18 +51,18 @@ const REASON: Record<string, string> = {
 };
 const rate = (r: number | null) => (r === null ? "–" : `${Math.round(r * 100)}%`);
 
-function Breakdown(props: { title: string; rows: Row[]; none: string }) {
+function Breakdown(props: { title: string; column: string; rows: Row[]; none: string }) {
   if (props.rows.length === 0) return null;
   return (
     <div className="section card">
       <div className="card-head">
-        <h3>{props.title}</h3>
+        <h2>{props.title}</h2>
       </div>
       <div className="table-wrap">
         <table>
           <thead>
             <tr>
-              <th />
+              <th>{props.column}</th>
               <th className="num">Findings</th>
               <th className="num hide-narrow">Open</th>
               <th className="num">Fixed</th>
@@ -155,10 +155,20 @@ export function Insights(props: { runner: boolean; platforms: readonly CodePlatf
               />
             </Suspense>
           </div>
-          <Breakdown title="By reviewer" rows={data.byReviewer} none="(none)" />
-          <Breakdown title="By severity" rows={data.bySeverity} none="(none)" />
-          <Breakdown title="By verification" rows={data.byVerification} none="Not verified" />
-          <Breakdown title="By category (top 20)" rows={data.byCategory} none="No category" />
+          <Breakdown title="By reviewer" column="Reviewer" rows={data.byReviewer} none="(none)" />
+          <Breakdown title="By severity" column="Severity" rows={data.bySeverity} none="(none)" />
+          <Breakdown
+            title="By verification"
+            column="Verification"
+            rows={data.byVerification}
+            none="Not verified"
+          />
+          <Breakdown
+            title="By category (top 20)"
+            column="Category"
+            rows={data.byCategory}
+            none="No category"
+          />
         </>
       )}
       <ImpactSection days={days} quiet={runs.data?.summary.reviews === 0} />

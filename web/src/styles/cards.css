@@ -23,7 +23,7 @@
 .card-head + .card-pad {
   padding-top: 8px;
 }
-.card-head h3 {
+.card-head h2 {
   font-size: var(--text-base);
   font-weight: 600;
 }

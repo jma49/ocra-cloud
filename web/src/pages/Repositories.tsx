@@ -142,7 +142,7 @@ function PlatformsSection(props: { me: Me; data: PlatformRepos }) {
   return (
     <div className="card">
       <div className="card-head">
-        <h3>Connected platforms</h3>
+        <h2>Connected platforms</h2>
       </div>
       {props.data.platforms.map((p) => (
         <div className="list-row row-top" key={`${p.platform}:${p.host}`}>
@@ -285,7 +285,7 @@ export function Repositories(props: { me: Me }) {
         <Loading what="repositories" />
       ) : data.repositories.length === 0 ? (
         <div className="section card empty-hero">
-          <h3>No repositories yet</h3>
+          <h2>No repositories yet</h2>
           <p>
             Run a signed-in review (ocra login, then ocra review) and its repository appears here.
           </p>

@@ -20,7 +20,7 @@ export function ReviewSettings() {
 
       <div className="card">
         <div className="card-head">
-          <h3>Cost and limits</h3>
+          <h2>Cost and limits</h2>
           <span className="subtle small">A repository's limit always wins over yours.</span>
         </div>
         <Row
@@ -86,7 +86,7 @@ export function ReviewSettings() {
 
       <div className="section card">
         <div className="card-head">
-          <h3>Checking findings</h3>
+          <h2>Checking findings</h2>
         </div>
         <Row label="Verify" desc="Fact-check each finding against the code before reporting it.">
           <TriSwitch
@@ -119,7 +119,7 @@ export function ReviewSettings() {
 
       <div className="section card">
         <div className="card-head">
-          <h3>Context</h3>
+          <h2>Context</h2>
           <span className="subtle small">What reviewers read besides the change.</span>
         </div>
         <Row
@@ -137,7 +137,7 @@ export function ReviewSettings() {
 
       <div className="section card">
         <div className="card-head">
-          <h3>Files</h3>
+          <h2>Files</h2>
           <span className="subtle small">Globs, matched against paths in the change.</span>
         </div>
         <Row label="Only these files" desc="When set, files outside these globs are not reviewed.">
@@ -163,7 +163,7 @@ export function ReviewSettings() {
 
       <div className="section card">
         <div className="card-head">
-          <h3>Sampling</h3>
+          <h2>Sampling</h2>
           <span className="subtle small">Not sent to a call that asks for reasoning effort.</span>
         </div>
         <Row label="Temperature" desc="0–2; unset uses each provider's default.">

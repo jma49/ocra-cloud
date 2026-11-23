@@ -1,6 +1,8 @@
 /* Tables and lists: tables, list rows, provider logos, empty and error states. */
 /* Tables and lists */
 .table-wrap {
+  /* Holds its .sr-only headers, which would otherwise widen the page. */
+  position: relative;
   overflow-x: auto;
 }
 table {

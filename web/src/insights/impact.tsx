@@ -44,10 +44,10 @@ export function ImpactSection(props: { days: number; quiet?: boolean }) {
   return (
     <section className="section card" aria-label="What ocra changed">
       <div className="card-head">
-        <h3>
+        <h2>
           What ocra changed{" "}
           <span className="subtle">in the repositories it reviewed, {props.days} days</span>
-        </h3>
+        </h2>
       </div>
       {error && !data ? (
         <div className="card-pad">

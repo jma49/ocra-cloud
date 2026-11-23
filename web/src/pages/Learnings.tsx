@@ -83,12 +83,12 @@ function RepoLearnings(props: { at: RepoChoice }) {
       ) : (
         <div className="card section">
           <div className="card-head">
-            <h3>
+            <h2>
               On {page.data.branch}{" "}
               <span className="muted">
                 {page.data.total} · <span className="mono">{page.data.commit.slice(0, 7)}</span>
               </span>
-            </h3>
+            </h2>
             <Button type="button" variant="outline" size="sm" onClick={() => setEditing("new")}>
               <AddGlyph size={14} /> New learning
             </Button>

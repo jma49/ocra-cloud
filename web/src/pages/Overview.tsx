@@ -69,7 +69,7 @@ export function Overview(props: { login: string }) {
       <div className="section">
         <div className="card">
           <div className="card-head">
-            <h3>Requests, last 14 days</h3>
+            <h2>Requests, last 14 days</h2>
             <Button variant="outline" size="sm" render={<Link to="/activity" />}>
               View activity
             </Button>

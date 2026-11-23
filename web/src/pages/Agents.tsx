@@ -152,7 +152,7 @@ export function Agents() {
 
       <div className="section card">
         <div className="card-head">
-          <h3>Tier defaults</h3>
+          <h2>Tier defaults</h2>
           <span className="subtle small">
             Every agent uses its tier unless set below. Later models are fallbacks.
           </span>
@@ -187,7 +187,7 @@ export function Agents() {
 
       <div className="section card">
         <div className="card-head">
-          <h3>Agents</h3>
+          <h2>Agents</h2>
           <span className="subtle small">
             The verifier and judge never inherit a reviewer's model.
           </span>

@@ -88,7 +88,9 @@ export function Keys() {
                   <th className="hide-narrow">Last used</th>
                   <th className="num hide-narrow">Requests, 7d</th>
                   <th className="hide-narrow">Added</th>
-                  <th />
+                  <th>
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>

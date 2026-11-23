@@ -44,7 +44,7 @@ export function Activity() {
 
       <div className="section card">
         <div className="card-head">
-          <h3>By model</h3>
+          <h2>By model</h2>
           <Seg
             label="Measure"
             value={metric}
@@ -65,7 +65,7 @@ export function Activity() {
       {usage && usage.models.length > 0 && (
         <div className="section card">
           <div className="card-head">
-            <h3>Models</h3>
+            <h2>Models</h2>
           </div>
           <div className="table-wrap">
             <table>
@@ -96,7 +96,7 @@ export function Activity() {
 
       <div className="section card">
         <div className="card-head">
-          <h3>Recent requests</h3>
+          <h2>Recent requests</h2>
           {usage && usage.calls.length > 0 && (
             <span className="subtle small">latest {usage.calls.length}</span>
           )}
