@@ -34,6 +34,7 @@ it("lists each requirement with its state, and hides when the pull request is cl
     codeOwners: [],
     staleApprovals: [],
     otherRules: [],
+    canUpdateBranch: false,
   };
   vi.stubGlobal(
     "fetch",
@@ -79,6 +80,7 @@ it("stays calm when the rest cannot be read, and names owner groups and stale ap
     ],
     staleApprovals: ["grace"],
     otherRules: ["merge_queue", "required_signatures", "pull_request_title"],
+    canUpdateBranch: false,
   });
   render(<Box />);
   expect((await screen.findByText("Nothing in the way")).className).toBe("badge");

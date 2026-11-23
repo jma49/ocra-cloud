@@ -29,6 +29,7 @@ export type GithubPull = {
   decision?: string | null;
   draft?: boolean;
   mergeable?: string;
+  mergeStateStatus?: string;
   reviews?: Review[];
   files?: string[];
   threads?: boolean[];
@@ -105,6 +106,7 @@ export function githubPull(p: GithubPull = {}) {
               state: p.state ?? "OPEN",
               isDraft: p.draft ?? false,
               mergeable: p.mergeable ?? "MERGEABLE",
+              mergeStateStatus: p.mergeStateStatus ?? "BLOCKED",
               reviewDecision: p.decision === undefined ? "REVIEW_REQUIRED" : p.decision,
               title: p.title ?? "fix: cap refunds",
               body: "",

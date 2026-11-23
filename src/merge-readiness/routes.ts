@@ -39,6 +39,7 @@ pullReadiness.get("/readiness", requireSession(["web"]), perMinute("platform"), 
       codeOwners: [],
       staleApprovals: [],
       otherRules: [],
+      canUpdateBranch: false,
     } satisfies PullReadinessView);
   }
   let premerge: PremergeOutcome = "none";
@@ -71,5 +72,6 @@ pullReadiness.get("/readiness", requireSession(["web"]), perMinute("platform"), 
     })),
     staleApprovals: facts.reviews.approvals.filter((a) => !a.atHead).map((a) => a.login),
     otherRules: facts.otherRules,
+    canUpdateBranch: facts.behind === true && facts.conflicts !== true,
   } satisfies PullReadinessView);
 });

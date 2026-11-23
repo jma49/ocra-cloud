@@ -71,6 +71,7 @@ export const KIND_GROUPS: { label: string; kinds: [AuditKind, string][] }[] = [
       ["pull.fix_applied", "Fix applied"],
       ["pull.reviewers_changed", "Reviewers changed"],
       ["pull.assignees_changed", "Assignees changed"],
+      ["pull.branch_updated", "Branch updated"],
       ["merge_when_ready.armed", "Merge when ready set"],
       ["merge_when_ready.cancelled", "Merge when ready cancelled"],
       ["merge_when_ready.merged", "Merged when ready"],
@@ -188,6 +189,8 @@ export function describe(e: AuditEventView): string {
       return `Changed the reviewers of ${named(e.detail.pull, "a pull request")}${people(e.detail)}`;
     case "pull.assignees_changed":
       return `Changed the assignees of ${named(e.detail.pull, "a pull request")}${people(e.detail)}`;
+    case "pull.branch_updated":
+      return `Updated the branch of ${named(e.detail.pull, "a pull request")} from its base`;
     case "merge_when_ready.armed":
       return `Set ${named(e.detail.pull, "a pull request")} to merge when ready${noted(e.detail.method)}`;
     case "merge_when_ready.cancelled":

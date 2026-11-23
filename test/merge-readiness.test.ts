@@ -202,6 +202,19 @@ describe("merge readiness on GitHub", () => {
     ]);
   });
 
+  it("offers a branch update when GitHub holds a branch behind its base, not one that conflicts", async () => {
+    const offered = async (pull: GithubPull) => {
+      vi.restoreAllMocks();
+      githubPull(pull);
+      const a = await signInWithGithub();
+      return (await readiness(a.send, "platform=github&repo=octo/api&number=7")).canUpdateBranch;
+    };
+    expect(await offered({ mergeStateStatus: "BEHIND" })).toBe(true);
+    expect(await offered({ mergeStateStatus: "BLOCKED" })).toBe(false);
+    expect(await offered({ mergeStateStatus: "DIRTY", mergeable: "CONFLICTING" })).toBe(false);
+    expect(await offered({ mergeStateStatus: "BEHIND", state: "MERGED" })).toBe(false);
+  });
+
   it("lists nothing for a merged pull request and refuses a bad reference", async () => {
     githubPull({ state: "MERGED" });
     const a = await signInWithGithub();
@@ -341,6 +354,14 @@ describe("merge readiness on GitLab", () => {
     ]);
     expect(calls.filter((u) => u.includes("/repository/files/"))).toEqual([]);
     expect(calls.length).toBeLessThanOrEqual(6);
+  });
+
+  it("offers a branch update where GitLab says a rebase is needed", async () => {
+    gitlabMr({ premium: false, status: "need_rebase", project: {} });
+    const a = await signInWithGithub();
+    await (await connectGitlab(a))("code=c&state=STATE");
+    const view = await readiness(a.send, "platform=gitlab&repo=Group/Sub/Project&number=7");
+    expect(view.canUpdateBranch).toBe(true);
   });
 
   it("matches CODEOWNERS at the base where the rules are refused, and never guesses", async () => {

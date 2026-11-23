@@ -38,6 +38,8 @@ type Pull = {
   state: "OPEN" | "MERGED" | "CLOSED";
   isDraft: boolean;
   mergeable: "MERGEABLE" | "CONFLICTING" | "UNKNOWN";
+  /** Absent from an answer that predates it. */
+  mergeStateStatus?: string;
   reviewDecision: "APPROVED" | "REVIEW_REQUIRED" | "CHANGES_REQUESTED" | null;
   title: string;
   body: string | null;
@@ -89,7 +91,7 @@ const READINESS = `query($owner: String!, $name: String!, $number: Int!) {
   repository(owner: $owner, name: $name) {
     databaseId
     pullRequest(number: $number) {
-      state isDraft mergeable reviewDecision
+      state isDraft mergeable mergeStateStatus reviewDecision
       title body headRefOid baseRefName changedFiles additions deletions
       baseRef {
         branchProtectionRule {
@@ -229,6 +231,10 @@ export function githubReadiness(host: GithubHost, post: GithubGraphql): PullRead
         platformRepoId: String(repo.databaseId),
         draft: pull.isDraft,
         conflicts: pull.mergeable === "UNKNOWN" ? null : pull.mergeable === "CONFLICTING",
+        behind:
+          !pull.mergeStateStatus || pull.mergeStateStatus === "UNKNOWN"
+            ? null
+            : pull.mergeStateStatus === "BEHIND",
         branchRule,
         rulesets: rulesets.read,
         otherRules: rulesets.unjudged,

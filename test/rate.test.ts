@@ -173,3 +173,20 @@ describe("the per-minute limit on the inbox", () => {
     expect(upstream).not.toHaveBeenCalled();
   });
 });
+
+describe("the per-minute limit on a pull request's branch update", () => {
+  it("refuses it past the limit, without calling the platform", async () => {
+    const { auth, account } = await signIn(1, "octo");
+    const upstream = vi.spyOn(globalThis, "fetch").mockClear();
+    const rate = limiter(0);
+    const json = { platform: "github", repo: "octo/api", number: 7, head: "a".repeat(40) };
+    const refused = await send(
+      "/api/pulls/update-branch",
+      { method: "POST", auth, json },
+      rate.binding,
+    );
+    expect(refused).toMatchObject({ status: 429, body: { error: "slow_down" } });
+    expect(rate.keys).toEqual([`platform:${account.id}`]);
+    expect(upstream).not.toHaveBeenCalled();
+  });
+});

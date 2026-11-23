@@ -1,4 +1,10 @@
-import type { PullActionOutcome, PullLabel, PullState } from "../shared/index.js";
+import type {
+  BranchUpdateOutcome,
+  PullActionOutcome,
+  PullLabel,
+  PullState,
+} from "../shared/index.js";
+import { platformLimitedUntil } from "./rate-limit.js";
 
 // A pull request's labels and draft state, read and changed as the
 // signed-in user. Each answers null when the platform could not be reached.
@@ -25,7 +31,24 @@ export interface PullEdits {
     number: number,
     draft: boolean,
   ): Promise<PullActionOutcome | null>;
+  /**
+   * Brings the branch up to date with its base, if its head is still
+   * `head`: `head_moved`, unsent, when it is not.
+   */
+  updateBranch(
+    token: string,
+    fullName: string,
+    number: number,
+    head: string,
+  ): Promise<BranchUpdateOutcome | "head_moved" | null>;
 }
+
+/**
+ * A refusal to push as `forbidden`, but one the platform made because the
+ * user's allowance is used up: null, which the request answers as that.
+ */
+export const forbiddenUnlessLimited = (): "forbidden" | null =>
+  platformLimitedUntil() === null ? "forbidden" : null;
 
 /** A platform's label colour as `#rrggbb`: GitHub writes it without the `#`. */
 export function labelColor(color: unknown): string | null {
