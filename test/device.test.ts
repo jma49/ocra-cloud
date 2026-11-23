@@ -25,7 +25,7 @@ const post = (
 ) => call(path, { method: "POST", headers, json: body }, bindings);
 
 /**
- * A rate limiting binding that lets `allowed` calls per key through, then
+ * A rate limiting binding that lets `allowed` calls for each key through, then
  * refuses: the local binding counts in windows of the wall clock's minute,
  * which a slow run can cross between two calls and so start counting again.
  */
