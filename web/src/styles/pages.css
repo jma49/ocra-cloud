@@ -35,14 +35,14 @@
   display: flex;
   align-items: baseline;
   gap: 8px;
-  padding: 12px 14px 4px;
+  padding: 12px var(--gutter) 4px;
 }
 .chart-head h2 {
   font-size: var(--text-base);
-  font-weight: 500;
+  font-weight: 600;
 }
 .chart-body {
-  padding: 4px 10px 10px;
+  padding: 4px 12px 12px;
 }
 /* The library sizes tick labels by its own font's widths at 12px; the
    console's font is wider, so its ticks are set a pixel smaller to fit. */
@@ -195,7 +195,7 @@
   gap: 10px;
 }
 .keys-foot {
-  margin-top: 14px;
+  margin-top: 12px;
 }
 .provider-search {
   width: 100%;
@@ -263,7 +263,7 @@ td.finding-cell {
 /* Plugins */
 .plugin-settings {
   display: grid;
-  padding-left: 20px;
+  padding-left: var(--gutter);
 }
 
 /* Review detail: properties on the left, the timeline on the right. */
@@ -490,7 +490,7 @@ td.finding-cell {
 
 /* Sessions */
 .login-card {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 .login-sub {
   margin-top: 4px;
@@ -505,7 +505,7 @@ td.finding-cell {
 /* Plugins: the warning above the list. */
 .lead-note {
   margin-top: 0;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 /* Pull requests */
@@ -761,8 +761,8 @@ td.finding-cell {
 .key-hints {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 20px;
-  margin: 16px 0 0;
+  gap: 8px 16px;
+  margin: 12px 0 0;
   padding: 0 4px;
   list-style: none;
   color: var(--t3);
@@ -876,7 +876,7 @@ td.finding-cell {
 
 /* Notifications: the weekly report's day and hour, read as one sentence. */
 .report-slot {
-  margin-top: 12px;
+  margin-top: 32px;
 }
 .report-when,
 .quiet-hours {
@@ -1052,8 +1052,8 @@ td.finding-cell {
 }
 .diff-viewed {
   flex: none;
-  margin-right: 12px;
-  padding: 3px 8px;
+  margin-right: 8px;
+  padding: 4px 8px;
   border-radius: var(--r-tab);
   white-space: nowrap;
   color: var(--t2);

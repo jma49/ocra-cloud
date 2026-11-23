@@ -5,14 +5,14 @@
   box-shadow: var(--shadow);
 }
 .card-pad {
-  padding: 16px;
+  padding: var(--gutter);
 }
 .card-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  padding: 12px 16px 6px;
+  padding: 12px var(--gutter) 4px;
   gap: 4px 12px;
 }
 /* A card its title switches on and off: the switch stays on the title's line. */
@@ -34,7 +34,7 @@
   gap: 12px;
 }
 .stat {
-  padding: 12px 14px;
+  padding: 12px var(--gutter);
 }
 .stat-label {
   font-size: var(--text-sm);
@@ -88,7 +88,7 @@
 
 /* Chart */
 .chart {
-  padding: 12px 16px 8px;
+  padding: 12px var(--gutter) 8px;
 }
 .chart svg {
   display: block;
@@ -106,7 +106,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px 14px;
-  padding: 0 16px 14px;
+  padding: 0 var(--gutter) 12px;
   font-size: var(--text-sm);
   color: var(--fg-muted);
 }
@@ -130,8 +130,8 @@
 }
 .step {
   display: flex;
-  gap: 14px;
-  padding: 12px 16px;
+  gap: 12px;
+  padding: 12px var(--gutter);
   border-bottom: 0.5px solid var(--hair);
   align-items: flex-start;
 }
