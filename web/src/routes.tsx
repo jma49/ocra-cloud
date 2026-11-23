@@ -15,6 +15,7 @@ import { Memory } from "./pages/Memory.js";
 import { Notifications } from "./pages/Notifications.js";
 import { Overview } from "./pages/Overview.js";
 import { Plugins } from "./pages/Plugins.js";
+import { ReleaseNotes } from "./pages/ReleaseNotes.js";
 import { Repositories } from "./pages/Repositories.js";
 import { ReviewSettings } from "./pages/ReviewSettings.js";
 import { Reviews } from "./pages/Reviews.js";
@@ -132,6 +133,12 @@ const ROUTES: readonly Route[] = [
     page: () => <RepoConfig />,
   },
   { path: "/memory", place: "repositories", tab: "Memory", page: () => <Memory /> },
+  {
+    path: "/release-notes",
+    place: "repositories",
+    tab: "Release notes",
+    page: () => <ReleaseNotes />,
+  },
   {
     path: "/insights",
     place: "insights",
