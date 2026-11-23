@@ -201,16 +201,6 @@
 .pull-description > :last-child {
   margin-bottom: 0;
 }
-.readiness-met > summary {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  list-style: none;
-}
-.readiness-met > summary::-webkit-details-marker {
-  display: none;
-}
 .readiness-met[open] > summary {
   margin-bottom: 8px;
 }
@@ -297,7 +287,7 @@
     display: contents;
   }
   /* Where it sits in its stack, then what it waits on, come before the long read on a narrow window. */
-  .pull-about > .stack {
+  .pull-about > .pull-stack-card {
     order: -2;
   }
   .pull-rail {
