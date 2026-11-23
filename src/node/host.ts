@@ -88,9 +88,10 @@ export type HostOptions = {
 export async function openHost(options: HostOptions) {
   const startedAt = Date.now();
   const migrate = options.migrate ?? true;
-  const { db: shared, close } = /^postgres(ql)?:\/\//.test(options.databaseUrl)
-    ? await openPostgres(options.databaseUrl, { migrations: `${options.migrations}-pg`, migrate })
-    : await openLibsql(options.databaseUrl, { migrations: options.migrations, migrate });
+  const { db: shared, close } = await openDatabase(options.databaseUrl, {
+    migrations: options.migrations,
+    migrate,
+  });
   const bindings =
     options.rateLimits === "database"
       ? { ...options.bindings, ...rateLimits({ db: shared }) }
@@ -264,6 +265,16 @@ export async function openHost(options: HostOptions) {
       close();
     },
   };
+}
+
+/**
+ * DATABASE_URL's database: Postgres, with the migrations of the folder
+ * beside `migrations` (`migrations-pg/`), or libSQL with `migrations`.
+ */
+export function openDatabase(url: string, options: { migrations: string; migrate: boolean }) {
+  return /^postgres(ql)?:\/\//.test(url)
+    ? openPostgres(url, { ...options, migrations: `${options.migrations}-pg` })
+    : openLibsql(url, options);
 }
 
 async function openLibsql(url: string, options: { migrations: string; migrate: boolean }) {

@@ -153,7 +153,7 @@ export async function appliedMigrations(db: Db): Promise<MigrationLedger | undef
 }
 
 /** A raw SELECT's rows: SQLite's `all`, Postgres' `execute`, which answers them in `rows`. */
-async function rawRows<T>(db: Db, query: SQL): Promise<T[]> {
+export async function rawRows<T>(db: Db, query: SQL): Promise<T[]> {
   if (!isPostgres(db)) return db.all<T>(query);
   const pg = db as unknown as { execute(q: SQL): Promise<{ rows: T[] }> };
   return (await pg.execute(query)).rows;
