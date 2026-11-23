@@ -1,0 +1,1 @@
+ALTER TABLE `review_repos` ADD `automatic` integer DEFAULT true NOT NULL;

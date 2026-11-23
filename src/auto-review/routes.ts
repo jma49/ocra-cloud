@@ -12,6 +12,7 @@ import { perMinute } from "../rate.js";
 import { requireSession } from "../session.js";
 import {
   type AutoReviewRepoView,
+  type AutoReviewSwitchView,
   CODE_PLATFORMS,
   REVIEW_PROFILES,
   type ReviewProfileView,
@@ -46,6 +47,7 @@ const enrollSchema = z.object({
 });
 
 const profileBody = z.object({ profile: z.enum(REVIEW_PROFILES) });
+const automaticBody = z.object({ automatic: z.boolean() });
 
 const repoView = (r: Row<"reviewRepos">, latest: ReviewJobSummary | undefined) =>
   ({
@@ -54,6 +56,7 @@ const repoView = (r: Row<"reviewRepos">, latest: ReviewJobSummary | undefined) =
     host: r.host,
     fullName: r.fullName,
     profile: r.reviewProfile,
+    automatic: r.automatic,
     latest: latest
       ? {
           number: latest.number,
@@ -166,6 +169,21 @@ export function autoReviewRoute(service: AutoReviewService) {
       if (!repo || !changed) return apiError(c, "not_found");
       await audit(c.var.data, "auto_review.profile_changed", { repo: repo.fullName, profile });
       return c.json({ profile } satisfies ReviewProfileView);
+    },
+  );
+
+  route.put(
+    "/repos/:id/automatic",
+    requireSession(["web"]),
+    perMinute("settings"),
+    jsonBody(automaticBody),
+    async (c) => {
+      const { automatic } = c.req.valid("json");
+      const repo = await c.var.data.get("reviewRepos", c.req.param("id"));
+      const changed = repo && (await c.var.data.update("reviewRepos", repo.id, { automatic }));
+      if (!repo || !changed) return apiError(c, "not_found");
+      await audit(c.var.data, "auto_review.automatic_changed", { repo: repo.fullName, automatic });
+      return c.json({ automatic } satisfies AutoReviewSwitchView);
     },
   );
 

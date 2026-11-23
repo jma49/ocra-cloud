@@ -13,6 +13,7 @@ const REPO = {
   host: "gitlab.example.com",
   fullName: "pay/api",
   profile: "balanced",
+  automatic: true,
   latest: {
     number: 9,
     head: "a".repeat(40),
@@ -91,6 +92,41 @@ describe("the auto review page", () => {
       { url: "/api/auto-review/repos/rr1/profile", body: { profile: "quiet" } },
     ]);
     expect(screen.getByRole("button", { name: "Review profile of pay/api: Quiet" })).toBeTruthy();
+  });
+
+  it("switches a repository's automatic reviews off, and back when the save fails", async () => {
+    const sent: unknown[] = [];
+    let refuse = false;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (init?.method === "PUT") {
+          const body = JSON.parse(String(init.body));
+          sent.push({ url, body });
+          return refuse
+            ? Response.json({ error: "not_found" }, { status: 404 })
+            : Response.json(body);
+        }
+        if (url.startsWith("/api/review-targets")) {
+          return Response.json({ default: { firstReviewHours: null, mergeDays: null }, repos: [] });
+        }
+        return Response.json({ repos: [REPO] });
+      }),
+    );
+    render(<AutoReview platforms={["github", "gitlab"]} />);
+    const toggle = await screen.findByRole("switch", { name: "Review pay/api automatically" });
+    expect(toggle.getAttribute("aria-checked")).toBe("true");
+    expect(screen.getByText("Every pull request")).toBeTruthy();
+    await act(async () => void fireEvent.click(toggle));
+    expect(sent).toEqual([
+      { url: "/api/auto-review/repos/rr1/automatic", body: { automatic: false } },
+    ]);
+    expect(toggle.getAttribute("aria-checked")).toBe("false");
+    expect(screen.getByText("Only when asked")).toBeTruthy();
+
+    refuse = true;
+    await act(async () => void fireEvent.click(toggle));
+    expect(toggle.getAttribute("aria-checked")).toBe("false");
   });
 
   it("says whether a remote runner is asking for work", async () => {

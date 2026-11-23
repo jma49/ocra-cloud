@@ -14,6 +14,8 @@ export type AutoReviewRepoView = {
   host: string;
   fullName: string;
   profile: ReviewProfile;
+  /** Whether pull requests are reviewed as they open or gain commits; off, only when a person asks. */
+  automatic: boolean;
   latest: {
     number: number;
     head: string;
@@ -22,6 +24,9 @@ export type AutoReviewRepoView = {
     finishedAt: string | null;
   } | null;
 };
+
+/** What the automatic switch of an enrolled repository answers. */
+export type AutoReviewSwitchView = { automatic: boolean };
 
 export type { GenerateKind };
 
