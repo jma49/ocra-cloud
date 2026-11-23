@@ -2,6 +2,7 @@ import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { ReviewChatMessageView, ReviewChatView } from "../../../src/shared/index.js";
 import { api } from "../api.js";
+import { Elapsed } from "../elapsed.js";
 import { Markdown } from "../markdown.js";
 import { LoadError } from "../ui.js";
 import { modelName, NoModel, Refusal } from "./refusal.js";
@@ -18,7 +19,7 @@ const STARTERS = [
   "What should I test before merging?",
 ];
 
-type Pending = { question: string; answer: string };
+type Pending = { question: string; answer: string; askedAt: number };
 
 export function ReviewChat(props: { reviewId: string }) {
   const path = `/reviews/${encodeURIComponent(props.reviewId)}/chat`;
@@ -51,7 +52,7 @@ export function ReviewChat(props: { reviewId: string }) {
     const message = text.trim();
     if (!message || pending || !view) return;
     setError(null);
-    setPending({ question: message, answer: "" });
+    setPending({ question: message, answer: "", askedAt: Date.now() });
     try {
       const answer = await askReview(path, { message, ...(model ? { model } : {}) }, (piece) =>
         setPending((p) => p && { ...p, answer: p.answer + piece }),
@@ -125,7 +126,11 @@ export function ReviewChat(props: { reviewId: string }) {
                 {pending && (
                   <>
                     <Message from="user" text={pending.question} />
-                    <Message from="assistant" text={pending.answer} streaming />
+                    <Message
+                      from="assistant"
+                      text={pending.answer}
+                      streamingSince={pending.askedAt}
+                    />
                   </>
                 )}
               </div>
@@ -186,13 +191,22 @@ export function ReviewChat(props: { reviewId: string }) {
 function Message(props: {
   from: ReviewChatMessageView["role"];
   text: string;
-  streaming?: boolean;
+  streamingSince?: number;
 }) {
   if (props.from === "user") return <p className="chat-question pre-wrap">{props.text}</p>;
+  const streaming = props.streamingSince !== undefined;
+  if (streaming && props.text === "") {
+    return (
+      <p className="chat-thinking">
+        <span className="shimmer-text">Thinking</span>
+        <Elapsed since={props.streamingSince} />
+      </p>
+    );
+  }
   return (
-    <div className="chat-answer" aria-busy={props.streaming || undefined}>
+    <div className="chat-answer" aria-busy={streaming || undefined}>
       <Markdown text={props.text} />
-      {props.streaming && <span className="chat-caret" aria-hidden="true" />}
+      {streaming && <span className="chat-caret" aria-hidden="true" />}
     </div>
   );
 }
