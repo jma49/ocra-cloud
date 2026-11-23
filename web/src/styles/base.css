@@ -3,7 +3,7 @@
    text in four tones, one ink for actions. Red marks only critical findings,
    errors and what cannot be undone; never navigation, links or states. */
 @import "@fontsource-variable/geist/wght.css";
-@import "@fontsource-variable/geist-mono/wght.css";
+@import "@fontsource-variable/jetbrains-mono/wght.css";
 @import "@fontsource-variable/noto-sans-sc/wght.css";
 
 :root {
@@ -113,7 +113,7 @@
   /* Chinese falls through to Noto Sans SC, whose files load per range of characters used. */
   --font: "Geist Variable", "Noto Sans SC Variable", ui-sans-serif, system-ui, sans-serif;
   --display: var(--font);
-  --mono: "Geist Mono Variable", "Noto Sans SC Variable", ui-monospace, monospace;
+  --mono: "JetBrains Mono Variable", "Noto Sans SC Variable", ui-monospace, monospace;
   color-scheme: light;
 }
 
