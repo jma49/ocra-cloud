@@ -2,9 +2,10 @@ import { accountSalt, loginOf, startHostedFindings } from "../db/accounts.js";
 import type { Db } from "../db/client.js";
 import { claimGenerate } from "../db/generate-jobs.js";
 import { JOB_ATTEMPTS } from "../db/job-recovery.js";
+import { claimLearn } from "../db/learn-jobs.js";
 import { claimReply } from "../db/reply-jobs.js";
 import { claimJob } from "../db/review-jobs.js";
-import { scoped } from "../db/scoped.js";
+import { type Row, scoped } from "../db/scoped.js";
 import { reviewGraphRepo } from "../graph/review-graph.js";
 import type { GraphService } from "../graph/routes.js";
 import { errorName, logError } from "../log.js";
@@ -25,14 +26,14 @@ import { nextUtcDay, utcDay } from "../time.js";
 import { profileRun } from "./profiles.js";
 
 // The server's half of a hosted job (ADR-0046, 4): claiming the next queued
-// review, answer to an @ocra comment or request for tests or docstrings,
-// giving its run what it needs (the bot's credential, a CLI session of the
-// enrolling account, the CLI's arguments and configuration) and recording
-// how it went. The run itself, a clone and the released CLI, is the
+// review, answer to an @ocra comment, request for tests or docstrings or
+// pull request whose declined findings become learnings, giving its run
+// what it needs (the bot's credential, a CLI session of the enrolling
+// account, the CLI's arguments and configuration) and recording how it went. The run itself, a clone and the released CLI, is the
 // machine's half (src/node/review-runner.ts), in this process or on a
 // remote runner (./runner-api.ts).
 
-export const WORK_KINDS = ["review", "reply", "generate"] as const;
+export const WORK_KINDS = ["review", "reply", "generate", "learn"] as const;
 export type WorkKind = (typeof WORK_KINDS)[number];
 
 /** Why a run ended without its result; the last three are the machine's to report. */
@@ -47,6 +48,10 @@ const LEASE_MS = 45 * 60_000;
 const REPLY_LEASE_MS = 10 * 60_000;
 /** A few model calls, one per file it writes for, and one commit. */
 const GENERATE_LEASE_MS = 20 * 60_000;
+/** A helper call per declined finding, and one pull request. */
+const LEARN_LEASE_MS = 10 * 60_000;
+/** Declined findings drafted in one run: each is a model call of the account's. */
+const MAX_LEARN_DRAFTS = 10;
 const RETRY_AFTER_MS = 5 * 60_000;
 
 /** The job a run answers for: settled only while it is still this attempt's. */
@@ -96,7 +101,7 @@ export type WorkSource = {
 
 type Claimed = { id: string; accountId: string; reviewRepoId: string; number: number };
 type Command = {
-  args: (pull: string[]) => string[];
+  args: (pull: string[], repo: Row<"reviewRepos">) => string[];
   ok: number[];
   settled?: number[];
   access?: BotAccess;
@@ -145,15 +150,38 @@ async function claim(
       }
     );
   }
-  const claimed = await claimGenerate(source.db, now, GENERATE_LEASE_MS, source.dailyCalls);
+  if (kind === "generate") {
+    const claimed = await claimGenerate(source.db, now, GENERATE_LEASE_MS, source.dailyCalls);
+    return (
+      claimed && {
+        claimed,
+        command: {
+          args: (pull) => ["generate", claimed.kind, ...pull],
+          ok: [0],
+          // `ocra generate` wrote edits it could not commit: the branch moved, or the bot cannot push to it.
+          settled: [3],
+          access: "commit",
+        },
+      }
+    );
+  }
+  const claimed = await claimLearn(source.db, now, LEARN_LEASE_MS, source.dailyCalls);
   return (
     claimed && {
       claimed,
       command: {
-        args: (pull) => ["generate", claimed.kind, ...pull],
+        // The learnings are opened as the bot's pull request, which merges
+        // once its checks pass unless the repository leaves that to a person.
+        args: (pull, repo) => [
+          "learn",
+          "feedback",
+          ...pull,
+          "--propose",
+          "--max",
+          String(MAX_LEARN_DRAFTS),
+          ...(repo.learn === "propose" ? ["--require-review"] : []),
+        ],
         ok: [0],
-        // `ocra generate` wrote edits it could not commit: the branch moved, or the bot cannot push to it.
-        settled: [3],
         access: "commit",
       },
     }
@@ -181,6 +209,11 @@ export async function assign(
   const bot = platform && (await source.bots.forRepo(repo.platform, repo.fullName, command.access));
   if (!repo || !platform || !bot) {
     await settle(source, ref, !repo ? "repo_gone" : !platform ? "platform_gone" : "no_bot", now());
+    return "refused";
+  }
+  // Switched off since it was queued: nothing is read.
+  if (kind === "learn" && repo.learn === "off") {
+    await settle(source, ref, null, now());
     return "refused";
   }
   const mergeChecks = command.mergeChecks
@@ -225,7 +258,7 @@ export async function assign(
       lifetime_ms: tokens.expires_in * 1000,
     },
     uploadSalt: await accountSalt(source.db, claimed.accountId),
-    args: [...command.args(pull), ...profile.flags],
+    args: [...command.args(pull, repo), ...profile.flags],
     config: {
       ...runtime,
       ...profile.config,
@@ -301,6 +334,7 @@ export async function settle(
     },
     reply: data.replies,
     generate: data.generations,
+    learn: data.learning,
   }[ref.kind];
   // A run the limit stopped before any task finished exits as failed: the limit is still why.
   const limited =

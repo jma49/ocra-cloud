@@ -20,6 +20,7 @@ import { perMinute } from "./rate.js";
 import { reachRepo, repoRef } from "./repo-head.js";
 import { requireSession } from "./session.js";
 import type {
+  DeclinedLearningView,
   InvalidLearningView,
   LearningChangeView,
   LearningProposalsView,
@@ -124,6 +125,35 @@ async function usageOf(
   );
 }
 
+/** How far back a pull request read for declined findings stays listed. */
+const DECLINED_DAYS = 7;
+
+/** What the server does with the findings declined on the repository, when it reviews it. */
+async function declinedOf(
+  c: Context<AppEnv>,
+  platform: CodePlatform,
+  fullName: string,
+): Promise<DeclinedLearningView | null> {
+  const repo = await c.var.data.findOne("reviewRepos", {
+    platform: platform.kind,
+    host: platform.host,
+    fullName,
+  });
+  if (!repo) return null;
+  const since = new Date(Date.now() - DECLINED_DAYS * DAY);
+  const jobs = await c.var.data.learning.recent(repo.id, since);
+  return {
+    reviewRepoId: repo.id,
+    learn: repo.learn,
+    jobs: jobs.map((j) => ({
+      number: j.number,
+      state: j.state,
+      error: j.error,
+      finishedAt: j.finishedAt?.toISOString() ?? null,
+    })),
+  };
+}
+
 learningsRoute.get("/", requireSession(["web"]), perMinute("platform"), async (c) => {
   const query = listQuery.safeParse(c.req.query());
   if (!query.success) return apiError(c, "not_found");
@@ -180,6 +210,7 @@ learningsRoute.get("/", requireSession(["web"]), perMinute("platform"), async (c
     usage,
     usageDays: USAGE_DAYS,
     next: rest.length > page.length ? (page.at(-1)?.id ?? null) : null,
+    declined: await declinedOf(c, platform, head.fullName),
   } satisfies LearningsView);
 });
 

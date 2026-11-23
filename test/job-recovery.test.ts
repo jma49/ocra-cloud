@@ -7,6 +7,7 @@ import { env } from "cloudflare:workers";
 import { asc } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { claimGenerate } from "../src/db/generate-jobs.js";
+import { claimLearn } from "../src/db/learn-jobs.js";
 import { claimReply } from "../src/db/reply-jobs.js";
 import { claimJob } from "../src/db/review-jobs.js";
 import * as schema from "../src/db/schema.js";
@@ -36,13 +37,16 @@ const TABLES = {
   review: schema.reviewJobs,
   reply: schema.replyJobs,
   generate: schema.generateJobs,
+  learn: schema.learnJobs,
 } as const;
 type Kind = keyof typeof TABLES;
+
+let made = 0;
 
 async function job(kind: Kind, id: string, fields: Record<string, unknown>) {
   await db
     .insert(TABLES[kind])
-    .values({ ...rows[`${kind}Jobs`](id), accountId, ...fields } as never);
+    .values({ ...rows[`${kind}Jobs`](id), number: ++made, accountId, ...fields } as never);
 }
 
 const states = (kind: Kind) =>
@@ -55,6 +59,7 @@ const claims = {
   review: (now: Date) => claimJob(db, now, MINUTE, CALLS),
   reply: (now: Date) => claimReply(db, now, MINUTE, CALLS),
   generate: (now: Date) => claimGenerate(db, now, MINUTE, CALLS),
+  learn: (now: Date) => claimLearn(db, now, MINUTE, CALLS),
 };
 
 async function daily() {

@@ -183,6 +183,29 @@ describe("an enrolled repository's automatic switch", () => {
   });
 });
 
+describe("what an enrolled repository does with declined findings", () => {
+  it("merges their learnings until the account says otherwise", async () => {
+    const first = await s.signIn(1);
+    const second = await s.signIn(2);
+    const enrolled = (await (
+      await enroll(first.auth, { platform: "github", fullName: "octo/api" })
+    ).json()) as { repo: { id: string; learn: string } };
+    expect(enrolled.repo.learn).toBe("merge");
+    const set = (auth: Record<string, string>, learn: unknown) =>
+      s.call(`/api/auto-review/repos/${enrolled.repo.id}/learn`, {
+        method: "PUT",
+        headers: auth,
+        json: { learn },
+      });
+
+    expect((await set(second.auth, "off")).status).toBe(404);
+    expect((await set(first.auth, "always")).status).toBe(400);
+    expect(await (await set(first.auth, "propose")).json()).toEqual({ learn: "propose" });
+    const listed = await (await s.call("/api/auto-review/repos", { headers: first.auth })).json();
+    expect(listed).toMatchObject({ repos: [{ learn: "propose" }] });
+  });
+});
+
 describe("GitHub's pull request webhook", () => {
   beforeEach(async () => {
     const { auth } = await s.signIn(1);

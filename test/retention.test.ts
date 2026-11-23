@@ -168,10 +168,12 @@ describe("retention", () => {
     const { account } = await signIn(1, "octo");
     const d = scoped(db, account.id);
     await d.insert("reviewRepos", rows.reviewRepos("review-repo-of-a"));
-    for (const table of ["reviewJobs", "replyJobs", "generateJobs"] as const) {
+    let made = 0;
+    for (const table of ["reviewJobs", "replyJobs", "generateJobs", "learnJobs"] as const) {
       const job = (id: string, state: "queued" | "running" | "done" | "failed", days: number) =>
         d.insert(table, {
           ...rows[table](id),
+          number: ++made,
           state,
           createdAt: ago(days + 1),
           finishedAt: state === "done" || state === "failed" ? ago(days) : null,
@@ -469,6 +471,7 @@ describe("export and deletion", () => {
         "mergeChecks",
         "mergeCheckRuns",
         "generateJobs",
+        "learnJobs",
         "liveEvents",
         "liveGrants",
         "liveComments",
@@ -518,6 +521,7 @@ describe("export and deletion", () => {
       "mergeChecks",
       "mergeCheckRuns",
       "generateJobs",
+      "learnJobs",
     ] as const) {
       await d.insert(table, {
         ...rows[table](`x-${table}`),

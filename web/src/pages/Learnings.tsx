@@ -10,6 +10,7 @@ import type {
 import { api } from "../api.js";
 import { useRead } from "../cache.js";
 import { AddGlyph } from "../glyphs.js";
+import { DeclinedLearning } from "../learnings/declined.js";
 import { LearningCard } from "../learnings/learning-card.js";
 import { LearningForm } from "../learnings/learning-form.js";
 import { ChangeOutcome } from "../learnings/outcome.js";
@@ -72,6 +73,9 @@ function RepoLearnings(props: { at: RepoChoice }) {
     <>
       {change && <ChangeOutcome change={change} branch={branch} />}
       {remove.error !== null && <ActionError what="delete the learning" error={remove.error} />}
+      {page.data?.declined && (
+        <DeclinedLearning {...props.at} data={page.data.declined} key={page.data.declined.learn} />
+      )}
       {proposals.data && <Proposals data={proposals.data} />}
       {editing !== null && form(editing === "new" ? undefined : editing)}
       {page.error && !page.data ? (

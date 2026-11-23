@@ -256,6 +256,35 @@ describe("GitHub finding threads", () => {
   });
 });
 
+describe("learning from a finding's thread", () => {
+  const queued = async (data: Awaited<ReturnType<typeof enrolled>>["data"]) =>
+    (await data.list("learnJobs")).map((j) => [j.number, j.state]);
+
+  it("queues the pull request when a person answers or resolves the thread, never for ocra's own comment", async () => {
+    const { data } = await enrolled();
+    await onComment(start);
+    expect(await queued(data)).toEqual([]);
+    await onComment(reply(101, "Won't fix: the lock is reentrant."));
+    expect(await queued(data)).toEqual([[7, "queued"]]);
+    await github("pull_request_review_thread", changed("resolved", rita, [start]));
+    expect(await queued(data)).toEqual([[7, "queued"]]);
+    const [job] = await data.list("learnJobs");
+    expect(job?.notBefore?.getTime()).toBeGreaterThan(Date.now());
+  });
+
+  it("queues nothing for a reply in someone else's thread, a reopened thread, or a repository that switched it off", async () => {
+    const { data, repo } = await enrolled();
+    await onComment({ id: 300, body: "Why a lock here?", user: rita });
+    await onComment({ id: 301, body: "Because.", user: user(8, "sam"), to: 300 });
+    await github("pull_request_review_thread", changed("unresolved", rita, [start]));
+    expect(await queued(data)).toEqual([]);
+    await data.update("reviewRepos", repo.id, { learn: "off" });
+    await onComment(reply(101, "Won't fix: the lock is reentrant."));
+    await github("pull_request_review_thread", changed("resolved", rita, [start]));
+    expect(await queued(data)).toEqual([]);
+  });
+});
+
 describe("GitLab finding threads", () => {
   type Note = { id: number; by: { id: number; username: string; bot?: boolean }; note: string };
 
@@ -332,8 +361,10 @@ describe("GitLab finding threads", () => {
     expect(await data.list("findingThreads")).toMatchObject([
       { repository: "https://gitlab.test/group/api", number: 3, threadKey: D1, fingerprint: FP },
     ]);
+    expect(await data.count("learnJobs")).toBe(0);
     await keep(hook({ id: 2, by: lena, note: "Not applicable here." }));
     expect(asked).toHaveLength(1);
+    expect(await data.list("learnJobs")).toMatchObject([{ number: 3, state: "queued" }]);
     expect(await dismissalOf(me.auth, reviewId)).toMatchObject({
       state: null,
       reason: "Not applicable here.",

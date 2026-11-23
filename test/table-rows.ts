@@ -241,6 +241,8 @@ export const rows = {
     head: `h-${id}`,
     kind: "tests" as const,
   }),
+  // The enrolled repository it belongs to is made in beforeEach (the foreign key needs one).
+  learnJobs: (id: string) => ({ id, reviewRepoId: "review-repo-of-a", number: 1 }),
   // The review it belongs to is made in beforeEach (the foreign key needs one).
   reviewWalkthroughs: (id: string) => ({
     id,

@@ -61,6 +61,7 @@ export const EXPORTED = {
   replyJobs: "replyJobs",
   reviewWalkthroughs: "walkthroughs",
   generateJobs: "generateJobs",
+  learnJobs: "learnJobs",
   automationRules: "automationRules",
   automationRuns: "automationRuns",
   automationAssignments: "automationAssignments",

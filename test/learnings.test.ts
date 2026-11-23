@@ -138,6 +138,35 @@ describe("listing a repository's learnings", () => {
     });
   });
 
+  it("says what the server does with the repository's declined findings, when it reviews it", async () => {
+    platform({ ...githubHead, [`GET ${DIR}`]: () => dir() });
+    const a = await signInWithGithub();
+    const read = async () =>
+      (
+        (await (
+          await a.send("/api/learnings?platform=github&repo=octo/api")
+        ).json()) as LearningsView
+      ).declined;
+    expect(await read()).toBeNull();
+
+    const [account] = await db.select().from(accounts);
+    const data = scoped(db, account?.id ?? "");
+    await data.insert("reviewRepos", {
+      platform: "github",
+      host: "github.com",
+      platformRepoId: "1",
+      fullName: "octo/api",
+      learn: "propose",
+    });
+    const repo = await data.findOne("reviewRepos", { fullName: "octo/api" });
+    await data.learning.queue(repo?.id ?? "", 7, new Date());
+    expect(await read()).toEqual({
+      reviewRepoId: repo?.id,
+      learn: "propose",
+      jobs: [{ number: 7, state: "queued", error: null, finishedAt: null }],
+    });
+  });
+
   it("answers an empty list for a repository without the directory", async () => {
     platform({ ...githubHead, [`GET ${DIR}`]: () => new Response(null, { status: 404 }) });
     const a = await signInWithGithub();

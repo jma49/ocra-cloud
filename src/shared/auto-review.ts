@@ -8,6 +8,16 @@ import type { ReviewProfile } from "./review-profiles.js";
 export const REVIEW_JOB_STATES = ["queued", "running", "done", "failed", "superseded"] as const;
 type ReviewJobState = (typeof REVIEW_JOB_STATES)[number];
 
+/**
+ * What a repository does with the findings people decline in their threads:
+ * nothing, a pull request of learnings left for a person to merge, or one
+ * that merges once its checks pass.
+ */
+export const LEARN_MODES = ["off", "propose", "merge"] as const;
+export type LearnMode = (typeof LEARN_MODES)[number];
+/** As the engine's `ocra learn --propose` does unless told to leave it to a person. */
+export const DEFAULT_LEARN_MODE: LearnMode = "merge";
+
 /** A queued job's error while it waits for the account's daily gateway calls to reset. */
 export const DAILY_LIMIT_WAIT = "daily_limit";
 
@@ -19,6 +29,7 @@ export type AutoReviewRepoView = {
   profile: ReviewProfile;
   /** Whether pull requests are reviewed as they open or gain commits; off, only when a person asks. */
   automatic: boolean;
+  learn: LearnMode;
   latest: {
     number: number;
     head: string;
@@ -30,6 +41,18 @@ export type AutoReviewRepoView = {
 
 /** What the automatic switch of an enrolled repository answers. */
 export type AutoReviewSwitchView = { automatic: boolean };
+
+/** What the learn setting of an enrolled repository answers. */
+export type AutoReviewLearnView = { learn: LearnMode };
+
+/** A pull request whose declined findings are being drafted into learnings, or were. */
+export type LearnJobView = {
+  number: number;
+  state: ReviewJobState;
+  error: string | null;
+  /** When it last ended; null while it has not. */
+  finishedAt: string | null;
+};
 
 export type { GenerateKind };
 

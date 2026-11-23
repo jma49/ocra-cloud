@@ -8,7 +8,12 @@ import { accountSalt } from "../src/db/accounts.js";
 import { scoped } from "../src/db/scoped.js";
 import { instructionCheckId } from "../src/merge-checks/instruction.js";
 import type { Exec } from "../src/node/checkout.js";
-import { runNextGeneration, runNextReply, runNextReview } from "../src/node/review-runner.js";
+import {
+  runNextGeneration,
+  runNextLearning,
+  runNextReply,
+  runNextReview,
+} from "../src/node/review-runner.js";
 import type { BotTokens } from "../src/platforms/bot.js";
 import { appJwt, botTokens } from "../src/platforms/bot-tokens.js";
 import { github } from "../src/platforms/github.js";
@@ -530,6 +535,49 @@ describe("a review job's run", () => {
     expect(await runNextGeneration(runner)).toBe(false);
     const [job] = await generations.forPull(repoId, 7);
     expect(job).toMatchObject({ state: "done", attempts: 1 });
+  });
+
+  it("drafts learnings from a pull request's declined findings with `ocra learn feedback`, as a bot that may push", async () => {
+    const data = scoped(s.host.db, accountId);
+    await data.learning.queue(repoId, 7, new Date(0));
+    const seen: { ocra?: unknown } = {};
+    const { exec, calls } = fakeExec(0, seen);
+    const asked: (string | undefined)[] = [];
+    const committer: BotTokens = {
+      forRepo: async (_p, _n, access) => {
+        asked.push(access);
+        return { token: "ghs_bot", login: "ocra-review[bot]" };
+      },
+    };
+    const runner = {
+      db: s.host.db,
+      platforms,
+      bots: committer,
+      publicUrl: ORIGIN,
+      dailyCalls: 1000,
+      exec,
+      cli: "/c.js",
+    };
+    const learn = ["/c.js", "learn", "feedback", "--pr", "7", "--repo", "Octo/API", "--propose"];
+    const config = ["--config", expect.stringMatching(/ocra\.json$/)];
+    expect(await runNextLearning(runner)).toBe(true);
+    expect(asked).toEqual(["commit"]);
+    expect(calls.at(-1)?.args).toEqual([...learn, "--max", "10", ...config]);
+    expect(seen.ocra).toEqual({ runtime: "direct", github: { botLogin: "ocra-review[bot]" } });
+    expect(await data.list("learnJobs")).toMatchObject([{ state: "done", attempts: 1 }]);
+
+    await data.update("reviewRepos", repoId, { learn: "propose" });
+    await data.learning.queue(repoId, 7, new Date(0));
+    expect(await runNextLearning(runner)).toBe(true);
+    expect(calls.at(-1)?.args).toEqual([...learn, "--max", "10", "--require-review", ...config]);
+
+    await data.update("reviewRepos", repoId, { learn: "off" });
+    await data.learning.queue(repoId, 7, new Date(0));
+    const ran = calls.length;
+    expect(await runNextLearning(runner)).toBe(true);
+    expect(calls).toHaveLength(ran);
+    expect(await data.list("learnJobs")).toMatchObject([{ state: "done" }]);
+    expect(await runNextLearning(runner)).toBe(false);
   });
 
   it("does not retry edits the CLI could not commit", async () => {

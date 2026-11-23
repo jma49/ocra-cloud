@@ -1,5 +1,5 @@
 import { and, desc, eq, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
-import { DEFAULT_REVIEW_PROFILE } from "../shared/index.js";
+import { DEFAULT_LEARN_MODE, DEFAULT_REVIEW_PROFILE } from "../shared/index.js";
 import { changedRows, type Db, first } from "./client.js";
 import { mayStart } from "./counters.js";
 import { recoverLapsed } from "./job-recovery.js";
@@ -42,7 +42,7 @@ export function accountReviewJobs(db: Db, accountId: string) {
       const [row] = await db
         .insert(t)
         .select(sql`SELECT ${crypto.randomUUID()}, ${accountId}, ${repo.platform}, ${repo.host},
-          ${repo.platformRepoId}, ${repo.fullName}, ${repo.webhookSecretHash ?? null}, ${Date.now()}, 1, ${DEFAULT_REVIEW_PROFILE}, ${repo.automatic ? 1 : 0}, NULL
+          ${repo.platformRepoId}, ${repo.fullName}, ${repo.webhookSecretHash ?? null}, ${Date.now()}, 1, ${DEFAULT_REVIEW_PROFILE}, ${repo.automatic ? 1 : 0}, ${DEFAULT_LEARN_MODE}, NULL
         WHERE (SELECT count(*) FROM ${t} WHERE account_id = ${accountId}) < ${cap}
           OR EXISTS (SELECT 1 FROM ${t} WHERE account_id = ${accountId} AND platform = ${repo.platform}
             AND host = ${repo.host} AND platform_repo_id = ${repo.platformRepoId})`)

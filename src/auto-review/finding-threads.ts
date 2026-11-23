@@ -20,7 +20,10 @@ import { MAX_DISMISSAL_REASON_CHARS } from "../shared/index.js";
 // thread whose start was missed. GitLab sends nothing when a discussion is
 // resolved: its state is read from the discussion when a person writes in
 // it (the same read as ../notify/gitlab-starts.ts, made once). A reply's
-// text is redacted and cut before it is kept, and never logged.
+// text is redacted and cut before it is kept, and never logged. A person's
+// answer or resolution also queues the pull request for `ocra learn
+// feedback` (src/db/learn-jobs.ts), which reads the threads itself and
+// decides whose words count, unless the repository switched that off.
 
 type Repo = Row<"reviewRepos">;
 type Person = { id: string; login: string };
@@ -34,6 +37,14 @@ function identityOf(platformUrl: string, repo: Repo): string | null {
   } catch {
     return null;
   }
+}
+
+/** How long after a person's last word on a finding's thread its pull request is read: they often answer several. */
+const LEARN_AFTER_MS = 5 * 60_000;
+
+async function queueLearning(data: Scoped, repo: Repo, number: number, now: Date) {
+  if (repo.learn === "off") return;
+  await data.learning.queue(repo.id, number, new Date(now.getTime() + LEARN_AFTER_MS));
 }
 
 async function keepReply(data: Scoped, reviewRepoId: string, threadKey: string, reply: Reply) {
@@ -121,6 +132,8 @@ export async function recordGithubFindingThread(
       at: timeOf(first.created_at, now),
       body: first.body,
     });
+    const known = await data.findingThreads.find({ reviewRepoId: repo.id, threadKey });
+    if (known) await queueLearning(data, repo, number, now);
   }
   if (!changed || isBot(changed.sender)) return;
   await data.findingThreads.setState(
@@ -144,6 +157,7 @@ export async function recordGithubFindingThread(
       body: last.body,
     });
   }
+  if (changed.action === "resolved") await queueLearning(data, repo, number, now);
 }
 
 const gitlabNote = z.object({
@@ -226,6 +240,7 @@ export async function keepGitlabFindingThread(
     at,
     body: n.note,
   });
+  await queueLearning(data, repo, mr.iid, now);
   const resolved = first?.resolved;
   if (!resolved) return;
   if (resolved.resolved) {
