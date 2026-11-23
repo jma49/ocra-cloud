@@ -642,6 +642,25 @@ td.finding-cell {
 .pull-replies {
   color: var(--blue);
 }
+/* The team a review reached the user through: a note beside the title, which keeps the room. */
+.pull-team {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 16ch;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--t3);
+  font-size: var(--text-sm);
+}
+.pull-team svg {
+  flex: none;
+}
+.pull-team-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .pull-row:hover {
   background: var(--fill);
 }
@@ -771,6 +790,9 @@ td.finding-cell {
   }
 }
 @media (max-width: 560px) {
+  .pull-team-name {
+    display: none;
+  }
   .pull-review:empty {
     display: none;
   }
