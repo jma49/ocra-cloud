@@ -52,6 +52,21 @@
   padding: 8px 10px;
   resize: vertical;
 }
+.assign-fields {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  min-width: 0;
+}
+.assign-fields .glob-list {
+  justify-self: stretch;
+}
+.assign-count {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
 .add-action {
   justify-self: start;
   display: inline-flex;

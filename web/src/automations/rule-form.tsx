@@ -14,6 +14,7 @@ import { Drawer } from "../drawer.js";
 import { listOf, Row } from "../form.js";
 import { AddGlyph, CloseGlyph } from "../glyphs.js";
 import { Seg, useAction } from "../ui.js";
+import { AssignFields, assignAction, assignReady, newAssign } from "./assign-reviewers.js";
 import { ACTION_LABEL, actionsFor, VERDICT_LABEL, VERDICT_LIST } from "./describe.js";
 import { PathsRow, pathsDraft, pathsOf } from "./paths-row.js";
 
@@ -22,7 +23,7 @@ import { PathsRow, pathsDraft, pathsOf } from "./paths-row.js";
 // trigger allows, since the server refuses the rest.
 
 export type Choice = { id: string; label: string };
-/** `assign` keeps an assignment's strategy and logins, which the form does not edit yet; its text is the count. */
+/** An assignment is edited as `assign`; every other action as `text`. */
 type Draft = { key: number; kind: AutomationActionKind; text: string; assign?: AssignReviewers };
 
 const MAX_ACTIONS = 5;
@@ -30,7 +31,6 @@ const HINT: Partial<Record<AutomationActionKind, string>> = {
   add_labels: "needs-review, payments",
   request_reviewers: "octocat, hubot",
   comment: "Plain text, posted as the ocra bot",
-  assign_reviewers: "How many suggested reviewers, 1 to 5",
 };
 
 let nextKey = 0;
@@ -47,9 +47,7 @@ const draftOf = (a: AutomationAction): Draft => ({
           ? a.body
           : a.kind === "notify"
             ? a.channelId
-            : a.kind === "assign_reviewers"
-              ? String(a.count)
-              : "",
+            : "",
 });
 
 function actionOf(d: Draft): AutomationAction {
@@ -65,7 +63,7 @@ function actionOf(d: Draft): AutomationAction {
     case "skip_review":
       return { kind: d.kind };
     case "assign_reviewers":
-      return { ...(d.assign ?? { strategy: "suggested" }), kind: d.kind, count: Number(d.text) };
+      return assignAction(d.assign ?? newAssign());
   }
 }
 
@@ -139,7 +137,11 @@ export function RuleForm(props: {
   const ready =
     name.trim() !== "" &&
     actions.length > 0 &&
-    actions.every((a) => a.kind === "skip_review" || a.text.trim() !== "");
+    actions.every((a) =>
+      a.kind === "assign_reviewers"
+        ? assignReady(a.assign ?? newAssign())
+        : a.kind === "skip_review" || a.text.trim() !== "",
+    );
 
   return (
     <Drawer
@@ -266,9 +268,14 @@ export function RuleForm(props: {
               className="input"
               aria-label={`Action ${i + 1}`}
               value={a.kind}
-              onChange={(e) =>
-                edit(a.key, { kind: e.target.value as AutomationActionKind, text: "" })
-              }
+              onChange={(e) => {
+                const kind = e.target.value as AutomationActionKind;
+                edit(a.key, {
+                  kind,
+                  text: "",
+                  ...(kind === "assign_reviewers" ? { assign: newAssign() } : {}),
+                });
+              }}
             >
               {allowed.map((k) => (
                 <option key={k} value={k}>
@@ -316,6 +323,14 @@ function ActionValue(props: {
   const { draft: a } = props;
   const set = (text: string) => props.edit(a.key, { text });
   const label = `${ACTION_LABEL[a.kind]}, action ${props.n}`;
+  if (a.kind === "assign_reviewers")
+    return (
+      <AssignFields
+        value={a.assign ?? newAssign()}
+        n={props.n}
+        onChange={(assign) => props.edit(a.key, { assign })}
+      />
+    );
   if (a.kind === "skip_review")
     return <span className="muted small grow">The head is not reviewed.</span>;
   if (a.kind === "notify")

@@ -14,6 +14,11 @@ const QUIET = new Set<AutomationActionOutcome>([
   "already_assigned",
 ]);
 
+/** Nothing broke, but the rule's owner has something to change. */
+const WARN = new Set<AutomationActionOutcome>(["no_candidates"]);
+const tone = (o: AutomationActionOutcome) =>
+  QUIET.has(o) ? "muted" : WARN.has(o) ? "warn-inline" : "error-inline";
+
 const RUN_TONE: Record<AutomationRunView["outcome"], string> = {
   running: "badge",
   done: "badge badge-ok",
@@ -53,9 +58,7 @@ export function Runs(props: { runs: AutomationRunView[] }) {
                     <li key={`${a.kind}-${i}`}>
                       {ACTION_LABEL[a.kind]}
                       {": "}
-                      <span className={QUIET.has(a.outcome) ? "muted" : "error-inline"}>
-                        {OUTCOME_LABEL[a.outcome]}
-                      </span>
+                      <span className={tone(a.outcome)}>{OUTCOME_LABEL[a.outcome]}</span>
                     </li>
                   ))}
                 </ul>
