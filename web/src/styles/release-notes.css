@@ -47,3 +47,27 @@
   line-height: 1.55;
   resize: vertical;
 }
+
+/* The held drafts under the save form: a ruled list inside the card. */
+.held-drafts {
+  padding-top: 12px;
+  border-top: 0.5px solid var(--hair2);
+}
+.held-drafts ul {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.held-drafts .list-row {
+  padding-inline: 0;
+}
+.held-drafts li:last-child .list-row {
+  border-bottom: 0;
+}
+.held-refusal {
+  margin: 0 0 8px;
+}
+/* No switch leads these rows, so their buttons start at the row's edge. */
+.held-drafts .list-row > button:first-of-type {
+  margin-left: 0;
+}
