@@ -79,9 +79,16 @@ function blocks(source: string): Block[] {
 }
 
 // Code and a link keep their own `_` and `*`: emphasis runs around them, not into them.
-const A_CODE = "`[^`\\n]+`";
-const A_LINK = "\\[[^\\]\\n]+\\]\\([^)\\s]+\\)";
-const within = (mark: string) => `(?:${A_CODE}|${A_LINK}|[^${mark}\\n])+`;
+const CODE_REST = "[^`\\n]+`";
+const LINK_REST = "[^\\]\\n]+\\]\\([^)\\s]+\\)";
+const A_CODE = `\`${CODE_REST}`;
+const A_LINK = `\\[${LINK_REST}`;
+// Each character has one way to match: a backtick or a bracket counts on its
+// own only where it opens no code or link. Two ways each would double the
+// work per span on text that never closes its emphasis, and a description is
+// anyone's text.
+const within = (mark: string) =>
+  `(?:${A_CODE}|${A_LINK}|[^${mark}\`\\[\\n]|\`(?!${CODE_REST})|\\[(?!${LINK_REST}))+`;
 const INLINE = new RegExp(
   `(${A_CODE}|(?<!!)${A_LINK}|\\*\\*(?!\\s)[^*\\n]+(?<!\\s)\\*\\*` +
     `|(?<![\\w*])\\*(?!\\s)${within("*")}(?<!\\s)\\*(?![\\w*])` +
