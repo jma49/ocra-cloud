@@ -1,5 +1,7 @@
 /* Pre-merge checks: a repository's list and form, and a pull request's results. */
-.repo-checks {
+/* What a repository's row opens under itself (its checks, its token). */
+.repo-checks,
+.repo-token {
   padding: 12px 20px 16px;
   background: var(--fill);
 }
@@ -54,6 +56,10 @@
   }
 }
 .checks-row > td {
+  padding: 0;
+}
+/* Stacked, the panel still runs edge to edge under its row. */
+.table-wrap[data-stacked] tr.checks-row {
   padding: 0;
 }
 .check-mark.wait {
