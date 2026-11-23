@@ -363,4 +363,27 @@ describe("the auto review page", () => {
     render(<AutoReview platforms={["github"]} />);
     expect((await screen.findByRole("status")).textContent).toContain("No runner is connected");
   });
+
+  it("marks a paused repository and says what lifts the pause", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url.startsWith("/api/review-targets")) {
+          return Response.json({ default: { firstReviewHours: null, mergeDays: null }, repos: [] });
+        }
+        if (url.startsWith("/api/platforms/repos")) return Response.json({ platforms: [] });
+        return Response.json({
+          repos: [
+            { ...REPO, platform: "github", fullName: "acme/api", latest: null, paused: "removed" },
+            { ...REPO, id: "rr2", platform: "github", fullName: "acme/web", latest: null },
+          ],
+        });
+      }),
+    );
+    render(<AutoReview platforms={["github"]} />);
+    const cell = (await screen.findByText("acme/api")).closest("td");
+    expect(cell?.querySelector(".badge")?.textContent).toBe("Paused");
+    expect(cell?.textContent).toContain("Reviews resume when it is added back.");
+    expect(screen.getByText("acme/web").closest("td")?.textContent).not.toContain("Paused");
+  });
 });
