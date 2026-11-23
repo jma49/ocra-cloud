@@ -164,6 +164,48 @@ describe("retention", () => {
     expect(kept).toEqual(["armed-month", "ended-new"]);
   });
 
+  it("deletes an auto review's finished jobs 90 days after they ended, never one queued or running", async () => {
+    const { account } = await signIn(1, "octo");
+    const d = scoped(db, account.id);
+    await d.insert("reviewRepos", rows.reviewRepos("review-repo-of-a"));
+    for (const table of ["reviewJobs", "replyJobs", "generateJobs"] as const) {
+      const job = (id: string, state: "queued" | "running" | "done" | "failed", days: number) =>
+        d.insert(table, {
+          ...rows[table](id),
+          state,
+          createdAt: ago(days + 1),
+          finishedAt: state === "done" || state === "failed" ? ago(days) : null,
+        } as never);
+      await job("done-old", "done", 91);
+      await job("failed-old", "failed", 91);
+      await job("done-new", "done", 89);
+      await job("queued-old", "queued", 200);
+      await job("running-old", "running", 200);
+      await enforceRetention(db, now);
+      const kept = (await d.list(table)).map((r) => r.id).sort();
+      expect(kept, table).toEqual(["done-new", "queued-old", "running-old"]);
+    }
+  });
+
+  it("deletes a pre-merge check's result 90 days after it was last posted", async () => {
+    const { account } = await signIn(1, "octo");
+    const d = scoped(db, account.id);
+    await d.insert("reviewRepos", rows.reviewRepos("review-repo-of-a"));
+    const run = (id: string, made: number, posted: number | null) =>
+      d.insert("mergeCheckRuns", {
+        ...rows.mergeCheckRuns(id),
+        createdAt: ago(made),
+        postedAt: posted === null ? null : ago(posted),
+      });
+    await run("old", 91, 91);
+    await run("old-unposted", 91, null);
+    await run("old-posted-since", 120, 5);
+    await run("new", 89, 89);
+    await enforceRetention(db, now);
+    const kept = (await d.list("mergeCheckRuns")).map((r) => r.id).sort();
+    expect(kept).toEqual(["new", "old-posted-since"]);
+  });
+
   it("deletes a stack merge a month after it was last moved", async () => {
     const { account } = await signIn(1, "octo");
     const d = scoped(db, account.id);
