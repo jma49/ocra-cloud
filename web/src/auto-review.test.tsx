@@ -181,6 +181,31 @@ describe("the auto review page", () => {
     expect(screen.queryByText("daily_limit")).toBeNull();
   });
 
+  it("says in words why the server gave a job up, and shows any other error as it is", async () => {
+    const latest = (error: string) => ({ ...REPO.latest, state: "failed", error });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        Response.json(
+          url.startsWith("/api/review-targets")
+            ? { default: { firstReviewHours: null, mergeDays: null }, repos: [] }
+            : {
+                repos: [
+                  { ...REPO, latest: latest("lease_lapsed") },
+                  { ...REPO, id: "r2", fullName: "acme/web", latest: latest("never_started") },
+                  { ...REPO, id: "r3", fullName: "acme/cli", latest: latest("clone_failed") },
+                ],
+              },
+        ),
+      ),
+    );
+    render(<AutoReview platforms={["github"]} />);
+    expect(await screen.findByText("The runner stopped every time it tried this")).toBeTruthy();
+    expect(screen.getByText("No runner picked this up in time")).toBeTruthy();
+    expect(screen.getByText("clone_failed")).toBeTruthy();
+    expect(screen.queryByText("lease_lapsed")).toBeNull();
+  });
+
   it("sets a repository's review profile", async () => {
     const sent: unknown[] = [];
     vi.stubGlobal(
