@@ -1,7 +1,7 @@
 import { and, eq, gte, lt } from "drizzle-orm";
 import { DAY } from "../time.js";
 import type { Db } from "./client.js";
-import { generateJobs, replyJobs, reviewJobs } from "./schema.js";
+import { generateJobs, learnJobs, replyJobs, reviewJobs } from "./schema.js";
 
 // The jobs of auto review a run or a runner left behind: a run that died
 // keeps its job running until its lease lapses, and a job nothing claims
@@ -18,7 +18,7 @@ const QUEUED_DAYS = 7;
 const LEASE_LAPSED = "lease_lapsed";
 const NEVER_STARTED = "never_started";
 
-type JobTable = typeof reviewJobs | typeof replyJobs | typeof generateJobs;
+type JobTable = typeof reviewJobs | typeof replyJobs | typeof generateJobs | typeof learnJobs;
 
 /**
  * Queues again the job's runs whose lease lapsed while it has attempts
@@ -44,7 +44,7 @@ export async function recoverLapsed(db: Db, j: JobTable, now: Date): Promise<voi
  */
 export async function recoverJobs(db: Db, now = new Date()): Promise<void> {
   const stale = new Date(now.getTime() - QUEUED_DAYS * DAY);
-  for (const j of [reviewJobs, replyJobs, generateJobs]) {
+  for (const j of [reviewJobs, replyJobs, generateJobs, learnJobs]) {
     await recoverLapsed(db, j, now);
     await db
       .update(j)

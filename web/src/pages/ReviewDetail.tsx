@@ -282,7 +282,17 @@ function Properties(props: { r: Review }) {
             <dd>
               <ul className="prop-items mono small">
                 {r.learnings.map((id) => (
-                  <li key={id}>{id}</li>
+                  <li key={id}>
+                    {pull ? (
+                      <Link
+                        to={`/learnings?${new URLSearchParams({ platform: pull.platform, repo: pull.repo })}`}
+                      >
+                        {id}
+                      </Link>
+                    ) : (
+                      id
+                    )}
+                  </li>
                 ))}
               </ul>
             </dd>

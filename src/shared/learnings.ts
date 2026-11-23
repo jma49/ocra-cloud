@@ -1,4 +1,5 @@
 import type { LearningSourceKind } from "@open-cr-agent/cloud-contract";
+import type { LearnJobView, LearnMode } from "./auto-review.js";
 import type { CodePlatformKind } from "./domain.js";
 
 // A repository's learnings (ADR-0037 of the engine), read live from its
@@ -48,6 +49,19 @@ export type LearningsView = {
   usageDays: number;
   /** The `after` of the next page; null on the last. */
   next: string | null;
+  /** How the findings people decline become learnings here; null unless the server reviews the repository. */
+  declined: DeclinedLearningView | null;
+};
+
+/**
+ * An enrolled repository's learning from declined findings: its setting,
+ * and the pull requests whose threads are waiting to be read, being read
+ * or were read lately, newest first.
+ */
+export type DeclinedLearningView = {
+  reviewRepoId: string;
+  learn: LearnMode;
+  jobs: LearnJobView[];
 };
 
 export type LearningProposalView = {

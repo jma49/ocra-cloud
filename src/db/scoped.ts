@@ -46,6 +46,7 @@ import {
   inbox,
   rememberFindings,
 } from "./inbox.js";
+import { accountLearnJobs } from "./learn-jobs.js";
 import { learningUsage } from "./learning-usage.js";
 import { accountLive } from "./live.js";
 import { accountMergeChecks } from "./merge-checks.js";
@@ -473,6 +474,7 @@ export function scoped(db: Db, accountId: string) {
     replies: accountReplyJobs(db, accountId),
     chat: accountReviewChat(db, accountId),
     generations: accountGenerateJobs(db, accountId),
+    learning: accountLearnJobs(db, accountId),
     audit: accountAuditEvents(db, accountId),
     automations: accountAutomations(db, accountId),
     mergeChecks: accountMergeChecks(db, accountId),

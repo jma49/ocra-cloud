@@ -18,8 +18,8 @@ import { keepReviewImpact, type ReviewGraphs, writeReviewGraph } from "./review-
 
 // The machine's half of a hosted job (ADR-0046, 4): clones the repository's
 // default branch into a new directory and runs the released CLI there on
-// the pull request (`ocra review … --no-repo-config`, `ocra reply` or
-// `ocra generate`), signed in to the server as the enrolling account (its
+// the pull request (`ocra review … --no-repo-config`, `ocra reply`,
+// `ocra generate` or `ocra learn feedback … --propose`), signed in to the server as the enrolling account (its
 // models, key, budget and rules, and the upload), and posting as the ocra
 // bot. The directory is removed on every exit path. What to run comes from
 // the server's half (src/auto-review/work.ts), which records how it went.
@@ -81,6 +81,8 @@ export const runNextReview = (runner: ReviewRunner) => runNext(runner, "review")
 export const runNextReply = (runner: ReviewRunner) => runNext(runner, "reply");
 /** A request for tests or docstrings. */
 export const runNextGeneration = (runner: ReviewRunner) => runNext(runner, "generate");
+/** A pull request's declined findings, drafted into learnings. */
+export const runNextLearning = (runner: ReviewRunner) => runNext(runner, "learn");
 
 /** Clones the repository and runs the CLI there, signed in and posting as the bot. */
 async function inCheckout(machine: Machine, work: Assignment, signal: AbortSignal) {

@@ -11,9 +11,11 @@ import { platformsOf } from "../platforms/registry.js";
 import { perMinute } from "../rate.js";
 import { requireSession } from "../session.js";
 import {
+  type AutoReviewLearnView,
   type AutoReviewRepoView,
   type AutoReviewSwitchView,
   CODE_PLATFORMS,
+  LEARN_MODES,
   REVIEW_PROFILES,
   type ReviewProfileView,
   type ReviewRunnersView,
@@ -50,6 +52,7 @@ const enrollSchema = z.object({
 
 const profileBody = z.object({ profile: z.enum(REVIEW_PROFILES) });
 const automaticBody = z.object({ automatic: z.boolean() });
+const learnBody = z.object({ learn: z.enum(LEARN_MODES) });
 
 const repoView = (r: Row<"reviewRepos">, latest: ReviewJobSummary | undefined) =>
   ({
@@ -59,6 +62,7 @@ const repoView = (r: Row<"reviewRepos">, latest: ReviewJobSummary | undefined) =
     fullName: r.fullName,
     profile: r.reviewProfile,
     automatic: r.automatic,
+    learn: r.learn,
     latest: latest
       ? {
           number: latest.number,
@@ -187,6 +191,21 @@ export function autoReviewRoute(service: AutoReviewService) {
       if (!repo || !changed) return apiError(c, "not_found");
       await audit(c.var.data, "auto_review.automatic_changed", { repo: repo.fullName, automatic });
       return c.json({ automatic } satisfies AutoReviewSwitchView);
+    },
+  );
+
+  route.put(
+    "/repos/:id/learn",
+    requireSession(["web"]),
+    perMinute("settings"),
+    jsonBody(learnBody),
+    async (c) => {
+      const { learn } = c.req.valid("json");
+      const repo = await c.var.data.get("reviewRepos", c.req.param("id"));
+      const changed = repo && (await c.var.data.update("reviewRepos", repo.id, { learn }));
+      if (!repo || !changed) return apiError(c, "not_found");
+      await audit(c.var.data, "auto_review.learn_changed", { repo: repo.fullName, learn });
+      return c.json({ learn } satisfies AutoReviewLearnView);
     },
   );
 

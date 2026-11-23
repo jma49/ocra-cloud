@@ -118,6 +118,7 @@ describe("deleting an account", () => {
           "reviewJobs",
           "replyJobs",
           "generateJobs",
+          "learnJobs",
           "closedPulls",
           "pullFlows",
           "pullReviews",
@@ -176,6 +177,10 @@ describe("deleting an account", () => {
     });
     await d.insert("generateJobs", {
       ...rows.generateJobs(id("generateJobs")),
+      reviewRepoId: id("reviewRepos"),
+    });
+    await d.insert("learnJobs", {
+      ...rows.learnJobs(id("learnJobs")),
       reviewRepoId: id("reviewRepos"),
     });
     for (const table of [

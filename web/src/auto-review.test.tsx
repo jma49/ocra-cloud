@@ -15,6 +15,7 @@ const REPO = {
   fullName: "pay/api",
   profile: "balanced",
   automatic: true,
+  learn: "merge",
   latest: {
     number: 9,
     head: "a".repeat(40),

@@ -29,9 +29,11 @@ import {
   type AutomationRetry,
   type AutomationRunView,
   CODE_PLATFORMS,
+  DEFAULT_LEARN_MODE,
   DISMISS_REASONS,
   FINDING_STATUSES,
   FIXED_VIA,
+  LEARN_MODES,
   LIVE_ROLES,
   LIVE_STATES,
   type LinkedTaskView,
@@ -812,6 +814,8 @@ export const reviewRepos = sqliteTable(
     reviewProfile: text("review_profile", { enum: REVIEW_PROFILES }).notNull().default("balanced"),
     /** Whether a pull request is reviewed when it opens or gains commits; off leaves only reviews a person asks for. */
     automatic: integer("automatic", { mode: "boolean" }).notNull().default(true),
+    /** What becomes of the findings people decline in their threads (src/shared/auto-review.ts). */
+    learn: text("learn", { enum: LEARN_MODES }).notNull().default(DEFAULT_LEARN_MODE),
     /** When the daily reconciliation (src/reconcile.ts) last claimed it; once per UTC day. */
     reconciledAt: integer("reconciled_at", { mode: "timestamp_ms" }),
   },
@@ -1280,6 +1284,36 @@ export const generateJobs = sqliteTable(
   ],
 );
 
+// The declined findings of a pull request of an enrolled repository, to be
+// drafted into learnings by `ocra learn feedback` in the runner
+// (src/db/learn-jobs.ts): one row per pull request, queued again by each
+// thread a person answers or resolves. `again` is set by one that arrives
+// while its run is under way, which the run's end then queues once more.
+export const learnJobs = sqliteTable(
+  "learn_jobs",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    reviewRepoId: text("review_repo_id")
+      .notNull()
+      .references(() => reviewRepos.id, { onDelete: "cascade" }),
+    number: integer("number").notNull(),
+    state: text("state", { enum: REVIEW_JOB_STATES }).notNull().default("queued"),
+    again: integer("again", { mode: "boolean" }).notNull().default(false),
+    attempts: integer("attempts").notNull().default(0),
+    notBefore: integer("not_before", { mode: "timestamp_ms" }),
+    leaseUntil: integer("lease_until", { mode: "timestamp_ms" }),
+    error: text("error"),
+    finishedAt: integer("finished_at", { mode: "timestamp_ms" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("learn_jobs_pull").on(t.reviewRepoId, t.number),
+    index("learn_jobs_state").on(t.state, t.createdAt),
+    index("learn_jobs_account_repo").on(t.accountId, t.reviewRepoId, t.finishedAt),
+  ],
+);
+
 // A rule the account set for its pull requests (src/automations/).
 export const automationRules = sqliteTable(
   "automation_rules",
@@ -1671,6 +1705,7 @@ export const accountTables = {
   replyJobs,
   reviewWalkthroughs,
   generateJobs,
+  learnJobs,
   automationRules,
   automationRuns,
   automationAssignments,

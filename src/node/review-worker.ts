@@ -14,7 +14,12 @@ import { type BotSettings, botTokens } from "../platforms/bot-tokens.js";
 import { platformsOf } from "../platforms/registry.js";
 import type { AppBindings } from "../types.js";
 import type { Exec } from "./checkout.js";
-import { runNextGeneration, runNextReply, runNextReview } from "./review-runner.js";
+import {
+  runNextGeneration,
+  runNextLearning,
+  runNextReply,
+  runNextReview,
+} from "./review-runner.js";
 
 export type AutoReviewOptions = {
   bots: BotSettings;
@@ -80,7 +85,8 @@ export function startAutoReview(
         !stopped &&
         ((await runNextReview(runner)) ||
           (await runNextReply(runner)) ||
-          (await runNextGeneration(runner)))
+          (await runNextGeneration(runner)) ||
+          (await runNextLearning(runner)))
       );
     } catch (e) {
       logError("review_worker_failed", { error: errorName(e) });

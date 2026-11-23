@@ -6,6 +6,7 @@ import {
   generateJobs,
   graphBuilds,
   inboundEvents,
+  learnJobs,
   mergeIntents,
   notifyDeliveries,
   replyJobs,
@@ -61,6 +62,7 @@ const QUEUES: Record<string, QueueTable> = {
   review: reviewJobs,
   reply: replyJobs,
   generate: generateJobs,
+  learn: learnJobs,
   graph: graphBuilds,
 };
 

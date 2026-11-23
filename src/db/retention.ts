@@ -16,6 +16,7 @@ import {
   gatewayCalls,
   generateJobs,
   inboundEvents,
+  learnJobs,
   liveRuns,
   mergeCheckRuns,
   mergeIntents,
@@ -79,7 +80,9 @@ export async function enforceRetention(db: Db, now = new Date()): Promise<void> 
   const ofEachAccount = (column: SQLiteColumn) =>
     inArray(column, db.select({ id: accounts.id }).from(accounts));
   // A job that ended, by when it did; one queued or running is never deleted.
-  const ended = (job: typeof reviewJobs | typeof replyJobs | typeof generateJobs) =>
+  const ended = (
+    job: typeof reviewJobs | typeof replyJobs | typeof generateJobs | typeof learnJobs,
+  ) =>
     db.delete(job).where(
       and(
         ofEachAccount(job.accountId),
@@ -186,6 +189,7 @@ export async function enforceRetention(db: Db, now = new Date()): Promise<void> 
     ["review_jobs", () => ended(reviewJobs)],
     ["reply_jobs", () => ended(replyJobs)],
     ["generate_jobs", () => ended(generateJobs)],
+    ["learn_jobs", () => ended(learnJobs)],
     // A head's result, by when it was last posted: one evaluated again is posted again.
     [
       "merge_check_runs",
