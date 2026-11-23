@@ -62,9 +62,6 @@
   font-weight: 400;
   white-space: nowrap;
 }
-.pull-stack-notes .ok {
-  color: var(--green);
-}
 .pull-stack-notes .warn {
   color: var(--warning);
 }
@@ -123,6 +120,45 @@
 }
 .stack-merge-stop {
   justify-self: start;
+}
+
+/* The merge queue: the pull requests ahead of this one, next to merge first. */
+.queue-ahead ol {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.queue-ahead li {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  justify-content: space-between;
+  min-width: 0;
+}
+.queue-ahead li > .small {
+  flex: none;
+}
+.queue-pull {
+  display: flex;
+  flex: 1;
+  gap: 6px;
+  align-items: baseline;
+  min-width: 0;
+  color: var(--t1);
+  text-decoration: none;
+  font-size: var(--text-sm);
+}
+.queue-pull:hover .pull-stack-title {
+  text-decoration: underline;
+}
+.queue-removed {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 8px;
+  margin: 0;
 }
 
 /* Suggested reviewers, beside the diff: who and the ask on one line, why below. */

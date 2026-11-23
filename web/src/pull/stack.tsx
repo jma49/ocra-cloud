@@ -30,9 +30,9 @@ import { stackBeside, stackLanes } from "./stack-order.js";
 type Ref = { platform: CodePlatformKind; repo: string; number: number };
 
 const REVIEW = {
-  approved: { label: "Approved", tone: "ok" },
-  changes_requested: { label: "Changes requested", tone: "warn" },
-  required: { label: "Review required", tone: "" },
+  approved: "Approved",
+  changes_requested: "Changes requested",
+  required: "Review required",
 } as const;
 
 const commits = (n: number) => `${n} ${n === 1 ? "commit" : "commits"}`;
@@ -62,7 +62,7 @@ function Layer(props: { pull: Ref; p: StackedPull; lane: number; joined: boolean
             </span>
           )}
           {p.draft && <span>Draft</span>}
-          {review && <span className={review.tone}>{review.label}</span>}
+          {review && <span>{review}</span>}
         </span>
       </Link>
     </li>
