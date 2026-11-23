@@ -110,6 +110,8 @@ export class ApiError extends Error {
     readonly issues: readonly BodyIssue[] = [],
     /** When a refusal for a used-up allowance lifts (ISO time). */
     readonly retryAt?: string,
+    /** How the CLI words a file an invalid_body refused, and whether there were more issues than listed. */
+    readonly file: { refusal?: string; more?: boolean } = {},
   ) {
     super(code ?? String(status));
   }
@@ -177,11 +179,17 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     reason?: unknown;
     issues?: unknown;
     retryAt?: unknown;
+    refusal?: unknown;
+    more?: unknown;
   };
   if (!res.ok) {
     const reason = typeof body.reason === "string" ? body.reason : undefined;
     const retryAt = typeof body.retryAt === "string" ? body.retryAt : undefined;
-    throw new ApiError(res.status, codeOf(body.error), reason, issuesOf(body), retryAt);
+    const file = {
+      ...(typeof body.refusal === "string" ? { refusal: body.refusal } : {}),
+      ...(body.more === true ? { more: true } : {}),
+    };
+    throw new ApiError(res.status, codeOf(body.error), reason, issuesOf(body), retryAt, file);
   }
   return body as T;
 }
