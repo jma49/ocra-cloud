@@ -13,6 +13,9 @@ import { auditLines, lines } from "../test/audit-lines.js";
 import { C1, C2, C3, repoFake } from "./graph-fakes.js";
 import { graphServer, ORIGIN, SECRET, type Server } from "./graph-server.js";
 
+/** A daily cap on gateway calls no test reaches unless it means to. */
+const CALLS = 1000;
+
 // Pull requests the server reviews itself (ADR-0046): a repository one
 // account enrolls, whose pull requests' heads the platforms' webhooks queue.
 
@@ -220,12 +223,12 @@ describe("GitHub's pull request webhook", () => {
   it("is claimed by one runner, and not again while its review runs", async () => {
     await fromGithub(pullEvent("opened", C1));
     const now = new Date();
-    const claimed = await claimJob(s.host.db, now, 60_000);
+    const claimed = await claimJob(s.host.db, now, 60_000, CALLS);
     expect(claimed).toMatchObject({ number: 7, head: C1, attempts: 1 });
-    expect(await claimJob(s.host.db, now, 60_000)).toBeUndefined();
+    expect(await claimJob(s.host.db, now, 60_000, CALLS)).toBeUndefined();
     await fromGithub(pullEvent("synchronize", C2));
     // The newer head waits for the running review of the same pull request.
-    expect(await claimJob(s.host.db, now, 60_000)).toBeUndefined();
+    expect(await claimJob(s.host.db, now, 60_000, CALLS)).toBeUndefined();
     const [running] = await s.host.db
       .select()
       .from(schema.reviewJobs)
@@ -233,7 +236,10 @@ describe("GitHub's pull request webhook", () => {
     expect(running?.state).toBe("running");
     // Past the lease the run is taken as dead: the newer head is reviewed, the dead one superseded.
     const later = new Date(now.getTime() + 120_000);
-    expect(await claimJob(s.host.db, later, 60_000)).toMatchObject({ head: C2, attempts: 1 });
+    expect(await claimJob(s.host.db, later, 60_000, CALLS)).toMatchObject({
+      head: C2,
+      attempts: 1,
+    });
     expect((await jobs()).map((j) => [j.head, j.state])).toEqual([
       [C1, "superseded"],
       [C2, "running"],

@@ -16,7 +16,7 @@ Hosted reviews are on when the server has all four of:
 
 On Workers the key, the secret and the token are secrets (`wrangler secret put`, with no trailing newline in piped input) and the App's number a variable. A self-hosted server reads them from its environment; with `AUTO_REVIEW_WORKERS=0` it leaves every job to its runners, otherwise it runs jobs itself as well.
 
-Auto review in the console then lists each runner with when it last asked for work. A review queued while no runner is online waits for one.
+Auto review in the console then lists each runner with when it last asked for work. A review queued while no runner is online waits for one. A job of an account that has used its gateway calls for the day (`GATEWAY_DAILY_CALLS`, or the account's own budget) also waits, until the count starts again at midnight UTC, and a review the limit cut short runs again then; Auto review says so while it lasts.
 
 ## A runner
 

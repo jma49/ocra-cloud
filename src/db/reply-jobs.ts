@@ -1,5 +1,6 @@
 import { and, eq, isNull, lt, lte, or, sql } from "drizzle-orm";
 import { changedRows, type Db, first } from "./client.js";
+import { callsLeft } from "./counters.js";
 import { replyJobs } from "./schema.js";
 
 // Answers to @ocra comments (reached through scoped() for an account's own,
@@ -55,6 +56,7 @@ export async function claimReply(
   db: Db,
   now: Date,
   leaseMs: number,
+  dailyCalls: number,
 ): Promise<ClaimedReply | undefined> {
   const j = replyJobs;
   // A run that died keeps its row running until its lease lapses: queued again here.
@@ -65,7 +67,13 @@ export async function claimReply(
   const due = await db
     .select({ id: j.id })
     .from(j)
-    .where(and(eq(j.state, "queued"), or(isNull(j.notBefore), lte(j.notBefore, now))))
+    .where(
+      and(
+        eq(j.state, "queued"),
+        or(isNull(j.notBefore), lte(j.notBefore, now)),
+        callsLeft(j.accountId, dailyCalls, now),
+      ),
+    )
     .orderBy(j.createdAt)
     .limit(1)
     .then(first);

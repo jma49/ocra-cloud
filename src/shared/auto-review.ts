@@ -8,6 +8,9 @@ import type { ReviewProfile } from "./review-profiles.js";
 export const REVIEW_JOB_STATES = ["queued", "running", "done", "failed", "superseded"] as const;
 type ReviewJobState = (typeof REVIEW_JOB_STATES)[number];
 
+/** A queued job's error while it waits for the account's daily gateway calls to reset. */
+export const DAILY_LIMIT_WAIT = "daily_limit";
+
 export type AutoReviewRepoView = {
   id: string;
   platform: CodePlatformKind;

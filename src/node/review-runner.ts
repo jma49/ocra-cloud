@@ -77,7 +77,7 @@ async function runNext(runner: ReviewRunner, kind: WorkKind): Promise<boolean> {
   if (!work) return false;
   if (work === "refused") return true;
   const now = runner.now ?? (() => new Date());
-  await settle(runner.db, work, await run(runner, work, now()), now());
+  await settle(runner, work, await run(runner, work, now()), now());
   return true;
 }
 

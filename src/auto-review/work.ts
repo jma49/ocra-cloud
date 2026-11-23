@@ -10,7 +10,8 @@ import { checksOf } from "../merge-checks/run.js";
 import type { BotAccess, BotCredential, BotTokens } from "../platforms/bot.js";
 import type { CodePlatform } from "../platforms/platform.js";
 import { startCliSession } from "../session.js";
-import type { CodePlatformKind } from "../shared/index.js";
+import { type CodePlatformKind, DAILY_LIMIT_WAIT } from "../shared/index.js";
+import { nextUtcDay, utcDay } from "../time.js";
 import { profileRun } from "./profiles.js";
 
 // The server's half of a hosted job (ADR-0046, 4): claiming the next queued
@@ -64,6 +65,8 @@ export type WorkSource = {
   bots: BotTokens;
   /** This server's own address, which the CLI signs in to. */
   publicUrl: string;
+  /** The service's daily cap on an account's gateway calls: an account at it waits. */
+  dailyCalls: number;
   /** A review's lease, when not the default. */
   leaseMs?: number;
   now?: () => Date;
@@ -88,7 +91,7 @@ async function claim(
   now: Date,
 ): Promise<{ claimed: ClaimedWork; command: Command } | undefined> {
   if (kind === "review") {
-    const claimed = await claimJob(source.db, now, source.leaseMs ?? LEASE_MS);
+    const claimed = await claimJob(source.db, now, source.leaseMs ?? LEASE_MS, source.dailyCalls);
     return (
       claimed && {
         claimed,
@@ -103,7 +106,7 @@ async function claim(
     );
   }
   if (kind === "reply") {
-    const claimed = await claimReply(source.db, now, REPLY_LEASE_MS);
+    const claimed = await claimReply(source.db, now, REPLY_LEASE_MS, source.dailyCalls);
     return (
       claimed && {
         claimed,
@@ -120,7 +123,7 @@ async function claim(
       }
     );
   }
-  const claimed = await claimGenerate(source.db, now, GENERATE_LEASE_MS);
+  const claimed = await claimGenerate(source.db, now, GENERATE_LEASE_MS, source.dailyCalls);
   return (
     claimed && {
       claimed,
@@ -155,12 +158,7 @@ export async function assign(
     repo && source.platforms.find((p) => p.kind === repo.platform && p.host === repo.host);
   const bot = platform && (await source.bots.forRepo(repo.platform, repo.fullName, command.access));
   if (!repo || !platform || !bot) {
-    await settle(
-      source.db,
-      ref,
-      !repo ? "repo_gone" : !platform ? "platform_gone" : "no_bot",
-      now(),
-    );
+    await settle(source, ref, !repo ? "repo_gone" : !platform ? "platform_gone" : "no_bot", now());
     return "refused";
   }
   const mergeChecks = command.mergeChecks
@@ -200,11 +198,37 @@ export async function assign(
 }
 
 /**
+ * Whether the review ran into the account's daily limit on gateway calls:
+ * its upload is incomplete and the account has no call left. Such a review
+ * is run again when the day turns, while it has attempts left.
+ */
+async function cutShortByDailyLimit(
+  data: ReturnType<typeof scoped>,
+  ref: WorkRef,
+  cap: number,
+  now: Date,
+): Promise<boolean> {
+  if (ref.kind !== "review" || ref.attempts >= MAX_ATTEMPTS) return false;
+  const [own, today, job] = await Promise.all([
+    data.findOne("budgets", {}),
+    data.findOne("usageCounters", { kind: "gateway_calls", day: utcDay(now) }),
+    data.get("reviewJobs", ref.id),
+  ]);
+  if (!job || (today?.n ?? 0) < Math.min(cap, own?.dailyCalls ?? cap)) return false;
+  const [review] = await data.listNewest("reviews", 1, {
+    prNumber: job.number,
+    prHeadSha: job.head,
+  });
+  return review?.complete === false;
+}
+
+/**
  * Records how the job's run went and ends the session it was given: done,
- * or failed with a retry later for what may pass next time.
+ * failed with a retry later for what may pass next time, or queued again
+ * for the next day when the daily limit cut its review short.
  */
 export async function settle(
-  db: Db,
+  { db, dailyCalls }: Pick<WorkSource, "db" | "dailyCalls">,
   ref: WorkRef,
   failure: Failure | null,
   now: Date,
@@ -219,7 +243,9 @@ export async function settle(
     reply: data.replies,
     generate: data.generations,
   }[ref.kind];
-  if (failure === null) {
+  if (failure === null && (await cutShortByDailyLimit(data, ref, dailyCalls, now))) {
+    await data.autoReview.releaseJob(ref.id, ref.attempts, DAILY_LIMIT_WAIT, nextUtcDay(now), now);
+  } else if (failure === null) {
     await records.finish(ref.id, ref.attempts, now);
   } else {
     const retry = RETRIED.has(failure) && ref.attempts < MAX_ATTEMPTS;

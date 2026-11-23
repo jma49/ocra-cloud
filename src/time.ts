@@ -10,6 +10,9 @@ export const utcDay = (d: Date): string => d.toISOString().slice(0, 10);
 /** Midnight UTC at the start of `now`'s day: where the daily limits reset. */
 export const utcDayStart = (now = new Date()): Date => new Date(utcDay(now));
 
+/** The next midnight UTC after `now`: when the daily limits reset. */
+export const nextUtcDay = (now = new Date()): Date => new Date(utcDayStart(now).getTime() + DAY);
+
 /** Whole seconds from `now` to the next midnight UTC, when a daily limit resets. */
 export const secondsToNextUtcDay = (now = new Date()): number =>
-  Math.max(1, Math.ceil((utcDayStart(now).getTime() + DAY - now.getTime()) / 1000));
+  Math.max(1, Math.ceil((nextUtcDay(now).getTime() - now.getTime()) / 1000));
