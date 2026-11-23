@@ -92,7 +92,7 @@ export function PeopleCard(props: {
   };
   const head = (list: List, title: string) => (
     <div className="row-gap checks-head">
-      <span className="strong grow">{title}</span>
+      <h2 className="card-title grow">{title}</h2>
       {props.editable && adding !== list && (
         <Button
           type="button"

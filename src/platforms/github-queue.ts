@@ -19,6 +19,10 @@ const STATE = {
   UNMERGEABLE: "blocked",
 } as const satisfies Record<EntryState, QueueState>;
 
+/** GitHub's word for a queue entry's state as ours; none for a word it has added since. */
+export const queueStateOf = (state: string): QueueState | undefined =>
+  (STATE as Record<string, QueueState>)[state];
+
 type Pull = {
   id: string;
   headRefOid: string;

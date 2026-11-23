@@ -35,6 +35,12 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
+.chat-thinking {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
 .chat-caret {
   display: inline-block;
   width: 7px;

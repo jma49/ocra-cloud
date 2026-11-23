@@ -6,8 +6,9 @@ import { emailAddress } from "./email.js";
 
 // A Slack member's direct messages, sent by the server's own Slack app
 // (SLACK_BOT_TOKEN): the member is found by the email address or member ID
-// the user typed, and their direct message conversation opened once, when
-// the channel is added; each message is then one chat.postMessage there.
+// the user typed when the channel is added, and their direct message
+// conversation opened once, when the first link to confirm is sent; each
+// message is then one chat.postMessage there.
 // A channel gets nothing until the member opens the link sent to them, so
 // a user cannot have ocra message someone else. The token, the text sent
 // and what Slack answers are never logged or kept.
@@ -63,42 +64,65 @@ async function call(token: string, method: string, params: Record<string, string
 const okAnswer = (c: Called): Answer | undefined =>
   c.status === 200 && c.answer.ok === true ? c.answer : undefined;
 
-/** not_found: no member by that address or ID; not_a_person: a bot or a deactivated member. */
-export type SlackMemberFound =
-  | { target: SlackDmTarget }
-  | { refused: "invalid" | "not_found" | "not_a_person" }
-  | { unreachable: true };
+/** The member the user typed, as looked up: an email address in lower case, or a member ID. */
+export function slackMemberInput(typed: string): string | undefined {
+  const input = typed.trim();
+  if (input.includes("@")) return emailAddress(input);
+  return MEMBER_ID.test(input) ? input : undefined;
+}
+
+/**
+ * missing: no member by that address or ID, a bot, or a deactivated member,
+ * told apart from none of the others, so the answer cannot say who is in
+ * the workspace.
+ */
+export type SlackMemberFound = { user: string } | { missing: true } | { unreachable: true };
 
 const NOT_FOUND = new Set(["users_not_found", "user_not_found"]);
 
-/**
- * The member the user typed (an email address, or a member ID such as
- * U012AB3CD) and their direct message conversation with the app, opened now.
- */
-export async function findSlackMember(token: string, typed: string): Promise<SlackMemberFound> {
-  const input = typed.trim();
-  const email = input.includes("@") ? emailAddress(input) : undefined;
-  if (!email && !MEMBER_ID.test(input)) return { refused: "invalid" };
-  const found = email
-    ? await call(token, "users.lookupByEmail", { email })
+/** The member a slackMemberInput names: one lookup, by email address or member ID. */
+export async function findSlackMember(token: string, input: string): Promise<SlackMemberFound> {
+  const found = input.includes("@")
+    ? await call(token, "users.lookupByEmail", { email: input })
     : await call(token, "users.info", { user: input });
   const answer = okAnswer(found);
   if (!answer) {
     const error = "answer" in found ? found.answer.error : undefined;
     return typeof error === "string" && NOT_FOUND.has(error)
-      ? { refused: "not_found" }
+      ? { missing: true }
       : { unreachable: true };
   }
   const user = answer.user;
   const id = user?.id;
   if (typeof id !== "string" || !MEMBER_ID.test(id)) return { unreachable: true };
   if (user?.deleted === true || user?.is_bot === true || id === "USLACKBOT") {
-    return { refused: "not_a_person" };
+    return { missing: true };
   }
-  const opened = await call(token, "conversations.open", { users: id, return_im: "false" });
+  return { user: id };
+}
+
+/** The member's direct message conversation with the app, opened now; undefined when it was not. */
+export async function openSlackDm(token: string, user: string): Promise<string | undefined> {
+  const opened = await call(token, "conversations.open", { users: user, return_im: "false" });
   const channel = okAnswer(opened)?.channel?.id;
-  if (typeof channel !== "string" || !DM_ID.test(channel)) return { unreachable: true };
-  return { target: { user: id, channel } };
+  return typeof channel === "string" && DM_ID.test(channel) ? channel : undefined;
+}
+
+/**
+ * What a channel's row keeps sealed: the member and their conversation
+ * once it is opened, the member alone before, and neither when the typed
+ * address or ID named nobody who can be sent to.
+ */
+export type SlackDmSealed = Partial<SlackDmTarget>;
+
+/** The member a channel's row names, or undefined when it names none. */
+export function slackMemberOf(sealed: string): string | undefined {
+  try {
+    const t = JSON.parse(sealed) as SlackDmSealed;
+    return typeof t.user === "string" && MEMBER_ID.test(t.user) ? t.user : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /** The target as sealed to its channel's row, or undefined when it is not one. */

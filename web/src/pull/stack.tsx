@@ -139,7 +139,7 @@ export function StackPanel(props: {
   return (
     <section className="card card-pad stack" aria-label="Stack">
       <div className="pull-stack-head">
-        <span className="strong">Stack</span>
+        <h2 className="card-title">Stack</h2>
         <span className="subtle small">
           {data.pulls.length} pull requests onto <span className="mono">{data.trunk}</span>
         </span>

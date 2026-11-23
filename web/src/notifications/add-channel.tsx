@@ -46,9 +46,12 @@ const WHERE: Record<NotifyKind, Where> = {
     label: "Slack member",
     name: "Name, e.g. My Slack",
     placeholder: "you@example.com or U012AB3CD",
-    hint: "The member gets a direct message with a link to confirm first; nothing else is sent until it is opened.",
+    hint: "If this is a member of the workspace, they get a direct message with a link to confirm first; nothing else is sent until it is opened.",
   },
 };
+
+/** The channel a link to confirm went to; a Slack member's goes only if the member exists. */
+export type LinkSent = { name: string; slack: boolean };
 
 /** Why an add was refused: the server's words for the field it refused, else the usual ones. */
 function refusal(e: unknown, kind: NotifyKind): string {
@@ -64,7 +67,7 @@ function refusal(e: unknown, kind: NotifyKind): string {
 
 export function AddChannel(props: {
   /** Called with the channel's name when a confirmation link went to it. */
-  onAdded: (confirming: string | null) => void;
+  onAdded: (confirming: LinkSent | null) => void;
   full: boolean;
   email: boolean;
   slack: boolean;
@@ -98,7 +101,9 @@ export function AddChannel(props: {
     setName("");
     setWhere("");
     setSecret(added.secret ?? null);
-    props.onAdded(added.confirmationSent ? name.trim() : null);
+    props.onAdded(
+      added.confirmationSent ? { name: name.trim(), slack: kind === "slack_dm" } : null,
+    );
   };
   return (
     <form className="card card-pad stack add-form" onSubmit={submit}>

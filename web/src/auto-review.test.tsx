@@ -213,6 +213,37 @@ describe("the auto review page", () => {
     expect(screen.queryByText("lease_lapsed")).toBeNull();
   });
 
+  it("opens a GitLab project's access token under its row, and offers none on GitHub", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        Response.json(
+          url.startsWith("/api/review-targets")
+            ? { default: { firstReviewHours: null, mergeDays: null }, repos: [] }
+            : {
+                repos: [
+                  { ...REPO, hasAccessToken: true, accessTokenBot: "project_7_bot" },
+                  {
+                    ...REPO,
+                    id: "r2",
+                    platform: "github",
+                    host: "github.com",
+                    fullName: "octo/web",
+                  },
+                ],
+              },
+        ),
+      ),
+    );
+    render(<AutoReview platforms={["github", "gitlab"]} />);
+    expect(await screen.findByText(/as project_7_bot/)).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: "Token" })).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "Token" }));
+    expect(screen.getByRole("region", { name: "Access token of pay/api" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Token" }));
+    expect(screen.queryByRole("region", { name: "Access token of pay/api" })).toBeNull();
+  });
+
   it("sets a repository's review profile", async () => {
     const sent: unknown[] = [];
     vi.stubGlobal(

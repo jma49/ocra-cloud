@@ -253,10 +253,14 @@
     grid-template-columns: minmax(0, 1fr);
     gap: 32px;
   }
+  /* Its sections join the page's one column, so the rail can sit between them. */
   .pull-about {
-    padding-right: 0;
+    display: contents;
   }
-  /* What it waits on comes before the long read on a narrow window. */
+  /* Where it sits in its stack, then what it waits on, come before the long read on a narrow window. */
+  .pull-about > .stack {
+    order: -2;
+  }
   .pull-rail {
     order: -1;
     padding: 0 0 24px;

@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { AddChannel } from "./add-channel.js";
+import { AddChannel, type LinkSent } from "./add-channel.js";
 
 afterEach(() => {
   cleanup();
@@ -8,7 +8,7 @@ afterEach(() => {
 });
 
 const form = (over: { slack?: boolean } = {}) => {
-  const added: (string | null)[] = [];
+  const added: (LinkSent | null)[] = [];
   render(
     <AddChannel
       onAdded={(confirming) => added.push(confirming)}
@@ -48,7 +48,11 @@ describe("adding a channel", () => {
     );
     const added = form();
     fill();
-    expect(screen.getByText(/gets a direct message with a link to confirm first/)).toBeTruthy();
+    expect(
+      screen.getByText(
+        /If this is a member of the workspace, they get a direct message with a link to confirm first/,
+      ),
+    ).toBeTruthy();
     await add();
     expect(sent).toEqual([
       {
@@ -60,7 +64,7 @@ describe("adding a channel", () => {
         member: "U012AB3CD",
       },
     ]);
-    expect(added).toEqual(["Ada"]);
+    expect(added).toEqual([{ name: "Ada", slack: true }]);
   });
 
   it("says in the server's words which member it refused", async () => {
@@ -70,7 +74,7 @@ describe("adding a channel", () => {
         Response.json(
           {
             error: "invalid_body",
-            issues: [{ path: ["member"], message: "a bot or a deactivated Slack member" }],
+            issues: [{ path: ["member"], message: "not a Slack member ID or email address" }],
           },
           { status: 400 },
         ),
@@ -80,7 +84,7 @@ describe("adding a channel", () => {
     fill();
     await add();
     expect(screen.getByRole("alert").textContent).toBe(
-      "Could not add it: a bot or a deactivated Slack member.",
+      "Could not add it: not a Slack member ID or email address.",
     );
   });
 

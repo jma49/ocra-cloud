@@ -55,7 +55,7 @@ export function GenerateBox(props: { pull: Pull; head: string }) {
   };
   return (
     <section className="card card-pad stack" aria-label="Write with ocra">
-      <div className="strong">Write with ocra</div>
+      <h2 className="card-title">Write with ocra</h2>
       <span className="subtle small">
         ocra commits what it writes to this branch. It does not run the tests: read them before you
         merge.

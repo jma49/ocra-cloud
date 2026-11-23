@@ -1,5 +1,11 @@
 import { outboundFetch } from "../calls.js";
-import { decryptWithAny, encryptSecret, type MasterKeys, type Sealed } from "../crypto.js";
+import {
+  repoTokenBinding as binding,
+  decryptWithAny,
+  encryptSecret,
+  type MasterKeys,
+  type Sealed,
+} from "../crypto.js";
 import type { BotRepo } from "./bot.js";
 import { isBotLogin, LOGIN } from "./reviewers.js";
 
@@ -10,8 +16,6 @@ import { isBotLogin, LOGIN } from "./reviewers.js";
 
 /** The columns of an enrolled repository that carry its own token, for callers that pick columns. */
 export type RepoTokenFields = "id" | "accessTokenWrappedKey" | "accessTokenCiphertext";
-
-const binding = (accountId: string, repoId: string) => `ocra-repo-token:v1|${accountId}|${repoId}`;
 
 export function sealRepoToken(
   masterKey: string,
