@@ -117,11 +117,12 @@ async function setUp(events: NotifyEvent[]) {
   return { data, repo, tell };
 }
 
-const hook = (action: string, extra: Record<string, unknown> = {}) => ({
+const hook = (action: string, extra: Record<string, unknown> = {}, changes?: object) => ({
   object_kind: "merge_request",
   user: { id: AUTHOR, username: "hubot" },
   object_attributes: { iid: 3, action, title: "MR 3", author_id: AUTHOR, ...extra },
   project: { id: 9 },
+  ...(changes ? { changes } : {}),
 });
 
 const backend = (members: number[]): Group => ({ id: 55, full_path: "acme/backend", members });
@@ -135,6 +136,23 @@ describe("a GitLab approval rule naming a group", () => {
     await tell(hook("update", { oldrev: "a".repeat(40) }));
     expect(posted).toHaveLength(1);
     expect(posted[0]).toContain("Approval was asked of acme/backend, a group you are on");
+  });
+
+  it("tells a member once when asked as a reviewer and through the group, and not again once they approved", async () => {
+    const { repo, tell } = await setUp(["review_requested"]);
+    const { posted } = platform(() => [{ rule_type: "regular", groups: [backend([ME])] }]);
+    const me = { id: ME, username: "lab-mona" };
+    await tell(
+      hook(
+        "open",
+        { updated_at: now.toISOString() },
+        { reviewers: { previous: [], current: [me] } },
+      ),
+    );
+    expect(posted).toHaveLength(1);
+    await recordGitlabRequests(db, repo, { ...hook("approved"), user: me }, later(1));
+    await tell(hook("update", { oldrev: "d".repeat(40) }));
+    expect(posted).toHaveLength(1);
   });
 
   it("reads the rules only when the merge request opens, reopens or gains commits", async () => {

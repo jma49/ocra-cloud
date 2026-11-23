@@ -88,11 +88,21 @@ export async function gitlabGroupEvents(
   for (const reviewerId of await data.reviewRequests.waitingTeams(pull)) {
     if (!named.has(reviewerId)) await data.reviewRequests.done({ ...pull, reviewerId, at: now });
   }
+  for (const g of groups) {
+    await data.reviewRequests.askedOnce({
+      ...pull,
+      reviewerId: teamReviewerId(g.id),
+      reviewer: g.path,
+      at: now,
+    });
+  }
+  // A group whose ask a member's approval ended tells nobody until it is asked anew.
+  const waiting = new Set(await data.reviewRequests.waitingTeams(pull));
   const author = a.author_id === undefined ? null : String(a.author_id);
   const events = new Map<string, PullEvent>();
   for (const g of groups) {
     const reviewerId = teamReviewerId(g.id);
-    await data.reviewRequests.askedOnce({ ...pull, reviewerId, reviewer: g.path, at: now });
+    if (!waiting.has(reviewerId)) continue;
     const members = await teamMembers(
       data,
       () => asks.members(g.id),
@@ -101,8 +111,8 @@ export async function gitlabGroupEvents(
     );
     for (const member of members ?? []) {
       if (member === author) continue;
-      // Once per merge request, whichever group: a member of two hears of one.
-      const key = `gitlab:requested:${repo.id}#${a.iid}:${member}:team`;
+      // One key per member, whoever was asked: tellGitlabHook adds the round of review.
+      const key = `gitlab:requested:${repo.id}#${a.iid}:${member}`;
       if (events.has(key)) continue;
       events.set(key, {
         kind: "review_requested",

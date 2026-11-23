@@ -192,7 +192,7 @@ export function gitlabPullEvents(body: unknown, repoId: string): PullEvent[] {
     .map((u) => ({
       ...base,
       kind: "review_requested",
-      key: `gitlab:requested:${repoId}#${a.iid}:${u.id}:${at}`,
+      key: `gitlab:requested:${repoId}#${a.iid}:${u.id}`,
       concerns: id(u.id),
       what: `${who} asked for your review`,
     }));
@@ -269,7 +269,7 @@ export async function tellGithubHook(
     : null;
   const asks = githubPullEvents(event, body, repo.id, members);
   const events = bySpecificity([
-    ...(await inRound(db, data, repo, asks, body)),
+    ...(await inRound(db, data, repo, asks, githubAskedAt(body))),
     ...githubCommentEvents(event, body, repo.id),
     ...(await keepGithubThread(data, event, body, repo.id)),
   ]);
@@ -285,23 +285,27 @@ export async function tellGithubHook(
  * team does (a review, a removal), so an ask after it tells them again;
  * an ask from before it, delivered late or again, tells nobody.
  */
+/** When a GitHub delivery says its pull request changed; NaN when it does not. */
+function githubAskedAt(body: unknown): number {
+  const parsed = githubPullEvent.safeParse(body);
+  return Date.parse(parsed.success ? (parsed.data.pull_request.updated_at ?? "") : "");
+}
+
 async function inRound(
   db: Db,
   data: Scoped,
   repo: EventRepo,
   events: readonly PullEvent[],
-  body: unknown,
+  at: number,
 ): Promise<PullEvent[]> {
   if (!events.some((e) => e.kind === "review_requested")) return [...events];
   const me = await ownUser(db, data, repo);
-  const parsed = githubPullEvent.safeParse(body);
-  const at = Date.parse(parsed.success ? (parsed.data.pull_request.updated_at ?? "") : "");
   const kept: PullEvent[] = [];
   for (const e of events) {
     if (e.kind !== "review_requested") kept.push(e);
     else if (me && e.concerns === me.id) {
       const round = await data.reviewRequests.roundOf(
-        { platform: "github", host: repo.host, userId: me.id },
+        { platform: repo.platform, host: repo.host, userId: me.id },
         repo.id,
         e.number,
       );
@@ -309,6 +313,12 @@ async function inRound(
     }
   }
   return kept;
+}
+
+/** When a GitLab hook says its merge request changed; NaN when it does not. */
+function gitlabAskedAt(body: unknown): number {
+  const parsed = gitlabEvent.safeParse(body);
+  return Date.parse(parsed.success ? (parsed.data.object_attributes.updated_at ?? "") : "");
 }
 
 /** Keeps the login on record of the GitLab user the hook shows acting. */
@@ -329,9 +339,13 @@ export async function tellGitlabHook(
 ): Promise<number> {
   await refreshGitlabActor(db, repo.host, body);
   const data = scoped(db, repo.accountId);
+  const groups = reader
+    ? await gitlabGroupEvents(data, repo, body, gitlabGroupAsks(reader, repo))
+    : [];
   const events = [
-    ...gitlabPullEvents(body, repo.id),
-    ...(reader ? await gitlabGroupEvents(data, repo, body, gitlabGroupAsks(reader, repo)) : []),
+    ...(await inRound(db, data, repo, gitlabPullEvents(body, repo.id), gitlabAskedAt(body))),
+    // A group's notice is made only while its ask waits, read just now: no delivery is late.
+    ...(await inRound(db, data, repo, groups, Number.NaN)),
   ];
   if (events.length === 0) return 0;
   return (await tellPullEvent(db, data, out, repo, events)).length;
