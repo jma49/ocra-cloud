@@ -166,7 +166,7 @@ export function AddCheck(props: { repoId: string; onAdded: () => void }) {
             onChange={(e) => setA(e.target.value)}
           />
         )}
-        <Button type="submit" disabled={add.busy || !ready}>
+        <Button type="submit" size="sm" disabled={add.busy || !ready}>
           Add
         </Button>
       </div>
