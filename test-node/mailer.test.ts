@@ -1,7 +1,7 @@
 import { createServer, type Server } from "node:net";
 import { afterEach, describe, expect, it } from "vitest";
 import { smtpMailer } from "../src/node/mailer.js";
-import { mailOf } from "../src/notify/email.js";
+import { mailAttempt, mailBody, mailOf } from "../src/notify/email.js";
 
 // The self-hosted server's SMTP mailer, against a local server that takes
 // one message per connection and keeps what it was sent.
@@ -9,7 +9,7 @@ import { mailOf } from "../src/notify/email.js";
 let server: Server | undefined;
 afterEach(() => server?.close());
 
-async function smtpServer() {
+async function smtpServer(rcptReply = "250 ok") {
   const received: { rcpt: string[]; data: string }[] = [];
   server = createServer((socket) => {
     const msg = { rcpt: [] as string[], data: "" };
@@ -30,7 +30,7 @@ async function smtpServer() {
         } else if (/^(EHLO|HELO)/i.test(line)) socket.write("250 test\r\n");
         else if (/^RCPT TO:/i.test(line)) {
           msg.rcpt.push(line.slice(8).trim());
-          socket.write("250 ok\r\n");
+          socket.write(`${rcptReply}\r\n`);
         } else if (/^DATA/i.test(line)) {
           inData = true;
           socket.write("354 go\r\n");
@@ -72,5 +72,26 @@ describe("the SMTP mailer", () => {
     expect(data).toContain("List-Unsubscribe-Post: List-Unsubscribe=One-Click");
     expect(data).toContain("text/plain");
     expect(data).toContain("&lt;b&gt;hi&lt;/b&gt;");
+  });
+
+  it("is given up on a 5xx reply and tried again on a 4xx, keeping only the code", async () => {
+    const message = { subject: "ocra reviewed octo/api#7", lines: [["hi"]] };
+    const delivery = {
+      id: "d1",
+      event: "ping" as const,
+      payload: JSON.stringify(mailBody(message, "https://ocra.test/api/email/unsubscribe?t=x")),
+    };
+    for (const [reply, outcome] of [
+      ["550 5.1.1 no such user", { status: 550, error: "status", transient: false }],
+      ["451 4.7.1 try again later", { status: 451, error: "status", transient: true }],
+      ["250 ok", { status: null, error: null, transient: false }],
+    ] as const) {
+      const { url } = await smtpServer(reply);
+      const mailer = smtpMailer(url, "ocra@example.com");
+      if (!mailer) throw new Error("no mailer");
+      const attempt = mailAttempt(mailer, "ann@example.com");
+      expect(await attempt(delivery, new Date()), reply).toEqual(outcome);
+      server?.close();
+    }
   });
 });

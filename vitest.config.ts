@@ -11,6 +11,7 @@ const POSTGRES_EXCLUDE = [
   "test/query-plans.test.ts",
   "test/preferences-backfill.test.ts",
   "test/pull-view-names.test.ts",
+  "test/notify-deliveries-migration.test.ts",
   "test/usage-backfill.test.ts",
   "test/upload-atomic.test.ts",
   "test/logs.test.ts",

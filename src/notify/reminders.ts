@@ -110,6 +110,7 @@ function reminderMessage(list: Reminder[], now: Date, origin: string): Message {
     hooks.push({ event: "pull_waiting", data: { pulls: own.map((r) => waitingPull(r, origin)) } });
   }
   return {
+    event: review.length > 0 ? "review_waiting" : "pull_waiting",
     subject: `ocra: ${plural(list.length, "pull request")} waiting`,
     lines: [
       ...lines("Waiting for your review", review, now, origin),

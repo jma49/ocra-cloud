@@ -10,6 +10,7 @@ export * from "./auto-review.js";
 export * from "./automations.js";
 export * from "./chat-path.js";
 export * from "./cycles.js";
+export * from "./deliveries.js";
 export * from "./domain.js";
 export * from "./efforts.js";
 export * from "./finding-issues.js";

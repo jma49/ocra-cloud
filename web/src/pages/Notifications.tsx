@@ -21,7 +21,7 @@ import {
   reminderSummary,
 } from "../notifications/reminders-drawer.js";
 import { ReportSlot } from "../notifications/report-slot.js";
-import { SecretOnce, WebhookDrawer } from "../notifications/webhook-drawer.js";
+import { DeliveriesDrawer, SecretOnce } from "../notifications/webhook-drawer.js";
 import { ActionError, LoadError, Loading, PageHead, useAction, useLoad } from "../ui.js";
 
 // The chats and email addresses that hear about reviews: a Slack or WeCom
@@ -222,19 +222,15 @@ export function Notifications(props: { platforms: readonly CodePlatformKind[] })
                       )}
                     </td>
                     <td className="num nobreak">
-                      {c.kind === "webhook" && (
-                        <>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            aria-label={`Deliveries to ${c.name}`}
-                            onClick={() => setInspecting(c)}
-                          >
-                            Deliveries
-                          </Button>{" "}
-                        </>
-                      )}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        aria-label={`Deliveries to ${c.name}`}
+                        onClick={() => setInspecting(c)}
+                      >
+                        Deliveries
+                      </Button>{" "}
                       {c.confirmed ? (
                         <Button
                           type="button"
@@ -286,7 +282,7 @@ export function Notifications(props: { platforms: readonly CodePlatformKind[] })
         </div>
       )}
       <ReportSlot />
-      {inspecting && <WebhookDrawer channel={inspecting} onClose={() => setInspecting(null)} />}
+      {inspecting && <DeliveriesDrawer channel={inspecting} onClose={() => setInspecting(null)} />}
       {reminding && (
         <RemindersDrawer
           channel={reminding}

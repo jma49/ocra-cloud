@@ -2,9 +2,9 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import type {
   NotifyChannelView,
-  WebhookDeliveriesView,
-  WebhookDeliveryView,
-  WebhookError,
+  NotifyDeliveriesView,
+  NotifyDeliveryError,
+  NotifyDeliveryView,
   WebhookSecretView,
 } from "../../../src/shared/index.js";
 import { api } from "../api.js";
@@ -14,24 +14,31 @@ import { WEBHOOK_DOCS } from "../site.js";
 import { useToast } from "../toast.js";
 import { ActionError, LoadError, Loading, useAction, useLoad } from "../ui.js";
 
-// A webhook channel up close: how its last deliveries went, and its signing
+// A channel up close: how its last deliveries went, and a webhook's signing
 // secret, which can be replaced but never read again.
 
-const STATE: Record<WebhookDeliveryView["state"], { label: string; tone: string }> = {
+const STATE: Record<NotifyDeliveryView["state"], { label: string; tone: string }> = {
   delivered: { label: "Delivered", tone: "badge badge-ok" },
   pending: { label: "Will retry", tone: "badge badge-warn" },
   failed: { label: "Failed", tone: "badge badge-err" },
 };
-const ERROR: Record<WebhookError, string> = {
+const ERROR: Record<NotifyDeliveryError, string> = {
   refused: "Address not allowed",
   redirect: "Answered with a redirect",
   timeout: "Timed out",
   network: "Could not connect",
   status: "No 2xx answer",
+  rejected: "Refused by the chat",
 };
 
-const answer = (d: WebhookDeliveryView) =>
-  d.error && d.error !== "status" ? ERROR[d.error] : d.status ? `HTTP ${d.status}` : "No answer";
+const answer = (d: NotifyDeliveryView, email: boolean) =>
+  d.error && d.error !== "status"
+    ? ERROR[d.error]
+    : d.status
+      ? `${email ? "SMTP" : "HTTP"} ${d.status}`
+      : d.error
+        ? "No answer"
+        : "Accepted";
 
 /** A secret the server answers once: shown with Copy until the page lets go of it. */
 export function SecretOnce(props: { secret: string; what: string }) {
@@ -57,12 +64,9 @@ export function SecretOnce(props: { secret: string; what: string }) {
   );
 }
 
-export function WebhookDrawer(props: { channel: NotifyChannelView; onClose: () => void }) {
-  const { channel: c } = props;
-  const base = `/notifications/channels/${c.id}`;
-  const { data, error, reload, loading } = useLoad(() =>
-    api<WebhookDeliveriesView>(`${base}/deliveries`),
-  );
+/** A webhook's signing secret: replaced, never shown again. */
+function SigningSecret(props: { base: string }) {
+  const { base } = props;
   const [confirming, setConfirming] = useState(false);
   const [secret, setSecret] = useState<string | null>(null);
   const rotate = useAction(() => api<WebhookSecretView>(`${base}/secret`, { method: "POST" }));
@@ -72,38 +76,53 @@ export function WebhookDrawer(props: { channel: NotifyChannelView; onClose: () =
     setSecret(made.secret);
     setConfirming(false);
   };
+  return (
+    <section className="stack-tight" aria-label="Signing secret">
+      <div className="strong">Signing secret</div>
+      <p className="muted small m-0">
+        Each delivery is signed with it.{" "}
+        <a href={WEBHOOK_DOCS} target="_blank" rel="noreferrer">
+          Verify the signature
+        </a>{" "}
+        before trusting a body.
+      </p>
+      {rotate.error !== null && <ActionError what="replace the secret" error={rotate.error} />}
+      {secret !== null && <SecretOnce secret={secret} what="New secret" />}
+      <div className="row-gap">
+        {confirming ? (
+          <>
+            <Button type="button" variant="destructive" disabled={rotate.busy} onClick={replace}>
+              Confirm: replace secret
+            </Button>
+            <Button type="button" variant="outline" onClick={() => setConfirming(false)}>
+              Cancel
+            </Button>
+            <span className="muted small">The old one stops signing at once.</span>
+          </>
+        ) : (
+          <Button type="button" variant="outline" onClick={() => setConfirming(true)}>
+            Replace secret
+          </Button>
+        )}
+      </div>
+    </section>
+  );
+}
+
+export function DeliveriesDrawer(props: { channel: NotifyChannelView; onClose: () => void }) {
+  const { channel: c } = props;
+  const base = `/notifications/channels/${c.id}`;
+  const { data, error, reload, loading } = useLoad(() =>
+    api<NotifyDeliveriesView>(`${base}/deliveries`),
+  );
 
   return (
-    <Drawer title={`Webhook ${c.name}`} heading={c.name} onClose={props.onClose}>
-      <section className="stack-tight" aria-label="Signing secret">
-        <div className="strong">Signing secret</div>
-        <p className="muted small m-0">
-          Each delivery is signed with it.{" "}
-          <a href={WEBHOOK_DOCS} target="_blank" rel="noreferrer">
-            Verify the signature
-          </a>{" "}
-          before trusting a body.
-        </p>
-        {rotate.error !== null && <ActionError what="replace the secret" error={rotate.error} />}
-        {secret !== null && <SecretOnce secret={secret} what="New secret" />}
-        <div className="row-gap">
-          {confirming ? (
-            <>
-              <Button type="button" variant="destructive" disabled={rotate.busy} onClick={replace}>
-                Confirm: replace secret
-              </Button>
-              <Button type="button" variant="outline" onClick={() => setConfirming(false)}>
-                Cancel
-              </Button>
-              <span className="muted small">The old one stops signing at once.</span>
-            </>
-          ) : (
-            <Button type="button" variant="outline" onClick={() => setConfirming(true)}>
-              Replace secret
-            </Button>
-          )}
-        </div>
-      </section>
+    <Drawer
+      title={`${c.kind === "webhook" ? "Webhook" : "Channel"} ${c.name}`}
+      heading={c.name}
+      onClose={props.onClose}
+    >
+      {c.kind === "webhook" && <SigningSecret base={base} />}
 
       <section className="stack-tight webhook-deliveries" aria-label="Recent deliveries">
         <div className="row-gap">
@@ -137,7 +156,7 @@ export function WebhookDrawer(props: { channel: NotifyChannelView; onClose: () =
                       <span className={STATE[d.state].tone}>{STATE[d.state].label}</span>
                     </td>
                     <td className="text muted">
-                      {answer(d)}
+                      {answer(d, c.kind === "email")}
                       {d.latencyMs !== null && `, ${d.latencyMs} ms`}
                       {d.attempts > 1 && `, ${d.attempts} attempts`}
                     </td>

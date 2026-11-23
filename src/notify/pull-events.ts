@@ -108,14 +108,16 @@ async function hearing(
 function pullEventMessage(repo: EventRepo, e: PullEvent, origin: string): Message {
   const label = `${repo.fullName}#${e.number}`;
   const url = consolePullUrl(origin, repo, e.number);
+  const hook = pullEventHook(repo, e, url);
   return {
+    event: hook.event,
     subject: `ocra: ${e.what} (${label})`,
     lines: [
       [`${e.what}: `, { label, url }],
       ...(e.more ?? []).map((line) => [line]),
       [{ label: "Open in ocra", url }],
     ],
-    hooks: [pullEventHook(repo, e, url)],
+    hooks: [hook],
   };
 }
 
