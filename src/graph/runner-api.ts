@@ -3,7 +3,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
 import { claimBuild } from "../db/graphs.js";
-import { scoped } from "../db/scoped.js";
+import { type Row, type Scoped, scoped } from "../db/scoped.js";
 import { apiError, jsonBody } from "../http.js";
 import type { BotCredential, BotTokens } from "../platforms/bot.js";
 import type { CodePlatform } from "../platforms/platform.js";
@@ -66,16 +66,28 @@ const impact = z.object({
   view: impactViewSchema,
 });
 
+/**
+ * What the bot's token is chosen for: on GitLab the account's enrolled
+ * repository of the graph's project where there is one, so that the
+ * project's own access token clones it as it reviews it; else the graph's.
+ */
+async function enrolledOrKept(data: Scoped, repo: Row<"graphRepos">) {
+  const { platform, host, platformRepoId } = repo;
+  if (platform !== "gitlab") return repo;
+  return (await data.findOne("reviewRepos", { platform, host, platformRepoId })) ?? repo;
+}
+
 /** Claims the next due build a runner can clone; undefined when none is. */
 export async function assignBuild(source: BuildSource): Promise<GraphAssignment | undefined> {
   for (let refused = 0; refused < MAX_REFUSED; refused++) {
     const now = source.now ?? new Date();
     const build = await claimBuild(source.db, now, BUILD_LEASE_MS);
     if (!build) return undefined;
-    const repo = await scoped(source.db, build.accountId).get("graphRepos", build.graphRepoId);
+    const data = scoped(source.db, build.accountId);
+    const repo = await data.get("graphRepos", build.graphRepoId);
     const platform =
       repo && source.platforms.find((p) => p.kind === repo.platform && p.host === repo.host);
-    const bot = platform && (await source.bots.forRepo(repo));
+    const bot = platform && (await source.bots.forRepo(await enrolledOrKept(data, repo)));
     if (repo && platform && bot) {
       return {
         id: build.id,
