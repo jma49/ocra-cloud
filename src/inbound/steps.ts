@@ -5,7 +5,12 @@ import type { Db } from "../db/client.js";
 import { reviewRepoFor } from "../db/review-jobs.js";
 import type { Row } from "../db/scoped.js";
 import { githubSignal, hasIntents, type PullSignal } from "../merge-when-ready/hooks.js";
-import { githubMerged, hasStackWork, type MergedPull } from "../stack-merge/hooks.js";
+import {
+  githubMerged,
+  githubRetargeted,
+  hasStackWork,
+  type MergedPull,
+} from "../stack-merge/hooks.js";
 import type { InboundStep } from "./run.js";
 
 // Which of a delivery's durable steps have work, decided before it is
@@ -50,7 +55,14 @@ export async function githubSteps(
   const moves =
     !!said &&
     ((await hasIntents(db, repo, said.fullName, said.signal)) ||
-      (await hasStackWork(db, repo, said.fullName, said.signal, githubMerged(event, body))));
+      (await hasStackWork(
+        db,
+        repo,
+        said.fullName,
+        said.signal,
+        githubMerged(event, body),
+        githubRetargeted(event, body),
+      )));
   return [...(tells ? (["tell"] as const) : []), ...(moves ? (["intents"] as const) : [])];
 }
 
