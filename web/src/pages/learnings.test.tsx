@@ -93,6 +93,19 @@ describe("the Learnings page", () => {
     expect(screen.getByText("old-rule")).toBeTruthy();
   });
 
+  it("opens a learning from a button that holds no other control", async () => {
+    serve({ outcome: "done", pull: null });
+    render(<Learnings />);
+    await screen.findByText("Refunds never exceed what was captured");
+    const toggle = screen.getByRole("button", { name: /^Refunds never exceed what was captured/ });
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    expect(within(toggle).queryAllByRole("button")).toEqual([]);
+    expect(toggle.contains(screen.getByRole("button", { name: "Edit" }))).toBe(false);
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    expect(document.getElementById(toggle.getAttribute("aria-controls") ?? "")?.hidden).toBe(false);
+  });
+
   it("sends an edit on the blob it read, and says which pull request it opened", async () => {
     const sent = serve({
       outcome: "done",

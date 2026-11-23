@@ -17,6 +17,7 @@ import { symbolsOf } from "../impact/select.js";
 import type { Impact } from "../impact/use-impact.js";
 import { Link } from "../router.js";
 import { SeverityBadge } from "../severity.js";
+import { CodeBlock } from "../ui.js";
 import { FindingIssue } from "./finding-issue.js";
 
 // A finding as an event on the review's timeline: what it says, where, and
@@ -140,7 +141,9 @@ export function FindingEvent(props: {
             <span className="mono">{f.file}</span>
             <span className="mono subtle">{lines}</span>
           </div>
-          {f.code && (!f.fix || props.before === null) && <pre className="codeblock">{f.code}</pre>}
+          {f.code && (!f.fix || props.before === null) && (
+            <CodeBlock label={`Code at ${f.file}`}>{f.code}</CodeBlock>
+          )}
           {f.fix && (
             <FixDiff
               fix={{ ...f.fix, before: props.before, after: replacementLines(f.fix.replacement) }}

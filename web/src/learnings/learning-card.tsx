@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useId, useState } from "react";
 import type { LearningUsageView, LearningView } from "../../../src/shared/index.js";
 import { ago } from "../format.js";
 
@@ -26,25 +26,33 @@ export function LearningCard(props: {
   actions?: ReactNode;
 }) {
   const l = props.learning;
+  const [open, setOpen] = useState(false);
+  const text = useId();
   return (
-    <details className="learning">
-      <summary>
-        <div className="grow">
-          <div className="strong">
+    <div className="learning" data-open={open || undefined}>
+      <div className="learning-row">
+        <button
+          type="button"
+          className="learning-toggle"
+          aria-expanded={open}
+          aria-controls={text}
+          onClick={() => setOpen(!open)}
+        >
+          <span className="strong">
             {l.title} {l.critical && <span className="badge badge-err">Critical</span>}
-          </div>
-          <div className="subtle small">
+          </span>
+          <span className="subtle small">
             <span className="mono">{l.id}</span>
             {" · "}
             {l.paths.join(", ")}
             {l.source ? ` · ${SOURCE[l.source.kind]}` : ""}
             {l.lastCommit?.at ? ` · changed ${ago(l.lastCommit.at)}` : ""}
             {props.usage ? ` · ${used(props.usage.of, props.usage.days)}` : ""}
-          </div>
-        </div>
+          </span>
+        </button>
         {props.actions}
-      </summary>
-      <div className="learning-text">
+      </div>
+      <div className="learning-text" id={text} hidden={!open}>
         <pre className="pre-wrap">{l.body}</pre>
         {(l.symbols.length > 0 || l.keywords.length > 0) && (
           <p className="subtle small m-0">
@@ -58,6 +66,6 @@ export function LearningCard(props: {
           </p>
         )}
       </div>
-    </details>
+    </div>
   );
 }
