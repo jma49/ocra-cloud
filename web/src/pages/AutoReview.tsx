@@ -8,6 +8,7 @@ import { RepoChecks } from "../merge-checks/repo-checks.js";
 import { PlatformMark } from "../platform-mark.js";
 import { PLATFORM_NAME, PlatformSelect } from "../platform-names.js";
 import { pullPath } from "../pull/path.js";
+import { ReviewTargetsCard } from "../review-targets/targets-card.js";
 import { Link } from "../router.js";
 import { ActionError, LoadError, Loading, PageHead, useAction, useLoad } from "../ui.js";
 
@@ -127,6 +128,7 @@ export function AutoReview(props: { platforms: readonly CodePlatformKind[] }) {
           </div>
         </div>
       )}
+      <ReviewTargetsCard />
     </>
   );
 }

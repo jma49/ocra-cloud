@@ -1281,3 +1281,31 @@ td.finding-cell {
   padding: 4px 0;
   max-width: 340px;
 }
+
+/* Review targets: the default's and a repository's fields, and the at-risk list's filter. */
+.target-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+.target-n {
+  width: 5.5em;
+  display: inline-block;
+}
+.target-repos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+}
+.target-repos li {
+  display: grid;
+  gap: 8px;
+  padding: 10px 0;
+  border-top: 0.5px solid var(--hair);
+}
+.at-risk-repo {
+  width: auto;
+  max-width: 100%;
+}
