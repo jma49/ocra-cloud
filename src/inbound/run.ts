@@ -113,7 +113,7 @@ async function runStep(
   } else if (row.event === "Note Hook") {
     await tellGitlabNote(db, out, repo, body, gitlabStartOf(reader, repo));
   } else {
-    await tellGitlabHook(db, out, repo, body);
+    await tellGitlabHook(db, out, repo, body, reader);
   }
 }
 

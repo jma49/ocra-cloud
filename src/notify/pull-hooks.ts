@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { PathReader } from "../auto-review/paths.js";
 import { githubAskedTeam } from "../auto-review/requests.js";
 import { teamMembers } from "../auto-review/teams.js";
 import type { Db } from "../db/client.js";
@@ -9,6 +10,7 @@ import { type Scoped, scoped } from "../db/scoped.js";
 import type { BotTokens } from "../platforms/bot.js";
 import { plain } from "./channels.js";
 import { bySpecificity, githubCommentEvents, gitlabCommentEvents } from "./comment-hooks.js";
+import { gitlabGroupAsks, gitlabGroupEvents, gitlabRulesEvent } from "./gitlab-groups.js";
 import type { Outbox } from "./notify.js";
 import { type EventRepo, ownUser, type PullEvent, tellPullEvent } from "./pull-events.js";
 import { keepGithubThread, keepGitlabThread, type StartOf } from "./thread-hooks.js";
@@ -224,7 +226,7 @@ const gitlabActor = z.object({ user: gitlabUser });
 /** Every part of a GitHub delivery that tellGithubHook reads, beside the conversation's (./comment-hooks.ts, ./thread-hooks.ts). */
 export const GITHUB_HOOK_FIELDS = [githubPullEvent, githubReviewEvent, githubRepoId, githubSender];
 /** Every part of a GitLab merge request hook that tellGitlabHook reads. */
-export const GITLAB_HOOK_FIELDS = [gitlabEvent, gitlabActor];
+export const GITLAB_HOOK_FIELDS = [gitlabEvent, gitlabActor, gitlabRulesEvent];
 
 const quick = new Set([
   "pull_request",
@@ -256,13 +258,13 @@ export async function tellGithubHook(
   }
   const data = scoped(db, repo.accountId);
   const team = event === "pull_request" ? githubAskedTeam(body) : null;
+  const read = bots?.teamMembers;
   const members = team?.asked
-    ? await teamMembers(data, bots, {
+    ? await teamMembers(data, read ? () => read(team.org, team.slug) : null, {
         platform: "github",
         host,
         reviewerId: teamReviewerId(team.id),
-        org: team.org,
-        slug: team.slug,
+        name: `${team.org}/${team.slug}`,
       })
     : null;
   const asks = githubPullEvents(event, body, repo.id, members);
@@ -323,11 +325,16 @@ export async function tellGitlabHook(
   out: Outbox,
   repo: EventRepo & { accountId: string },
   body: unknown,
+  reader?: PathReader,
 ): Promise<number> {
   await refreshGitlabActor(db, repo.host, body);
-  const events = gitlabPullEvents(body, repo.id);
+  const data = scoped(db, repo.accountId);
+  const events = [
+    ...gitlabPullEvents(body, repo.id),
+    ...(reader ? await gitlabGroupEvents(data, repo, body, gitlabGroupAsks(reader, repo)) : []),
+  ];
   if (events.length === 0) return 0;
-  return (await tellPullEvent(db, scoped(db, repo.accountId), out, repo, events)).length;
+  return (await tellPullEvent(db, data, out, repo, events)).length;
 }
 
 /** Tells the account of a GitLab note hook's events that are its own. */

@@ -109,3 +109,6 @@ export function outboundFetch(input: RequestInfo | URL, init?: RequestInit): Pro
   if (calls && !calls.take()) return Promise.reject(new CallsSpent());
   return fetch(input, init);
 }
+
+/** Whether the budget the caller runs in refused a call: what it read was cut short, not answered. */
+export const callsRefused = (): boolean => (scopes.getStore()?.refused ?? 0) > 0;
