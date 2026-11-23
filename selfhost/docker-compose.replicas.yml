@@ -12,6 +12,7 @@ services:
       MIGRATE: only
     volumes:
       - ocra-data:/data
+      - ./certs:/certs:ro
     restart: "no"
 
   ocra:
