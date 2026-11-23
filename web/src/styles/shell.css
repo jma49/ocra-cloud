@@ -30,6 +30,7 @@
 }
 .brand-tag {
   font: 400 var(--text-xs) var(--mono);
+  line-height: 16px;
   color: var(--t3);
   padding: 1px 6px;
   border-radius: var(--r-chip);
@@ -508,6 +509,7 @@
   overflow: hidden;
   color: var(--fg-muted);
   font: 400 var(--text-xs) var(--mono);
+  line-height: 16px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }

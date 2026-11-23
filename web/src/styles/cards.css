@@ -23,8 +23,10 @@
 .card-head + .card-pad {
   padding-top: 8px;
 }
-.card-head h2 {
+.card-head h2,
+.card-title {
   font-size: var(--text-base);
+  line-height: 20px;
   font-weight: 600;
 }
 
@@ -146,6 +148,7 @@
   display: grid;
   place-items: center;
   font: 500 var(--text-xs) var(--mono);
+  line-height: 16px;
   color: var(--fg-muted);
   flex: none;
   margin-top: 1px;
@@ -163,6 +166,7 @@
   border: 0.5px solid var(--hair2);
   background: var(--bg-subtle);
   font: var(--text-sm) var(--mono);
+  line-height: 16px;
 }
 
 .note > .glyph {

@@ -25,7 +25,7 @@ export function Sessions() {
     <>
       <PageHead title="CLI & sessions" sub="Browsers and terminals signed in to your account." />
       <div className="card card-pad login-card">
-        <div className="strong">Sign in from the terminal</div>
+        <h2 className="card-title">Sign in from the terminal</h2>
         <div className="muted small login-sub">
           <span className="cmd">ocra login</span> opens this site to approve the terminal, then
           reviews use your keys through ocra Cloud.
