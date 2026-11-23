@@ -122,7 +122,7 @@ function HostedNote(props: { branch: string }) {
           . The ocra CLI reads every key.
         </li>
         <li>
-          Where the account's settings or the repository's review profile set the same thing, they
+          Where the account's settings or the repository's review depth set the same thing, they
           win. The spend limit is the lower of the file's and the account's.
         </li>
         <li>
