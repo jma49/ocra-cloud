@@ -1,7 +1,8 @@
 import type { LineSide, MergeMethod, PullVerdict } from "../shared/index.js";
-import { outcomeOf, type PullActions } from "./actions.js";
-import { fixedFile, fromBase64, MAX_FIX_FILE_BYTES, toBase64 } from "./fix.js";
+import { outcomeOf, type PullActions, plannedFixes, unsent } from "./actions.js";
+import { fromBase64, MAX_FIX_FILE_BYTES, toBase64 } from "./fix.js";
 import { githubHeaders, githubRepoPath } from "./github-changes.js";
+import { commitFiles } from "./github-commit.js";
 import type { GithubHost } from "./github-host.js";
 import { platformCall, platformSend } from "./http.js";
 import { withSuggestion } from "./suggestions.js";
@@ -104,32 +105,48 @@ export function githubActions(host: GithubHost): PullActions {
         { 405: "not_mergeable", 409: "head_moved" },
       );
     },
-    async applyFix(token, fullName, number, commit) {
+    async applyFixes(token, fullName, number, commit) {
       const headers = { headers: githubHeaders(token) };
       const pull = await platformCall<Pull>(`${repo(fullName)}/pulls/${number}`, headers);
       if (!pull) return null;
-      if (pull.head.sha !== commit.head) return "head_moved";
+      if (pull.head.sha !== commit.head) return unsent("head_moved", commit.files);
       // The branch is in the fork a pull request came from; gone with it, nothing can be committed.
-      if (!pull.head.repo) return "refused";
-      const file = `${repo(pull.head.repo.full_name)}/contents/${githubRepoPath(commit.path)}`;
-      const read = await platformCall<File>(`${file}?ref=${commit.head}`, headers);
-      if (!read) return null;
-      if (read.type !== "file" || read.encoding !== "base64" || read.size > MAX_FIX_FILE_BYTES) {
-        return "not_applicable";
+      const fork = pull.head.repo?.full_name;
+      if (!fork) return unsent("refused", commit.files);
+      const contents = (path: string) => `${repo(fork)}/contents/${githubRepoPath(path)}`;
+      const reads: (File | null)[] = [];
+      for (const f of commit.files) {
+        reads.push(await platformCall<File>(`${contents(f.path)}?ref=${commit.head}`, headers));
       }
-      const bytes = fromBase64(read.content ?? "");
-      const fixed = bytes && fixedFile(bytes, commit.fixes);
-      if (!fixed) return "not_applicable";
+      if (reads.some((r) => r === null)) return null;
+      const plan = plannedFixes(
+        reads.map((read) =>
+          read?.type === "file" && read.encoding === "base64" && read.size <= MAX_FIX_FILE_BYTES
+            ? fromBase64(read.content ?? "")
+            : undefined,
+        ),
+        commit,
+      );
+      const { skipped } = plan;
+      if (!plan.send) return { outcome: "not_applicable", skipped };
+      const [one] = plan.changed;
+      if (plan.changed.length > 1 || !one) {
+        const target = { head: commit.head, branch: pull.head.ref, message: plan.message };
+        const outcome = await commitFiles(host, token, fork, target, plan.changed);
+        return outcome && { outcome, skipped };
+      }
+      const read = reads[commit.files.findIndex((f) => f.path === one.path)];
       // sha: the file as it was read; one changed since is a conflict, not overwritten.
-      return outcomeOf(
-        await send(token, "PUT", file, {
-          message: commit.message,
-          content: toBase64(fixed),
-          sha: read.sha,
+      const outcome = outcomeOf(
+        await send(token, "PUT", contents(one.path), {
+          message: plan.message,
+          content: toBase64(one.content),
+          sha: read?.sha,
           branch: pull.head.ref,
         }),
         { 409: "head_moved" },
       );
+      return outcome && { outcome, skipped };
     },
     description,
     async setDescription(token, fullName, number, edit) {

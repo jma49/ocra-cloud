@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  fixEach,
   fixedFile,
   fixMessage,
   fromBase64,
@@ -41,6 +42,26 @@ describe("a fix applied to a file", () => {
     ).toBeUndefined();
     const big = new Uint8Array(MAX_FIX_FILE_BYTES + 1).fill(0x61);
     expect(fixedFile(big, { startLine: 1, endLine: 1, replacement: "" })).toBeUndefined();
+  });
+});
+
+describe("several fixes applied to a file, each where it can be", () => {
+  it("applies those that can be, and says why each other one was left out", () => {
+    const { content, skipped } = fixEach(encode("a\nb\nc\nd\n"), [
+      { startLine: 4, endLine: 4, replacement: "D" },
+      { startLine: 2, endLine: 2, replacement: "B", expected: ["changed"] },
+      { startLine: 1, endLine: 1, replacement: "A", expected: ["a"] },
+      { startLine: 4, endLine: 5, replacement: "past the end" },
+      { startLine: 3, endLine: 4, replacement: "overlaps the first" },
+    ]);
+    expect(decode(content)).toBe("A\nb\nc\nD\n");
+    expect(skipped).toEqual([null, "stale", null, "not_applicable", "not_applicable"]);
+  });
+
+  it("changes nothing in a file that is not text", () => {
+    expect(
+      fixEach(new Uint8Array([0xff]), [{ startLine: 1, endLine: 1, replacement: "" }]),
+    ).toEqual({ content: undefined, skipped: ["not_applicable"] });
   });
 });
 

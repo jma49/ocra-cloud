@@ -31,7 +31,7 @@ import type { AppEnv } from "./types.js";
 export const pullThreads = new Hono<AppEnv>();
 
 /** A platform's id for a thread or suggestion: GitHub node ids, GitLab hex and numbers. */
-const platformId = z.string().regex(/^[\w=:-]{1,160}$/);
+export const platformId = z.string().regex(/^[\w=:-]{1,160}$/);
 
 const threadsQuery = z.object(pullRef);
 const applyBody = z.object({
@@ -88,10 +88,10 @@ const threadDto = (t: Thread) =>
 const answer = (outcome: PullActionOutcome) => ({ outcome });
 
 /** The account's findings on the pull request that the action's comments were ocra's comments of. */
-const findingsOn = (
+export const findingsOn = (
   platform: CodePlatform,
   ref: { repo: string; number: number },
-  action: ThreadAction,
+  action: Pick<ThreadAction, "findings">,
 ) => {
   const identity = identityOf(platform, ref.repo)?.toLowerCase();
   return {

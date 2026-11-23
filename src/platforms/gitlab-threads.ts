@@ -46,6 +46,7 @@ type Note = {
     appliable: boolean;
     applied: boolean;
     to_content: string;
+    from_content?: string;
   }[];
 };
 type Discussion = { id: string; notes: Note[] };
@@ -58,9 +59,10 @@ function threadOf(d: Discussion, root: Note & { position: Position }, head: stri
   const line = side === "new" ? p.new_line : p.old_line;
   const start = side === "new" ? p.line_range?.start?.new_line : p.line_range?.start?.old_line;
   const resolved = root.resolved === true;
+  const path = p.new_path ?? p.old_path ?? "";
   return {
     id: d.id,
-    path: p.new_path ?? p.old_path ?? "",
+    path,
     line: outdated ? null : line,
     startLine: outdated || !start || start === line ? null : start,
     side,
@@ -75,14 +77,25 @@ function threadOf(d: Discussion, root: Note & { position: Position }, head: stri
         author: n.author?.username ?? null,
         body: n.body,
         createdAt: n.created_at ?? null,
-        suggestions: (n.suggestions ?? []).map((s) => ({
-          id: String(s.id),
-          startLine: s.from_line,
-          endLine: s.to_line,
-          replacement: s.to_content.replace(/\n$/, ""),
-          applicable: s.appliable && !s.applied && !outdated,
-          applied: s.applied,
-        })),
+        suggestions: (n.suggestions ?? []).map((s) => {
+          const replacement = s.to_content.replace(/\n$/, "");
+          const expected = s.from_content?.replace(/\n$/, "").split("\n");
+          return {
+            id: String(s.id),
+            startLine: s.from_line,
+            endLine: s.to_line,
+            replacement,
+            applicable: s.appliable && !s.applied && !outdated,
+            applied: s.applied,
+            path,
+            fix: {
+              startLine: s.from_line,
+              endLine: s.to_line,
+              replacement,
+              ...(expected ? { expected } : {}),
+            },
+          };
+        }),
       })),
   };
 }

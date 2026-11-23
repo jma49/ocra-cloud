@@ -41,6 +41,7 @@ import { platformLimits } from "./platform-limits.js";
 import { platformsRoute } from "./platform-routes.js";
 import type { BotTokens } from "./platforms/bot.js";
 import { preferences } from "./preferences.js";
+import { pullBatch } from "./pull-batch.js";
 import { pullDescription } from "./pull-description.js";
 import { pullEdits } from "./pull-edits.js";
 import { pullFindings } from "./pull-findings.js";
@@ -163,6 +164,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
   app.route("/pulls", pullDescription);
   app.route("/pulls", pullFindings);
   app.route("/pulls", pullFixes);
+  app.route("/pulls", pullBatch);
   app.route("/pulls", pullStack);
   app.route("/pulls", pullThreads);
   app.route("/pulls", pullEdits);

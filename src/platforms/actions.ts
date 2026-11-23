@@ -1,5 +1,5 @@
 import type { LineComment, MergeMethod, PullActionOutcome, PullVerdict } from "../shared/index.js";
-import type { LineFix } from "./fix.js";
+import { type FixSkip, fixEach, type LineFix } from "./fix.js";
 
 // What the signed-in user does on a pull request from the console, as
 // themselves: the platform checks their permission, and its refusal is
@@ -15,8 +15,24 @@ type ReviewRequest = {
 
 type MergeRequest = { method: MergeMethod; head: string };
 
-/** Fixes of the file at `path` as it is at `head`, committed together on the pull request's branch. */
-type FixCommit = { path: string; head: string; fixes: LineFix[]; message: string };
+/** Fixes of the file at `path`, as it is at the commit's head. */
+export type FileFixes = { path: string; fixes: LineFix[] };
+
+/**
+ * Fixes of files as they are at `head`, committed together on the pull
+ * request's branch, with the message `message` gives for what is left
+ * out. `partial` leaves out a fix that cannot be applied, where otherwise
+ * it keeps the whole commit from being sent.
+ */
+export type FixCommit = {
+  head: string;
+  files: FileFixes[];
+  message: (skipped: (FixSkip | null)[][]) => string;
+  partial?: boolean;
+};
+
+/** What a fix commit came to, and per file, per fix, why it was left out (null when applied). */
+export type FixCommitResult = { outcome: PullActionOutcome; skipped: (FixSkip | null)[][] };
 
 /** A pull request's head commit and description (GitLab: a merge request's). */
 type PullDescription = { head: string; body: string };
@@ -59,13 +75,16 @@ export interface PullActions {
     number: number,
     logins: readonly string[],
   ): Promise<PullActionOutcome | null>;
-  /** `not_applicable` when the file at head is not text the fixes' lines are in, as they expect them. */
-  applyFix(
+  /**
+   * One commit of the fixed files; `not_applicable`, unsent, when no fix (or,
+   * unless `partial`, not every fix) can be applied to its file at head.
+   */
+  applyFixes(
     token: string,
     fullName: string,
     number: number,
     commit: FixCommit,
-  ): Promise<PullActionOutcome | null>;
+  ): Promise<FixCommitResult | null>;
   /** null when it could not be read. */
   description(token: string, fullName: string, number: number): Promise<PullDescription | null>;
   /** Replaces the description; `head_moved`, unsent, when the head is no longer `edit.head`. */
@@ -89,3 +108,25 @@ export function outcomeOf(
   if (sent.status >= 400 && sent.status < 500 && sent.status !== 429) return "refused";
   return null;
 }
+
+/** The files' new contents, and whether to send them: every fix applied, or with `partial` any. */
+export function plannedFixes(reads: readonly (Uint8Array | undefined)[], commit: FixCommit) {
+  const each = commit.files.map((f, i) => fixEach(reads[i], f.fixes));
+  const skipped = each.map((e) => e.skipped);
+  const changed = commit.files.flatMap((f, i) => {
+    const content = each[i]?.content;
+    return content ? [{ path: f.path, content }] : [];
+  });
+  const all = skipped.every((s) => s.every((x) => x === null));
+  const send = changed.length > 0 && (commit.partial === true || all);
+  return { changed, skipped, send, message: commit.message(skipped) };
+}
+
+/** What a commit that was not sent, for a reason of the pull request's and not its fixes', answers. */
+export const unsent = (
+  outcome: PullActionOutcome,
+  files: readonly FileFixes[],
+): FixCommitResult => ({
+  outcome,
+  skipped: files.map((f) => f.fixes.map(() => null)),
+});

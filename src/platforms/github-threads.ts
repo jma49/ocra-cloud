@@ -134,7 +134,7 @@ function threadOf(node: Node): Thread & { comments: { suggestions: GithubSuggest
 
 export function githubThreads(
   post: GithubGraphql,
-  actions: Pick<PullActions, "applyFix">,
+  actions: Pick<PullActions, "applyFixes">,
 ): PullThreads {
   const read = async (token: string, fullName: string, number: number) => {
     const [owner, name] = fullName.split("/");
@@ -164,13 +164,12 @@ export function githubThreads(
       const paths = new Set(picked.map((s) => s.path));
       const [path] = paths;
       if (paths.size !== 1 || !path) return actionOf("refused");
-      const outcome = await actions.applyFix(token, fullName, number, {
-        path,
+      const commit = await actions.applyFixes(token, fullName, number, {
         head: apply.head,
-        fixes: picked.map((s) => s.fix),
-        message: suggestionMessage(picked.length),
+        files: [{ path, fixes: picked.map((s) => s.fix) }],
+        message: () => suggestionMessage(picked.length),
       });
-      return actionOf(outcome, findingsOfSuggestions(listing.threads, apply.ids));
+      return actionOf(commit?.outcome ?? null, findingsOfSuggestions(listing.threads, apply.ids));
     },
     async resolve(token, fullName, number, thread, resolved) {
       // Thread ids are global: one of another pull request's is not acted on from this one.
