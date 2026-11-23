@@ -37,6 +37,12 @@ describe("a server's own model endpoints", () => {
     });
   });
 
+  it("carry the prices the operator declares, which the catalog serves", () => {
+    const prices = { "qwen3-coder": { input: 0.4, output: 1.2, cachedInput: 0.1 } };
+    const found = one({ id: "corp", label: "Corp", base: "https://llm.corp.example", prices });
+    expect(found.get("corp")?.prices).toEqual(prices);
+  });
+
   it("are none when unset", () => {
     expect(modelEndpoints(undefined, taken).size).toBe(0);
     expect(modelEndpoints("  ", taken).size).toBe(0);
@@ -55,6 +61,18 @@ describe("a server's own model endpoints", () => {
     ],
     ["an id out of form", [{ id: "Corp", label: "x", base: "https://a.example" }], "id"],
     ["a field it does not know", [{ id: "c", label: "x", base: "https://a.example", k: 1 }], "k"],
+    [
+      "a price that is not a number",
+      [
+        {
+          id: "c",
+          label: "x",
+          base: "https://a.example",
+          prices: { m: { input: "1", output: 1 } },
+        },
+      ],
+      "prices.m.input",
+    ],
     ["a non-http base", [{ id: "c", label: "x", base: "file:///etc" }], "http or https"],
     ["a base with credentials", [{ id: "c", label: "x", base: "https://u:p@a.example" }], "cred"],
     ["a base with a query", [{ id: "c", label: "x", base: "https://a.example/?x=1" }], "query"],

@@ -1,4 +1,9 @@
-import { GATEWAY_PATH, PROVIDER_ID } from "@open-cr-agent/cloud-contract";
+import {
+  GATEWAY_PATH,
+  MODEL_ID,
+  modelPriceSchema,
+  PROVIDER_ID,
+} from "@open-cr-agent/cloud-contract";
 import { z } from "zod";
 import type { AuthStyle, Provider } from "./providers.js";
 
@@ -28,6 +33,8 @@ const endpointSchema = z
     models: path.optional(),
     /** The server's own key for the endpoint: every account uses it, and none stores one. */
     key: z.string().min(1).max(4096).optional(),
+    /** What its models cost, in US dollars per million tokens, by model id. */
+    prices: z.record(z.string().regex(MODEL_ID), modelPriceSchema).optional(),
   })
   .strict();
 
@@ -81,6 +88,7 @@ export function modelEndpoints(
       routes: e.paths.map((path) => ({ path, auth })),
       ...(e.models ? { verify: { path: e.models, auth } } : {}),
       ...(e.key ? { sharedKey: e.key } : {}),
+      ...(e.prices ? { prices: e.prices } : {}),
     });
   }
   return found;
