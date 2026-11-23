@@ -1,4 +1,4 @@
-import { decryptWithAny, encryptSecret, type MasterKeys } from "../../crypto.js";
+import { decryptSecret, encryptSecret, type MasterKeys } from "../../crypto.js";
 import type { Db } from "../../db/client.js";
 import { type StoredSetting, storedSettings, storeSettings } from "../../db/server-settings.js";
 import { FIELDS, isSecret, type SettingName, type Settings } from "./settings.js";
@@ -8,9 +8,14 @@ import { FIELDS, isSecret, type SettingName, type Settings } from "./settings.js
 
 const binding = (name: string) => `ocra-server-setting:v1|${name}`;
 
-/** The saved settings, secrets opened; a name no longer a setting is left out. */
+/**
+ * The saved settings, secrets opened; a name no longer a setting is left out.
+ * A secret that opens only with the previous master key is sealed again under
+ * the current one, so a rotation finishes on the next start.
+ */
 export async function loadSettings(db: Db, keys: MasterKeys): Promise<Settings> {
   const out: Settings = {};
+  const stale: Partial<Record<SettingName, string>> = {};
   for (const row of await storedSettings(db)) {
     if (!(row.name in FIELDS)) continue;
     const name = row.name as SettingName;
@@ -19,8 +24,15 @@ export async function loadSettings(db: Db, keys: MasterKeys): Promise<Settings> 
       continue;
     }
     const [wrappedKey = "", ciphertext = ""] = row.value.split(".");
-    out[name] = await decryptWithAny(keys, { wrappedKey, ciphertext }, binding(name));
+    const sealed = { wrappedKey, ciphertext };
+    try {
+      out[name] = await decryptSecret(keys.current, sealed, binding(name));
+    } catch (error) {
+      if (!keys.previous) throw error;
+      out[name] = stale[name] = await decryptSecret(keys.previous, sealed, binding(name));
+    }
   }
+  if (Object.keys(stale).length > 0) await saveSettings(db, keys.current, stale, new Date());
   return out;
 }
 
