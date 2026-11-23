@@ -1,17 +1,19 @@
 import ArrowRight from "lucide-react/icons/arrow-right";
+import type { ReactNode } from "react";
 import type { PullFilesView } from "../../../src/shared/index.js";
 import { ago, count } from "../format.js";
 import { PersonMark } from "../person-mark.js";
 
-// The line under a pull request's title: who opened it, what it merges into
+// The line under a pull request's title: where it stands, who opened it, what it merges into
 // what, how much it changes, and when it last moved.
 
-export function PullMeta(props: { data: PullFilesView }) {
+export function PullMeta(props: { data: PullFilesView; status?: ReactNode }) {
   const { data } = props;
   const add = data.files.reduce((n, f) => n + f.additions, 0);
   const del = data.files.reduce((n, f) => n + f.deletions, 0);
   return (
     <div className="pull-meta">
+      {props.status}
       {data.author && (
         <span className="pull-author-name">
           <PersonMark login={data.author} avatar={data.authorAvatar} />

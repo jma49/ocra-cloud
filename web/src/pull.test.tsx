@@ -276,7 +276,7 @@ describe("a pull request's page", () => {
     await act(async () => {});
     expect(screen.queryByRole("region", { name: "Merge readiness" })).toBeNull();
     expect(screen.queryByRole("button", { name: /draft|ready for review/i })).toBeNull();
-    expect(screen.getByText("Merged").className).toContain("badge");
+    expect(screen.getByText("Merged").className).toContain("pull-state");
     fireEvent.click(screen.getByRole("button", { name: "Review changes" }));
     expect(screen.getByRole("button", { name: "Submit review" })).toBeTruthy();
     expect(screen.queryByRole("group", { name: "Verdict" })).toBeNull();
@@ -386,7 +386,7 @@ describe("a pull request's page", () => {
       },
     });
     const head = within(await screen.findByRole("banner"));
-    expect((await head.findByText("Conflicts")).className).toContain("badge-err");
+    expect((await head.findByText("Conflicts")).closest(".pull-actions")).toBeNull();
     expect(head.getByText("Draft")).toBeTruthy();
     const ready = head.getByRole("button", { name: "Mark ready for review" });
     const primary = (b: HTMLElement) => b.className.includes("bg-primary");

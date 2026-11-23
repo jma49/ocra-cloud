@@ -171,14 +171,8 @@ export function PullPage(props: {
         <div className="pull-head-row">
           <h1>{title}</h1>
           <div className="pull-actions">
-            <PullStatus
-              state={data.state}
-              view={readiness}
-              queued={queue.data?.entry?.state ?? null}
-            />
             {data.verdicts.length > 0 && (
               <Button
-                size="sm"
                 variant={step === "review" && !settled ? "default" : "outline"}
                 onClick={() => setReviewing(true)}
               >
@@ -190,13 +184,20 @@ export function PullPage(props: {
               <DraftToggle pull={ref} primary={step === "ready"} onDone={(o) => done("Draft", o)} />
             )}
             {!settled && step === "merge" && (
-              <Button size="sm" render={<a href={`#${MERGE_ID}`} />}>
-                {queues ? "Queue" : "Merge"}
-              </Button>
+              <Button render={<a href={`#${MERGE_ID}`} />}>{queues ? "Queue" : "Merge"}</Button>
             )}
           </div>
         </div>
-        <PullMeta data={data} />
+        <PullMeta
+          data={data}
+          status={
+            <PullStatus
+              state={data.state}
+              view={readiness}
+              queued={queue.data?.entry?.state ?? null}
+            />
+          }
+        />
       </header>
       {settled && (
         <p className="muted small">

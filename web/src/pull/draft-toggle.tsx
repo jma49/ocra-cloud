@@ -31,7 +31,6 @@ export function DraftToggle(props: {
   return (
     <Button
       variant={data.draft && props.primary ? "default" : "outline"}
-      size="sm"
       loading={set.busy}
       onClick={flip}
     >
