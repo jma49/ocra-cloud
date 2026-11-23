@@ -183,6 +183,18 @@ describe("commands on GitHub", () => {
     expect(await pushed()).toEqual({ queued: 1 });
   });
 
+  it("runs a command from a review comment on a line, answered in the conversation", async () => {
+    const inline = {
+      action: "created",
+      comment: { id: 801, body: "@ocra pause", user: { type: "User", login: "alice" } },
+      pull_request: { number: 7 },
+      repository,
+    };
+    expect(await fromGithub("pull_request_review_comment", inline)).toEqual({ queued: 1 });
+    expect(writes().map((w) => w.url)).toEqual([`${GH}/issues/7/comments`]);
+    expect(await pushed()).toEqual({ queued: 0 });
+  });
+
   it("leaves anything else to the question path", async () => {
     await fromGithub("issue_comment", said("@ocra frobnicate", "alice", 701));
     await fromGithub("issue_comment", said("@ocra review this, is it safe?", "alice", 702));
