@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type {
   FixProposalView,
@@ -11,6 +11,7 @@ import { FixProposal } from "../fixes/fix-proposal.js";
 import { anchorOf, type DiffLine, parsePatch, placeOnLines, splitPath } from "./diff.js";
 import { FileTypeIcon } from "./file-icon.js";
 import { FindingNote, underLine } from "./findings.js";
+import { type CodeRun, highlightDiff } from "./highlight.js";
 import { SuggestionText } from "./suggestion.js";
 
 // One changed file of a pull request: its header and its diff, where a
@@ -87,6 +88,19 @@ export function FileDiff(props: {
   const [suggestion, setSuggestion] = useState<string | null>(null);
   const [folded, setFolded] = useState(file.status === "removed" || props.viewed);
   const { dir, name } = splitPath(file.path);
+  const [runs, setRuns] = useState<Map<number, CodeRun[]>>(NO_RUNS);
+  useEffect(() => {
+    if (folded) return;
+    let live = true;
+    // A diff the highlighter cannot read is drawn plain, as it was before.
+    highlightDiff(file.path, lines).then(
+      (r) => live && setRuns(r),
+      () => {},
+    );
+    return () => {
+      live = false;
+    };
+  }, [folded, file.path, lines]);
   const add = (line: DiffLine) => {
     const a = anchorOf(line);
     if (!a || (!draft.trim() && suggestion === null)) return;
@@ -156,6 +170,7 @@ export function FileDiff(props: {
                     <Fragment key={i}>
                       <Row
                         line={line}
+                        runs={runs.get(i)}
                         onOpen={
                           props.readOnly
                             ? undefined
@@ -255,7 +270,14 @@ export function FileDiff(props: {
   );
 }
 
-function Row(props: { line: DiffLine; onOpen: (() => void) | undefined }) {
+const NO_RUNS: Map<number, CodeRun[]> = new Map();
+
+function Row(props: {
+  line: DiffLine;
+  /** The line's text by kind of token, once its language was read. */
+  runs: CodeRun[] | undefined;
+  onOpen: (() => void) | undefined;
+}) {
   const { line } = props;
   if (line.kind === "hunk") {
     return (
@@ -288,7 +310,18 @@ function Row(props: { line: DiffLine; onOpen: (() => void) | undefined }) {
         <span className="diff-sign" aria-hidden="true">
           {line.kind === "add" ? "+" : line.kind === "del" ? "−" : " "}
         </span>
-        {line.text}
+        {props.runs
+          ? props.runs.map((run, i) =>
+              run.kind ? (
+                // biome-ignore lint/suspicious/noArrayIndexKey: a line's runs have no id; their order is fixed.
+                <span key={i} className={`tok-${run.kind}`}>
+                  {run.text}
+                </span>
+              ) : (
+                run.text
+              ),
+            )
+          : line.text}
       </td>
     </tr>
   );
