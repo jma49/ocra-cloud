@@ -15,6 +15,7 @@ import { githubFields } from "./inbound/fields.js";
 import { receive } from "./inbound/receive.js";
 import { githubSteps } from "./inbound/steps.js";
 import { rerunGithubChecks } from "./merge-checks/rerun.js";
+import { githubCiFailure } from "./notify/ci-hooks.js";
 import { githubHostOf } from "./platforms/registry.js";
 import type { AppEnv } from "./types.js";
 
@@ -25,7 +26,8 @@ import type { AppEnv } from "./types.js";
 // people do to the thread of a finding's comment is kept), an @ocra
 // comment its answer and a re-run of the pre-merge check its evaluation,
 // where the host does them. A pull request's change, review, check or status also moves the
-// intents armed to merge it when ready. Each delivery with something to
+// intents armed to merge it when ready, and a failed check suite tells the
+// author of its pull request. Each delivery with something to
 // run after the answer is acted on once, and that is tried again when it
 // fails (src/inbound/).
 // GitLab's hooks are per repository, with secrets of their own.
@@ -55,14 +57,19 @@ export function githubWebhook(host: WebhookHost) {
       const review = host.autoReview;
       const { host: github, url: githubUrl } = githubHostOf(c.env);
       const repo = z.object({ repository: z.object({ id: z.number() }) }).safeParse(body);
-      const steps = await githubSteps(c.var.db, github, event, body);
+      const ci = githubCiFailure(event, body, review?.githubAppId);
+      const steps = await githubSteps(c.var.db, github, event, body, !!ci);
       const received = await receive(c, {
         platform: "github",
         host: github,
         deliveryId: c.req.header("x-github-delivery"),
         event,
         repo: repo.success ? String(repo.data.repository.id) : "",
-        work: { steps, ...(steps.length > 0 ? { body: githubFields(body) } : {}) },
+        work: {
+          steps,
+          ...(steps.length > 0 ? { body: githubFields(body) } : {}),
+          ...(ci && steps.includes("tell") ? { ci } : {}),
+        },
       });
       if (!received) return c.json({ queued: 0, duplicate: true }, 202);
       const queued = await received.answer(async () => {

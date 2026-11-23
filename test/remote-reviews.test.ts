@@ -51,7 +51,7 @@ describe("hosted reviews for remote runners", () => {
 
   it("are on only with the bot's key, the webhook secret and a runner token", () => {
     expect(remoteReviews(vars)).toMatchObject({
-      autoReview: { remote: true },
+      autoReview: { remote: true, githubAppId: "42" },
       runnerToken: vars.RUNNER_TOKEN,
       githubWebhookSecret: "hook-secret",
     });

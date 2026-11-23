@@ -14,8 +14,9 @@ export type NotifyWhen = (typeof NOTIFY_WHEN)[number];
 /**
  * Events of an enrolled repository's pull requests that concern the
  * account's own platform user: a review asked of them; on a pull request
- * they wrote, a reviewer's review, its merge or close, failed pre-merge
- * checks, or ocra's review with a critical finding; on one they set to
+ * they wrote, a reviewer's review, its merge or close, failed checks
+ * (ocra's pre-merge checks, or the repository's CI on its head), or ocra's
+ * review with a critical finding; on one they set to
  * merge when ready, its merge or why it stopped; a stack merge they
  * started, its end or where it stopped (stack_merge, on any repository:
  * the merge is theirs, enrolled or not). Two are reminders, sent

@@ -28,14 +28,15 @@ function repositoryId(body: unknown): string | undefined {
   return parsed.success ? String(parsed.data.repository.id) : undefined;
 }
 
-/** A GitHub App delivery's steps: none unless its repository is enrolled. */
+/** A GitHub App delivery's steps: none unless its repository is enrolled; ci, a failure it tells of. */
 export async function githubSteps(
   db: Db,
   host: string,
   event: string,
   body: unknown,
+  ci = false,
 ): Promise<InboundStep[]> {
-  const tells = TELLS.has(event);
+  const tells = TELLS.has(event) || ci;
   const said = githubSignal(event, body);
   if (!tells && !said) return [];
   const id = said?.repoId ?? repositoryId(body);

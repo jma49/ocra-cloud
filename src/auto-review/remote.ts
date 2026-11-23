@@ -46,7 +46,8 @@ export function remoteReviews(vars: Vars) {
   }
   return {
     // Nothing to wake: a runner asks for work on its own clock.
-    autoReview: { kick: () => {}, remote: true as const },
+    // The App's id tells its own check suites from the repository's CI (src/notify/ci-hooks.ts).
+    autoReview: { kick: () => {}, remote: true as const, githubAppId: bots.githubAppId },
     bots: botTokens(bots),
     runnerToken,
     githubWebhookSecret,
