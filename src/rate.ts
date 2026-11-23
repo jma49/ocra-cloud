@@ -12,7 +12,8 @@ export function retryTomorrow(c: Context, now = new Date()): void {
  * What ACCOUNT_CALLS counts apart: uploads, gateway calls, the key routes
  * that call the provider with the stored key (save, check, model list), the
  * saves that write an audit row (preferences, sharing, key deletion), and
- * the reads that call the code platform many times (a pull request's impact),
+ * the reads that call the code platform many times (a pull request's impact,
+ * the inbox's pull listing),
  * and a live run's batches and streams.
  */
 type Limited = "upload" | "gateway" | "keys" | "settings" | "platform" | "live";
