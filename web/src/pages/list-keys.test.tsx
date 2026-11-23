@@ -78,7 +78,7 @@ describe("the findings list's keys", () => {
   });
 
   it("says what a decision changed and undoes it by reopening the same findings", async () => {
-    const fetch = vi.fn(async (url: string) =>
+    const fetch = vi.fn(async (url: string, _init?: RequestInit) =>
       url === "/api/findings/decide"
         ? Response.json({ changed: 1, remembered: 0 })
         : Response.json({
