@@ -20,7 +20,7 @@ export class PullEvents extends DurableObject<Env> {
     let open = 0;
     for (const ws of this.ctx.getWebSockets()) {
       const opened = ws.deserializeAttachment() as Opened | null;
-      if (opened && now - opened.at > ABANDONED_MS) ws.close(1000, "abandoned");
+      if (opened && now - opened.at > ABANDONED_MS) shut(ws);
       else open++;
     }
     if (open >= MAX_STREAMS) return new Response(null, { status: 429 });
@@ -42,11 +42,15 @@ export class PullEvents extends DurableObject<Env> {
   }
 
   override webSocketClose(ws: WebSocket): void {
-    try {
-      ws.close(1000);
-    } catch {
-      // Closed already.
-    }
+    shut(ws);
+  }
+}
+
+function shut(ws: WebSocket): void {
+  try {
+    ws.close(1000);
+  } catch {
+    // Closed already.
   }
 }
 
@@ -73,13 +77,7 @@ export function durableHub(ns: DurableObjectNamespace<PullEvents>): PullsHub {
       });
       return {
         closed,
-        close() {
-          try {
-            ws.close(1000);
-          } catch {
-            // Closed already.
-          }
-        },
+        close: () => shut(ws),
       };
     },
   };
