@@ -146,10 +146,13 @@ export function FileDiff(props: {
             <span className="diff-name">{name}</span>
           </span>
           {STATUS[file.status] && <span className="badge">{STATUS[file.status]}</span>}
-          <span className="diff-count">
-            <span className="add-n">+{file.additions}</span>{" "}
-            <span className="del-n">−{file.deletions}</span>
-          </span>
+          {/* A file without lines (an image, a binary) has no counts to show. */}
+          {file.additions + file.deletions > 0 && (
+            <span className="diff-count">
+              <span className="add-n">+{file.additions}</span>{" "}
+              <span className="del-n">−{file.deletions}</span>
+            </span>
+          )}
         </button>
         <label className="check small diff-viewed">
           <input
