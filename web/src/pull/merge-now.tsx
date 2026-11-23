@@ -12,19 +12,21 @@ import { methodLabels } from "./merge-method.js";
 
 type Ref = { platform: CodePlatformKind; repo: string; number: number };
 
-export function MergeBox(props: {
+/** Merge now, after one confirmation: the platform refuses what it does not allow. */
+export function MergeNow(props: {
   data: PullFilesView;
   pull: Ref;
+  method: MergeMethod;
+  /** Whether merging is the pull request's next step. */
+  primary: boolean;
   onDone: (o: PullActionOutcome) => void;
 }) {
-  const methods = props.data.mergeMethods;
   const label = methodLabels(props.pull.platform);
-  const [method, setMethod] = useState<MergeMethod>(methods[0] ?? "merge");
   const [asking, setAsking] = useState(false);
   const merge = useAction(() =>
     api<{ outcome: PullActionOutcome }>("/pulls/merge", {
       method: "POST",
-      body: JSON.stringify({ ...props.pull, method, head: props.data.head }),
+      body: JSON.stringify({ ...props.pull, method: props.method, head: props.data.head }),
     }),
   );
   const confirm = async () => {
@@ -33,31 +35,18 @@ export function MergeBox(props: {
     if (r) props.onDone(r.outcome);
   };
   return (
-    <section className="card card-pad stack" aria-label="Merge">
-      <div className="strong">Merge</div>
-      <select
-        className="input"
-        aria-label="Merge method"
-        value={method}
-        onChange={(e) => setMethod(e.target.value as MergeMethod)}
-      >
-        {methods.map((m) => (
-          <option key={m} value={m}>
-            {label[m]}
-          </option>
-        ))}
-      </select>
+    <>
       {asking ? (
         <div className="row-gap">
           <Button className="grow" disabled={merge.busy} onClick={confirm}>
-            Confirm: {label[method].toLowerCase()}
+            Confirm: {label[props.method].toLowerCase()}
           </Button>
           <Button variant="outline" onClick={() => setAsking(false)}>
             Cancel
           </Button>
         </div>
       ) : (
-        <Button variant="outline" onClick={() => setAsking(true)}>
+        <Button variant={props.primary ? "default" : "outline"} onClick={() => setAsking(true)}>
           Merge pull request
         </Button>
       )}
@@ -66,6 +55,6 @@ export function MergeBox(props: {
           Could not merge: {why(merge.error)}.
         </p>
       )}
-    </section>
+    </>
   );
 }

@@ -162,3 +162,8 @@
     animation: none;
   }
 }
+/* Inside the merge card: a hairline sets waiting apart from merging now. */
+.merge-when-ready {
+  padding-top: 12px;
+  border-top: 0.5px solid var(--hair);
+}

@@ -26,9 +26,7 @@ import { usePullFindings } from "../pull/findings.js";
 import { GenerateBox } from "../pull/generate-box.js";
 import { JumpToCode } from "../pull/jump-to-code.js";
 import { LabelsBox } from "../pull/labels-box.js";
-import { MergeBox } from "../pull/merge-box.js";
-import { methodLabels } from "../pull/merge-method.js";
-import { MergeWhenReadyBox } from "../pull/merge-when-ready-box.js";
+import { MergeCard } from "../pull/merge-card.js";
 import { OcraReviewBox } from "../pull/ocra-review-box.js";
 import { OUTCOME } from "../pull/outcome.js";
 import { pullPath } from "../pull/path.js";
@@ -245,15 +243,12 @@ export function PullPage(props: {
             ) : (
               !queue.loading &&
               data.mergeMethods.length > 0 && (
-                <>
-                  <MergeBox data={data} pull={ref} onDone={(o) => done("Merge", o)} />
-                  <MergeWhenReadyBox
-                    pull={ref}
-                    head={data.head}
-                    methods={data.mergeMethods}
-                    label={methodLabels(ref.platform)}
-                  />
-                </>
+                <MergeCard
+                  data={data}
+                  pull={ref}
+                  ready={step === "merge"}
+                  onDone={(o) => done("Merge", o)}
+                />
               )
             )}
           </div>
