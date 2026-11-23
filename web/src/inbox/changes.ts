@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { PullsChange } from "../../../src/shared/index.js";
 import { api } from "../api.js";
 import { usePoll } from "../ui.js";
@@ -31,7 +31,9 @@ export function usePullsChanged(listed: string | null | undefined, reload: () =>
     );
   }, [listed, reload]);
   const latest = useRef(check);
-  useEffect(() => {
+  // In the commit itself: a passive effect runs a moment after the listing
+  // shows, and a stream that opened in between would ask with the old one.
+  useLayoutEffect(() => {
     latest.current = check;
   }, [check]);
   const live = usePullsStream(latest);
