@@ -1381,6 +1381,12 @@ td.finding-cell {
   white-space: pre-line;
 }
 
+/* A channel's name wraps before its row outgrows the card. */
+.channel-name {
+  max-width: 220px;
+  overflow-wrap: anywhere;
+}
+
 /* A channel's deliveries drawer */
 /* The ghost button's text lines up with the column's heading. */
 .channel-status {

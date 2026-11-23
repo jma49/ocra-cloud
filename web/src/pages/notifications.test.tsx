@@ -66,7 +66,10 @@ describe("the Notifications page", () => {
       },
     });
     await screen.findByText("#reviews");
-    await act(async () => void fireEvent.click(screen.getByRole("button", { name: "Send test" })));
+    fireEvent.click(screen.getByRole("button", { name: "Actions for #reviews" }));
+    await act(
+      async () => void fireEvent.click(await screen.findByRole("menuitem", { name: "Send test" })),
+    );
     await waitFor(() => expect(screen.getByText("Test not delivered")).toBeTruthy());
     expect(sent[1]).toMatchObject({ url: "/api/notifications/channels/n1/test", method: "POST" });
   });
