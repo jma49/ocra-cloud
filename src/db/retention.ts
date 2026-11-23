@@ -3,7 +3,7 @@ import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
 import { errorName, logError } from "../log.js";
 import { DAY, utcDay } from "../time.js";
 import type { Db } from "./client.js";
-import { HELD_FOR } from "./notify.js";
+import { expireUnconfirmed, HELD_FOR } from "./notify.js";
 import {
   accounts,
   apiTokens,
@@ -41,6 +41,7 @@ import {
   stackMerges,
   usageCounters,
 } from "./schema.js";
+import { scoped } from "./scoped.js";
 
 // What the data policy (web /privacy) promises: review records, live runs, gateway call
 // records, merged and closed pull requests, their review flow, review threads and the threads of ocra's findings, who a rule assigned to review them, the inbox's read marks, the finished jobs of auto review (reviews, answers, generated
@@ -48,7 +49,7 @@ import {
 // RETENTION_DAYS; expired login codes, sessions and API tokens go at once; a notice held in
 // quiet hours after HELD_FOR; a channel's delivery record after DELIVERY_DAYS, a platform's
 // delivery to us after INBOUND_EVENT_DAYS, a team's members TEAM_DAYS after
-// they were read. Runs daily
+// they were read, a channel never confirmed UNCONFIRMED_DAYS after its last link. Runs daily
 // from the cron trigger.
 
 export const RETENTION_DAYS = 90;
@@ -326,6 +327,7 @@ export async function enforceRetention(db: Db, now = new Date()): Promise<void> 
             ),
           ),
     ],
+    ["notify_channels", () => expireChannels(db, now)],
     // DEVICE_DAILY_CODES a day at most, so they are read whole.
     ["device_codes", () => db.delete(deviceCodes).where(lt(deviceCodes.expiresAt, now))],
     // Only today's counts are used, and some are per network: the rest go.
@@ -375,4 +377,18 @@ export async function enforceRetention(db: Db, now = new Date()): Promise<void> 
     }
   }
   if (failed.length > 0) throw new Error(`retention failed for: ${failed.join(", ")}`);
+}
+
+/** Deletes the channels never confirmed, with what they held, each in its account's audit log. */
+async function expireChannels(db: Db, now: Date): Promise<void> {
+  for (const { id, accountId, kind } of await expireUnconfirmed(db, now)) {
+    const data = scoped(db, accountId);
+    await data.removeWhere("notifyHeld", { channelId: id });
+    await data.deliveries.drop([id]);
+    await data.insert("auditEvents", {
+      kind: "channel.expired",
+      detail: { channel: id, kind },
+      createdAt: now,
+    });
+  }
 }

@@ -13,8 +13,6 @@ import type { AppEnv } from "../types.js";
 // confirm or unsubscribe by doing so; the button, or a mail client's
 // one-click unsubscribe (RFC 8058), POSTs to the same address.
 
-export const CONFIRM_TTL_MS = 24 * 60 * 60 * 1000;
-
 const ID = "[A-Za-z0-9-]{1,64}";
 const TOKEN = new RegExp(`^(${ID})\\.(${ID})\\.([A-Za-z0-9_-]{32,128})$`);
 

@@ -39,6 +39,7 @@ export const KIND_GROUPS: { label: string; kinds: [AuditKind, string][] }[] = [
       ["channel.added", "Channel added"],
       ["channel.changed", "Channel changed"],
       ["channel.removed", "Channel removed"],
+      ["channel.expired", "Unconfirmed channel removed"],
     ],
   },
   {
@@ -189,6 +190,8 @@ export function describe(e: AuditEventView): string {
       return `Changed a notification channel${listed(e.detail.keys)}`;
     case "channel.removed":
       return "Removed a notification channel";
+    case "channel.expired":
+      return `Removed a ${e.detail.kind ? `${e.detail.kind} ` : ""}notification channel never confirmed`;
     case "automation.added":
       return `Added an automation${noted(e.detail.trigger, " on ", "")}`;
     case "automation.changed":

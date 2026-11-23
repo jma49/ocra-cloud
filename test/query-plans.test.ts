@@ -650,6 +650,7 @@ describe("retention", () => {
       "live_runs",
       "merge_check_runs",
       "merge_intents",
+      "notify_channels",
       "notify_deliveries",
       "notify_held",
       "notify_sends",
