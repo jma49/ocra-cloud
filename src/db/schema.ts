@@ -21,6 +21,7 @@ import {
 } from "drizzle-orm/sqlite-core";
 import {
   type AgentPrefs,
+  type ApiTokenScope,
   AUTOMATION_RUN_OUTCOMES,
   AUTOMATION_SKIP_REASONS,
   AUTOMATION_TRIGGERS,
@@ -150,6 +151,25 @@ export const sessions = sqliteTable(
     // the ended ones without reading every session (audit C3).
     index("sessions_ends").on(sql`coalesce(${t.refreshExpiresAt}, ${t.expiresAt})`),
   ],
+);
+
+// A personal API token: a script's read-only way in (src/api-token-access.ts).
+// Only the SHA-256 of its secret is kept; revoking it deletes the row.
+export const apiTokens = sqliteTable(
+  "api_tokens",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    name: text("name").notNull(),
+    tokenHash: text("token_hash").notNull().unique(),
+    prefix: text("prefix").notNull(),
+    scopes: text("scopes", { mode: "json" }).notNull().$type<ApiTokenScope[]>(),
+    createdAt: createdAt(),
+    expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+    // Written at most once a minute (API_TOKEN_TOUCH_MS), never on every call.
+    lastUsedAt: integer("last_used_at", { mode: "timestamp_ms" }),
+  },
+  (t) => [index("api_tokens_account").on(t.accountId), index("api_tokens_expires").on(t.expiresAt)],
 );
 
 // An `ocra login` in progress (RFC 8628). It is found by its codes before
@@ -1320,6 +1340,7 @@ export const liveComments = sqliteTable(
 /** The tables scoped by account, by the name scoped() uses. */
 export const accountTables = {
   sessions,
+  apiTokens,
   providerKeys,
   reviews,
   auditEvents,

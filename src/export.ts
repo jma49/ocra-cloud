@@ -24,6 +24,7 @@ type Table = Parameters<Scoped["page"]>[0];
 export const EXPORTED = {
   providerKeys: "providerKeys",
   sessions: "sessions",
+  apiTokens: "apiTokens",
   preferences: "preferences",
   preferenceVersions: "preferenceVersions",
   reviews: "reviews",
@@ -120,6 +121,8 @@ const SHAPES: Partial<Record<Table, (row: never) => unknown>> = {
   liveRuns: ({ linkNonce: _n, accountId: _account, ...r }: Record<string, unknown>) => r,
   // The graph itself is served by GET /api/graphs/repos/:id/graph.
   graphBuilds: ({ content: _content, accountId: _account, ...b }: Record<string, unknown>) => b,
+  // Never the secret's hash.
+  apiTokens: ({ tokenHash: _hash, accountId: _account, ...t }: Record<string, unknown>) => t,
   // Never the token hashes.
   sessions: (s: {
     kind: string;

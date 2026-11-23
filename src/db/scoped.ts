@@ -14,6 +14,7 @@ import {
 } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 import { getTableConfig, type SQLiteColumn } from "drizzle-orm/sqlite-core";
+import { accountApiTokens } from "./api-tokens.js";
 import { accountAuditEvents } from "./audit-events.js";
 import { accountAutomations } from "./automations.js";
 import { changedRows, type Db, first } from "./client.js";
@@ -435,6 +436,7 @@ export function scoped(db: Db, accountId: string) {
       nameRepo(db, accountId, repoHash, name, cap),
     nameRepos: (list: readonly { repoHash: string; name: string }[], cap: number) =>
       nameRepos(db, accountId, list, cap),
+    apiTokens: accountApiTokens(db, accountId),
     pullViews: accountPullViews(db, accountId),
     pullSeen: accountPullSeen(db, accountId),
     pullFileViews: accountPullFileViews(db, accountId),

@@ -10,6 +10,14 @@ export const rows = {
     kind: "cli" as const,
     expiresAt: new Date(Date.now() + DAY),
   }),
+  apiTokens: (id: string) => ({
+    id,
+    name: `token ${id}`,
+    tokenHash: `token-hash-${id}`,
+    prefix: "ocra_pat_abcdef",
+    scopes: ["reviews:read" as const],
+    expiresAt: new Date(Date.now() + DAY),
+  }),
   providerKeys: (id: string) => ({
     id,
     provider: "openrouter",

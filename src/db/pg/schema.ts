@@ -13,6 +13,7 @@ const pg = (table: SQLiteTable) => postgresTable(table, made);
 export const accounts = pg(sqlite.accounts);
 export const identities = pg(sqlite.identities);
 export const sessions = pg(sqlite.sessions);
+export const apiTokens = pg(sqlite.apiTokens);
 export const deviceCodes = pg(sqlite.deviceCodes);
 export const serviceCounters = pg(sqlite.serviceCounters);
 export const rateWindows = pg(sqlite.rateWindows);
