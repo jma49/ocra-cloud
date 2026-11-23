@@ -31,7 +31,7 @@
     "GITHUB_CLIENT_ID": "Iv23liQIb7RBK0JvrxbN",
     // Its slug: where Repositories sends people to choose the repositories
     // it reaches (github.com/apps/<slug>/installations/new).
-    "GITHUB_APP_SLUG": "ocra-cloud-dev",
+    "GITHUB_APP_SLUG": "ocra-cloud",
     // Model calls one account may make through the gateway in a UTC day.
     "GATEWAY_DAILY_CALLS": "500",
     // Reviews one account may upload in a UTC day (POST /api/reviews).
