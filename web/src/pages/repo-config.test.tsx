@@ -115,6 +115,34 @@ describe("the Review config page", () => {
     expect(screen.getByText(/is not a known effort/)).toBeTruthy();
   });
 
+  it("gives the refusal as the CLI words it, for the file as it is and for a refused change", async () => {
+    serve(
+      view({
+        errors: [{ path: ["budget"], message: "must be a number" }],
+        refusal: "✖ must be a number\n  → at budget",
+      }),
+      () =>
+        Response.json(
+          {
+            error: "invalid_body",
+            issues: [{ path: ["text", "effort"], message: "is not a known effort" }],
+            more: true,
+            refusal: "✖ is not a known effort\n  → at effort",
+          },
+          { status: 400 },
+        ),
+    );
+    render(<RepoConfig />);
+    const box = await editor();
+    expect(screen.getByText("As the ocra CLI says it")).toBeTruthy();
+    expect(screen.getByText(/→ at budget/)).toBeTruthy();
+    type(box, '{ "effort": "most" }');
+    expect(screen.queryByText(/→ at budget/)).toBeNull();
+    await act(async () => void fireEvent.click(button("Open pull request")));
+    expect(screen.getByText(/→ at effort/)).toBeTruthy();
+    expect(screen.getByText(/And more/)).toBeTruthy();
+  });
+
   it("starts a file the branch does not have from its schema, and sends no blob", async () => {
     const { sent } = serve(view({ blobId: null, text: null, value: null }), () =>
       Response.json({ outcome: "done", path: ".ocra/config.json", pull: null }),
