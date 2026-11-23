@@ -11,6 +11,9 @@ The master key (`MASTER_KEY`, a Worker secret, or an environment variable of a s
 A self-hosted server (SQLite or Postgres) has the same tool in its image, `node dist/rewrap-master-key.mjs`, which reads `DATABASE_URL`, `MASTER_KEY` (new) and `MASTER_KEY_PREVIOUS` (old) from the server's environment: `docs/self-hosting.md`, Rotating the master key. Both tools run one core, `rotateMasterKey` over `SEALED_KINDS` in `src/crypto.ts`, so they check, re-wrap and read back every table alike.
 
 Each row is re-wrapped with the binding the service opens it with (its account and its row, or its provider or platform), and each `UPDATE` matches the row's old wrapped key too, so a row written by the service in between (saved during the rotation, already under the new key) is left alone. Nothing a row seals, and neither key, is printed.
+
+A self-hosted server's own settings from its setup page (`server_settings`) need no script: when it starts with `MASTER_KEY_PREVIOUS` set, it seals each one that opens only with the previous key again under `MASTER_KEY`. Start it once with both keys before removing the previous one.
+
 ## Binding keys to their rows (#16)
 
 Since #16 every provider key is sealed with additional data naming its account and provider (`keyBinding` in `src/crypto.ts`): a sealed key copied onto another account's or provider's row does not open. Keys stored before that are bound once:
