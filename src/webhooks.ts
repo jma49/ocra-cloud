@@ -12,6 +12,7 @@ import { defer } from "./defer.js";
 import type { GraphService } from "./graph/routes.js";
 import { MAX_HOOK_BODY, queueGithubPush } from "./graph/webhooks.js";
 import { signedBody } from "./http.js";
+import { rerunGithubChecks } from "./merge-checks/rerun.js";
 import { moveGithubIntents } from "./merge-when-ready/hooks.js";
 import { runnerOf } from "./merge-when-ready/routes.js";
 import { publicOutbox } from "./notify/notify.js";
@@ -22,8 +23,9 @@ import type { AppEnv } from "./types.js";
 // The GitHub App's one webhook, proven by its signature: a push queues
 // graph builds, a pull request's change queues its review (its merge or
 // close is recorded, as are its steps toward review and the directories a
-// reviewed one changes, and its user told of what concerns them) and an @ocra comment its answer, where the host does
-// them. A pull request's change, review, check or status also moves the
+// reviewed one changes, and its user told of what concerns them), an @ocra
+// comment its answer and a re-run of the pre-merge check its evaluation,
+// where the host does them. A pull request's change, review, check or status also moves the
 // intents armed to merge it when ready. GitLab's hooks are per
 // repository, with secrets of their own.
 
@@ -65,7 +67,9 @@ export function githubWebhook(host: WebhookHost) {
             ? await queueGithubPull(c, review, body)
             : (event === "issue_comment" || event === "pull_request_review_comment") && review
               ? await queueGithubComment(c.var.db, github, review, event, body)
-              : 0;
+              : review
+                ? await rerunGithubChecks(c.var.db, github, review, event, body)
+                : 0;
       return c.json({ queued }, 202);
     },
   );

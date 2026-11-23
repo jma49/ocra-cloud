@@ -1,4 +1,4 @@
-import { and, eq, isNull, ne, or, sql } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
 import type { MergeCheckResultView, MergeChecksConclusion } from "../shared/index.js";
 import { changedRows, type Db, first } from "./client.js";
 import { mergeCheckRuns, mergeChecks, reviewRepos } from "./schema.js";
@@ -72,6 +72,25 @@ export function accountMergeChecks(db: Db, accountId: string) {
           ),
         );
       return changedRows(claimed) > 0;
+    },
+
+    /**
+     * Opens a posted result to be posted again, as when its check run is
+     * re-run: true for one caller, until that post lands or is released.
+     */
+    async reopenPost(id: string): Promise<boolean> {
+      const reopened = await db
+        .update(r)
+        .set({ postedDigest: null })
+        .where(
+          and(
+            eq(r.accountId, accountId),
+            eq(r.id, id),
+            isNotNull(r.postedDigest),
+            isNotNull(r.externalId),
+          ),
+        );
+      return changedRows(reopened) > 0;
     },
 
     /** Gives the claim back after a post that failed, so the next evaluation posts it. */
