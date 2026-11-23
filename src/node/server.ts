@@ -1,6 +1,7 @@
 import { resolve } from "node:path";
 import { serve } from "@hono/node-server";
 import { pruneGraphBuilds } from "../db/graphs.js";
+import { recoverJobs } from "../db/job-recovery.js";
 import { enforceRetention } from "../db/retention.js";
 import { errorName, logError } from "../log.js";
 import { engineGraphBuilder, engineGraphParser } from "./engine-graph.js";
@@ -75,6 +76,9 @@ const retention = () =>
   Promise.all([
     enforceRetention(host.db).catch((err) =>
       logError("retention_failed", { error: errorName(err) }),
+    ),
+    recoverJobs(host.db).catch((err) =>
+      logError("retention_failed", { table: "jobs", error: errorName(err) }),
     ),
     pruneGraphBuilds(host.db, graphs.policy !== "off").catch((err) =>
       logError("retention_failed", { table: "graph_builds", error: errorName(err) }),

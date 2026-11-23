@@ -1,6 +1,7 @@
-import { and, eq, isNull, lt, lte, or, sql } from "drizzle-orm";
+import { and, eq, isNull, lte, or, sql } from "drizzle-orm";
 import { changedRows, type Db, first } from "./client.js";
 import { mayStart } from "./counters.js";
+import { recoverLapsed } from "./job-recovery.js";
 import { replyJobs } from "./schema.js";
 
 // Answers to @ocra comments (reached through scoped() for an account's own,
@@ -59,11 +60,9 @@ export async function claimReply(
   dailyCalls: number,
 ): Promise<ClaimedReply | undefined> {
   const j = replyJobs;
-  // A run that died keeps its row running until its lease lapses: queued again here.
-  await db
-    .update(j)
-    .set({ state: "queued", leaseUntil: null })
-    .where(and(eq(j.state, "running"), lt(j.leaseUntil, now)));
+  // A run that died keeps its row running until its lease lapses: queued again here, or failed
+  // once it has used its attempts.
+  await recoverLapsed(db, j, now);
   const due = await db
     .select({ id: j.id })
     .from(j)

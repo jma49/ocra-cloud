@@ -1,6 +1,7 @@
 import { accountSalt, loginOf, startHostedFindings } from "../db/accounts.js";
 import type { Db } from "../db/client.js";
 import { claimGenerate } from "../db/generate-jobs.js";
+import { JOB_ATTEMPTS } from "../db/job-recovery.js";
 import { claimReply } from "../db/reply-jobs.js";
 import { claimJob } from "../db/review-jobs.js";
 import { scoped } from "../db/scoped.js";
@@ -46,7 +47,6 @@ const LEASE_MS = 45 * 60_000;
 const REPLY_LEASE_MS = 10 * 60_000;
 /** A few model calls, one per file it writes for, and one commit. */
 const GENERATE_LEASE_MS = 20 * 60_000;
-const MAX_ATTEMPTS = 3;
 const RETRY_AFTER_MS = 5 * 60_000;
 
 /** The job a run answers for: settled only while it is still this attempt's. */
@@ -267,7 +267,7 @@ async function cutShortByDailyLimit(
   cap: number,
   now: Date,
 ): Promise<boolean> {
-  if (ref.kind !== "review" || ref.attempts >= MAX_ATTEMPTS) return false;
+  if (ref.kind !== "review" || ref.attempts >= JOB_ATTEMPTS) return false;
   const [own, today, job] = await Promise.all([
     data.findOne("budgets", {}),
     data.findOne("usageCounters", { kind: "gateway_calls", day: utcDay(now) }),
@@ -311,7 +311,7 @@ export async function settle(
   } else if (failure === null) {
     await records.finish(ref.id, ref.attempts, now);
   } else {
-    const retry = RETRIED.has(failure) && ref.attempts < MAX_ATTEMPTS;
+    const retry = RETRIED.has(failure) && ref.attempts < JOB_ATTEMPTS;
     logError("review_job_failed", { job: ref.id, reason: failure, retry });
     const retryAt = retry ? new Date(now.getTime() + RETRY_AFTER_MS * ref.attempts) : null;
     await records.release(ref.id, ref.attempts, failure, retryAt, now);
