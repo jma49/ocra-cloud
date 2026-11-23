@@ -73,6 +73,8 @@
   --warning-foreground: var(--amber);
   --input: var(--hair2);
   --ring: var(--focus);
+  /* A switch that is off: its track keeps 3:1 against the surface it sits on. */
+  --switch-off: rgb(0 0 0 / 0.44);
   --radius: var(--r-ctl);
   /* Read raw (var(--color-black)) in some coss classes, which Tailwind leaves unresolved. */
   --color-black: var(--black);
@@ -150,6 +152,7 @@
     --border-strong: rgb(255 255 255 / 0.2);
     --on-primary: #111112;
     --on-button: #111112;
+    --switch-off: rgb(255 255 255 / 0.4);
     color-scheme: dark;
   }
 }
