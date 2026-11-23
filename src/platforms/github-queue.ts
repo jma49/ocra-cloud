@@ -92,6 +92,12 @@ const DEQUEUE = `mutation($id: ID!) {
   dequeuePullRequest(input: { id: $id }) { clientMutationId }
 }`;
 
+/** GitHub's reason for a removal; none for one a person asked for, which who took it out already says. */
+const reasonOf = (reason: string | null | undefined) => {
+  const said = reason?.trim() || null;
+  return said?.toLowerCase() === "manual" ? null : said;
+};
+
 function viewOf(p: Standing): MergeQueueView {
   const entry = p.mergeQueueEntry;
   const last = p.timelineItems.nodes[0];
@@ -118,7 +124,7 @@ function viewOf(p: Standing): MergeQueueView {
       : [],
     size: entries?.totalCount ?? null,
     removed: left
-      ? { at: left, by: last.actor?.login ?? null, reason: last.reason?.trim() || null }
+      ? { at: left, by: last.actor?.login ?? null, reason: reasonOf(last.reason) }
       : null,
   };
 }
