@@ -5,6 +5,7 @@ import type { CodePlatformKind } from "../../../src/shared/index.js";
 import { api, type Reviews } from "../api.js";
 import { useCached } from "../cache.js";
 import { count, num, period, usd } from "../format.js";
+import { AtRiskSection } from "../insights/at-risk.js";
 import { Cycle } from "../insights/cycle.js";
 import { FlowSection } from "../insights/flow.js";
 import { ImpactSection } from "../insights/impact.js";
@@ -163,6 +164,7 @@ export function Insights(props: { runner: boolean; platforms: readonly CodePlatf
       <ImpactSection days={days} quiet={runs.data?.summary.reviews === 0} />
       {props.runner && (
         <>
+          <AtRiskSection />
           <FlowSection days={days} />
           <ReviewLoadSection days={days} />
         </>
