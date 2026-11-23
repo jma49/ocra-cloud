@@ -141,7 +141,7 @@ export function PullPage(props: {
     <>
       <PageHead
         title={title}
-        actions={<DraftToggle pull={ref} onDone={(o) => done("Draft", o)} />}
+        actions={settled ? undefined : <DraftToggle pull={ref} onDone={(o) => done("Draft", o)} />}
         sub={
           <>
             <PlatformMark platform={platform} size={14} />{" "}
@@ -183,7 +183,7 @@ export function PullPage(props: {
           <ReviewBox data={data} pull={ref} pending={pending} onDone={(o) => done("Review", o)} />
           {!settled && <DescriptionBox pull={ref} onDone={(o) => done("Description", o)} />}
           <ThreadsPanel pull={ref} onDone={(o) => done("Review threads", o)} />
-          <ReadinessBox pull={ref} head={data.head} />
+          {!settled && <ReadinessBox pull={ref} head={data.head} />}
           <ChecksBox pull={ref} head={data.head} />
           {props.runner && !settled && <ReviewNowBox pull={ref} head={data.head} />}
           {props.runner && !settled && <GenerateBox pull={ref} head={data.head} />}

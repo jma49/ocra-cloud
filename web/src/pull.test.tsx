@@ -120,12 +120,20 @@ const labels = {
   truncated: false,
 };
 const draft = { draft: true, state: "open" };
+const readiness = {
+  ready: "ready",
+  items: [{ kind: "conflicts", state: "met", detail: "No conflicts" }],
+  codeOwners: [],
+  staleApprovals: [],
+  otherRules: [],
+};
 
 describe("a pull request's page", () => {
   const show = (
     queue: unknown = { enabled: false, entry: null },
     listed: unknown = files,
     platform = "github",
+    routes: Record<string, unknown> = {},
   ) => {
     const sent: { url: string; body: unknown }[] = [];
     vi.stubGlobal(
@@ -140,6 +148,8 @@ describe("a pull request's page", () => {
         if (url.startsWith("/api/pulls/threads")) return Response.json(threads);
         if (url.startsWith("/api/pulls/labels")) return Response.json(labels);
         if (url.startsWith("/api/pulls/draft")) return Response.json(draft);
+        const routed = Object.entries(routes).find(([path]) => url.startsWith(path));
+        if (routed) return Response.json(routed[1]);
         return Response.json(url.startsWith("/api/pulls/queue") ? queue : listed);
       }),
     );
@@ -236,9 +246,19 @@ describe("a pull request's page", () => {
     expect(link.querySelector(".file-name bdi[dir=ltr]")?.textContent).toBe(".changeset/refund.md");
   });
 
-  it("offers a merged pull request a comment, and no verdict or merge", async () => {
-    show(undefined, { ...files, state: "merged", verdicts: ["comment"], mergeMethods: [] });
+  it("offers a merged pull request a comment, and no verdict, merge, readiness or draft switch", async () => {
+    show(
+      undefined,
+      { ...files, state: "merged", verdicts: ["comment"], mergeMethods: [] },
+      "github",
+      {
+        "/api/pulls/readiness": readiness,
+      },
+    );
     expect(await screen.findByText(/This pull request is merged/)).toBeTruthy();
+    await act(async () => {});
+    expect(screen.queryByRole("region", { name: "Merge readiness" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /draft|ready for review/i })).toBeNull();
     expect(screen.getByRole("button", { name: "Submit review" })).toBeTruthy();
     expect(screen.queryByRole("group", { name: "Verdict" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Merge pull request" })).toBeNull();
