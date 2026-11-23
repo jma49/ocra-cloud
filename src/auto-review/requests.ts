@@ -8,10 +8,11 @@ import { scoped } from "../db/scoped.js";
 // platform's id of each reviewer, as its webhooks say: asked, asked no
 // more, or reviewed (src/db/review-requests.ts). Review reminders read it
 // (src/notify/reminders.ts); nothing asks the platform. An ask of a GitHub
-// team is kept under the team ("team:<id>", ./teams.ts says who is on it);
-// a review by one of its members ends it.
+// team is kept under the team ("team:<id>", ./teams.ts says who is on it),
+// as is a GitLab approval rule's group (src/notify/gitlab-groups.ts); a
+// review, or approval, by one of its members ends it.
 
-type Repo = { id: string; accountId: string };
+type Repo = { id: string; accountId: string; host: string };
 
 function timeOf(text: string | null | undefined, now: Date): Date {
   const ms = text ? Date.parse(text) : Number.NaN;
@@ -143,7 +144,9 @@ export async function recordGitlabRequests(
   const removed = before.filter((id) => !after.includes(id));
   if (a.action === "open")
     asked.push(...(a.reviewer_ids ?? []).filter((id) => !asked.includes(id)));
-  if (a.action && APPROVALS.has(a.action) && user && user.id !== a.author_id) removed.push(user.id);
+  const approved =
+    a.action && APPROVALS.has(a.action) && user && user.id !== a.author_id ? user.id : null;
+  if (approved) removed.push(approved);
   const requests = scoped(db, repo.accountId).reviewRequests;
   const at = a.action === "open" ? timeOf(a.created_at, now) : now;
   const of = (id: number) => ({
@@ -155,5 +158,8 @@ export async function recordGitlabRequests(
   });
   for (const id of asked) await requests.asked(of(id));
   for (const id of removed) await requests.done(of(id));
+  // An approval by a member of a group the approval rules asked ends that group's ask.
+  if (approved)
+    await requests.doneByMember({ ...of(approved), platform: "gitlab", host: repo.host });
   return asked.length + removed.length;
 }

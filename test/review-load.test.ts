@@ -193,7 +193,7 @@ describe("reviewer workload", () => {
       platformRepoId: "77",
       fullName: "team/web",
     });
-    const repo = { id: "lab", accountId: me.account.id };
+    const repo = { id: "lab", accountId: me.account.id, host: "gitlab.example.com" };
     await recordGitlabRequests(db, repo, {
       object_attributes: { iid: 3, action: "open", reviewer_ids: [900, 901] },
       reviewers: [{ id: 900, username: "dana" }],

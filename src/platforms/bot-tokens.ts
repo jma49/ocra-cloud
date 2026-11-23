@@ -152,18 +152,28 @@ async function appOrgMember(settings: BotSettings, org: string, login: string) {
 }
 
 const TEAM_PAGE = 100;
+/** Pages of a team's members read at most: the first 1,000, as many as src/db/review-teams.ts keeps. */
+const TEAM_PAGES = 10;
 
+/** GitHub's list, child teams' members included as it answers them; null when a page is refused. */
 async function appTeamMembers(settings: BotSettings, org: string, slug: string) {
   const token = await membersToken(settings, org);
   if (!token) return null;
   const path = `/orgs/${encodeURIComponent(org)}/teams/${encodeURIComponent(slug)}/members`;
-  const users: unknown = await github(settings.githubApi, `${path}?per_page=${TEAM_PAGE}`, {
-    token,
-  });
-  if (!Array.isArray(users)) return null;
-  return users.flatMap((u) =>
-    typeof u?.id === "number" && Number.isSafeInteger(u.id) ? [String(u.id)] : [],
-  );
+  const ids: string[] = [];
+  for (let page = 1; page <= TEAM_PAGES; page++) {
+    const users: unknown = await github(
+      settings.githubApi,
+      `${path}?per_page=${TEAM_PAGE}&page=${page}`,
+      { token },
+    );
+    if (!Array.isArray(users)) return null;
+    for (const u of users) {
+      if (typeof u?.id === "number" && Number.isSafeInteger(u.id)) ids.push(String(u.id));
+    }
+    if (users.length < TEAM_PAGE) break;
+  }
+  return ids;
 }
 
 export function botTokens(settings: BotSettings): BotTokens {

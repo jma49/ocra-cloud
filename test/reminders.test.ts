@@ -195,7 +195,7 @@ describe("reminders of a review asked of the user", () => {
       platformRepoId: "77",
       fullName: "team/web",
     });
-    const repo = { id: "lab", accountId: me.account.id };
+    const repo = { id: "lab", accountId: me.account.id, host: "gitlab.example.com" };
     const changed = (previous: number[], current: number[]) => ({
       object_attributes: { iid: 3, action: "update" },
       changes: {

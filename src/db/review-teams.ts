@@ -9,8 +9,8 @@ import { reviewTeams } from "./schema.js";
 
 export type TeamKey = { platform: CodePlatform; host: string; reviewerId: string };
 
-/** At most this many members are kept per team: one page of the platform's list. */
-const MAX_TEAM_MEMBERS = 100;
+/** At most this many members are kept per team: ten pages of the platform's list. */
+const MAX_TEAM_MEMBERS = 1000;
 const MAX_NAME = 255;
 const t = reviewTeams;
 

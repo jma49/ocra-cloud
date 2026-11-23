@@ -80,6 +80,38 @@ export function accountReviewRequests(db: Db, accountId: string) {
         });
     },
 
+    /** Records an ask of reviewerId only when none is on record: reading the same ask again moves nothing. */
+    async askedOnce(e: Ask) {
+      const { at, reviewer, ...ask } = e;
+      await db
+        .insert(r)
+        .values({
+          id: crypto.randomUUID(),
+          accountId,
+          ...ask,
+          reviewer: reviewer?.slice(0, MAX_LOGIN) ?? null,
+          requestedAt: at,
+        })
+        .onConflictDoNothing({ target: [r.reviewRepoId, r.number, r.reviewerId] });
+    },
+
+    /** The reviewer ids of the team asks on the pull request that still wait. */
+    async waitingTeams(p: { reviewRepoId: string; number: number }): Promise<string[]> {
+      const rows = await db
+        .select({ reviewerId: r.reviewerId })
+        .from(r)
+        .where(
+          and(
+            eq(r.accountId, accountId),
+            eq(r.reviewRepoId, p.reviewRepoId),
+            eq(r.number, p.number),
+            like(r.reviewerId, `${TEAM_PREFIX}%`),
+            or(isNull(r.doneAt), lt(r.doneAt, r.requestedAt)),
+          ),
+        );
+      return rows.map((row) => row.reviewerId);
+    },
+
     /** Records that reviewerId reviewed the pull request, or was no longer asked, at; the latest is kept. */
     async done(e: Ask) {
       await db
