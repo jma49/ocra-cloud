@@ -14,8 +14,10 @@ import {
   deviceCodes,
   findingThreads,
   gatewayCalls,
+  generateJobs,
   inboundEvents,
   liveRuns,
+  mergeCheckRuns,
   mergeIntents,
   notifyDeliveries,
   notifyHeld,
@@ -26,6 +28,8 @@ import {
   pullReviews,
   pullSeen,
   rateWindows,
+  replyJobs,
+  reviewJobs,
   reviewRequests,
   reviews,
   reviewTeams,
@@ -37,7 +41,8 @@ import {
 } from "./schema.js";
 
 // What the data policy (web /privacy) promises: review records, live runs, gateway call
-// records, merged and closed pull requests, their review flow, review threads and the threads of ocra's findings, who a rule assigned to review them, the inbox's read marks, the daily counts and the audit log are deleted after
+// records, merged and closed pull requests, their review flow, review threads and the threads of ocra's findings, who a rule assigned to review them, the inbox's read marks, the finished jobs of auto review (reviews, answers, generated
+// tests and docs), the pre-merge checks' results, the daily counts and the audit log are deleted after
 // RETENTION_DAYS; expired login codes, sessions and API tokens go at once; a notice held in
 // quiet hours after HELD_FOR; a channel's delivery record after DELIVERY_DAYS, a platform's
 // delivery to us after INBOUND_EVENT_DAYS, a team's members TEAM_DAYS after
@@ -72,6 +77,17 @@ export async function enforceRetention(db: Db, now = new Date()): Promise<void> 
   // starts with account_id instead of reading the whole table (audit C3).
   const ofEachAccount = (column: SQLiteColumn) =>
     inArray(column, db.select({ id: accounts.id }).from(accounts));
+  // A job that ended, by when it did; one queued or running is never deleted.
+  const ended = (job: typeof reviewJobs | typeof replyJobs | typeof generateJobs) =>
+    db.delete(job).where(
+      and(
+        ofEachAccount(job.accountId),
+        // It ended after it was made: the index on created_at finds the old ones.
+        lt(job.createdAt, cutoff),
+        lt(job.finishedAt, cutoff),
+        notInArray(job.state, ["queued", "running"]),
+      ),
+    );
   const deletes: [string, () => Promise<unknown>][] = [
     // A review's findings go with it (foreign key cascade, by findings_review).
     [
@@ -156,6 +172,23 @@ export async function enforceRetention(db: Db, now = new Date()): Promise<void> 
             and(
               ofEachAccount(reviewTeams.accountId),
               lt(reviewTeams.fetchedAt, new Date(now.getTime() - TEAM_DAYS * DAY)),
+            ),
+          ),
+    ],
+    ["review_jobs", () => ended(reviewJobs)],
+    ["reply_jobs", () => ended(replyJobs)],
+    ["generate_jobs", () => ended(generateJobs)],
+    // A head's result, by when it was last posted: one evaluated again is posted again.
+    [
+      "merge_check_runs",
+      () =>
+        db
+          .delete(mergeCheckRuns)
+          .where(
+            and(
+              ofEachAccount(mergeCheckRuns.accountId),
+              lt(mergeCheckRuns.createdAt, cutoff),
+              sql`coalesce(${mergeCheckRuns.postedAt}, ${mergeCheckRuns.createdAt}) < ${cutoff.getTime()}`,
             ),
           ),
     ],
