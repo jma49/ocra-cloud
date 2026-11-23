@@ -5,7 +5,7 @@ import { api, why } from "../api.js";
 import { useAction, useLoad } from "../ui.js";
 import { ThreadItem } from "./thread-item.js";
 
-// The pull request's review threads: their comments as plain text, the
+// The pull request's review threads: their comments as Markdown, the
 // suggestions in them, applied together as one commit of the head the
 // threads were read at, and each thread resolved or reopened.
 

@@ -85,12 +85,12 @@
   padding: 0;
   list-style: none;
 }
-.thread-list li {
+.thread-list > li {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 6px;
 }
-.thread-list li + li {
+.thread-list > li + li {
   padding-top: 12px;
   box-shadow: inset 0 0.5px 0 var(--hair);
 }
@@ -115,6 +115,28 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 4px;
+}
+.thread-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  overflow-wrap: anywhere;
+}
+/* ocra's comment of a finding: its title, then how severe and how sure. */
+.thread-finding {
+  display: grid;
+  gap: 4px;
+}
+.thread-finding-title {
+  color: var(--t1);
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+.thread-finding-notes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
 }
 .thread-folded summary {
   cursor: pointer;

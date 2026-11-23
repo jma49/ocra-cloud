@@ -8,6 +8,7 @@ import {
 import { ago } from "../format.js";
 import { splitPath } from "./diff.js";
 import { SuggestionText } from "./suggestion.js";
+import { ThreadBody } from "./thread-body.js";
 
 const lines = (start: number | null, end: number) =>
   start === null || start === end ? `line ${end}` : `lines ${start}–${end}`;
@@ -58,7 +59,7 @@ function Comments(props: ItemProps) {
         <span className="strong">{c.author ?? "Someone"}</span>
         {c.createdAt && <span className="subtle"> {ago(c.createdAt)}</span>}
       </div>
-      {c.body && <div className="pre-wrap">{c.body}</div>}
+      <ThreadBody body={c.body} />
       {c.suggestions.map((s) => (
         <Suggestion
           key={s.id}
