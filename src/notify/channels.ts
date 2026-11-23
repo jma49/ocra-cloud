@@ -81,8 +81,15 @@ export function plain(text: string): string {
 type Piece = string | { label: string; url: string };
 /** A message's words: the subject only an email shows, then its lines. */
 export type MessageText = { subject: string; lines: Piece[][] };
-/** What a channel is told, as its delivery log names it; a webhook gets hooks instead. */
-export type Message = MessageText & { event: NotifyDeliveryEvent; hooks?: HookEvent[] };
+/**
+ * What a channel is told, as its delivery log names it; a webhook gets
+ * hooks instead. whens, the settings of `when` that take it, where only some do.
+ */
+export type Message = MessageText & {
+  event: NotifyDeliveryEvent;
+  hooks?: HookEvent[];
+  whens?: readonly NotifyWhen[];
+};
 
 export function reviewMessage(n: ReviewNotice): Message {
   const counts = `${n.critical} critical · ${n.warning} warning · ${n.suggestion} suggestion`;

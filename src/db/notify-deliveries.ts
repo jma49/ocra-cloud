@@ -3,6 +3,7 @@ import type {
   NotifyDeliveryError,
   NotifyDeliveryEvent,
   NotifyDeliveryState,
+  NotifyWhen,
 } from "../shared/index.js";
 import { changedRows, type Db, first } from "./client.js";
 import { notifyDeliveries } from "./schema.js";
@@ -32,6 +33,7 @@ export function accountNotifyDeliveries(db: Db, accountId: string) {
       event: NotifyDeliveryEvent;
       payload: string;
       leaseUntil: Date;
+      whens?: readonly NotifyWhen[] | undefined;
     }): Promise<void> {
       await db.insert(d).values({
         id: row.id,
@@ -41,6 +43,7 @@ export function accountNotifyDeliveries(db: Db, accountId: string) {
         payload: row.payload,
         attempts: 1,
         retryAt: row.leaseUntil,
+        whens: row.whens ? [...row.whens] : null,
       });
     },
 
@@ -113,6 +116,8 @@ export type ClaimedDelivery = {
   event: NotifyDeliveryEvent;
   payload: string;
   attempts: number;
+  /** The settings of `when` that take it; null when every one does. */
+  whens: NotifyWhen[] | null;
 };
 
 /**
@@ -152,6 +157,7 @@ export async function claimDeliveryRetry(
       event: d.event,
       payload: d.payload,
       attempts: d.attempts,
+      whens: d.whens,
     })
     .then(first);
   if (!claimed) return undefined;

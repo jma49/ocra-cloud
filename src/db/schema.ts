@@ -52,6 +52,7 @@ import {
   NOTIFY_WHEN,
   type NotifyDeliveryEvent,
   type NotifyEvent,
+  type NotifyWhen,
   type PullFilters,
   REVIEW_CHAT_ROLES,
   REVIEW_JOB_STATES,
@@ -858,6 +859,9 @@ export const notifyHeld = sqliteTable(
 // while a retry is due (retryAt; a runner claims an attempt by moving it
 // past its lease, compare-and-set on attempts) and cleared once it is
 // delivered or given up. A channel keeps its newest deliveries only.
+// whens, for a message only some settings of `when` take (a review's
+// announcement, a digest, a report), holds those settings, so that a retry
+// after the channel's was narrowed is given up as unwanted; null for the rest.
 export const notifyDeliveries = sqliteTable(
   "notify_deliveries",
   {
@@ -873,6 +877,7 @@ export const notifyDeliveries = sqliteTable(
     payload: text("payload"),
     retryAt: integer("retry_at", { mode: "timestamp_ms" }),
     createdAt: createdAt(),
+    whens: text("whens", { mode: "json" }).$type<NotifyWhen[]>(),
   },
   (t) => [
     index("notify_deliveries_channel_created").on(t.accountId, t.channelId, t.createdAt),

@@ -119,7 +119,8 @@ async function sendReport(
     data.closedPulls.mergeTimes(from, to, MAX_MERGE_TIMES),
   ]);
   if (digest.reviews === 0 && merges.merged === 0) return false;
-  const channels = await data.notify.reporting(periodWhens(digest, merges));
+  const whens = periodWhens(digest, merges);
+  const channels = await data.notify.reporting(whens);
   const m = reportMessage(
     {
       from: utcDay(from),
@@ -139,6 +140,7 @@ async function sendReport(
     },
     out.origin,
   );
+  m.whens = whens;
   await Promise.all(channels.map((ch) => send(data, out, ch, m)));
   return channels.length > 0;
 }

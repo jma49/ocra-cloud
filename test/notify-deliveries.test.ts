@@ -197,6 +197,75 @@ describe("a chat's delivery", () => {
   });
 });
 
+describe("a retry after the channel's when was narrowed", () => {
+  it("gives up a review's announcement the setting no longer takes, unsent and kept", async () => {
+    const web = await signIn(1, "octo");
+    const cli = await signInCli(1, "octo");
+    const id = await addChat(web.auth, "slack", SLACK);
+    const bodies = chat(() => new Response("rollup_error", { status: 503 }));
+    const clean = { ...upload("run-1", []), findings: { critical: 0, warning: 0, suggestion: 0 } };
+    await call("/api/reviews", { method: "POST", auth: cli.auth, json: clean });
+    await test(web.auth, id);
+    expect(await deliveries(web.auth, id)).toEqual([
+      expect.objectContaining({ event: "ping", state: "pending" }),
+      expect.objectContaining({ event: "review_completed", state: "pending" }),
+    ]);
+    const narrowed = await call(`/api/notifications/channels/${id}`, {
+      method: "PATCH",
+      auth: web.auth,
+      json: { when: "blocking" },
+    });
+    expect(narrowed.status).toBe(200);
+    bodies.length = 0;
+    vi.mocked(globalThis.fetch).mockImplementation(async (input, init) => {
+      bodies.push(await new Request(input, init).text());
+      return new Response("ok");
+    });
+
+    expect(await retryNotifications(db, transports(), MINUTES(2))).toBe(2);
+    // The test message is every setting's; only it goes.
+    expect(bodies).toHaveLength(1);
+    expect(bodies[0]).toContain("Test message from ocra");
+    expect(await deliveries(web.auth, id)).toEqual([
+      expect.objectContaining({ event: "ping", state: "delivered", attempts: 2 }),
+      expect.objectContaining({
+        event: "review_completed",
+        state: "failed",
+        error: "unwanted",
+        status: null,
+        retryAt: null,
+      }),
+    ]);
+    const rows = await scoped(db, web.account.id).list("notifyDeliveries");
+    expect(rows.map((r) => r.payload)).toEqual([null, null]);
+    expect((await scoped(db, web.account.id).get("notifyChannels", id))?.lastStatus).toBe("ok");
+    expect(await retryNotifications(db, transports(), MINUTES(24 * 60))).toBe(0);
+    expect(bodies).toHaveLength(1);
+  });
+
+  it("still sends one the narrowed setting takes", async () => {
+    const web = await signIn(1, "octo");
+    const cli = await signInCli(1, "octo");
+    const id = await addChat(web.auth, "slack", SLACK);
+    const bodies = chat(
+      () => new Response("rollup_error", { status: 503 }),
+      () => new Response("ok"),
+    );
+    const warned = { ...upload("run-1", []), findings: { critical: 0, warning: 1, suggestion: 0 } };
+    await call("/api/reviews", { method: "POST", auth: cli.auth, json: warned });
+    await call(`/api/notifications/channels/${id}`, {
+      method: "PATCH",
+      auth: web.auth,
+      json: { when: "findings" },
+    });
+    await retryNotifications(db, transports(), MINUTES(2));
+    expect(bodies).toHaveLength(2);
+    expect(await deliveries(web.auth, id)).toEqual([
+      expect.objectContaining({ event: "review_completed", state: "delivered", attempts: 2 }),
+    ]);
+  });
+});
+
 describe("a channel's deliveries", () => {
   it("are another account's to see only for that account", async () => {
     const a = await signIn(1, "octo");
