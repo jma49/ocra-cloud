@@ -33,6 +33,7 @@ import { CommandMenu, type CommandSection } from "./command-menu.js";
 import { EyesMark } from "./eyes.js";
 import { useHoverGlide, usePickedGlide } from "./glide.js";
 import { QueueNav } from "./inbox/queue-nav.js";
+import { FeedBell } from "./notifications/feed.js";
 import { Link } from "./router.js";
 import { type Place, placeHome, placeTabs, type Route, settingsGroups } from "./routes.js";
 import { GO_TO, useGlobalKeys } from "./shortcuts/global-keys.js";
@@ -132,6 +133,7 @@ function Rail(props: { me: Me; place: Place | undefined }) {
           />
         ))}
         <span className="rail-gap" />
+        <FeedBell tip={(label, control) => <RailTip label={label}>{control}</RailTip>} />
         <RailTip label="Documentation">
           <a
             className="rail-link"

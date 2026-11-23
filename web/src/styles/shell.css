@@ -548,3 +548,22 @@
   cursor: default;
   pointer-events: none;
 }
+
+/* The rail's bell: a dot while something is unread; the drawer has the count. */
+.feed-bell {
+  position: relative;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.feed-dot {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--blue);
+  box-shadow: 0 0 0 2px var(--ground);
+}
