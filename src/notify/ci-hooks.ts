@@ -17,7 +17,7 @@ import { type EventRepo, tellPullEvent } from "./pull-events.js";
 /** What a delivery says failed: its head, and the pull requests of it. */
 export type CiFailure = { head: string; numbers: number[] };
 
-/** Pull requests of one head told at once. */
+/** Pull requests of one head told at once, of one delivery. */
 const MAX_PULLS = 5;
 
 const FAILED = new Set(["failure", "timed_out", "action_required", "startup_failure"]);
