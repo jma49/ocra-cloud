@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { endTime, startTime, timing } from "hono/timing";
 import { accountSalt } from "./db/accounts.js";
 import { keepsFindings } from "./findings-kept.js";
 import { apiError } from "./http.js";
@@ -88,13 +89,16 @@ platformsRoute.get("/repos", requireSession(), async (c) => {
 // defaults while it has none), each with the pulls it holds, evaluated here
 // over this same listing. Open pulls stacked on one another in a repository
 // carry their place in the stack, read from this listing's branches alone.
-platformsRoute.get("/pulls", requireSession(), perMinute("platform"), async (c) => {
+// Server-Timing says how long the platforms' listing took against the rest,
+// the inbox's slowest read.
+platformsRoute.get("/pulls", requireSession(), perMinute("platform"), timing(), async (c) => {
   const group = c.req.query("group");
   if (group !== undefined && group !== "views") {
     return apiError(c, "invalid_body", {
       issues: [{ path: ["group"], message: "group is views or left out" }],
     });
   }
+  startTime(c, "list", "platform listing");
   const listed = await Promise.all(
     platformsOf(c.env, c.req.url).map(async (platform) => {
       const head = { platform: platform.kind, host: platform.host };
@@ -107,6 +111,7 @@ platformsRoute.get("/pulls", requireSession(), perMinute("platform"), async (c) 
       return { platform, head, linked: true, failed: false, asks, ...listing };
     }),
   );
+  endTime(c, "list");
   // An empty inbox would read as "nothing waits for you".
   const limited = platformLimitedUntil();
   if (
@@ -117,12 +122,14 @@ platformsRoute.get("/pulls", requireSession(), perMinute("platform"), async (c) 
     return rateLimited(c, limited);
   }
   const teamOf = pullTeams(listed);
+  startTime(c, "marks", "verdicts, read marks, replies");
   const [reviewsOf, seenOf, since] = await Promise.all([
     pullVerdicts(c.var.data, listed),
     pullSeenStates(c.var.data, listed),
     c.var.data.pullSeen.baseline(c.var.session.account.inboxSince),
   ]);
   const repliesOf = await pullRepliesWaiting(c.var.db, c.var.data, listed, seenOf, since);
+  endTime(c, "marks");
   const platforms = listed.map(({ platform, head, pulls, asks: _, ...rest }) => {
     const stacked = pulls.flatMap((p) =>
       p.state === "open" && p.branches ? [{ repo: p.repo, number: p.number, ...p.branches }] : [],
