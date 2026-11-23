@@ -49,7 +49,7 @@ export function ThreadsPanel(props: { pull: Pull; onDone: (o: PullActionOutcome)
     (t) => !t.resolved && t.comments.some((c) => c.suggestions.some((s) => s.applicable)),
   );
   return (
-    <section className="card card-pad stack" aria-label="Review threads">
+    <section className="stack" aria-label="Review threads">
       <div className="row-gap checks-head">
         <span className="strong grow">Review threads</span>
         <span className="subtle small">
@@ -96,7 +96,7 @@ export function ThreadsPanel(props: { pull: Pull; onDone: (o: PullActionOutcome)
         <span className="subtle small">More threads are on the platform than one page reads.</span>
       )}
       {offers && (
-        <>
+        <div className="row-gap thread-commit">
           <Button
             loading={write.busy && resolving === null}
             disabled={picked.length === 0 || write.busy}
@@ -118,7 +118,7 @@ export function ThreadsPanel(props: { pull: Pull; onDone: (o: PullActionOutcome)
             One commit on the pull request's branch, made as you.
             {props.pull.platform === "github" && " On GitHub, one file per commit."}
           </span>
-        </>
+        </div>
       )}
       {write.error !== null && (
         <p className="error" role="alert">

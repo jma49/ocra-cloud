@@ -7,6 +7,7 @@ import {
 } from "../../../src/shared/index.js";
 import { ago } from "../format.js";
 import { splitPath } from "./diff.js";
+import { FileTypeIcon } from "./file-icon.js";
 import { SuggestionText } from "./suggestion.js";
 import { ThreadBody } from "./thread-body.js";
 
@@ -55,20 +56,25 @@ type ItemProps = {
 function Comments(props: ItemProps) {
   return props.t.comments.map((c) => (
     <div key={c.id} className="thread-comment small">
-      <div>
-        <span className="strong">{c.author ?? "Someone"}</span>
-        {c.createdAt && <span className="subtle"> {ago(c.createdAt)}</span>}
+      <span className="avatar thread-avatar" aria-hidden="true">
+        {(c.author ?? "?").slice(0, 1).toUpperCase()}
+      </span>
+      <div className="thread-said">
+        <div>
+          <span className="strong">{c.author ?? "Someone"}</span>
+          {c.createdAt && <span className="subtle"> {ago(c.createdAt)}</span>}
+        </div>
+        <ThreadBody body={c.body} />
+        {c.suggestions.map((s) => (
+          <Suggestion
+            key={s.id}
+            s={s}
+            picked={props.picked.includes(s.id)}
+            blocked={props.picked.includes(s.id) ? null : props.blocked}
+            toggle={() => props.toggle(s.id)}
+          />
+        ))}
       </div>
-      <ThreadBody body={c.body} />
-      {c.suggestions.map((s) => (
-        <Suggestion
-          key={s.id}
-          s={s}
-          picked={props.picked.includes(s.id)}
-          blocked={props.picked.includes(s.id) ? null : props.blocked}
-          toggle={() => props.toggle(s.id)}
-        />
-      ))}
     </div>
   ));
 }
@@ -80,7 +86,7 @@ function Reply(props: { busy: boolean; send: (body: string) => Promise<boolean> 
   const [sending, setSending] = useState(false);
   if (!open) {
     return (
-      <div>
+      <div className="thread-foot">
         <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
           Reply
         </Button>
@@ -96,7 +102,7 @@ function Reply(props: { busy: boolean; send: (body: string) => Promise<boolean> 
     setOpen(false);
   };
   return (
-    <div className="stack-tight">
+    <div className="stack-tight thread-foot">
       <textarea
         className="input"
         aria-label="Reply"
@@ -132,14 +138,15 @@ export function ThreadItem(
   const { t } = props;
   const { dir, name } = splitPath(t.path);
   return (
-    <li className={t.resolved ? "is-resolved" : undefined}>
+    <li className={`thread-card${t.resolved ? " is-resolved" : ""}`}>
       <div className="thread-head">
         <span className="thread-where mono small" title={t.path}>
+          <FileTypeIcon name={name} />
           <span className="thread-path">
             <span className="subtle">{dir}</span>
             {name}
+            {t.line !== null && <span className="subtle">:{t.line}</span>}
           </span>
-          {t.line !== null && <span className="subtle">:{t.line}</span>}
         </span>
         {t.outdated && <span className="badge">Outdated</span>}
         {t.resolved && <span className="badge badge-ok">Resolved</span>}
