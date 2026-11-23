@@ -25,7 +25,7 @@ export function MergeCard(props: {
   const [method, setMethod] = useState<MergeMethod>(data.mergeMethods[0] ?? "merge");
   return (
     <section className="card card-pad stack" aria-label="Merge">
-      <div className="strong">Merge</div>
+      <h2 className="card-title">Merge</h2>
       <select
         className="input"
         aria-label="Merge method"
