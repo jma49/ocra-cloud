@@ -1,8 +1,10 @@
 import { z } from "zod";
 import type { CallBudget } from "../calls.js";
+import { avatarOf } from "./changes.js";
 import { githubHeaders, githubRepoPath } from "./github-changes.js";
 import type { GithubHost } from "./github-host.js";
 import { platformJson } from "./http.js";
+import { labelsOf } from "./pulls.js";
 import {
   RECONCILE_PER_PAGE,
   type ReconciledAsk,
@@ -28,7 +30,9 @@ const pull = z.object({
   title: z.string(),
   state: z.enum(["open", "closed"]),
   draft: z.boolean().optional(),
-  user: z.object({ login: z.string(), id: z.number() }).nullish(),
+  user: z
+    .object({ login: z.string(), id: z.number(), avatar_url: z.string().optional() })
+    .nullish(),
   created_at: z.string().nullish(),
   updated_at: z.string().nullish(),
   closed_at: z.string().nullish(),
@@ -37,6 +41,14 @@ const pull = z.object({
   requested_teams: z
     .array(z.object({ id: z.number(), slug: z.string().min(1).max(100) }))
     .nullish(),
+  node_id: z.string().optional(),
+  html_url: z.string().optional(),
+  labels: z.array(z.object({ name: z.string() })).nullish(),
+  assignees: z.array(z.object({ id: z.number() })).nullish(),
+  head: z
+    .object({ sha: z.string(), ref: z.string(), repo: z.object({ id: z.number() }).nullish() })
+    .optional(),
+  base: z.object({ ref: z.string(), repo: z.object({ id: z.number() }).nullish() }).optional(),
 });
 
 const named = z.object({ full_name: z.string().min(3).max(400) });
@@ -90,6 +102,22 @@ function pullOf(raw: unknown, org: string): ReconciledPull | null {
     updatedAt: timeOf(p.updated_at),
     closedAt: p.state === "open" ? null : (merged ?? timeOf(p.closed_at)),
     asks: asksOf(p, org),
+    ...(p.html_url
+      ? {
+          listed: {
+            pullId: p.node_id ?? null,
+            url: p.html_url,
+            authorAvatar: avatarOf(p.user?.avatar_url),
+            labels: labelsOf((p.labels ?? []).map((l) => l.name)),
+            assigneeIds: (p.assignees ?? []).map((u) => String(u.id)),
+            head: p.head?.sha ?? null,
+            branches:
+              p.head && p.base && p.head.repo && p.head.repo.id === p.base.repo?.id
+                ? { head: p.head.ref, base: p.base.ref }
+                : null,
+          },
+        }
+      : {}),
   };
 }
 

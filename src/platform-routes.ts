@@ -9,6 +9,7 @@ import type { CodePlatform, PlatformRepo } from "./platforms/platform.js";
 import { repoHashOf } from "./platforms/platform.js";
 import { platformLimitedUntil } from "./platforms/rate-limit.js";
 import { platformsOf } from "./platforms/registry.js";
+import { indexedListing, verifyListing } from "./pull-index/inbox.js";
 import { sectionsOf } from "./pull-sections.js";
 import { pullTeams, teamAsks } from "./pull-teams.js";
 import { pullRepliesWaiting, pullSeenStates } from "./pull-unread.js";
@@ -20,9 +21,10 @@ import { type PullItem, type PullsChange, pullUnread, stackPlaces } from "./shar
 import type { AppEnv } from "./types.js";
 
 // What the signed-in user reaches on each connected code platform, read
-// live with their token and never stored. With findings sharing on, each
-// repository carries the hash the CLI sends for it, so the console can put
-// reviews under real names.
+// live with their token and never stored, but for the pull requests of the
+// account's enrolled repositories, which the inbox keeps an index of. With
+// findings sharing on, each repository carries the hash the CLI sends for
+// it, so the console can put reviews under real names.
 
 export const platformsRoute = new Hono<AppEnv>();
 
@@ -93,7 +95,9 @@ platformsRoute.get("/repos", requireSession(), async (c) => {
 // over this same listing. Open pulls stacked on one another in a repository
 // carry their place in the stack, read from this listing's branches alone.
 // Server-Timing says how long the platforms' listing took against the rest,
-// the inbox's slowest read.
+// the inbox's slowest read. A platform whose listing a recent live one
+// vouched for is answered from the index of enrolled repositories' pull
+// requests instead, with no platform call (src/pull-index/inbox.ts).
 platformsRoute.get("/pulls", requireSession(), perMinute("platform"), timing(), async (c) => {
   const group = c.req.query("group");
   if (group !== undefined && group !== "views") {
@@ -107,12 +111,17 @@ platformsRoute.get("/pulls", requireSession(), perMinute("platform"), timing(), 
   const listed = await Promise.all(
     platformsOf(c.env, c.req.url).map(async (platform) => {
       const head = { platform: platform.kind, host: platform.host };
-      const token = await accessToken(c.var.data, c.env, platform);
       const none = { platform, head, more: false, pulls: [], asks: [] };
-      if (!token) return { ...none, linked: false, failed: false };
+      // Before the token, whose refresh would be a platform call.
       const asks = await teamAsks(c.var.db, c.var.data, platform);
+      const indexed = await indexedListing(c.var.db, c.var.data, platform, asks);
+      if (indexed) return { platform, head, linked: true, failed: false, asks, ...indexed };
+      const token = await accessToken(c.var.data, c.env, platform);
+      if (!token) return { ...none, linked: false, failed: false };
+      const readAt = new Date();
       const listing = await platform.listPulls(token, asks);
       if (!listing) return { ...none, linked: true, failed: true };
+      await verifyListing(c.var.db, c.var.data, platform, listing, asks, readAt);
       return { platform, head, linked: true, failed: false, asks, ...listing };
     }),
   );

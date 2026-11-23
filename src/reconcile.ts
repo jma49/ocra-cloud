@@ -13,6 +13,7 @@ import type { BotTokens } from "./platforms/bot.js";
 import { accessToken } from "./platforms/links.js";
 import type { CodePlatform } from "./platforms/platform.js";
 import type { ReconciledPull } from "./platforms/reconcile.js";
+import { indexReconciled } from "./pull-index/reconcile.js";
 import { reconcileReviews } from "./reconcile-reviews.js";
 import type { AppBindings } from "./types.js";
 
@@ -24,9 +25,11 @@ import type { AppBindings } from "./types.js";
 // one the console holds open but the platform closed gets its close; an open
 // one with no flow, or a draft state the platform changed since, is merged
 // into its flow, and the open ones changed lately get their asks of a
-// review and their reviews (./reconcile-reviews.ts). Every write is one the
-// webhooks make too, merged in the statement (closes and flows keep what a
-// webhook recorded), so the two never undo each other. Run hourly, it reads
+// review and their reviews (./reconcile-reviews.ts). Both listings also
+// fill the inbox's index of pull requests (./pull-index/reconcile.ts),
+// with no call of their own. Every write is one the webhooks make too,
+// merged in the statement (closes and flows keep what a webhook recorded),
+// so the two never undo each other. Run hourly, it reads
 // each repository once a UTC day (the claim, src/db/reconcile.ts), a few per
 // account per run, within its budget of calls (src/calls.ts): a repository
 // the budget cut short is given back and read again by the next run, and
@@ -155,6 +158,7 @@ async function reconcileRepo(
     return { state: "unreachable" };
   }
   const fill = new Fill(data, repo);
+  await indexReconciled(data, repo.id, closed, open, now);
 
   const closedBy = new Map<number, ReconciledPull>();
   for (const p of closed.pulls) {

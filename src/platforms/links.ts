@@ -50,6 +50,8 @@ export async function saveToken(
     accessExpiresAt: after(now, answer.expires_in),
     refreshExpiresAt: after(now, answer.refresh_token_expires_in),
     ...(user !== undefined ? { userId: user.id, login: user.login } : {}),
+    // A new token may be another user's: no listing of theirs vouched for the inbox's index yet.
+    pullsVerifiedAt: null,
   };
   await data.batch((w) => [w.upsert("platformLinks", row, ["accountId", "platform", "host"])]);
 }

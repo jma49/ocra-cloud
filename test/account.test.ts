@@ -123,6 +123,7 @@ describe("deleting an account", () => {
           "pausedPulls",
           "closedPulls",
           "pullFlows",
+          "pullIndex",
           "pullReviews",
           "reviewThreads",
           "findingThreads",
@@ -188,6 +189,7 @@ describe("deleting an account", () => {
     for (const table of [
       "closedPulls",
       "pullFlows",
+      "pullIndex",
       "pullReviews",
       "reviewThreads",
       "findingThreads",
