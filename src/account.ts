@@ -2,7 +2,9 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { audit } from "./audit.js";
 import { config } from "./config.js";
-import { accountSalt, deleteAccount, setSharing } from "./db/accounts.js";
+import { accountSalt, deleteAccount, setHostedFindings, setSharing } from "./db/accounts.js";
+import type { Scoped } from "./db/scoped.js";
+import { keepsFindings } from "./findings-kept.js";
 import { apiError, jsonBody } from "./http.js";
 import { perMinute } from "./rate.js";
 import { clearSessionCookie, needsRecentSignIn, requireSession } from "./session.js";
@@ -35,6 +37,8 @@ account.get("/sharing", requireSession(), async (c) => {
   const stored = await c.var.data.count("findings");
   return c.json({
     shareFindings: c.var.session.account.shareFindings,
+    // On until switched off: the first review this server runs for the account starts it.
+    hostedFindings: c.var.session.account.hostedFindings !== false,
     findingsStored: stored,
     findingsAllowance: config(c.env).reviewMaxFindings,
   });
@@ -56,21 +60,47 @@ account.put(
     const refused = deletes ? needsRecentSignIn(c) : undefined;
     if (refused) return refused;
     await setSharing(c.var.db, c.var.session.account.id, body.enabled);
-    const deleted = deletes ? await c.var.data.removeWhere("findings", {}) : 0;
-    // Walkthroughs are shared with the findings and go with them, and so do
-    // the "Ask ocra" conversations, whose answers quote them.
-    if (deletes) {
-      await c.var.data.removeWhere("reviewWalkthroughs", {});
-      await c.var.data.removeWhere("reviewChatMessages", {});
-    }
+    const deleted = deletes ? await deleteFindings(c.var.data) : 0;
     await audit(c.var.data, "sharing.changed", { shareFindings: body.enabled, deleted });
     return c.json({ shareFindings: body.enabled, deleted });
   },
 );
 
+// Findings of the reviews this server runs: kept from the account's first
+// such review until switched off here, whether or not the CLI's are shared.
+account.put(
+  "/sharing/hosted",
+  requireSession(),
+  perMinute("settings"),
+  jsonBody(sharingRequest),
+  async (c) => {
+    const body = c.req.valid("json");
+    const deletes =
+      !body.enabled && body.deleteExisting === true && !c.var.session.account.shareFindings;
+    const refused = deletes ? needsRecentSignIn(c) : undefined;
+    if (refused) return refused;
+    await setHostedFindings(c.var.db, c.var.session.account.id, body.enabled);
+    const deleted = deletes ? await deleteFindings(c.var.data) : 0;
+    await audit(c.var.data, "sharing.hosted_changed", { hostedFindings: body.enabled, deleted });
+    return c.json({ hostedFindings: body.enabled, deleted });
+  },
+);
+
+/**
+ * Deletes every finding the account stored. Walkthroughs are kept with the
+ * findings and go with them, and so do the "Ask ocra" conversations, whose
+ * answers quote them.
+ */
+async function deleteFindings(data: Scoped): Promise<number> {
+  const deleted = await data.removeWhere("findings", {});
+  await data.removeWhere("reviewWalkthroughs", {});
+  await data.removeWhere("reviewChatMessages", {});
+  return deleted;
+}
+
 // The account's repository-hash salt, so one repository hashes alike on all
-// its machines; only while findings are shared (ADR-0028, 4).
+// its machines; only for a session whose findings are kept (ADR-0028, 4).
 account.get("/salt", requireSession(["web", "cli"]), async (c) => {
-  if (!c.var.session.account.shareFindings) return c.json({ salt: null });
+  if (!(await keepsFindings(c))) return c.json({ salt: null });
   return c.json({ salt: await accountSalt(c.var.db, c.var.session.account.id) });
 });

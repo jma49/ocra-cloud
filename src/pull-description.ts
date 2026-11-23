@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { draftSection, withSection } from "./description-draft.js";
+import { keepsFindings } from "./findings-kept.js";
 import { apiError, jsonBody } from "./http.js";
 import { byKind, pullRef, reach, sha } from "./pull-page.js";
 import { perMinute } from "./rate.js";
@@ -50,7 +51,7 @@ pullDescription.get(
     if (!review?.prHeadSha) {
       return c.json({ ...now, draft: null, review: null } satisfies PullDescriptionDraftView);
     }
-    const sharing = c.var.session.account.shareFindings;
+    const sharing = await keepsFindings(c);
     const [walkthrough, findings] = await Promise.all([
       data.findOne("reviewWalkthroughs", { reviewId: review.id }),
       sharing ? data.findingsOf(review.id) : [],

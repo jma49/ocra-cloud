@@ -9,6 +9,7 @@ import type { ChatMessageRow } from "./db/review-chat.js";
 import type { Row } from "./db/scoped.js";
 import { deadline } from "./deadline.js";
 import { defer } from "./defer.js";
+import { keepsFindings } from "./findings-kept.js";
 import { END_STATUS, HEADERS_TIMEOUT_MS, PENDING, TIMED_OUT, type Usage } from "./gateway.js";
 import { apiError, jsonBody } from "./http.js";
 import { keyFor, masterKeys } from "./keyring.js";
@@ -77,7 +78,7 @@ reviewChat.get("/:id/chat", requireSession(), async (c) => {
   ]);
   return c.json({
     messages: messages.map(messageDto),
-    sharing: c.var.session.account.shareFindings,
+    sharing: await keepsFindings(c),
     model: defaultModel(prefs),
     models: tierModels(prefs),
     limit: MAX_CHAT_MESSAGES,
@@ -137,7 +138,7 @@ reviewChat.post(
       data.findOne("reviewWalkthroughs", { reviewId: review.id }),
       liveChanges(c, review),
     ]);
-    const sharing = c.var.session.account.shareFindings;
+    const sharing = await keepsFindings(c);
     const system = systemPrompt({ review, findings, walkthrough, sharing, live }, makeNonce());
     const turns: Turn[] = [
       ...history.map((m) => ({ role: m.role, text: m.text })),

@@ -97,4 +97,50 @@ describe("sharing findings", () => {
     await screen.findByRole("switch");
     screen.getByText(/Up to 1,000 findings can be sent in any 90 days; deleting findings/);
   });
+
+  it("offers to keep hosted reviews' findings where the server runs reviews, and says their code is kept", async () => {
+    const sent: { url: string; body: unknown }[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string, init?: RequestInit) => {
+        if (init?.method === "PUT") sent.push({ url: input, body: JSON.parse(String(init.body)) });
+        return Response.json({
+          shareFindings: false,
+          hostedFindings: true,
+          findingsStored: 4,
+          findingsAllowance: 1000,
+        });
+      }),
+    );
+    render(<Settings me={{ ...me, autoReview: true }} />);
+    const hosted = await screen.findByRole("switch", {
+      name: "Keep the findings of reviews ocra runs here",
+    });
+    expect(hosted.getAttribute("aria-checked")).toBe("true");
+    expect(dataKept()).toMatch(/for reviews ocra runs here, also their findings and the code/);
+    expect(dataKept()).not.toMatch(/No code/);
+    fireEvent.click(hosted);
+    screen.getByText(/Delete the 4 already stored too\?/);
+    fireEvent.click(screen.getByText("Turn off, keep them"));
+    await waitFor(() =>
+      expect(sent).toEqual([
+        { url: "/api/account/sharing/hosted", body: { enabled: false, deleteExisting: false } },
+      ]),
+    );
+  });
+
+  it("shows no hosted switch where the server runs no reviews", async () => {
+    fakeSharing(() =>
+      Response.json({
+        shareFindings: false,
+        hostedFindings: true,
+        findingsStored: 0,
+        findingsAllowance: 1000,
+      }),
+    );
+    render(<Settings me={me} />);
+    await screen.findByRole("switch");
+    expect(screen.getAllByRole("switch")).toHaveLength(1);
+    expect(dataKept()).toMatch(/No code/);
+  });
 });

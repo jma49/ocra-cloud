@@ -51,7 +51,7 @@ export function AutoReview(props: { platforms: readonly CodePlatformKind[] }) {
     <>
       <PageHead
         title="Auto review"
-        sub="This server reviews pull requests in these repositories as the ocra bot: each one as it opens or gains commits while Automatic is on, and any one when you ask on its page."
+        sub="This server reviews pull requests in these repositories as the ocra bot: each one as it opens or gains commits while Automatic is on, and any one when you ask on its page. Their findings are kept here, to read on each pull request; Settings, Account & privacy turns that off."
       />
       <RunnerStatus />
       <DailyLimitNotice />

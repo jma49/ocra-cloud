@@ -498,6 +498,13 @@
       "when": 1795409295960,
       "tag": "0070_sign_in_allow",
       "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "6",
+      "when": 1795411021340,
+      "tag": "0071_hosted_findings",
+      "breakpoints": true
     }
   ]
 }

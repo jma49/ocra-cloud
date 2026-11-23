@@ -1,6 +1,7 @@
 import { and, desc, eq, gt, gte, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import type { NotifyEvent, NotifyWhen } from "../shared/index.js";
 import { DAY } from "../time.js";
+import { keepsStored } from "./accounts.js";
 import { changedRows, type Db, first } from "./client.js";
 import { jsonElements } from "./dialect.js";
 import { accounts, findings, notifyChannels, notifyHeld, notifySends, reviews } from "./schema.js";
@@ -211,8 +212,9 @@ export function accountNotify(db: Db, accountId: string) {
         .update(a)
         .set({ digestDay: day })
         .where(and(eq(a.id, accountId), or(isNull(a.digestDay), lt(a.digestDay, day))))
-        .returning({ shareFindings: a.shareFindings });
-      return first(rows);
+        .returning({ shareFindings: a.shareFindings, hostedFindings: a.hostedFindings });
+      const row = first(rows);
+      return row && { shareFindings: keepsStored(row) };
     },
 
     /** What the account's reviews between from and to found, and what of it is still open. */
