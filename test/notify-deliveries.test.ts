@@ -302,6 +302,17 @@ describe("an email's delivery", () => {
     expect(m.sent).toHaveLength(2);
   });
 
+  it("goes when its address is unsubscribed, pending or not", async () => {
+    const m = mailer(() => true, smtp(451));
+    const { auth, account, id, fetchApp } = await emailChannel(m.mailer);
+    await fetchApp(`/api/notifications/channels/${id}/test`, { method: "POST", auth });
+    expect(await deliveries(auth, id)).toEqual([expect.objectContaining({ state: "pending" })]);
+    const link = m.sent[1]?.text.match(new RegExp(`${ORIGIN}(/api/email/unsubscribe\\?t=\\S+)`));
+    expect((await fetchApp(link?.[1] ?? "", { method: "POST" })).status).toBe(200);
+    expect(await scoped(db, account.id).count("notifyDeliveries")).toBe(0);
+    expect(await retryNotifications(db, transports(m.mailer), MINUTES(2))).toBe(0);
+  });
+
   it("is given up on a host with no mailer, when one is due", async () => {
     const m = mailer(() => true, smtp(421));
     const { auth, id, fetchApp } = await emailChannel(m.mailer);
