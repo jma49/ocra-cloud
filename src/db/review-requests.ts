@@ -12,7 +12,8 @@ import { closedPulls, pullFlows, reviewRepos, reviewRequests, reviewTeams } from
 // late older event changes nothing; nothing here reads the platform. An
 // ask of a team (reviewer id "team:<id>") waits for each member the kept
 // copy of the team names (./review-teams.ts), and one member's review ends
-// it, as it does on the platform.
+// it, as it does on the platform. An ended ask whose review the platform
+// took back (a GitLab approval removed) opens again, as a new round.
 
 /** Whose reviews and pull requests: the platform's id of the user there. */
 export type PlatformUser = { platform: CodePlatform; host: string; userId: string };
@@ -93,6 +94,47 @@ export function accountReviewRequests(db: Db, accountId: string) {
           requestedAt: at,
         })
         .onConflictDoNothing({ target: [r.reviewRepoId, r.number, r.reviewerId] });
+    },
+
+    /**
+     * Opens an ask of reviewerId that has ended again at, the review that
+     * ended it taken back: only an ended ask moves, in the statement itself,
+     * so the same removal read again, or by two runs at once, moves nothing.
+     */
+    async reopened(e: Ask) {
+      const at = e.at.getTime();
+      await db
+        .update(r)
+        .set({
+          requestedAt: sql`CASE WHEN ${r.doneAt} < ${at} THEN ${at} ELSE ${r.doneAt} + 1 END`,
+        })
+        .where(
+          and(
+            eq(r.accountId, accountId),
+            eq(r.reviewRepoId, e.reviewRepoId),
+            eq(r.number, e.number),
+            eq(r.reviewerId, e.reviewerId),
+            isNotNull(r.doneAt),
+            gte(r.doneAt, r.requestedAt),
+          ),
+        );
+    },
+
+    /** The reviewer ids of the asks on the pull request that have ended. */
+    async ended(p: { reviewRepoId: string; number: number }): Promise<string[]> {
+      const rows = await db
+        .select({ reviewerId: r.reviewerId })
+        .from(r)
+        .where(
+          and(
+            eq(r.accountId, accountId),
+            eq(r.reviewRepoId, p.reviewRepoId),
+            eq(r.number, p.number),
+            isNotNull(r.doneAt),
+            gte(r.doneAt, r.requestedAt),
+          ),
+        );
+      return rows.map((row) => row.reviewerId);
     },
 
     /** The reviewer ids of the team asks on the pull request that still wait. */
