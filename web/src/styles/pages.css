@@ -855,8 +855,15 @@ td.finding-cell {
   font-size: var(--text-base);
 }
 .view-group legend {
+  padding: 0;
   font-weight: 500;
   margin-bottom: 6px;
+}
+/* A choice's box sits on its text's middle, a fixed gap before it. */
+.view-group label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 .quiet-hours {
   flex-basis: 100%;
