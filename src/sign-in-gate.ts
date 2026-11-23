@@ -109,7 +109,7 @@ export async function checkAccount(
   await recordSignInCheck(c.var.db, account.id, {
     key: list.key,
     allowed: verdict,
-    at: new Date(),
+    at: new Date(now),
   });
   return verdict ? undefined : sessionRefused(c);
 }
