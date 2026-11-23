@@ -7,6 +7,7 @@ import {
   DAILY_LIMIT_WAIT,
 } from "../../../src/shared/index.js";
 import { api } from "../api.js";
+import { AccessToken } from "../auto-review/access-token.js";
 import { type Added, AddRepo, type ListedRepos, listedOn } from "../auto-review/add-repo.js";
 import { AutomaticSwitch } from "../auto-review/automatic-switch.js";
 import { jobError } from "../auto-review/job-error.js";
@@ -22,6 +23,7 @@ import { PLATFORM_NAME } from "../platform-names.js";
 import { pullPath } from "../pull/path.js";
 import { ReviewTargetsCard } from "../review-targets/targets-card.js";
 import { Link } from "../router.js";
+import { StackTable } from "../stack-table.js";
 import { ActionError, EmptyState, LoadError, Loading, PageHead, useAction } from "../ui.js";
 
 // The repositories whose pull requests this server reviews itself when they
@@ -30,6 +32,8 @@ import { ActionError, EmptyState, LoadError, Loading, PageHead, useAction } from
 
 type Repos = { repos: AutoReviewRepoView[] };
 type Job = NonNullable<AutoReviewRepoView["latest"]>;
+/** What a repository's row opens under itself. */
+type Panel = "checks" | "token";
 
 const STATE: Record<Job["state"], { label: string; tone: string }> = {
   queued: { label: "Queued", tone: "badge-run" },
@@ -43,7 +47,9 @@ export function AutoReview(props: { platforms: readonly CodePlatformKind[] }) {
   const { data, error, reload } = useRead<Repos>("/auto-review/repos");
   const listed = useRead<ListedRepos>("/platforms/repos").data;
   const [added, setAdded] = useState<Added | null>(null);
-  const [checking, setChecking] = useState<string | null>(null);
+  const [open, setOpen] = useState<{ id: string; panel: Panel } | null>(null);
+  const shows = (id: string, panel: Panel) => open?.id === id && open.panel === panel;
+  const toggle = (id: string, panel: Panel) => setOpen(shows(id, panel) ? null : { id, panel });
   const remove = useAction((id: string) =>
     api(`/auto-review/repos/${encodeURIComponent(id)}`, { method: "DELETE" }),
   );
@@ -87,7 +93,7 @@ export function AutoReview(props: { platforms: readonly CodePlatformKind[] }) {
         </div>
       ) : (
         <div className="card">
-          <div className="table-wrap">
+          <StackTable>
             <table>
               <thead>
                 <tr>
@@ -111,6 +117,7 @@ export function AutoReview(props: { platforms: readonly CodePlatformKind[] }) {
                         </div>
                         <div className="subtle small">
                           {PLATFORM_NAME[r.platform]} · {r.host}
+                          {r.accessTokenBot && ` · as ${r.accessTokenBot}`}
                         </div>
                       </td>
                       <td>
@@ -127,11 +134,24 @@ export function AutoReview(props: { platforms: readonly CodePlatformKind[] }) {
                           type="button"
                           variant="outline"
                           size="sm"
-                          aria-expanded={checking === r.id}
-                          onClick={() => setChecking(checking === r.id ? null : r.id)}
+                          aria-expanded={shows(r.id, "checks")}
+                          onClick={() => toggle(r.id, "checks")}
                         >
                           Checks
                         </Button>{" "}
+                        {r.platform === "gitlab" && (
+                          <>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              aria-expanded={shows(r.id, "token")}
+                              onClick={() => toggle(r.id, "token")}
+                            >
+                              Token
+                            </Button>{" "}
+                          </>
+                        )}
                         <Button
                           type="button"
                           variant="destructive-outline"
@@ -143,10 +163,17 @@ export function AutoReview(props: { platforms: readonly CodePlatformKind[] }) {
                         </Button>
                       </td>
                     </tr>
-                    {checking === r.id && (
+                    {shows(r.id, "checks") && (
                       <tr className="checks-row">
                         <td colSpan={5}>
                           <RepoChecks repoId={r.id} fullName={r.fullName} />
+                        </td>
+                      </tr>
+                    )}
+                    {shows(r.id, "token") && (
+                      <tr className="checks-row">
+                        <td colSpan={5}>
+                          <AccessToken r={r} onChanged={reload} />
                         </td>
                       </tr>
                     )}
@@ -154,7 +181,7 @@ export function AutoReview(props: { platforms: readonly CodePlatformKind[] }) {
                 ))}
               </tbody>
             </table>
-          </div>
+          </StackTable>
         </div>
       )}
       <ReviewTargetsCard />
