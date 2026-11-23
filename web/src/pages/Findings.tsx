@@ -13,6 +13,7 @@ import { ago } from "../format.js";
 import { useListCursor } from "../list-cursor.js";
 import { usePageCommands } from "../page-commands.js";
 import { Link } from "../router.js";
+import { StackTable } from "../stack-table.js";
 import { useToast } from "../toast.js";
 import { EmptyState, LoadError, Loading, PageHead, Seg, useAction } from "../ui.js";
 import { findingsCommands } from "./findings-commands.js";
@@ -368,8 +369,8 @@ export function Findings(props: {
               : "Findings appear once you turn on sharing in Settings and a signed-in review uploads them."}
           </EmptyState>
         ) : (
-          <div className="table-wrap">
-            <table>
+          <StackTable>
+            <table className="findings-table">
               <thead>
                 <tr>
                   <th>
@@ -429,7 +430,7 @@ export function Findings(props: {
                 ))}
               </tbody>
             </table>
-          </div>
+          </StackTable>
         )}
         {next && (
           <Button

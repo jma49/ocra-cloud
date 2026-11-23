@@ -132,7 +132,7 @@ export function Notifications(props: { platforms: readonly CodePlatformKind[] })
       ) : (
         <div className="card">
           <StackTable>
-            <table>
+            <table className="channels-table">
               <thead>
                 <tr>
                   <th>Channel</th>
@@ -157,6 +157,9 @@ export function Notifications(props: { platforms: readonly CodePlatformKind[] })
                       </div>
                     </td>
                     <td>
+                      <span className="cell-name" aria-hidden="true">
+                        Sends
+                      </span>
                       <select
                         className="input"
                         aria-label={`What ${c.name} hears about`}
@@ -228,6 +231,9 @@ export function Notifications(props: { platforms: readonly CodePlatformKind[] })
                       </Button>
                     </td>
                     <td>
+                      <span className="cell-name" aria-hidden="true">
+                        Last message
+                      </span>
                       <Button
                         type="button"
                         variant="ghost"
