@@ -209,6 +209,15 @@ describe("the inbox from the index", () => {
     expect(asked.searches).toBe(8);
   });
 
+  it("reads GitHub every time while one of the user's pulls is in a merge queue", async () => {
+    const { asked, inbox } = await setUp(() => ({
+      authored: [node(1, { author: { login: "octo" }, mergeQueueEntry: { state: "QUEUED" } })],
+    }));
+    expect((await inbox())[0]?.queued).toBe("waiting");
+    expect((await inbox())[0]?.queued).toBe("waiting");
+    expect(asked.searches).toBe(8);
+  });
+
   it("reads GitHub again once the listing that vouched for the index is old", async () => {
     const { asked, inbox, accountId } = await setUp(() => ({ review: [node(1)] }));
     await inbox();
