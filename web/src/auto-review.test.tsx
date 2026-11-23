@@ -38,6 +38,9 @@ describe("the auto review page", () => {
             },
           });
         }
+        if (url.startsWith("/api/review-targets")) {
+          return Response.json({ default: { firstReviewHours: null, mergeDays: null }, repos: [] });
+        }
         return Response.json({ repos: [REPO] });
       }),
     );
@@ -67,6 +70,9 @@ describe("the auto review page", () => {
         if (init?.method === "PUT") {
           sent.push({ url, body: JSON.parse(String(init.body)) });
           return Response.json({ profile: "quiet" });
+        }
+        if (url.startsWith("/api/review-targets")) {
+          return Response.json({ default: { firstReviewHours: null, mergeDays: null }, repos: [] });
         }
         return Response.json({ repos: [REPO] });
       }),
