@@ -21,7 +21,7 @@
 .pull-stack-list li.joined::before {
   content: "";
   position: absolute;
-  inset-block-start: calc(var(--ctl-h) / 2 - 21px);
+  inset-block-start: calc(7px - var(--ctl-h) / 2);
   inset-inline-start: calc(15.5px + var(--lane, 0) * 16px);
   width: 1px;
   height: calc(var(--ctl-h) - 16px);
