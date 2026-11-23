@@ -6,6 +6,7 @@ import type {
   ReadinessState,
 } from "../../../src/shared/index.js";
 import { api } from "../api.js";
+import { count } from "../format.js";
 import { CloseGlyph, DoneGlyph } from "../glyphs.js";
 import { useLoad } from "../ui.js";
 
@@ -58,8 +59,6 @@ const RULE: Record<string, string> = {
   update: "permission to update the branch",
 };
 const ruleName = (type: string) => RULE[type] ?? type.replaceAll("_", " ");
-
-const count = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
 
 function ownerLine(group: CodeOwnerGroupView): string {
   const files = group.files === null ? "" : `, ${count(group.files, "file")}`;
