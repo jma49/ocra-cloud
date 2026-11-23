@@ -14,6 +14,7 @@ import {
 } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
 import { ago } from "../format.js";
+import { DeliveriesDrawer, SecretOnce } from "../notifications/deliveries-drawer.js";
 import { EventsMenu } from "../notifications/events-menu.js";
 import {
   type ReminderChange,
@@ -21,7 +22,6 @@ import {
   reminderSummary,
 } from "../notifications/reminders-drawer.js";
 import { ReportSlot } from "../notifications/report-slot.js";
-import { DeliveriesDrawer, SecretOnce } from "../notifications/webhook-drawer.js";
 import { ActionError, LoadError, Loading, PageHead, useAction, useLoad } from "../ui.js";
 
 // The chats and email addresses that hear about reviews: a Slack or WeCom
