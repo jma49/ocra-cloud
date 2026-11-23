@@ -2,6 +2,7 @@ import { configSchema, type OcraConfig } from "@open-cr-agent/cloud-contract";
 import { errorName, logError } from "../log.js";
 import type { CodePlatform } from "../platforms/platform.js";
 import { MAX_REPO_CONFIG_BYTES, REPO_CONFIG_PATHS, textOf } from "../repo-config-file.js";
+import { HOSTED_CONFIG_KEYS, HOSTED_REVIEWER_KEYS } from "../shared/index.js";
 
 // What a hosted review takes from the repository's own .ocra/config.json.
 // The run keeps --no-repo-config, so the CLI reads nothing from the clone:
@@ -12,20 +13,6 @@ import { MAX_REPO_CONFIG_BYTES, REPO_CONFIG_PATHS, textOf } from "../repo-config
 // a model or endpoint, a runtime, a network address, a path to read, or
 // whose comments to trust is taken.
 
-/** The top-level keys a hosted review applies, and for reviewers, the keys of an entry. */
-const HOSTED_CONFIG_KEYS = [
-  "include",
-  "exclude",
-  "reviewers",
-  "verify",
-  "judge",
-  "showPreExisting",
-  "maxTasks",
-  "maxCostUsd",
-  "github",
-] as const;
-const REVIEWER_KEYS = ["enabled", "minTier"] as const;
-
 type ReviewerEntry = OcraConfig["reviewers"][string];
 
 export type HostedRepoConfig = Partial<
@@ -34,7 +21,7 @@ export type HostedRepoConfig = Partial<
     "include" | "exclude" | "verify" | "judge" | "showPreExisting" | "maxTasks" | "maxCostUsd"
   >
 > & {
-  reviewers?: Record<string, Pick<ReviewerEntry, (typeof REVIEWER_KEYS)[number]>>;
+  reviewers?: Record<string, Pick<ReviewerEntry, (typeof HOSTED_REVIEWER_KEYS)[number]>>;
   github?: Pick<OcraConfig["github"], "requestChanges">;
 };
 
@@ -57,7 +44,7 @@ function hostedSubset(text: string): HostedRepoConfig | "invalid" {
     if (!said.has(key)) continue;
     if (key === "reviewers") {
       const reviewers = Object.entries(value.reviewers)
-        .map(([id, entry]) => [id, pick(entry, REVIEWER_KEYS)] as const)
+        .map(([id, entry]) => [id, pick(entry, HOSTED_REVIEWER_KEYS)] as const)
         .filter(([, entry]) => Object.keys(entry).length > 0);
       if (reviewers.length > 0) out.reviewers = Object.fromEntries(reviewers);
     } else if (key === "github") {
