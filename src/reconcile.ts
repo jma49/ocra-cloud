@@ -1,11 +1,11 @@
 import type { Db } from "./db/client.js";
-import { claimReconcile, type ReconcileTurn } from "./db/reconcile.js";
+import { claimReconcile, type ReconcileTurn, releaseReconcile } from "./db/reconcile.js";
 import { type Scoped, scoped } from "./db/scoped.js";
 import { errorName, logError } from "./log.js";
 import type { BotTokens } from "./platforms/bot.js";
 import { accessToken } from "./platforms/links.js";
 import type { CodePlatform } from "./platforms/platform.js";
-import type { ReconciledPull } from "./platforms/reconcile.js";
+import { CallBudget, type ReconciledPull } from "./platforms/reconcile.js";
 import type { AppBindings } from "./types.js";
 
 // The daily reconciliation of enrolled repositories: what their webhooks
@@ -16,14 +16,27 @@ import type { AppBindings } from "./types.js";
 // into its flow. Every write is one the webhooks make too, merged in the
 // statement (closes and flows keep what a webhook recorded), so the two
 // never undo each other. Run hourly, it reads each repository once a UTC
-// day (the claim, src/db/reconcile.ts), a few per account per run.
+// day (the claim, src/db/reconcile.ts), a few per account per run, within
+// a budget of platform calls per run: a repository the budget cut short
+// is given back and read again by the next run.
 
 export type Reconciler = {
   db: Db;
   env: Pick<AppBindings, "MASTER_KEY" | "MASTER_KEY_PREVIOUS">;
   platforms: readonly CodePlatform[];
   bots?: BotTokens | undefined;
+  /** Platform calls one run may make, tokens included; never fewer than one repository's most. */
+  calls: number;
 };
+
+/**
+ * The Worker's calls per run: the Workers Free plan allows 50 external
+ * subrequests per invocation, and the hourly cron's other work (deliveries,
+ * digests, reports, reminders, held notices, stack merges) shares them.
+ */
+export const WORKER_RECONCILE_CALLS = 20;
+/** The Node server's calls per run, where only the platforms' own rate limits bound them. */
+export const NODE_RECONCILE_CALLS = 200;
 
 /** Repositories read per run: 24 runs a day read 240 a day. */
 const REPOS_PER_RUN = 10;
@@ -37,17 +50,26 @@ const SINGLE_READS = 10;
 const WINDOW_MS = 3 * 24 * 60 * 60_000;
 /** Flows held open read per repository. */
 const LOOKS_OPEN_CAP = 500;
+/** A GitHub bot token: the App, its installation and the token; then the link's refresh when refused. */
+const BOT_TOKEN_CALLS = 4;
+/** The link's token, refreshed when it expired. */
+const LINK_TOKEN_CALLS = 1;
+/** What a repository is started with at least: a token and one page of each listing. */
+const FEWEST_CALLS_PER_REPO = BOT_TOKEN_CALLS + 2;
+/** What one repository can take, so a budget of this many finishes any repository. */
+const MOST_CALLS_PER_REPO = BOT_TOKEN_CALLS + 2 * PAGES_PER_LIST + SINGLE_READS;
 
 type ReconcileOutcome =
   | { state: "done"; closes: number; flows: number }
-  | { state: "no_platform" | "no_token" | "unreachable" };
+  | { state: "no_platform" | "no_token" | "unreachable" | "cut" };
 
 /** Reads the repositories due, fairly across accounts; how many it claimed. */
 export async function reconcileRepos(r: Reconciler, now = new Date()): Promise<number> {
   const taken = new Map<string, number>();
   let round: string[] = [];
   let claimed = 0;
-  while (claimed < REPOS_PER_RUN) {
+  const calls = new CallBudget(Math.max(r.calls, MOST_CALLS_PER_REPO));
+  while (claimed < REPOS_PER_RUN && calls.left >= FEWEST_CALLS_PER_REPO) {
     const full = [...taken].filter(([, n]) => n >= PER_ACCOUNT_PER_RUN).map(([a]) => a);
     const turn = await claimReconcile(r.db, now, [...new Set([...round, ...full])]);
     if (!turn) {
@@ -60,8 +82,9 @@ export async function reconcileRepos(r: Reconciler, now = new Date()): Promise<n
     round.push(turn.accountId);
     taken.set(turn.accountId, (taken.get(turn.accountId) ?? 0) + 1);
     try {
-      const outcome = await reconcileRepo(r, turn, now);
-      if (outcome.state !== "done") logError("reconcile_skipped", { reason: outcome.state });
+      const outcome = await reconcileRepo(r, turn, calls, now);
+      if (outcome.state === "cut") await releaseReconcile(r.db, turn);
+      else if (outcome.state !== "done") logError("reconcile_skipped", { reason: outcome.state });
     } catch (e) {
       logError("reconcile_failed", { error: errorName(e) });
     }
@@ -73,10 +96,13 @@ export async function reconcileRepos(r: Reconciler, now = new Date()): Promise<n
 async function reconcileRepo(
   r: Reconciler,
   repo: ReconcileTurn,
+  calls: CallBudget,
   now = new Date(),
 ): Promise<ReconcileOutcome> {
   const platform = r.platforms.find((p) => p.kind === repo.platform && p.host === repo.host);
   if (!platform) return { state: "no_platform" };
+  const tokenCalls = r.bots && repo.platform === "github" ? BOT_TOKEN_CALLS : LINK_TOKEN_CALLS;
+  if (!calls.take(tokenCalls)) return { state: "cut" };
   const data = scoped(r.db, repo.accountId);
   const bot = r.bots ? await r.bots.forRepo(repo.platform, repo.fullName) : null;
   const token = bot?.token ?? (await accessToken(data, r.env, platform));
@@ -84,9 +110,10 @@ async function reconcileRepo(
   const read = platform.reconcile;
   const since = new Date(Math.max(now.getTime() - WINDOW_MS, repo.createdAt.getTime()));
   const [closed, open] = await Promise.all([
-    read.closedSince(token, repo.fullName, since, PAGES_PER_LIST),
-    read.open(token, repo.fullName, PAGES_PER_LIST),
+    read.closedSince(token, repo.fullName, since, PAGES_PER_LIST, calls),
+    read.open(token, repo.fullName, PAGES_PER_LIST, calls),
   ]);
+  if (closed === "spent" || open === "spent") return { state: "cut" };
   if (!closed || !open) return { state: "unreachable" };
   const fill = new Fill(data, repo);
 
@@ -111,11 +138,13 @@ async function reconcileRepo(
   let reads = 0;
   for (const number of held.keys()) {
     if (openNow.has(number)) continue;
-    let p: ReconciledPull | "missing" | null | undefined = closedBy.get(number);
+    let p: ReconciledPull | "missing" | "spent" | null | undefined = closedBy.get(number);
     if (!p) {
       if (reads >= SINGLE_READS) continue;
       reads++;
-      p = await read.one(token, repo.fullName, number);
+      p = await read.one(token, repo.fullName, number, calls);
+      // What it filled stands; the next run reads the repository again.
+      if (p === "spent") return { state: "cut" };
     }
     if (p && p !== "missing" && p.state !== "open") await fill.close(p, "if_newer");
   }

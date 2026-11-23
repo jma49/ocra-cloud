@@ -20,7 +20,7 @@ import { runReports } from "../notify/report.js";
 import type { WebhookPost } from "../notify/webhooks.js";
 import { botTokens } from "../platforms/bot-tokens.js";
 import { githubHostOf, platformsOf } from "../platforms/registry.js";
-import { reconcileRepos } from "../reconcile.js";
+import { NODE_RECONCILE_CALLS, reconcileRepos } from "../reconcile.js";
 import { sweepStackMerges } from "../stack-merge/advance.js";
 import type { AppBindings } from "../types.js";
 import { clientAddress } from "./client-address.js";
@@ -205,6 +205,7 @@ export async function openHost(options: HostOptions) {
         env: bindings,
         platforms: platformsOf(bindings, options.publicUrl ?? "http://localhost"),
         bots,
+        calls: NODE_RECONCILE_CALLS,
       }),
     /** Tries again the channels' deliveries due, of every kind; how many it tried. */
     deliveryRetries: () =>

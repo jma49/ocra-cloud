@@ -3,10 +3,12 @@ import { githubHeaders, githubRepoPath } from "./github-changes.js";
 import type { GithubHost } from "./github-host.js";
 import { platformJson } from "./http.js";
 import {
+  type CallBudget,
   RECONCILE_PER_PAGE,
   type ReconciledPull,
   type ReconcileListing,
   type RepoReconcile,
+  type Spent,
   timeOf,
 } from "./reconcile.js";
 
@@ -55,10 +57,12 @@ export function githubReconcile(host: GithubHost): RepoReconcile {
     fullName: string,
     query: string,
     pages: number,
+    calls: CallBudget,
     stop: (p: ReconciledPull) => boolean = () => false,
-  ): Promise<ReconcileListing | null> {
+  ): Promise<ReconcileListing | Spent | null> {
     const pulls: ReconciledPull[] = [];
     for (let page = 1; page <= pages; page++) {
+      if (!calls.take()) return "spent";
       const answer = await platformJson<unknown[]>(
         `${pullsOf(fullName)}?${query}&per_page=${RECONCILE_PER_PAGE}&page=${page}`,
         { headers: githubHeaders(token) },
@@ -77,13 +81,14 @@ export function githubReconcile(host: GithubHost): RepoReconcile {
   }
 
   return {
-    closedSince: (token, fullName, since, pages) =>
-      list(token, fullName, "state=closed&sort=updated&direction=desc", pages, (p) =>
+    closedSince: (token, fullName, since, pages, calls) =>
+      list(token, fullName, "state=closed&sort=updated&direction=desc", pages, calls, (p) =>
         p.updatedAt ? p.updatedAt < since : false,
       ),
-    open: (token, fullName, pages) =>
-      list(token, fullName, "state=open&sort=created&direction=desc", pages),
-    async one(token, fullName, number) {
+    open: (token, fullName, pages, calls) =>
+      list(token, fullName, "state=open&sort=created&direction=desc", pages, calls),
+    async one(token, fullName, number, calls) {
+      if (!calls.take()) return "spent";
       const answer = await platformJson<unknown>(
         `${pullsOf(fullName)}/${number}`,
         { headers: githubHeaders(token) },

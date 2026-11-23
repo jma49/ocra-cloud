@@ -12,7 +12,7 @@ import { retryNotifications } from "./notify/notify.js";
 import { runReminders } from "./notify/reminders.js";
 import { runReports } from "./notify/report.js";
 import { githubHostOf, platformsOf } from "./platforms/registry.js";
-import { reconcileRepos } from "./reconcile.js";
+import { reconcileRepos, WORKER_RECONCILE_CALLS } from "./reconcile.js";
 import { sweepStackMerges } from "./stack-merge/advance.js";
 
 // The Cloudflare Worker: D1, its rate limiting bindings and its crons: the
@@ -44,9 +44,10 @@ export default {
       // A stack merge's webhooks move it; this picks up one whose webhooks did not come.
       const platforms = platformsOf(env, env.PUBLIC_URL || "https://localhost");
       ctx.waitUntil(sweepStackMerges({ db, env, platforms }));
-      // What webhooks missed, each enrolled repository read once a day (src/reconcile.ts).
+      // What webhooks missed, each enrolled repository read once a day (src/reconcile.ts),
+      // in a share of the invocation's subrequests.
       const bots = "bots" in remote ? remote.bots : undefined;
-      ctx.waitUntil(reconcileRepos({ db, env, platforms, bots }));
+      ctx.waitUntil(reconcileRepos({ db, env, platforms, bots, calls: WORKER_RECONCILE_CALLS }));
     }
     if (env.PUBLIC_URL) {
       const out = {
