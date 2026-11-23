@@ -1309,3 +1309,48 @@ td.finding-cell {
   width: auto;
   max-width: 100%;
 }
+
+/* API tokens */
+.token-made {
+  margin-bottom: 16px;
+}
+.token-secret {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.token-secret code {
+  flex: 1 1 280px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 0.5px solid var(--hair2);
+  border-radius: var(--r-chip);
+  background: var(--bg-subtle);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+.token-confirm {
+  justify-content: flex-end;
+}
+.scope-list {
+  display: grid;
+  gap: 12px;
+}
+.scope {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: var(--text-base);
+  cursor: pointer;
+}
+.scope input {
+  margin-top: 3px;
+}
+.scope-routes {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--text-sm);
+  white-space: pre-line;
+}
