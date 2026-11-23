@@ -15,8 +15,8 @@ const me = {
 };
 const usage = { days: 14, today: 0, dailyLimit: 1000, series: [], models: [], calls: [] };
 
-/** Loads the app at "/usage" (a page that shows the keys) with /me answered by `answer` (never, when undefined). */
-async function load(answer: (() => Response) | undefined): Promise<string[]> {
+/** Loads the app at `at` ("/usage" shows the keys) with /me answered by `answer` (never, when undefined). */
+async function load(answer: (() => Response) | undefined, at = "/usage"): Promise<string[]> {
   const asked: string[] = [];
   vi.stubGlobal(
     "fetch",
@@ -30,7 +30,7 @@ async function load(answer: (() => Response) | undefined): Promise<string[]> {
       return Response.json(usage);
     }),
   );
-  history.replaceState(null, "", "/usage");
+  history.replaceState(null, "", at);
   document.body.innerHTML = '<div id="root"></div>';
   vi.resetModules();
   await import("./main.js");
@@ -81,4 +81,16 @@ it("stops once /me finds the browser signed out", async () => {
   const asked = await load(signedOut);
   await screen.findByRole("link", { name: /Continue with GitHub/ });
   expect(asked).not.toContain("/keys");
+});
+
+it("starts an opened pull request's reads with /me, not after its files", async () => {
+  await load(() => Response.json(me));
+  await screen.findByRole("heading", { name: "Usage", level: 1 });
+  const asked = await load(undefined, "/pull/github/octo%2Fapi/7");
+  const query = "platform=github&repo=octo%2Fapi&number=7";
+  await waitFor(() =>
+    expect(asked).toEqual(
+      expect.arrayContaining([`/pulls/files?${query}`, `/pulls/readiness?${query}`]),
+    ),
+  );
 });
