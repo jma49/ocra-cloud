@@ -10,6 +10,7 @@ import { keyFor, masterKeys } from "./keyring.js";
 import { applyAuth, matchRoute, PASS_HEADERS } from "./providers.js";
 import { perMinute, retryTomorrow } from "./rate.js";
 import { requireSession } from "./session.js";
+import { dailyCallLimit } from "./shared/index.js";
 import type { AppEnv } from "./types.js";
 
 // Forwards one model call with the user's stored key, or the server's own
@@ -52,9 +53,9 @@ gateway.post("/:provider/*", async (c) => {
   const cap = config(c.env).gatewayDailyCalls;
   if (!(await data.takeCall(cap))) {
     retryTomorrow(c);
-    // Read only on a refusal: the account's own budget, when it is the smaller.
+    // Read only on a refusal: the account's own limit, if it set one.
     const own = (await data.findOne("budgets", {}))?.dailyCalls;
-    return apiError(c, "daily_limit", { limit: own != null && own < cap ? own : cap });
+    return apiError(c, "daily_limit", { limit: dailyCallLimit(own, cap) });
   }
   const id = await data.insert("gatewayCalls", { provider: name, path, model, status: PENDING });
 

@@ -600,10 +600,10 @@ export const platformLinks = sqliteTable(
   (t) => [primaryKey({ columns: [t.accountId, t.platform, t.host] })],
 );
 
-// The account's own limits, under the service's: one row per account.
-// dailyCalls caps the gateway's calls a UTC day; null leaves the service's.
-// dailyUsd and monthlyUsd cap what its reviews cost a UTC day and calendar
-// month; null leaves the default (src/shared/spend.ts).
+// The account's own limits, one row per account (src/shared/budget.ts):
+// dailyCalls caps the gateway's calls a UTC day, up to the server's
+// ceiling; dailyUsd and monthlyUsd cap what its reviews cost a UTC day and
+// calendar month. Null leaves the default, 0 turns the limit off.
 export const budgets = sqliteTable("budgets", {
   accountId: accountId().primaryKey(),
   dailyCalls: integer("daily_calls"),

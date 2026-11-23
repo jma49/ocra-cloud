@@ -25,7 +25,7 @@ suite("an audit event's line", () => {
       "Set the spend limit to $25.00 a day and the default a month",
     );
     expect(line({ kind: "budget.changed", detail: { dailyCalls: null } })).toBe(
-      "Removed the daily budget",
+      "Set the daily calls to the default",
     );
     expect(line({ kind: "session.signed_in", detail: { client: "cli", method: "device" } })).toBe(
       "Signed in from the terminal with a code approved in the browser",

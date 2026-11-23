@@ -76,7 +76,7 @@ describe("what an account's reviews cost", () => {
   it("saves the account's own limits, and refuses one that is not an amount", async () => {
     const { auth, account } = await signIn(1, "octo");
     const put = (json: unknown) => call("/api/budget/spend", { method: "PUT", auth, json });
-    expect((await put({ dailyUsd: 0, monthlyUsd: null })).status).toBe(400);
+    expect((await put({ dailyUsd: 0.001, monthlyUsd: null })).status).toBe(400);
     expect((await put({ dailyUsd: 2.5, monthlyUsd: null })).status).toBe(200);
     expect(await spendOf(auth)).toMatchObject({ dailyUsd: 2.5, monthlyUsd: null });
     const events = await scoped(db, account.id).listNewest("auditEvents", 10);
@@ -103,6 +103,16 @@ describe("an account at a spend limit", () => {
     await spend(data, 10, now);
     expect(await claimJob(db, now, 60_000, CALLS)).toBeUndefined();
     await data.batch((w) => [w.upsert("budgets", { dailyUsd: 20 }, ["accountId"])]);
+    expect(await claimJob(db, now, 60_000, CALLS)).toMatchObject({ number: 7 });
+  });
+
+  it("starts work past the defaults once the account turns its limits off", async () => {
+    const { data } = await queued();
+    await spend(data, 150, now);
+    await data.batch((w) => [w.upsert("budgets", { dailyUsd: 0 }, ["accountId"])]);
+    // The monthly default still holds.
+    expect(await claimJob(db, now, 60_000, CALLS)).toBeUndefined();
+    await data.batch((w) => [w.upsert("budgets", { monthlyUsd: 0 }, ["accountId"])]);
     expect(await claimJob(db, now, 60_000, CALLS)).toMatchObject({ number: 7 });
   });
 
@@ -144,6 +154,12 @@ describe("a hosted review's own limit", () => {
       w.upsert("preferences", { settings: { maxCostUsd: 0.25 } }, ["accountId"]),
     ]);
     expect(await capOf()).toBe(0.25);
+  });
+
+  it("is none with both spend limits off and no limit per review", async () => {
+    const { data } = await queued();
+    await data.batch((w) => [w.upsert("budgets", { dailyUsd: 0, monthlyUsd: 0 }, ["accountId"])]);
+    expect(await capOf()).toBeUndefined();
   });
 });
 

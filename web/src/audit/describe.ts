@@ -1,4 +1,4 @@
-import type { AuditEventView, AuditKind } from "../../../src/shared/index.js";
+import { type AuditEventView, type AuditKind, LIMIT_OFF } from "../../../src/shared/index.js";
 
 /** Each kind's name in the filter, under the part of the console it belongs to. */
 export const KIND_GROUPS: { label: string; kinds: [AuditKind, string][] }[] = [
@@ -165,11 +165,13 @@ export function describe(e: AuditEventView): string {
     case "budget.changed":
       if (e.detail.dailyCalls === undefined) return "Changed the daily budget";
       return e.detail.dailyCalls === null
-        ? "Removed the daily budget"
-        : `Set the daily budget to ${e.detail.dailyCalls} calls`;
+        ? "Set the daily calls to the default"
+        : e.detail.dailyCalls === LIMIT_OFF
+          ? "Turned off the limit on daily calls"
+          : `Set the daily budget to ${e.detail.dailyCalls} calls`;
     case "budget.spend_changed": {
       const limit = (usd: number | null | undefined) =>
-        usd == null ? "the default" : `$${usd.toFixed(2)}`;
+        usd == null ? "the default" : usd === LIMIT_OFF ? "no limit" : `$${usd.toFixed(2)}`;
       return `Set the spend limit to ${limit(e.detail.dailyUsd)} a day and ${limit(e.detail.monthlyUsd)} a month`;
     }
     case "key.saved":
