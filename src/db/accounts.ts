@@ -221,3 +221,27 @@ export async function accountSalt(db: Db, accountId: string): Promise<string> {
     .then(first);
   return after?.salt ?? salt;
 }
+
+export type SignInCheck = { key: string; allowed: boolean; at: Date };
+
+/** Records whether the account matched the allowlist with this key. */
+export async function recordSignInCheck(
+  db: Db,
+  accountId: string,
+  check: SignInCheck,
+): Promise<void> {
+  await db
+    .update(accounts)
+    .set({ signInAllowKey: check.key, signInAllowed: check.allowed, signInCheckedAt: check.at })
+    .where(eq(accounts.id, accountId));
+}
+
+/** Records a refused sign-in on the identity's account, if it has one, so its sessions end too. */
+export async function refuseIdentity(
+  db: Db,
+  identity: Identity,
+  check: SignInCheck,
+): Promise<void> {
+  const found = await accountOf(db, identity);
+  if (found) await recordSignInCheck(db, found.id, check);
+}

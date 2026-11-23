@@ -43,6 +43,13 @@ export const RECENT_SIGN_IN = "recent_sign_in";
 export const RECENT_SIGN_IN_MINUTES = 15;
 
 /**
+ * The `reason` of a refusal of someone SIGN_IN_ALLOW does not list: a
+ * sign-in answers forbidden_for_session, a session or API token of an
+ * account that no longer matches answers unauthenticated.
+ */
+export const SIGN_IN_NOT_ALLOWED = "sign_in_not_allowed";
+
+/**
  * The `reason` of an upstream_unreachable refusal when the code platform
  * said the user's allowance of calls is used up; `retryAt` (ISO time) is
  * when it is back.

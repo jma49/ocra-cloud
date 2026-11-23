@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { pkceChallenge, randomToken } from "./crypto.js";
-import { upsertAccount } from "./db/accounts.js";
+import { refuseIdentity, upsertAccount } from "./db/accounts.js";
 import { scoped } from "./db/scoped.js";
 import { apiError } from "./http.js";
 import { gitlab } from "./platforms/gitlab.js";
@@ -9,6 +9,7 @@ import { saveToken } from "./platforms/links.js";
 import type { TokenAnswer } from "./platforms/platform.js";
 import { gitlabCallback, gitlabClientOf } from "./platforms/registry.js";
 import { signInBrowser } from "./session.js";
+import { allowListFor, oidcAllowed, recordAdmission, signInRefused } from "./sign-in-gate.js";
 import { finishSignIn, startSignIn } from "./sign-in-state.js";
 import type { AppBindings, AppEnv } from "./types.js";
 
@@ -82,7 +83,14 @@ export function forgetDiscovery(): void {
 const callbackUrl = (requestUrl: string) =>
   new URL("/api/auth/oidc/callback", requestUrl).toString();
 
-type UserInfo = { sub?: unknown; preferred_username?: unknown; email?: unknown; name?: unknown };
+type UserInfo = {
+  sub?: unknown;
+  preferred_username?: unknown;
+  email?: unknown;
+  email_verified?: unknown;
+  name?: unknown;
+  groups?: unknown;
+};
 
 /** The name the console shows: the provider's username, else the email, else the subject. */
 function loginOf(info: UserInfo, subject: string): string {
@@ -140,11 +148,14 @@ oidc.get("/callback", async (c) => {
     headers: { accept: "application/json", authorization: `Bearer ${token.access_token}` },
   });
   if (typeof info?.sub !== "string" || !info.sub) return apiError(c, "upstream_unreachable");
-  const account = await upsertAccount(
-    c.var.db,
-    { provider: "oidc", subject: info.sub },
-    loginOf(info, info.sub),
-  );
+  const identity = { provider: "oidc", subject: info.sub } as const;
+  const list = await allowListFor(c);
+  if (list && !oidcAllowed(list, info)) {
+    await refuseIdentity(c.var.db, identity, { key: list.key, allowed: false, at: new Date() });
+    return signInRefused(c);
+  }
+  const account = await upsertAccount(c.var.db, identity, loginOf(info, info.sub));
+  if (list) await recordAdmission(c, account.id, list);
   const lab = gitlabSignIn(c.env, client);
   if (lab) {
     const platform = gitlab(lab, gitlabCallback(c.req.url));

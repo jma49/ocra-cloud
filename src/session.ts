@@ -15,6 +15,7 @@ import { scoped } from "./db/scoped.js";
 import { defer } from "./defer.js";
 import { apiError } from "./http.js";
 import { RECENT_SIGN_IN, RECENT_SIGN_IN_MINUTES } from "./shared/index.js";
+import { checkAccount } from "./sign-in-gate.js";
 import { DAY, HOUR, MINUTE } from "./time.js";
 import type { AppEnv } from "./types.js";
 
@@ -68,6 +69,8 @@ export function requireSession(kinds: readonly Kind[] = ["web"]): MiddlewareHand
     if (session.kind === "token" || !kinds.includes(session.kind)) {
       return apiError(c, "forbidden_for_session");
     }
+    const refused = await checkAccount(c, session.account);
+    if (refused) return refused;
     c.set("session", session);
     const data = scoped(c.var.db, session.account.id);
     c.set("data", data);

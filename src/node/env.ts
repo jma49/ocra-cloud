@@ -1,8 +1,10 @@
 import { createPrivateKey } from "node:crypto";
 import { botSettingsFrom, runnerTokenFrom } from "../auto-review/remote.js";
+import { catalogOf } from "../catalog.js";
 import { graphPolicy } from "../graph/policy.js";
 import { githubHostOf } from "../platforms/registry.js";
 import { startingModels } from "../preferences.js";
+import { allowEntriesOf } from "../sign-in-allow.js";
 import type { AppBindings } from "../types.js";
 import { rateLimits } from "./limits.js";
 
@@ -23,6 +25,7 @@ const OPTIONAL = [
   "GITHUB_URL",
   ...SIGN_IN["OpenID Connect"],
   "OIDC_NAME",
+  "SIGN_IN_ALLOW",
   "MASTER_KEY_PREVIOUS",
   "GITLAB_CLIENT_ID",
   "GITLAB_CLIENT_SECRET",
@@ -76,10 +79,23 @@ export function bindingsFrom(vars: Record<string, string | undefined>): AppBindi
     ...rateLimits("memory"),
   };
   // Read once here so that a malformed GITHUB_URL, MODEL_ENDPOINTS,
-  // BUILTIN_PROVIDERS or DEFAULT_MODELS stops the server at start, not at a request.
+  // BUILTIN_PROVIDERS, DEFAULT_MODELS or SIGN_IN_ALLOW stops the server at
+  // start, not at a request.
   githubHostOf(bindings);
   startingModels(bindings);
+  allowEntriesOf(bindings.SIGN_IN_ALLOW);
   return bindings;
+}
+
+/**
+ * What the server warns of at start: a model endpoint with the server's own
+ * key, which every account calls through the gateway, on a server anyone
+ * the sign-in providers vouch for may sign in to.
+ */
+export function startWarnings(bindings: AppBindings): string[] {
+  const shared = catalogOf(bindings).entries.filter(([, p]) => p.sharedKey);
+  if (shared.length === 0 || allowEntriesOf(bindings.SIGN_IN_ALLOW)) return [];
+  return ["open_sign_in_with_server_key"];
 }
 
 // Checked at start: a malformed key would otherwise surface only when the

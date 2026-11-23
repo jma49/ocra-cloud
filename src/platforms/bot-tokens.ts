@@ -101,8 +101,49 @@ async function github(api: string, path: string, init: RequestInit & { token: st
   return (await res.json()) as Record<string, unknown>;
 }
 
+/** 204 a member, 404 not; an installation token answers no 302. Null for anything else. */
+async function memberStatus(api: string, path: string, token: string): Promise<boolean | null> {
+  try {
+    const res = await fetch(`${api}${path}`, {
+      redirect: "manual",
+      signal: AbortSignal.timeout(10_000),
+      headers: {
+        authorization: `Bearer ${token}`,
+        accept: "application/vnd.github+json",
+        "x-github-api-version": "2022-11-28",
+        "user-agent": "ocra-cloud",
+      },
+    });
+    await res.body?.cancel().catch(() => {});
+    return res.status === 204 ? true : res.status === 404 ? false : null;
+  } catch {
+    return null;
+  }
+}
+
 export function botTokens(settings: BotSettings): BotTokens {
   return {
+    async orgMember(org, login) {
+      const { githubAppId: appId, githubAppPrivateKey: key } = settings;
+      if (!appId || !key) return null;
+      const jwt = await appJwt(appId, key);
+      const at = encodeURIComponent(org);
+      const installation = await github(settings.githubApi, `/orgs/${at}/installation`, {
+        token: jwt,
+      });
+      if (typeof installation?.id !== "number") return null;
+      const minted = await github(
+        settings.githubApi,
+        `/app/installations/${installation.id}/access_tokens`,
+        { token: jwt, method: "POST", body: JSON.stringify({ permissions: { members: "read" } }) },
+      );
+      if (typeof minted?.token !== "string") return null;
+      return memberStatus(
+        settings.githubApi,
+        `/orgs/${at}/members/${encodeURIComponent(login)}`,
+        minted.token,
+      );
+    },
     async forRepo(platform, fullName, access = "review") {
       if (platform === "gitlab") {
         return settings.gitlabBotToken ? { token: settings.gitlabBotToken } : null;
