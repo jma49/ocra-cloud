@@ -1,4 +1,5 @@
 import type { CodePlatformKind } from "./domain.js";
+import type { QueueState } from "./pull-page.js";
 import type { PullStackPlace } from "./stacks.js";
 
 /**
@@ -54,6 +55,8 @@ export type PullItem = {
   requestedTeam?: string;
   /** Its place among the listed open pulls of its repository stacked with it; none when unstacked. */
   stack?: PullStackPlace;
+  /** Where it stands in its branch's merge queue; none when it is in no queue, or the listing does not say. */
+  queued?: QueueState;
 };
 
 /**

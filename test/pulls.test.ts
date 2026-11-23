@@ -133,6 +133,37 @@ describe("the pull request inbox", () => {
     expect(listed.platforms[0]?.pulls.map((p) => [p.number, p.checks])).toEqual([[1, null]]);
   });
 
+  it("says where a pull request stands in its merge queue, and lists without it on a GitHub that has none", async () => {
+    const lists = (pulls: unknown[]) => ({
+      review: { issueCount: 0, nodes: [] },
+      authored: { issueCount: pulls.length, nodes: pulls },
+      assigned: { issueCount: 0, nodes: [] },
+      merged: { issueCount: 0, nodes: [] },
+    });
+    githubFake({
+      extra: graphql(() => ({
+        data: lists([node(1, { mergeQueueEntry: { state: "AWAITING_CHECKS" } }), node(2)]),
+      })),
+    });
+    const a = await signInWithGithub();
+    const listed = (await (await a.send("/api/platforms/pulls")).json()) as Listed;
+    expect(listed.platforms[0]?.pulls.map((p) => [p.number, p.queued])).toEqual([
+      [2, undefined],
+      [1, "checking"],
+    ]);
+
+    vi.restoreAllMocks();
+    githubFake({
+      extra: graphql((q) =>
+        q.includes("mergeQueueEntry")
+          ? { errors: [{ message: "Field 'mergeQueueEntry' doesn't exist on type 'PullRequest'" }] }
+          : { data: lists([node(1)]) },
+      ),
+    });
+    const old = (await (await a.send("/api/platforms/pulls")).json()) as Listed;
+    expect(old.platforms[0]?.pulls.map((p) => [p.number, p.checks])).toEqual([[1, "failing"]]);
+  });
+
   it("says when GitHub refused, and more when a section holds more than it read", async () => {
     githubFake({
       extra: graphql(() => ({

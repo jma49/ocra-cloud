@@ -60,6 +60,12 @@ it("says the one thing to know before opening a pull request", () => {
   expect(standing({ state: "merged", draft: true, verdict: "blocking" })).toBe("");
 });
 
+it("says where a queued pull request stands in the merge queue, ahead of its review", () => {
+  expect(standing({ queued: "waiting", review: "approved" })).toBe("Queued");
+  expect(standing({ queued: "blocked", verdict: "not_blocking" })).toBe("Cannot merge");
+  expect(screen.getByText("Cannot merge").className).toBe("badge badge-err");
+});
+
 it("names the state of the checks and shows the author with their mark", () => {
   standing({ checks: "failing", author: "ada" });
   expect(screen.getByRole("img", { name: "A check failed" }).className).toContain("fail");
