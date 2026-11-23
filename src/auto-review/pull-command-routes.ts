@@ -16,6 +16,7 @@ import type { AppEnv } from "../types.js";
 // (./commands.ts): its newest commands and its pause, which the console
 // sets and lifts as `@ocra pause` and `@ocra resume` do, without a comment.
 
+/** A pull request's number as the platforms make them. */
 const number = z.coerce
   .number()
   .int()
