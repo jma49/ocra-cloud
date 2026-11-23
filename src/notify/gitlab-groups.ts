@@ -12,6 +12,7 @@ import {
   gitlabGroupMembers,
 } from "../platforms/gitlab-groups.js";
 import { accessToken } from "../platforms/links.js";
+import type { RepoTokenFields } from "../platforms/repo-token.js";
 import { plain } from "./channels.js";
 import type { EventRepo, PullEvent } from "./pull-events.js";
 
@@ -37,14 +38,15 @@ export type GroupAsks = {
 
 export function gitlabGroupAsks(
   reader: PathReader,
-  repo: Pick<Row<"reviewRepos">, "accountId" | "platform" | "host" | "fullName">,
+  repo: Pick<Row<"reviewRepos">, "accountId" | "platform" | "host" | "fullName"> &
+    Partial<Pick<Row<"reviewRepos">, RepoTokenFields>>,
 ): GroupAsks {
   const platform = reader.platforms.find((p) => p.kind === repo.platform && p.host === repo.host);
   let token: Promise<string | null> | undefined;
   const tokenOf = () => {
     token ??= (async () => {
       if (!platform) return null;
-      const bot = reader.bots ? await reader.bots.forRepo(repo.platform, repo.fullName) : null;
+      const bot = reader.bots ? await reader.bots.forRepo(repo) : null;
       return (
         bot?.token ?? (await accessToken(scoped(reader.db, repo.accountId), reader.env, platform))
       );

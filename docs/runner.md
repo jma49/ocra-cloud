@@ -15,7 +15,7 @@ Hosted reviews are on when the server has a runner token and a bot on at least o
 | `GITHUB_WEBHOOK_SECRET` | for GitHub: the App's webhook secret; the App's webhook URL is `<PUBLIC_URL>/api/webhooks/github` |
 | `GITLAB_BOT_TOKEN` | for GitLab: the bot account's token (scope `api`), which each GitLab job is given ([gitlab.md](gitlab.md), Bot). GitLab's project hooks are proven by each enrolled project's own secret, so GitLab needs no server-wide webhook secret |
 
-A server that only uses GitLab sets `RUNNER_TOKEN` and `GITLAB_BOT_TOKEN` (with `GITLAB_CLIENT_ID`, `GITLAB_CLIENT_SECRET` and `GITLAB_URL`, which make GitLab a platform at all) and no GitHub App. A server with both reviews both; on the Worker, GitHub counts only with all three of its variables. A job for a platform the server has no bot for is refused (`no_bot`) rather than run.
+A server that only uses GitLab sets `RUNNER_TOKEN` and `GITLAB_BOT_TOKEN` (with `GITLAB_CLIENT_ID`, `GITLAB_CLIENT_SECRET` and `GITLAB_URL`, which make GitLab a platform at all) and no GitHub App; without `GITLAB_BOT_TOKEN` it reviews the projects given their own access token ([gitlab.md](gitlab.md), Without a server-wide bot), and a job is given only its own project's token. A server with both reviews both; on the Worker, GitHub counts only with all three of its variables. A job for a platform the server has no bot for is refused (`no_bot`) rather than run.
 
 On Workers the keys, the secrets and the tokens are secrets (`wrangler secret put`, with no trailing newline in piped input) and the App's number a variable. A self-hosted server reads them from its environment; with `AUTO_REVIEW_WORKERS=0` it leaves every job to its runners, otherwise it runs jobs itself as well.
 

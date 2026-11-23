@@ -22,6 +22,7 @@ import {
 } from "../shared/index.js";
 import type { AppEnv } from "../types.js";
 import { generateRoute } from "./generate.js";
+import { repoTokenRoute } from "./repo-token-routes.js";
 import { autoReviewWebhooks } from "./webhooks.js";
 
 /** What a host that runs reviews itself gives the API (ADR-0046). */
@@ -63,6 +64,8 @@ const repoView = (r: Row<"reviewRepos">, latest: ReviewJobSummary | undefined) =
     profile: r.reviewProfile,
     automatic: r.automatic,
     learn: r.learn,
+    hasAccessToken: !!r.accessTokenCiphertext,
+    accessTokenBot: r.accessTokenCiphertext ? r.accessTokenBot : null,
     latest: latest
       ? {
           number: latest.number,
@@ -79,6 +82,7 @@ export function autoReviewRoute(service: AutoReviewService) {
 
   route.route("/webhooks", autoReviewWebhooks(service));
   route.route("/generate", generateRoute(service));
+  route.route("/", repoTokenRoute());
 
   route.get("/repos", requireSession(), async (c) => {
     const [repos, latest] = await Promise.all([

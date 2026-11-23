@@ -59,7 +59,7 @@ describe("the ocra bot's GitHub token", () => {
       githubApi: GITHUB_COM.api,
       githubAppId: "123",
       githubAppPrivateKey: PEM,
-    }).forRepo("github", "Octo/API");
+    }).forRepo({ platform: "github", fullName: "Octo/API" });
     expect(bot).toEqual({ token: "ghs_bot", login: "ocra-review[bot]" });
     const minted = asked.find((a) => a.url.endsWith("/access_tokens"));
     expect(minted?.body).toEqual({
@@ -70,7 +70,7 @@ describe("the ocra bot's GitHub token", () => {
       githubApi: GITHUB_COM.api,
       githubAppId: "123",
       githubAppPrivateKey: PEM,
-    }).forRepo("github", "Octo/API", "commit");
+    }).forRepo({ platform: "github", fullName: "Octo/API" }, "commit");
     const pushing = asked.filter((a) => a.url.endsWith("/access_tokens")).at(-1);
     expect(pushing?.body).toMatchObject({ permissions: { contents: "write" } });
     const jwt = minted?.auth?.replace("Bearer ", "") ?? "";
@@ -85,10 +85,10 @@ describe("the ocra bot's GitHub token", () => {
 
   it("is none without the App's key, or when the App is not on the repository", async () => {
     expect(
-      await botTokens({ githubApi: GITHUB_COM.api, githubAppId: "123" }).forRepo(
-        "github",
-        "Octo/API",
-      ),
+      await botTokens({ githubApi: GITHUB_COM.api, githubAppId: "123" }).forRepo({
+        platform: "github",
+        fullName: "Octo/API",
+      }),
     ).toBeNull();
     vi.spyOn(globalThis, "fetch").mockImplementation(
       async () => new Response(null, { status: 404 }),
@@ -98,12 +98,12 @@ describe("the ocra bot's GitHub token", () => {
       githubAppId: "123",
       githubAppPrivateKey: PEM,
     });
-    expect(await bots.forRepo("github", "Octo/API")).toBeNull();
+    expect(await bots.forRepo({ platform: "github", fullName: "Octo/API" })).toBeNull();
     expect(
-      await botTokens({ githubApi: GITHUB_COM.api, gitlabBotToken: "glpat-bot" }).forRepo(
-        "gitlab",
-        "g/p",
-      ),
+      await botTokens({ githubApi: GITHUB_COM.api, gitlabBotToken: "glpat-bot" }).forRepo({
+        platform: "gitlab",
+        fullName: "g/p",
+      }),
     ).toEqual({
       token: "glpat-bot",
     });
@@ -505,7 +505,7 @@ describe("a review job's run", () => {
     const { exec, calls } = fakeExec(0, {});
     const asked: (string | undefined)[] = [];
     const committer: BotTokens = {
-      forRepo: async (_p, _n, access) => {
+      forRepo: async (_repo, access) => {
         asked.push(access);
         return { token: "ghs_bot", login: "ocra-review[bot]" };
       },
@@ -544,7 +544,7 @@ describe("a review job's run", () => {
     const { exec, calls } = fakeExec(0, seen);
     const asked: (string | undefined)[] = [];
     const committer: BotTokens = {
-      forRepo: async (_p, _n, access) => {
+      forRepo: async (_repo, access) => {
         asked.push(access);
         return { token: "ghs_bot", login: "ocra-review[bot]" };
       },

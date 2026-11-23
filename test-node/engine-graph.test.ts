@@ -80,6 +80,17 @@ describe("the auto review settings", () => {
     ).toThrow("AUTO_REVIEW_WORKERS");
   });
 
+  it("are on with the GitLab application and PUBLIC_URL, for projects' own tokens", () => {
+    const lab = { GITLAB_CLIENT_ID: "app", GITLAB_CLIENT_SECRET: "secret", MASTER_KEY: "k" };
+    expect(autoReviewSettingsFrom(lab)).toBeUndefined();
+    expect(
+      autoReviewSettingsFrom({ ...lab, PUBLIC_URL: "https://ocra.example.com" }),
+    ).toMatchObject({ workers: 1, bots: { masterKeys: { current: "k" } } });
+    expect(
+      autoReviewSettingsFrom({ ...lab, PUBLIC_URL: "https://ocra.example.com" })?.bots,
+    ).not.toHaveProperty("gitlabBotToken", expect.anything());
+  });
+
   it("refuse a GitHub App that would fail its first review", () => {
     expect(() => autoReviewSettingsFrom({ GITHUB_APP_ID: "1" })).toThrow(
       "needs both GITHUB_APP_ID and GITHUB_APP_PRIVATE_KEY",

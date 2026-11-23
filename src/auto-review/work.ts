@@ -13,6 +13,7 @@ import { engineMergeChecks } from "../merge-checks/instruction.js";
 import { checksOf } from "../merge-checks/run.js";
 import type { BotAccess, BotCredential, BotTokens } from "../platforms/bot.js";
 import type { CodePlatform } from "../platforms/platform.js";
+import { gitlabTokenRejected, hasRepoToken } from "../platforms/repo-token.js";
 import { startCliSession } from "../session.js";
 import {
   type CodePlatformKind,
@@ -39,7 +40,8 @@ export type WorkKind = (typeof WORK_KINDS)[number];
 /** Why a run ended without its result; the last three are the machine's to report. */
 export const RUN_FAILURES = ["clone_failed", "review_failed", "not_committed"] as const;
 export type RunFailure = (typeof RUN_FAILURES)[number];
-type Failure = "repo_gone" | "platform_gone" | "no_bot" | RunFailure;
+/** token_rejected: GitLab answers the project's own access token with 401, revoked or expired. */
+type Failure = "repo_gone" | "platform_gone" | "no_bot" | "token_rejected" | RunFailure;
 const RETRIED: ReadonlySet<Failure> = new Set(["clone_failed", "review_failed"]);
 
 /** A review's run, clone included; the CLI's own run timeout is shorter. */
@@ -206,7 +208,7 @@ export async function assign(
   const repo = await data.get("reviewRepos", claimed.reviewRepoId);
   const platform =
     repo && source.platforms.find((p) => p.kind === repo.platform && p.host === repo.host);
-  const bot = platform && (await source.bots.forRepo(repo.platform, repo.fullName, command.access));
+  const bot = platform && (await source.bots.forRepo(repo, command.access));
   if (!repo || !platform || !bot) {
     await settle(source, ref, !repo ? "repo_gone" : !platform ? "platform_gone" : "no_bot", now());
     return "refused";
@@ -214,6 +216,15 @@ export async function assign(
   // Switched off since it was queued: nothing is read.
   if (kind === "learn" && repo.learn === "off") {
     await settle(source, ref, null, now());
+    return "refused";
+  }
+  // A token GitLab no longer takes fails each job at once, rather than a clone retried.
+  if (
+    repo.platform === "gitlab" &&
+    hasRepoToken(repo) &&
+    (await gitlabTokenRejected(platform.url, bot.token))
+  ) {
+    await settle(source, ref, "token_rejected", now());
     return "refused";
   }
   const mergeChecks = command.mergeChecks

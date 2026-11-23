@@ -818,6 +818,14 @@ export const reviewRepos = sqliteTable(
     learn: text("learn", { enum: LEARN_MODES }).notNull().default(DEFAULT_LEARN_MODE),
     /** When the daily reconciliation (src/reconcile.ts) last claimed it; once per UTC day. */
     reconciledAt: integer("reconciled_at", { mode: "timestamp_ms" }),
+    // A GitLab project or group access token the account gave for this
+    // project, encrypted like a model key and bound to this row
+    // (src/platforms/repo-token.ts); its bot posts the reviews in place of
+    // GITLAB_BOT_TOKEN's. Never answered, never exported.
+    accessTokenWrappedKey: text("access_token_wrapped_key"),
+    accessTokenCiphertext: text("access_token_ciphertext"),
+    /** The username of the token's bot user, as GitLab answered when it was given. */
+    accessTokenBot: text("access_token_bot"),
   },
   (t) => [
     uniqueIndex("review_repos_platform_repo").on(t.platform, t.host, t.platformRepoId),

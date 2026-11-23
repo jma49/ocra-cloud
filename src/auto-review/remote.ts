@@ -5,8 +5,10 @@ import { githubHostOf } from "../platforms/registry.js";
 // A host that runs no job itself (the Worker) still reviews pull requests
 // when remote runners ask it for them (./runner-api.ts): it needs the token
 // its runners prove themselves with and a bot on at least one platform: the
-// GitHub App's key with its webhook secret, or GitLab's bot token, whose
-// webhooks each enrolled project proves with its own secret.
+// GitHub App's key with its webhook secret, or on GitLab, whose webhooks
+// each enrolled project proves with its own secret, the bot token or the
+// GitLab application that projects given their own access token enroll
+// through.
 
 type Vars = {
   GITHUB_URL?: string | undefined;
@@ -14,6 +16,10 @@ type Vars = {
   GITHUB_APP_PRIVATE_KEY?: string | undefined;
   GITHUB_WEBHOOK_SECRET?: string | undefined;
   GITLAB_BOT_TOKEN?: string | undefined;
+  GITLAB_CLIENT_ID?: string | undefined;
+  GITLAB_CLIENT_SECRET?: string | undefined;
+  MASTER_KEY?: string | undefined;
+  MASTER_KEY_PREVIOUS?: string | undefined;
   RUNNER_TOKEN?: string | undefined;
 };
 
@@ -37,7 +43,20 @@ export const botSettingsFrom = (vars: Vars) =>
     githubAppId: vars.GITHUB_APP_ID || undefined,
     githubAppPrivateKey: vars.GITHUB_APP_PRIVATE_KEY?.replace(/\\n/g, "\n") || undefined,
     gitlabBotToken: vars.GITLAB_BOT_TOKEN || undefined,
+    ...(vars.MASTER_KEY
+      ? {
+          masterKeys: { current: vars.MASTER_KEY, previous: vars.MASTER_KEY_PREVIOUS || undefined },
+        }
+      : {}),
   }) satisfies BotSettings;
+
+/**
+ * Whether GitLab projects can be reviewed: with the bot token, or with
+ * the GitLab application, through which a project is enrolled and given
+ * its own access token (src/auto-review/repo-token-routes.ts).
+ */
+export const gitlabReviews = (vars: Vars) =>
+  !!vars.GITLAB_BOT_TOKEN || (!!vars.GITLAB_CLIENT_ID && !!vars.GITLAB_CLIENT_SECRET);
 
 type RemoteReviews = {
   autoReview: { kick: () => void; remote: true; githubAppId?: string };
@@ -52,7 +71,7 @@ export function remoteReviews(vars: Vars): RemoteReviews | Record<string, never>
   const bots = botSettingsFrom(vars);
   const githubWebhookSecret = vars.GITHUB_WEBHOOK_SECRET || undefined;
   const github = !!bots.githubAppId && !!bots.githubAppPrivateKey && !!githubWebhookSecret;
-  if (!runnerToken || (!github && !bots.gitlabBotToken)) return {};
+  if (!runnerToken || (!github && !gitlabReviews(vars))) return {};
   return {
     // Nothing to wake: a runner asks for work on its own clock.
     // The App's id tells its own check suites from the repository's CI (src/notify/ci-hooks.ts).

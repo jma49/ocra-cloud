@@ -1,11 +1,14 @@
 import { outboundFetch } from "../calls.js";
+import type { MasterKeys } from "../crypto.js";
 import type { BotTokens } from "./bot.js";
+import { openRepoToken } from "./repo-token.js";
 
 // The ocra bot's credential for one review (ADR-0046, 5): on GitHub an
 // installation token of the deployment's App, minted per job and limited
-// to the one repository and to what a review needs; on GitLab the bot
-// account's token the administrator configured. Neither is stored. Signed
-// with Web Crypto, so the Worker mints it as the Node server does.
+// to the one repository and to what a review needs; on GitLab the project
+// or group access token the enrolling account gave for the project, else
+// the bot account's token the administrator configured. Signed with Web
+// Crypto, so the Worker mints it as the Node server does.
 
 /** GitHub takes an App's JWT for at most ten minutes; a minute of clock skew is allowed for. */
 const JWT_SECONDS = 9 * 60;
@@ -16,6 +19,8 @@ export type BotSettings = {
   githubAppId?: string | undefined;
   githubAppPrivateKey?: string | undefined;
   gitlabBotToken?: string | undefined;
+  /** What opens an enrolled project's own GitLab token; without it only gitlabBotToken is used. */
+  masterKeys?: MasterKeys | undefined;
 };
 
 const base64url = (data: string | Uint8Array) => {
@@ -182,10 +187,13 @@ export function botTokens(settings: BotSettings): BotTokens {
     // an answer the App cannot give, not a failed request.
     orgMember: (org, login) => appOrgMember(settings, org, login).catch(() => null),
     teamMembers: (org, slug) => appTeamMembers(settings, org, slug).catch(() => null),
-    async forRepo(platform, fullName, access = "review") {
-      if (platform === "gitlab") {
+    async forRepo(target, access = "review") {
+      if (target.platform === "gitlab") {
+        const own = settings.masterKeys && (await openRepoToken(settings.masterKeys, target));
+        if (own) return { token: own };
         return settings.gitlabBotToken ? { token: settings.gitlabBotToken } : null;
       }
+      const { fullName } = target;
       const { githubAppId: appId, githubAppPrivateKey: key } = settings;
       if (!appId || !key) return null;
       const jwt = await appJwt(appId, key);

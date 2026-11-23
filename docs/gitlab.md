@@ -6,7 +6,7 @@ A company runs ocra Cloud next to its own GitLab, with its own models and withou
 
 1. **Application.** Admin Area → Applications → New, confidential, with two redirect URIs, `<PUBLIC_URL>/api/auth/oidc/callback` and `<PUBLIC_URL>/api/platforms/gitlab/callback`, and the scopes `openid profile email api`. Set its id and secret as both `OIDC_CLIENT_ID`/`OIDC_CLIENT_SECRET` and `GITLAB_CLIENT_ID`/`GITLAB_CLIENT_SECRET`, and the instance's address (`https://gitlab.example.com`, or `https://example.com/gitlab` under a relative root) as both `OIDC_ISSUER` and `GITLAB_URL`; `OIDC_NAME=GitLab`. Signing in then connects GitLab in the same consent: the console comments, approves, merges and commits fixes as the person who uses it.
 2. **Or two applications,** when people sign in with another SSO: the OIDC variables name that provider, and a GitLab application with the second redirect URI and scope `api` is connected once on the Repositories page.
-3. **Bot.** A user for ocra (or a group or project access token, which gets a bot user of its own) with the Developer role on the projects it reviews, and a token with the `api` scope: `GITLAB_BOT_TOKEN`. It posts the reviews and answers, and the pre-merge check's commit status.
+3. **Bot.** A user for ocra (or a group or project access token, which gets a bot user of its own) with the Developer role on the projects it reviews, and a token with the `api` scope: `GITLAB_BOT_TOKEN`. It posts the reviews and answers, and the pre-merge check's commit status. A team without an administrator's bot gives each enrolled project its own token instead (see Without a server-wide bot below).
 4. **Outbound requests.** Admin Area → Settings → Network → Outbound requests: allow requests to the local network, or add ocra's host to the allowlist, so that project hooks can reach it.
 
 ## 2. The company's models
@@ -35,6 +35,14 @@ ENV NODE_EXTRA_CA_CERTS=/usr/local/share/ca-certificates/company-ca.crt
 3. Whoever owns a project's reviews enrolls it on the Auto review page. The answer gives the hook's address (`<PUBLIC_URL>/api/auto-review/webhooks/gitlab`) and a secret, shown once.
 4. In the project, Settings → Webhooks: that address and secret token, with **Merge request events** and **Comments**. A merge request is reviewed when it opens, reopens, leaves draft or gains commits; a comment that mentions `@ocra` is answered in its thread.
 5. For code graphs, a second hook to the address the Code graphs page gives, with **Push events**.
+
+## Without a server-wide bot
+
+A team whose server has no `GITLAB_BOT_TOKEN` gives ocra a token per project. Create a **group access token** (the group's Settings → Access tokens; one covers every project of the group) or a project access token, with the **Developer** role and the scope **`api`**. GitLab makes a bot user for it (`group_<id>_bot…` or `project_<id>_bot…`), which posts the reviews, so they never appear as a person's. Then, signed in on the web as the account that enrolled the project, give it with `PUT /api/auto-review/repos/<id>/access-token` and `{ "token": "glpat-…" }`.
+
+The server checks it with GitLab once before keeping it: GitLab must accept it (else `GitLab refused this token`), it must be a bot user's, never a person's (a personal access token is refused), with scope `api`, and its bot must have at least the Developer role on the project; each refusal is `invalid_body` with the reason under `token`, and `upstream_unreachable` when GitLab did not answer. It is stored encrypted like a model key, bound to the project's row, and is never answered, logged or exported: the listing says only `hasAccessToken` and the bot's username (`accessTokenBot`). It is used for that project only, in place of `GITLAB_BOT_TOKEN` when both are set, and a runner is given it only with that project's job. `DELETE` on the same address removes it, as does unenrolling the project. A token GitLab no longer takes (revoked or expired, GitLab answers 401) fails each of the project's jobs at once with `token_rejected` instead of retrying; give a new one.
+
+With such tokens, the Node server runs hosted reviews when it has the GitLab application (`GITLAB_CLIENT_ID`, `GITLAB_CLIENT_SECRET`) and `PUBLIC_URL`, and the Worker when it also has `RUNNER_TOKEN`; a project with no token of its own on a server without `GITLAB_BOT_TOKEN` fails its jobs with `no_bot`. A person's sign-in link to GitLab is never used to post a review.
 
 ## What a review does
 
