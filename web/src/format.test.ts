@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { ago, count, period, since } from "./format.js";
+import { ago, count, elapsed, period, since } from "./format.js";
 
 describe("how counts and times read", () => {
+  it("counts work under way in seconds, then minutes", () => {
+    expect(elapsed(-400)).toBe("0s");
+    expect(elapsed(59_900)).toBe("59s");
+    expect(elapsed(125_000)).toBe("2m 05s");
+  });
+
   it("puts a count's noun in the right number", () => {
     expect(count(1, "repository", "repositories")).toBe("1 repository");
     expect(count(2, "repository", "repositories")).toBe("2 repositories");

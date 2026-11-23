@@ -5,7 +5,7 @@ import type { LiveEventView } from "../../../src/shared/index.js";
 // its tasks and files, its findings (a finding sent again replaces the
 // earlier one) and how it ended. Pure, so the page can fold as events arrive.
 
-type LiveTask = {
+export type LiveTask = {
   reviewer: string;
   files: number;
   status: "running" | "completed" | "failed" | "timed_out" | "cancelled";
@@ -15,6 +15,7 @@ export type LiveProgress = {
   seq: number;
   target: string;
   stage: Stage | null;
+  stageAt: string | null;
   stages: Stage[];
   tasks: Map<string, LiveTask>;
   files: { reviewed: number; total: number };
@@ -31,6 +32,7 @@ export const emptyProgress = (): LiveProgress => ({
   seq: 0,
   target: "",
   stage: null,
+  stageAt: null,
   stages: [],
   tasks: new Map(),
   files: { reviewed: 0, total: 0 },
@@ -59,6 +61,7 @@ export function fold(progress: LiveProgress, events: readonly LiveEventView[]): 
         next.target = e.data.target;
         break;
       case "stage":
+        if (next.stage !== e.data.stage) next.stageAt = e.at;
         next.stage = e.data.stage;
         if (!next.stages.includes(e.data.stage)) next.stages.push(e.data.stage);
         if (e.data.files) next.files.total = e.data.files.length;

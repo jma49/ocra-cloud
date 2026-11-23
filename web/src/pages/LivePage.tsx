@@ -11,6 +11,7 @@ import { CommentThread } from "../live/comments.js";
 import { LiveFindingEvent } from "../live/finding.js";
 import { LiveCounts, LiveStages } from "../live/progress.js";
 import { ShareDrawer } from "../live/share-drawer.js";
+import { LiveTasks } from "../live/tasks.js";
 import { linkKey, useLive } from "../live/use-live.js";
 import { Link, navigate } from "../router.js";
 import { ActionError, EmptyState, LoadError, Loading, PageHead, useAction } from "../ui.js";
@@ -92,6 +93,7 @@ export function LivePage(props: { id: string }) {
           )}
         </div>
         <LiveStages progress={progress} ended={ended} />
+        <LiveTasks tasks={progress.tasks} ended={ended} />
         <dl className="prop-list">
           <LiveCounts progress={progress} />
           <dt>Repository</dt>
