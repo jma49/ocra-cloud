@@ -173,7 +173,7 @@ describe("Slack direct messages", () => {
       const res = await add(auth, member);
       type View = { id: string; createdAt: string; removesAt: string | null };
       const { channel, ...rest } = (await res.json()) as { channel: View };
-      /** The view with its times as how long after it was added it may be removed. */
+      /** The view with its times reduced to how long after it was added it may be removed. */
       const timeless = ({ id: _, createdAt, removesAt, ...v }: View) => ({
         ...v,
         removesIn:
