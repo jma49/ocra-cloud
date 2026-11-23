@@ -9,7 +9,8 @@ import { errorName, logError } from "./log.js";
 // wait comes last, so it yields first: the armed merge-when-ready intents
 // and the stack merges (their webhooks move them, the sweeps only pick up
 // what they missed) and the daily
-// reconciliation (a repository not read this hour is read in a later one).
+// reconciliation with the sweep of GitLab groups' new projects (a repository
+// or group not read this hour is read in a later one).
 
 /** The calls one scheduled run makes at most, safely under the plan's 50. */
 export const WORKER_CALLS = 45;
