@@ -10,7 +10,8 @@ import { scoped } from "../db/scoped.js";
 // (src/notify/reminders.ts); nothing asks the platform. An ask of a GitHub
 // team is kept under the team ("team:<id>", ./teams.ts says who is on it),
 // as is a GitLab approval rule's group (src/notify/gitlab-groups.ts); a
-// review, or approval, by one of its members ends it.
+// review, or approval, by one of its members ends it. A GitLab approval
+// taken back opens its reviewer's ended ask again.
 
 type Repo = { id: string; accountId: string; host: string };
 
@@ -100,6 +101,7 @@ const gitlabEvent = z.object({
   object_attributes: z.object({
     iid: z.number().int().min(1),
     action: z.string().optional(),
+    state: z.string().optional(),
     author_id: z.number().optional(),
     created_at: z.string().nullish(),
     reviewer_ids: z.array(z.number()).optional(),
@@ -119,6 +121,10 @@ const gitlabEvent = z.object({
 });
 
 const APPROVALS = new Set(["approved", "approval"]);
+const UNAPPROVALS = new Set(["unapproved", "unapproval"]);
+
+/** Whether the hook shows its merge request open: one closed or merged waits for nobody. */
+export const gitlabOpen = (state: string | undefined) => state === undefined || state === "opened";
 
 /** A GitLab merge request hook its repository's secret proved; how many asks it moved. */
 export async function recordGitlabRequests(
@@ -161,5 +167,12 @@ export async function recordGitlabRequests(
   // An approval by a member of a group the approval rules asked ends that group's ask.
   if (approved)
     await requests.doneByMember({ ...of(approved), platform: "gitlab", host: repo.host });
-  return asked.length + removed.length;
+  // An approval taken back by someone still a reviewer asks them again; a
+  // group's ask needs GitLab's list of approvers (src/notify/gitlab-groups.ts).
+  const current = [...(a.reviewer_ids ?? []), ...(reviewers ?? []).map((u) => u.id)];
+  const unapproved =
+    a.action && UNAPPROVALS.has(a.action) && user && gitlabOpen(a.state) ? user.id : null;
+  const reopened = unapproved !== null && current.includes(unapproved);
+  if (reopened) await requests.reopened(of(unapproved));
+  return asked.length + removed.length + (reopened ? 1 : 0);
 }
