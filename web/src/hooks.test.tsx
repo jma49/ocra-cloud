@@ -82,6 +82,7 @@ describe("the routes", () => {
       "/learnings",
       "/review-config",
       "/memory",
+      "/release-notes",
     ]);
     expect(paths(placeTabs("insights", m))).toEqual(["/insights", "/usage"]);
     expect(settingsGroups(m).map((g) => [g.label, paths(g.routes)])).toEqual([
