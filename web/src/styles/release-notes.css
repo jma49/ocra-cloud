@@ -1,0 +1,49 @@
+/* Release notes: the range form, the pull requests by section and the notes. */
+.release-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px 12px;
+}
+.release-fields label {
+  display: grid;
+  gap: 4px;
+  min-width: 140px;
+}
+.release-fields label.grow {
+  flex: 1 1 220px;
+}
+.release-options {
+  gap: 8px 20px;
+  flex-wrap: wrap;
+}
+.release-pulls {
+  display: grid;
+  gap: 20px;
+}
+.release-pulls h3 {
+  margin: 0 0 6px;
+}
+.release-pulls ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.release-pulls li {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 6px 0;
+  border-top: 0.5px solid var(--hair2);
+  font-size: var(--text-base);
+}
+.release-pulls li > a {
+  flex: none;
+  min-width: 48px;
+}
+.release-body {
+  height: auto;
+  padding: 10px 12px;
+  line-height: 1.55;
+  resize: vertical;
+}
