@@ -3,6 +3,7 @@ import { loadKeys } from "./account-keys.js";
 import type { Me } from "./api.js";
 import { Activity } from "./pages/Activity.js";
 import { Agents } from "./pages/Agents.js";
+import { AuditLog } from "./pages/AuditLog.js";
 import { BudgetPage } from "./pages/Budget.js";
 import { CodeGraphs } from "./pages/CodeGraphs.js";
 import { Findings } from "./pages/Findings.js";
@@ -235,6 +236,13 @@ const ROUTES: readonly Route[] = [
     tab: "CLI & sessions",
     group: "Account",
     page: () => <Sessions />,
+  },
+  {
+    path: "/audit",
+    place: "settings",
+    tab: "Audit log",
+    group: "Account",
+    page: () => <AuditLog />,
   },
   { path: "/device", page: () => <Device /> },
 ];
