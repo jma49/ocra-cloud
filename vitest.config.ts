@@ -25,7 +25,9 @@ const POSTGRES_EXCLUDE = [
 // app's in a simulated browser.
 
 // CI runs node and web in one job with postgres, every core busy, where a
-// test that starts PGlite or imports the whole app can pass five seconds.
+// test that starts PGlite or imports the whole app can pass five seconds,
+// and a hook that starts PGlite from the run's cluster and migrates it
+// took up to 8.7 s with twice as many busy loops as cores.
 const SHARED_RUNNER_TIMEOUT = 15_000;
 
 export default defineConfig({
@@ -77,6 +79,7 @@ export default defineConfig({
           include: ["test-node/**/*.test.ts"],
           globalSetup: ["./test-node/pglite-cluster.ts"],
           testTimeout: SHARED_RUNNER_TIMEOUT,
+          hookTimeout: SHARED_RUNNER_TIMEOUT,
         },
       },
       {
