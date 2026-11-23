@@ -94,3 +94,29 @@ it("stays calm when the rest cannot be read, and names owner groups and stale ap
     ),
   ).toBeTruthy();
 });
+
+const WithAction = () => {
+  const view = useReadiness(pull, HEAD);
+  return (
+    <ReadinessBox view={view}>
+      {view?.canUpdateBranch && <button type="button">Update branch</button>}
+    </ReadinessBox>
+  );
+};
+
+it("offers what the user can do about it under the requirements", async () => {
+  serve({
+    ...pull,
+    platform: "github",
+    state: "open",
+    head: HEAD,
+    ready: "unmet",
+    items: [{ kind: "required_checks", state: "unmet", detail: "The branch is behind main" }],
+    codeOwners: [],
+    staleApprovals: [],
+    otherRules: [],
+    canUpdateBranch: true,
+  });
+  render(<WithAction />);
+  expect(await screen.findByRole("button", { name: "Update branch" })).toBeTruthy();
+});

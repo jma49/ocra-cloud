@@ -1,4 +1,5 @@
 import Clock from "lucide-react/icons/clock";
+import type { ReactNode } from "react";
 import type {
   CodeOwnerGroupView,
   PullReadinessView,
@@ -88,11 +89,16 @@ function Owners(props: { groups: CodeOwnerGroupView[] }) {
 type Pull = { platform: string; repo: string; number: number };
 
 /** What stands between the pull request and its merge, read again when its head moves. */
-export function useReadiness(pull: Pull, head: string | undefined): PullReadinessView | undefined {
+export function useReadiness(
+  pull: Pull,
+  head: string | undefined,
+  /** Counts up to read again at the same head. */
+  rev = 0,
+): PullReadinessView | undefined {
   const q = new URLSearchParams({ ...pull, number: String(pull.number) }).toString();
   const { data } = useLoad(
     () => (head ? api<PullReadinessView>(`/pulls/readiness?${q}`) : Promise.resolve(undefined)),
-    [q, head],
+    [q, head, rev],
   );
   return data;
 }
@@ -121,7 +127,11 @@ function Item(props: { item: ReadinessItem; view: PullReadinessView }) {
   );
 }
 
-export function ReadinessBox(props: { view: PullReadinessView | undefined }) {
+export function ReadinessBox(props: {
+  view: PullReadinessView | undefined;
+  /** What the user can do about it here: updating a branch that fell behind. */
+  children?: ReactNode;
+}) {
   const data = props.view;
   if (!data?.ready) return null;
   const s = SUMMARY[data.ready];
@@ -167,6 +177,7 @@ export function ReadinessBox(props: { view: PullReadinessView | undefined }) {
           </ul>
         </details>
       )}
+      {props.children}
       {data.otherRules.length > 0 && (
         <span className="subtle small">
           Also required by branch rules: {data.otherRules.map(ruleName).join(", ")}
