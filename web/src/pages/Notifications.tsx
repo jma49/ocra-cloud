@@ -14,7 +14,7 @@ import {
 } from "../../../src/shared/index.js";
 import { api } from "../api.js";
 import { useCached } from "../cache.js";
-import { ago } from "../format.js";
+import { ago, date } from "../format.js";
 import { AddChannel, type LinkSent } from "../notifications/add-channel.js";
 import { DeliveriesDrawer } from "../notifications/deliveries-drawer.js";
 import { EventsMenu } from "../notifications/events-menu.js";
@@ -163,6 +163,8 @@ export function Notifications(props: { platforms: readonly CodePlatformKind[] })
                             <span className="mono">…{c.last4}</span>
                           </>
                         )}
+                        {c.removesAt !== null &&
+                          ` · removed on ${date(c.removesAt)} unless confirmed`}
                       </div>
                     </td>
                     <td>
