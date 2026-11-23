@@ -58,7 +58,7 @@ export function AutoReview(props: { platforms: readonly CodePlatformKind[] }) {
         }}
       />
       {added && <Hook added={added} onDone={() => setAdded(null)} />}
-      {remove.error !== null && <ActionError what="stop reviewing it" error={remove.error} />}
+      {remove.error !== null && <ActionError what="remove it" error={remove.error} />}
       {error && !data ? (
         <LoadError what="your repositories" error={error} retry={reload} />
       ) : !data ? (
@@ -117,7 +117,7 @@ export function AutoReview(props: { platforms: readonly CodePlatformKind[] }) {
                           disabled={remove.busy}
                           onClick={() => drop(r.id)}
                         >
-                          Stop reviewing
+                          Remove
                         </Button>
                       </td>
                     </tr>
