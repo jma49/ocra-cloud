@@ -15,6 +15,11 @@
   padding: 12px 16px 6px;
   gap: 4px 12px;
 }
+/* A card its title switches on and off: the switch stays on the title's line. */
+.card-head:has(> [data-slot="switch"]) {
+  flex-wrap: nowrap;
+  align-items: flex-start;
+}
 .card-head + .card-pad {
   padding-top: 8px;
 }
