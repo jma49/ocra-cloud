@@ -14,7 +14,13 @@ const reviewed: PullDescriptionDraftView = {
   head: HEAD,
   body: "<!-- ocra:description:start -->\nMine, with `code`.",
   draft: "Mine.\n\nocra's part",
-  review: { id: "r1", head: HEAD, current: true, createdAt: new Date().toISOString() },
+  review: {
+    id: "r1",
+    head: HEAD,
+    current: true,
+    complete: true,
+    createdAt: new Date().toISOString(),
+  },
 };
 
 function saves() {

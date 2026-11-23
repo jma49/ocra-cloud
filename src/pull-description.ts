@@ -65,6 +65,7 @@ pullDescription.get(
         id: review.id,
         head: review.prHeadSha,
         current,
+        complete: review.complete,
         createdAt: review.createdAt.toISOString(),
       },
     } satisfies PullDescriptionDraftView);
