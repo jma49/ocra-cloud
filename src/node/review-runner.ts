@@ -100,6 +100,7 @@ async function inCheckout(machine: Machine, work: Assignment, signal: AbortSigna
     await writeFile(join(credentials, "credentials.json"), JSON.stringify(work.credentials), {
       mode: 0o600,
     });
+    await writeFile(join(credentials, "upload-salt"), `${work.uploadSalt}\n`, { mode: 0o600 });
     const auth = gitAuth(repo.platform, bot);
     const cloned = await exec(
       "git",
