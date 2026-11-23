@@ -107,13 +107,12 @@ describe("reading a repository's configuration", () => {
       refusal: view.refusal,
     });
 
-    // The contract's endpoint check throws on an address that is not a URL; that is a refusal too.
     const notUrl = JSON.stringify({ providers: { x: { ...provider, baseUrl: "not a url" } } });
-    const thrown = await save(a, { text: notUrl, expected: BLOB });
-    expect(thrown.status).toBe(400);
-    expect(await thrown.json()).toMatchObject({
+    const refused = await save(a, { text: notUrl, expected: BLOB });
+    expect(refused.status).toBe(400);
+    expect(await refused.json()).toMatchObject({
       error: "invalid_body",
-      issues: [{ path: ["text"], message: expect.stringMatching(/could not check it/) }],
+      issues: [{ path: ["text", "providers", "x", "baseUrl"] }],
     });
   });
 
