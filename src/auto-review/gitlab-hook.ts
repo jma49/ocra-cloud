@@ -104,7 +104,7 @@ export async function provisionGitlabHook(
   return id ? { ok: true, id } : failed(0);
 }
 
-/** Removes the hook ocra added; true when it is gone, already or now. */
+/** Removes the hook ocra added; true when it is gone, whether already or now. */
 export async function removeGitlabHook(t: HookTarget, id: string): Promise<boolean> {
   if (!/^\d+$/.test(id)) return false;
   const answer = await platformSend(`${hooksUrl(t)}/${id}`, {
