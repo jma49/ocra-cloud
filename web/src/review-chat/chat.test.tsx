@@ -75,6 +75,32 @@ describe("Ask ocra", () => {
     expect(document.querySelector(".chat-caret")).toBeNull();
   });
 
+  it("says it is thinking, with the seconds, until the first words arrive", async () => {
+    let first: (r: Response) => void = () => {};
+    const waiting = new Promise<Response>((resolve) => {
+      first = resolve;
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init?: RequestInit) =>
+        (init?.method ?? "GET") === "GET" ? Response.json(view()) : waiting,
+      ),
+    );
+    render(<ReviewChat reviewId="r1" />);
+    fireEvent.change(await box(), { target: { value: "Why critical?" } });
+    await act(async () => void fireEvent.keyDown(await box(), { key: "Enter" }));
+    expect((await screen.findByText("Thinking")).parentElement?.textContent).toBe("Thinking0s");
+    await act(async () =>
+      first(
+        sse([
+          { type: "delta", text: "It caps." },
+          { type: "done", message: stored },
+        ]),
+      ),
+    );
+    await waitFor(() => expect(screen.queryByText("Thinking")).toBeNull());
+  });
+
   it("opens on a stored conversation, and clears it", async () => {
     const sent = serve(
       view({
