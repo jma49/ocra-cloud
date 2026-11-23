@@ -5,6 +5,7 @@ import { countWhere } from "./dialect.js";
 import {
   generateJobs,
   graphBuilds,
+  inboundEvents,
   mergeIntents,
   notifyDeliveries,
   replyJobs,
@@ -31,12 +32,16 @@ export const OPS_METRICS = {
     labels: ["queue"],
   },
   ocra_deliveries: {
-    help: "Outgoing deliveries kept pending or failed, by kind.",
+    help: "Outgoing deliveries kept, by kind and state.",
     labels: ["kind", "state"],
   },
   ocra_delivery_retries_due: {
     help: "Pending deliveries whose next attempt is due now, by kind.",
     labels: ["kind"],
+  },
+  ocra_inbound_events: {
+    help: "Platform webhook deliveries recorded for the steps after their answer, by state.",
+    labels: ["state"],
   },
   ocra_merge_intents: { help: "Merge when ready intents not yet ended.", labels: ["state"] },
 } as const satisfies Record<string, { help: string; labels: readonly string[] }>;
@@ -96,18 +101,39 @@ async function deliveries(db: Db, kind: string, t: DeliveryTable, now: Date): Pr
   const [row] = await db
     .select({
       pending: countWhere(is(t.state, "pending")).mapWith(Number),
+      delivered: countWhere(is(t.state, "delivered")).mapWith(Number),
       failed: countWhere(is(t.state, "failed")).mapWith(Number),
       due: countWhere(sql`${is(t.state, "pending")} AND ${t.retryAt} <= ${now.getTime()}`).mapWith(
         Number,
       ),
     })
-    .from(t)
-    .where(inArray(t.state, ["pending", "failed"]));
+    .from(t);
   return [
     { metric: "ocra_deliveries", labels: { kind, state: "pending" }, value: row?.pending ?? 0 },
+    {
+      metric: "ocra_deliveries",
+      labels: { kind, state: "delivered" },
+      value: row?.delivered ?? 0,
+    },
     { metric: "ocra_deliveries", labels: { kind, state: "failed" }, value: row?.failed ?? 0 },
     { metric: "ocra_delivery_retries_due", labels: { kind }, value: row?.due ?? 0 },
   ];
+}
+
+async function inbound(db: Db): Promise<Sample[]> {
+  const t = inboundEvents;
+  const [row] = await db
+    .select({
+      pending: countWhere(is(t.state, "pending")).mapWith(Number),
+      done: countWhere(is(t.state, "done")).mapWith(Number),
+      failed: countWhere(is(t.state, "failed")).mapWith(Number),
+    })
+    .from(t);
+  return (["pending", "done", "failed"] as const).map((state) => ({
+    metric: "ocra_inbound_events",
+    labels: { state },
+    value: row?.[state] ?? 0,
+  }));
 }
 
 async function intents(db: Db): Promise<Sample[]> {
@@ -132,5 +158,6 @@ const each = <T>(tables: Record<string, T>, read: (name: string, t: T) => Promis
 export const COLLECTORS: Record<string, Collector> = {
   jobs: (db, now) => each(QUEUES, (name, t) => queue(db, name, t, now)),
   deliveries: (db, now) => each(DELIVERIES, (kind, t) => deliveries(db, kind, t, now)),
+  inbound_events: (db) => inbound(db),
   merge_intents: (db) => intents(db),
 };

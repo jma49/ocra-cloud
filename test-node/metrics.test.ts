@@ -136,9 +136,15 @@ describe("GET /metrics", () => {
     expect(series.find((s) => s.name === "ocra_build_info")?.labels).toMatchObject({
       engine: "0.12.0",
     });
+    expect(one("ocra_inbound_events", { state: "pending" })?.value).toBe(0);
+    expect(one("ocra_deliveries", { kind: "notify", state: "delivered" })?.value).toBe(0);
     expect(
-      series.filter((s) => s.name === "ocra_metrics_collector_up").map((s) => s.value),
-    ).toEqual([1, 1, 1]);
+      Object.fromEntries(
+        series
+          .filter((s) => s.name === "ocra_metrics_collector_up")
+          .map((s) => [s.labels.collector, s.value]),
+      ),
+    ).toEqual({ jobs: 1, deliveries: 1, inbound_events: 1, merge_intents: 1 });
   });
 
   it("refuses a METRICS_TOKEN too short to guess at", () => {

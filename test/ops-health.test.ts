@@ -105,11 +105,31 @@ describe("the operations collectors", () => {
           retryAt: ago(-5),
         },
         { ...rows.notifyDeliveries(`x-${accountId}`), accountId, state: "failed" },
+        { ...rows.notifyDeliveries(`d-${accountId}`), accountId, state: "delivered" },
       ]);
       await db
         .insert(schema.mergeIntents)
         .values({ ...rows.mergeIntents(`m-${accountId}`), accountId });
     }
+    await db.delete(schema.inboundEvents);
+    const event = (id: string, state: "pending" | "done" | "failed") => ({
+      id,
+      platform: "github" as const,
+      host: "github.com",
+      deliveryId: `delivery-${id}`,
+      event: "pull_request",
+      repo: "secret-repo-id",
+      state,
+    });
+    await db
+      .insert(schema.inboundEvents)
+      .values([
+        event("i1", "pending"),
+        event("i2", "done"),
+        event("i3", "done"),
+        event("i4", "done"),
+        event("i5", "failed"),
+      ]);
   });
 
   const collect = async () => {
@@ -131,6 +151,10 @@ describe("the operations collectors", () => {
     expect(value(samples, "ocra_jobs_oldest_queued_seconds", { queue: "reply" })).toBe(0);
     expect(value(samples, "ocra_deliveries", { kind: "notify", state: "pending" })).toBe(4);
     expect(value(samples, "ocra_deliveries", { kind: "notify", state: "failed" })).toBe(2);
+    expect(value(samples, "ocra_deliveries", { kind: "notify", state: "delivered" })).toBe(2);
+    expect(value(samples, "ocra_inbound_events", { state: "pending" })).toBe(1);
+    expect(value(samples, "ocra_inbound_events", { state: "done" })).toBe(3);
+    expect(value(samples, "ocra_inbound_events", { state: "failed" })).toBe(1);
     expect(value(samples, "ocra_delivery_retries_due", { kind: "notify" })).toBe(2);
     expect(value(samples, "ocra_merge_intents", { state: "armed" })).toBe(2);
   });
@@ -138,7 +162,7 @@ describe("the operations collectors", () => {
   it("labels by queue, kind and state alone, never an account, repository or login", async () => {
     const samples = await collect();
     const text = JSON.stringify(samples);
-    for (const leak of [A, B, "secret-login", "octo/", "review-repo-of"]) {
+    for (const leak of [A, B, "secret-login", "secret-repo", "octo/", "review-repo-of"]) {
       expect(text).not.toContain(leak);
     }
     for (const { metric, labels } of samples) {
