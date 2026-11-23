@@ -65,6 +65,7 @@ import { accountPullIndex } from "./pull-index.js";
 import { accountPullPaths } from "./pull-paths.js";
 import { accountPullSeen } from "./pull-seen.js";
 import { accountPullViews } from "./pull-views.js";
+import { accountReleaseDrafts } from "./release-drafts.js";
 import { accountReplyJobs } from "./reply-jobs.js";
 import { accountRepoLifecycle } from "./repo-lifecycle.js";
 import { accountReports } from "./reports.js";
@@ -482,6 +483,7 @@ export function scoped(db: Db, accountId: string) {
     notify: accountNotify(db, accountId),
     deliveries: accountNotifyDeliveries(db, accountId),
     feed: accountNotificationFeed(db, accountId),
+    releaseDrafts: accountReleaseDrafts(db, accountId),
     reports: accountReports(db, accountId),
     closedPulls: accountClosedPulls(db, accountId),
     pullFlows: accountPullFlows(db, accountId),
