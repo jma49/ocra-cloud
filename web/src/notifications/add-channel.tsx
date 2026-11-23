@@ -102,7 +102,7 @@ export function AddChannel(props: {
   };
   return (
     <form className="card card-pad stack add-form" onSubmit={submit}>
-      <div className="strong">Add a channel</div>
+      <h2 className="card-title">Add a channel</h2>
       <div className="add-fields">
         <select
           className="input"
