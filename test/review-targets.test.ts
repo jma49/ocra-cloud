@@ -165,6 +165,17 @@ describe("the targets", () => {
     expect(await other.list("reviewTargets")).toEqual([]);
   });
 
+  it("are in the account's export", async () => {
+    const { me } = await account(1, "mona");
+    await put(me.auth, "/repos/repo", targets(6, null));
+    const body = (await (await call("/api/export", { auth: me.auth })).json()) as {
+      reviewTargets: unknown[];
+    };
+    expect(body.reviewTargets).toEqual([
+      expect.objectContaining({ scope: "repo", firstReviewHours: 6, mergeDays: null }),
+    ]);
+  });
+
   it("go with their repository", async () => {
     const { me, data } = await account(1, "mona");
     expect((await put(me.auth, "/repos/repo", targets(4, 2))).status).toBe(200);
