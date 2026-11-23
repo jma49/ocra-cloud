@@ -22,7 +22,7 @@ The hosted service of [ocra](https://github.com/ocrahq/Open-CR-Agent): sign-in, 
 | `test-node/` | The self-hosted server's tests: the app on Node with a SQLite file or Postgres |
 | `test/` | The Worker's tests: Vitest inside the Workers runtime (`@cloudflare/vitest-pool-workers`), with a local D1 |
 | `web/src/*.test.tsx` | The web app's tests: Vitest in a simulated browser (happy-dom), with `fetch` stubbed; both are projects of `vitest.config.ts` |
-| `scripts/` | Run by hand with Node: `rewrap-master-key.ts` and `bind-provider-keys.ts` (production key maintenance); type-checked by `scripts/tsconfig.json` |
+| `scripts/` | Run by hand with Node: `rewrap-master-key.ts` and `bind-provider-keys.ts` (production key maintenance on D1; a self-hosted server rotates with `dist/rewrap-master-key.mjs`); type-checked by `scripts/tsconfig.json` |
 | `docs/rotation.md` | How to rotate the master key and bind the stored keys |
 | `tsconfig.base.json` | The compiler options the Worker, web and scripts configurations share |
 
