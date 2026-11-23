@@ -242,7 +242,7 @@ The server fallback needs, beyond what auto review needs, the GitHub App's Check
 
 ## Notifications
 
-An account announces its reviews in Slack or WeCom group chats, or to email addresses (`/api/notifications/channels`, at most 10 in all). A chat channel takes the chat's incoming webhook address (`https://hooks.slack.com/services/…` or `https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=…`, no other host); an email channel takes one plain address. Either is stored encrypted under `MASTER_KEY` and never answered. Each channel hears about every review, reviews with findings, or only reviews with a critical finding. A message carries the review's counts, verdict, pull request and console links, and the titles of up to three critical or warning findings when the account shares findings. The server needs outbound HTTPS to those hosts. A message that fails is not retried; the channel shows how its last message went, and a test message checks it.
+An account announces its reviews in Slack or WeCom group chats, to email addresses, or to webhooks of its own (`/api/notifications/channels`, at most 10 in all; see Outgoing webhooks). A chat channel takes the chat's incoming webhook address (`https://hooks.slack.com/services/…` or `https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=…`, no other host); an email channel takes one plain address. Either is stored encrypted under `MASTER_KEY` and never answered. Each channel hears about every review, reviews with findings, or only reviews with a critical finding. A message carries the review's counts, verdict, pull request and console links, and the titles of up to three critical or warning findings when the account shares findings. The server needs outbound HTTPS to those hosts. A message that fails is not retried; the channel shows how its last message went, and a test message checks it.
 
 Email needs `SMTP_URL` and `SMTP_FROM`; the hosted Worker has no mailer, so it refuses email channels and `GET /api/notifications/channels` answers `"email": false`. An address gets an email with a link to confirm it, valid for a day (`POST /api/notifications/channels/<id>/confirm` sends a new one; an account sends at most 10 a day), and nothing else until the link is opened and its button pressed. Every email is plain text with a simple HTML part, no images or tracking, and carries an unsubscribe link (also as `List-Unsubscribe`, for a mail client's one-click unsubscribe) that removes the address without signing in. The links are under `<PUBLIC_URL>/api/email/` and the unsubscribe links are signed with `SESSION_SECRET`: changing it invalidates those already sent.
 
@@ -263,6 +263,65 @@ Reviewer workload (`GET /api/insights/reviewers?days=7|30|90`, optionally `&repo
 Review targets set how soon an enrolled repository's pull requests should get a first review and be merged: `PUT /api/review-targets/default` with `{"firstReviewHours": 1–720 | null, "mergeDays": 1–90 | null}` sets the account's default, `PUT /api/review-targets/repos/<enrolled repository id>` with the same body a repository's own in its place (a `null` there sets none of that kind for it), `DELETE /api/review-targets/repos/<id>` returns it to the default, and `GET /api/review-targets` reads them all; none is set until then, and a repository's own go when it is removed. `GET /api/insights/at-risk` (optionally `?repo=<full name>`) lists the open pull requests out of draft, with an event in the last 90 days, near a target (three quarters of it passed) or past it, past first, then the earliest due, at most 200: each with the target (`first_review`, counted from when it was ready for review or last reopened, until its first review; `merge`, from when it was ready, until it is merged), when it started and is due, and the logins asked for a review who have not given one. It reads only what the webhooks stored (pull request events, reviews, review requests, closes), never the platforms; a pull request whose close the server never heard of stays open to it. A channel that hears about `pull_at_risk` is told by the hourly run, in one message per channel naming up to ten, when a pull request comes near or past a target: once per pull request, target and start however many processes run it (a changed target does not tell it again; a reopen starts a new first-review clock), held in its quiet hours until they end, and never for one that came near its target more than seven days before. The targets are in the account's export as `reviewTargets`.
 
 What ocra changed (`GET /api/insights/impact?days=7|30|90`, optionally `&repo=<full name>` of an enrolled repository or one reviewed in the window) reads only stored rows, nothing from the platforms, in total, per UTC week and per repository the account reviewed pull requests of, enrolled or not (`enrolled` on each row): in an enrolled repository, the pull requests opened in the window (from the same webhook records) and how many of them ocra reviewed; in any other, which has no such records, the pull requests ocra reviewed in the window, each counted once in the week of its first review in it; ocra's reviews of pull requests made in the window (a review names its pull request by the repository's address and number, as the CLI uploads it; local reviews are left out), their findings by severity, and the earlier findings those reviews counted as fixed in the code or dismissed by a reviewer; while the account shares findings, how many of those reviews' findings are marked fixed on the console, dismissed, still open, or have an issue opened from them, and how many have the thread of ocra's comment resolved from the console, counts only, never their text (`actedOn` is null otherwise). `actedOn.fixedVia` splits the fixed ones by how they became fixed, recorded in the same write that marks them fixed and only by the first: `applied` (ocra's fix committed from the pull request's page), `suggestion` (the suggested change in ocra's comment applied from its threads, matched by the finding marker the comment carries), `manual` (marked by hand), `rereview` (reserved for a re-review by the CLI, which does not yet say which findings it found fixed, so none is counted there) and `unknown` (fixed before migration 0060 kept the source). Resolving a thread sets neither fixed nor dismissed, since a thread is resolved either way; reopening it from the console clears the mark. For the enrolled repositories' pull requests merged in the window (`toMerge`, null when no enrolled repository is in scope, since only the webhooks record merges) it answers the median and 90th percentile from ocra's first review to the merge, and from opened to the merge for those ocra reviewed before the merge and for those it did not. A thread resolved, or a suggestion applied, on the platform itself is not seen (nothing is polled), nor is a suggestion applied from the console that is not in ocra's comment.
+
+### Outgoing webhooks
+
+A channel of kind `webhook` posts each event as JSON to an endpoint of the account's own: `{"kind": "webhook", "name": …, "when": …, "url": "https://…", "events": […], "reminderHours": …}`. The address must be `https`, without credentials or a fragment, on port 443 or one above 1023, and name a public host: the server takes the URL as `new URL()` normalises it (so `https://2130706433/` is `127.0.0.1`) and refuses loopback, private, shared (`100.64.0.0/10`), link-local (`169.254.0.0/16`, the cloud metadata address included), documentation, multicast and reserved IPv4 addresses, every IPv6 address outside global unicast (`::1`, `fc00::/7`, `fe80::/10`, IPv4-mapped, 6to4, Teredo), names without a dot, and `localhost`, `metadata.google.internal` and names under `.localhost`, `.local`, `.internal`, `.lan`, `.home.arpa` or `.onion`. A Node server also checks every address the name resolves to, in the lookup its connection uses, so a name that resolves, or rebinds, to such an address is refused before it connects; the hosted Worker cannot resolve names itself, and Cloudflare's network does not route to private addresses. A redirect is never followed (it fails the delivery), an attempt waits at most 10 seconds, and at most 4 KiB of the answer is read and dropped: only its status and how long it took are kept.
+
+When the channel is added the answer holds `"secret"`, the key its deliveries are signed with, shown only then; `POST /api/notifications/channels/<id>/secret` replaces it and answers the new one once, and the old one stops signing at once. It is stored encrypted under `MASTER_KEY` with the address, like a chat's. A webhook channel takes no digest, weekly report or quiet hours (they are for people; the server refuses them with 400): it gets each event when it happens. It hears about reviews by its `"when"` (`review_completed`), the events of the user's own pull requests and reminders it subscribes to as above, an automation rule's notify action (`automation_ran`), and `ping` from `POST /api/notifications/channels/<id>/test`.
+
+Each delivery is a `POST` with these headers:
+
+| Header | Value |
+|---|---|
+| `content-type` | `application/json` |
+| `user-agent` | `ocra-webhooks/1` |
+| `ocra-event` | the event, as in the body |
+| `ocra-delivery` | the delivery's id, the same on every retry: use it to drop a repeat |
+| `ocra-timestamp` | when this attempt was signed, in seconds since the epoch |
+| `ocra-signature` | `sha256=` and the hex HMAC-SHA256, under the secret, of the timestamp, a `.` and the raw body |
+
+To verify one, recompute the signature over the raw bytes received, compare it in constant time, and refuse a timestamp more than five minutes from your clock (a replayed delivery):
+
+```js
+import { createHmac, timingSafeEqual } from "node:crypto";
+
+function verify(secret, headers, rawBody) {
+  const ts = Number(headers["ocra-timestamp"]);
+  if (!Number.isInteger(ts) || Math.abs(Date.now() / 1000 - ts) > 300) return false;
+  const want = `sha256=${createHmac("sha256", secret).update(`${ts}.${rawBody}`).digest("hex")}`;
+  const got = String(headers["ocra-signature"] ?? "");
+  return got.length === want.length && timingSafeEqual(Buffer.from(got), Buffer.from(want));
+}
+```
+
+The body is versioned (`"version": 1`; a field may be added within a version, never removed or changed):
+
+```json
+{
+  "version": 1,
+  "id": "<delivery id>",
+  "event": "review_completed",
+  "createdAt": "2026-11-23T09:00:00.000Z",
+  "data": {
+    "review": { "id": "…", "consoleUrl": "…", "verdict": "significant_concerns", "complete": true,
+                "critical": 1, "warning": 0, "suggestion": 2 },
+    "pull": { "platform": "github", "repo": "octo/api", "number": 7, "consoleUrl": "…" },
+    "findings": [{ "severity": "critical", "title": "…", "file": "src/db.ts" }]
+  }
+}
+```
+
+`data` by event:
+
+- `review_completed`: `review` as above; `pull`, or `null` for a review of no pull request on a configured platform; `findings` (at most 50, model titles made plain, and the file) only while the account shares findings, otherwise absent.
+- `review_requested`, `pull_reviewed`, `pull_closed`, `checks_failed`, `review_blocking`, `merge_when_ready`, `pull_commented`, `mentioned`, `thread_replied`: `pull`, and `summary`, what happened in ocra's own words (it may name the login of who did it); `review_blocking` adds its critical `findings` while the account shares them. The pull request's title and a comment's text are not sent.
+- `review_waiting`, `pull_waiting`: `pulls`, each a `pull` with its platform `title` (or `null`) and `waitingSince`; one delivery per kind per hourly run.
+- `pull_at_risk`: `pulls`, each a `pull` with its `title`, `target` (`first_review` or `merge`), `state` (`near` or `past`) and `due`.
+- `automation_ran`: `rule`, the rule's name made plain, and `pull` (or `null`).
+- `ping`: `message`.
+
+No body holds code, a finding's text or suggestion, or a secret. An attempt with no answer, a timeout, a 408, 429 or 5xx is tried again after 1 minute, 5 minutes, 30 minutes and 2 hours (five attempts in all) with the same id and body and a new timestamp and signature; any other status, a redirect or a refused address ends it. The Node server's retry loop runs every minute; the hosted Worker retries from its hourly cron, so there a retry waits for the hour. Each attempt is taken by one process (a compare-and-set on the delivery), so several processes send it once at a time. `GET /api/notifications/channels/<id>/deliveries` lists the channel's newest 20 deliveries: event, state (`pending`, `delivered`, `failed`), attempts, the last status, why it failed (`refused`, `redirect`, `timeout`, `network`, `status`), latency, the next attempt's time and when it was made, never a body. The body is stored only while a retry is due; records go after 30 days or with their channel, and the account's export holds them as `webhookDeliveries`. No log line holds a body, an address or a secret.
 
 ## Ask ocra
 
