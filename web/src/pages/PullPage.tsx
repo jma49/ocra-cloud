@@ -14,6 +14,7 @@ import { useFixes } from "../fixes/use-fixes.js";
 import { useBeside } from "../inbox/queue.js";
 import { usePageCommands } from "../page-commands.js";
 import { PlatformMark } from "../platform-mark.js";
+import { PullBatch } from "../pull/batch.js";
 import { SinceBar, sinceFiles, useSince } from "../pull/changes-since.js";
 import { ChecksBox } from "../pull/checks-box.js";
 import { useClearance } from "../pull/clearance.js";
@@ -155,7 +156,7 @@ export function PullPage(props: {
     queues ? queue.data?.entry === null : data.mergeMethods.length > 0,
   );
   return (
-    <>
+    <PullBatch pull={ref} head={data.head} onCommitted={reload}>
       <p className="pull-where">
         <PlatformMark platform={platform} size={14} />
         {data.url ? (
@@ -317,6 +318,6 @@ export function PullPage(props: {
         onClose={() => setReviewing(false)}
         onDone={(o) => done("Review", o)}
       />
-    </>
+    </PullBatch>
   );
 }
