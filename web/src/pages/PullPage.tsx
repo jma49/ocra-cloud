@@ -23,6 +23,7 @@ import { DescriptionBox } from "../pull/description-box.js";
 import { DraftToggle } from "../pull/draft-toggle.js";
 import { FileDiff } from "../pull/file-diff.js";
 import { FileList } from "../pull/file-list.js";
+import { treeOrder } from "../pull/file-tree.js";
 import { usePullFindings } from "../pull/findings.js";
 import { GenerateBox } from "../pull/generate-box.js";
 import { JumpToCode } from "../pull/jump-to-code.js";
@@ -149,7 +150,7 @@ export function PullPage(props: {
     setReadinessRev((n) => n + 1);
   };
   const narrowed = sinceFiles(since);
-  const shown = narrowed ?? data.files;
+  const shown = treeOrder(narrowed ?? data.files);
   const queues = queue.data?.enabled === true;
   const step = nextStep(
     readiness,

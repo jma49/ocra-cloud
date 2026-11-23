@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { fileTree } from "./file-tree.js";
+import { fileTree, treeOrder } from "./file-tree.js";
 
 const show = (paths: string[]) =>
   fileTree(paths.map((path) => ({ path }))).map(
@@ -43,4 +43,13 @@ it("keeps a folder that holds both files and folders as its own row, and any nam
     "  c.ts",
   ]);
   expect(fileTree([])).toEqual([]);
+});
+
+it("lists the files in the tree's order, folders before the files beside them", () => {
+  const paths = [".gitignore", "AGENTS.md", "docs/handoff.md"].map((path) => ({ path }));
+  expect(treeOrder(paths).map((f) => f.path)).toEqual([
+    "docs/handoff.md",
+    ".gitignore",
+    "AGENTS.md",
+  ]);
 });
