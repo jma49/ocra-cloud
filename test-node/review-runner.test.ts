@@ -428,6 +428,9 @@ describe("a review job's run", () => {
         "agents-md": { enabled: false },
       },
       showPreExisting: false,
+      minInlineSeverity: "warning",
+      maxInlineComments: 10,
+      ultra: false,
       github: { botLogin: "ocra-review[bot]" },
       maxCostUsd: 10,
     });

@@ -39,7 +39,7 @@ describe("a hosted review's depth", () => {
     expect(depthRun("standard")).toEqual({ config: {}, flags: [] });
   });
 
-  it("maps quick to correctness and security on changed lines, deep to --ultra", () => {
+  it("maps quick to correctness and security on changed lines, at most ten warnings or worse inline, without ultra; deep to --ultra", () => {
     expect(depthRun("quick")).toEqual({
       config: {
         reviewers: {
@@ -48,6 +48,9 @@ describe("a hosted review's depth", () => {
           "agents-md": { enabled: false },
         },
         showPreExisting: false,
+        minInlineSeverity: "warning",
+        maxInlineComments: 10,
+        ultra: false,
       },
       flags: [],
     });
