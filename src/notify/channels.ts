@@ -37,7 +37,11 @@ export function hookUrl(kind: HookKind, address: string): string | undefined {
   return HOOKS[kind](url) ? url.toString() : undefined;
 }
 
-/** The kinds of review a channel set to `when` hears about. */
+/**
+ * The settings of `when` that hear about a review with these counts; for
+ * a digest or report, the counts of its reviews with a critical finding and
+ * with any, so a channel gets it only when one of them is a review it hears about.
+ */
 export function whensFor(counts: { critical: number; findings: number }): NotifyWhen[] {
   if (counts.critical > 0) return ["blocking", "findings", "every"];
   if (counts.findings > 0) return ["findings", "every"];

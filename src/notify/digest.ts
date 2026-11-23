@@ -3,8 +3,9 @@ import type { MergedPull } from "../db/closed-pulls.js";
 import { type DigestNumbers, digestAccounts } from "../db/notify.js";
 import { scoped } from "../db/scoped.js";
 import { errorName, logError } from "../log.js";
+import { NOTIFY_WHEN, type NotifyWhen } from "../shared/index.js";
 import { DAY, utcDay, utcDayStart } from "../time.js";
-import { type Message, plain } from "./channels.js";
+import { type Message, plain, whensFor } from "./channels.js";
 import { type Outbox, send } from "./notify.js";
 
 // The daily digest: yesterday's reviews and merges (UTC) of each account with a
@@ -36,6 +37,13 @@ export async function forAccounts<T>(
     );
   }
 }
+
+/**
+ * The settings of `when` that get a digest or report: every one when it
+ * names merges, else those that hear about one of its reviews.
+ */
+export const periodWhens = (n: DigestNumbers, m: Merges): readonly NotifyWhen[] =>
+  m.merged > 0 ? NOTIFY_WHEN : whensFor({ critical: n.blocking, findings: n.withFindings });
 
 /** The lines naming the merged pull requests, newest first. */
 export const mergedLines = (m: Merges): string[][] =>
@@ -81,7 +89,7 @@ async function sendDigest(
   ]);
   // A day without reviews or merges says nothing worth an email.
   if (numbers.reviews === 0 && merges.merged === 0) return false;
-  const channels = await data.notify.digesting();
+  const channels = await data.notify.digesting(periodWhens(numbers, merges));
   const m = digestMessage(day, numbers, merges, out.origin);
   await Promise.all(channels.map((ch) => send(data, out, ch, m)));
   return channels.length > 0;

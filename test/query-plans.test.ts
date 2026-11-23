@@ -245,7 +245,7 @@ describe("query plans", () => {
     const seen: Captured[] = [];
     const d = scoped(drizzle(recording(seen)), "acct");
     await d.notify.digestOf(new Date(0), new Date(), true);
-    await d.notify.digesting();
+    await d.notify.digesting(["every"]);
     await d.notify.listening(["every"]);
     expect(seen).toHaveLength(4);
     const [reviews, findings, ...channels] = await Promise.all(seen.map(plan));
