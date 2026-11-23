@@ -181,6 +181,18 @@ export const signInHref = (method: SignInMethod, next?: string) =>
 export { EmptyState };
 
 /** Shown while a page's data is on its way, so "nothing yet" is never a guess. */
+/** Code shown as typed; it scrolls sideways, so the keyboard can reach and scroll it. */
+export function CodeBlock(props: { label: string; children: string }) {
+  return (
+    <section aria-label={props.label}>
+      {/* biome-ignore lint/a11y/noNoninteractiveTabindex: a scrolling region takes focus so the keyboard can scroll it */}
+      <pre className="codeblock" tabIndex={0}>
+        {props.children}
+      </pre>
+    </section>
+  );
+}
+
 export function Loading(props: { what: string }) {
   return (
     <div className="skeleton" role="status" aria-busy="true">

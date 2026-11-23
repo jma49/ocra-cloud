@@ -7,7 +7,7 @@ import { ApiError, api, why } from "../api.js";
 import { ago } from "../format.js";
 import { type Prefs, type Settings, usePrefs } from "../prefs.js";
 import { useToast } from "../toast.js";
-import { EmptyState, PageHead, useLoad } from "../ui.js";
+import { CodeBlock, EmptyState, PageHead, useLoad } from "../ui.js";
 
 // Your defaults as files, an import from a repository's file, and every
 // saved version (ADR-0027). The web cannot see a repository's own file, so
@@ -172,22 +172,22 @@ export function Defaults() {
       />
       <div className="card">
         <div className="card-head">
-          <h3>.ocra/config.json</h3>
+          <h2>.ocra/config.json</h2>
           <Button type="button" variant="outline" size="sm" onClick={() => copy(config)}>
             Copy
           </Button>
         </div>
-        <pre className="codeblock">{config}</pre>
+        <CodeBlock label=".ocra/config.json">{config}</CodeBlock>
       </div>
       {rules && (
         <div className="section card">
           <div className="card-head">
-            <h3>.ocra/rules.json</h3>
+            <h2>.ocra/rules.json</h2>
             <Button type="button" variant="outline" size="sm" onClick={() => copy(rules)}>
               Copy
             </Button>
           </div>
-          <pre className="codeblock">{rules}</pre>
+          <CodeBlock label=".ocra/rules.json">{rules}</CodeBlock>
         </div>
       )}
       <p className="subtle small footnote">
@@ -198,7 +198,7 @@ export function Defaults() {
 
       <div className="section card">
         <div className="card-head">
-          <h3>Import from a file</h3>
+          <h2>Import from a file</h2>
         </div>
         <div className="card-pad import-form">
           <textarea
@@ -246,7 +246,7 @@ export function Defaults() {
 
       <div className="section card">
         <div className="card-head">
-          <h3>History</h3>
+          <h2>History</h2>
           <Button type="button" variant="outline" size="sm" onClick={reloadVersions}>
             Refresh
           </Button>

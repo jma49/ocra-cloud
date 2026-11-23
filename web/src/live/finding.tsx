@@ -1,6 +1,7 @@
 import type { LiveFinding } from "@open-cr-agent/cloud-contract";
 import type { LiveCommentView } from "../../../src/shared/index.js";
 import { SeverityBadge } from "../severity.js";
+import { CodeBlock } from "../ui.js";
 import { type CommentActions, CommentThread } from "./comments.js";
 
 // A finding as it arrives in a live run, with its comments. Plain text
@@ -40,7 +41,7 @@ export function LiveFindingEvent(props: {
           </div>
         </div>
         <p className="event-text live-finding-body">{f.body}</p>
-        {f.suggestion && <pre className="codeblock">{f.suggestion}</pre>}
+        {f.suggestion && <CodeBlock label="Suggested change">{f.suggestion}</CodeBlock>}
         <CommentThread
           comments={props.comments}
           findingId={f.id}
