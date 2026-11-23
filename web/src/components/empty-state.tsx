@@ -23,7 +23,7 @@ export function EmptyState(props: {
     <Empty className="gap-4 px-6 py-12 md:py-12" role={props.role}>
       <EmptyHeader>
         <EmptyMedia variant="icon">
-          <Icon className="text-muted-foreground" strokeWidth={1.75} aria-hidden="true" />
+          <Icon className="text-muted-foreground" aria-hidden="true" />
         </EmptyMedia>
         <EmptyTitle className="font-semibold text-sm">{props.title}</EmptyTitle>
         <EmptyDescription>{props.children}</EmptyDescription>

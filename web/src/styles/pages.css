@@ -582,9 +582,14 @@ td.finding-cell {
   border-bottom: 1.5px solid var(--t3);
   rotate: 45deg;
   margin: -3px 2px 0 0;
-  transition: rotate var(--d-move) var(--e-std);
+  transition:
+    rotate var(--d-move) var(--e-std),
+    border-color var(--d-fast) var(--e-std);
 }
-.section-toggle[aria-expanded="false"] .fold {
+:is(button, summary):hover > .fold {
+  border-color: var(--t1);
+}
+:is([aria-expanded="false"], details:not([open]) > summary) > .fold {
   rotate: -45deg;
   margin-top: 0;
 }
@@ -955,14 +960,14 @@ td.finding-cell {
 }
 .flow-track {
   height: 6px;
-  border-radius: 3px;
+  border-radius: 99px;
   background: var(--fill2);
   overflow: hidden;
 }
 .flow-track i {
   display: block;
   height: 100%;
-  border-radius: 3px;
+  border-radius: 99px;
 }
 .flow-track .opened {
   background: var(--t3);
@@ -997,14 +1002,14 @@ td.finding-cell {
 .load-track {
   position: relative;
   height: 6px;
-  border-radius: 3px;
+  border-radius: 99px;
   background: var(--fill2);
   overflow: hidden;
 }
 .load-track i {
   position: absolute;
   inset: 0 auto 0 0;
-  border-radius: 3px;
+  border-radius: 99px;
 }
 .load-track .p90 {
   background: var(--t4);
@@ -1099,9 +1104,6 @@ td.finding-cell {
   font: inherit;
   text-align: left;
   cursor: pointer;
-}
-.diff-head[aria-expanded="false"] .fold {
-  transform: rotate(-90deg);
 }
 .diff-path {
   flex: 1;
@@ -1228,10 +1230,6 @@ td.finding-cell {
 }
 .walkthrough-head::-webkit-details-marker {
   display: none;
-}
-.walkthrough:not([open]) .fold {
-  rotate: -45deg;
-  margin-top: 0;
 }
 .walkthrough[open] > .walkthrough-head {
   box-shadow: inset 0 -0.5px 0 var(--hair);

@@ -110,7 +110,7 @@ export function LivePage(props: { id: string }) {
         {owner && (
           <div className="prop-actions">
             <Button type="button" onClick={() => setSharing(true)}>
-              <Share2 size={14} strokeWidth={1.75} aria-hidden="true" /> Share
+              <Share2 size={14} aria-hidden="true" /> Share
             </Button>
             {confirming ? (
               <>

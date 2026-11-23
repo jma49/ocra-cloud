@@ -108,7 +108,7 @@ function Mark(props: { state: LayerState; label?: string }) {
     <span className={`check-mark ${mark.cls}`} role="img" aria-label={props.label ?? mark.label}>
       {props.state === "merged" && <DoneGlyph size={14} />}
       {props.state === "failed" && <CloseGlyph size={14} />}
-      {props.state === "current" && <Clock size={13} aria-hidden="true" />}
+      {props.state === "current" && <Clock size={14} aria-hidden="true" />}
     </span>
   );
 }

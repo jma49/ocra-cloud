@@ -46,7 +46,7 @@ function TaskMark(props: { status: LiveTask["status"] }) {
   const Icon = props.status === "completed" ? Check : X;
   return (
     <span className={`task-mark is-${props.status === "completed" ? "done" : "failed"}`}>
-      <Icon size={12} strokeWidth={2.25} aria-hidden="true" />
+      <Icon size={12} aria-hidden="true" />
     </span>
   );
 }

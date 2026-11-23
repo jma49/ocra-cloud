@@ -70,6 +70,49 @@ describe("icons", () => {
     );
     expect(barrel).toEqual([]);
   });
+  const pages = sources.filter((f) => !f.startsWith("components/ui/") && !/\.test\.tsx?$/.test(f));
+  it("leaves the line's weight to the stylesheet", () => {
+    const weighted = pages.filter((f) =>
+      /strokeWidth=\{/.test(readFileSync(join(root, f), "utf8")),
+    );
+    expect(weighted).toEqual([]);
+  });
+  it("draws Lucide icons at 12, 14, 16 or 20 px", () => {
+    const odd = pages.flatMap((f) => {
+      const source = readFileSync(join(root, f), "utf8");
+      const names = [...source.matchAll(/^import (\w+) from "lucide-react\/icons\//gm)].map(
+        (m) => m[1],
+      );
+      const drawn = new RegExp(
+        `<(?:${[...names, "\\w*Glyph", "Icon", "NavIcon"].join("|")})\\b[^>]*\\bsize=\\{(\\d+)\\}`,
+        "g",
+      );
+      return [...source.matchAll(drawn)]
+        .filter((m) => !["12", "14", "16", "20"].includes(m[1] as string))
+        .map((m) => `${f}: ${m[0]}`);
+    });
+    expect(odd).toEqual([]);
+  });
+});
+
+describe("radii", () => {
+  // Round ends (99px, 50%) and a hairline's 1 or 2 px are shapes, not steps of the scale.
+  const allowed = /^(?:var\(--r-[a-z]+\)|0|50%|99px|[12]px|inherit)$/;
+  it.each(sheets.filter((sheet) => sheet !== "signin.css"))(
+    "%s takes its corners from the radius tokens",
+    (sheet) => {
+      const corners = css(sheet).match(/border(?:-[a-z]+)*-radius:[^;]+;/g) ?? [];
+      const off = corners.filter(
+        (d) =>
+          !d
+            .replace(/^[^:]+:\s*|;$/g, "")
+            .replace(/calc\([^;]*\)/g, "0")
+            .split(/\s+/)
+            .every((v) => allowed.test(v)),
+      );
+      expect(off).toEqual([]);
+    },
+  );
 });
 
 describe("control heights", () => {
