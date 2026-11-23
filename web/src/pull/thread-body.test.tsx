@@ -1,6 +1,16 @@
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { ThreadBody } from "./thread-body.js";
+import { ThreadBody as Body, readComment, ThreadEvidence } from "./thread-body.js";
+
+function ThreadBody(props: { body: string }) {
+  const said = readComment(props.body);
+  return (
+    <>
+      <Body said={said} />
+      <ThreadEvidence said={said} />
+    </>
+  );
+}
 
 afterEach(cleanup);
 
@@ -37,6 +47,58 @@ describe("a review comment's body", () => {
       "Suggestion:",
     ]);
     expect(container.querySelector("pre")).toBeNull();
+  });
+
+  it("draws the head ocra writes now, and folds the evidence under the text", () => {
+    const { container } = render(
+      <ThreadBody
+        body={[
+          "<!-- ocra:finding e9953cfd0d2ebf46 -->",
+          "🔴 **Retry count · can go `negative`**\\",
+          "Critical · correctness · verified · pre-existing",
+          "",
+          "`retryCount(0)` returns `-1`.",
+          "",
+          "**Suggested fix:** Keep the clamp.",
+          "",
+          "```suggestion",
+          "const a = 1;",
+          "```",
+          "",
+          "<details><summary>Evidence</summary>",
+          "",
+          "- `app.ts` drops the clamp.",
+          "- No caller checks the sign.",
+          "",
+          "</details>",
+        ].join("\n")}
+      />,
+    );
+    expect(container.querySelector(".thread-finding-title")?.textContent).toBe(
+      "Retry count · can go negative",
+    );
+    expect(container.querySelector(".badge")?.textContent).toBe("Critical");
+    expect(container.querySelector(".thread-finding-notes .subtle")?.textContent).toBe(
+      "correctness · verified · pre-existing",
+    );
+    const evidence = container.querySelector("details.thread-evidence");
+    expect(evidence?.querySelector("summary")?.textContent).toBe("Evidence");
+    expect([...(evidence?.querySelectorAll("li") ?? [])].map((li) => li.textContent)).toEqual([
+      "app.ts drops the clamp.",
+      "No caller checks the sign.",
+    ]);
+    const text = container.textContent ?? "";
+    expect(text).not.toContain("<details>");
+    expect(text).not.toContain("\\");
+    expect(text).not.toContain("const a = 1;");
+  });
+
+  it("leaves a folded block in a person's comment as the text it was written as", () => {
+    const { container } = render(
+      <ThreadBody body={"Mine.\n\n<details><summary>Evidence</summary>\n\n- x\n\n</details>"} />,
+    );
+    expect(container.querySelector("details")).toBeNull();
+    expect(container.textContent).toContain("<details>");
   });
 
   it("draws a person's comment as Markdown, with its https links, and no head", () => {

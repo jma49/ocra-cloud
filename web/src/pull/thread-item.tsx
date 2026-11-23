@@ -10,7 +10,7 @@ import { KeyCaps } from "../shortcuts/keys.js";
 import { splitPath } from "./diff.js";
 import { FileTypeIcon } from "./file-icon.js";
 import { SuggestionText } from "./suggestion.js";
-import { ThreadBody } from "./thread-body.js";
+import { readComment, ThreadBody, ThreadEvidence } from "./thread-body.js";
 
 const lines = (start: number | null, end: number) =>
   start === null || start === end ? `line ${end}` : `lines ${start}–${end}`;
@@ -57,10 +57,11 @@ type ItemProps = {
 /** A reply this page sent and the platform has not been read back with yet. */
 const isSending = (id: string) => id.startsWith("sending:");
 
-function Comments(props: ItemProps) {
-  return props.t.comments.map((c) => (
+function Comment(props: ItemProps & { c: ReviewThreadView["comments"][number] }) {
+  const { c } = props;
+  const said = readComment(c.body);
+  return (
     <div
-      key={c.id}
       className={`thread-comment small${isSending(c.id) ? " is-sending" : ""}`}
       aria-busy={isSending(c.id) || undefined}
     >
@@ -73,7 +74,7 @@ function Comments(props: ItemProps) {
           {c.createdAt && <span className="subtle"> {ago(c.createdAt)}</span>}
           {isSending(c.id) && <span className="subtle"> sending…</span>}
         </div>
-        <ThreadBody body={c.body} />
+        <ThreadBody said={said} />
         {c.suggestions.map((s) => (
           <Suggestion
             key={s.id}
@@ -83,9 +84,14 @@ function Comments(props: ItemProps) {
             toggle={() => props.toggle(s.id)}
           />
         ))}
+        <ThreadEvidence said={said} />
       </div>
     </div>
-  ));
+  );
+}
+
+function Comments(props: ItemProps) {
+  return props.t.comments.map((c) => <Comment key={c.id} {...props} c={c} />);
 }
 
 /**
