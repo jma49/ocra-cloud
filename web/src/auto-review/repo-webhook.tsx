@@ -1,12 +1,17 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import type { AutoReviewRepoView, AutoReviewWebhookView } from "../../../src/shared/index.js";
+import type {
+  AutoReviewRepoView,
+  AutoReviewWebhookSecretView,
+  AutoReviewWebhookView,
+} from "../../../src/shared/index.js";
 import { ApiError, api, why } from "../api.js";
 import { SecretOnce } from "../notifications/deliveries-drawer.js";
 import { useAction } from "../ui.js";
 
-// A GitLab project's webhook: ocra adds it itself when asked, with a new
-// secret each time, so a hook added by hand before stops being accepted.
+// A GitLab project's webhook: ocra adds it itself when asked, or answers a
+// new secret for one added by hand. Either way the secret is new, so a hook
+// that holds the old one stops being accepted.
 
 /** Why GitLab did not take the hook: the server's words for it, else the usual ones. */
 function refusal(e: unknown): string {
@@ -14,6 +19,7 @@ function refusal(e: unknown): string {
     const issue = e.issues[0];
     if (issue) return issue.message;
     if (e.code === "upstream_unreachable") return "GitLab did not answer; try again";
+    if (e.code === "stale") return "the secret was replaced at the same moment; try again";
   }
   return why(e);
 }
@@ -53,6 +59,76 @@ export function RepoWebhook(props: { r: AutoReviewRepoView; onChanged: () => voi
       {setUp.error !== null && (
         <p className="error m-0" role="alert">
           Could not add the webhook: {refusal(setUp.error)}.
+        </p>
+      )}
+      <ByHand r={r} onChanged={props.onChanged} />
+    </section>
+  );
+}
+
+/** A new secret, with the address and the events, for a hook the person adds in GitLab. */
+function ByHand(props: { r: AutoReviewRepoView; onChanged: () => void }) {
+  const { r } = props;
+  const [confirming, setConfirming] = useState(false);
+  const [hook, setHook] = useState<AutoReviewWebhookSecretView | null>(null);
+  const rotate = useAction(() =>
+    api<AutoReviewWebhookSecretView>(
+      `/auto-review/repos/${encodeURIComponent(r.id)}/webhook/secret`,
+      { method: "POST" },
+    ),
+  );
+  const make = async () => {
+    const made = await rotate.run();
+    if (made === undefined) return;
+    setHook(made);
+    setConfirming(false);
+    props.onChanged();
+  };
+  return (
+    <section className="stack-tight" aria-label={`Webhook of ${r.fullName} by hand`}>
+      <div className="strong">Add it by hand</div>
+      <p className="muted small m-0">
+        Without the Maintainer role, add the webhook in GitLab yourself, under Settings, Webhooks,
+        with a new secret from here.
+      </p>
+      <div className="row-gap">
+        {confirming ? (
+          <>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              loading={rotate.busy}
+              onClick={make}
+            >
+              Confirm: new secret
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => setConfirming(false)}>
+              Cancel
+            </Button>
+            <span className="muted small">
+              Any webhook that holds the old secret is no longer accepted.
+            </span>
+          </>
+        ) : (
+          <Button type="button" variant="outline" size="sm" onClick={() => setConfirming(true)}>
+            New secret
+          </Button>
+        )}
+      </div>
+      {hook !== null && (
+        <div className="stack-tight" role="status">
+          <label className="stack-tight">
+            <span className="subtle small">Address</span>
+            <input className="input mono" readOnly value={hook.url} aria-label="Webhook address" />
+          </label>
+          <span className="small">Turn on {hook.events.join(", ")}.</span>
+          <SecretOnce secret={hook.secret} what="Secret token" />
+        </div>
+      )}
+      {rotate.error !== null && (
+        <p className="error m-0" role="alert">
+          Could not make a new secret: {refusal(rotate.error)}.
         </p>
       )}
     </section>
