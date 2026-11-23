@@ -25,6 +25,9 @@ export type LineLook = {
   gaps: ReadonlyMap<number, OpenGap>;
   expand: Expand | undefined;
   busy: number | null;
+  /** What a find in the diffs found, by line, and the match being shown. */
+  found: ReadonlyMap<number, WordRange[]>;
+  current: { at: number; from: number; to: number } | null;
 };
 
 export function DiffRowView(props: { row: DiffRow; look: LineLook; columns: number }) {
@@ -60,7 +63,7 @@ function UnifiedRow(props: { at: number; look: LineLook }) {
         {line.kind === "del" ? number(line.old) : line.kind === "context" ? line.old : ""}
       </td>
       <td className="diff-no">{line.kind === "del" ? "" : number(line.new)}</td>
-      <td className="diff-code">
+      <td className="diff-code" data-at={props.at}>
         <span className="diff-sign" aria-hidden="true">
           {line.kind === "add" ? "+" : line.kind === "del" ? "−" : " "}
         </span>
@@ -95,7 +98,7 @@ function Half(props: { at: number | null; side: "old" | "new"; look: LineLook })
       <td className={`diff-no diff-${kind}`}>
         {n === null ? "" : commentable ? <LineNo at={props.at} n={n} look={props.look} /> : n}
       </td>
-      <td className={`diff-code diff-${kind}`}>
+      <td className={`diff-code diff-${kind}`} data-at={props.at}>
         <Code at={props.at} look={props.look} />
       </td>
     </>
@@ -119,13 +122,23 @@ function LineNo(props: { at: number; n: number; look: LineLook }) {
 }
 
 function Code(props: { at: number; look: LineLook }) {
-  const line = props.look.lines[props.at];
+  const { look, at } = props;
+  const line = look.lines[at];
   if (!line) return null;
-  const runs = props.look.runs.get(props.at) ?? [{ text: line.text, kind: null }];
+  const runs = look.runs.get(at) ?? [{ text: line.text, kind: null }];
+  const current = look.current?.at === at ? look.current : null;
+  let offset = 0;
   return (
     <>
-      {markRuns(runs, props.look.words.get(props.at)).map((run, i) => {
-        const cls = [run.kind && `tok-${run.kind}`, run.changed && "diff-word"]
+      {markRuns(runs, look.words.get(at), look.found.get(at)).map((run, i) => {
+        const start = offset;
+        offset += run.text.length;
+        const cls = [
+          run.kind && `tok-${run.kind}`,
+          run.changed && "diff-word",
+          run.found && "diff-found",
+          run.found && current && start >= current.from && start < current.to && "is-current",
+        ]
           .filter(Boolean)
           .join(" ");
         return cls ? (

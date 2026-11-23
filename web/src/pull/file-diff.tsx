@@ -10,13 +10,14 @@ import { type ContextSource, useContextLines } from "./context-lines.js";
 import { anchorOf, type DiffLine, parsePatch, placeOnLines, splitPath } from "./diff.js";
 import { DiffRowView, type LineLook } from "./diff-row.js";
 import { chunksOf, type DiffLayout, type DiffRow, linesOfRow, rowsOf } from "./diff-rows.js";
-import { wordChanges } from "./diff-words.js";
+import { type WordRange, wordChanges } from "./diff-words.js";
 import { FileTypeIcon } from "./file-icon.js";
 import { underLine } from "./findings.js";
 import { FOLD_LABEL, foldReason } from "./generated.js";
 import { type CodeRun, highlightDiff } from "./highlight.js";
 import { LazyBody, watchNear } from "./lazy-body.js";
 import { CommentBox, hasNotes, LineNotes, type Notes } from "./line-notes.js";
+import type { SearchFocus } from "./use-diff-search.js";
 
 // One changed file of a pull request: its header and its diff, where a
 // line's number opens a comment box, and ocra's findings and fixes under the
@@ -69,6 +70,9 @@ export function FileDiff(props: {
   readOnly?: boolean;
   /** Where the lines the diff left out are read; without it they stay out. */
   context?: ContextSource | undefined;
+  /** What a find in the diffs found in this file, by the line's index in its patch, and the match shown. */
+  found?: ReadonlyMap<number, WordRange[]> | undefined;
+  focus?: SearchFocus | null | undefined;
 }) {
   const { file, layout } = props;
   const parsed = useMemo(() => (file.patch ? parsePatch(file.patch) : []), [file.patch]);
@@ -114,8 +118,33 @@ export function FileDiff(props: {
       live = false;
     };
   }, [folded, near, file.path, lines]);
-  const found = openKey === null ? -1 : lines.findIndex((l) => keyOf(l) === openKey);
-  const open = found < 0 ? null : found;
+  const openAt = openKey === null ? -1 : lines.findIndex((l) => keyOf(l) === openKey);
+  const open = openAt < 0 ? null : openAt;
+  // A find counts lines of the patch; opened lines around them move where each is drawn.
+  const drawnAt = useMemo(() => new Map(lines.map((l, i) => [l, i])), [lines]);
+  const at = (k: number) => {
+    const line = parsed[k];
+    return line ? drawnAt.get(line) : undefined;
+  };
+  const found = useMemo(() => {
+    const out = new Map<number, WordRange[]>();
+    for (const [k, ranges] of props.found ?? []) {
+      const i = drawnAt.get(parsed[k] as DiffLine);
+      if (i !== undefined) out.set(i, ranges);
+    }
+    return out;
+  }, [props.found, parsed, drawnAt]);
+  const { focus } = props;
+  const sought = focus ? (at(focus.line) ?? null) : null;
+  // A step to a match here opens the file; once its run is drawn, the match is scrolled to.
+  useEffect(() => {
+    if (focus) setFolded(false);
+  }, [focus]);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: each step to the same match scrolls to it again, and a new layout draws it elsewhere.
+  useEffect(() => {
+    if (sought === null || folded) return;
+    section.current?.querySelector(`[data-at="${sought}"]`)?.scrollIntoView({ block: "center" });
+  }, [sought, folded, focus?.step, layout]);
   const columns = layout === "split" ? 4 : 3;
   const look: LineLook = {
     lines,
@@ -130,6 +159,8 @@ export function FileDiff(props: {
     gaps: shown.open,
     expand: shown.expand,
     busy: shown.busy,
+    found,
+    current: focus && sought !== null ? { at: sought, from: focus.from, to: focus.to } : null,
   };
   const notes: Notes = {
     findingsAt: props.review ? findingsAt : NO_NOTES,
@@ -239,7 +270,10 @@ export function FileDiff(props: {
                   key={k}
                   columns={columns}
                   estimate={chunk.length * ROW_PX + noted * NOTE_PX}
-                  pinned={open !== null && held.includes(open)}
+                  pinned={
+                    (open !== null && held.includes(open)) ||
+                    (sought !== null && held.includes(sought))
+                  }
                 >
                   {() =>
                     chunk.map((row) => (

@@ -1233,6 +1233,7 @@ td.finding-cell {
 .diff-sign {
   display: inline-block;
   width: 16px;
+  text-indent: 0;
   color: var(--t4);
 }
 .diff-add {
@@ -1259,6 +1260,58 @@ td.finding-cell {
 }
 .diff-empty {
   background: var(--fill);
+}
+/* Find in the diffs: a bar that stays under the page's head while the reader steps through matches. */
+.diff-search {
+  position: sticky;
+  top: var(--pull-clear, 72px);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 4px 4px 12px;
+  border-radius: var(--r-ctl);
+  background: var(--raised);
+  box-shadow: var(--shadow);
+}
+.diff-search-icon {
+  flex: none;
+  color: var(--t3);
+}
+.diff-search-field {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--t1);
+  font: inherit;
+  font-family: var(--mono);
+}
+/* The bar is the field: it takes the focus ring while its field has focus. */
+.diff-search-field:focus-visible {
+  outline: none;
+}
+.diff-search:has(.diff-search-field:focus-visible) {
+  outline: 2px solid var(--focus);
+}
+.diff-search-count {
+  flex: none;
+  color: var(--t3);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+.diff-search .icon-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+/* Over a changed word's tint: what the find found is what the reader is looking for. */
+.diff .diff-found {
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--blue) 18%, transparent);
+}
+.diff .diff-found.is-current {
+  background: color-mix(in srgb, var(--blue) 40%, transparent);
+  box-shadow: 0 0 0 1px var(--blue);
 }
 .diff-bar {
   display: flex;

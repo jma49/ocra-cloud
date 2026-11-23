@@ -156,3 +156,38 @@ it("leaves an added file without gaps to open", () => {
   );
   expect(screen.queryByRole("button", { name: /Show/ })).toBeNull();
 });
+
+it("marks what a find found, opens a folded file to its match and scrolls to it", () => {
+  const scrolled = vi.fn();
+  Element.prototype.scrollIntoView = scrolled;
+  render(
+    <FileDiff
+      file={file("package-lock.json")}
+      layout="unified"
+      viewed={false}
+      onViewed={() => undefined}
+      pending={[]}
+      onComment={() => undefined}
+      onDrop={() => undefined}
+      findings={[]}
+      review={null}
+      fixes={[]}
+      onFixDone={() => undefined}
+      found={
+        new Map([
+          [3, [{ from: 13, to: 17 }]],
+          [5, [{ from: 0, to: 3 }]],
+        ])
+      }
+      focus={{ path: "package-lock.json", line: 3, from: 13, to: 17, step: 1 }}
+    />,
+  );
+  expect(document.querySelector("table")).not.toBeNull();
+  expect([...document.querySelectorAll(".diff-found")].map((m) => m.textContent)).toEqual([
+    "left",
+    "log",
+  ]);
+  expect(document.querySelector(".diff-found.is-current")?.textContent).toBe("left");
+  expect(scrolled).toHaveBeenCalled();
+  expect((scrolled.mock.contexts[0] as Element).getAttribute("data-at")).toBe("3");
+});
