@@ -4,6 +4,7 @@ import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { accountSalt } from "../src/db/accounts.js";
 import { scoped } from "../src/db/scoped.js";
 import { instructionCheckId } from "../src/merge-checks/instruction.js";
 import {
@@ -158,7 +159,7 @@ describe("a review job's run", () => {
   };
   const fakeExec = (
     cliCode: number,
-    seen: { credentials?: unknown; config?: string; ocra?: unknown },
+    seen: { credentials?: unknown; config?: string; ocra?: unknown; salt?: string },
   ) => {
     const calls: Call[] = [];
     const exec: Exec = async (command, args, options) => {
@@ -170,6 +171,10 @@ describe("a review job's run", () => {
       seen.credentials = JSON.parse(
         await readFile(join(options.env.XDG_CONFIG_HOME ?? "", "ocra", "credentials.json"), "utf8"),
       );
+      seen.salt = await readFile(
+        join(options.env.XDG_CONFIG_HOME ?? "", "ocra", "upload-salt"),
+        "utf8",
+      ).catch(() => "");
       seen.config = await readFile(join(options.cwd, ".git", "config"), "utf8");
       seen.ocra = JSON.parse(await readFile(args.at(-1) ?? "", "utf8"));
       return { code: cliCode };
@@ -189,9 +194,13 @@ describe("a review job's run", () => {
     });
 
   it("clones, runs the CLI on the pull request as the account and the bot, and leaves nothing", async () => {
-    const seen: { credentials?: Record<string, unknown>; config?: string } = {};
+    const seen: { credentials?: Record<string, unknown>; config?: string; salt?: string } = {};
     const { exec, calls } = fakeExec(1, seen);
     expect(await run(exec)).toBe(true);
+    // The account's salt, not one made in the run's new home: the CLI
+    // names the repository the same in every run.
+    expect(seen.salt).toBe(`${await accountSalt(s.host.db, accountId)}\n`);
+    expect(seen.salt).toMatch(/^[0-9a-f]{64}\n$/);
 
     const [clone, cli] = calls;
     expect(clone?.args).toEqual([
