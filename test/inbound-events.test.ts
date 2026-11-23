@@ -223,6 +223,24 @@ describe("the retry sweep", () => {
     expect(await events()).toMatchObject([{ state: "done", attempts: 2 }]);
   });
 
+  it("leaves a delivery whose lease has not ended to the runner that holds it", async () => {
+    await receiveInbound(db, {
+      id: "held",
+      platform: "github",
+      host: "github.com",
+      deliveryId: "held",
+      event: "pull_request",
+      repo: "11",
+      work: { origin: "https://ocra.test", steps: ["tell"] },
+      leaseUntil: new Date(Date.now() + 60_000),
+    });
+    expect(await claimInboundRetry(db, new Date(), 60_000)).toBeUndefined();
+    expect(await claimInboundRetry(db, new Date(Date.now() + 61_000), 60_000)).toMatchObject({
+      id: "held",
+      attempts: 2,
+    });
+  });
+
   it("claims an attempt by compare-and-set: of two claims, one wins", async () => {
     await due("e-2", "11");
     const now = new Date();
