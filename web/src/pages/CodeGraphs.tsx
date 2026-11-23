@@ -6,6 +6,7 @@ import { api, why } from "../api.js";
 import { useCached } from "../cache.js";
 import { ago, bytes, num } from "../format.js";
 import { PLATFORM_NAME, PlatformSelect } from "../platform-names.js";
+import { StackTable } from "../stack-table.js";
 import { useToast } from "../toast.js";
 import {
   ActionError,
@@ -101,7 +102,7 @@ function GraphRepos(props: {
         </div>
       ) : (
         <div className="section card">
-          <div className="table-wrap">
+          <StackTable>
             <table>
               <thead>
                 <tr>
@@ -122,7 +123,7 @@ function GraphRepos(props: {
                 ))}
               </tbody>
             </table>
-          </div>
+          </StackTable>
         </div>
       )}
     </>
@@ -264,8 +265,18 @@ function GraphRow(props: { repo: GraphRepoView; put: (r: GraphRepoView) => void;
         ) : null}
       </td>
       <td className="mono">{latest ? latest.commit.slice(0, 7) : "–"}</td>
-      <td className="num">{latest?.files != null ? num(latest.files) : "–"}</td>
-      <td className="num">{latest?.bytes != null ? bytes(latest.bytes) : "–"}</td>
+      <td className="num">
+        <span className="cell-name" aria-hidden="true">
+          Files
+        </span>
+        {latest?.files != null ? num(latest.files) : "–"}
+      </td>
+      <td className="num">
+        <span className="cell-name" aria-hidden="true">
+          Size
+        </span>
+        {latest?.bytes != null ? bytes(latest.bytes) : "–"}
+      </td>
       <td className="muted">{latest?.finishedAt ? ago(latest.finishedAt) : "–"}</td>
       <td>
         <div className="row-actions">
