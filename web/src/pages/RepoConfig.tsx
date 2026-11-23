@@ -86,6 +86,17 @@ function Issues(props: { issues: readonly RepoConfigIssue[]; more: boolean }) {
   );
 }
 
+/** The same issues as the CLI prints them, for someone who will fix the file in a terminal. */
+function Refusal(props: { text: string | null | undefined }) {
+  if (!props.text) return null;
+  return (
+    <details>
+      <summary className="config-refusal-head">As the ocra CLI says it</summary>
+      <pre className="config-refusal-text">{props.text}</pre>
+    </details>
+  );
+}
+
 function Editor(props: { view: RepoConfigView; at: RepoChoice; reload: () => void }) {
   const { view } = props;
   const [text, setText] = useState(view.text ?? starter(view));
@@ -106,10 +117,11 @@ function Editor(props: { view: RepoConfigView; at: RepoChoice; reload: () => voi
   const broken = notJson(text);
   const edited = text !== (view.text ?? "");
   // The server names an issue by its path into the request: `text`, then the path in the file.
-  const refused =
-    save.error instanceof ApiError
-      ? save.error.issues.map((i) => ({ path: i.path.slice(1), message: i.message }))
-      : [];
+  const refusal = save.error instanceof ApiError ? save.error : null;
+  const refused = (refusal?.issues ?? []).map((i) => ({
+    path: i.path.slice(1),
+    message: i.message,
+  }));
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     const done = await save.run();
@@ -145,7 +157,12 @@ function Editor(props: { view: RepoConfigView; at: RepoChoice; reload: () => voi
               The file on {view.branch} is not read by reviews: {view.parseError}.
             </p>
           )}
-          {!edited && <Issues issues={view.errors} more={view.moreErrors} />}
+          {!edited && (
+            <>
+              <Issues issues={view.errors} more={view.moreErrors} />
+              <Refusal text={view.refusal} />
+            </>
+          )}
           <textarea
             className="input mono"
             aria-label={`Contents of ${view.path}`}
@@ -159,7 +176,12 @@ function Editor(props: { view: RepoConfigView; at: RepoChoice; reload: () => voi
               Not JSON yet: {broken}.
             </p>
           )}
-          {edited && <Issues issues={refused} more={false} />}
+          {edited && (
+            <>
+              <Issues issues={refused} more={refusal?.file.more ?? false} />
+              <Refusal text={refusal?.file.refusal} />
+            </>
+          )}
           {save.error !== null && refused.length === 0 && (
             <p className="error small m-0" role="alert">
               Could not send it: {why(save.error)}.
