@@ -1,7 +1,7 @@
 import type { Db } from "./db/client.js";
 import { ownUser } from "./notify/pull-events.js";
 import type { CodePlatform } from "./platforms/platform.js";
-import type { PlatformPull, TeamAsk } from "./platforms/pulls.js";
+import { type PlatformPull, pullKey, type TeamAsk } from "./platforms/pulls.js";
 import type { AppEnv } from "./types.js";
 
 // Which pull requests wait for the user's review through a team they are
@@ -13,8 +13,6 @@ import type { AppEnv } from "./types.js";
 
 /** Asks read per platform. */
 const READ = 100;
-
-const keyOf = (repo: string, number: number) => `${repo.toLowerCase()}#${number}`;
 
 /** One read for the linked platform: the waiting asks of a team the user is on, waiting longest first. */
 export async function teamAsks(
@@ -36,10 +34,13 @@ export function pullTeams(
   listed: readonly { platform: CodePlatform; asks: readonly TeamAsk[] }[],
 ): (platform: CodePlatform, pull: PlatformPull) => string | undefined {
   const found = new Map(
-    listed.map((l) => [l.platform, new Map(l.asks.map((a) => [keyOf(a.repo, a.number), a.team]))]),
+    listed.map((l) => [
+      l.platform,
+      new Map(l.asks.map((a) => [pullKey(a.repo, a.number), a.team])),
+    ]),
   );
   return (platform, pull) =>
     pull.roles.includes("reviewer") && !pull.roles.includes("author")
-      ? found.get(platform)?.get(keyOf(pull.repo, pull.number))
+      ? found.get(platform)?.get(pullKey(pull.repo, pull.number))
       : undefined;
 }

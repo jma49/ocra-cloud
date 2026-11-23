@@ -20,6 +20,9 @@ export type ListedPull = Omit<PlatformPull, "roles">;
 /** A pull request the account's records say waits for the user's review through a team they are on. */
 export type TeamAsk = { repo: string; number: number; team: string };
 
+/** A pull request's key across a platform's lists and the account's records, whose repository case may differ. */
+export const pullKey = (repo: string, number: number) => `${repo.toLowerCase()}#${number}`;
+
 /** At most this many labels per pull request, each cut to MAX_LABEL characters. */
 export const MAX_LABELS = 20;
 const MAX_LABEL = 100;

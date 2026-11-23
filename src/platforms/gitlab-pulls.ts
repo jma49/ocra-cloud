@@ -7,6 +7,7 @@ import {
   mergedSince,
   OPEN_PER_LIST,
   type PullListing,
+  pullKey,
   type TeamAsk,
   withRoles,
 } from "./pulls.js";
@@ -72,8 +73,6 @@ export const mergeRequestItem = (mr: MergeRequest): ListedPull => ({
       : null,
 });
 
-const keyOf = (repo: string, number: number) => `${repo.toLowerCase()}#${number}`;
-
 /**
  * The merge requests asking the user's review, theirs open and theirs merged
  * this week. GitLab lists only those naming the user a reviewer, so those an
@@ -102,8 +101,8 @@ export async function gitlabPulls(
     ),
   ]);
   if (!review || !authored || !merged) return null;
-  const listed = new Set([...review, ...authored].map((mr) => keyOf(repoOf(mr), mr.iid)));
-  const missed = teamAsks.filter((a) => !listed.has(keyOf(a.repo, a.number)));
+  const listed = new Set([...review, ...authored].map((mr) => pullKey(repoOf(mr), mr.iid)));
+  const missed = teamAsks.filter((a) => !listed.has(pullKey(a.repo, a.number)));
   const read = await Promise.all(
     missed
       .slice(-MAX_GROUP_ASKED)
