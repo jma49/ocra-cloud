@@ -27,7 +27,7 @@ const some = <T extends z.ZodType>(value: T) => z.array(value).min(1).max(MAX_VA
 
 const filtersSchema = z
   .object({
-    roles: some(z.enum(["reviewer", "author"])),
+    roles: some(z.enum(["reviewer", "author", "assignee"])),
     authoredBy: z.enum(["me", "others"]).optional(),
     states: some(z.enum(["open", "merged"])),
     drafts: z.enum(["include", "exclude", "only"]).optional(),

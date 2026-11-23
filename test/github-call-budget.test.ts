@@ -132,7 +132,12 @@ function counted(opts: { limited?: boolean } = {}) {
         if (query.includes("latestOpinionatedReviews")) return Response.json(readinessAnswer());
         if (query.includes("authored: search")) {
           return Response.json({
-            data: { review: EMPTY_SEARCH, authored: EMPTY_SEARCH, merged: EMPTY_SEARCH },
+            data: {
+              review: EMPTY_SEARCH,
+              authored: EMPTY_SEARCH,
+              assigned: EMPTY_SEARCH,
+              merged: EMPTY_SEARCH,
+            },
           });
         }
         return Response.json({ data: null });

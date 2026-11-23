@@ -2,19 +2,22 @@
 
 A hosted review clones a repository and runs the `ocra` CLI on it, which a Cloudflare Worker cannot do. A remote runner is a machine that does it for the server: it asks for the next queued job, runs it, and reports how it went. It only calls out over HTTPS, so it needs no public address, and any always-on machine with Node and git will do.
 
-The server keeps everything that matters: the queue, the GitHub App's key, each account's model key and budget. A runner holds one secret, its runner token. Each job brings what its run needs and nothing more: a bot token for that one repository, and a session of the account that enrolled it, both ended with the job. The review's model calls go through the server's gateway, so the runner never sees a model key.
+The server keeps everything that matters: the queue, the bot's credentials, each account's model key and budget. A runner holds one secret, its runner token. Each job brings what its run needs and nothing more: a bot token for that one repository, and a session of the account that enrolled it, both ended with the job. The review's model calls go through the server's gateway, so the runner never sees a model key.
 
 ## The server
 
-Hosted reviews are on when the server has all four of:
+Hosted reviews are on when the server has a runner token and a bot on at least one platform:
 
 | Variable | Meaning |
 |---|---|
-| `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY` | the GitHub App's number and private key, which mint the ocra bot's token per job ([self-hosting.md](self-hosting.md), A GitHub App of your own) |
-| `GITHUB_WEBHOOK_SECRET` | the App's webhook secret; the App's webhook URL is `<PUBLIC_URL>/api/webhooks/github` |
-| `RUNNER_TOKEN` | what runners prove themselves with: `openssl rand -base64 32`, at least 32 characters |
+| `RUNNER_TOKEN` | what runners prove themselves with: `openssl rand -base64 32`, at least 32 characters. Always needed |
+| `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY` | for GitHub: the GitHub App's number and private key, which mint the ocra bot's token per job ([self-hosting.md](self-hosting.md), A GitHub App of your own) |
+| `GITHUB_WEBHOOK_SECRET` | for GitHub: the App's webhook secret; the App's webhook URL is `<PUBLIC_URL>/api/webhooks/github` |
+| `GITLAB_BOT_TOKEN` | for GitLab: the bot account's token (scope `api`), which each GitLab job is given ([gitlab.md](gitlab.md), Bot). GitLab's project hooks are proven by each enrolled project's own secret, so GitLab needs no server-wide webhook secret |
 
-On Workers the key, the secret and the token are secrets (`wrangler secret put`, with no trailing newline in piped input) and the App's number a variable. A self-hosted server reads them from its environment; with `AUTO_REVIEW_WORKERS=0` it leaves every job to its runners, otherwise it runs jobs itself as well.
+A server that only uses GitLab sets `RUNNER_TOKEN` and `GITLAB_BOT_TOKEN` (with `GITLAB_CLIENT_ID`, `GITLAB_CLIENT_SECRET` and `GITLAB_URL`, which make GitLab a platform at all) and no GitHub App. A server with both reviews both; on the Worker, GitHub counts only with all three of its variables. A job for a platform the server has no bot for is refused (`no_bot`) rather than run.
+
+On Workers the keys, the secrets and the tokens are secrets (`wrangler secret put`, with no trailing newline in piped input) and the App's number a variable. A self-hosted server reads them from its environment; with `AUTO_REVIEW_WORKERS=0` it leaves every job to its runners, otherwise it runs jobs itself as well.
 
 Auto review in the console then lists each runner with when it last asked for work. A review queued while no runner is online waits for one. A job of an account that has used its gateway calls for the day (`GATEWAY_DAILY_CALLS`, or the account's own budget) also waits, until the count starts again at midnight UTC, and a review the limit cut short runs again then; Auto review says so while it lasts.
 

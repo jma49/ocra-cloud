@@ -34,7 +34,9 @@ interface __BaseEnv_Env {
   GITHUB_APP_PRIVATE_KEY?: string;
   /** The GitHub App's webhook secret; its webhooks are refused without it. */
   GITHUB_WEBHOOK_SECRET?: string;
-  /** What remote runners prove themselves with (docs/runner.md); with the three above, hosted reviews are on. */
+  /** A GitLab bot account's token (scope api), which posts the reviews of GitLab projects. */
+  GITLAB_BOT_TOKEN?: string;
+  /** What remote runners prove themselves with (docs/runner.md); with the GitHub App's three above or GITLAB_BOT_TOKEN, hosted reviews are on. */
   RUNNER_TOKEN?: string;
   /** off: the remote runners build no code graphs and none is kept (src/graph/remote.ts); kept when unset. */
   CODE_GRAPH?: string;
