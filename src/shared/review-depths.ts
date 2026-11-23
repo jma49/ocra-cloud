@@ -1,12 +1,17 @@
-import type { Severity } from "@open-cr-agent/cloud-contract";
+import type { ReviewDepth, Severity } from "@open-cr-agent/cloud-contract";
 
-// How thorough a hosted review is, by the engine's depth names: a preset the
-// server turns into settings the pinned engine already has, written into the
-// review's configuration file (and, for one, a flag). A repository has one;
-// a review asked for on a pull request's page may choose another.
+// How thorough a hosted review is: the engine's depth (--depth), plus the
+// settings the server holds the review to whatever the account's are,
+// written into the review's configuration file. A repository has one; a
+// review asked for on a pull request's page may choose another.
 
-export const REVIEW_DEPTHS = ["quick", "standard", "deep"] as const;
-export type ReviewDepth = (typeof REVIEW_DEPTHS)[number];
+export type { ReviewDepth };
+/** The contract's REVIEW_DEPTHS, which the web cannot import as a value (test-node/review-depths.test.ts). */
+export const REVIEW_DEPTHS = [
+  "quick",
+  "standard",
+  "deep",
+] as const satisfies readonly ReviewDepth[];
 
 /** Today's hosted review: the engine's own defaults, nothing set. */
 export const DEFAULT_REVIEW_DEPTH: ReviewDepth = "standard";

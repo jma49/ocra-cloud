@@ -10,10 +10,11 @@ type DepthConfig = {
 };
 
 /**
- * What a hosted review's depth adds: keys of its configuration file
- * (written with --config, a layer above the account's settings, which only
- * fill what it leaves out, so its ultra: false beats an account's ultra) and
- * CLI flags. Standard adds nothing.
+ * What a hosted review's depth adds: the engine's --depth, whose preset
+ * fills only what no layer sets (effort, among others), and keys of the
+ * configuration file (written with --config, a layer above the account's
+ * settings, so its ultra: false beats an account's ultra) that hold the
+ * review to the depth whatever the account sets. Standard adds nothing.
  */
 export function depthRun(depth: ReviewDepth): { config: DepthConfig; flags: string[] } {
   const {
@@ -37,6 +38,6 @@ export function depthRun(depth: ReviewDepth): { config: DepthConfig; flags: stri
       ...(maxInlineComments !== undefined ? { maxInlineComments } : {}),
       ...(ultra === false ? { ultra } : {}),
     },
-    flags: ultra ? ["--ultra"] : [],
+    flags: [...(depth === "standard" ? [] : ["--depth", depth]), ...(ultra ? ["--ultra"] : [])],
   };
 }

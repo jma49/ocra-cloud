@@ -1,4 +1,9 @@
-import { CONFIG_SCHEMA_ID, configSchema } from "@open-cr-agent/cloud-contract";
+import {
+  CONFIG_SCHEMA_ID,
+  configSchema,
+  MAX_RULES_MARKDOWN_CHARS,
+  RULES_MARKDOWN_PATH,
+} from "@open-cr-agent/cloud-contract";
 import { z } from "zod";
 import { RULES_JSON_SCHEMA } from "./engine-schemas.js";
 import type { RepoConfigFile, RepoConfigIssue } from "./shared/index.js";
@@ -7,11 +12,13 @@ import type { RepoConfigFile, RepoConfigIssue } from "./shared/index.js";
 // with the engine's own schemas: the configuration with the contract's
 // configSchema, refinements included, and the rules with the JSON Schema of
 // core's rule schema (src/engine-schemas.ts, generated: the contract has no
-// rules schema, and the Worker does not load core). A refusal reads as the
-// CLI words it (z.prettifyError).
+// rules schema, and the Worker does not load core). The Markdown rules are
+// prose: the engine refuses them only when longer than the contract's
+// limit. A refusal reads as the CLI words it (z.prettifyError).
 
 export const REPO_CONFIG_PATHS: Record<RepoConfigFile, string> = {
   config: ".ocra/config.json",
+  rulesMarkdown: RULES_MARKDOWN_PATH,
   rules: ".ocra/rules.json",
 };
 
@@ -24,13 +31,13 @@ const MAX_REFUSAL = 4_000;
 let rulesSchema: z.ZodType | undefined;
 
 // The rules' is built on first use, not at import: the conversion walks the whole schema.
-function schemaOf(file: RepoConfigFile): z.ZodType {
+function schemaOf(file: Exclude<RepoConfigFile, "rulesMarkdown">): z.ZodType {
   if (file === "config") return configSchema;
   rulesSchema ??= z.fromJSONSchema(RULES_JSON_SCHEMA as z.core.JSONSchema.JSONSchema);
   return rulesSchema;
 }
 
-/** The $id of the file's JSON Schema; null for the rules file. */
+/** The $id of the file's JSON Schema; null for the rules files. */
 export const schemaIdOf = (file: RepoConfigFile) => (file === "config" ? CONFIG_SCHEMA_ID : null);
 
 type Checked =
@@ -61,6 +68,7 @@ export function textOf(bytes: Uint8Array): string | { reason: string } {
 
 /** The file parsed as the engine parses it (JSON.parse), and where it does not fit the schema. */
 export function checkRepoConfig(file: RepoConfigFile, text: string): Checked {
+  if (file === "rulesMarkdown") return checkMarkdownRules(text);
   let value: unknown;
   try {
     value = JSON.parse(text);
@@ -79,5 +87,20 @@ export function checkRepoConfig(file: RepoConfigFile, text: string): Checked {
     })),
     more: issues.length > MAX_ISSUES,
     refusal: parsed.success ? null : clip(z.prettifyError(new z.ZodError(listed)), MAX_REFUSAL),
+  };
+}
+
+// The engine's own words (core's parseMarkdownRules), counted as it counts: UTF-16 code units.
+function checkMarkdownRules(text: string): Checked {
+  if (text.length <= MAX_RULES_MARKDOWN_CHARS) {
+    return { kind: "parsed", value: null, errors: [], more: false, refusal: null };
+  }
+  const message = `${RULES_MARKDOWN_PATH} is longer than ${MAX_RULES_MARKDOWN_CHARS} characters`;
+  return {
+    kind: "parsed",
+    value: null,
+    errors: [{ path: [], message }],
+    more: false,
+    refusal: message,
   };
 }

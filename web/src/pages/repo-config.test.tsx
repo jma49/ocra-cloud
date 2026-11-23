@@ -48,7 +48,8 @@ function serve(read: RepoConfigView, answer: () => Response) {
           ],
         });
       asked.push(url);
-      return Response.json(url.includes("file=rules") ? { ...read, file: "rules" } : read);
+      const file = new URL(url, "http://x").searchParams.get("file");
+      return Response.json(file && file !== read.file ? { ...read, file } : read);
     }),
   );
   return { asked, sent };
@@ -172,12 +173,42 @@ describe("the Review config page", () => {
     expect(asked).toHaveLength(2);
   });
 
-  it("reads the rules file when asked for it", async () => {
+  it("reads the rules in plain language, or as JSON, when asked for them", async () => {
     const { asked } = serve(view(), () => Response.json({}));
     render(<RepoConfig />);
     await editor();
     await act(async () => void fireEvent.click(screen.getByRole("button", { name: "Rules" })));
-    expect(asked.at(-1)).toContain("file=rules");
+    expect(asked.at(-1)).toContain("file=rulesMarkdown");
+    await act(async () => void fireEvent.click(screen.getByRole("button", { name: "Rules JSON" })));
+    expect(asked.at(-1)).toMatch(/file=rules(&|$)/);
+  });
+
+  it("edits the rules in plain language as Markdown, held to the length a review reads", async () => {
+    const rules = view({
+      file: "rulesMarkdown",
+      path: ".ocra/rules.md",
+      blobId: null,
+      text: null,
+      value: null,
+      schema: null,
+    });
+    const { sent } = serve(rules, () =>
+      Response.json({ outcome: "done", path: ".ocra/rules.md", pull: null }),
+    );
+    render(<RepoConfig />);
+    const tab = await screen.findByRole("button", { name: "Rules" });
+    await act(async () => void fireEvent.click(tab));
+    const box = (await screen.findByLabelText("Contents of .ocra/rules.md")) as HTMLTextAreaElement;
+    expect(box.value).toBe("");
+    expect(screen.getByText(/applies to files there/)).toBeTruthy();
+    type(box, "x".repeat(20_001));
+    expect(screen.getByText(/20,001 of 20,000 characters: a review refuses/)).toBeTruthy();
+    expect(button("Open pull request").disabled).toBe(true);
+    const text = "## services/billing/\n\nEvery handler checks the caller's account.";
+    type(box, text);
+    expect(screen.queryByText(/Not JSON/)).toBeNull();
+    await act(async () => void fireEvent.click(button("Open pull request")));
+    expect(sent).toMatchObject([{ file: "rulesMarkdown", text, expected: null }]);
   });
 
   it("says what a hosted review takes from the config file, and nothing of the kind for rules", async () => {
