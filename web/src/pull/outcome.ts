@@ -8,3 +8,28 @@ export const OUTCOME: Record<PullActionOutcome, string> = {
   not_mergeable: "The platform says it cannot be merged as it is (conflicts or required checks).",
   not_applicable: "The fix's lines are no longer in the file.",
 };
+
+/** What the PR page names a write by, when it reports how it went. */
+export type Done =
+  | "Viewed"
+  | "Draft"
+  | "Description"
+  | "Review threads"
+  | "Merge queue"
+  | "Merge"
+  | "Labels"
+  | "Fix"
+  | "Review";
+
+/** The toast for a write that went through; none where the page already shows the change. */
+export const DONE: Record<Done, string | null> = {
+  Viewed: null,
+  Draft: null,
+  Description: "Description saved",
+  "Review threads": "Suggestions committed",
+  "Merge queue": "Merge queue updated",
+  Merge: "Merged",
+  Labels: "Labels saved",
+  Fix: "Fix committed",
+  Review: "Review sent",
+};

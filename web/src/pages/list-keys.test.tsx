@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { clearCache } from "../cache.js";
+import { ToastProvider } from "../toast.js";
 import { Findings } from "./Findings.js";
 import { ReviewDetail } from "./ReviewDetail.js";
 
@@ -74,6 +75,34 @@ describe("the findings list's keys", () => {
     );
     const sent = fetch.mock.calls.find(([u]) => u === "/api/findings/decide")?.[1]?.body;
     expect(JSON.parse(String(sent))).toEqual({ ids: ["f2"], status: "fixed" });
+  });
+
+  it("says what a decision changed and undoes it by reopening the same findings", async () => {
+    const fetch = vi.fn(async (url: string, _init?: RequestInit) =>
+      url === "/api/findings/decide"
+        ? Response.json({ changed: 1, remembered: 0 })
+        : Response.json({
+            findings: [finding("f1", "First")],
+            next: null,
+            statuses: { open: 1, fixed: 0, dismissed: 0 },
+          }),
+    );
+    vi.stubGlobal("fetch", fetch);
+    render(
+      <ToastProvider>
+        <Findings />
+      </ToastProvider>,
+    );
+    await screen.findByText("First");
+    press("j");
+    press("f");
+    expect(await screen.findByText("1 marked fixed")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+    await waitFor(() =>
+      expect(fetch.mock.calls.filter(([u]) => u === "/api/findings/decide")).toHaveLength(2),
+    );
+    const undo = fetch.mock.calls.filter(([u]) => u === "/api/findings/decide")[1]?.[1]?.body;
+    expect(JSON.parse(String(undo))).toEqual({ ids: ["f1"], status: "open" });
   });
 });
 

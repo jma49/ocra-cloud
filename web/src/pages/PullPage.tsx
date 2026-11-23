@@ -28,7 +28,7 @@ import { LabelsBox } from "../pull/labels-box.js";
 import { MergeCard } from "../pull/merge-card.js";
 import { PullMeta } from "../pull/meta.js";
 import { OcraReviewBox } from "../pull/ocra-review-box.js";
-import { OUTCOME } from "../pull/outcome.js";
+import { DONE, type Done, OUTCOME } from "../pull/outcome.js";
 import { pullPath } from "../pull/path.js";
 import { PeopleCard } from "../pull/people.js";
 import { QueueBox } from "../pull/queue-box.js";
@@ -42,6 +42,7 @@ import { ThreadsPanel } from "../pull/threads.js";
 import { UpdateBranch } from "../pull/update-branch.js";
 import { useViewed } from "../pull/viewed.js";
 import { setPageTitle } from "../title.js";
+import { useToast } from "../toast.js";
 import { LoadError, Loading, PageHead, useLoad } from "../ui.js";
 
 // A pull request in the console: its changed files read live from the
@@ -80,7 +81,11 @@ export function PullPage(props: {
   const found = usePullFindings(head ? `/pulls/findings?${query}&head=${head}` : null);
   const queue = useLoad(() => api<MergeQueueView>(`/pulls/queue?${query}`), [query.toString()]);
   const [pending, setPending] = useState<LineComment[]>([]);
-  const [said, setSaid] = useState<{ what: string; outcome: PullActionOutcome } | null>(null);
+  const toast = useToast();
+  const said = (what: Done, outcome: PullActionOutcome) => {
+    if (outcome !== "done") toast(`${what}: ${OUTCOME[outcome]}`, "error");
+    else if (DONE[what]) toast(DONE[what], "success");
+  };
   const [reviewing, setReviewing] = useState(false);
   const [peopleRev, setPeopleRev] = useState(0);
   const [readinessRev, setReadinessRev] = useState(0);
@@ -101,7 +106,7 @@ export function PullPage(props: {
     if (data?.title) setPageTitle(`#${props.number} ${data.title}`);
   }, [data?.title, props.number]);
   const beside = useBeside(pullPath(platform, props.repo, number));
-  const viewed = useViewed(ref, data, (o) => setSaid({ what: "Viewed", outcome: o }));
+  const viewed = useViewed(ref, data, (o) => said("Viewed", o));
   usePageCommands(
     "This pull request",
     pullCommands({
@@ -128,8 +133,8 @@ export function PullPage(props: {
       </>
     );
   }
-  const done = (what: string, outcome: PullActionOutcome) => {
-    setSaid({ what, outcome });
+  const done = (what: Done, outcome: PullActionOutcome) => {
+    said(what, outcome);
     if (outcome === "done" && what === "Review") setPending([]);
     // A committed fix moved the head, and a merge settled the pull request: what the page read is out of date.
     if (outcome === "done" && (what === "Fix" || what === "Merge")) reload();
@@ -176,11 +181,6 @@ export function PullPage(props: {
           </div>
         </div>
         <PullMeta data={data} />
-        {said && (
-          <p className={said.outcome === "done" ? "note" : "error"} role="status">
-            {said.what}: {OUTCOME[said.outcome]}
-          </p>
-        )}
       </header>
       {settled && (
         <p className="muted small">

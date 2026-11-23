@@ -35,7 +35,7 @@ it("reads the keys once for the pages that show them, and again after a change",
     }),
   );
   const keyReads = () => asked.filter((p) => p === "/keys").length;
-  const first = render(<Overview login="ada" />);
+  const first = render(<Overview />);
   await waitFor(() => expect(keyReads()).toBe(1));
   first.unmount();
   render(<Keys />);

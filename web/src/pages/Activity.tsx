@@ -2,6 +2,7 @@ import { useState } from "react";
 import { api, type Usage } from "../api.js";
 import { useCached } from "../cache.js";
 import { compact, num, period, time } from "../format.js";
+import { StackTable } from "../stack-table.js";
 import { PageHead, Seg, StackedBars } from "../ui.js";
 
 const RANGES = [7, 14, 30, 90].map(period);
@@ -67,7 +68,7 @@ export function Activity() {
           <div className="card-head">
             <h2>Models</h2>
           </div>
-          <div className="table-wrap">
+          <StackTable>
             <table>
               <thead>
                 <tr>
@@ -83,14 +84,29 @@ export function Activity() {
                   <tr key={`${m.provider}/${m.model}`}>
                     <td className="mono">{m.model}</td>
                     <td className="muted">{m.provider}</td>
-                    <td className="num">{num(m.calls)}</td>
-                    <td className="num">{compact(m.tokensIn)}</td>
-                    <td className="num">{compact(m.tokensOut)}</td>
+                    <td className="num">
+                      <span className="cell-name" aria-hidden="true">
+                        Requests
+                      </span>
+                      {num(m.calls)}
+                    </td>
+                    <td className="num">
+                      <span className="cell-name" aria-hidden="true">
+                        Input
+                      </span>
+                      {compact(m.tokensIn)}
+                    </td>
+                    <td className="num">
+                      <span className="cell-name" aria-hidden="true">
+                        Output
+                      </span>
+                      {compact(m.tokensOut)}
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
+          </StackTable>
         </div>
       )}
 
@@ -102,7 +118,7 @@ export function Activity() {
           )}
         </div>
         {usage && usage.calls.length > 0 ? (
-          <div className="table-wrap">
+          <StackTable>
             <table>
               <thead>
                 <tr>
@@ -130,14 +146,24 @@ export function Activity() {
                         </span>
                       )}
                     </td>
-                    <td className="num">{num(c.tokensIn)}</td>
-                    <td className="num">{num(c.tokensOut)}</td>
+                    <td className="num">
+                      <span className="cell-name" aria-hidden="true">
+                        In
+                      </span>
+                      {num(c.tokensIn)}
+                    </td>
+                    <td className="num">
+                      <span className="cell-name" aria-hidden="true">
+                        Out
+                      </span>
+                      {num(c.tokensOut)}
+                    </td>
                     <td className="num">{(c.ms / 1000).toFixed(1)}s</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
+          </StackTable>
         ) : (
           <div className="empty">No requests yet.</div>
         )}

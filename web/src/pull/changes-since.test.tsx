@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PullPage } from "../pages/PullPage.js";
+import { ToastProvider } from "../toast.js";
 
 afterEach(() => {
   cleanup();
@@ -78,7 +79,11 @@ function show(answer: (from: string | null) => unknown) {
       return Response.json({ enabled: false, entry: null });
     }),
   );
-  render(<PullPage platform="github" repo="octo/api" number="7" />);
+  render(
+    <ToastProvider>
+      <PullPage platform="github" repo="octo/api" number="7" />
+    </ToastProvider>,
+  );
   return asked;
 }
 
