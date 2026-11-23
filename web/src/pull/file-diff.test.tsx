@@ -1,10 +1,13 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import type { LineComment } from "../../../src/shared/index.js";
 import type { DiffLayout } from "./diff-rows.js";
 import { FileDiff } from "./file-diff.js";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 const PATCH = [
   "@@ -52,4 +52,4 @@",
@@ -24,9 +27,20 @@ const file = (path = "src/refunds/partial.ts") => ({
   viewed: false,
 });
 
-const show = (layout: DiffLayout, onComment = vi.fn<(c: LineComment) => void>(), path?: string) =>
+const HEAD = "a".repeat(40);
+const show = (
+  layout: DiffLayout,
+  onComment = vi.fn<(c: LineComment) => void>(),
+  path?: string,
+  context = false,
+) =>
   render(
     <FileDiff
+      context={
+        context
+          ? { pull: { platform: "github", repo: "acme/pay", number: 4 }, head: HEAD }
+          : undefined
+      }
       file={file(path)}
       layout={layout}
       viewed={false}
@@ -85,4 +99,60 @@ it("folds a lock file and names it, one click from its diff", () => {
   expect(document.querySelector("table")).toBeNull();
   fireEvent.click(head);
   expect(document.querySelector("table")).not.toBeNull();
+});
+
+it("shows the lines left out above a hunk, read at the head, numbered on both sides", async () => {
+  const asked: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      asked.push(url);
+      const q = new URL(url, "http://x").searchParams;
+      const from = Number(q.get("from"));
+      const to = Number(q.get("to"));
+      return Response.json({
+        path: q.get("path"),
+        head: q.get("head"),
+        from,
+        lines: Array.from({ length: to - from + 1 }, (_, i) => `kept ${from + i}`),
+        total: 80,
+      });
+    }),
+  );
+  show("unified", undefined, undefined, true);
+  expect(screen.getByText("51 hidden")).toBeTruthy();
+  // Nothing comes before the first hunk, so its gap only opens upward; the end only downward.
+  expect(screen.getAllByRole("button", { name: /below the change above/ })).toHaveLength(1);
+  expect(screen.getAllByRole("button", { name: /above the change below/ })).toHaveLength(1);
+  fireEvent.click(screen.getByRole("button", { name: "Show 20 lines above the change below" }));
+  await waitFor(() => expect(screen.getByText("kept 51")).toBeTruthy());
+  expect(asked).toEqual([
+    `/api/pulls/lines?platform=github&repo=acme%2Fpay&number=4&head=${HEAD}&path=src%2Frefunds%2Fpartial.ts&from=32&to=51`,
+  ]);
+  expect(screen.getByText("31 hidden")).toBeTruthy();
+  const row = screen.getByText("kept 51").closest("tr");
+  expect([...(row?.querySelectorAll(".diff-no") ?? [])].map((c) => c.textContent)).toEqual([
+    "51",
+    "51",
+  ]);
+});
+
+it("leaves an added file without gaps to open", () => {
+  render(
+    <FileDiff
+      context={{ pull: { platform: "github", repo: "acme/pay", number: 4 }, head: HEAD }}
+      file={{ ...file(), status: "added" }}
+      layout="unified"
+      viewed={false}
+      onViewed={() => undefined}
+      pending={[]}
+      onComment={() => undefined}
+      onDrop={() => undefined}
+      findings={[]}
+      review={null}
+      fixes={[]}
+      onFixDone={() => undefined}
+    />,
+  );
+  expect(screen.queryByRole("button", { name: /Show/ })).toBeNull();
 });

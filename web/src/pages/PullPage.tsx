@@ -329,6 +329,7 @@ export function PullPage(props: {
               <FileDiff
                 key={`${since.picked ?? ""}:${f.path}`}
                 layout={layout.drawn}
+                context={{ pull: ref, head: data.head }}
                 readOnly={narrowed !== null}
                 file={f}
                 viewed={viewed.isViewed(f.path)}

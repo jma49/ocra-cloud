@@ -6,6 +6,7 @@ import type {
   PullFilesView,
   PullFindingView,
 } from "../../../src/shared/index.js";
+import { type ContextSource, useContextLines } from "./context-lines.js";
 import { anchorOf, type DiffLine, parsePatch, placeOnLines, splitPath } from "./diff.js";
 import { DiffRowView, type LineLook } from "./diff-row.js";
 import { chunksOf, type DiffLayout, type DiffRow, linesOfRow, rowsOf } from "./diff-rows.js";
@@ -38,6 +39,11 @@ const RUN = 48;
 const ROW_PX = 22;
 const NOTE_PX = 160;
 
+const keyOf = (line: DiffLine | undefined) => {
+  const a = line && anchorOf(line);
+  return a ? `${a.side}:${a.line}` : null;
+};
+
 const sameAnchor = (c: LineComment, path: string, line: DiffLine | undefined) => {
   const a = line && anchorOf(line);
   return Boolean(a) && c.path === path && c.line === a?.line && c.side === a?.side;
@@ -61,9 +67,15 @@ export function FileDiff(props: {
   onFixDone: (outcome: PullActionOutcome) => void;
   /** Shows the diff without a way to comment on its lines. */
   readOnly?: boolean;
+  /** Where the lines the diff left out are read; without it they stay out. */
+  context?: ContextSource | undefined;
 }) {
   const { file, layout } = props;
-  const lines = useMemo(() => (file.patch ? parsePatch(file.patch) : []), [file.patch]);
+  const parsed = useMemo(() => (file.patch ? parsePatch(file.patch) : []), [file.patch]);
+  // Only a file on both sides has unchanged lines to show around its changes.
+  const both = file.status === "modified" || file.status === "renamed";
+  const shown = useContextLines(parsed, file.path, both ? props.context : undefined);
+  const { lines } = shown;
   const words = useMemo(() => wordChanges(lines), [lines]);
   const rows = useMemo(() => rowsOf(lines, layout), [lines, layout]);
   const fixesAt = useMemo(() => placeOnLines(lines, props.fixes), [lines, props.fixes]);
@@ -79,7 +91,8 @@ export function FileDiff(props: {
   useEffect(() => {
     if (props.viewed) setFolded(true);
   }, [props.viewed]);
-  const [open, setOpen] = useState<number | null>(null);
+  // The line a comment is being written on, by its anchor: opening lines around it moves its index.
+  const [openKey, setOpenKey] = useState<string | null>(null);
   const section = useRef<HTMLElement>(null);
   const [near, setNear] = useState(false);
   useEffect(() => {
@@ -101,12 +114,22 @@ export function FileDiff(props: {
       live = false;
     };
   }, [folded, near, file.path, lines]);
+  const found = openKey === null ? -1 : lines.findIndex((l) => keyOf(l) === openKey);
+  const open = found < 0 ? null : found;
   const columns = layout === "split" ? 4 : 3;
   const look: LineLook = {
     lines,
     runs,
     words,
-    onOpen: props.readOnly ? undefined : (at) => setOpen(open === at ? null : at),
+    onOpen: props.readOnly
+      ? undefined
+      : (at) => {
+          const key = keyOf(lines[at]);
+          setOpenKey(key === openKey ? null : key);
+        },
+    gaps: shown.open,
+    expand: shown.expand,
+    busy: shown.busy,
   };
   const notes: Notes = {
     findingsAt: props.review ? findingsAt : NO_NOTES,
@@ -130,9 +153,9 @@ export function FileDiff(props: {
             columns={columns}
             onAdd={(c) => {
               props.onComment(c);
-              setOpen(null);
+              setOpenKey(null);
             }}
-            onCancel={() => setOpen(null)}
+            onCancel={() => setOpenKey(null)}
           />
         )}
       </Fragment>
