@@ -162,7 +162,7 @@ const ROUTES: readonly Route[] = [
     place: "insights",
     tab: "Usage",
     loads: keysAndProviders,
-    page: (me) => <Overview login={me.login} />,
+    page: () => <Overview />,
   },
   {
     path: "/agents",
