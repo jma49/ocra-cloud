@@ -97,13 +97,22 @@ describe("Markdown", () => {
   // 22 spans: enough for a pattern that doubles its work per span to take seconds.
   it("reads emphasis that never closes in no time, whatever it holds", { timeout: 60_000 }, () => {
     const started = performance.now();
-    for (const part of ["`a` ", "[a](b) ", "[ ` ", "_a "]) {
+    for (const part of ["`a` ", "`` `a` `` ", "`` a ", "[a](b) ", "[ ` ", "_a "]) {
       const text = `_${part.repeat(22)}`;
       const { container } = render(<Markdown links text={`${text}\n\n*${part.repeat(22)}`} />);
       expect(container.querySelector("em")).toBeNull();
       cleanup();
     }
     expect(performance.now() - started).toBeLessThan(2000);
+  });
+
+  it("reads a code span fenced by two backticks, and no emphasis out of the marks around it", () => {
+    const { container } = render(
+      <Markdown text={"Input is `_` then `` `a` `` with no closing `_`; `*` too. Used ``a`b``."} />,
+    );
+    expect(container.querySelector("em")).toBeNull();
+    const codes = [...container.querySelectorAll("code")].map((c) => c.textContent);
+    expect(codes).toEqual(["_", "`a`", "_", "*", "a`b"]);
   });
 
   it("keeps a stray backtick or bracket inside emphasis as written", () => {

@@ -81,14 +81,16 @@ function blocks(source: string): Block[] {
 // Code and a link keep their own `_` and `*`: emphasis runs around them, not into them.
 const CODE_REST = "[^`\\n]+`";
 const LINK_REST = "[^\\]\\n]+\\]\\([^)\\s]+\\)";
-const A_CODE = `\`${CODE_REST}`;
+// A span fenced by two backticks holds single ones: `` `a` ``.
+const WIDE_REST = "`(?:[^`\\n]|`(?!`))+``";
+const A_CODE = `(?:\`${WIDE_REST}|\`${CODE_REST})`;
 const A_LINK = `\\[${LINK_REST}`;
 // Each character has one way to match: a backtick or a bracket counts on its
 // own only where it opens no code or link. Two ways each would double the
 // work per span on text that never closes its emphasis, and a description is
 // anyone's text.
 const within = (mark: string) =>
-  `(?:${A_CODE}|${A_LINK}|[^${mark}\`\\[\\n]|\`(?!${CODE_REST})|\\[(?!${LINK_REST}))+`;
+  `(?:${A_CODE}|${A_LINK}|[^${mark}\`\\[\\n]|\`(?!${CODE_REST}|${WIDE_REST})|\\[(?!${LINK_REST}))+`;
 const INLINE = new RegExp(
   `(${A_CODE}|(?<!!)${A_LINK}|\\*\\*(?!\\s)[^*\\n]+(?<!\\s)\\*\\*` +
     `|(?<![\\w*])\\*(?!\\s)${within("*")}(?<!\\s)\\*(?![\\w*])` +
@@ -103,11 +105,18 @@ function httpsAddress(written: string): string | null {
   return url.protocol === "https:" ? url.href : null;
 }
 
+function codeText(span: string): string {
+  if (!span.startsWith("``")) return span.slice(1, -1);
+  const held = span.slice(2, -2);
+  const padded = held.startsWith(" ") && held.endsWith(" ") && held.trim() !== "";
+  return padded ? held.slice(1, -1) : held;
+}
+
 function inline(text: string, links: boolean): ReactNode[] {
   return text.split(INLINE).map((part, i) => {
     const key = `${i}:${part}`;
     if (i % 2 === 0) return part;
-    if (part.startsWith("`")) return <code key={key}>{part.slice(1, -1)}</code>;
+    if (part.startsWith("`")) return <code key={key}>{codeText(part)}</code>;
     const link = LINK.exec(part);
     if (link) {
       const href = links ? httpsAddress(link[2] ?? "") : null;
