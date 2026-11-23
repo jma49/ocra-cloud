@@ -131,7 +131,10 @@ export function AutoReview(props: { platforms: readonly CodePlatformKind[] }) {
                           {r.accessTokenBot && ` · as ${r.accessTokenBot}`}
                         </div>
                         {r.paused && (
-                          <div className="error-inline small">{pausedWhy(r.paused)}</div>
+                          <div className="small repo-paused">
+                            <span className="badge badge-warn">Paused</span>{" "}
+                            <span className="subtle">{pausedWhy(r.paused)}</span>
+                          </div>
                         )}
                       </td>
                       <td>

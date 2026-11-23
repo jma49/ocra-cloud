@@ -14,11 +14,12 @@ export const givenUp = (error: string | null): string | undefined =>
 
 export const jobError = (error: string): string => givenUp(error) ?? error;
 
+/** Why a repository's reviews are paused and what lifts the pause, after a "Paused" badge. */
 const PAUSED: Record<RepoPause, string> = {
-  removed: "Paused: removed from the GitHub App. Add it back to resume",
-  deleted: "Paused: the repository was deleted",
-  suspended: "Paused: the GitHub App's installation is suspended",
-  uninstalled: "Paused: the GitHub App was uninstalled. Install it again to resume",
+  removed: "It was removed from the GitHub App. Reviews resume when it is added back.",
+  deleted: "The repository was deleted on GitHub.",
+  suspended: "The GitHub App's installation is suspended. Reviews resume when it is unsuspended.",
+  uninstalled: "The GitHub App was uninstalled. Reviews resume when it is installed again.",
 };
 
 export const pausedWhy = (paused: RepoPause): string => PAUSED[paused];

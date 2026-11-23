@@ -1513,6 +1513,10 @@ td.finding-cell {
     gap: 8px 16px;
   }
 }
+.repo-paused {
+  max-width: 44ch;
+  margin-top: 4px;
+}
 .enroll-pick {
   align-items: center;
 }
