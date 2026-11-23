@@ -14,7 +14,7 @@ import { AutoEnroll } from "../auto-review/auto-enroll.js";
 import { AutomaticSwitch } from "../auto-review/automatic-switch.js";
 import { BulkEnroll } from "../auto-review/bulk-enroll.js";
 import { Hook } from "../auto-review/hook-card.js";
-import { jobError } from "../auto-review/job-error.js";
+import { jobError, pausedWhy } from "../auto-review/job-error.js";
 import { LimitReachedNotice } from "../auto-review/limit-reached.js";
 import { NoKeyNotice } from "../auto-review/no-key.js";
 import { ProfileMenu } from "../auto-review/profile-menu.js";
@@ -130,6 +130,9 @@ export function AutoReview(props: { platforms: readonly CodePlatformKind[] }) {
                           {PLATFORM_NAME[r.platform]} · {r.host}
                           {r.accessTokenBot && ` · as ${r.accessTokenBot}`}
                         </div>
+                        {r.paused && (
+                          <div className="error-inline small">{pausedWhy(r.paused)}</div>
+                        )}
                       </td>
                       <td>
                         <AutomaticSwitch r={r} />

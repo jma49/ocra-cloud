@@ -3,6 +3,7 @@ import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
 import { changedRows, type Db, first } from "./client.js";
 import { mayStart } from "./counters.js";
 import { recoverLapsed } from "./job-recovery.js";
+import { repoRuns } from "./repo-lifecycle.js";
 import { learnJobs } from "./schema.js";
 
 // The pull requests whose declined findings wait to be drafted into
@@ -114,6 +115,7 @@ export async function claimLearn(
         eq(j.state, "queued"),
         or(isNull(j.notBefore), lte(j.notBefore, now)),
         mayStart(j.accountId, dailyCalls, now),
+        repoRuns(j.reviewRepoId),
       ),
     )
     .orderBy(j.createdAt)

@@ -52,6 +52,8 @@ export type ReconcileListing = {
 export type Spent = "spent";
 
 export interface RepoReconcile {
+  /** The repository's path now, read by the platform's id; null when the platform failed or refused. */
+  name(token: string, platformRepoId: string, calls: CallBudget): Promise<string | Spent | null>;
   /** Closed or merged, changed since, newest change first, at most `pages` pages; null when the platform failed or refused. */
   closedSince(
     token: string,

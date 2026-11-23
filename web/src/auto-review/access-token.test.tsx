@@ -20,6 +20,7 @@ const REPO: AutoReviewRepoView = {
   hasAccessToken: false,
   accessTokenBot: null,
   webhookManaged: false,
+  paused: null,
   latest: null,
 };
 const WITH_TOKEN = { ...REPO, hasAccessToken: true, accessTokenBot: "project_7_bot" };

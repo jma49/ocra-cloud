@@ -3,6 +3,7 @@ import type { GenerateKind } from "../shared/index.js";
 import { changedRows, type Db, first } from "./client.js";
 import { mayStart } from "./counters.js";
 import { recoverLapsed } from "./job-recovery.js";
+import { repoRuns } from "./repo-lifecycle.js";
 import { generateJobs } from "./schema.js";
 
 // Tests or docstrings asked for on a pull request (reached through scoped()
@@ -84,6 +85,7 @@ export async function claimGenerate(
         eq(j.state, "queued"),
         or(isNull(j.notBefore), lte(j.notBefore, now)),
         mayStart(j.accountId, dailyCalls, now),
+        repoRuns(j.reviewRepoId),
       ),
     )
     .orderBy(j.createdAt)

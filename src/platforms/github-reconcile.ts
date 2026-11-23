@@ -39,6 +39,8 @@ const pull = z.object({
     .nullish(),
 });
 
+const named = z.object({ full_name: z.string().min(3).max(400) });
+
 const review = z.object({
   id: z.number(),
   user: z.object({ login: z.string(), id: z.number(), type: z.string().optional() }).nullish(),
@@ -124,6 +126,16 @@ export function githubReconcile(host: GithubHost): RepoReconcile {
   }
 
   return {
+    async name(token, platformRepoId, calls) {
+      if (!calls.has()) return "spent";
+      const answer = await platformJson<unknown>(
+        `${host.api}/repositories/${encodeURIComponent(platformRepoId)}`,
+        { headers: githubHeaders(token) },
+        MAX_PAGE_BYTES,
+      );
+      const parsed = answer?.status === 200 ? named.safeParse(answer.body) : null;
+      return parsed?.success ? parsed.data.full_name : null;
+    },
     closedSince: (token, fullName, since, pages, calls) =>
       list(token, fullName, "state=closed&sort=updated&direction=desc", pages, calls, (p) =>
         p.updatedAt ? p.updatedAt < since : false,

@@ -36,6 +36,8 @@ const mergeRequest = z.object({
   reviewers: z.array(z.object({ username: z.string(), id: z.number() })).nullish(),
 });
 
+const named = z.object({ path_with_namespace: z.string().min(3).max(400) });
+
 const approvals = z.object({
   approved_by: z
     .array(
@@ -100,6 +102,16 @@ export function gitlabReconcile(origin: string): RepoReconcile {
   }
 
   return {
+    async name(token, platformRepoId, calls) {
+      if (!calls.has()) return "spent";
+      const answer = await platformJson<unknown>(
+        `${origin}/api/v4/projects/${encodeURIComponent(platformRepoId)}`,
+        { headers: gitlabHeaders(token) },
+        MAX_PAGE_BYTES,
+      );
+      const parsed = answer?.status === 200 ? named.safeParse(answer.body) : null;
+      return parsed?.success ? parsed.data.path_with_namespace : null;
+    },
     closedSince: (token, fullName, since, pages, calls) =>
       list(
         token,

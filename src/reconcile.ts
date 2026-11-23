@@ -1,3 +1,4 @@
+import { renameRepository } from "./auto-review/lifecycle.js";
 import { type CallBudget, item, withCalls } from "./calls.js";
 import type { Db } from "./db/client.js";
 import {
@@ -17,8 +18,10 @@ import type { AppBindings } from "./types.js";
 
 // The daily reconciliation of enrolled repositories: what their webhooks
 // missed, read from the platform as the bot or else the enrolling account's
-// link. A pull request that closed with no close on record gets one; one
-// the console holds open but the platform closed gets its close; an open
+// link; a paused one is not read. A GitLab project's path is read by its
+// id first, and a GitHub repository's when its listings fail, so a rename
+// or transfer a webhook missed moves its rows (src/auto-review/lifecycle.ts). A pull request that closed with no close on record gets one;
+// one the console holds open but the platform closed gets its close; an open
 // one with no flow, or a draft state the platform changed since, is merged
 // into its flow, and the open ones changed lately get their asks of a
 // review and their reviews (./reconcile-reviews.ts). Every write is one the
@@ -111,10 +114,11 @@ export function reconcileRun(r: Reconciler, now = new Date()) {
 /** One claimed repository, read and filled in. */
 async function reconcileRepo(
   r: Reconciler,
-  repo: ReconcileTurn,
+  turn: ReconcileTurn,
   calls: CallBudget,
   now = new Date(),
 ): Promise<ReconcileOutcome> {
+  let repo = turn;
   const platform = r.platforms.find((p) => p.kind === repo.platform && p.host === repo.host);
   if (!platform) return { state: "no_platform" };
   const tokenCalls = r.bots && repo.platform === "github" ? BOT_TOKEN_CALLS : LINK_TOKEN_CALLS;
@@ -124,13 +128,32 @@ async function reconcileRepo(
   const token = bot?.token ?? (await accessToken(data, r.env, platform));
   if (!token) return { state: "no_token" };
   const read = platform.reconcile;
+  // GitLab may still answer a project's old path: its path is read by id first, within the
+  // calls a GitHub token would take. GitHub answers an old one with a redirect, not followed.
+  if (repo.platform === "gitlab") {
+    const name = await read.name(token, repo.platformRepoId, calls);
+    if (name === "spent") return { state: "cut" };
+    if (name && name !== repo.fullName) {
+      await renameRepository(r.db, platform, repo.platformRepoId, name);
+      repo = { ...repo, fullName: name };
+    }
+  }
   const since = new Date(Math.max(now.getTime() - WINDOW_MS, repo.createdAt.getTime()));
   const [closed, open] = await Promise.all([
     read.closedSince(token, repo.fullName, since, PAGES_PER_LIST, calls),
     read.open(token, repo.fullName, PAGES_PER_LIST, calls),
   ]);
   if (closed === "spent" || open === "spent") return { state: "cut" };
-  if (!closed || !open) return { state: "unreachable" };
+  if (!closed || !open) {
+    // Renamed or transferred while its webhooks were missed? The platform's id still names it;
+    // the retry later that day reads it by its new name.
+    const name =
+      repo.platform === "github" ? await read.name(token, repo.platformRepoId, calls) : null;
+    if (name && name !== "spent" && name !== repo.fullName) {
+      await renameRepository(r.db, platform, repo.platformRepoId, name);
+    }
+    return { state: "unreachable" };
+  }
   const fill = new Fill(data, repo);
 
   const closedBy = new Map<number, ReconciledPull>();

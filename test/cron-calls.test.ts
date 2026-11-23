@@ -44,7 +44,7 @@ function outside() {
         ? "inbound"
         : url.pathname === "/graphql"
           ? "stackMerges"
-          : url.origin === GITLAB || url.pathname.startsWith("/repos/")
+          : url.origin === GITLAB || /^\/repos(itories)?\//.test(url.pathname)
             ? "reconcile"
             : "other");
     byJob[job] = (byJob[job] ?? 0) + 1;

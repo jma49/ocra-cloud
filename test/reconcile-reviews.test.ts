@@ -286,8 +286,8 @@ describe("the daily reconciliation of reviews", () => {
     await account(1, [{ name: "octo/api" }]);
     const reads = platformsWith({}, false);
     for (let i = 0; i < 5; i++) await hourly();
-    // Each try lists closed and open pull requests.
-    expect(calls).toBe(3 * 2);
+    // Each try lists closed and open pull requests, then reads the repository's name by its id.
+    expect(calls).toBe(3 * 3);
     expect(reads).toEqual([]);
   });
 

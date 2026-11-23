@@ -20,6 +20,7 @@ const REPO: AutoReviewRepoView = {
   hasAccessToken: false,
   accessTokenBot: null,
   webhookManaged: false,
+  paused: null,
   latest: null,
 };
 const URL = "https://ocra.example.com/api/auto-review/webhooks/gitlab";

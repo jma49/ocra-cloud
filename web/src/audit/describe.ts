@@ -59,6 +59,9 @@ export const KIND_GROUPS: { label: string; kinds: [AuditKind, string][] }[] = [
       ["auto_review.automatic_changed", "Automatic review switched"],
       ["auto_review.learn_changed", "Learning from declined findings changed"],
       ["auto_review.unenrolled", "Repository unenrolled"],
+      ["auto_review.renamed", "Repository renamed"],
+      ["auto_review.paused", "Repository paused"],
+      ["auto_review.resumed", "Repository resumed"],
       ["auto_review.access_token_set", "GitLab access token given"],
       ["auto_review.access_token_cleared", "GitLab access token removed"],
       ["auto_review.webhook_added", "GitLab webhook added"],
@@ -216,6 +219,12 @@ export function describe(e: AuditEventView): string {
       return `Set learning from declined findings${noted(e.detail.learn, " to ", "")} for ${named(e.detail.repo, "a repository")}`;
     case "auto_review.unenrolled":
       return `Stopped automatic review of ${named(e.detail.repo, "a repository")}`;
+    case "auto_review.renamed":
+      return `Followed ${named(e.detail.previous, "a repository")} to its new name${noted(e.detail.repo, " ", "")}`;
+    case "auto_review.paused":
+      return `Paused automatic review of ${named(e.detail.repo, "a repository")}${noted(e.detail.reason, ": ", "")}`;
+    case "auto_review.resumed":
+      return `Resumed automatic review of ${named(e.detail.repo, "a repository")}`;
     case "auto_review.access_token_set":
       return `Gave ${named(e.detail.repo, "a repository")} a GitLab access token${noted(e.detail.bot, " of ", "")}`;
     case "auto_review.access_token_cleared":
