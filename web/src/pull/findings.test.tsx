@@ -67,3 +67,22 @@ it("draws none without the review they are of", () => {
   show([finding({})], null);
   expect(screen.queryByText("Logs the amount")).toBeNull();
 });
+
+it("gives a file without lines no counts in its head", () => {
+  render(
+    <FileDiff
+      file={{ ...file, path: "logo.png", additions: 0, deletions: 0, patch: null }}
+      viewed={false}
+      onViewed={() => undefined}
+      pending={[]}
+      onComment={() => undefined}
+      onDrop={() => undefined}
+      findings={[]}
+      review={null}
+      onDecided={() => undefined}
+      fixes={[]}
+      onFixDone={() => undefined}
+    />,
+  );
+  expect(document.querySelector(".diff-count")).toBeNull();
+});
