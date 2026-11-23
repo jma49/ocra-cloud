@@ -101,6 +101,10 @@ async function inCheckout(machine: Machine, work: Assignment, signal: AbortSigna
       mode: 0o600,
     });
     await writeFile(join(credentials, "upload-salt"), `${work.uploadSalt}\n`, { mode: 0o600 });
+    // The CLI sends findings only from a machine that agreed to, which `ocra
+    // login` records there. This run's machine is the server, which keeps what
+    // it is sent only while the account keeps hosted findings.
+    await writeFile(join(credentials, "share-findings"), "on\n", { mode: 0o600 });
     const auth = gitAuth(repo.platform, bot);
     const cloned = await exec(
       "git",
