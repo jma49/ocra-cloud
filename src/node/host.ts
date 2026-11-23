@@ -11,6 +11,7 @@ import { CallBudget } from "../calls.js";
 import type { Db } from "../db/client.js";
 import { retryInbound } from "../inbound/run.js";
 import { masterKeys } from "../keyring.js";
+import { sweepMergeIntents } from "../merge-when-ready/advance.js";
 import { runAtRisk } from "../notify/at-risk.js";
 import { runDigests } from "../notify/digest.js";
 import type { Mailer } from "../notify/email.js";
@@ -192,6 +193,20 @@ export async function openHost(options: HostOptions) {
       const platforms = platformsOf(bindings, options.publicUrl);
       return retryAutomations({ db: shared, bots, platforms });
     },
+    /** Reads again the merge-when-ready intents their webhooks left armed; how many it tried. */
+    mergeIntents: () =>
+      sweepMergeIntents({
+        db: shared,
+        env: bindings,
+        platforms: platformsOf(bindings, options.publicUrl ?? "http://localhost"),
+        out: {
+          keys: masterKeys(bindings),
+          mailer: options.mailer,
+          linkSecret: bindings.SESSION_SECRET,
+          origin: origin ?? "http://localhost",
+          webhooks: webhookPost,
+        },
+      }),
     /** Moves on the stack merges left waiting; how many it tried. */
     stackMerges: () =>
       sweepStackMerges({

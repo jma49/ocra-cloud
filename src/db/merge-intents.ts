@@ -1,7 +1,7 @@
-import { and, eq, inArray, isNotNull, lt, or, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, lt, or, sql } from "drizzle-orm";
 import type { MergeIntentReason, MergeIntentState } from "../shared/index.js";
 import { changedRows, type Db, first } from "./client.js";
-import { mergeIntents } from "./schema.js";
+import { mergeIntents, reviewRepos } from "./schema.js";
 
 // The account's merge-when-ready intents (reached through scoped()). One
 // row per pull request, armed again in place; the merge is taken by the
@@ -138,6 +138,23 @@ export function accountMergeIntents(db: Db, accountId: string) {
       return changedRows(back) > 0;
     },
 
+    /**
+     * Gives a claim back as the intent was before it (what it waited on, when
+     * it was last read): one the run's calls cut short was not read, so the
+     * next sweep takes it first.
+     */
+    async giveBack(
+      id: string,
+      claim: Date,
+      was: Pick<MergeIntent, "reason" | "updatedAt">,
+    ): Promise<boolean> {
+      const back = await db
+        .update(t)
+        .set({ state: "armed", reason: was.reason, claimedAt: null, updatedAt: was.updatedAt })
+        .where(claimedBy(id, claim));
+      return changedRows(back) > 0;
+    },
+
     /** Ends an intent the caller claimed; whether it was still its claim. */
     async finish(
       id: string,
@@ -181,4 +198,36 @@ export function accountMergeIntents(db: Db, accountId: string) {
       return changedRows(moved) > 0;
     },
   };
+}
+
+/**
+ * The intents a sweep reads again, across accounts, those untouched longest
+ * first: server-kept ones on a repository still enrolled, armed and not
+ * moved for `idleMs`, or held by a merge whose claim lapsed.
+ */
+export function dueMergeIntents(
+  db: Db,
+  now: Date,
+  idleMs: number,
+  limit: number,
+): Promise<MergeIntent[]> {
+  const t = mergeIntents;
+  const r = reviewRepos;
+  const idle = new Date(now.getTime() - idleMs);
+  const lapsed = new Date(now.getTime() - MERGE_LEASE_MS);
+  return db
+    .select()
+    .from(t)
+    .where(
+      and(
+        eq(t.mode, "server"),
+        or(
+          and(eq(t.state, "armed"), lt(t.updatedAt, idle)),
+          and(eq(t.state, "merging"), isNotNull(t.claimedAt), lt(t.claimedAt, lapsed)),
+        ),
+        sql`EXISTS (SELECT 1 FROM ${r} WHERE ${r.accountId} = ${t.accountId} AND ${r.platform} = ${t.platform} AND ${r.host} = ${t.host} AND lower(${r.fullName}) = ${t.fullName})`,
+      ),
+    )
+    .orderBy(asc(t.updatedAt))
+    .limit(limit);
 }

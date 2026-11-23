@@ -110,6 +110,14 @@ const inboundRetries = () =>
   host.inboundRetries().catch((err) => logError("inbound_retry_failed", { error: errorName(err) }));
 setInterval(inboundRetries, 60_000).unref();
 
+// A minute apart: an armed merge-when-ready intent its webhooks left alone for
+// a quarter of an hour is read again (src/merge-when-ready/advance.ts).
+const mergeIntents = () =>
+  host
+    .mergeIntents()
+    .catch((err) => logError("merge_intent_sweep_failed", { error: errorName(err) }));
+setInterval(mergeIntents, 60_000).unref();
+
 // A minute apart: a stack merge whose webhooks did not come is read again after a minute.
 const stackMerges = () =>
   host

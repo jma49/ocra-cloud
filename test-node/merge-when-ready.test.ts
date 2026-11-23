@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { hmacHex } from "../src/crypto.js";
 import { MERGE_LEASE_MS } from "../src/db/merge-intents.js";
+import * as schema from "../src/db/schema.js";
 import { scoped } from "../src/db/scoped.js";
 import { GITHUB_COM } from "../src/platforms/github-host.js";
 import { repoIdentity } from "../src/platforms/platform.js";
@@ -341,5 +342,22 @@ describe("merge when ready", () => {
       state: "armed",
       head: C2,
     });
+  });
+
+  it("is merged by the server's sweep when the check's webhook never came", async () => {
+    pull.allowed = false;
+    const { auth } = await me(true);
+    expect((await arm(auth)).intent).toMatchObject({ state: "armed", reason: "waiting_platform" });
+    pull.state = "CLEAN";
+    // Moved a moment ago: its webhooks may still come.
+    expect(await s.host.mergeIntents()).toBe(0);
+    expect(merges).toEqual([]);
+    await s.host.db
+      .update(schema.mergeIntents)
+      .set({ updatedAt: new Date(Date.now() - 3_600_000) });
+    expect(await Promise.all([s.host.mergeIntents(), s.host.mergeIntents()])).toEqual([1, 1]);
+    expect((await view(auth)).intent?.state).toBe("merged");
+    expect(merges).toEqual([{ merge_method: "squash", sha: C1 }]);
+    expect(await s.host.mergeIntents()).toBe(0);
   });
 });
