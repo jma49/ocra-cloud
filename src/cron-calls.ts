@@ -6,8 +6,9 @@ import { errorName, logError } from "./log.js";
 // apart), and a run that makes more fails. Each job first runs within its
 // share, all at once; then each job that wanted more runs again, one after
 // another in the order below, on what the others left. The work that can
-// wait comes last, so it yields first: the stack merges (their webhooks move
-// them, the sweep only picks up what they missed) and the daily
+// wait comes last, so it yields first: the armed merge-when-ready intents
+// and the stack merges (their webhooks move them, the sweeps only pick up
+// what they missed) and the daily
 // reconciliation (a repository not read this hour is read in a later one).
 
 /** The calls one scheduled run makes at most, safely under the plan's 50. */
@@ -22,8 +23,9 @@ export const WORKER_SHARES = {
   atRisk: 3,
   digests: 3,
   reports: 3,
-  stackMerges: 6,
-  reconcile: 8,
+  mergeIntents: 4,
+  stackMerges: 4,
+  reconcile: 6,
 } as const;
 
 export type CronJobName = keyof typeof WORKER_SHARES;

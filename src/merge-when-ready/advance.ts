@@ -1,7 +1,9 @@
 import { audit } from "../audit.js";
+import { type CallBudget, callsRefused, uncapped } from "../calls.js";
 import type { Db } from "../db/client.js";
-import type { MergeIntent } from "../db/merge-intents.js";
-import type { Row, Scoped } from "../db/scoped.js";
+import { dueMergeIntents, type MergeIntent } from "../db/merge-intents.js";
+import { type Row, type Scoped, scoped } from "../db/scoped.js";
+import { errorName, logError } from "../log.js";
 import { evaluatePull, headReview } from "../merge-checks/run.js";
 import type { Outbox } from "../notify/notify.js";
 import { tellOwnPullEvent } from "../notify/pull-events.js";
@@ -15,7 +17,8 @@ import type { AppBindings } from "../types.js";
 // merges it, merged as the user through the pull request page's own merge
 // (which names the head), or given back saying what it still waits on.
 // What ends it is kept on the row, in the audit log, and told to the
-// channels that hear about it.
+// channels that hear about it. The webhooks move it; a sweep reads again
+// the ones they left armed (a delivery the platform never sent).
 
 export type MergeRunner = {
   db: Db;
@@ -102,13 +105,17 @@ export async function advance(
   if (intent.mode !== "server") return intent;
   const claim = await intents.claim(intent.id, intent.head, now);
   if (!claim) return intents.of(intent, intent.number);
+  // A call the run's budget refused (src/calls.ts) is no answer: the intent
+  // goes back as it was, never ended or said to wait on what was not read.
+  const cut = () => callsRefused() && intents.giveBack(intent.id, claim, intent);
   const end = async (state: Ended, reason: MergeIntentReason | null) => {
+    if (state !== "merged" && (await cut())) return;
     if (await intents.finish(intent.id, claim, state, reason, now)) {
       await recordEnd(scope, intent, state, reason);
     }
   };
-  const wait = (reason: MergeIntentReason, head?: string) =>
-    intents.release(intent.id, claim, reason, now, head);
+  const wait = async (reason: MergeIntentReason, head?: string) =>
+    (await cut()) || intents.release(intent.id, claim, reason, now, head);
   const moved = async (head: string) =>
     intent.keepOnPush ? wait("waiting_platform", head) : end("disarmed", "head_moved");
   try {
@@ -151,4 +158,42 @@ export async function advance(
     throw e;
   }
   return intents.of(intent, intent.number);
+}
+
+/** Intents a sweep reads; the rest wait for the next. */
+const PER_SWEEP = 20;
+/** An armed intent the webhooks have not moved for this long is read again. */
+const SWEEP_IDLE_MS = 15 * 60_000;
+/** What reading one takes at most past the link's token: the pull request, its checks' facts, the methods, the merge. */
+const FEWEST_CALLS = 4;
+
+/**
+ * Reads again the armed intents untouched longest, across accounts, while
+ * `calls` has room for one more; how many it tried. One its calls cut short
+ * is given back as it was, and ends the sweep.
+ */
+export async function sweepMergeIntents(
+  runner: MergeRunner,
+  now = new Date(),
+  calls: CallBudget = uncapped(),
+): Promise<number> {
+  const due = await dueMergeIntents(runner.db, now, SWEEP_IDLE_MS, PER_SWEEP);
+  let tried = 0;
+  for (const intent of due) {
+    if (calls.refused > 0 || !calls.has(FEWEST_CALLS)) break;
+    tried++;
+    const platform = runner.platforms.find(
+      (p) => p.kind === intent.platform && p.host === intent.host,
+    );
+    if (!platform) continue;
+    const data = scoped(runner.db, intent.accountId);
+    const repo = await data.mergeChecks.enrolledRepo(platform.kind, platform.host, intent.fullName);
+    if (!repo) continue;
+    try {
+      await advance({ runner, data, platform, repo }, intent, now);
+    } catch (e) {
+      logError("merge_when_ready_failed", { repo: repo.id, error: errorName(e) });
+    }
+  }
+  return tried;
 }

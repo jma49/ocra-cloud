@@ -16,6 +16,12 @@ describe("the scheduled run's budget", () => {
     const shares = Object.values(WORKER_SHARES).reduce((a, b) => a + b, 0);
     expect(shares).toBe(WORKER_CALLS);
     expect(WORKER_CALLS).toBeLessThanOrEqual(45);
+    // What webhooks move and a sweep only picks up comes last, so it yields first.
+    expect(Object.keys(WORKER_SHARES).slice(-3)).toEqual([
+      "mergeIntents",
+      "stackMerges",
+      "reconcile",
+    ]);
   });
 
   it("gives a job that wanted more what the others left, the waiting work last", async () => {
