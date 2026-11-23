@@ -10,6 +10,7 @@ import { sweepGroupsRun } from "../auto-review/group-sweep.js";
 import { retryAutomations } from "../automations/retry.js";
 import { runStale } from "../automations/stale.js";
 import { CallBudget } from "../calls.js";
+import { config } from "../config.js";
 import type { Db } from "../db/client.js";
 import { retryInbound } from "../inbound/run.js";
 import { masterKeys } from "../keyring.js";
@@ -210,7 +211,7 @@ export async function openHost(options: HostOptions) {
         runScheduledReports(shared, out, platformsOf(bindings, origin)),
         runReminders(shared, out, githubHostOf(bindings).host),
         runHeld(shared, out),
-        runAtRisk(shared, out),
+        runAtRisk(shared, out, config(bindings).retentionDays),
         runStale({
           db: shared,
           bots,

@@ -3,7 +3,6 @@ import type { CodePlatformKind } from "../shared/index.js";
 import { DAY } from "../time.js";
 import { changedRows, type Db, first } from "./client.js";
 import { jsonRecords, randomId } from "./dialect.js";
-import { RETENTION_DAYS } from "./retention.js";
 import { accounts, pullSeen } from "./schema.js";
 
 // When the account last saw each pull request, for the inbox's unread
@@ -39,7 +38,7 @@ export function accountPullSeen(db: Db, accountId: string) {
      * session's copy), or the retention cutoff when later, since a mark
      * deleted for age was seen before it, and so was the updated_at it kept.
      */
-    async baseline(kept: Date | null, now = Date.now()): Promise<number> {
+    async baseline(kept: Date | null, retentionDays: number, now = Date.now()): Promise<number> {
       const a = accounts;
       let since = kept;
       if (since === null) {
@@ -51,7 +50,7 @@ export function accountPullSeen(db: Db, accountId: string) {
         since =
           first(await db.select({ at: a.inboxSince }).from(a).where(own))?.at ?? new Date(now);
       }
-      return Math.max(since.getTime(), now - RETENTION_DAYS * DAY);
+      return Math.max(since.getTime(), now - retentionDays * DAY);
     },
 
     /**

@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
+import { config } from "./config.js";
 import { repoName } from "./cycles.js";
-import { RETENTION_DAYS } from "./db/retention.js";
 import { DEFAULT_SCOPE, type OpenPull } from "./db/review-targets.js";
 import type { Row, Scoped } from "./db/scoped.js";
 import { apiError, jsonBody } from "./http.js";
@@ -111,10 +111,15 @@ function pullsAtRisk(
 }
 
 /** What the account's targets put at risk now, of repoIds or every enrolled repository. */
-export async function readAtRisk(data: Scoped, repoIds: readonly string[] | null, now: number) {
+export async function readAtRisk(
+  data: Scoped,
+  repoIds: readonly string[] | null,
+  now: number,
+  retentionDays: number,
+) {
   const targets = await targetsByRepo(data);
   if (!targets.set) return { set: false, found: [] as AtRisk[], capped: false };
-  const since = new Date(now - RETENTION_DAYS * DAY);
+  const since = new Date(now - retentionDays * DAY);
   const pulls = await data.reviewTargets.openPulls(since, repoIds, CAP);
   return { set: true, found: pullsAtRisk(pulls, targets.of, now), capped: pulls.length >= CAP };
 }
@@ -131,7 +136,12 @@ atRiskRoute.get("/", requireSession(["web"]), async (c) => {
     repoIds = (await data.find("reviewRepos", { fullName: repo.data }, 10)).map((r) => r.id);
     if (repoIds.length === 0) return apiError(c, "not_found");
   }
-  const { set, found, capped } = await readAtRisk(data, repoIds, Date.now());
+  const { set, found, capped } = await readAtRisk(
+    data,
+    repoIds,
+    Date.now(),
+    config(c.env).retentionDays,
+  );
   const listed = found.slice(0, LISTED);
   const asks = await data.reviewTargets.waitingOn(listed.map((a) => a.pull));
   const waiting = new Map<string, string[]>();

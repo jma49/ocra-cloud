@@ -314,7 +314,7 @@ describe("query plans", () => {
 
   it("the inbox sets and reads its baseline by the account's primary key", async () => {
     const seen: Captured[] = [];
-    await scoped(drizzle(recording(seen)), "acct").pullSeen.baseline(null);
+    await scoped(drizzle(recording(seen)), "acct").pullSeen.baseline(null, 90);
     expect(seen).toHaveLength(2);
     for (const q of seen) {
       const p = await plan(q);

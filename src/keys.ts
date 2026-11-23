@@ -2,8 +2,8 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { audit, auditRow } from "./audit.js";
 import { catalogOf } from "./catalog.js";
+import { config } from "./config.js";
 import { encryptSecret, keyBinding } from "./crypto.js";
-import { RETENTION_DAYS } from "./db/retention.js";
 import type { Scoped } from "./db/scoped.js";
 import { apiError, jsonBody } from "./http.js";
 import { decryptKey, storedKey } from "./keyring.js";
@@ -32,7 +32,7 @@ keys.get("/", async (c) => {
   const now = Date.now();
   // Last use is looked for as far back as call records are kept.
   const sums = await c.var.data.keyUse(
-    new Date(now - RETENTION_DAYS * DAY),
+    new Date(now - config(c.env).retentionDays * DAY),
     new Date(now - RECENT_DAYS * DAY),
   );
   const use = new Map(

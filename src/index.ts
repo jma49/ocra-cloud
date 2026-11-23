@@ -5,6 +5,7 @@ import { sweepGroupsRun } from "./auto-review/group-sweep.js";
 import { remoteReviews } from "./auto-review/remote.js";
 import { retryAutomations } from "./automations/retry.js";
 import { runStale } from "./automations/stale.js";
+import { config } from "./config.js";
 import { type CronJob, type CronJobName, runScheduled } from "./cron-calls.js";
 import { pruneGraphBuilds } from "./db/graphs.js";
 import { recoverJobs } from "./db/job-recovery.js";
@@ -60,7 +61,7 @@ export default {
     const db = drizzle(env.DB);
     const jobs: Partial<Record<CronJobName, CronJob>> = {};
     if (controller.cron !== HOURLY) {
-      ctx.waitUntil(enforceRetention(db));
+      ctx.waitUntil(enforceRetention(db, new Date(), config(env).retentionDays));
       ctx.waitUntil(recoverJobs(db));
       ctx.waitUntil(pruneGraphBuilds(db, graphs !== undefined));
     } else {
@@ -117,7 +118,7 @@ export default {
       };
       jobs.reminders = (calls) => runReminders(db, out, githubHostOf(env).host, undefined, calls);
       jobs.held = (calls) => runHeld(db, out, undefined, calls);
-      jobs.atRisk = (calls) => runAtRisk(db, out, undefined, calls);
+      jobs.atRisk = (calls) => runAtRisk(db, out, config(env).retentionDays, undefined, calls);
     }
     // Every job's external calls share the invocation's budget (src/cron-calls.ts).
     ctx.waitUntil(runScheduled(jobs));

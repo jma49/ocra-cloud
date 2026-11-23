@@ -1,6 +1,7 @@
 import { createPrivateKey } from "node:crypto";
 import { botSettingsFrom, gitlabReviews, runnerTokenFrom } from "../auto-review/remote.js";
 import { catalogOf } from "../catalog.js";
+import { retentionDaysOf } from "../config.js";
 import { graphPolicy } from "../graph/policy.js";
 import { githubHostOf } from "../platforms/registry.js";
 import { startingModels } from "../preferences.js";
@@ -26,6 +27,7 @@ const OPTIONAL = [
   ...SIGN_IN["OpenID Connect"],
   "OIDC_NAME",
   "SIGN_IN_ALLOW",
+  "RETENTION_DAYS",
   "MASTER_KEY_PREVIOUS",
   "GITLAB_CLIENT_ID",
   "GITLAB_CLIENT_SECRET",
@@ -80,11 +82,12 @@ export function bindingsFrom(vars: Record<string, string | undefined>): AppBindi
     ...rateLimits("memory"),
   };
   // Read once here so that a malformed GITHUB_URL, MODEL_ENDPOINTS,
-  // BUILTIN_PROVIDERS, DEFAULT_MODELS or SIGN_IN_ALLOW stops the server at
-  // start, not at a request.
+  // BUILTIN_PROVIDERS, DEFAULT_MODELS, SIGN_IN_ALLOW or RETENTION_DAYS stops
+  // the server at start, not at a request.
   githubHostOf(bindings);
   startingModels(bindings);
   allowEntriesOf(bindings.SIGN_IN_ALLOW);
+  retentionDaysOf(bindings.RETENTION_DAYS);
   return bindings;
 }
 

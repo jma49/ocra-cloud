@@ -210,15 +210,17 @@ describe("inbox baseline", () => {
       { id: "b", login: "b" },
     ]);
     const first = Date.parse(T0);
-    expect(await scoped(db, "a").pullSeen.baseline(null, first)).toBe(first);
-    expect(await scoped(db, "a").pullSeen.baseline(null, first + 1000)).toBe(first);
+    expect(await scoped(db, "a").pullSeen.baseline(null, 90, first)).toBe(first);
+    expect(await scoped(db, "a").pullSeen.baseline(null, 90, first + 1000)).toBe(first);
     const rows = await db.select().from(schema.accounts).orderBy(schema.accounts.id);
     expect(rows.map((r) => [r.id, r.inboxSince?.getTime() ?? null])).toEqual([
       ["a", first],
       ["b", null],
     ]);
     const late = first + 200 * DAY;
-    expect(await scoped(db, "a").pullSeen.baseline(new Date(first), late)).toBe(late - 90 * DAY);
+    expect(await scoped(db, "a").pullSeen.baseline(new Date(first), 90, late)).toBe(
+      late - 90 * DAY,
+    );
     const [a] = await db.select().from(schema.accounts).where(eq(schema.accounts.id, "a"));
     expect(a?.inboxSince?.getTime()).toBe(first);
   });

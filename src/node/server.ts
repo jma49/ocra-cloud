@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 import { serve } from "@hono/node-server";
+import { config } from "../config.js";
 import { pruneGraphBuilds } from "../db/graphs.js";
 import { recoverJobs } from "../db/job-recovery.js";
 import { enforceRetention } from "../db/retention.js";
@@ -74,7 +75,7 @@ if (migrate === "only") {
 
 const retention = () =>
   Promise.all([
-    enforceRetention(host.db).catch((err) =>
+    enforceRetention(host.db, new Date(), config(bindings).retentionDays).catch((err) =>
       logError("retention_failed", { error: errorName(err) }),
     ),
     recoverJobs(host.db).catch((err) =>

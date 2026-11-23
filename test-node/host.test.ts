@@ -4,6 +4,7 @@ import { join, resolve } from "node:path";
 import { count, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { API_HEADERS } from "../src/app.js";
+import { config, retentionDaysOf } from "../src/config.js";
 import { githubIdentity, upsertAccount } from "../src/db/accounts.js";
 import * as schema from "../src/db/schema.js";
 import { bindingsFrom } from "../src/node/env.js";
@@ -75,6 +76,22 @@ describe("the self-hosted server", () => {
         "MASTER_KEY_PREVIOUS must be base64 of 32 random bytes",
       );
     }
+  });
+
+  it("keeps records 90 days unless RETENTION_DAYS says otherwise, within 30 to 3650", () => {
+    expect(retentionDaysOf(undefined)).toBe(90);
+    expect(retentionDaysOf(" ")).toBe(90);
+    expect(retentionDaysOf("30")).toBe(30);
+    expect(retentionDaysOf(" 365 ")).toBe(365);
+    expect(retentionDaysOf("3650")).toBe(3650);
+    for (const bad of ["29", "3651", "0", "-90", "90.5", "1e2", "0x5a", "ninety", "99999999"]) {
+      expect(() => retentionDaysOf(bad)).toThrow("RETENTION_DAYS must be a whole number of days");
+    }
+    expect(config(bindingsFrom({ ...VARS, RETENTION_DAYS: "45" })).retentionDays).toBe(45);
+    expect(config(bindingsFrom(VARS)).retentionDays).toBe(90);
+    expect(() => bindingsFrom({ ...VARS, RETENTION_DAYS: "7" })).toThrow(
+      "RETENTION_DAYS must be a whole number of days from 30 to 3650, not 7",
+    );
   });
 
   it("refuses to start with a GITHUB_URL that is not a server's address", () => {

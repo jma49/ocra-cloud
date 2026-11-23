@@ -88,8 +88,13 @@ Without Docker: `npm ci && npm run build:web && npm run build:node`, then `node 
 | `NODE_EXTRA_CA_CERTS` | for a company certificate authority | its certificate (PEM), which the server and each review's CLI then trust; git reads the system's store or `GIT_SSL_CAINFO` (gitlab.md, Certificates and proxy) |
 | `HTTPS_PROXY`, `HTTP_PROXY`, `NO_PROXY` | behind a proxy | passed, with the certificate variables, to each review's git and CLI |
 | `METRICS_TOKEN` | for `/metrics` | the bearer token a Prometheus scrape sends (`openssl rand -hex 32`; at least 32 characters, no spaces); `/metrics` answers 404 without it (Health and metrics) |
+| `RETENTION_DAYS` | no | how many days the daily retention keeps an account's records (reviews, gateway calls, the audit log, finished jobs, read marks and the rest of Retention below): a whole number from 30 to 3650, 90 when unset. The server refuses to start with any other value. The `days` a listing accepts and the window `REVIEW_MAX_FINDINGS` counts follow it |
 | `PORT` | no | 8787 |
 | `GATEWAY_DAILY_CALLS`, `REVIEW_DAILY_UPLOADS`, `REVIEW_MAX_FINDINGS`, `DEVICE_DAILY_CODES`, `DEVICE_DAILY_CODES_PER_NETWORK` | no | the Worker's defaults (`wrangler.jsonc`) |
+
+### Retention
+
+The server deletes old records once a day (`src/db/retention.ts`). Where this document says a record is kept 90 days, it is kept `RETENTION_DAYS`: reviews and their findings, live runs, gateway calls, the audit log, merged and closed pull requests and their review flow, the inbox's read marks and index of open pull requests, review threads, finished jobs and commands, pre-merge check results, held release drafts and the daily counts. The shorter windows stay as they are, since 30 days is the least `RETENTION_DAYS` may be: an automation's runs, ended merge intents, deliveries and their claims, and a team's members (30 days), a platform's webhook deliveries (7 days), the notification centre (30 days), closed pull requests in the inbox's index (8 days). Sessions, login codes and API tokens go when they expire, whatever it says. Lowering it deletes the older records at the next daily run; raising it keeps only what was not yet deleted. The web app's data policy page states the hosted service's 90 days.
 
 Serve it over HTTPS: session cookies are `__Host-` cookies, which browsers keep only on secure origins.
 

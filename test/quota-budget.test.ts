@@ -3,7 +3,7 @@ import { createExecutionContext, waitOnExecutionContext } from "cloudflare:test"
 import { env } from "cloudflare:workers";
 import { MAX_FINDINGS } from "@open-cr-agent/cloud-contract";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { RETENTION_DAYS } from "../src/db/retention.js";
+import { DEFAULT_RETENTION_DAYS as RETENTION_DAYS } from "../src/config.js";
 import app from "../src/index.js";
 import { MAX_STREAMS, STREAM_MS } from "../src/pull-events/hub.js";
 import { DAY, utcDayStart } from "../src/time.js";

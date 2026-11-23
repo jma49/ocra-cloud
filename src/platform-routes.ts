@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { endTime, startTime, timing } from "hono/timing";
+import { config } from "./config.js";
 import { accountSalt } from "./db/accounts.js";
 import { keepsFindings } from "./findings-kept.js";
 import { apiError } from "./http.js";
@@ -140,7 +141,7 @@ platformsRoute.get("/pulls", requireSession(), perMinute("platform"), timing(), 
   const [reviewsOf, seenOf, since] = await Promise.all([
     pullVerdicts(c.var.data, listed),
     pullSeenStates(c.var.data, listed),
-    c.var.data.pullSeen.baseline(c.var.session.account.inboxSince),
+    c.var.data.pullSeen.baseline(c.var.session.account.inboxSince, config(c.env).retentionDays),
   ]);
   const repliesOf = await pullRepliesWaiting(c.var.db, c.var.data, listed, seenOf, since);
   endTime(c, "marks");

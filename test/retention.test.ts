@@ -424,6 +424,51 @@ describe("retention", () => {
     expect(await scoped(db, account.id).list("reviews")).toEqual([]);
   });
 
+  it("keeps records for the days RETENTION_DAYS sets", async () => {
+    const { account } = await signIn(1, "octo");
+    const d = scoped(db, account.id);
+    for (const [id, days] of [
+      ["day31", 31],
+      ["day29", 29],
+      ["day181", 181],
+    ] as const) {
+      await d.insert("reviews", {
+        id,
+        runId: id,
+        repoHash: "h",
+        source: "local",
+        createdAt: ago(days),
+      });
+      await d.insert("auditEvents", { id, kind: "k", createdAt: ago(days) });
+    }
+    await enforceRetention(db, now, 182);
+    expect((await d.list("reviews")).map((r) => r.id).sort()).toEqual(["day181", "day29", "day31"]);
+    await enforceRetention(db, now, 30);
+    for (const t of ["reviews", "auditEvents"] as const) {
+      expect((await d.list(t)).map((r) => r.id)).toEqual(["day29"]);
+    }
+  });
+
+  it("reads RETENTION_DAYS from the Worker's vars on the cron trigger", async () => {
+    const { account } = await signIn(1, "octo");
+    for (const [id, days] of [
+      ["kept", 150],
+      ["gone", 250],
+    ] as const) {
+      await scoped(db, account.id).insert("reviews", {
+        id,
+        runId: id,
+        repoHash: "h",
+        source: "local",
+        createdAt: new Date(Date.now() - days * DAY),
+      });
+    }
+    const ctx = createExecutionContext();
+    await worker.scheduled(createScheduledController(), { ...env, RETENTION_DAYS: "200" }, ctx);
+    await waitOnExecutionContext(ctx);
+    expect((await scoped(db, account.id).list("reviews")).map((r) => r.id)).toEqual(["kept"]);
+  });
+
   it("leaves retention to the daily cron, not the hourly one", async () => {
     const { account } = await signIn(1, "octo");
     await scoped(db, account.id).insert("reviews", {
