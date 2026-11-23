@@ -25,6 +25,7 @@ import { runScheduledReports } from "../notify/scheduled-reports.js";
 import type { WebhookPost } from "../notify/webhooks.js";
 import { botTokens } from "../platforms/bot-tokens.js";
 import { githubHostOf, platformsOf } from "../platforms/registry.js";
+import { memoryHub } from "../pull-events/hub.js";
 import { NODE_RECONCILE_CALLS, reconcileRepos } from "../reconcile.js";
 import { sweepStackMerges } from "../stack-merge/advance.js";
 import type { AppBindings } from "../types.js";
@@ -119,6 +120,7 @@ export async function openHost(options: HostOptions) {
   const bots = options.autoReview
     ? (options.autoReview.tokens ?? botTokens(options.autoReview.bots))
     : undefined;
+  const pullsHub = memoryHub();
   const api = createApp({
     openDb: () => shared,
     clientAddress: (c) => addresses.get(c.req.raw),
@@ -129,6 +131,7 @@ export async function openHost(options: HostOptions) {
     ...(options.autoReview?.runnerToken ? { runnerToken: options.autoReview.runnerToken } : {}),
     ...(options.mailer ? { mailer: options.mailer } : {}),
     webhookPost,
+    pullsHub,
     runnerHeartbeat: !!options.autoReview?.runnerToken,
   });
   const metrics = options.metrics && metricsEndpoint(shared, { ...options.metrics, startedAt });
@@ -293,10 +296,13 @@ export async function openHost(options: HostOptions) {
     /** The review worker, when auto review is on. */
     reviewWorker: reviews,
     /** Resolves once the work answered requests deferred has finished, the database still open. */
+    /** Ends the inboxes' streams, which would hold a closing server open for minutes. */
+    endStreams: () => pullsHub.endAll(),
     idle: async () => {
       while (deferred.size > 0) await Promise.allSettled(deferred);
     },
     close: () => {
+      pullsHub.endAll();
       graphs?.worker.stop();
       reviews?.stop();
       close();

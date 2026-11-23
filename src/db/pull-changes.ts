@@ -10,16 +10,19 @@ import { reviewRepos, reviews } from "./schema.js";
 
 type ReviewRepo = typeof reviewRepos.$inferSelect;
 
-/** Moves the enrolled repository's change time forward to `at`; never back. */
+/**
+ * Moves the enrolled repository's change time forward to `at`, never back;
+ * the account and repository it moved, to tell the account's open consoles.
+ */
 export async function touchPulls(
   db: Db,
   platform: ReviewRepo["platform"],
   host: string,
   platformRepoId: string,
   at: Date,
-): Promise<void> {
+): Promise<{ accountId: string; repoId: string }[]> {
   const t = reviewRepos;
-  await db
+  return await db
     .update(t)
     .set({ pullsChangedAt: at })
     .where(
@@ -29,7 +32,8 @@ export async function touchPulls(
         eq(t.platformRepoId, platformRepoId),
         or(isNull(t.pullsChangedAt), lt(t.pullsChangedAt, at)),
       ),
-    );
+    )
+    .returning({ accountId: t.accountId, repoId: t.id });
 }
 
 /** The newest of the account's repositories' change times and its reviews; null before any. */

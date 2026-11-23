@@ -5,13 +5,15 @@ import type { Scoped } from "./db/scoped.js";
 import type { Mailer } from "./notify/email.js";
 import type { WebhookPost } from "./notify/webhooks.js";
 import type { BotTokens } from "./platforms/bot.js";
+import type { PullsHub } from "./pull-events/hub.js";
 
 /**
  * What the app reads from its host: settings, secrets and rate limiters,
  * never the database binding, which each entry opens itself (src/index.ts
- * on Workers, src/node/ when self-hosted).
+ * on Workers, src/node/ when self-hosted), nor the pull events' (Host.pullsHub).
  */
-export type AppBindings = Widen<Omit<Env, "DB" | GithubApp>> & Partial<Record<GithubApp, string>>;
+export type AppBindings = Widen<Omit<Env, "DB" | "PULL_EVENTS" | GithubApp>> &
+  Partial<Record<GithubApp, string>>;
 /** Always set on Workers; a self-hosted server may sign people in through OpenID Connect only. */
 type GithubApp = "GITHUB_CLIENT_ID" | "GITHUB_CLIENT_SECRET" | "GITHUB_APP_SLUG";
 /** A self-hosted server sets its own GitHub App and limits: any string, not the Worker's. */
@@ -33,5 +35,7 @@ export type AppEnv = {
     mailer: Mailer | undefined;
     /** How the host posts webhooks; fetch where it gives none (the Worker). */
     webhookPost: WebhookPost | undefined;
+    /** Where webhooks tell open consoles of pull request changes; undefined where the host has none. */
+    pullsHub: PullsHub | undefined;
   };
 };

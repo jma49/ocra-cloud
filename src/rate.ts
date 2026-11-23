@@ -14,9 +14,9 @@ export function retryTomorrow(c: Context, now = new Date()): void {
  * saves that write an audit row (preferences, sharing, key deletion), and
  * the reads that call the code platform many times (a pull request's impact,
  * the inbox's pull listing),
- * and a live run's batches and streams.
+ * and a live run's batches and streams, and the inbox's stream of changes.
  */
-type Limited = "upload" | "gateway" | "keys" | "settings" | "platform" | "live";
+type Limited = "upload" | "gateway" | "keys" | "settings" | "platform" | "live" | "inbox";
 
 /**
  * Refuses a signed-in account's request past ACCOUNT_CALLS' allowance per

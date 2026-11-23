@@ -108,3 +108,56 @@ describe("a webhook's change to the inbox", () => {
     expect(await changedAt(auth)).toBe(at(3).toISOString());
   });
 });
+
+describe("the inbox's stream on Node", () => {
+  /** Reads the stream until an event named `name`; null when none came within `ms`. */
+  async function next(reader: ReadableStreamDefaultReader<Uint8Array>, name: string, ms = 5_000) {
+    const decoder = new TextDecoder();
+    let text = "";
+    const until = Date.now() + ms;
+    while (Date.now() < until) {
+      const timeout = new Promise<null>((r) => setTimeout(() => r(null), until - Date.now()));
+      const chunk = await Promise.race([reader.read(), timeout]);
+      if (!chunk || chunk.done) break;
+      text += decoder.decode(chunk.value, { stream: true });
+      const block = text.split("\n\n").find((b) => b.split("\n").includes(`event: ${name}`));
+      if (block) return block.match(/^data: ?(.*)$/m)?.[1] ?? "";
+    }
+    return null;
+  }
+
+  it("pushes a merge request hook to the account's open stream, and ends it on close", async () => {
+    const { auth } = await s.signIn(1);
+    const res = await enroll(auth, { platform: "gitlab", fullName: "group/api" });
+    const { webhook } = (await res.json()) as { webhook: { secret: string } };
+    const listing = (await (await s.call("/api/auto-review/repos", { headers: auth })).json()) as {
+      repos: { id: string }[];
+    };
+    const stream = await s.call("/api/platforms/pulls/changed/stream", { headers: auth });
+    expect(stream.status).toBe(200);
+    const reader = (stream.body as ReadableStream<Uint8Array>).getReader();
+    expect(await next(reader, "ready")).toBe("");
+    const other = await s.call("/api/platforms/pulls/changed/stream", {
+      headers: (await s.signIn(2)).auth,
+    });
+    const otherReader = (other.body as ReadableStream<Uint8Array>).getReader();
+    expect(await next(otherReader, "ready")).toBe("");
+
+    const mr = { iid: 3, action: "approved", state: "opened", last_commit: { id: C1 } };
+    const sent = await s.call("/api/auto-review/webhooks/gitlab", {
+      method: "POST",
+      headers: { "x-gitlab-event": "Merge Request Hook", "x-gitlab-token": webhook.secret },
+      json: { object_attributes: mr, project: { id: 21, path_with_namespace: "group/api" } },
+    });
+    expect(sent.status).toBe(202);
+    expect(JSON.parse((await next(reader, "pulls")) ?? "null")).toEqual([
+      { repoId: listing.repos[0]?.id, number: 3, kind: "pull" },
+    ]);
+    expect(await next(otherReader, "pulls", 300)).toBeNull();
+
+    s.host.endStreams();
+    expect(await next(reader, "never")).toBeNull();
+    expect((await reader.read()).done).toBe(true);
+    await otherReader.cancel();
+  });
+});

@@ -15,10 +15,12 @@ interface __BaseEnv_Env {
 	GITHUB_CLIENT_SECRET: string;
 	MASTER_KEY: string;
 	SESSION_SECRET: string;
+	PULL_EVENTS: DurableObjectNamespace<import("./index").PullEvents>;
 }
 declare namespace Cloudflare {
 	interface GlobalProps {
 		mainModule: typeof import("./index");
+		durableNamespaces: "PullEvents";
 	}
 	interface Env extends __BaseEnv_Env {}
 }

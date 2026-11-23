@@ -16,7 +16,8 @@ import { gitlabSignal } from "../merge-when-ready/hooks.js";
 import { gitlabCiFailure } from "../notify/ci-hooks.js";
 import { COMMIT_ID } from "../platforms/contents.js";
 import { githubHostOf, gitlabClientOf } from "../platforms/registry.js";
-import { gitlabTouchesPulls } from "../pull-changes.js";
+import { gitlabPullsTouched } from "../pull-changes.js";
+import { publishPulls } from "../pull-events/stream.js";
 import { indexGitlabEvent } from "../pull-index/hooks.js";
 import { gitlabMerged } from "../stack-merge/hooks.js";
 import type { AppEnv } from "../types.js";
@@ -187,8 +188,10 @@ export function autoReviewWebhooks(service: AutoReviewService) {
     });
     if (!received) return c.json({ queued: 0, duplicate: true }, 202);
     const queued = await received.answer(async () => {
-      if (gitlabTouchesPulls(kind, body)) {
-        await touchPulls(c.var.db, "gitlab", host, String(projectId), new Date());
+      const touched = gitlabPullsTouched(kind, body);
+      if (touched) {
+        const moved = await touchPulls(c.var.db, "gitlab", host, String(projectId), new Date());
+        publishPulls(c, moved, touched);
         await indexGitlabEvent(c.var.db, repo, kind, body);
       }
       if (note?.data) return queueGitlabNote(c, service, repo, note.data);

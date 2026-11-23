@@ -63,6 +63,13 @@
     { "name": "DEVICE_LOOKUPS", "namespace_id": "1002", "simple": { "limit": 20, "period": 60 } },
     { "name": "ACCOUNT_CALLS", "namespace_id": "1003", "simple": { "limit": 120, "period": 60 } }
   ],
+  // Each account's open inboxes, which webhooks tell of pull request
+  // changes (src/pull-events/durable.ts). SQLite-backed, as the Free plan
+  // requires; it stores nothing.
+  "durable_objects": {
+    "bindings": [{ "name": "PULL_EVENTS", "class_name": "PullEvents" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["PullEvents"] }],
   "d1_databases": [
     {
       "binding": "DB",

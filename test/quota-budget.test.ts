@@ -5,6 +5,7 @@ import { MAX_FINDINGS } from "@open-cr-agent/cloud-contract";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RETENTION_DAYS } from "../src/db/retention.js";
 import app from "../src/index.js";
+import { MAX_STREAMS, STREAM_MS } from "../src/pull-events/hub.js";
 import { DAY, utcDayStart } from "../src/time.js";
 import wrangler from "../wrangler.jsonc?raw";
 import { type CallInit, call, ORIGIN, request, resetDb, signIn, signInCli } from "./helpers.js";
@@ -18,7 +19,13 @@ import { type Meter, metered } from "./metered.js";
 // multiplied by what each request costs as measured here, leave room.
 
 /** Workers Free, per UTC day and Cloudflare account (Workers and D1 pricing pages, 2026-10-09). */
-const FREE = { rowsWritten: 100_000, rowsRead: 5_000_000, requests: 100_000 };
+const FREE = {
+  rowsWritten: 100_000,
+  rowsRead: 5_000_000,
+  requests: 100_000,
+  // Durable Objects pricing page, 2026-11-13.
+  objectRequests: 100_000,
+};
 /** Accounts at every cap on the same day... */
 const HEAVY_ACCOUNTS = 5;
 /** ...must fit in this share of each quota, leaving the rest to everyone else. */
@@ -28,6 +35,12 @@ const SESSIONS = 3;
 const LAST_USED_WRITES = SESSIONS * 288;
 /** Per account: a terminal's hourly token refresh, for two terminals. */
 const REFRESHES = 2 * 24;
+/**
+ * Per account: every inbox stream it may hold, open all day, each
+ * reconnecting as it ends and reading /pulls/changed once it is open; each
+ * open is a request to the account's Durable Object too.
+ */
+const STREAM_OPENS = MAX_STREAMS * (DAY / STREAM_MS);
 
 beforeEach(resetDb);
 afterEach(() => vi.restoreAllMocks());
@@ -192,7 +205,7 @@ describe("the deployed caps", () => {
       // deleted, row for row, so the inserts count twice.
       writtenSteady: 2 * (daily + (findings / RETENTION_DAYS) * perFinding) + LAST_USED_WRITES,
       read: uploads * full.read + calls * gateway.read + REFRESHES * refresh.read,
-      requests: uploads + calls + REFRESHES,
+      requests: uploads + calls + REFRESHES + 2 * STREAM_OPENS,
     };
     // Login codes are capped for the whole service, not per account.
     const codes = Number(caps.DEVICE_DAILY_CODES);
@@ -214,5 +227,6 @@ describe("the deployed caps", () => {
       const why = `${what}: ${HEAVY_ACCOUNTS} x ${n} + ${service[key]} > ${budget[key]}`;
       expect(total, why).toBeLessThanOrEqual(budget[key]);
     }
+    expect(HEAVY_ACCOUNTS * STREAM_OPENS).toBeLessThanOrEqual(SHARE * FREE.objectRequests);
   });
 });
