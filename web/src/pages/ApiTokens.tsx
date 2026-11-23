@@ -7,25 +7,18 @@ import {
   type ApiTokenView,
 } from "../../../src/shared/index.js";
 import { api } from "../api.js";
+import { useRead } from "../cache.js";
 import { ago, date } from "../format.js";
 import { AddGlyph } from "../glyphs.js";
 import { StackTable } from "../stack-table.js";
 import { useToast } from "../toast.js";
 import { SCOPE_LABEL, TokenDrawer } from "../tokens/token-drawer.js";
-import {
-  ActionError,
-  EmptyState,
-  LoadError,
-  Loading,
-  PageHead,
-  useAction,
-  useLoad,
-} from "../ui.js";
+import { ActionError, EmptyState, LoadError, Loading, PageHead, useAction } from "../ui.js";
 
 const SOON_MS = 7 * 86_400_000;
 
 export function ApiTokens() {
-  const { data, error, reload } = useLoad(() => api<{ tokens: ApiTokenView[] }>("/tokens"));
+  const { data, error, reload } = useRead<{ tokens: ApiTokenView[] }>("/tokens");
   const [adding, setAdding] = useState(false);
   /** Held only until it is dismissed: the server never answers it again. */
   const [made, setMade] = useState<ApiTokenCreated | null>(null);

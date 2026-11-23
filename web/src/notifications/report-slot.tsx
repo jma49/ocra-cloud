@@ -1,7 +1,8 @@
 import type { ReportScheduleView } from "../../../src/shared/index.js";
 import { api } from "../api.js";
+import { useRead } from "../cache.js";
 import { time } from "../format.js";
-import { ActionError, useAction, useLoad } from "../ui.js";
+import { ActionError, useAction } from "../ui.js";
 
 const HOURS = Array.from({ length: 24 }, (_, h) => h);
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -10,7 +11,7 @@ type Slot = { weekday: number; hour: number };
 
 /** When the weekly report goes: picked in UTC, the next one shown in the viewer's time. */
 export function ReportSlot() {
-  const { data, reload } = useLoad(() => api<ReportScheduleView>("/notifications/report"));
+  const { data, reload } = useRead<ReportScheduleView>("/notifications/report");
   const save = useAction((slot: Slot) =>
     api<ReportScheduleView>("/notifications/report", {
       method: "PUT",

@@ -1,9 +1,8 @@
 import { spendReached } from "../../../src/shared/index.js";
-import { api } from "../api.js";
 import { type Budget, dailyLimit, resetLabel } from "../budget/budget.js";
+import { useRead } from "../cache.js";
 import { num, usd } from "../format.js";
 import { Link } from "../router.js";
-import { useLoad } from "../ui.js";
 
 // Hosted reviews wait while the account is at a limit: the day's gateway
 // calls, or what its reviews may cost a day or a month. The server leaves
@@ -34,7 +33,7 @@ export function limitReached(b: Budget, now = Date.now()): LimitReached | null {
 
 /** The limit the account is at; null while hosted reviews may start. */
 export function useLimitReached(): LimitReached | null {
-  const { data } = useLoad(() => api<Budget>("/budget"));
+  const { data } = useRead<Budget>("/budget");
   return data ? limitReached(data) : null;
 }
 

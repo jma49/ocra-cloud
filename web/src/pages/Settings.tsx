@@ -2,20 +2,19 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { api, type Me } from "../api.js";
+import { useRead } from "../cache.js";
 import { date, num } from "../format.js";
-import { ActionError, LoadError, Loading, PageHead, useLoad } from "../ui.js";
+import { ActionError, LoadError, Loading, PageHead } from "../ui.js";
 
 type SharingLoad = ReturnType<typeof useSharing>;
 
 function useSharing() {
-  return useLoad(() =>
-    api<{
-      shareFindings: boolean;
-      hostedFindings: boolean;
-      findingsStored: number;
-      findingsAllowance: number;
-    }>("/account/sharing"),
-  );
+  return useRead<{
+    shareFindings: boolean;
+    hostedFindings: boolean;
+    findingsStored: number;
+    findingsAllowance: number;
+  }>("/account/sharing");
 }
 
 /**

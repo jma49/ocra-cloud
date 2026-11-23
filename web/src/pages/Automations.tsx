@@ -14,7 +14,7 @@ import { ruleSummary } from "../automations/describe.js";
 import { DryRun } from "../automations/dry-run.js";
 import { type Choice, RuleForm } from "../automations/rule-form.js";
 import { Runs } from "../automations/runs.js";
-import { useCached } from "../cache.js";
+import { useCached, useRead } from "../cache.js";
 import { AddGlyph } from "../glyphs.js";
 import {
   ActionError,
@@ -37,8 +37,8 @@ export function Automations(props: { me: Me }) {
   const rules = useCached("/automations/rules", () =>
     api<{ rules: AutomationRuleView[] }>("/automations/rules"),
   );
-  const runs = useLoad(() => api<{ runs: AutomationRunView[] }>("/automations/runs"));
-  const channels = useLoad(() => api<{ channels: NotifyChannelView[] }>("/notifications/channels"));
+  const runs = useRead<{ runs: AutomationRunView[] }>("/automations/runs");
+  const channels = useRead<{ channels: NotifyChannelView[] }>("/notifications/channels");
   const repos = useLoad(
     () =>
       queued

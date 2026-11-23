@@ -10,6 +10,7 @@ import {
   type StackMergeJobView,
 } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
+import { useRead } from "../cache.js";
 import { Link } from "../router.js";
 import { useAction, useLoad } from "../ui.js";
 import { CheckMark } from "./check-mark.js";
@@ -40,7 +41,7 @@ export function StackPanel(props: {
 }) {
   const { platform, repo, number } = props.pull;
   const query = new URLSearchParams({ platform, repo, number: String(number) }).toString();
-  const { data } = useLoad(() => api<PullStackView>(`/pulls/stack?${query}`), [query]);
+  const { data } = useRead<PullStackView>(`/pulls/stack?${query}`);
   const [job, setJob] = useState<StackMergeJobView | null>(null);
   const [changed, setChanged] = useState(false);
   // A merge under way outlives the page that started it: one named by this stack's bottom shows again.

@@ -2,11 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { CodePlatformKind } from "../../../src/shared/index.js";
 import { api, type Me, why } from "../api.js";
-import { useCached } from "../cache.js";
+import { useCached, useRead } from "../cache.js";
 import { ago, count, num } from "../format.js";
 import { PlatformMark } from "../platform-mark.js";
 import { PLATFORM_NAME } from "../platform-names.js";
-import { LoadError, Loading, PageHead, useAction, useLoad } from "../ui.js";
+import { LoadError, Loading, PageHead, useAction } from "../ui.js";
 
 // The repositories the account's reviews came from, by name: the one the
 // account gave, else the platform's name for its hash, else the path a pull
@@ -260,7 +260,7 @@ export function Repositories(props: { me: Me }) {
   const { data, error, reload } = useCached("/repositories", () =>
     api<{ repositories: Repo[] }>("/repositories"),
   );
-  const platforms = useLoad(() => api<PlatformRepos>("/platforms/repos"));
+  const platforms = useRead<PlatformRepos>("/platforms/repos");
   useSyncNames(data?.repositories, platforms.data, reload);
   return (
     <>

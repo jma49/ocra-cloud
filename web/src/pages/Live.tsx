@@ -2,10 +2,10 @@ import type { LucideIcon } from "lucide-react";
 import Radio from "lucide-react/icons/radio";
 import Users from "lucide-react/icons/users";
 import type { LiveRunView } from "../../../src/shared/index.js";
-import { api } from "../api.js";
+import { useRead } from "../cache.js";
 import { ago, sourceLabel, usd } from "../format.js";
 import { Link } from "../router.js";
-import { EmptyState, LoadError, Loading, PageHead, useLoad } from "../ui.js";
+import { EmptyState, LoadError, Loading, PageHead } from "../ui.js";
 
 // Reviews relayed while they run: the account's own, and the ones others
 // shared with it.
@@ -19,7 +19,7 @@ const STATE = {
 } as const;
 
 export function Live() {
-  const list = useLoad(() => api<LiveList>("/live"));
+  const list = useRead<LiveList>("/live");
   return (
     <>
       <PageHead

@@ -2,7 +2,8 @@ import { Button } from "@/components/ui/button";
 import { Menu, MenuCheckboxItem, MenuPopup, MenuTrigger } from "@/components/ui/menu";
 import type { PullActionOutcome, PullLabel, PullLabelsView } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
-import { useAction, useLoad } from "../ui.js";
+import { useRead } from "../cache.js";
+import { useAction } from "../ui.js";
 
 // The pull request's labels, added and removed one at a time as the
 // signed-in user, from the repository's own labels.
@@ -21,10 +22,7 @@ function Dot(props: { color: string | null }) {
 
 export function LabelsBox(props: { pull: Pull; onDone: (o: PullActionOutcome) => void }) {
   const query = new URLSearchParams({ ...props.pull, number: String(props.pull.number) });
-  const { data, error, reload } = useLoad(
-    () => api<PullLabelsView>(`/pulls/labels?${query}`),
-    [query.toString()],
-  );
+  const { data, error, reload } = useRead<PullLabelsView>(`/pulls/labels?${query}`);
   const edit = useAction((name: string, on: boolean) =>
     api<{ outcome: PullActionOutcome }>("/pulls/labels", {
       method: "POST",

@@ -1,7 +1,8 @@
 import { Button } from "@/components/ui/button";
 import type { PullActionOutcome, PullDraftView } from "../../../src/shared/index.js";
 import { api } from "../api.js";
-import { useAction, useLoad } from "../ui.js";
+import { useRead } from "../cache.js";
+import { useAction } from "../ui.js";
 
 type Pull = { platform: string; repo: string; number: number };
 
@@ -13,10 +14,7 @@ export function DraftToggle(props: {
   onDone: (o: PullActionOutcome) => void;
 }) {
   const query = new URLSearchParams({ ...props.pull, number: String(props.pull.number) });
-  const { data, reload } = useLoad(
-    () => api<PullDraftView>(`/pulls/draft?${query}`),
-    [query.toString()],
-  );
+  const { data, reload } = useRead<PullDraftView>(`/pulls/draft?${query}`);
   const set = useAction((draft: boolean) =>
     api<{ outcome: PullActionOutcome }>("/pulls/draft", {
       method: "POST",

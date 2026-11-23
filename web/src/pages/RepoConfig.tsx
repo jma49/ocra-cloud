@@ -8,10 +8,11 @@ import type {
   RepoConfigView,
 } from "../../../src/shared/index.js";
 import { ApiError, api, why } from "../api.js";
+import { useRead } from "../cache.js";
 import { ago } from "../format.js";
 import { ChangeOutcome } from "../learnings/outcome.js";
 import { type RepoChoice, useRepoChoice } from "../repo-choice.js";
-import { LoadError, Loading, PageHead, Seg, useAction, useLoad } from "../ui.js";
+import { LoadError, Loading, PageHead, Seg, useAction } from "../ui.js";
 
 // A repository's committed review configuration, read live from its default
 // branch as the user and edited as JSON. A change is checked by the server
@@ -47,10 +48,7 @@ export function RepoConfig() {
 
 function FileEditor(props: { at: RepoChoice; file: RepoConfigFile }) {
   const query = new URLSearchParams({ ...props.at, file: props.file }).toString();
-  const { data, error, reload } = useLoad(
-    () => api<RepoConfigView>(`/repo-config?${query}`),
-    [query],
-  );
+  const { data, error, reload } = useRead<RepoConfigView>(`/repo-config?${query}`);
   if (error && !data) return <LoadError what="the file" error={error} retry={reload} />;
   if (!data) return <Loading what="the file" />;
   // A reload after a change reads a new blob: the editor starts again from it.

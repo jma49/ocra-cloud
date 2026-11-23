@@ -2,10 +2,10 @@ import type { LucideIcon } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { CodePlatformKind } from "../../src/shared/index.js";
-import { api } from "./api.js";
+import { useRead } from "./cache.js";
 import { platformsText } from "./platform-names.js";
 import { Link } from "./router.js";
-import { EmptyState, LoadError, Loading, useLoad } from "./ui.js";
+import { EmptyState, LoadError, Loading } from "./ui.js";
 
 // One of the user's connected repositories, chosen in a page's head and kept
 // in its address, for pages that read a repository's files live.
@@ -29,7 +29,7 @@ function fromAddress(): RepoChoice | null {
 
 /** The repository the page shows: the address's, else the first connected one. */
 export function useRepoChoice(path: string) {
-  const listed = useLoad(() => api<Listed>("/platforms/repos"));
+  const listed = useRead<Listed>("/platforms/repos");
   const choices: RepoChoice[] = (listed.data?.platforms ?? []).flatMap((p) =>
     p.repositories.map((r) => ({ platform: p.platform, repo: r.fullName })),
   );

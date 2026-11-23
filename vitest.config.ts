@@ -92,6 +92,7 @@ export default defineConfig({
           name: "web",
           environment: "happy-dom",
           include: ["web/src/**/*.test.{ts,tsx}"],
+          setupFiles: ["web/src/test-setup.ts"],
           testTimeout: SHARED_RUNNER_TIMEOUT,
         },
       },

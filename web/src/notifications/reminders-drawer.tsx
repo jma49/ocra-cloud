@@ -10,8 +10,8 @@ import {
   type ReminderHours,
 } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
+import { useRead } from "../cache.js";
 import { Drawer } from "../drawer.js";
-import { useLoad } from "../ui.js";
 
 type ReminderEvent = (typeof REMINDER_EVENTS)[number];
 const EVENT_LABEL: Record<ReminderEvent, string> = {
@@ -56,7 +56,7 @@ export function RemindersDrawer(props: {
   onClose: () => void;
 }) {
   const { channel } = props;
-  const zone = useLoad(() => api<NotifyTimeZoneView>("/notifications/time-zone"));
+  const zone = useRead<NotifyTimeZoneView>("/notifications/time-zone");
   const [on, setOn] = useState(() => new Set(channel.events.filter(isReminder)));
   const [hours, setHours] = useState<ReminderHours>(channel.reminderHours ?? 24);
   const [quiet, setQuiet] = useState(channel.quietHours);

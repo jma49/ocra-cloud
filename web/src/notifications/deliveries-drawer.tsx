@@ -9,11 +9,12 @@ import type {
   WebhookSecretView,
 } from "../../../src/shared/index.js";
 import { api } from "../api.js";
+import { useRead } from "../cache.js";
 import { Drawer } from "../drawer.js";
 import { ago } from "../format.js";
 import { WEBHOOK_DOCS } from "../site.js";
 import { useToast } from "../toast.js";
-import { ActionError, LoadError, Loading, useAction, useLoad } from "../ui.js";
+import { ActionError, LoadError, Loading, useAction } from "../ui.js";
 
 // A channel up close: how its last deliveries went, and a webhook's signing
 // secret, which can be replaced but never read again.
@@ -144,9 +145,7 @@ function SigningSecret(props: { base: string }) {
 export function DeliveriesDrawer(props: { channel: NotifyChannelView; onClose: () => void }) {
   const { channel: c } = props;
   const base = `/notifications/channels/${c.id}`;
-  const { data, error, reload, loading } = useLoad(() =>
-    api<NotifyDeliveriesView>(`${base}/deliveries`),
-  );
+  const { data, error, reload, loading } = useRead<NotifyDeliveriesView>(`${base}/deliveries`);
 
   return (
     <Drawer
