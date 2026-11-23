@@ -1,0 +1,70 @@
+/* A pull request's changed files as a tree beside the diff: flat on the
+   panel, a folder row over its files, each file with a mark for what
+   happened to it. */
+.file-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1px;
+}
+.file-progress {
+  padding: 4px 8px 12px;
+}
+.file-progress .meter {
+  height: 3px;
+  margin-top: 8px;
+}
+.file-filter {
+  margin: 0 0 8px;
+  width: 100%;
+}
+.file-none {
+  margin: 0;
+  padding: 4px 8px;
+}
+.file-dir,
+.file-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  padding: 0 8px;
+  border-radius: var(--r-tab);
+}
+.file-dir {
+  color: var(--t3);
+}
+.file-dir svg,
+.file-mark {
+  flex: none;
+  color: var(--t3);
+}
+.file-link {
+  color: var(--t1);
+  text-decoration: none;
+}
+.file-link:hover {
+  background: var(--fill);
+}
+.file-link.is-added .file-mark {
+  color: var(--green);
+}
+.file-link.is-removed .file-mark {
+  color: var(--red);
+}
+.file-link.is-viewed .file-mark {
+  color: var(--green);
+}
+.file-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.file-link.is-viewed .file-name {
+  color: var(--t3);
+}
+.file-link.is-removed .file-name {
+  text-decoration: line-through;
+  text-decoration-color: var(--t4);
+}

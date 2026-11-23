@@ -240,18 +240,9 @@ describe("a pull request's page", () => {
     expect((box as HTMLInputElement).checked).toBe(true);
     expect(screen.getByText(/1 of 1 files viewed/)).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Comment on line 11" })).toBeNull();
-    expect(screen.getByTitle("src/refund.ts (viewed)")).toBeTruthy();
+    expect(screen.getByTitle("src/refund.ts (changed, viewed)")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { expanded: false, name: /refund\.ts/ }));
     expect(screen.getByRole("button", { name: "Comment on line 11" })).toBeTruthy();
-  });
-
-  it("keeps a path that starts with a dot left to right in the file list", async () => {
-    show(undefined, {
-      ...files,
-      files: files.files.map((f) => ({ ...f, path: ".changeset/refund.md" })),
-    });
-    const link = await screen.findByTitle(".changeset/refund.md");
-    expect(link.querySelector(".file-name bdi[dir=ltr]")?.textContent).toBe(".changeset/refund.md");
   });
 
   it("offers a merged pull request a comment, and no verdict, merge, readiness or draft switch", async () => {

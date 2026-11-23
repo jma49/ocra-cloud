@@ -922,14 +922,15 @@ td.finding-cell {
 /* A pull request's code: its files on the left, their diffs on the right (pull.css holds the rest of the page). */
 .pull-frame {
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
-  gap: 16px;
+  grid-template-columns: 264px minmax(0, 1fr);
+  gap: 24px;
   align-items: start;
 }
 .pull-side {
   position: sticky;
-  top: 72px;
-  max-height: calc(100vh - 88px);
+  /* Under the pull request's sticky head, whose height `useClearance` measures. */
+  top: var(--pull-clear, 72px);
+  max-height: calc(100vh - var(--pull-clear, 72px) - 16px);
   overflow-y: auto;
   overscroll-behavior: contain;
   /* Room for the cards' shadows and focus rings inside the scroll box. */
@@ -943,57 +944,8 @@ td.finding-cell {
 }
 .pull-main {
   display: grid;
-  gap: 12px;
+  gap: 16px;
   min-width: 0;
-}
-.file-list {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  padding: 6px;
-  max-height: 40vh;
-  overflow-y: auto;
-}
-.file-link {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 4px 8px;
-  border-radius: var(--r-tab);
-  color: var(--t1);
-  text-decoration: none;
-  font-size: var(--text-sm);
-}
-.file-progress {
-  padding: 4px 8px 8px;
-}
-.file-progress .meter {
-  height: 3px;
-  margin-top: 6px;
-}
-.file-tick {
-  flex: none;
-  width: 12px;
-  height: 16px;
-  display: grid;
-  place-items: center;
-  color: var(--green);
-}
-.file-link:hover {
-  background: var(--fill);
-}
-.file-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  direction: rtl;
-  text-align: left;
-}
-.file-link .file-name {
-  flex: 1;
-  min-width: 0;
-}
-.file-link.is-viewed .file-name {
-  color: var(--t3);
 }
 .add-n {
   color: var(--green);
@@ -1015,7 +967,7 @@ td.finding-cell {
 }
 .diff-viewed {
   flex: none;
-  margin-right: 10px;
+  margin-right: 12px;
   padding: 3px 8px;
   border-radius: var(--r-tab);
   white-space: nowrap;
@@ -1031,7 +983,8 @@ td.finding-cell {
   gap: 8px;
   width: 100%;
   min-width: 0;
-  padding: 10px 14px;
+  min-height: 44px;
+  padding: 8px 16px;
   border: 0;
   background: transparent;
   color: var(--t1);
@@ -1046,7 +999,7 @@ td.finding-cell {
   flex: 1;
   min-width: 0;
   overflow-wrap: anywhere;
-  font-size: var(--text-sm);
+  font-size: var(--text-base);
 }
 .diff-count {
   flex: none;
@@ -1065,8 +1018,8 @@ td.finding-cell {
   width: 100%;
   border-collapse: collapse;
   font-family: var(--mono);
-  font-size: var(--text-sm);
-  line-height: 20px;
+  font-size: var(--text-base);
+  line-height: 22px;
 }
 .diff td {
   padding: 0;
@@ -1075,9 +1028,10 @@ td.finding-cell {
 }
 .diff-no {
   width: 1%;
-  min-width: 44px;
+  min-width: 48px;
   padding: 0 8px;
   text-align: right;
+  font-size: var(--text-sm);
   color: var(--t3);
   user-select: none;
 }
@@ -1096,7 +1050,7 @@ td.finding-cell {
   color: var(--blue);
 }
 .diff-code {
-  padding-right: 14px;
+  padding-right: 16px;
   white-space: pre;
 }
 .diff-sign {
@@ -1111,12 +1065,13 @@ td.finding-cell {
   background: color-mix(in srgb, var(--red) 10%, transparent);
 }
 .diff-hunk td {
-  padding: 2px 14px;
+  padding: 4px 16px;
+  font-size: var(--text-sm);
   background: var(--fill);
   color: var(--t3);
 }
 .diff-note td {
-  padding: 8px 14px;
+  padding: 12px 16px;
   background: var(--fill);
   font-family: var(--font);
   white-space: normal;
