@@ -282,12 +282,14 @@ td.finding-cell {
   gap: 32px;
   align-items: start;
 }
+/* The first property sits on the title's line: 8px centres its 20px line on the title's 28px one, which starts 4px down. */
 .review-side {
   position: sticky;
   top: 72px;
   display: grid;
   gap: 16px;
   min-width: 0;
+  padding-top: 8px;
 }
 .review-side .impact-rail {
   max-width: none;
@@ -460,6 +462,7 @@ td.finding-cell {
   .review-side {
     position: static;
     order: 1;
+    padding-top: 0;
   }
   .review-side .impact-rail {
     max-height: none;
@@ -579,7 +582,7 @@ td.finding-cell {
   border-bottom: 1.5px solid var(--t3);
   rotate: 45deg;
   margin: -3px 2px 0 0;
-  transition: rotate 150ms var(--e-std);
+  transition: rotate var(--d-move) var(--e-std);
 }
 .section-toggle[aria-expanded="false"] .fold {
   rotate: -45deg;
