@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { AuditPage, BatchItem, PullBatchView } from "../src/shared/index.js";
+import {
+  type AuditPage,
+  type BatchItem,
+  MAX_BATCH_ITEMS,
+  type PullBatchView,
+} from "../src/shared/index.js";
 import { FILE, HEAD, seed } from "./fix-fakes.js";
 import { resetDb } from "./helpers.js";
 import { githubFake, signInWithGithub } from "./platform-fakes.js";
@@ -295,7 +300,7 @@ describe("applying several fixes and suggestions as one commit on GitHub", () =>
     const a = await signInWithGithub();
     expect((await apply(a, [])).status).toBe(400);
     expect((await apply(a, [fixes("x"), fixes("x")])).status).toBe(400);
-    const many = Array.from({ length: 21 }, (_, i) => fixes(`f${i}`));
+    const many = Array.from({ length: MAX_BATCH_ITEMS + 1 }, (_, i) => fixes(`f${i}`));
     expect((await apply(a, many)).status).toBe(400);
   });
 });
