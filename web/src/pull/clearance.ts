@@ -11,8 +11,13 @@ export function useClearance(head: HTMLElement | null): void {
     if (!head) return;
     const root = document.documentElement;
     const measure = () => {
-      const top = Number.parseFloat(getComputedStyle(head).top) || 0;
-      root.style.setProperty(CLEAR, `${Math.ceil(top + head.offsetHeight) + 12}px`);
+      // A narrow window lets the head scroll away: then only the page bar stays.
+      const stays =
+        getComputedStyle(head).position === "sticky"
+          ? head
+          : document.querySelector<HTMLElement>(".pagebar");
+      const bottom = stays ? stuckBottom(stays) : 0;
+      root.style.setProperty(CLEAR, `${Math.ceil(bottom) + 12}px`);
     };
     measure();
     const watch = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
@@ -23,3 +28,6 @@ export function useClearance(head: HTMLElement | null): void {
     };
   }, [head]);
 }
+
+const stuckBottom = (el: HTMLElement) =>
+  (Number.parseFloat(getComputedStyle(el).top) || 0) + el.offsetHeight;
