@@ -12,14 +12,15 @@ import {
   withRoles,
 } from "./pulls.js";
 
-const LISTS = ["review", "authored", "merged"] as const;
+const LISTS = ["review", "authored", "assigned", "merged"] as const;
 type List = (typeof LISTS)[number];
 
 const query = (
   checks: boolean,
-) => `query($review: String!, $authored: String!, $merged: String!, $open: Int!, $done: Int!) {
+) => `query($review: String!, $authored: String!, $assigned: String!, $merged: String!, $open: Int!, $done: Int!) {
   review: search(query: $review, type: ISSUE, first: $open) { issueCount nodes { ...P } }
   authored: search(query: $authored, type: ISSUE, first: $open) { issueCount nodes { ...P } }
+  assigned: search(query: $assigned, type: ISSUE, first: $open) { issueCount nodes { ...P } }
   merged: search(query: $merged, type: ISSUE, first: $done) { issueCount nodes { ...P } }
 }
 ${pullFragment(checks)}`;
@@ -113,6 +114,7 @@ export async function githubPulls(
       variables: {
         review: "is:pr is:open archived:false review-requested:@me",
         authored: "is:pr is:open archived:false author:@me",
+        assigned: "is:pr is:open archived:false assignee:@me",
         merged: `is:pr is:merged author:@me merged:>=${since}`,
         open: OPEN_PER_LIST,
         done: MERGED_PER_LIST,
@@ -123,12 +125,13 @@ export async function githubPulls(
   const lost = LISTS.some((l) => answer?.data?.[l]?.nodes.some((n) => n === null));
   if (answer?.errors && lost) answer = await ask(false);
   const data = answer?.data;
-  if (!data?.review || !data.authored || !data.merged) return null;
+  if (!data?.review || !data.authored || !data.assigned || !data.merged) return null;
   return {
     pulls: withRoles([
       { role: "reviewer", pulls: pulls(data.review) },
       { role: "author", pulls: [...pulls(data.authored), ...pulls(data.merged)] },
+      { role: "assignee", pulls: pulls(data.assigned) },
     ]),
-    more: data.review.issueCount > OPEN_PER_LIST || data.authored.issueCount > OPEN_PER_LIST,
+    more: [data.review, data.authored, data.assigned].some((l) => l.issueCount > OPEN_PER_LIST),
   };
 }
