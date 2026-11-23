@@ -140,6 +140,7 @@ export function Plugins() {
             className="input mono grow"
             aria-label="Plugin package name"
             placeholder="@acme/ocra-rules"
+            disabled={!draft}
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
@@ -147,7 +148,7 @@ export function Plugins() {
             type="submit"
             variant="outline"
             size="sm"
-            disabled={!valid || plugins.length >= 20}
+            disabled={!draft || !valid || plugins.length >= 20}
           >
             Add plugin
           </Button>
