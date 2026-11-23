@@ -144,6 +144,21 @@ describe("the account's custom reports", () => {
     });
   });
 
+  it("offers no empty list, and no new report, before the reports are read", async () => {
+    let answer: (r: Response) => void = () => {};
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise<Response>((resolve) => (answer = resolve))),
+    );
+    render(<ScheduledReports channels={channels} enrolls={false} />);
+    const add = screen.getByRole("button", { name: "New report" }) as HTMLButtonElement;
+    expect(add.disabled).toBe(true);
+    expect(screen.queryByText(/^Define a report of your own/)).toBeNull();
+    await act(async () => answer(Response.json({ reports: [], max: 10 })));
+    expect(await screen.findByText(/^Define a report of your own/)).toBeTruthy();
+    expect(add.disabled).toBe(false);
+  });
+
   it("asks for a channel first where the account has none a report can go to", async () => {
     serve([]);
     render(<ScheduledReports channels={[channel("n3", "Pager", "webhook")]} enrolls={false} />);
