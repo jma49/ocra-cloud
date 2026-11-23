@@ -85,7 +85,7 @@ platformsRoute.get("/repos", requireSession(), async (c) => {
 // defaults while it has none), each with the pulls it holds, evaluated here
 // over this same listing. Open pulls stacked on one another in a repository
 // carry their place in the stack, read from this listing's branches alone.
-platformsRoute.get("/pulls", requireSession(), async (c) => {
+platformsRoute.get("/pulls", requireSession(), perMinute("platform"), async (c) => {
   const group = c.req.query("group");
   if (group !== undefined && group !== "views") {
     return apiError(c, "invalid_body", {
