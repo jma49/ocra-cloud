@@ -12,6 +12,7 @@ import { api } from "../api.js";
 import { FixDiff } from "../fixes/fix-diff.js";
 import { CommitFixNote } from "../fixes/fix-proposal.js";
 import { useCommitFix } from "../fixes/use-commit-fix.js";
+import { ago } from "../format.js";
 import { symbolsOf } from "../impact/select.js";
 import type { Impact } from "../impact/use-impact.js";
 import { Link } from "../router.js";
@@ -46,14 +47,35 @@ export type Finding = {
   platformDismissal: PlatformDismissal | null;
 };
 
-/** One line of what happened to the finding's thread on the platform. */
-export function dismissalLine(d: PlatformDismissal): string {
-  const did =
-    d.state === null
-      ? ""
-      : `Thread ${d.state === "resolved" ? "resolved" : "reopened"} on the platform${d.by ? ` by ${d.by}` : ""}`;
-  const said = d.reason === null ? "" : `${d.reasonBy ?? "A reply"}: ${d.reason}`;
-  return [did, said].filter(Boolean).join(". ");
+/** What happened to the finding's thread on the platform: who resolved or reopened it, and the reply kept as the reason. */
+export function PlatformThread(props: { d: PlatformDismissal }) {
+  const { d } = props;
+  const notes = [
+    d.redacted && "a secret-looking string was replaced",
+    d.truncated && "cut short",
+  ].filter(Boolean);
+  return (
+    <div>
+      <div className="quiet-label finding-label">Thread on the platform</div>
+      {d.state !== null && (
+        <p className="m-0 small muted">
+          {d.state === "resolved" ? "Resolved" : "Reopened"}
+          {d.by && ` by ${d.by}`}
+          {d.at && `, ${ago(d.at)}`}
+        </p>
+      )}
+      {d.reason !== null && (
+        <>
+          <p className="m-0 pre-wrap">{d.reason}</p>
+          <p className="m-0 small subtle">
+            {d.reasonBy ?? "A reply"}
+            {d.reasonAt && `, ${ago(d.reasonAt)}`}
+            {notes.length > 0 && ` · ${notes.join(", ")}`}
+          </p>
+        </>
+      )}
+    </div>
+  );
 }
 
 export function FindingEvent(props: {
@@ -158,9 +180,7 @@ export function FindingEvent(props: {
                 <p className="m-0 pre-wrap">{f.suggestion}</p>
               </div>
             )}
-            {f.platformDismissal && (
-              <p className="m-0 small pre-wrap">{dismissalLine(f.platformDismissal)}</p>
-            )}
+            {f.platformDismissal && <PlatformThread d={f.platformDismissal} />}
             <div className="inline-form">
               {state === "saved" ? (
                 <span className="small">
