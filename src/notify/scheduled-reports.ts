@@ -206,7 +206,7 @@ async function sendDue(
   return channels > 0;
 }
 
-/** Every account's due scheduled reports, an account's one after another; one that fails is logged and the rest still go. */
+/** Every due scheduled report, an account's one after another; one that fails is logged and the rest still go. */
 export async function runScheduledReports(
   db: Db,
   out: Outbox,
