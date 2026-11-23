@@ -40,6 +40,7 @@ const changes = {
   notifySends: { eventKey: "changed" },
   notifyHeld: { line: "changed" },
   notifyDeliveries: { status: 500 },
+  notificationFeed: { readAt: new Date(0) },
   closedPulls: { merged: false },
   pullFlows: { draft: true },
   pullIndex: { draft: true },

@@ -82,6 +82,7 @@ const TABLE: Record<string, string> = {
   notifySends: "notify_sends",
   notifyHeld: "notify_held",
   notifyDeliveries: "notify_deliveries",
+  notificationFeed: "notification_feed",
   closedPulls: "closed_pulls",
   pullFlows: "pull_flows",
   pullIndex: "pull_index",
@@ -185,6 +186,32 @@ describe("query plans", () => {
       const index = i < 2 ? "audit_events_account_created" : "audit_events_account_kind_created";
       expect(p, q.sql).toMatch(new RegExp(`SEARCH audit_events USING INDEX ${index} `));
       expect(p, q.sql).not.toMatch(/\bSCAN\b|TEMP B-TREE/);
+    }
+  });
+
+  it("the notification centre pages, counts and marks through its indexes", async () => {
+    const seen: Captured[] = [];
+    const feed = scoped(drizzle(recording(seen)), "acct").feed;
+    await feed.page(50);
+    await feed.page(50, { createdAt: new Date(5), id: "x" });
+    await feed.unread();
+    await feed.markRead({ ids: ["a", "b"] });
+    await feed.markRead({ before: new Date(9) });
+    expect(seen).toHaveLength(5);
+    for (const [i, q] of seen.entries()) {
+      const p = await plan(q);
+      // By id, the primary key finds the row; the account is still in the WHERE.
+      const index = [
+        "notification_feed_account_created",
+        "notification_feed_account_created",
+        "notification_feed_account_unread",
+        "sqlite_autoindex_notification_feed_1",
+        "notification_feed_account_unread",
+      ][i];
+      expect(p, q.sql).toMatch(
+        new RegExp(`SEARCH notification_feed USING (COVERING )?INDEX ${index} `),
+      );
+      expect(p, q.sql).not.toMatch(/\bSCAN notification_feed\b|TEMP B-TREE/);
     }
   });
 
@@ -698,6 +725,7 @@ describe("retention", () => {
       "live_runs",
       "merge_check_runs",
       "merge_intents",
+      "notification_feed",
       "notify_channels",
       "notify_deliveries",
       "notify_held",

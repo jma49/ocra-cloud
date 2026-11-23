@@ -11,6 +11,7 @@ import type { GraphService } from "../graph/routes.js";
 import { errorName, logError } from "../log.js";
 import { engineMergeChecks } from "../merge-checks/instruction.js";
 import { checksOf } from "../merge-checks/run.js";
+import { noteFailedJob } from "../notify/feed.js";
 import type { BotAccess, BotCredential, BotTokens } from "../platforms/bot.js";
 import type { CodePlatform } from "../platforms/platform.js";
 import { gitlabTokenRejected, hasRepoToken } from "../platforms/repo-token.js";
@@ -368,6 +369,7 @@ export async function settle(
     logError("review_job_failed", { job: ref.id, reason: failure, retry });
     const retryAt = retry ? new Date(now.getTime() + RETRY_AFTER_MS * ref.attempts) : null;
     await records.release(ref.id, ref.attempts, failure, retryAt, now);
+    if (!retry) await noteFailedJob(data, ref.kind, ref.id, now);
   }
   await data.remove("sessions", ref.id).catch(() => {});
 }

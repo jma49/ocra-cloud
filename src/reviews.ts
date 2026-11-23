@@ -16,6 +16,7 @@ import { platformDismissals } from "./finding-dismissals.js";
 import { parseFindings } from "./findings.js";
 import { keepsFindings } from "./findings-kept.js";
 import { apiError, jsonBody, queryDays } from "./http.js";
+import { keepNotices, reviewNotice } from "./notify/feed.js";
 import { notifyReview, outboxOf, publicOutbox } from "./notify/notify.js";
 import { tellReviewBlocking } from "./notify/pull-events.js";
 import { tellSpend } from "./notify/spend.js";
@@ -184,6 +185,8 @@ async function announce(c: Context<AppEnv>, id: string) {
     platforms,
     share,
   );
+  const notice = reviewNotice(review);
+  if (notice) await keepNotices(c.var.data, [notice]);
   await notifyReview(c.var.data, outboxOf(c), review, platforms, consoleUrl, told, share);
   const event = await reviewedEvent(c.var.data, review, platforms, consoleUrl);
   if (event) await (await automate(c, c.var.data, event)).run;

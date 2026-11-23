@@ -1,3 +1,4 @@
+import { redactField } from "@open-cr-agent/cloud-contract";
 import { plain } from "./channels.js";
 
 // What a comment says to the people it names, read without a model: the
@@ -82,9 +83,10 @@ export function mentionsOf(body: string): string[] {
   return [...found];
 }
 
-/** A short excerpt of the comment's prose, made plain; empty when it has none. */
+/** A short excerpt of the comment's prose, redacted and made plain; empty when it has none. */
 export function excerptOf(body: string): string {
-  const text = plain(prose(body));
+  // Redacted before plain() takes the characters a secret's pattern needs.
+  const text = plain(redactField(prose(body)).text);
   const chars = [...text];
   return chars.length > MAX_EXCERPT ? `${chars.slice(0, MAX_EXCERPT - 1).join("")}…` : text;
 }

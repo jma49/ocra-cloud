@@ -26,6 +26,7 @@ export * from "./merge-checks.js";
 export * from "./merge-readiness.js";
 export * from "./merge-when-ready.js";
 export * from "./models.js";
+export * from "./notification-feed.js";
 export * from "./notifications.js";
 export * from "./pull-batch.js";
 export * from "./pull-description.js";

@@ -53,6 +53,7 @@ import { learningUsage } from "./learning-usage.js";
 import { accountLive } from "./live.js";
 import { accountMergeChecks } from "./merge-checks.js";
 import { accountMergeIntents } from "./merge-intents.js";
+import { accountNotificationFeed } from "./notification-feed.js";
 import { accountNotify } from "./notify.js";
 import { accountNotifyDeliveries } from "./notify-deliveries.js";
 import { type PreferencesSave, savePreferences } from "./preferences.js";
@@ -479,6 +480,7 @@ export function scoped(db: Db, accountId: string) {
     autoEnrollGroups: accountAutoEnrollGroups(db, accountId),
     notify: accountNotify(db, accountId),
     deliveries: accountNotifyDeliveries(db, accountId),
+    feed: accountNotificationFeed(db, accountId),
     reports: accountReports(db, accountId),
     closedPulls: accountClosedPulls(db, accountId),
     pullFlows: accountPullFlows(db, accountId),

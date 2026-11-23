@@ -33,6 +33,7 @@ import {
   COMMENT_COMMANDS,
   DEFAULT_LEARN_MODE,
   DISMISS_REASONS,
+  FEED_KINDS,
   FINDING_STATUSES,
   FIXED_VIA,
   LEARN_MODES,
@@ -974,6 +975,32 @@ export const notifySends = sqliteTable(
   (t) => [
     uniqueIndex("notify_sends_channel_event").on(t.channelId, t.eventKey),
     index("notify_sends_account_created").on(t.accountId, t.createdAt),
+  ],
+);
+
+// A notice for the console's notification centre (src/notify/feed.ts): one
+// the account's own user is told of, kept whether or not a channel hears
+// of it, once per event (the unique key), with when it was read. Its text
+// is plain and short, a comment's only as a redacted excerpt. Kept FEED_DAYS.
+export const notificationFeed = sqliteTable(
+  "notification_feed",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    eventKey: text("event_key").notNull(),
+    kind: text("kind", { enum: FEED_KINDS }).notNull(),
+    title: text("title").notNull(),
+    subtitle: text("subtitle"),
+    link: text("link").notNull(),
+    repo: text("repo"),
+    number: integer("number"),
+    readAt: integer("read_at", { mode: "timestamp_ms" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("notification_feed_account_event").on(t.accountId, t.eventKey),
+    index("notification_feed_account_created").on(t.accountId, t.createdAt, t.id),
+    index("notification_feed_account_unread").on(t.accountId, t.readAt, t.createdAt),
   ],
 );
 
@@ -1942,6 +1969,7 @@ export const accountTables = {
   notifySends,
   notifyHeld,
   notifyDeliveries,
+  notificationFeed,
   closedPulls,
   pullFlows,
   pullIndex,

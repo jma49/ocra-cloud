@@ -147,6 +147,13 @@ export const rows = {
     number: 1,
     line: "hubot commented on your pull request",
   }),
+  notificationFeed: (id: string) => ({
+    id,
+    eventKey: `review:${id}`,
+    kind: "review_finished" as const,
+    title: "ocra reviewed octo/api#1",
+    link: `/reviews/${id}`,
+  }),
   notifyDeliveries: (id: string) => ({
     id,
     channelId: "channel",

@@ -7,6 +7,7 @@ import type { CodePlatform } from "../platforms/platform.js";
 import { pullOfReview, pullOnPlatform } from "../review-pull.js";
 import { type NotifyEvent, QUIET_EVENTS, type WebhookFinding } from "../shared/index.js";
 import { type Message, plain } from "./channels.js";
+import { keepNotices, pullEventNotices } from "./feed.js";
 import { type Outbox, send } from "./notify.js";
 import { hourIn, isQuiet } from "./reminders.js";
 import type { HookEvent } from "./webhooks.js";
@@ -137,8 +138,9 @@ function pullEventHook(repo: EventPlace, e: PullEvent, consoleUrl: string): Hook
 type PulledEvents = "review_waiting" | "pull_waiting" | "pull_at_risk";
 
 /**
- * Tells each channel that hears about the event, or holds it for one in its
- * quiet hours; the ids of those it went to now. Nothing is read past the channels when none hears about it.
+ * Keeps the events that concern the account's own user in its notification
+ * centre (./feed.ts), then tells each channel that hears about one, or holds
+ * it for one in its quiet hours; the ids of those it went to now.
  */
 export async function tellPullEvent(
   db: Db,
@@ -148,20 +150,23 @@ export async function tellPullEvent(
   events: readonly PullEvent[],
   now = new Date(),
 ): Promise<string[]> {
-  const kinds = [...new Set(events.map((e) => e.kind))];
+  const me = await mentionable(db, repo, await ownUser(db, data, repo), events);
+  if (me === null) return [];
+  const mine = events.filter((e) => concernsMe(e, me));
+  if (mine.length === 0) return [];
+  await keepNotices(data, pullEventNotices(repo, mine, now));
+  const kinds = [...new Set(mine.map((e) => e.kind))];
   const heard = new Map<NotifyEvent, Heard[]>();
   for (const kind of kinds) {
     const channels = await hearing(data, kind, await data.notify.subscribed(kind), now);
     if (channels.length > 0) heard.set(kind, channels);
   }
   if (heard.size === 0) return [];
-  const me = await mentionable(db, repo, await ownUser(db, data, repo), events);
-  if (me === null) return [];
   const told: string[] = [];
   const reached = new Set<string>();
-  for (const e of events) {
+  for (const e of mine) {
     const channels = heard.get(e.kind)?.filter((h) => !reached.has(h.channel.id));
-    if (!channels?.length || !concernsMe(e, me)) continue;
+    if (!channels?.length) continue;
     const m = pullEventMessage(repo, e, out.origin);
     await Promise.all(
       channels.map(async ({ channel: ch, quiet }) => {
@@ -285,7 +290,6 @@ export async function tellOwnPullEvent(
   repo: EventPlace,
   event: Omit<PullEvent, "concerns" | "by">,
 ): Promise<string[]> {
-  if ((await data.notify.subscribed(event.kind)).length === 0) return [];
   const me = await ownUser(db, data, repo);
   if (me === null) return [];
   return tellPullEvent(db, data, out, repo, [{ ...event, concerns: me.id }]);

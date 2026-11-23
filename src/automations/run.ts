@@ -3,6 +3,7 @@ import type { RunResult } from "../db/automations.js";
 import { newId, type Row, type Scoped } from "../db/scoped.js";
 import { consolePullUrl } from "../merge-checks/run.js";
 import { ruleMessage } from "../notify/channels.js";
+import { automationNotice, keepNotices } from "../notify/feed.js";
 import { type Outbox, outboxOf, send } from "../notify/notify.js";
 import type { BotCredential, BotTokens } from "../platforms/bot.js";
 import { accessToken } from "../platforms/links.js";
@@ -301,9 +302,12 @@ async function perform(
 ): Promise<Performed> {
   if (action.kind === "skip_review") return { outcome: "done" };
   if (action.kind === "notify") {
+    const platform = runner.platforms.find((p) => p.host === event.pull.host);
+    await keepNotices(runner.data, [
+      automationNotice(rule, event.eventKey, event.pull, platform?.kind),
+    ]);
     const channel = await runner.data.get("notifyChannels", action.channelId);
     if (!channel) return { outcome: "channel_gone" };
-    const platform = runner.platforms.find((p) => p.host === event.pull.host);
     const pull = { repo: event.pull.fullName, number: event.pull.number };
     const message = ruleMessage({
       rule: rule.name,
