@@ -42,7 +42,10 @@ export function DepthMenu(props: { r: AutoReviewRepoView }) {
   );
 }
 
-/** The depths as radio items of a menu, each with what it does. */
+/**
+ * The depths as radio items of a menu, each with what it does. A pick closes
+ * the menu (radio items stay open by default), so the next click acts.
+ */
 export function DepthChoices(props: { value: ReviewDepth; onChange: (next: ReviewDepth) => void }) {
   return (
     <MenuRadioGroup
@@ -50,7 +53,7 @@ export function DepthChoices(props: { value: ReviewDepth; onChange: (next: Revie
       onValueChange={(next) => props.onChange(next as ReviewDepth)}
     >
       {REVIEW_DEPTHS.map((d) => (
-        <MenuRadioItem key={d} value={d} className="profile-item">
+        <MenuRadioItem key={d} value={d} className="profile-item" closeOnClick>
           <span className="strong">{DEPTH[d].name}</span>
           <span className="subtle small">{DEPTH[d].says}</span>
         </MenuRadioItem>
