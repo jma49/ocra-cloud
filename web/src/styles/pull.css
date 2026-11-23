@@ -215,6 +215,23 @@
   margin-bottom: 8px;
 }
 /* A link out of a status section (named apart from the shell's `.rail-link`). */
+.pull-command-rows {
+  display: grid;
+  grid-template-columns: max-content 1fr max-content;
+  gap: 4px 12px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.pull-command-rows li {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: baseline;
+}
+.pull-command-note {
+  margin: 8px 0 0;
+}
 .status-link {
   justify-self: start;
   font-size: var(--text-sm);

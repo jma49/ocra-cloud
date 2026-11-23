@@ -28,6 +28,7 @@ import { JumpToCode } from "../pull/jump-to-code.js";
 import { LabelsBox } from "../pull/labels-box.js";
 import { MergeCard } from "../pull/merge-card.js";
 import { PullMeta } from "../pull/meta.js";
+import { OcraCommands } from "../pull/ocra-commands.js";
 import { OcraReviewBox } from "../pull/ocra-review-box.js";
 import { DONE, type Done, OUTCOME } from "../pull/outcome.js";
 import { pullPath } from "../pull/path.js";
@@ -263,7 +264,12 @@ export function PullPage(props: {
             )}
           </div>
           <OcraReviewBox review={description.data?.review} open={found.findings.length}>
-            {props.runner && !settled ? <ReviewNowBox pull={ref} head={data.head} /> : undefined}
+            {props.runner && !settled ? (
+              <>
+                <ReviewNowBox pull={ref} head={data.head} />
+                <OcraCommands pull={ref} />
+              </>
+            ) : undefined}
           </OcraReviewBox>
           <ChecksBox pull={ref} head={data.head} />
           <PeopleCard
