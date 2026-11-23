@@ -273,8 +273,8 @@ function LastJob(props: { r: AutoReviewRepoView }) {
         </span>
       ) : job.error === REPO_CONFIG_IGNORED ? (
         <span className="subtle small job-error">
-          The repository's .ocra/config.json could not be read or is not valid, so this review ran
-          without it.
+          The repository's .ocra/config.json could not be read, is not valid, or loosens a limit
+          this review sets, so the review ran without what it could not use.
         </span>
       ) : (
         job.error && <span className="error-inline small job-error">{jobError(job.error)}</span>

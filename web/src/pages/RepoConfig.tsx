@@ -126,6 +126,12 @@ function HostedNote(props: { branch: string }) {
           win. The spend limit is the lower of the file's and the account's.
         </li>
         <li>
+          <code className="mono">minInlineSeverity</code>,{" "}
+          <code className="mono">maxInlineComments</code> and <code className="mono">ultra</code>{" "}
+          can only hold a review tighter than its depth and the account: a higher floor, fewer
+          inline comments, ultra off. A looser value is not used.
+        </li>
+        <li>
           <code className="mono">exclude</code> here replaces the account's excludes, even when it
           is empty, and a reviewer's entry replaces the account's entry for that reviewer.
         </li>

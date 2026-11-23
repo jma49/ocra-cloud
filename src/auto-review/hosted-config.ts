@@ -1,4 +1,9 @@
-import { configSchema, type OcraConfig } from "@open-cr-agent/cloud-contract";
+import {
+  configSchema,
+  type OcraConfig,
+  SEVERITIES,
+  type Severity,
+} from "@open-cr-agent/cloud-contract";
 import { errorName, logError } from "../log.js";
 import type { CodePlatform } from "../platforms/platform.js";
 import { MAX_REPO_CONFIG_BYTES, REPO_CONFIG_PATHS, textOf } from "../repo-config-file.js";
@@ -18,7 +23,16 @@ type ReviewerEntry = OcraConfig["reviewers"][string];
 export type HostedRepoConfig = Partial<
   Pick<
     OcraConfig,
-    "include" | "exclude" | "verify" | "judge" | "showPreExisting" | "maxTasks" | "maxCostUsd"
+    | "include"
+    | "exclude"
+    | "verify"
+    | "judge"
+    | "showPreExisting"
+    | "maxTasks"
+    | "maxCostUsd"
+    | "minInlineSeverity"
+    | "maxInlineComments"
+    | "ultra"
   >
 > & {
   reviewers?: Record<string, Pick<ReviewerEntry, (typeof HOSTED_REVIEWER_KEYS)[number]>>;
@@ -120,5 +134,56 @@ export function underServer(repo: HostedRepoConfig, server: ServerConfig): Recor
     ...(reviewerIds.size > 0 ? { reviewers } : {}),
     ...(Object.keys(github).length > 0 ? { github } : {}),
     ...(caps.length > 0 ? { maxCostUsd: Math.min(...caps) } : {}),
+  };
+}
+
+type Limits = {
+  minInlineSeverity?: Severity | null;
+  maxInlineComments?: number | null;
+  ultra?: boolean | null;
+};
+
+type DepthRun = { config: Limits & Record<string, unknown>; flags: string[] };
+
+/**
+ * The file's inline comment limits and ultra, where they hold the review
+ * tighter than its depth, else the account's settings: a higher severity
+ * floor, fewer inline comments, ultra off. The file cannot loosen them, as
+ * a depth's limits are what was chosen for the review and ultra doubles
+ * its cost: such a value is refused (`refused`), and the rest of the file
+ * still applies. A value taken goes in the depth's configuration, where it
+ * beats the account's, and ultra off drops the depth's --ultra.
+ */
+export function tightenedBy(
+  repo: HostedRepoConfig,
+  depth: DepthRun,
+  account: Limits | undefined,
+): { repo: HostedRepoConfig; depth: DepthRun; refused: boolean } {
+  const { minInlineSeverity, maxInlineComments, ultra, ...rest } = repo;
+  const floor = depth.config.minInlineSeverity ?? account?.minInlineSeverity ?? undefined;
+  const cap = depth.config.maxInlineComments ?? account?.maxInlineComments ?? undefined;
+  const ultraOn =
+    depth.flags.includes("--ultra") || (depth.config.ultra !== false && account?.ultra === true);
+  const strictness = (s: Severity | undefined) => SEVERITIES.indexOf(s ?? "suggestion");
+  const taken: Limits = {};
+  let refused = false;
+  if (minInlineSeverity !== undefined) {
+    if (strictness(minInlineSeverity) <= strictness(floor))
+      taken.minInlineSeverity = minInlineSeverity;
+    else refused = true;
+  }
+  if (maxInlineComments !== undefined) {
+    if (cap === undefined || maxInlineComments <= cap) taken.maxInlineComments = maxInlineComments;
+    else refused = true;
+  }
+  if (ultra === false) taken.ultra = false;
+  else if (ultra === true && !ultraOn) refused = true;
+  return {
+    repo: rest,
+    depth: {
+      config: { ...depth.config, ...taken },
+      flags: taken.ultra === false ? depth.flags.filter((f) => f !== "--ultra") : depth.flags,
+    },
+    refused,
   };
 }
