@@ -1,5 +1,4 @@
 import { resolve } from "node:path";
-import { PGlite } from "@electric-sql/pglite";
 import { createClient } from "@libsql/client";
 import { getTableName, is } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/libsql";
@@ -9,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import * as postgres from "../src/db/pg/schema.js";
 import * as sqlite from "../src/db/schema.js";
 import { openPglite } from "../test-pg/pglite.js";
+import { freshPglite } from "./pglite-cluster.js";
 
 // The Postgres migrations (migrations-pg/) make the tables the SQLite ones
 // (migrations/) make, column for column and index for index: a schema change
@@ -43,7 +43,7 @@ async function sqliteShape(): Promise<Shape> {
 }
 
 async function postgresShape(): Promise<Shape> {
-  const client = new PGlite();
+  const client = await freshPglite();
   await openPglite(client, resolve("migrations-pg"));
   const columns = await client.query<{
     table_name: string;

@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-import { PGlite } from "@electric-sql/pglite";
+import type { PGlite } from "@electric-sql/pglite";
 import { PGLiteSocketServer } from "@electric-sql/pglite-socket";
 import upload from "@open-cr-agent/cloud-contract/fixtures/upload.json";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -7,6 +7,7 @@ import { githubIdentity, upsertAccount } from "../src/db/accounts.js";
 import { bindingsFrom } from "../src/node/env.js";
 import { openHost } from "../src/node/host.js";
 import { startCliSession, startWebSession } from "../src/session.js";
+import { freshPglite } from "./pglite-cluster.js";
 
 // The self-hosted server on a postgres:// URL, through node-postgres and its
 // pool, the migrations of migrations-pg/ and a batch's transaction: a
@@ -27,7 +28,7 @@ let cli: Record<string, string>;
 let web: Record<string, string>;
 
 beforeAll(async () => {
-  pglite = await PGlite.create();
+  pglite = await freshPglite();
   server = new PGLiteSocketServer({ db: pglite, port: 0, host: "127.0.0.1", maxConnections: 10 });
   await server.start();
   const port = Number(server.getServerConn().split(":").at(-1));
