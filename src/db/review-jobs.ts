@@ -1,7 +1,8 @@
-import { and, desc, eq, inArray, isNull, lt, lte, ne, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
 import { DEFAULT_REVIEW_PROFILE } from "../shared/index.js";
 import { changedRows, type Db, first } from "./client.js";
 import { mayStart } from "./counters.js";
+import { recoverLapsed } from "./job-recovery.js";
 import { reviewJobs, reviewRepos } from "./schema.js";
 
 // The pull requests the server reviews itself (ADR-0046): an account's
@@ -216,11 +217,9 @@ export async function claimJob(
   const due = and(eq(j.state, "queued"), or(isNull(j.notBefore), lte(j.notBefore, now)));
   const busy = sql`EXISTS (SELECT 1 FROM ${j} r WHERE r.review_repo_id = ${j.reviewRepoId}
     AND r.number = ${j.number} AND r.state = 'running' AND r.lease_until > ${now.getTime()})`;
-  // A run that died keeps its row running until its lease lapses: queued again here.
-  await db
-    .update(j)
-    .set({ state: "queued", leaseUntil: null })
-    .where(and(eq(j.state, "running"), lt(j.leaseUntil, now)));
+  // A run that died keeps its row running until its lease lapses: queued again here, or failed
+  // once it has used its attempts.
+  await recoverLapsed(db, j, now);
   const waiting = await db
     .select({ reviewRepoId: j.reviewRepoId, number: j.number })
     .from(j)

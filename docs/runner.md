@@ -41,7 +41,7 @@ OCRA_CLOUD_URL=https://ocra.example.com OCRA_RUNNER_TOKEN_FILE=/path/to/runner-t
 
 It writes one JSON line per event to its output (`runner_started`, `runner_job_started`, `runner_job_ended`, `runner_failed`), never a token or a job's content. On `SIGTERM` it ends the job it is running, reports it failed so that the server queues it again, and exits. A server it cannot reach is asked again later, up to five minutes apart. Each job runs in a new temporary directory that is removed on every exit path.
 
-Several runners may share one token; each job goes to one of them. A job whose runner disappears is queued again when its lease lapses (45 minutes for a review).
+Several runners may share one token; each job goes to one of them. A job whose runner disappears is queued again when its lease lapses (45 minutes for a review), or fails once it has had three runs.
 
 ### Kept running on macOS
 

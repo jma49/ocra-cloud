@@ -1,7 +1,8 @@
-import { and, desc, eq, isNull, lt, lte, or, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, lte, or, sql } from "drizzle-orm";
 import type { GenerateKind } from "../shared/index.js";
 import { changedRows, type Db, first } from "./client.js";
 import { mayStart } from "./counters.js";
+import { recoverLapsed } from "./job-recovery.js";
 import { generateJobs } from "./schema.js";
 
 // Tests or docstrings asked for on a pull request (reached through scoped()
@@ -72,11 +73,9 @@ export async function claimGenerate(
   dailyCalls: number,
 ): Promise<ClaimedGenerate | undefined> {
   const j = generateJobs;
-  // A run that died keeps its row running until its lease lapses: queued again here.
-  await db
-    .update(j)
-    .set({ state: "queued", leaseUntil: null })
-    .where(and(eq(j.state, "running"), lt(j.leaseUntil, now)));
+  // A run that died keeps its row running until its lease lapses: queued again here, or failed
+  // once it has used its attempts.
+  await recoverLapsed(db, j, now);
   const due = await db
     .select({ id: j.id })
     .from(j)

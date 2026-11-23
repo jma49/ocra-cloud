@@ -5,6 +5,7 @@ import { remoteReviews } from "./auto-review/remote.js";
 import { retryAutomations } from "./automations/retry.js";
 import { type CronJob, type CronJobName, runScheduled } from "./cron-calls.js";
 import { pruneGraphBuilds } from "./db/graphs.js";
+import { recoverJobs } from "./db/job-recovery.js";
 import { enforceRetention } from "./db/retention.js";
 import { remoteGraphs } from "./graph/remote.js";
 import { retryInbound } from "./inbound/run.js";
@@ -52,6 +53,7 @@ export default {
     const jobs: Partial<Record<CronJobName, CronJob>> = {};
     if (controller.cron !== HOURLY) {
       ctx.waitUntil(enforceRetention(db));
+      ctx.waitUntil(recoverJobs(db));
       ctx.waitUntil(pruneGraphBuilds(db, graphs !== undefined));
     } else {
       const bots = "bots" in remote ? remote.bots : undefined;
