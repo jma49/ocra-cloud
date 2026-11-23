@@ -7,7 +7,7 @@ import { errorName, logError } from "../log.js";
 import { githubSignal, type PullSignal } from "../merge-when-ready/hooks.js";
 import { accessToken } from "../platforms/links.js";
 import { MAX_STACK } from "../platforms/stacks.js";
-import { advanceStack, type StackRunner } from "./advance.js";
+import { advanceStack, REQUEST_CALLS, type StackRunner } from "./advance.js";
 
 // What an enrolled repository's webhooks say to stacks: the signals that
 // move a merge intent move the stack merge on that layer too, and a pull
@@ -91,7 +91,8 @@ export async function moveStackMerges(
   const at = "head" in signal ? { head: signal.head } : { number: signal.number };
   for (const merge of await data.stackMerges.active(key, at, MAX_PER_SIGNAL)) {
     try {
-      await advanceStack({ runner, data, platform }, merge, now);
+      // A delivery's work runs in the request that brought it.
+      await advanceStack({ runner, data, platform }, merge, now, REQUEST_CALLS);
     } catch (e) {
       logError("stack_merge_failed", { repo: repo.id, error: errorName(e) });
     }

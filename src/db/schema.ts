@@ -1438,6 +1438,37 @@ export const stackMerges = sqliteTable(
   ],
 );
 
+// The layers a stack merge under way holds, one row each, so no two merges
+// of an account hold one pull request: a merge starts by taking its chain's
+// rows in the statement batch that inserts it, and gives them up in the one
+// that ends it (./stack-merges.ts).
+export const stackMergeLayers = sqliteTable(
+  "stack_merge_layers",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    mergeId: text("merge_id")
+      .notNull()
+      .references(() => stackMerges.id, { onDelete: "cascade" }),
+    platform: text("platform", { enum: CODE_PLATFORMS }).notNull(),
+    host: text("host").notNull(),
+    fullName: text("full_name").notNull(),
+    number: integer("number").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("stack_merge_layers_pull").on(
+      t.accountId,
+      t.platform,
+      t.host,
+      t.fullName,
+      t.number,
+    ),
+    // merge_id first for the delete's cascade and a merge's own release.
+    index("stack_merge_layers_merge").on(t.mergeId),
+  ],
+);
+
 // "Ask ocra" about a review: the account's questions and the answers, kept
 // as long as the review (deleted with it, by the user or retention) and at
 // most MAX_CHAT_MESSAGES of them (./review-chat.ts).
@@ -1599,6 +1630,7 @@ export const accountTables = {
   mergeCheckRuns,
   mergeIntents,
   stackMerges,
+  stackMergeLayers,
   reviewChatMessages,
   findingIssues,
   liveRuns,

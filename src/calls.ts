@@ -82,6 +82,17 @@ const scopes = new AsyncLocalStorage<CallBudget>();
 export const withCalls = <T>(calls: CallBudget, fn: () => Promise<T>): Promise<T> =>
   scopes.run(calls, fn);
 
+/**
+ * Runs `fn` with at most `limit` external calls, drawn on the budget the
+ * caller runs in where it has one; `fn` gets the budget, to check before
+ * each piece of work and to see whether a call was refused.
+ */
+export function withCallLimit<T>(limit: number, fn: (calls: CallBudget) => Promise<T>): Promise<T> {
+  const parent = scopes.getStore();
+  const calls = parent ? parent.child(limit) : new CallBudget(limit);
+  return scopes.run(calls, () => fn(calls));
+}
+
 /** How an item went: its value, or cut when one of its calls was refused (thrown or not). */
 export type Item<T> = { value: T; cut: false } | { value: T | undefined; cut: true };
 

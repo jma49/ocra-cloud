@@ -95,6 +95,7 @@ const TABLE: Record<string, string> = {
   mergeCheckRuns: "merge_check_runs",
   mergeIntents: "merge_intents",
   stackMerges: "stack_merges",
+  stackMergeLayers: "stack_merge_layers",
   reviewChatMessages: "review_chat_messages",
   findingIssues: "finding_issues",
   liveRuns: "live_runs",
@@ -597,6 +598,28 @@ describe("incoming deliveries", () => {
     const p = await plan(seen[0] as Captured);
     expect(p).toMatch(/SEARCH stack_merges USING INDEX/);
     expect(p).not.toMatch(/SCAN stack_merges/);
+  });
+  it("finds the merge under way that holds a layer, gives a merge's layers up and removes them with it, each through an index", async () => {
+    const seen: Captured[] = [];
+    const merges = scoped(drizzle(recording(seen)), "acct").stackMerges;
+    const key = { platform: "github" as const, host: "github.com", fullName: "octo/api" };
+    await merges.heldBy(key, [2, 3]);
+    await merges.cancel("m", new Date());
+    expect(seen.length).toBeGreaterThanOrEqual(3);
+    for (const s of seen) {
+      const p = await plan(s);
+      expect(p, s.sql).toMatch(
+        /SEARCH (stack_merges|stack_merge_layers|t) USING (COVERING )?INDEX/,
+      );
+      expect(p, s.sql).not.toMatch(/SCAN stack_merge/);
+    }
+    const cascade = await plan({
+      sql: "SELECT id FROM stack_merge_layers WHERE merge_id = ?",
+      params: ["m"],
+    });
+    expect(cascade).toMatch(
+      /SEARCH stack_merge_layers USING (COVERING )?INDEX stack_merge_layers_merge/,
+    );
   });
 });
 

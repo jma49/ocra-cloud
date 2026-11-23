@@ -3,6 +3,7 @@ import { z } from "zod";
 import { audit } from "../audit.js";
 import type { StackMerge } from "../db/stack-merges.js";
 import { apiError, jsonBody } from "../http.js";
+import { outboxOf } from "../notify/notify.js";
 import { platformsOf } from "../platforms/registry.js";
 import { MAX_STACK, stackOf } from "../platforms/stacks.js";
 import { byKind, mergeMethodsOf, methodNotAllowed, pullRef, reach, sha } from "../pull-page.js";
@@ -15,13 +16,14 @@ import {
   type StackMergeJobView,
 } from "../shared/index.js";
 import type { AppEnv } from "../types.js";
-import { advanceStack, type StackRunner } from "./advance.js";
+import { advanceStack, REQUEST_CALLS, type StackRunner } from "./advance.js";
 
 // A stack's merge from the bottom up to one of its pull requests, started,
 // watched and cancelled from the pull request's page as the signed-in user.
-// The server runs it layer by layer (./advance.ts); one runs per stack bottom
-// at a time, and a page reads or cancels it by any layer of its chain, since
-// the bottom it started from merges first.
+// The server runs it layer by layer (./advance.ts); one runs per pull request
+// at a time, and a page starts, reads or cancels it by any layer of its
+// chain, since the bottom it started from merges first. A request moves it
+// only REQUEST_CALLS platform calls on and answers it in progress.
 
 export const stackMerge = new Hono<AppEnv>();
 
@@ -63,6 +65,7 @@ const runnerOf = (c: Context<AppEnv>): StackRunner => ({
   db: c.var.db,
   env: c.env,
   platforms: platformsOf(c.env, c.req.url),
+  out: outboxOf(c),
 });
 
 const answer = (
@@ -87,7 +90,8 @@ stackMerge.get("/", requireSession(["web"]), perMinute("platform"), async (c) =>
   const idle =
     merge?.state === "waiting" && now.getTime() - merge.updatedAt.getTime() > READ_IDLE_MS;
   if (!merge || !idle) return answer(c, "done", merge);
-  return answer(c, "done", await advanceStack({ runner: runnerOf(c), data, platform }, merge, now));
+  const scope = { runner: runnerOf(c), data, platform };
+  return answer(c, "done", await advanceStack(scope, merge, now, REQUEST_CALLS));
 });
 
 stackMerge.post(
@@ -100,6 +104,11 @@ stackMerge.post(
     const reached = await reach(c, byKind(c.req.valid("json")));
     if ("refusal" in reached) return reached.refusal;
     const { platform, token } = reached;
+    const data = c.var.data;
+    const key = { platform: platform.kind, host: platform.host, fullName: repo };
+    // A merge under way that holds the layer is the one answered, whatever the stack now reads as.
+    const held = await data.stackMerges.heldBy(key, [number]);
+    if (held) return answer(c, "running", held);
     if (!(await mergeMethodsOf(platform, token, repo)).includes(method)) return methodNotAllowed(c);
     const open = await platform.stacks.open(token, repo);
     if (!open) return apiError(c, "upstream_unreachable");
@@ -111,13 +120,10 @@ stackMerge.post(
       chain.length === heads.length && chain.every((p, i) => p.number === heads[i]?.number);
     const bottom = chain[0];
     if (!same || !bottom) return answer(c, "stack_changed", undefined);
-    const data = c.var.data;
     const now = new Date();
-    const merge = await data.stackMerges.start(
+    const start = await data.stackMerges.start(
       {
-        platform: platform.kind,
-        host: platform.host,
-        fullName: repo,
+        ...key,
         bottom: bottom.number,
         trunk: stack.trunk,
         method,
@@ -126,11 +132,10 @@ stackMerge.post(
       },
       now,
     );
-    if (!merge) return apiError(c, "internal");
-    // Another merge of the stack holds the row: it is the one answered.
-    if (merge.createdAt.getTime() !== now.getTime() || merge.state !== "waiting") {
-      return answer(c, "running", merge);
-    }
+    if (!start) return apiError(c, "internal");
+    const { merge } = start;
+    // Another merge holds a layer of the chain: it is the one answered.
+    if (!start.started) return answer(c, "running", merge);
     await audit(data, "stack_merge.started", {
       pull: `${merge.path}#${merge.bottom}`,
       top: number,
@@ -138,7 +143,8 @@ stackMerge.post(
     });
     // The bottom may merge now: tried at once, as the webhooks would.
     const runner = runnerOf(c);
-    return answer(c, "started", await advanceStack({ runner, data, platform }, merge, now));
+    const moved = await advanceStack({ runner, data, platform }, merge, now, REQUEST_CALLS);
+    return answer(c, "started", moved);
   },
 );
 

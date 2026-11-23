@@ -318,6 +318,15 @@ export const rows = {
     url: "https://github.com/octo/api/issues/7",
     claimedAt: new Date(),
   }),
+  // The merge it belongs to is made in beforeEach (the foreign key needs one).
+  stackMergeLayers: (id: string) => ({
+    id,
+    mergeId: "stack-merge-of-a",
+    platform: "github" as const,
+    host: "github.com",
+    fullName: `octo/${id}`,
+    number: 1,
+  }),
   // The review it belongs to is made in beforeEach (the foreign key needs one).
   reviewChatMessages: (id: string) => ({
     id,
