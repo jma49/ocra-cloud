@@ -45,12 +45,13 @@ export function StackPanel(props: {
   const { platform, repo, number } = props.pull;
   const query = new URLSearchParams({ platform, repo, number: String(number) }).toString();
   const { data } = useLoad(() => api<PullStackView>(`/pulls/stack?${query}`), [query]);
-  const [result, setResult] = useState<StackMergeView | null>(null);
-  const merged = (r: StackMergeView) => {
-    setResult(r);
+  const [result, setResult] = useState<(StackMergeView & { method: MergeMethod }) | null>(null);
+  const merged = (r: StackMergeView, method: MergeMethod) => {
+    setResult({ ...r, method });
     if (r.steps.some((s) => s.outcome === "done")) props.onMerged();
   };
-  if (result) return <MergedStack trunk={data?.trunk ?? ""} result={result} />;
+  if (result)
+    return <MergedStack trunk={data?.trunk ?? ""} result={result} method={result.method} />;
   if (!data || data.pulls.length < 2) return null;
   const chain = chainTo(data.pulls, number);
   return (
@@ -99,7 +100,7 @@ function MergeStack(props: {
   pull: Ref;
   chain: StackedPull[];
   methods: MergeMethod[];
-  onMerged: (r: StackMergeView) => void;
+  onMerged: (r: StackMergeView, method: MergeMethod) => void;
 }) {
   const [asking, setAsking] = useState(false);
   const [method, setMethod] = useState<MergeMethod>(props.methods[0] ?? "merge");
@@ -116,7 +117,7 @@ function MergeStack(props: {
   const confirm = async () => {
     const r = await merge.run();
     setAsking(false);
-    if (r) props.onMerged(r);
+    if (r) props.onMerged(r, method);
   };
   const n = props.chain.length;
   return (
@@ -164,8 +165,10 @@ function MergeStack(props: {
 }
 
 /** What a stack merge did: each pull request it tried, then the ones above moved onto the trunk. */
-function MergedStack(props: { trunk: string; result: StackMergeView }) {
+function MergedStack(props: { trunk: string; result: StackMergeView; method: MergeMethod }) {
   const { steps, restacked } = props.result;
+  // Squashed or rebased layers land as new commits, so a branch built on the old ones still carries them.
+  const stale = props.method !== "merge" && restacked.some((s) => s.outcome === "done");
   return (
     <section className="card card-pad stack" aria-label="Stack">
       <div className="strong">Stack merge</div>
@@ -189,6 +192,13 @@ function MergedStack(props: { trunk: string; result: StackMergeView }) {
           </li>
         ))}
       </ul>
+      {stale && (
+        <span className="subtle small">
+          Their branches still hold the merged commits, so their diffs list those changes too. Run{" "}
+          <span className="mono">ocra stack sync</span> then{" "}
+          <span className="mono">ocra stack submit</span> to rebase and push them.
+        </span>
+      )}
     </section>
   );
 }

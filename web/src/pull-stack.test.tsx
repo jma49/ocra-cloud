@@ -124,8 +124,29 @@ describe("a pull request's stack", () => {
     );
     const status = await screen.findByRole("status");
     expect(status.textContent).toContain("#3 Now onto main.");
+    expect(screen.getByText(/still hold the merged commits/)).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Merge stack up to here" })).toBeNull();
     expect(onMerged).toHaveBeenCalledOnce();
+  });
+
+  it("asks for no rebase after merge commits, which keep the commits the branches above are built on", async () => {
+    show(
+      [stacked(1, null), stacked(2, 1), stacked(3, 2)],
+      [
+        { number: 1, outcome: "done" },
+        { number: 2, outcome: "done" },
+      ],
+      [{ number: 3, outcome: "done" }],
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Merge stack up to here" }));
+    fireEvent.change(screen.getByRole("combobox", { name: "Stack merge method" }), {
+      target: { value: "merge" },
+    });
+    await act(
+      async () => void fireEvent.click(screen.getByRole("button", { name: "Confirm: merge 2" })),
+    );
+    expect((await screen.findByRole("status")).textContent).toContain("#3 Now onto main.");
+    expect(screen.queryByText(/still hold the merged commits/)).toBeNull();
   });
 
   it("leaves the page as it is when nothing merged", async () => {
