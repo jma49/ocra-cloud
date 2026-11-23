@@ -95,10 +95,10 @@ const bulk = (auth: Record<string, string>, json: Record<string, unknown>) =>
 const optIn = (auth: Record<string, string>, id: string, json: Record<string, unknown>) =>
   send(`/api/auto-review/installations/${id}/auto-enroll`, { method: "PUT", auth, json });
 
-async function added(names: string[], installation = 7) {
+async function added(names: string[], delivery: string = crypto.randomUUID()) {
   const body = JSON.stringify({
     action: "added",
-    installation: { id: installation },
+    installation: { id: 7 },
     repositories_added: names.map((full_name) => ({
       id: REACHED.get(full_name.toLowerCase()) ?? 999,
       full_name,
@@ -109,7 +109,7 @@ async function added(names: string[], installation = 7) {
     headers: {
       "content-type": "application/json",
       "x-github-event": "installation_repositories",
-      "x-github-delivery": crypto.randomUUID(),
+      "x-github-delivery": delivery,
       "x-hub-signature-256": `sha256=${await hmacHex(SECRET, body)}`,
     },
     body,
@@ -200,6 +200,18 @@ describe("enrolling an installation's new repositories", () => {
       kind: "auto_review.enrolled",
     });
     expect(audit).toHaveLength(1);
+  });
+
+  it("acts on a delivery once, however often GitHub sends it", async () => {
+    const me = await signIn(1);
+    await optIn(me.auth, "7", { enabled: true });
+    const id = crypto.randomUUID();
+    expect((await added(["octo/api"], id)).status).toBe(202);
+    const before = calls.length;
+    const again = await added(["octo/api", "octo/web"], id);
+    expect(await again.json()).toEqual({ queued: 0, duplicate: true });
+    expect(calls).toHaveLength(before);
+    expect((await enrolled()).map(([, name]) => name)).toEqual(["octo/api"]);
   });
 
   it("enrolls nothing for an installation no account turned it on for", async () => {
