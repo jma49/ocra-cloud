@@ -103,21 +103,25 @@ export function wordChanges(lines: readonly DiffLine[]): Map<number, WordRange[]
   return out;
 }
 
-/** A run of a line's text: its token kind (null for plain) and whether it changed. */
-export type MarkedRun = { text: string; kind: string | null; changed: boolean };
+/** A run of a line's text: its token kind (null for plain), whether it changed, whether a search found it. */
+export type MarkedRun = { text: string; kind: string | null; changed: boolean; found: boolean };
 
-/** The line's runs cut where a changed range starts or ends. */
+const within = (ranges: readonly WordRange[] | undefined, at: number) =>
+  ranges?.some((r) => at >= r.from && at < r.to) ?? false;
+
+/** The line's runs cut where a changed or found range starts or ends. */
 export function markRuns(
   runs: readonly { text: string; kind: string | null }[],
-  ranges: readonly WordRange[] | undefined,
+  changed: readonly WordRange[] | undefined,
+  found?: readonly WordRange[] | undefined,
 ): MarkedRun[] {
-  if (!ranges?.length) return runs.map((r) => ({ ...r, changed: false }));
+  if (!changed?.length && !found?.length)
+    return runs.map((r) => ({ ...r, changed: false, found: false }));
   const cuts = new Set<number>();
-  for (const r of ranges) {
+  for (const r of [...(changed ?? []), ...(found ?? [])]) {
     cuts.add(r.from);
     cuts.add(r.to);
   }
-  const inside = (at: number) => ranges.some((r) => at >= r.from && at < r.to);
   const out: MarkedRun[] = [];
   let at = 0;
   for (const run of runs) {
@@ -125,10 +129,16 @@ export function markRuns(
     for (let k = 1; k <= run.text.length; k++) {
       if (k < run.text.length && !cuts.has(at + k)) continue;
       const text = run.text.slice(from, k);
-      const changed = inside(at + from);
+      const marks = { changed: within(changed, at + from), found: within(found, at + from) };
       const last = out[out.length - 1];
-      if (last && last.kind === run.kind && last.changed === changed) last.text += text;
-      else out.push({ text, kind: run.kind, changed });
+      if (
+        last &&
+        last.kind === run.kind &&
+        last.changed === marks.changed &&
+        last.found === marks.found
+      )
+        last.text += text;
+      else out.push({ text, kind: run.kind, ...marks });
       from = k;
     }
     at += run.text.length;

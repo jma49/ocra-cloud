@@ -57,15 +57,26 @@ describe("marked runs", () => {
       { text: "left = 1", kind: null },
     ];
     expect(markRuns(runs, [{ from: 6, to: 10 }])).toEqual([
-      { text: "const ", kind: "keyword", changed: false },
-      { text: "left", kind: null, changed: true },
-      { text: " = 1", kind: null, changed: false },
+      { text: "const ", kind: "keyword", changed: false, found: false },
+      { text: "left", kind: null, changed: true, found: false },
+      { text: " = 1", kind: null, changed: false, found: false },
+    ]);
+  });
+
+  it("marks what a search found apart from what changed, where the two cross", () => {
+    expect(
+      markRuns([{ text: "left = 1", kind: null }], [{ from: 0, to: 4 }], [{ from: 2, to: 6 }]),
+    ).toEqual([
+      { text: "le", kind: null, changed: true, found: false },
+      { text: "ft", kind: null, changed: true, found: true },
+      { text: " =", kind: null, changed: false, found: true },
+      { text: " 1", kind: null, changed: false, found: false },
     ]);
   });
 
   it("gives the runs back unmarked when nothing changed", () => {
     expect(markRuns([{ text: "a", kind: null }], undefined)).toEqual([
-      { text: "a", kind: null, changed: false },
+      { text: "a", kind: null, changed: false, found: false },
     ]);
   });
 });

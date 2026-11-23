@@ -45,10 +45,12 @@ import { ReadinessBox, useReadiness } from "../pull/readiness-box.js";
 import { ReviewBox } from "../pull/review-box.js";
 import { ReviewNowBox } from "../pull/review-now-box.js";
 import { ReviewersPanel } from "../pull/reviewers.js";
+import { SearchBar } from "../pull/search-bar.js";
 import { StackPanel } from "../pull/stack.js";
 import { conflicts, nextStep, PullStatus } from "../pull/status.js";
 import { ThreadsPanel } from "../pull/threads.js";
 import { UpdateBranch } from "../pull/update-branch.js";
+import { useDiffSearch } from "../pull/use-diff-search.js";
 import { useViewed } from "../pull/viewed.js";
 import { setPageTitle } from "../title.js";
 import { useToast } from "../toast.js";
@@ -58,6 +60,8 @@ import { useLoad } from "../ui.js";
 // platform as the signed-in user, and their review, comment and merge sent
 // back as them. Writes name the head the page read, so a pull request that
 // moved since is refused rather than reviewed or merged blind.
+
+const NO_FILES: PullFilesView["files"] = [];
 
 export function PullPage(props: {
   platform: string;
@@ -143,6 +147,7 @@ export function PullPage(props: {
   const viewed = useViewed(ref, data, (o) => said("Viewed", o));
   const layout = useDiffLayout();
   const otherLayout = layout.picked === "split" ? "unified" : "split";
+  const search = useDiffSearch(sinceFiles(since) ?? data?.files ?? NO_FILES);
   usePageCommands(
     "This pull request",
     pullCommands({
@@ -322,6 +327,7 @@ export function PullPage(props: {
           <FileList files={shown} isViewed={(f) => viewed.isViewed(f.path)} />
         </aside>
         <div className="pull-main">
+          <SearchBar search={search} />
           <DiffBar layout={layout} />
           <SinceBar since={since} />
           <FixJobsOf query={query.toString()} onProposed={fixProposed}>
@@ -329,6 +335,8 @@ export function PullPage(props: {
               <FileDiff
                 key={`${since.picked ?? ""}:${f.path}`}
                 layout={layout.drawn}
+                found={search.found.get(f.path)}
+                focus={search.focus?.path === f.path ? search.focus : null}
                 context={{ pull: ref, head: data.head }}
                 readOnly={narrowed !== null}
                 file={f}
