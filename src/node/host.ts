@@ -37,6 +37,7 @@ import { type MetricsOptions, metricsEndpoint } from "./metrics.js";
 import { openPostgres } from "./postgres.js";
 import { postgresHub } from "./pull-events-pg.js";
 import { type AutoReviewOptions, startAutoReview } from "./review-worker.js";
+import { type SetupOptions, setupRoute } from "./setup/routes.js";
 import { nodeWebhookPost } from "./webhook-transport.js";
 
 export type HostOptions = {
@@ -45,6 +46,8 @@ export type HostOptions = {
    * a local SQLite file, or a libSQL server.
    */
   databaseUrl: string;
+  /** The database already open (openDatabase), which closing the host leaves open. */
+  database?: OpenDatabase;
   bindings: AppBindings;
   /**
    * The migrations folder (`migrations/`), applied before the first request;
@@ -84,6 +87,8 @@ export type HostOptions = {
   webhookPost?: WebhookPost;
   /** GET /metrics (METRICS_TOKEN); answered 404 without it. */
   metrics?: Omit<MetricsOptions, "startedAt">;
+  /** The settings page (/api/setup). */
+  setup?: SetupOptions;
 };
 
 /**
@@ -94,11 +99,11 @@ export type HostOptions = {
 export async function openHost(options: HostOptions) {
   const startedAt = Date.now();
   const migrate = options.migrate ?? true;
-  const opened = await openDatabase(options.databaseUrl, {
-    migrations: options.migrations,
-    migrate,
-  });
-  const { db: shared, close } = opened;
+  const opened =
+    options.database ??
+    (await openDatabase(options.databaseUrl, { migrations: options.migrations, migrate }));
+  const shared = opened.db;
+  const close = options.database ? () => {} : opened.close;
   const bindings =
     options.rateLimits === "database"
       ? { ...options.bindings, ...rateLimits({ db: shared }) }
@@ -139,6 +144,7 @@ export async function openHost(options: HostOptions) {
     webhookPost,
     pullsHub,
     runnerHeartbeat: !!options.autoReview?.runnerToken,
+    ...(options.setup ? { setup: setupRoute(options.setup) } : {}),
   });
   const metrics = options.metrics && metricsEndpoint(shared, { ...options.metrics, startedAt });
   const deferred = new Set<Promise<unknown>>();
@@ -328,6 +334,8 @@ export function openDatabase(url: string, options: { migrations: string; migrate
     ? openPostgres(url, { ...options, migrations: `${options.migrations}-pg` })
     : openLibsql(url, options);
 }
+
+export type OpenDatabase = Awaited<ReturnType<typeof openDatabase>>;
 
 async function openLibsql(url: string, options: { migrations: string; migrate: boolean }) {
   const client = createClient({ url });

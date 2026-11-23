@@ -55,6 +55,7 @@ export * from "./review-targets.js";
 export * from "./reviewers.js";
 export * from "./scheduled-reports.js";
 export * from "./search.js";
+export * from "./setup.js";
 export * from "./sign-in.js";
 export * from "./stacks.js";
 export * from "./trace.js";

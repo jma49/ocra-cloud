@@ -771,6 +771,13 @@
       "when": 1795513865081,
       "tag": "0109_review_traces",
       "breakpoints": true
+    },
+    {
+      "idx": 110,
+      "version": "6",
+      "when": 1795517511656,
+      "tag": "0110_server_settings",
+      "breakpoints": true
     }
   ]
 }

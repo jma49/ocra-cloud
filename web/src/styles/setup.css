@@ -1,0 +1,140 @@
+/* The server's settings page (setup/Setup.tsx): the steps beside the
+   current step's card, as the settings' own list sits beside a page. */
+.setup-layout {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+}
+.setup-nav {
+  flex: 0 0 200px;
+  padding: 0;
+  top: 16px;
+}
+.setup-nav .settings-link {
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+.setup-nav .settings-link.on {
+  background: var(--fill2);
+}
+.setup-main {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+}
+.setup-unlock {
+  max-width: 640px;
+}
+.setup-code-line {
+  display: flex;
+  gap: 8px;
+}
+.setup-code-line .input {
+  flex: 1;
+  letter-spacing: 0.04em;
+}
+.setup-refused {
+  margin: 12px 0 0;
+}
+.setup-step .field .input {
+  width: 100%;
+}
+.setup-step .input.mono {
+  font-family: var(--mono);
+}
+.setup-step textarea.input {
+  height: auto;
+  padding: 8px var(--ctl-pad);
+  font-size: var(--text-sm);
+  line-height: 16px;
+  resize: vertical;
+}
+.setup-step .hint.error {
+  color: var(--critical);
+}
+.setup-label {
+  font-weight: 500;
+}
+.setup-switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.setup-addresses {
+  margin: 16px 0 0;
+}
+.setup-address {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.setup-address code {
+  overflow-wrap: anywhere;
+  font-size: var(--text-sm);
+  line-height: 16px;
+}
+.setup-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px var(--gutter);
+  border-top: 0.5px solid var(--hair);
+}
+.setup-banner {
+  align-items: center;
+  margin-top: 0;
+  flex-wrap: wrap;
+}
+.setup-banner .error {
+  flex-basis: 100%;
+  margin: 0;
+}
+.setup-checks {
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 0.5px solid var(--hair);
+}
+.setup-health .setup-checks {
+  margin-top: 0;
+  border-top: 0;
+}
+.setup-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 0.5px solid var(--hair);
+}
+.setup-check:last-child {
+  border-bottom: 0;
+}
+.setup-check .badge {
+  flex: none;
+  min-width: 64px;
+  justify-content: center;
+}
+.setup-health {
+  display: grid;
+  gap: 12px;
+}
+
+@media (max-width: 760px) {
+  .setup-layout {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .setup-nav {
+    flex: none;
+    padding: 0 0 8px;
+  }
+  .setup-code-line {
+    flex-direction: column;
+  }
+}

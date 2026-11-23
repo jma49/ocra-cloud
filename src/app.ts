@@ -123,6 +123,8 @@ export type Host<E extends AppBindings> = {
   pullGuides?: PullGuides;
   /** Whether a deep health check asks that a remote runner reported in lately (src/node/). */
   runnerHeartbeat?: boolean;
+  /** A self-hosted server's settings page (src/node/setup/), guarded by its setup code. */
+  setup?: Hono<AppEnv>;
 };
 
 export function createApp<E extends AppBindings>(host: Host<E>) {
@@ -147,6 +149,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
   app.use(platformLimits);
 
   app.route("/health", healthRoute({ runners: host.runnerHeartbeat ?? false }));
+  if (host.setup) app.route("/setup", host.setup);
 
   app.route("/auth", auth);
   app.route("/auth/oidc", oidc);
