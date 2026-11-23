@@ -238,6 +238,10 @@
   box-shadow: var(--float);
   animation: jump-in 160ms var(--e-enter);
 }
+/* Out of the way while someone writes: it would sit over a reply box at the window's foot. */
+:root:has(textarea:focus) .jump-to-code {
+  display: none;
+}
 @keyframes jump-in {
   from {
     opacity: 0;
