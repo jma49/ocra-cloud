@@ -16,7 +16,10 @@ import { mergeKey, queueRestacks } from "./restack.js";
 // base, as the account that enrolled the repository (whose link its other
 // server-side writes use), so they do not merge into a branch that landed;
 // where the repository turned restacks on, each moved one is queued to be
-// rebased there too (./restack.ts).
+// rebased there too (./restack.ts). GitHub moves them itself when it deletes
+// the merged head branch, sometimes before the merge's delivery is handled,
+// which then finds none: each such move's own delivery queues its restack,
+// under the same key, so the two never queue it twice.
 
 /**
  * A merged pull request's branches, and its head and merge commit where the
@@ -30,7 +33,23 @@ export type MergedPull = {
   mergeCommit?: string | null;
 };
 
+/** A GitHub pull request moved off `from` onto `base`, its head branch in the repository. */
+export type RetargetedPull = {
+  number: number;
+  from: string;
+  base: string;
+  head: string;
+  headSha: string;
+};
+
 const MAX_PER_SIGNAL = 20;
+
+/**
+ * How long after a merge a pull request moved off its head branch is taken
+ * as moved by that merge: past the platform's own move, the delivery's
+ * retries (src/inbound/run.ts) end within it.
+ */
+const RETARGET_WINDOW_MS = 2 * 60 * 60_000;
 
 /** What of a GitHub delivery the stacks read, kept for the delivery's retries (src/inbound/fields.ts). */
 const githubMergedBody = z.object({
@@ -55,7 +74,43 @@ const gitlabMergedBody = z.object({
   }),
 });
 
-export const GITHUB_STACK_FIELDS = [githubMergedBody];
+const githubRetargetedBody = z.object({
+  action: z.literal("edited"),
+  number: z.number().int().min(1),
+  changes: z.object({ base: z.object({ ref: z.object({ from: z.string().min(1) }) }) }),
+  pull_request: z.object({
+    state: z.literal("open"),
+    head: z.object({
+      ref: z.string().min(1),
+      sha: z.string(),
+      repo: z.object({ id: z.number() }).nullish(),
+    }),
+    base: z.object({ ref: z.string().min(1), repo: z.object({ id: z.number() }) }),
+  }),
+});
+
+export const GITHUB_STACK_FIELDS = [githubMergedBody, githubRetargetedBody];
+
+/** A GitHub delivery's open pull request moved to another base, its head in the repository; null for any other. */
+export function githubRetargeted(event: string | undefined, body: unknown): RetargetedPull | null {
+  if (event !== "pull_request") return null;
+  const p = githubRetargetedBody.safeParse(body);
+  if (!p.success) return null;
+  const { number, changes, pull_request: pull } = p.data;
+  if (pull.head.repo?.id !== pull.base.repo.id || changes.base.ref.from === pull.base.ref) {
+    return null;
+  }
+  return {
+    number,
+    from: changes.base.ref.from,
+    base: pull.base.ref,
+    head: pull.head.ref,
+    headSha: pull.head.sha,
+  };
+}
+
+const mergedLately = (data: ReturnType<typeof scoped>, repoId: string, branch: string, now: Date) =>
+  data.pullIndex.mergedFrom(repoId, branch, new Date(now.getTime() - RETARGET_WINDOW_MS));
 
 /** A GitHub delivery's merged pull request; null for any other. */
 export function githubMerged(event: string | undefined, body: unknown): MergedPull | null {
@@ -91,18 +146,28 @@ export function gitlabMerged(kind: string | undefined, body: unknown): MergedPul
 const platformOf = (runner: StackRunner, repo: Row<"reviewRepos">) =>
   runner.platforms.find((p) => p.kind === repo.platform && p.host === repo.host);
 
-/** Whether a delivery has stack work: a pull request merged, or a stack merge on what it names. */
+/**
+ * Whether a delivery has stack work: a pull request merged, one moved off
+ * a head branch merged lately where the repository restacks, or a stack
+ * merge on what it names.
+ */
 export async function hasStackWork(
   db: Db,
   repo: Row<"reviewRepos">,
   fullName: string,
   signal: PullSignal,
   merged: MergedPull | null,
+  retargeted: RetargetedPull | null = null,
+  now = new Date(),
 ): Promise<boolean> {
   if (merged) return true;
+  const data = scoped(db, repo.accountId);
+  if (retargeted && repo.restack && (await mergedLately(data, repo.id, retargeted.from, now))) {
+    return true;
+  }
   const key = { platform: repo.platform, host: repo.host, fullName };
   const at = "head" in signal ? { head: signal.head } : { number: signal.number };
-  return (await scoped(db, repo.accountId).stackMerges.active(key, at, 1)).length > 0;
+  return (await data.stackMerges.active(key, at, 1)).length > 0;
 }
 
 /** Moves the stack merges of the enrolled repository that the signal concerns. */
@@ -167,16 +232,51 @@ export async function restackOnMerge(
   return moved.length;
 }
 
-/** A delivery's signal and merged pull request, for the enrolled repository's stacks. */
+/**
+ * Queues the restack of a pull request the platform moved off the head
+ * branch of one merged lately (the index holds it merged) onto that one's
+ * base, where the repository restacks; whether it queued. The merge's
+ * commit and head are the platform's, so the key is the one the merge's
+ * own delivery queues under.
+ */
+async function restackOnRetarget(
+  runner: StackRunner,
+  repo: Row<"reviewRepos">,
+  moved: RetargetedPull,
+  now = new Date(),
+): Promise<boolean> {
+  const platform = platformOf(runner, repo);
+  if (!platform || !repo.restack) return false;
+  const data = scoped(runner.db, repo.accountId);
+  const merged = await mergedLately(data, repo.id, moved.from, now);
+  if (!merged) return false;
+  const token = await accessToken(data, runner.env, platform);
+  if (!token) return false;
+  const was = await platform.stacks.standing(token, repo.fullName, merged.number);
+  if (was?.state !== "merged" || was.headBranch !== moved.from || was.base !== moved.base) {
+    return false;
+  }
+  const parent = {
+    number: merged.number,
+    merge: mergeKey(was.mergeCommit, was.head),
+    head: was.head,
+    onto: { branch: moved.base, commit: null },
+  };
+  return (await queueRestacks(data, repo, parent, [moved])) > 0;
+}
+
+/** A delivery's signal and merged or moved pull request, for the enrolled repository's stacks. */
 export async function moveStacks(
   runner: StackRunner,
   repo: Row<"reviewRepos">,
   fullName: string,
   signal: PullSignal | undefined,
   merged: MergedPull | null | undefined,
+  retargeted: RetargetedPull | null = null,
 ) {
   try {
     if (merged) await restackOnMerge(runner, repo, merged);
+    if (retargeted) await restackOnRetarget(runner, repo, retargeted);
   } catch (e) {
     logError("stack_restack_failed", { repo: repo.id, error: errorName(e) });
   }
@@ -193,5 +293,7 @@ export async function moveGithubStacks(
   const said = githubSignal(event, body);
   if (!said) return;
   const repo = await reviewRepoFor(runner.db, "github", host, said.repoId);
-  if (repo) await moveStacks(runner, repo, said.fullName, said.signal, githubMerged(event, body));
+  if (!repo) return;
+  const merged = githubMerged(event, body);
+  await moveStacks(runner, repo, said.fullName, said.signal, merged, githubRetargeted(event, body));
 }

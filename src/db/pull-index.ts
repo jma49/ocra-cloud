@@ -133,6 +133,29 @@ export function accountPullIndex(db: Db, accountId: string) {
       return row !== undefined;
     },
 
+    /** The repository's pull request merged from this head branch at or after `since`, the latest. */
+    async mergedFrom(
+      reviewRepoId: string,
+      headBranch: string,
+      since: Date,
+    ): Promise<IndexRow | undefined> {
+      const [row] = await db
+        .select()
+        .from(t)
+        .where(
+          and(
+            own,
+            eq(t.reviewRepoId, reviewRepoId),
+            eq(t.state, "merged"),
+            eq(t.headBranch, headBranch),
+            gte(t.mergedAt, since),
+          ),
+        )
+        .orderBy(desc(t.mergedAt))
+        .limit(1);
+      return row;
+    },
+
     /** The numbers of the repository's rows still open. */
     async openNumbers(reviewRepoId: string): Promise<number[]> {
       const rows = await db
