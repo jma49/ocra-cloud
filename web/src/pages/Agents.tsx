@@ -102,7 +102,7 @@ export function Agents() {
   return (
     <>
       <PageHead
-        title="Agents"
+        title="Agents & models"
         sub="Defaults for ocra review when you are signed in. A repository's .ocra/config.json wins where it sets the same thing."
       />
 
