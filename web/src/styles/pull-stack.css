@@ -77,32 +77,38 @@
 .reviewer-detail {
   grid-column: 1 / -1;
 }
-/* Review threads, beside the diff: where, the comments, each suggestion as the code it writes. */
+/* Review threads: each one a card, where it is on top, its comments under it, the reply at the foot. */
 .thread-list {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
-.thread-list > li {
+.thread-card {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 6px;
-}
-.thread-list > li + li {
-  padding-top: 12px;
-  box-shadow: inset 0 0.5px 0 var(--hair);
+  overflow: hidden;
+  border-radius: var(--r-ctl);
+  background: var(--raised);
+  box-shadow: var(--shadow);
 }
 .thread-head {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   align-items: center;
+  min-height: 40px;
+  padding: 6px 8px 6px 12px;
+  background: var(--fill);
+  box-shadow: inset 0 -0.5px 0 var(--hair2);
 }
 .thread-where {
   display: flex;
   flex: 1 1 120px;
+  gap: 8px;
+  align-items: center;
   min-width: 0;
   white-space: nowrap;
 }
@@ -113,8 +119,37 @@
 }
 .thread-comment {
   display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 10px;
+  padding: 12px;
+}
+.thread-comment + .thread-comment {
+  box-shadow: inset 0 0.5px 0 var(--hair);
+}
+.thread-avatar {
+  display: grid;
+  place-items: center;
+  color: var(--t2);
+  font-weight: 600;
+}
+.thread-said {
+  display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 4px;
+  gap: 6px;
+  padding-top: 3px;
+}
+.thread-foot {
+  padding: 8px 12px 12px 46px;
+}
+.thread-card.is-resolved .thread-head {
+  box-shadow: none;
+}
+.thread-folded {
+  padding: 8px 12px;
+  box-shadow: inset 0 0.5px 0 var(--hair2);
+}
+.thread-folded .thread-comment {
+  padding-inline: 0;
 }
 .thread-body {
   display: grid;
@@ -140,9 +175,6 @@
 }
 .thread-folded summary {
   cursor: pointer;
-}
-.thread-folded[open] summary {
-  margin-bottom: 6px;
 }
 .thread-suggestion {
   display: grid;
@@ -229,4 +261,9 @@
 .label-menu {
   max-height: min(320px, var(--available-height));
   overflow-y: auto;
+}
+.thread-commit {
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
 }

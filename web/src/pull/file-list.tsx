@@ -1,11 +1,8 @@
 import Check from "lucide-react/icons/check";
-import FileIcon from "lucide-react/icons/file";
-import FileMinus from "lucide-react/icons/file-minus";
-import FilePlus from "lucide-react/icons/file-plus";
-import FolderOpen from "lucide-react/icons/folder-open";
-import { useState } from "react";
+import { type CSSProperties, useState } from "react";
 import type { PullFilesView } from "../../../src/shared/index.js";
 import { count } from "../format.js";
+import { FileTypeIcon } from "./file-icon.js";
 import { fileTree } from "./file-tree.js";
 
 type File = PullFilesView["files"][number];
@@ -13,11 +10,12 @@ type File = PullFilesView["files"][number];
 /** Past this many files a field narrows the tree by path. */
 const FILTER_FROM = 8;
 
-const MARK: Record<File["status"], { Icon: typeof FileIcon; cls: string; label: string }> = {
-  added: { Icon: FilePlus, cls: " is-added", label: "added" },
-  removed: { Icon: FileMinus, cls: " is-removed", label: "removed" },
-  modified: { Icon: FileIcon, cls: "", label: "changed" },
-  renamed: { Icon: FileIcon, cls: "", label: "renamed" },
+/** What happened to a file: the letter after its name, and the word in its title. */
+const MARK: Record<File["status"], { letter: string; cls: string; label: string }> = {
+  added: { letter: "A", cls: " is-added", label: "added" },
+  removed: { letter: "D", cls: " is-removed", label: "removed" },
+  modified: { letter: "", cls: "", label: "changed" },
+  renamed: { letter: "R", cls: "", label: "renamed" },
 };
 
 /** The changed files beside the diff, as a tree: how many are viewed, and a link to each. */
@@ -52,17 +50,17 @@ export function FileList(props: { files: File[]; isViewed: (f: File) => boolean 
       )}
       {wanted && shown.length === 0 && <p className="subtle small file-none">No file matches.</p>}
       {fileTree(shown).map((row) => {
-        const indent = { paddingInlineStart: `${8 + row.depth * 16}px` };
+        const indent = { "--depth": row.depth } as CSSProperties;
         if (row.kind === "dir")
           return (
             <div key={`dir:${row.path}`} className="file-dir" style={indent} title={row.path}>
-              <FolderOpen size={14} aria-hidden="true" />
+              <FileTypeIcon name={row.name} folder />
               <span className="file-name">{row.name}</span>
             </div>
           );
         const f = row.file;
         const done = props.isViewed(f);
-        const { Icon, cls, label } = MARK[f.status];
+        const { letter, cls, label } = MARK[f.status];
         return (
           <a
             key={f.path}
@@ -71,12 +69,14 @@ export function FileList(props: { files: File[]; isViewed: (f: File) => boolean 
             style={indent}
             title={`${f.path} (${label}${done ? ", viewed" : ""})`}
           >
-            {done ? (
-              <Check className="file-mark" size={14} aria-hidden="true" />
-            ) : (
-              <Icon className="file-mark" size={14} aria-hidden="true" />
-            )}
+            <FileTypeIcon name={row.name} />
             <span className="file-name">{row.name}</span>
+            {done && <Check className="file-mark" size={14} aria-hidden="true" />}
+            {letter && (
+              <span className="file-status small" aria-hidden="true">
+                {letter}
+              </span>
+            )}
             <span className="diff-count">
               {f.additions > 0 && <span className="add-n">+{f.additions}</span>}
               {f.additions > 0 && f.deletions > 0 && " "}

@@ -9,6 +9,7 @@ import type {
 } from "../../../src/shared/index.js";
 import { FixProposal } from "../fixes/fix-proposal.js";
 import { anchorOf, type DiffLine, parsePatch, placeOnLines, splitPath } from "./diff.js";
+import { FileTypeIcon } from "./file-icon.js";
 import { FindingNote, underLine } from "./findings.js";
 import { SuggestionText } from "./suggestion.js";
 
@@ -113,6 +114,7 @@ export function FileDiff(props: {
           onClick={() => setFolded(!folded)}
         >
           <span className="fold" aria-hidden="true" />
+          <FileTypeIcon name={name} />
           <span className="mono diff-path">
             {file.status === "renamed" && <span className="subtle">{file.oldPath} → </span>}
             <span className="subtle">{dir}</span>

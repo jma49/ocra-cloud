@@ -21,6 +21,9 @@ it("lists each file under its folder, linked to its diff, with what happened to 
   expect(added.querySelector(".file-name")?.textContent).toBe("refund.md");
   expect(added.getAttribute("href")).toBe("#file-.changeset/refund.md");
   expect(added.querySelector(".diff-count")?.textContent).toBe("+3");
+  expect(added.querySelector(".file-status")?.textContent).toBe("A");
+  expect(added.style.getPropertyValue("--depth")).toBe("1");
+  expect(added.querySelector("img.file-type")).toBeTruthy();
   expect(screen.getByTitle(".changeset").textContent).toBe(".changeset");
   expect(screen.getByTitle("src/old.ts (removed, viewed)").className).toContain("is-viewed");
   expect(screen.getByText("1 of 2 files viewed")).toBeTruthy();

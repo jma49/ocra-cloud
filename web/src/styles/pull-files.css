@@ -4,7 +4,6 @@
 .file-list {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 1px;
 }
 .file-progress {
   padding: 4px 8px 12px;
@@ -23,20 +22,32 @@
 }
 .file-dir,
 .file-link {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
   min-height: 28px;
   padding: 0 8px;
+  padding-inline-start: calc(8px + var(--depth, 0) * 16px);
   border-radius: var(--r-tab);
 }
-.file-dir {
-  color: var(--t3);
+/* One hairline per level above the row, under the middle of that level's folder icon. */
+.file-dir::before,
+.file-link::before {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 15px;
+  width: calc(var(--depth, 0) * 16px);
+  background: repeating-linear-gradient(to right, var(--hair2) 0 1px, transparent 1px 16px);
+  content: "";
+  pointer-events: none;
 }
-.file-dir svg,
+.file-dir {
+  color: var(--t2);
+}
+.file-type,
 .file-mark {
   flex: none;
-  color: var(--t3);
 }
 .file-link {
   color: var(--t1);
@@ -45,14 +56,24 @@
 .file-link:hover {
   background: var(--fill);
 }
-.file-link.is-added .file-mark {
+.file-mark {
   color: var(--green);
 }
-.file-link.is-removed .file-mark {
+.file-status {
+  flex: none;
+  width: 1ch;
+  color: var(--t3);
+  font-weight: 600;
+  text-align: center;
+}
+.file-link.is-added .file-status {
+  color: var(--green);
+}
+.file-link.is-removed .file-status {
   color: var(--red);
 }
-.file-link.is-viewed .file-mark {
-  color: var(--green);
+.file-link.is-viewed .file-type {
+  opacity: 0.55;
 }
 .file-name {
   flex: 1;
