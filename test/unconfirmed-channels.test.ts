@@ -10,7 +10,7 @@ import { DAY } from "../src/time.js";
 import { type CallInit, db, ORIGIN, request, resetDb, signIn } from "./helpers.js";
 import { rows } from "./table-rows.js";
 
-// A channel that needs confirming and never is frees its place under the
+// A channel that needs confirming and is never confirmed frees its place under the
 // cap: the daily retention deletes it UNCONFIRMED_DAYS after its last link,
 // the same way whether or not its Slack member exists.
 
