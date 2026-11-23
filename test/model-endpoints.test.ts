@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { catalogOf, hasChatRoute } from "../src/catalog.js";
+import { catalogOf } from "../src/catalog.js";
 import { modelEndpoints } from "../src/model-endpoints.js";
 import { preferencesBody } from "../src/preferences.js";
+import { chatRoute } from "../src/providers.js";
 
 const taken = new Set(["openai"]);
 const one = (entry: Record<string, unknown>) => modelEndpoints(JSON.stringify([entry]), taken);
@@ -15,7 +16,7 @@ describe("a server's own model endpoints", () => {
       base: "https://llm.corp.example/openai",
       routes: [{ path: "/v1/chat/completions", auth: "bearer" }],
     });
-    expect(hasChatRoute(found.get("corp"))).toBe(true);
+    expect(chatRoute(found.get("corp"))?.wire).toBe("openai");
   });
 
   it("keep their declared paths, model list and the server's key", () => {

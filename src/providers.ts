@@ -1,5 +1,5 @@
 import type { EffortStyle, ProviderId } from "@open-cr-agent/cloud-contract";
-import type { ProviderGroup } from "./shared/index.js";
+import { chatPath, type ProviderGroup, type Wire } from "./shared/index.js";
 
 // The built-in model providers the gateway forwards to, one record each: how the web
 // shows it, where it is, the only paths the gateway forwards to it, and how
@@ -339,6 +339,18 @@ export const providers: Readonly<Record<ProviderId, Provider>> = {
     ...openaiOnly("https://opencode.ai/zen"),
   },
 };
+
+export type ChatRoute = { path: string; auth: AuthStyle; wire: Wire };
+
+/** The route a conversation with the provider's models takes, if it has one. */
+export function chatRoute(p: Provider | undefined): ChatRoute | undefined {
+  const fixed = (p?.routes ?? []).filter(
+    (r): r is typeof r & { path: string } => typeof r.path === "string",
+  );
+  const found = chatPath(fixed.map((r) => r.path));
+  const route = found && fixed.find((r) => r.path === found.path);
+  return route && { path: route.path, auth: route.auth, wire: found.wire };
+}
 
 export type Match = { route: Route; model: string | null };
 

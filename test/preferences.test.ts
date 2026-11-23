@@ -293,22 +293,30 @@ describe("per-agent settings", () => {
   });
 
   it("refuse models of providers without a chat route, which the CLI cannot use", async () => {
-    // ocra-anthropic and ocra-kimi-coding have only Anthropic-style routes.
-    for (const model of ["ocra-anthropic/claude-sonnet-5", "ocra-kimi-coding/k2", "ocra-nope/m"]) {
+    for (const model of ["ocra-nope/m", "ocra-/m"]) {
       expect(parseModels({ standard: [model] }), model).toBeUndefined();
       expect(parseAgents({ roles: { judge: { models: [model] } } }), model).toBeUndefined();
       expect(parseAgents({ reviewers: { security: { models: [model] } } }), model).toBeUndefined();
     }
-    for (const model of ["ocra-openai/gpt-5.5", "ocra-gemini/gemini-3.5-flash", "ocra-zai/glm"]) {
+    for (const model of [
+      "ocra-openai/gpt-5.5",
+      "ocra-gemini/gemini-3.5-flash",
+      "ocra-zai/glm",
+      // Only Anthropic's Messages: the CLI's direct runtime speaks it.
+      "ocra-anthropic/claude-sonnet-5-5",
+      "ocra-kimi-coding/k2",
+    ]) {
       expect(parseModels({ standard: [model] }), model).toEqual({ standard: [model] });
     }
     const web = await signIn(1, "octo");
-    const put = await call("/api/preferences", {
-      method: "PUT",
-      auth: web.auth,
-      json: { models: { top: ["ocra-anthropic/claude-opus-5"] } },
-    });
-    expect(put.status).toBe(400);
+    const put = (model: string) =>
+      call("/api/preferences", {
+        method: "PUT",
+        auth: web.auth,
+        json: { models: { top: [model] } },
+      });
+    expect((await put("ocra-nope/m")).status).toBe(400);
+    expect((await put("ocra-anthropic/claude-opus-5-5")).status).toBe(200);
   });
 
   it("accept reviewer ids the engine makes: SARIF slugs and plugin reviewers", () => {
