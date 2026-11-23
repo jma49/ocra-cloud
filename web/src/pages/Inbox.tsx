@@ -6,6 +6,7 @@ import type { PullView } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
 import { useCached } from "../cache.js";
 import { useCollapsed } from "../inbox/collapsed.js";
+import { KeyHints } from "../inbox/key-hints.js";
 import { useListKeys } from "../inbox/keys.js";
 import { rememberQueue } from "../inbox/queue.js";
 import { PullRow } from "../inbox/row.js";
@@ -111,7 +112,7 @@ export function Inbox() {
     <>
       <PageHead
         title="Pull requests"
-        sub="What waits on you across every connected platform, read live. j and k move, Enter opens, o opens on the platform, u marks read or unread, / finds, r refreshes."
+        sub="What waits on you across every connected platform, read live."
         actions={
           <Button type="button" variant="outline" onClick={() => setEditing({ draft: BLANK })}>
             New section
@@ -250,6 +251,7 @@ export function Inbox() {
           ))}
         </div>
       )}
+      {data && views.ready && <KeyHints />}
       {hidden.length > 0 && (
         <p className="inbox-hidden muted small">
           Hidden:

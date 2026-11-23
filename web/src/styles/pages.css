@@ -649,25 +649,18 @@ td.finding-cell {
   background: color-mix(in srgb, var(--blue) 9%, transparent);
 }
 .chk {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
   flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  color: var(--t4);
 }
 .chk.ok {
-  background: var(--green);
+  color: var(--green);
 }
 .chk.fail {
-  background: var(--red);
-}
-.chk.wait {
-  box-shadow: inset 0 0 0 1.5px var(--t4);
-}
-.pull-num {
-  flex: none;
-  width: 52px;
-  color: var(--t3);
-  font-variant-numeric: tabular-nums;
+  color: var(--red);
 }
 .pull-title {
   flex: 1 1 auto;
@@ -680,24 +673,29 @@ td.finding-cell {
 .pull-line.unread .pull-title {
   font-weight: 600;
 }
-.pull-repo {
+/* The columns after the title keep their width whatever a row holds, so they line up down the list. */
+.pull-ref {
   flex: none;
-  width: 150px;
+  width: 208px;
   color: var(--t3);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.pull-num {
+  font-variant-numeric: tabular-nums;
+}
 .pull-review {
   flex: none;
-  width: 140px;
+  width: 136px;
   display: flex;
   justify-content: flex-end;
 }
 .pull-diff {
   flex: none;
-  width: 72px;
+  width: 96px;
   text-align: right;
+  white-space: nowrap;
   font-size: var(--text-xs);
   color: var(--t3);
 }
@@ -709,34 +707,70 @@ td.finding-cell {
 }
 .pull-author {
   flex: none;
-  width: 84px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 120px;
   color: var(--t2);
+}
+.pull-author-login {
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .pull-time {
   flex: none;
-  min-width: 36px;
+  width: 52px;
   white-space: nowrap;
   text-align: right;
   color: var(--t3);
   font-variant-numeric: tabular-nums;
 }
+/* The inbox's keys, under the list; nothing to press on a touch screen. */
+.key-hints {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin: 16px 0 0;
+  padding: 0 4px;
+  list-style: none;
+  color: var(--t3);
+  font-size: var(--text-sm);
+}
+.key-hints li {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.key-hints span {
+  margin-left: 4px;
+}
+@media (hover: none) {
+  .key-hints {
+    display: none;
+  }
+}
+@media (max-width: 1100px) {
+  .pull-diff,
+  .pull-author-login {
+    display: none;
+  }
+  .pull-author {
+    width: auto;
+  }
+}
 @media (max-width: 900px) {
   .pull-repo,
-  .pull-diff,
   .pull-author {
     display: none;
   }
+  .pull-ref,
   .pull-review {
     width: auto;
   }
 }
 @media (max-width: 560px) {
-  .pull-num {
-    width: auto;
-  }
   .pull-review:empty {
     display: none;
   }

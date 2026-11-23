@@ -29,7 +29,7 @@ const node = (n: number, over: Record<string, unknown> = {}) => ({
   additions: 10,
   deletions: 2,
   reviewDecision: "REVIEW_REQUIRED",
-  author: { login: "ada" },
+  author: { login: "ada", avatarUrl: "https://avatars.githubusercontent.com/u/1?v=4" },
   repository: { nameWithOwner: "octo/api" },
   commits: { nodes: [{ commit: { statusCheckRollup: { state: "FAILURE" } } }] },
   ...over,
@@ -60,7 +60,13 @@ describe("the pull request inbox", () => {
             },
             merged: {
               issueCount: 1,
-              nodes: [node(2, { state: "MERGED", mergedAt: "2026-11-22T09:00:00Z" })],
+              nodes: [
+                node(2, {
+                  state: "MERGED",
+                  mergedAt: "2026-11-22T09:00:00Z",
+                  author: { login: "eve", avatarUrl: "https://elsewhere.example/eve.png" },
+                }),
+              ],
             },
           },
         };
@@ -76,6 +82,9 @@ describe("the pull request inbox", () => {
       [1, ["reviewer"]],
     ]);
     expect(gh?.pulls[1]).toMatchObject({ state: "merged", mergedAt: "2026-11-22T09:00:00Z" });
+    // A picture is passed on only from the host the console's content policy loads.
+    expect(gh?.pulls[1]?.authorAvatar).toBeNull();
+    expect(gh?.pulls[2]?.authorAvatar).toBe("https://avatars.githubusercontent.com/u/1?v=4");
     expect(gh?.pulls[2]).toMatchObject({
       repo: "octo/api",
       checks: "failing",
