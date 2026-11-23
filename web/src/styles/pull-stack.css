@@ -32,12 +32,21 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.pull-stack-steps {
-  display: grid;
-  gap: 2px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
+/* A layer of a stack merge: its number and title lead to its page. */
+.stack-merge-layer {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  color: var(--t1);
+  text-decoration: none;
+  font-size: var(--text-sm);
+}
+.stack-merge-layer:hover .pull-stack-title {
+  text-decoration: underline;
+}
+.stack-merge-stop {
+  justify-self: start;
 }
 
 /* Suggested reviewers, beside the diff: who and the ask on one line, why below. */

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   type CodePlatformKind,
@@ -8,16 +8,14 @@ import {
   type StackedPull,
   type StackMergeAnswer,
   type StackMergeJobView,
-  type StackMergeReason,
-  type StackStepOutcome,
 } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
 import { Link } from "../router.js";
 import { useAction, useLoad } from "../ui.js";
 import { CheckMark } from "./check-mark.js";
 import { stackMethodLabels } from "./merge-method.js";
-import { OUTCOME } from "./outcome.js";
 import { pullPath } from "./path.js";
+import { StackMergeJob, stackMergeActive } from "./stack-merge.js";
 
 // The pull request's stack, read from the platform's branches (ADR-0052):
 // each one links to its page, and the stack merges from the bottom up to
@@ -25,29 +23,6 @@ import { pullPath } from "./path.js";
 // layer by layer while this page reads how far it got.
 
 type Ref = { platform: CodePlatformKind; repo: string; number: number };
-
-const STEP: Record<StackStepOutcome, string> = {
-  ...OUTCOME,
-  unreached: "The platform did not answer.",
-};
-
-const REASON: Record<StackMergeReason, string> = {
-  waiting_checks: "Waiting for its checks.",
-  waiting_platform: "Waiting until the platform allows the merge (approvals, rules).",
-  updating: "Bringing its branch up to date with the trunk.",
-  checks_failed: "Stopped: a check failed.",
-  conflicts: "Stopped: it conflicts with the trunk.",
-  refused: "Stopped: the platform refused it. Check your permission on the repository.",
-  head_moved: "Stopped: it gained commits since the merge started.",
-  closed: "Stopped: it was closed.",
-  stack_changed: "Stopped: the stack changed on the platform.",
-  no_token: "Stopped: connect the platform again.",
-  unreachable: "The platform did not answer; trying again.",
-  timed_out: "Stopped: it waited too long.",
-};
-
-const ACTIVE = new Set(["waiting", "running"]);
-const POLL_MS = 5000;
 
 const depthOf = (pulls: StackedPull[], p: StackedPull) => {
   let depth = 0;
@@ -68,11 +43,26 @@ export function StackPanel(props: {
   const { data } = useLoad(() => api<PullStackView>(`/pulls/stack?${query}`), [query]);
   const [job, setJob] = useState<StackMergeJobView | null>(null);
   const [changed, setChanged] = useState(false);
+  // A merge under way outlives the page that started it: one named by this stack's bottom shows again.
+  const bottom = data ? (chainTo(data.pulls, number)[0]?.number ?? number) : null;
+  const under = useLoad(
+    () =>
+      bottom === null
+        ? Promise.resolve(undefined)
+        : api<StackMergeAnswer>(
+            `/pulls/merge-stack?${new URLSearchParams({ platform, repo, number: String(bottom) })}`,
+          ),
+    [platform, repo, bottom],
+  ).data?.job;
   const started = (r: StackMergeAnswer) => {
     if (r.job) setJob(r.job);
     else setChanged(true);
   };
-  if (job) return <MergingStack job={job} onMerged={props.onMerged} />;
+  const shown = job ?? (under && stackMergeActive(under) ? under : null);
+  if (shown) {
+    const titles = new Map(data?.pulls.map((p) => [p.number, p.title]));
+    return <StackMergeJob key={shown.id} job={shown} titles={titles} onMerged={props.onMerged} />;
+  }
   if (changed)
     return (
       <p className="error" role="alert">
@@ -184,76 +174,5 @@ function MergeStack(props: {
         </p>
       )}
     </>
-  );
-}
-
-/** How far a stack merge got, read again while it runs. */
-function MergingStack(props: { job: StackMergeJobView; onMerged: () => void }) {
-  const [job, setJob] = useState(props.job);
-  const { platform, repo, bottom, step, state } = job;
-  const query = new URLSearchParams({ platform, repo, number: String(bottom) }).toString();
-  const active = ACTIVE.has(state);
-  const { onMerged } = props;
-  useEffect(() => {
-    if (step > 0) onMerged();
-  }, [step, onMerged]);
-  useEffect(() => {
-    if (!active) return;
-    const timer = setInterval(async () => {
-      const r = await api<StackMergeAnswer>(`/pulls/merge-stack?${query}`).catch(() => null);
-      if (r?.job) setJob(r.job);
-    }, POLL_MS);
-    return () => clearInterval(timer);
-  }, [active, query]);
-  const cancel = useAction(async () => {
-    const r = await api<StackMergeAnswer>("/pulls/merge-stack", {
-      method: "DELETE",
-      body: JSON.stringify({ platform, repo, number: bottom }),
-    });
-    if (r.job) setJob(r.job);
-  });
-  // Squashed or rebased layers land as new commits, so a branch built on the old ones still carries them.
-  const stale = job.method !== "merge" && job.restacked.some((s) => s.outcome === "done");
-  const layerText = (i: number) => {
-    if (i < step) return "Merged.";
-    if (i > step) return state === "waiting" || state === "running" ? "Next." : "Not merged.";
-    if (state === "cancelled") return "Cancelled.";
-    return job.reason ? REASON[job.reason] : "Merging.";
-  };
-  return (
-    <section className="card card-pad stack" aria-label="Stack">
-      <div className="strong">Stack merge</div>
-      <ul className="pull-stack-steps small" role="status">
-        {job.chain.map((l, i) => (
-          <li key={l.number} className={i === step && state === "failed" ? "error" : undefined}>
-            <span className="mono">#{l.number}</span> {layerText(i)}
-          </li>
-        ))}
-        {job.restacked.map((s) => (
-          <li key={s.number} className={s.outcome === "done" ? undefined : "error"}>
-            <span className="mono">#{s.number}</span>{" "}
-            {s.outcome === "done" ? (
-              <>
-                Now onto <span className="mono">{job.trunk}</span>.
-              </>
-            ) : (
-              <>Still on a merged branch: {STEP[s.outcome]}</>
-            )}
-          </li>
-        ))}
-      </ul>
-      {active && (
-        <Button variant="outline" disabled={cancel.busy} onClick={() => cancel.run()}>
-          Stop the stack merge
-        </Button>
-      )}
-      {stale && (
-        <span className="subtle small">
-          Their branches still hold the merged commits, so their diffs list those changes too. Run{" "}
-          <span className="mono">ocra stack sync</span> then{" "}
-          <span className="mono">ocra stack submit</span> to rebase and push them.
-        </span>
-      )}
-    </section>
   );
 }

@@ -47,7 +47,12 @@ const job = (
   finishedAt: null,
 });
 
-function show(pulls: unknown[], answer: unknown = { outcome: "started", job: job(0, "waiting") }) {
+function show(
+  pulls: unknown[],
+  answer: unknown = { outcome: "started", job: job(0, "waiting") },
+  /** The stack's merge already on the server when the page loads. */
+  under: unknown = null,
+) {
   const sent: { url: string; method: string; body: unknown }[] = [];
   const onMerged = vi.fn();
   vi.stubGlobal(
@@ -58,6 +63,9 @@ function show(pulls: unknown[], answer: unknown = { outcome: "started", job: job
         return Response.json(
           init.method === "DELETE" ? { outcome: "done", job: job(0, "cancelled") } : answer,
         );
+      }
+      if (url.startsWith("/api/pulls/merge-stack")) {
+        return Response.json({ outcome: "done", job: under });
       }
       return Response.json({
         platform: "github",
@@ -137,8 +145,11 @@ describe("a pull request's stack", () => {
       },
     ]);
     const status = await screen.findByRole("status");
-    expect(status.textContent).toContain("#1 Merged.");
-    expect(status.textContent).toContain("#2 Waiting for its checks.");
+    expect(status.textContent).toContain("#1Step 1Merged.");
+    expect(status.textContent).toContain("#2Step 2Waiting for its checks.");
+    expect(screen.getByText("Waiting").className).toBe("badge");
+    expect(screen.getByRole("img", { name: "1 of 2 merged" })).toBeTruthy();
+    expect(screen.getByText(/Started by octo/).textContent).toContain("runs on the server");
     expect(onMerged).toHaveBeenCalledOnce();
   });
 
@@ -149,8 +160,10 @@ describe("a pull request's stack", () => {
     });
     await confirm();
     const status = await screen.findByRole("status");
-    expect(status.textContent).toContain("#2 Stopped: a check failed.");
-    expect(status.textContent).toContain("#3 Now onto main.");
+    expect(status.textContent).toContain("#2Step 2Stopped: a check failed.");
+    expect(status.textContent).toContain("#3Step 3Now onto main.");
+    expect(screen.getByText("Stopped").className).toBe("badge badge-err");
+    expect(screen.getByRole("img", { name: "Moved onto the trunk" })).toBeTruthy();
     expect(screen.getByText(/still hold the merged commits/)).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Stop the stack merge" })).toBeNull();
   });
@@ -167,8 +180,27 @@ describe("a pull request's stack", () => {
       method: "DELETE",
       body: { platform: "github", repo: "octo/api", number: 1 },
     });
-    expect((await screen.findByRole("status")).textContent).toContain("#1 Cancelled.");
+    expect((await screen.findByRole("status")).textContent).toContain("#1Step 1Cancelled.");
     expect(onMerged).not.toHaveBeenCalled();
+  });
+
+  it("shows a merge already under way when the page loads, each layer leading to its page", async () => {
+    show([stacked(1, null), stacked(2, 1)], undefined, job(0, "running"));
+    const status = await screen.findByRole("status");
+    expect(status.textContent).toContain("#1Step 1Merging.");
+    expect(status.textContent).toContain("#2Step 2Next.");
+    expect(screen.getByText("Merging").className).toBe("badge badge-run");
+    expect(screen.getAllByRole("link").map((l) => l.getAttribute("href"))).toEqual([
+      "/pull/github/octo%2Fapi/1",
+      "/pull/github/octo%2Fapi/2",
+    ]);
+    expect(screen.getByRole("button", { name: "Stop the stack merge" })).toBeTruthy();
+  });
+
+  it("leaves a merge that ended before the page loaded out of the way", async () => {
+    show([stacked(1, null), stacked(2, 1)], undefined, job(0, "cancelled"));
+    expect(await screen.findByRole("button", { name: "Merge stack up to here" })).toBeTruthy();
+    expect(screen.queryByRole("status")).toBeNull();
   });
 
   it("says the stack changed when the server would not start on what the page read", async () => {
