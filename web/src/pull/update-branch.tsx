@@ -25,6 +25,8 @@ export function UpdateBranch(props: {
   head: string;
   /** Reads the pull request and what it waits on again. */
   onChanged: () => void;
+  /** Set where what surrounds it already says the branch is behind. */
+  bare?: boolean;
 }) {
   const [said, setSaid] = useState<BranchUpdateOutcome | null>(null);
   const [waiting, setWaiting] = useState(false);
@@ -58,7 +60,7 @@ export function UpdateBranch(props: {
   }, [moved]);
   return (
     <div className="stack update-branch">
-      <span className="subtle small">This branch is behind its base.</span>
+      {!props.bare && <span className="subtle small">This branch is behind its base.</span>}
       <Button
         type="button"
         variant="outline"

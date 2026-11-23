@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type CSSProperties, type ReactNode, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   type CodePlatformKind,
@@ -11,12 +11,16 @@ import {
 } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
 import { useRead } from "../cache.js";
-import { Link } from "../router.js";
+import { ago } from "../format.js";
+import { CloseGlyph } from "../glyphs.js";
+import { usePageCommands } from "../page-commands.js";
+import { Link, navigate } from "../router.js";
 import { useAction, useLoad } from "../ui.js";
 import { CheckMark } from "./check-mark.js";
 import { stackMethodLabels } from "./merge-method.js";
 import { pullPath } from "./path.js";
-import { StackMergeJob, stackMergeActive } from "./stack-merge.js";
+import { StackMergeJob, stackMergeActive, stackMergeStop } from "./stack-merge.js";
+import { stackBeside, stackLanes } from "./stack-order.js";
 
 // The pull request's stack, read from the platform's branches (ADR-0052):
 // each one links to its page, and the stack merges from the bottom up to
@@ -25,23 +29,57 @@ import { StackMergeJob, stackMergeActive } from "./stack-merge.js";
 
 type Ref = { platform: CodePlatformKind; repo: string; number: number };
 
-const depthOf = (pulls: StackedPull[], p: StackedPull) => {
-  let depth = 0;
-  for (let up = p.parent; up !== null && depth < pulls.length; depth++) {
-    up = pulls.find((q) => q.number === up)?.parent ?? null;
-  }
-  return depth;
-};
+const REVIEW = {
+  approved: { label: "Approved", tone: "ok" },
+  changes_requested: { label: "Changes requested", tone: "warn" },
+  required: { label: "Review required", tone: "" },
+} as const;
+
+const commits = (n: number) => `${n} ${n === 1 ? "commit" : "commits"}`;
+
+function Layer(props: { pull: Ref; p: StackedPull; lane: number; joined: boolean }) {
+  const { p } = props;
+  const review = p.review && REVIEW[p.review];
+  return (
+    <li
+      className={props.joined ? "joined" : undefined}
+      style={{ "--lane": props.lane } as CSSProperties}
+    >
+      <Link
+        to={pullPath(props.pull.platform, props.pull.repo, p.number)}
+        className="pull-stack-link"
+        current={p.number === props.pull.number}
+      >
+        <CheckMark checks={p.checks} />
+        <span className="mono subtle">#{p.number}</span>
+        <span className="pull-stack-title" title={p.title}>
+          {p.title}
+        </span>
+        <span className="pull-stack-notes">
+          {p.behind !== null && p.behind > 0 && p.parent !== null && (
+            <span className="warn" title={`Its branch lacks ${commits(p.behind)} of #${p.parent}`}>
+              Needs restack
+            </span>
+          )}
+          {p.draft && <span>Draft</span>}
+          {review && <span className={review.tone}>{review.label}</span>}
+        </span>
+      </Link>
+    </li>
+  );
+}
 
 export function StackPanel(props: {
   pull: Ref;
   mergeMethods: MergeMethod[];
   /** After a stack merge that landed any pull request: what the page shows is out of date. */
   onMerged: () => void;
+  /** Brings this branch up to date with the one it is stacked on, where the page does not already offer it. */
+  restack?: ReactNode;
 }) {
   const { platform, repo, number } = props.pull;
   const query = new URLSearchParams({ platform, repo, number: String(number) }).toString();
-  const { data } = useRead<PullStackView>(`/pulls/stack?${query}`);
+  const { data, reload } = useRead<PullStackView>(`/pulls/stack?${query}`);
   const [job, setJob] = useState<StackMergeJobView | null>(null);
   const [changed, setChanged] = useState(false);
   // A merge under way outlives the page that started it: one named by this stack's bottom shows again.
@@ -55,6 +93,15 @@ export function StackPanel(props: {
           ),
     [platform, repo, bottom],
   ).data?.job;
+  const beside = useMemo(() => stackBeside(data?.pulls ?? [], number), [data, number]);
+  usePageCommands(
+    "This pull request",
+    useMemo(() => {
+      const to = (label: string, key: string, n: number | null) =>
+        n === null ? [] : [{ label, key, run: () => navigate(pullPath(platform, repo, n)) }];
+      return [...to("Down the stack", "d", beside.down), ...to("Up the stack", "u", beside.up)];
+    }, [platform, repo, beside]),
+  );
   const started = (r: StackMergeAnswer) => {
     if (r.job) setJob(r.job);
     else setChanged(true);
@@ -62,7 +109,18 @@ export function StackPanel(props: {
   const shown = job ?? (under && stackMergeActive(under) ? under : null);
   if (shown) {
     const titles = new Map(data?.pulls.map((p) => [p.number, p.title]));
-    return <StackMergeJob key={shown.id} job={shown} titles={titles} onMerged={props.onMerged} />;
+    return (
+      <StackMergeJob
+        key={shown.id}
+        job={shown}
+        titles={titles}
+        onMerged={props.onMerged}
+        onClose={() => {
+          setJob(null);
+          reload();
+        }}
+      />
+    );
   }
   if (changed)
     return (
@@ -72,35 +130,57 @@ export function StackPanel(props: {
     );
   if (!data || data.pulls.length < 2) return null;
   const chain = chainTo(data.pulls, number);
+  const lanes = stackLanes(data.pulls);
+  const self = data.pulls.find((p) => p.number === number);
+  const stop =
+    under && data.pulls.some((p) => p.number === under.chain[under.step]?.number)
+      ? stackMergeStop(under)
+      : null;
   return (
     <section className="card card-pad stack" aria-label="Stack">
-      <div className="strong">
-        Stack <span className="subtle small">onto {data.trunk}</span>
+      <div className="pull-stack-head">
+        <span className="strong">Stack</span>
+        <span className="subtle small">
+          {data.pulls.length} pull requests onto <span className="mono">{data.trunk}</span>
+        </span>
       </div>
       <ol className="pull-stack-list">
-        {data.pulls.map((p) => {
-          return (
-            <li key={p.number} style={{ paddingInlineStart: `${depthOf(data.pulls, p) * 10}px` }}>
-              <Link
-                to={pullPath(platform, repo, p.number)}
-                className="pull-stack-link"
-                current={p.number === number}
-              >
-                <CheckMark checks={p.checks} />
-                <span className="mono subtle">#{p.number}</span>
-                <span className="pull-stack-title" title={p.title}>
-                  {p.title}
-                </span>
-                {p.draft && <span className="subtle small">draft</span>}
-              </Link>
-            </li>
-          );
-        })}
+        {data.pulls.map((p, i) => (
+          <Layer
+            key={p.number}
+            pull={props.pull}
+            p={p}
+            lane={lanes.get(p.number) ?? 0}
+            joined={i > 0 && data.pulls[i - 1]?.number === p.parent}
+          />
+        ))}
       </ol>
+      {self && self.parent !== null && self.behind !== null && self.behind > 0 && (
+        <div className="pull-stack-restack">
+          <span className="small">
+            This branch lacks {commits(self.behind)} of #{self.parent}. Restack it with{" "}
+            <span className="mono">ocra stack restack</span>
+            {props.restack ? ", or merge them in here." : "."}
+          </span>
+          {props.restack}
+        </div>
+      )}
+      {stop && under && (
+        <p className="small pull-stack-stop" role="status">
+          <span className="check-mark err" aria-hidden="true">
+            <CloseGlyph size={14} />
+          </span>
+          <span>
+            The last merge of this stack stopped at #{stop.number} {ago(under.updatedAt)}:{" "}
+            {stop.why}
+          </span>
+        </p>
+      )}
       {chain.length > 1 && props.mergeMethods.length > 0 && (
         <MergeStack
           pull={props.pull}
           chain={chain}
+          trunk={data.trunk}
           methods={props.mergeMethods}
           onStarted={started}
         />
@@ -112,6 +192,7 @@ export function StackPanel(props: {
 function MergeStack(props: {
   pull: Ref;
   chain: StackedPull[];
+  trunk: string;
   methods: MergeMethod[];
   onStarted: (r: StackMergeAnswer) => void;
 }) {
@@ -138,8 +219,9 @@ function MergeStack(props: {
       {asking ? (
         <>
           <span className="small">
-            Merges {n} pull requests bottom first, each retargeted to the trunk once the one below
-            lands and merged when its checks pass.
+            Merges {props.chain.map((p) => `#${p.number}`).join(", then ")} into{" "}
+            <span className="mono">{props.trunk}</span>. Each one waits for its checks, and the
+            merge stops at the first that cannot land.
           </span>
           {props.methods.length > 1 && (
             <select
@@ -165,7 +247,7 @@ function MergeStack(props: {
           </div>
         </>
       ) : (
-        <Button variant="outline" onClick={() => setAsking(true)}>
+        <Button variant="outline" className="pull-stack-merge" onClick={() => setAsking(true)}>
           Merge stack up to here
         </Button>
       )}

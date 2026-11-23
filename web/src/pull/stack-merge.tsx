@@ -26,20 +26,42 @@ const STEP: Record<StackStepOutcome, string> = {
   unreached: "The platform did not answer.",
 };
 
+/** What a merge waits on, or why it stopped, as the end of a sentence. */
 const REASON: Record<StackMergeReason, string> = {
-  waiting_checks: "Waiting for its checks.",
-  waiting_platform: "Waiting until the platform allows the merge (approvals, rules).",
-  updating: "Bringing its branch up to date with the trunk.",
-  checks_failed: "Stopped: a check failed.",
-  conflicts: "Stopped: it conflicts with the trunk.",
-  refused: "Stopped: the platform refused it. Check your permission on the repository.",
-  head_moved: "Stopped: it gained commits since the merge started.",
-  closed: "Stopped: it was closed.",
-  stack_changed: "Stopped: the stack changed on the platform.",
-  no_token: "Stopped: connect the platform again.",
-  unreachable: "The platform did not answer; trying again.",
-  timed_out: "Stopped: it waited too long.",
+  waiting_checks: "waiting for its checks",
+  waiting_platform: "waiting until the platform allows the merge (approvals, rules)",
+  updating: "bringing its branch up to date with the trunk",
+  checks_failed: "a check failed",
+  conflicts: "it conflicts with the trunk",
+  refused: "the platform refused it",
+  head_moved: "it gained commits after the merge started",
+  closed: "it was closed",
+  stack_changed: "the stack changed on the platform",
+  no_token: "your sign-in to the platform ran out",
+  unreachable: "the platform did not answer; trying again",
+  timed_out: "it waited too long",
 };
+
+/** What gets a stopped merge going again, where the user can do something about it. */
+const NEXT: Partial<Record<StackMergeReason, string>> = {
+  checks_failed: "Fix the check, then merge the stack again.",
+  conflicts: "Resolve the conflicts on its branch, then merge the stack again.",
+  refused: "Check that you may merge in this repository.",
+  head_moved: "Look at the new commits, then merge the stack again.",
+  no_token: "Connect the platform again, then merge the stack again.",
+  timed_out: "See what it still waits on, then merge the stack again.",
+};
+
+const sentence = (s: string) => `${s.charAt(0).toUpperCase()}${s.slice(1)}.`;
+
+/** Where a failed merge stopped and why, with what to do about it; null for one that did not fail. */
+export function stackMergeStop(job: StackMergeJobView): { number: number; why: string } | null {
+  const layer = job.chain[job.step];
+  if (job.state !== "failed" || !layer) return null;
+  const why = job.reason ? REASON[job.reason] : "the platform did not say why";
+  const next = job.reason ? NEXT[job.reason] : undefined;
+  return { number: layer.number, why: next ? `${why}. ${next}` : `${why}.` };
+}
 
 const STANDING: Record<StackMergeState, { text: string; tone: string }> = {
   waiting: { text: "Waiting", tone: "badge" },
@@ -75,9 +97,8 @@ function layerState(job: StackMergeJobView, i: number): LayerState {
 function layerText(job: StackMergeJobView, state: LayerState): string {
   if (state === "merged") return "Merged.";
   if (state === "next") return "Next.";
-  if (state === "current" || state === "failed") {
-    return job.reason ? REASON[job.reason] : "Merging.";
-  }
+  if (state === "failed") return `Stopped: ${stackMergeStop(job)?.why ?? "not merged."}`;
+  if (state === "current") return job.reason ? sentence(REASON[job.reason]) : "Merging.";
   return job.state === "cancelled" ? "Cancelled." : "Not merged.";
 }
 
@@ -98,6 +119,8 @@ export function StackMergeJob(props: {
   titles?: ReadonlyMap<number, string>;
   /** A layer landed: what the page shows is out of date. */
   onMerged: () => void;
+  /** Leaves a merge that ended for the stack as it now is. */
+  onClose: () => void;
 }) {
   const [job, setJob] = useState(props.job);
   const { platform, repo, bottom, step } = job;
@@ -182,7 +205,7 @@ export function StackMergeJob(props: {
       </ul>
       <span className="subtle small">
         Started by {job.startedBy} {ago(job.startedAt)}.
-        {active && " It runs on the server, and moves along sooner while this page is open."}
+        {active && " It keeps going on the server if you leave this page."}
       </span>
       {active && (
         <Button
@@ -192,6 +215,11 @@ export function StackMergeJob(props: {
           onClick={() => cancel.run()}
         >
           Stop the stack merge
+        </Button>
+      )}
+      {!active && (
+        <Button variant="outline" className="stack-merge-stop" onClick={props.onClose}>
+          Show the stack
         </Button>
       )}
       {cancel.error !== null && (
