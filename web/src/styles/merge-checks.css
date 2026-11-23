@@ -85,3 +85,29 @@
   margin-top: 0;
   transform: scale(0.85);
 }
+
+/* A repository's restacks: the switch with what it does, then its history. */
+.restack-switch {
+  align-items: flex-start;
+}
+.restack-jobs {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 0.5px solid var(--hair2);
+  border-radius: var(--r-ctl);
+  background: var(--panel);
+}
+.restack-job {
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+.restack-job:last-child {
+  border-bottom: 0;
+}
+/* On a phone the badge and the time sit under what was rebased. */
+@media (max-width: 760px) {
+  .restack-job > .grow {
+    flex-basis: 100%;
+  }
+}
