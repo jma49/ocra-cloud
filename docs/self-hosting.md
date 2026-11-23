@@ -211,8 +211,9 @@ With `METRICS_TOKEN` set, `GET /metrics` (beside `/api`, not under it) answers P
 | `ocra_jobs` | `queue`, `state` (`queued`, `running`) | jobs waiting or held by a worker or runner; `queue` is `review`, `reply` (answers to `@ocra` comments), `generate` (generated tests or docstrings) or `graph` (code graph builds) |
 | `ocra_jobs_failed_last_hour` | `queue` | jobs that failed for good in the last hour (a job retried after an error is queued again, not failed) |
 | `ocra_jobs_oldest_queued_seconds` | `queue` | how long the oldest queued job has waited since it was queued; 0 with none |
-| `ocra_deliveries` | `kind` (`notify`), `state` (`pending`, `failed`) | outgoing notification deliveries of every channel kind (Slack, WeCom, email, webhook) kept still to be delivered, or given up on (a channel keeps its newest; retention drops them after 30 days) |
+| `ocra_deliveries` | `kind` (`notify`), `state` (`pending`, `delivered`, `failed`) | outgoing notification deliveries of every channel kind (Slack, WeCom, email, webhook) kept: still to be delivered, delivered, or given up on (a channel keeps its newest; retention drops them after 30 days) |
 | `ocra_delivery_retries_due` | `kind` | pending deliveries whose next attempt is due: the server tries them every minute, so a number that stays up means retries are not running |
+| `ocra_inbound_events` | `state` (`pending`, `done`, `failed`) | platform webhook deliveries recorded for the steps after their answer (Incoming webhooks): still to run or due a retry, done, or given up on after four attempts (records go after 7 days) |
 | `ocra_merge_intents` | `state` (`armed`, `merging`) | merge-when-ready intents not yet ended |
 | `ocra_process_uptime_seconds` | | seconds since this process started |
 | `ocra_build_info` | `engine`, `schema` | always 1: the engine (CLI) version the server runs reviews with, and the newest migration this build expects |
