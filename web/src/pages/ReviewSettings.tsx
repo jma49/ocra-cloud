@@ -54,7 +54,7 @@ export function ReviewSettings() {
           <NumberField
             label="Tasks at once"
             value={settings.concurrency}
-            placeholder="4"
+            placeholder="8"
             min={1}
             max={32}
             onChange={(v) => set("concurrency", v && Math.round(v))}
