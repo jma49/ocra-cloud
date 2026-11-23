@@ -94,6 +94,22 @@ export function keyBinding(accountId: string, provider: string): string {
   return `ocra-provider-key:v1|${accountId}|${provider}`;
 }
 
+// What each other sealed row is bound to; kept here beside keyBinding so
+// that scripts/rewrap-master-key.ts re-wraps every kind with the binding
+// the service opens it with.
+
+/** An account's token on a code platform: the account, the platform and its host. */
+export const platformTokenBinding = (accountId: string, platform: string, host: string) =>
+  `ocra-platform-token:v1|${accountId}|${platform}|${host}`;
+
+/** An enrolled repository's own access token: the account and the repository's row. */
+export const repoTokenBinding = (accountId: string, repoId: string) =>
+  `ocra-repo-token:v1|${accountId}|${repoId}`;
+
+/** A notification channel's address: the account and the channel's row. */
+export const channelBinding = (accountId: string, channelId: string) =>
+  `ocra-notify-channel:v1|${accountId}|${channelId}`;
+
 export type Sealed = { wrappedKey: string; ciphertext: string };
 
 export async function encryptSecret(

@@ -1,6 +1,11 @@
 import type { Context } from "hono";
 import type { CallBudget } from "../calls.js";
-import { decryptWithAny, encryptSecret, type MasterKeys } from "../crypto.js";
+import {
+  channelBinding as binding,
+  decryptWithAny,
+  encryptSecret,
+  type MasterKeys,
+} from "../crypto.js";
 import type { Db } from "../db/client.js";
 import type { Row, Scoped } from "../db/scoped.js";
 import { masterKeys } from "../keyring.js";
@@ -66,9 +71,6 @@ export function publicOutbox(c: Context<AppEnv>): Outbox {
   const out = outboxOf(c);
   return c.env.PUBLIC_URL ? { ...out, origin: new URL(c.env.PUBLIC_URL).origin } : out;
 }
-
-const binding = (accountId: string, channelId: string) =>
-  `ocra-notify-channel:v1|${accountId}|${channelId}`;
 
 /** The webhook or email address sealed to its channel's row. */
 export const sealHook = (masterKey: string, accountId: string, channelId: string, url: string) =>
