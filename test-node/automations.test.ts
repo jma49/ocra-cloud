@@ -81,7 +81,7 @@ async function enrolled() {
   const res = await s.call("/api/auto-review/repos", {
     method: "POST",
     headers: auth,
-    json: { platform: "gitlab", fullName: "group/api" },
+    json: { platform: "gitlab", fullName: "group/api", automatic: true },
   });
   const { repo, webhook } = (await res.json()) as {
     repo: { id: string };

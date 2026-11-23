@@ -51,7 +51,7 @@ export function AutoReview(props: { platforms: readonly CodePlatformKind[] }) {
     <>
       <PageHead
         title="Auto review"
-        sub="This server reviews pull requests in these repositories as the ocra bot: each one as it opens or gains commits while Automatic is on, and any one when you ask on its page. Their findings are kept here, to read on each pull request; Settings, Account & privacy turns that off."
+        sub="This server reviews pull requests in these repositories as the ocra bot: any one when you ask on its page, and each one as it opens or gains commits once you switch Automatic on, which starts off. Their findings are kept here, to read on each pull request; Settings, Account & privacy turns that off."
       />
       <RunnerStatus />
       <DailyLimitNotice />
@@ -149,7 +149,7 @@ export function AutoReview(props: { platforms: readonly CodePlatformKind[] }) {
 function LastJob(props: { r: AutoReviewRepoView }) {
   const { r } = props;
   const job = r.latest;
-  if (!job) return <span className="subtle">No pull request yet</span>;
+  if (!job) return <span className="subtle">No review since it was added</span>;
   const state = STATE[job.state];
   return (
     <div className="stack-tight">

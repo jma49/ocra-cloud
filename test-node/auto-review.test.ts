@@ -155,36 +155,38 @@ describe("an enrolled repository's review profile", () => {
 });
 
 describe("an enrolled repository's automatic switch", () => {
-  it("is on until the account turns it off, and off queues nothing from the webhook", async () => {
+  it("is off until the account turns it on, and off queues nothing from the webhook", async () => {
     const first = await s.signIn(1);
     const second = await s.signIn(2);
     const enrolled = (await (
       await enroll(first.auth, { platform: "github", fullName: "octo/api" })
     ).json()) as { repo: { id: string; automatic: boolean } };
-    expect(enrolled.repo.automatic).toBe(true);
+    expect(enrolled.repo.automatic).toBe(false);
     const path = `/api/auto-review/repos/${enrolled.repo.id}/automatic`;
     const set = (auth: Record<string, string>, automatic: unknown) =>
       s.call(path, { method: "PUT", headers: auth, json: { automatic } });
 
-    expect((await set(second.auth, false)).status).toBe(404);
-    expect((await set(first.auth, "no")).status).toBe(400);
-    expect(await (await set(first.auth, false)).json()).toEqual({ automatic: false });
+    expect((await set(second.auth, true)).status).toBe(404);
+    expect((await set(first.auth, "yes")).status).toBe(400);
     const listed = await (await s.call("/api/auto-review/repos", { headers: first.auth })).json();
     expect(listed).toMatchObject({ repos: [{ automatic: false }] });
 
     expect(await (await fromGithub(pullEvent("opened", C1))).json()).toEqual({ queued: 0 });
     expect(await jobs()).toEqual([]);
 
-    await set(first.auth, true);
+    expect(await (await set(first.auth, true)).json()).toEqual({ automatic: true });
     expect(await (await fromGithub(pullEvent("synchronize", C2))).json()).toEqual({ queued: 1 });
     expect(await jobs()).toMatchObject([{ number: 7, head: C2, state: "queued" }]);
+
+    await set(first.auth, false);
+    expect(await (await fromGithub(pullEvent("synchronize", C1))).json()).toEqual({ queued: 0 });
   });
 });
 
 describe("GitHub's pull request webhook", () => {
   beforeEach(async () => {
     const { auth } = await s.signIn(1);
-    await enroll(auth, { platform: "github", fullName: "octo/api" });
+    await enroll(auth, { platform: "github", fullName: "octo/api", automatic: true });
   });
 
   it("queues a head when the pull request opens, once", async () => {
@@ -250,7 +252,7 @@ describe("GitHub's pull request webhook", () => {
 describe("GitLab's merge request hook", () => {
   it("is proven by the repository's own secret, and queues new commits, not edits", async () => {
     const { auth } = await s.signIn(1);
-    const res = await enroll(auth, { platform: "gitlab", fullName: "group/api" });
+    const res = await enroll(auth, { platform: "gitlab", fullName: "group/api", automatic: true });
     const { webhook } = (await res.json()) as { webhook: { url: string; secret: string } };
     expect(webhook.url).toBe(`${ORIGIN}/api/auto-review/webhooks/gitlab`);
     const hook = (attributes: Record<string, unknown>, token = webhook.secret) =>

@@ -198,6 +198,7 @@ describe("ocra Cloud with a self-managed GitLab", () => {
     const res = await send("/api/auto-review/repos", "POST", {
       platform: "gitlab",
       fullName: PROJECT.path,
+      automatic: true,
     });
     const body = (await res.json()) as {
       repo: { id: string };
