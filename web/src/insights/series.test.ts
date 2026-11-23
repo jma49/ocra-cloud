@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Review } from "../api.js";
-import { daily, quantile } from "./series.js";
+import { daily, flat, quantile } from "./series.js";
 
 const DAY = 86_400_000;
 const now = Date.UTC(2026, 10, 21, 15);
@@ -51,5 +51,11 @@ describe("the insights series", () => {
     );
     expect(d.p50.map((p) => p.value)).toEqual([60, 30]);
     expect(d.p95.map((p) => p.value)).toEqual([60, 90]);
+  });
+
+  it("say when a series has nothing to draw", () => {
+    const quiet = daily([review(0, { costUsd: 0 })], 3, now);
+    expect(flat(quiet.spend)).toBe(true);
+    expect(flat(daily([review(0, { costUsd: 0.2 })], 3, now).spend)).toBe(false);
   });
 });

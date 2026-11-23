@@ -14,6 +14,9 @@ export type Daily = {
   p95: Point[];
 };
 
+/** Whether a series has nothing to draw: a flat line at zero says less than a sentence. */
+export const flat = (points: Point[]) => points.every((p) => p.value === 0);
+
 const DAY = 86_400_000;
 
 /** The value at quantile q (0..1) of sorted numbers, nearest rank. */
