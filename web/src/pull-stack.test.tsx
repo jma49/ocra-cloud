@@ -149,7 +149,7 @@ describe("a pull request's stack", () => {
     const status = await screen.findByRole("status");
     expect(status.textContent).toContain("#1Step 1Merged.");
     expect(status.textContent).toContain("#2Step 2Waiting for its checks.");
-    expect(screen.getByText("Waiting").className).toBe("badge");
+    expect(screen.getByText("Waiting").className).toBe("status status-quiet");
     expect(screen.getByRole("img", { name: "1 of 2 merged" })).toBeTruthy();
     expect(screen.getByText(/Started by octo/).textContent).toContain("keeps going on the server");
     expect(onMerged).toHaveBeenCalledOnce();
@@ -164,7 +164,7 @@ describe("a pull request's stack", () => {
     const status = await screen.findByRole("status");
     expect(status.textContent).toContain("#2Step 2Stopped: a check failed.");
     expect(status.textContent).toContain("#3Step 3Now onto main.");
-    expect(screen.getByText("Stopped").className).toBe("badge badge-err");
+    expect(screen.getByText("Stopped").className).toBe("status status-err");
     expect(screen.getByRole("img", { name: "Moved onto the trunk" })).toBeTruthy();
     expect(screen.getByText(/still hold the merged commits/)).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Stop the stack merge" })).toBeNull();
@@ -191,7 +191,7 @@ describe("a pull request's stack", () => {
     const status = await screen.findByRole("status");
     expect(status.textContent).toContain("#1Step 1Merging.");
     expect(status.textContent).toContain("#2Step 2Next.");
-    expect(screen.getByText("Merging").className).toBe("badge badge-run");
+    expect(screen.getByText("Merging").className).toBe("status status-run");
     expect(screen.getAllByRole("link").map((l) => l.getAttribute("href"))).toEqual([
       "/pull/github/octo%2Fapi/1",
       "/pull/github/octo%2Fapi/2",

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Status, type StatusTone } from "@/components/status";
 import { Button } from "@/components/ui/button";
 import type {
   MergeIntentReason,
@@ -17,14 +18,14 @@ import { OUTCOME } from "./outcome.js";
 // it as the user once the platform, the pre-merge checks and ocra's review
 // of the head allow it.
 
-const STATE: Record<MergeIntentState, { text: string; tone: string }> = {
-  armed: { text: "Armed", tone: "badge badge-ok" },
-  merging: { text: "Merging", tone: "badge badge-ok" },
-  merged: { text: "Merged", tone: "badge" },
-  closed: { text: "Closed unmerged", tone: "badge" },
-  disarmed: { text: "Stopped", tone: "badge badge-warn" },
-  cancelled: { text: "Cancelled", tone: "badge" },
-  failed: { text: "Stopped", tone: "badge badge-err" },
+const STATE: Record<MergeIntentState, { text: string; tone: StatusTone }> = {
+  armed: { text: "Armed", tone: "ok" },
+  merging: { text: "Merging", tone: "ok" },
+  merged: { text: "Merged", tone: "quiet" },
+  closed: { text: "Closed unmerged", tone: "quiet" },
+  disarmed: { text: "Stopped", tone: "warn" },
+  cancelled: { text: "Cancelled", tone: "quiet" },
+  failed: { text: "Stopped", tone: "err" },
 };
 
 const REASON: Record<MergeIntentReason, string> = {
@@ -82,7 +83,7 @@ export function MergeWhenReady(props: {
       {intent && (
         <div className="row-gap checks-head">
           <span className="grow">Merge when ready</span>
-          <span className={STATE[intent.state].tone}>{STATE[intent.state].text}</span>
+          <Status tone={STATE[intent.state].tone}>{STATE[intent.state].text}</Status>
         </div>
       )}
       {live && (

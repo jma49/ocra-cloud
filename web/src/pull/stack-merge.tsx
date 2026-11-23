@@ -1,5 +1,6 @@
 import Clock from "lucide-react/icons/clock";
 import { useCallback, useEffect, useState } from "react";
+import { Status, type StatusTone } from "@/components/status";
 import { Button } from "@/components/ui/button";
 import type {
   StackMergeAnswer,
@@ -63,12 +64,12 @@ export function stackMergeStop(job: StackMergeJobView): { number: number; why: s
   return { number: layer.number, why: next ? `${why}. ${next}` : `${why}.` };
 }
 
-const STANDING: Record<StackMergeState, { text: string; tone: string }> = {
-  waiting: { text: "Waiting", tone: "badge" },
-  running: { text: "Merging", tone: "badge badge-run" },
-  merged: { text: "Merged", tone: "badge badge-ok" },
-  failed: { text: "Stopped", tone: "badge badge-err" },
-  cancelled: { text: "Cancelled", tone: "badge" },
+const STANDING: Record<StackMergeState, { text: string; tone: StatusTone }> = {
+  waiting: { text: "Waiting", tone: "quiet" },
+  running: { text: "Merging", tone: "run" },
+  merged: { text: "Merged", tone: "ok" },
+  failed: { text: "Stopped", tone: "err" },
+  cancelled: { text: "Cancelled", tone: "quiet" },
 };
 
 const POLL_MS = 5000;
@@ -151,7 +152,7 @@ export function StackMergeJob(props: {
     <section className="card card-pad stack" aria-label="Stack">
       <div className="row-gap checks-head">
         <h2 className="card-title grow">Stack merge</h2>
-        <span className={s.tone}>{s.text}</span>
+        <Status tone={s.tone}>{s.text}</Status>
       </div>
       <Tally
         label={`${merged} of ${layers.length} merged`}

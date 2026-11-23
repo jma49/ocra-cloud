@@ -117,6 +117,24 @@ describe("radii", () => {
   );
 });
 
+describe("buttons and standings", () => {
+  const sources = readdirSync(root, { recursive: true, encoding: "utf8" }).filter(
+    (f) => /\.tsx$/.test(f) && !/\.test\.tsx$/.test(f),
+  );
+  it("draws every button flat: no shadow, no inset highlight", () => {
+    const button = readFileSync(join(root, "components/ui/button.tsx"), "utf8");
+    expect(button.match(/\S*shadow\S*/g) ?? []).toEqual([]);
+  });
+  it("never puts a filled badge inside a button", () => {
+    const inside = sources.filter((f) =>
+      (readFileSync(join(root, f), "utf8").match(/<Button\b[\s\S]*?<\/Button>/g) ?? []).some((b) =>
+        /className=[{"`][^>]*\bbadge\b/.test(b),
+      ),
+    );
+    expect(inside).toEqual([]);
+  });
+});
+
 describe("control heights", () => {
   // The sign-in page stands alone, with larger controls of its own.
   const console = sheets.filter((sheet) => sheet !== "signin.css");

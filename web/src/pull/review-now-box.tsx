@@ -1,5 +1,6 @@
 import ChevronDown from "lucide-react/icons/chevron-down";
 import { useState } from "react";
+import { Status } from "@/components/status";
 import { Button } from "@/components/ui/button";
 import { Menu, MenuPopup, MenuTrigger } from "@/components/ui/menu";
 import type {
@@ -100,8 +101,8 @@ export function ReviewNowBox(props: { pull: Pull; head: string }) {
       </span>
       {limit && (
         <span className="small" role="status">
-          <span className="badge badge-warn">{limit.badge}</span> {limit.why} A review asked now
-          waits and starts {limit.resumes}. <Link to="/budget">Budget</Link>
+          <Status tone="warn">{limit.badge}</Status> {limit.why} A review asked now waits and starts{" "}
+          {limit.resumes}. <Link to="/budget">Budget</Link>
         </span>
       )}
       <div className="row-gap">

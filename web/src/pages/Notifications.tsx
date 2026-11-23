@@ -2,6 +2,7 @@ import BellOff from "lucide-react/icons/bell-off";
 import ChevronRight from "lucide-react/icons/chevron-right";
 import Ellipsis from "lucide-react/icons/ellipsis";
 import { useState } from "react";
+import { Status } from "@/components/status";
 import { Button } from "@/components/ui/button";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@/components/ui/menu";
 import { Switch } from "@/components/ui/switch";
@@ -260,7 +261,7 @@ export function Notifications(props: {
                         {c.confirmed ? (
                           <LastSent c={c} tested={tested?.id === c.id ? tested.delivered : null} />
                         ) : (
-                          <span className="badge badge-warn">Awaiting confirmation</span>
+                          <Status tone="warn">Awaiting confirmation</Status>
                         )}
                         <span className="sr-only">, deliveries to {c.name}</span>
                         <ChevronRight aria-hidden="true" />
@@ -335,8 +336,8 @@ export function Notifications(props: {
 
 function LastSent(props: { c: NotifyChannelView; tested: boolean | null }) {
   const { c } = props;
-  if (props.tested === false) return <span className="badge badge-err">Test not delivered</span>;
-  if (props.tested) return <span className="badge badge-ok">Test delivered</span>;
+  if (props.tested === false) return <Status tone="err">Test not delivered</Status>;
+  if (props.tested) return <Status tone="ok">Test delivered</Status>;
   if (!c.lastStatus) return <span className="subtle">Nothing sent yet</span>;
   return (
     <span className={c.lastStatus === "ok" ? "muted" : "error-inline"}>
