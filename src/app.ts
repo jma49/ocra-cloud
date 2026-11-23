@@ -48,6 +48,7 @@ import { pullSince } from "./pull-since.js";
 import { pullStack } from "./pull-stack.js";
 import { pullThreads } from "./pull-threads.js";
 import { pullViewsRoute } from "./pull-views.js";
+import { releaseNotesRoute } from "./release-notes.js";
 import { repoConfigRoute } from "./repo-config.js";
 import { repositoriesRoute } from "./repositories.js";
 import { reviewChat } from "./review-chat.js";
@@ -163,6 +164,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
   app.route("/pulls", pullSince);
   app.route("/learnings", learningsRoute);
   app.route("/repo-config", repoConfigRoute);
+  app.route("/release-notes", releaseNotesRoute);
   app.route("/merge-checks", mergeChecksRoute);
   app.route("/notifications", notifyRoute);
   app.route("/automations", automationsRoute);

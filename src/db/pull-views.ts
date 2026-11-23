@@ -82,8 +82,8 @@ export function accountPullViews(db: Db, accountId: string) {
 
     /**
      * The verdict of the account's newest review with one, and when its
-     * newest review was made, of each pull request named by its repository
-     * identity (lower case) and number that has a review.
+     * newest review was made with its finding count, of each pull request
+     * named by its repository identity (lower case) and number that has a review.
      */
     async verdicts(pulls: readonly { repo: string; number: number }[]) {
       if (pulls.length === 0) return [];
@@ -101,6 +101,10 @@ export function accountPullViews(db: Db, accountId: string) {
             WHERE ${r.accountId} = ${accountId} AND ${r.prNumber} = je.number
               AND lower(${r.prRepository}) = je.repo
             ORDER BY ${r.createdAt} DESC LIMIT 1)`,
+          findings: sql<number | null>`(SELECT ${r.findings} FROM ${r}
+            WHERE ${r.accountId} = ${accountId} AND ${r.prNumber} = je.number
+              AND lower(${r.prRepository}) = je.repo
+            ORDER BY ${r.createdAt} DESC LIMIT 1)`,
         })
         .from(jsonRecords(db, list, { repo: "text", number: "bigint" }));
       return rows.flatMap((row) =>
@@ -111,6 +115,7 @@ export function accountPullViews(db: Db, accountId: string) {
                 number: Number(row.number),
                 verdict: row.verdict,
                 reviewedAt: row.reviewedAt === null ? null : Number(row.reviewedAt),
+                findings: row.findings === null ? 0 : Number(row.findings),
               },
             ]
           : [],

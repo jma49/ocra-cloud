@@ -8,7 +8,8 @@ import type { AppEnv } from "./types.js";
 // a review names its pull request by the repository's identity, as the CLI
 // writes it, and its number.
 
-const identityOf = (platform: CodePlatform, repo: string) => {
+/** The repository's identity as reviews name it, lower case; null for a path that is none. */
+export const identityOf = (platform: CodePlatform, repo: string) => {
   try {
     return repoIdentity(platform, repo).toLowerCase();
   } catch {
