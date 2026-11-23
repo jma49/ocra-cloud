@@ -9,7 +9,9 @@ import {
 import { api } from "../api.js";
 import { AccessToken } from "../auto-review/access-token.js";
 import { type Added, AddRepo, type ListedRepos, listedOn } from "../auto-review/add-repo.js";
+import { AutoEnroll } from "../auto-review/auto-enroll.js";
 import { AutomaticSwitch } from "../auto-review/automatic-switch.js";
+import { BulkEnroll } from "../auto-review/bulk-enroll.js";
 import { Hook } from "../auto-review/hook-card.js";
 import { jobError } from "../auto-review/job-error.js";
 import { LimitReachedNotice } from "../auto-review/limit-reached.js";
@@ -80,6 +82,12 @@ export function AutoReview(props: { platforms: readonly CodePlatformKind[] }) {
           reload();
         }}
       />
+      {props.platforms.includes("github") && (
+        <>
+          <BulkEnroll listed={listed} enrolled={data?.repos ?? []} onAdded={reload} />
+          <AutoEnroll />
+        </>
+      )}
       {added && <Hook added={added} onDone={() => setAdded(null)} />}
       {remove.error !== null && <ActionError what="remove it" error={remove.error} />}
       {error && !data ? (
