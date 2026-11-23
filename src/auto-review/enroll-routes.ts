@@ -14,12 +14,16 @@ import {
   type BulkEnrollResult,
   type BulkEnrollView,
   MAX_BULK_ENROLL,
+  MAX_BULK_ENROLL_GITLAB,
 } from "../shared/index.js";
 import type { AppEnv } from "../types.js";
 import { enrollRepo } from "./enroll.js";
+import { enrollGitlabProject } from "./enroll-gitlab.js";
+import { gitlabHookUrl } from "./hook-routes.js";
 
-// Enrolling many repositories of the user's GitHub App installations at
-// once, each read as the user as one enrollment is; and the switch that
+// Enrolling many repositories of the user's GitHub App installations, or
+// GitLab projects, at once, each read as the user as one enrollment is, a
+// GitLab project's hook added as at one enrollment; and the switch that
 // enrolls the repositories later added to an installation
 // (./auto-enroll.ts).
 
@@ -29,11 +33,35 @@ const githubName = z
   .regex(/^[\w.-]+\/[\w.-]+$/, "owner/repo")
   .refine((p) => !p.split("/").some((s) => s === "." || s === ".."), "owner/repo");
 
-const bulkBody = z.object({
-  fullNames: z.array(githubName).min(1).max(MAX_BULK_ENROLL),
-  // Off unless asked for: every pull request reviewed is the account's spend.
-  automatic: z.boolean().default(false),
-});
+// group/subgroup/project on GitLab.
+const gitlabName = z
+  .string()
+  .max(400)
+  .regex(/^[\w.-]+(?:\/[\w.-]+)+$/, "a project path")
+  .refine((p) => !p.split("/").some((s) => s === "." || s === ".."), "a project path");
+
+const bulkBody = z.discriminatedUnion("platform", [
+  z.object({
+    platform: z.literal("github"),
+    fullNames: z.array(githubName).min(1).max(MAX_BULK_ENROLL),
+    // Off unless asked for: every pull request reviewed is the account's spend.
+    automatic: z.boolean().default(false),
+  }),
+  z.object({
+    platform: z.literal("gitlab"),
+    fullNames: z.array(gitlabName).min(1).max(MAX_BULK_ENROLL_GITLAB),
+    automatic: z.boolean().default(false),
+  }),
+]);
+
+// GitHub unless named, as before GitLab could be enrolled in bulk.
+const bulkInput = z.preprocess(
+  (v) =>
+    v && typeof v === "object" && !Array.isArray(v) && !("platform" in v)
+      ? { ...v, platform: "github" }
+      : v,
+  bulkBody,
+);
 
 const switchBody = z.object({
   enabled: z.boolean(),
@@ -63,26 +91,36 @@ export function enrollRoute(repoView: RepoView) {
     "/repos/bulk",
     requireSession(["web"]),
     perMinute("settings"),
-    jsonBody(bulkBody),
+    jsonBody(bulkInput),
     async (c) => {
       const body = c.req.valid("json");
-      const platform = platformsOf(c.env, c.req.url).find((p) => p.kind === "github");
+      const platform = platformsOf(c.env, c.req.url).find((p) => p.kind === body.platform);
       if (!platform) return apiError(c, "not_found");
       const token = await accessToken(c.var.data, c.env, platform);
       if (!token) return apiError(c, "github_user");
       const names = body.fullNames.filter(
         (n, i) => body.fullNames.findIndex((m) => m.toLowerCase() === n.toLowerCase()) === i,
       );
+      const scope = { data: c.var.data, bots: c.var.bots, hookUrl: gitlabHookUrl(c.req.url) };
       const results: BulkEnrollResult[] = [];
-      // One after another: each repository's two reads, within the request's calls.
+      // One after another: each repository's reads (and a GitLab project's
+      // hook), within the request's calls.
       for (const fullName of names) {
-        const enrolled = await enrollRepo(c.var.data, platform, token, fullName, {
-          automatic: body.automatic,
-        });
+        const enrolled: Awaited<ReturnType<typeof enrollGitlabProject>> =
+          body.platform === "gitlab"
+            ? await enrollGitlabProject(scope, platform, token, fullName, body.automatic)
+            : await enrollRepo(c.var.data, platform, token, fullName, {
+                automatic: body.automatic,
+              });
         results.push(
           enrolled.outcome === "refused"
             ? { fullName, outcome: "refused", reason: enrolled.reason }
-            : { fullName, outcome: enrolled.outcome, repo: repoView(enrolled.repo, undefined) },
+            : {
+                fullName,
+                outcome: enrolled.outcome,
+                repo: repoView(enrolled.repo, undefined),
+                ...(enrolled.webhook ? { webhook: enrolled.webhook } : {}),
+              },
         );
       }
       return c.json({ results } satisfies BulkEnrollView);

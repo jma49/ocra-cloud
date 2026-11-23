@@ -49,6 +49,7 @@ const changes = {
   reviewRequests: { doneAt: new Date(0) },
   reviewTeams: { name: "acme/renamed" },
   autoEnrollInstallations: { automatic: true },
+  autoEnrollGroups: { automatic: true },
   reviewTargets: { mergeDays: 3 },
   replyJobs: { state: "done" as const },
   reviewWalkthroughs: { overview: "changed" },

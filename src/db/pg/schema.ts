@@ -41,6 +41,7 @@ export const graphChunks = pg(sqlite.graphChunks);
 export const pullImpacts = pg(sqlite.pullImpacts);
 export const reviewRepos = pg(sqlite.reviewRepos);
 export const autoEnrollInstallations = pg(sqlite.autoEnrollInstallations);
+export const autoEnrollGroups = pg(sqlite.autoEnrollGroups);
 export const reviewJobs = pg(sqlite.reviewJobs);
 export const notifyChannels = pg(sqlite.notifyChannels);
 export const notifySends = pg(sqlite.notifySends);

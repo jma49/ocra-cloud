@@ -55,7 +55,8 @@ export function accountReviewJobs(db: Db, accountId: string) {
           target: [t.platform, t.host, t.platformRepoId],
           set: {
             fullName: sql`excluded.full_name`,
-            webhookSecretHash: sql`excluded.webhook_secret_hash`,
+            // No secret given keeps the one its hook proves itself with.
+            webhookSecretHash: sql`coalesce(excluded.webhook_secret_hash, ${t.webhookSecretHash})`,
             // Enrolled again by the account, which proved it reaches it: its pause is lifted.
             paused: null,
           },

@@ -75,6 +75,7 @@ const TABLE: Record<string, string> = {
   pullImpacts: "pull_impacts",
   reviewRepos: "review_repos",
   autoEnrollInstallations: "auto_enroll_installations",
+  autoEnrollGroups: "auto_enroll_groups",
   reviewJobs: "review_jobs",
   notifyChannels: "notify_channels",
   notifySends: "notify_sends",

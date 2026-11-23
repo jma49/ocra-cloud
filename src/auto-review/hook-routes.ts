@@ -1,8 +1,9 @@
 import { type Context, Hono } from "hono";
 import { audit } from "../audit.js";
 import { randomToken, sha256Hex } from "../crypto.js";
-import type { Row } from "../db/scoped.js";
+import type { Row, Scoped } from "../db/scoped.js";
 import { apiError } from "../http.js";
+import type { BotTokens } from "../platforms/bot.js";
 import type { CodePlatform } from "../platforms/platform.js";
 import { platformsOf } from "../platforms/registry.js";
 import { perMinute } from "../rate.js";
@@ -20,7 +21,7 @@ type Repo = Row<"reviewRepos">;
 
 const GITLAB_HOOK = "/api/auto-review/webhooks/gitlab";
 
-const gitlabHookUrl = (requestUrl: string) => new URL(GITLAB_HOOK, requestUrl).toString();
+export const gitlabHookUrl = (requestUrl: string) => new URL(GITLAB_HOOK, requestUrl).toString();
 
 const PROBLEMS = {
   token: "no token may add the webhook: give the project an access token with the Maintainer role",
@@ -39,8 +40,17 @@ const byHand = (problem: Problem, url: string) =>
 
 const secretRoute = (id: string) => `/api/auto-review/repos/${id}/webhook/secret`;
 
-async function targetFor(c: Context<AppEnv>, repo: Repo, platform: CodePlatform) {
-  const bot = await c.var.bots?.forRepo(repo).catch(() => null);
+/** What adding a hook needs: the account's data, the bots, and the address it points to. */
+export type HookScope = { data: Scoped; bots: BotTokens | undefined; hookUrl: string };
+
+const scopeOf = (c: Context<AppEnv>): HookScope => ({
+  data: c.var.data,
+  bots: c.var.bots,
+  hookUrl: gitlabHookUrl(c.req.url),
+});
+
+async function targetFor(bots: BotTokens | undefined, repo: Repo, platform: CodePlatform) {
+  const bot = await bots?.forRepo(repo).catch(() => null);
   if (!bot) return null;
   return {
     instance: platform.url,
@@ -54,32 +64,36 @@ async function targetFor(c: Context<AppEnv>, repo: Repo, platform: CodePlatform)
  * the secret's hash once GitLab took it; a problem when it could not.
  */
 async function setUpGitlabHook(
-  c: Context<AppEnv>,
+  scope: HookScope,
   repo: Repo,
   platform: CodePlatform,
   secret: string,
 ): Promise<{ ok: true } | { ok: false; problem: Problem }> {
-  const target = await targetFor(c, repo, platform);
+  const target = await targetFor(scope.bots, repo, platform);
   if (!target) return { ok: false, problem: "token" };
-  const hook = await provisionGitlabHook(target, gitlabHookUrl(c.req.url), secret, repo.webhookId);
+  const hook = await provisionGitlabHook(target, scope.hookUrl, secret, repo.webhookId);
   if (!hook.ok) return { ok: false, problem: hook.reason };
-  const kept = await c.var.data.update("reviewRepos", repo.id, {
+  const kept = await scope.data.update("reviewRepos", repo.id, {
     webhookId: hook.id,
     webhookSecretHash: await sha256Hex(secret),
   });
-  if (kept) await audit(c.var.data, "auto_review.webhook_added", { repo: repo.fullName });
+  if (kept) await audit(scope.data, "auto_review.webhook_added", { repo: repo.fullName });
   return { ok: true };
 }
 
-/** What enrolling a GitLab project answers of its hook, after ocra tried to add it. */
+/**
+ * What enrolling a GitLab project answers of its hook, after ocra tried to
+ * add it; within a request (the context) or the sweep (a scope).
+ */
 export async function enrolledGitlabHook(
-  c: Context<AppEnv>,
+  at: Context<AppEnv> | HookScope,
   repo: Repo,
   platform: CodePlatform,
   secret: string,
 ): Promise<AutoReviewWebhookView> {
-  const url = gitlabHookUrl(c.req.url);
-  const set = await setUpGitlabHook(c, repo, platform, secret);
+  const scope = "hookUrl" in at ? at : scopeOf(at);
+  const url = scope.hookUrl;
+  const set = await setUpGitlabHook(scope, repo, platform, secret);
   return set.ok
     ? { url, secret, managed: true }
     : { url, secret, managed: false, problem: byHand(set.problem, url) };
@@ -91,7 +105,7 @@ export async function removeEnrolledHook(c: Context<AppEnv>, repo: Repo): Promis
   const platform = platformsOf(c.env, c.req.url).find(
     (p) => p.kind === "gitlab" && p.host === repo.host,
   );
-  const target = platform && (await targetFor(c, repo, platform));
+  const target = platform && (await targetFor(c.var.bots, repo, platform));
   const removed = !!target && (await removeGitlabHook(target, repo.webhookId).catch(() => false));
   await audit(c.var.data, "auto_review.webhook_removed", { repo: repo.fullName, removed });
 }
@@ -121,7 +135,7 @@ export function gitlabHookRoute() {
     const { repo, platform } = found;
     const url = gitlabHookUrl(c.req.url);
     const secret = randomToken("ocra_hook_");
-    const set = await setUpGitlabHook(c, repo, platform, secret);
+    const set = await setUpGitlabHook(scopeOf(c), repo, platform, secret);
     if (!set.ok) {
       return set.problem === "unreachable"
         ? apiError(c, "upstream_unreachable")
