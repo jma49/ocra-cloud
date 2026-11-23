@@ -1,7 +1,7 @@
-import { and, asc, eq, inArray, isNotNull, lt, or, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, isNotNull, lt, or, sql } from "drizzle-orm";
 import type { MergeIntentReason, MergeIntentState } from "../shared/index.js";
 import { changedRows, type Db, first } from "./client.js";
-import { mergeIntents, reviewRepos } from "./schema.js";
+import { closedPulls, mergeIntents, reviewRepos } from "./schema.js";
 
 // The account's merge-when-ready intents (reached through scoped()). One
 // row per pull request, armed again in place; the merge is taken by the
@@ -228,6 +228,37 @@ export function dueMergeIntents(
         sql`EXISTS (SELECT 1 FROM ${r} WHERE ${r.accountId} = ${t.accountId} AND ${r.platform} = ${t.platform} AND ${r.host} = ${t.host} AND lower(${r.fullName}) = ${t.fullName})`,
       ),
     )
+    .orderBy(asc(t.updatedAt))
+    .limit(limit);
+}
+
+/**
+ * Armed intents the platform keeps (`native`) whose pull request a close on
+ * record (a webhook's, or the daily reconciliation's) says ended after they
+ * were armed, across accounts: the close their webhook would have ended them
+ * on, with whether it merged. Read from the database alone.
+ */
+export function closedNativeIntents(
+  db: Db,
+  limit: number,
+): Promise<{ intent: MergeIntent; merged: boolean }[]> {
+  const t = mergeIntents;
+  const r = reviewRepos;
+  const c = closedPulls;
+  return db
+    .select({ intent: t, merged: c.merged })
+    .from(t)
+    .innerJoin(
+      r,
+      and(
+        eq(r.accountId, t.accountId),
+        eq(r.platform, t.platform),
+        eq(r.host, t.host),
+        sql`lower(${r.fullName}) = ${t.fullName}`,
+      ),
+    )
+    .innerJoin(c, and(eq(c.reviewRepoId, r.id), eq(c.number, t.number)))
+    .where(and(eq(t.mode, "native"), eq(t.state, "armed"), gte(c.closedAt, t.createdAt)))
     .orderBy(asc(t.updatedAt))
     .limit(limit);
 }
