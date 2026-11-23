@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PullReviewJobView } from "../../../src/shared/index.js";
 import { ReviewNowBox } from "./review-now-box.js";
@@ -77,6 +77,9 @@ describe("the AI review card on a pull request", () => {
     render(<ReviewNowBox pull={pull} head={HEAD} />);
     fireEvent.click(await screen.findByRole("button", { name: "Depth of this review: Standard" }));
     fireEvent.click(await screen.findByRole("menuitemradio", { name: /^Deep/ }));
+    // The pick closes the menu, so the next click lands on Review now instead of closing it.
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+    expect(screen.getByRole("button", { name: "Depth of this review: Deep" })).toBeTruthy();
     await act(async () => void fireEvent.click(button("Review now")));
     expect(sent).toEqual([{ ...pull, force: false, depth: "deep" }]);
   });
