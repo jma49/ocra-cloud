@@ -13,9 +13,9 @@ import { span } from "./report.js";
 import type { HookEvent } from "./webhooks.js";
 
 // Review reminders, from the hourly run: a review asked of the account's own
-// platform user that still waits (review_waiting), and a pull request they
-// wrote that no one has reviewed (pull_waiting), on its enrolled
-// repositories, once it has waited a channel's reminderHours. Only what the
+// platform user, or of a team they are on, that still waits
+// (review_waiting), and a pull request they wrote that no one has reviewed
+// (pull_waiting), on its enrolled repositories, once it has waited a channel's reminderHours. Only what the
 // webhooks stored is read. Each channel claims each reminder by its key (the
 // pull request and when it started waiting) before one message lists all it
 // claimed, so a reminder goes once whichever host and process runs it, and a
@@ -81,7 +81,7 @@ function lines(title: string, list: Reminder[], now: Date, origin: string) {
       label: `${w.repo}#${w.number}`,
       url: consolePullUrl(origin, { platform: w.platform, fullName: w.repo }, w.number),
     },
-    `${w.title ? ` ${plain(w.title)}` : ""} · waiting ${span(now.getTime() - w.since)}`,
+    `${w.title ? ` ${plain(w.title)}` : ""}${w.team ? ` · asked of ${plain(w.team)}` : ""} · waiting ${span(now.getTime() - w.since)}`,
   ]);
   const more = list.length > LISTED ? [[`… and ${list.length - LISTED} more`]] : [];
   return [[`${title} (${list.length}):`], ...shown, ...more];

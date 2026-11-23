@@ -1,14 +1,18 @@
-import { and, asc, eq, gte, isNull, lt, lte, or, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, isNotNull, isNull, like, lt, lte, or, sql } from "drizzle-orm";
 import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
 import type { CodePlatformKind as CodePlatform } from "../shared/index.js";
 import type { Db } from "./client.js";
-import { closedPulls, pullFlows, reviewRepos, reviewRequests } from "./schema.js";
+import { hasMember, memberIdOk, TEAM_PREFIX } from "./review-teams.js";
+import { closedPulls, pullFlows, reviewRepos, reviewRequests, reviewTeams } from "./schema.js";
 
 // The reviews asked of users on an enrolled repository's pull requests, from
 // its platform's webhooks (src/auto-review/requests.ts), and what of them,
 // and of the user's own pull requests, still waits (src/notify/reminders.ts).
 // An ask merges into its row in the statement itself, so a redelivery or a
-// late older event changes nothing; nothing here reads the platform.
+// late older event changes nothing; nothing here reads the platform. An
+// ask of a team (reviewer id "team:<id>") waits for each member the kept
+// copy of the team names (./review-teams.ts), and one member's review ends
+// it, as it does on the platform.
 
 /** Whose reviews and pull requests: the platform's id of the user there. */
 export type PlatformUser = { platform: CodePlatform; host: string; userId: string };
@@ -21,6 +25,8 @@ export type Waiting = {
   title: string | null;
   /** When it started waiting, ms since the epoch. */
   since: number;
+  /** The team (org/slug) the review was asked of, with u on it; null when asked of u. */
+  team?: string | null;
 };
 
 /** An ask, or its end, of reviewerId: the platform's id, and the login where the event names it. */
@@ -36,6 +42,7 @@ const MAX_LOGIN = 255;
 const r = reviewRequests;
 const f = pullFlows;
 const c = closedPulls;
+const t = reviewTeams;
 
 export function accountReviewRequests(db: Db, accountId: string) {
   const ofRepo = (u: PlatformUser) =>
@@ -91,12 +98,50 @@ export function accountReviewRequests(db: Db, accountId: string) {
         );
     },
 
+    /** Records that a member of a team asked on the pull request reviewed it at: the teams' asks end. */
+    async doneByMember(e: Ask & { platform: CodePlatform; host: string }) {
+      if (!memberIdOk(e.reviewerId)) return;
+      const teams = db
+        .select({ id: t.reviewerId })
+        .from(t)
+        .where(
+          and(
+            eq(t.accountId, accountId),
+            eq(t.platform, e.platform),
+            eq(t.host, e.host),
+            hasMember(t.members, e.reviewerId),
+          ),
+        );
+      await db
+        .update(r)
+        .set({
+          doneAt: sql`CASE WHEN ${r.doneAt} IS NULL OR ${r.doneAt} < ${e.at.getTime()} THEN ${e.at.getTime()} ELSE ${r.doneAt} END`,
+        })
+        .where(
+          and(
+            eq(r.accountId, accountId),
+            eq(r.reviewRepoId, e.reviewRepoId),
+            eq(r.number, e.number),
+            inArray(r.reviewerId, teams),
+          ),
+        );
+    },
+
     /**
-     * The open pull requests that asked u's review between from and to and
-     * still wait for it, waiting longest first; drafts are left out.
+     * The open pull requests that asked u's review, or a team's u is on,
+     * between from and to and still wait for it, waiting longest first, one
+     * per pull request (an ask of u before a team's); drafts are left out.
      */
     async askedOf(u: PlatformUser, from: Date, to: Date, limit: number): Promise<Waiting[]> {
-      return db
+      const teams = memberIdOk(u.userId);
+      const ofTeam = and(
+        eq(t.accountId, accountId),
+        eq(t.platform, u.platform),
+        eq(t.host, u.host),
+        eq(t.reviewerId, r.reviewerId),
+      );
+      const direct = eq(r.reviewerId, u.userId);
+      const rows = await db
         .select({
           reviewRepoId: r.reviewRepoId,
           platform: reviewRepos.platform,
@@ -104,9 +149,11 @@ export function accountReviewRequests(db: Db, accountId: string) {
           number: r.number,
           title: f.title,
           since: sql<number>`${r.requestedAt}`.mapWith(Number),
+          team: sql<string | null>`CASE WHEN ${direct} THEN NULL ELSE ${t.name} END`,
         })
         .from(r)
         .innerJoin(reviewRepos, and(eq(reviewRepos.id, r.reviewRepoId), ofRepo(u)))
+        .leftJoin(t, teams ? ofTeam : sql`1 = 0`)
         .leftJoin(f, flowOf(r))
         .leftJoin(c, closeOf(r))
         .where(
@@ -114,7 +161,16 @@ export function accountReviewRequests(db: Db, accountId: string) {
             eq(r.accountId, accountId),
             gte(r.requestedAt, from),
             lte(r.requestedAt, to),
-            eq(r.reviewerId, u.userId),
+            teams
+              ? or(
+                  direct,
+                  and(
+                    like(r.reviewerId, `${TEAM_PREFIX}%`),
+                    isNotNull(t.id),
+                    hasMember(t.members, u.userId),
+                  ),
+                )
+              : direct,
             or(isNull(r.doneAt), lt(r.doneAt, r.requestedAt)),
             or(isNull(f.id), eq(f.draft, false)),
             // Asked again after a close, or reopened since, it is open.
@@ -123,6 +179,13 @@ export function accountReviewRequests(db: Db, accountId: string) {
         )
         .orderBy(asc(r.requestedAt))
         .limit(limit);
+      const byPull = new Map<string, Waiting>();
+      for (const w of rows) {
+        const key = `${w.reviewRepoId}#${w.number}`;
+        const kept = byPull.get(key);
+        if (!kept || (kept.team && !w.team)) byPull.set(key, w);
+      }
+      return [...byPull.values()].sort((a, b) => a.since - b.since);
     },
 
     /**

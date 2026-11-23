@@ -41,6 +41,11 @@ export type PullItem = {
    * the thread; only threads started since ocra began keeping them count.
    */
   repliesWaiting: number;
+  /**
+   * The team (org/slug) whose asked review brought it to the user, on an
+   * enrolled repository; none when it was asked of them, or not through a team.
+   */
+  requestedTeam?: string;
   /** Its place among the listed open pulls of its repository stacked with it; none when unstacked. */
   stack?: PullStackPlace;
 };

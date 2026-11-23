@@ -126,6 +126,11 @@ export function Privacy() {
           sessions last 90 from sign-in, however often they refresh.
         </li>
         <li>
+          Who is on a team a review was asked of on a repository you enrolled, as GitHub listed them
+          (their platform ids): read again after a day when a new ask comes, and deleted 30 days
+          after it was last read.
+        </li>
+        <li>
           Your account, keys, settings and memory: until you delete them. The newest 50 versions of
           your settings are kept.
         </li>

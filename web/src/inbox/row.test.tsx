@@ -71,3 +71,20 @@ it("names the state of the checks and shows the author with their mark", () => {
     "https://avatars.githubusercontent.com/u/1?v=4",
   );
 });
+
+it("names the team a review was asked of when it reached the user through one", () => {
+  cleanup();
+  render(
+    <PullRow
+      r={row({ roles: ["reviewer"], requestedTeam: "acme/core" })}
+      i={0}
+      current={false}
+      run={null}
+      onOpen={() => undefined}
+      onMark={() => undefined}
+    />,
+  );
+  expect(screen.getByTitle("Review asked of acme/core, a team you are on").textContent).toBe(
+    "acme/core",
+  );
+});

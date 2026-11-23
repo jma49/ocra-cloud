@@ -1047,6 +1047,32 @@ export const reviewRequests = sqliteTable(
   ],
 );
 
+// Who is on a team a review was asked of (src/auto-review/teams.ts), read
+// with the App's Members permission when a team's ask arrives and the copy
+// here is older than its TTL: one row per account, platform host and team,
+// by the reviewer id its asks carry in review_requests ("team:<id>").
+// members holds the platform ids of its members as ",1,2,"; null when the
+// App was refused, so a refusal is not asked again before the TTL.
+export const reviewTeams = sqliteTable(
+  "review_teams",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    platform: text("platform", { enum: CODE_PLATFORMS }).notNull(),
+    host: text("host").notNull(),
+    reviewerId: text("reviewer_id").notNull(),
+    // org/slug, as the platform names the team.
+    name: text("name").notNull(),
+    members: text("members"),
+    fetchedAt: integer("fetched_at", { mode: "timestamp_ms" }).notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("review_teams_team").on(t.accountId, t.platform, t.host, t.reviewerId),
+    index("review_teams_account_fetched").on(t.accountId, t.fetchedAt),
+  ],
+);
+
 // An account's review targets (src/review-targets.ts): its default (scope
 // "default", no repository) and an enrolled repository's own, which takes
 // the default's place (scope is the repository's id). A null target sets
@@ -1512,6 +1538,7 @@ export const accountTables = {
   reviewThreads,
   pullPaths,
   reviewRequests,
+  reviewTeams,
   reviewTargets,
   replyJobs,
   reviewWalkthroughs,

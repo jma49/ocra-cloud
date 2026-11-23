@@ -1,5 +1,6 @@
 import Layers from "lucide-react/icons/layers";
 import MessageSquare from "lucide-react/icons/message-square";
+import Users from "lucide-react/icons/users";
 import type { MouseEvent } from "react";
 import { since } from "../format.js";
 import { PersonMark } from "../person-mark.js";
@@ -100,6 +101,15 @@ function PullLink(props: {
         >
           <MessageSquare size={12} aria-hidden="true" />
           {r.repliesWaiting}
+        </span>
+      )}
+      {r.requestedTeam && (
+        <span
+          className="pull-replies pull-team"
+          title={`Review asked of ${r.requestedTeam}, a team you are on`}
+        >
+          <Users size={12} aria-hidden="true" />
+          {r.requestedTeam}
         </span>
       )}
       <span className="pull-ref" title={`${r.repo} #${r.number}`}>

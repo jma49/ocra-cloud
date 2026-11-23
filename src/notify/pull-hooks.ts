@@ -1,8 +1,12 @@
 import { z } from "zod";
+import { githubAskedTeam } from "../auto-review/requests.js";
+import { teamMembers } from "../auto-review/teams.js";
 import type { Db } from "../db/client.js";
 import { refreshGithubLogin, refreshGitlabLogin } from "../db/logins.js";
 import { reviewRepoFor } from "../db/review-jobs.js";
+import { teamReviewerId } from "../db/review-teams.js";
 import { scoped } from "../db/scoped.js";
+import type { BotTokens } from "../platforms/bot.js";
 import { plain } from "./channels.js";
 import { bySpecificity, githubCommentEvents, gitlabCommentEvents } from "./comment-hooks.js";
 import type { Outbox } from "./notify.js";
@@ -10,8 +14,9 @@ import { type EventRepo, type PullEvent, tellPullEvent } from "./pull-events.js"
 import { keepGithubThread, keepGitlabThread, type StartOf } from "./thread-hooks.js";
 
 // The pull request events of the platforms' webhooks that may concern the
-// account's own user (./pull-events.ts): a review asked of them, and on a
-// pull request they wrote, a reviewer's review and its merge or close;
+// account's own user (./pull-events.ts): a review asked of them or of a
+// team they are on, and on a pull request they wrote, a reviewer's review
+// and its merge or close;
 // and the conversation's comments and mentions (./comment-hooks.ts), and
 // replies in review threads the user started (./thread-hooks.ts), whose
 // starts and replies are kept whether or not a channel hears of them.
@@ -34,8 +39,9 @@ const githubPullEvent = z.object({
   number: z.number().int().min(1),
   pull_request: githubPull,
   requested_reviewer: user.optional(),
+  requested_team: z.object({ id: z.number(), slug: z.string() }).optional(),
   sender: user.optional(),
-  repository: z.object({ id: z.number() }),
+  repository: z.object({ id: z.number(), owner: z.object({ login: z.string() }).optional() }),
 });
 
 const githubReviewEvent = z.object({
@@ -59,11 +65,16 @@ const REVIEWED: Record<string, string> = {
 const titled = (title: string) => [plain(title)];
 const id = (n: number) => String(n);
 
-/** The events of a GitHub App webhook's delivery, and the platform's repository id they are of. */
+/**
+ * The events of a GitHub App webhook's delivery, and the platform's
+ * repository id they are of; members, the platform ids of the team a
+ * review was asked of. A team's ask tells each member once per pull request.
+ */
 export function githubPullEvents(
   event: string | undefined,
   body: unknown,
   repoId: string,
+  members: readonly string[] | null = null,
 ): PullEvent[] {
   if (event === "pull_request_review") {
     const parsed = githubReviewEvent.safeParse(body);
@@ -89,8 +100,28 @@ export function githubPullEvents(
   if (event !== "pull_request") return [];
   const parsed = githubPullEvent.safeParse(body);
   if (!parsed.success) return [];
-  const { action, number, pull_request: pull, requested_reviewer, sender } = parsed.data;
+  const {
+    action,
+    number,
+    pull_request: pull,
+    requested_reviewer,
+    requested_team,
+    sender,
+  } = parsed.data;
   const at = pull.updated_at ?? "";
+  const org = parsed.data.repository.owner?.login;
+  if (action === "review_requested" && requested_team && org && members) {
+    const team = plain(`${org}/${requested_team.slug}`);
+    return members.map((member) => ({
+      kind: "review_requested",
+      key: `github:requested:${repoId}#${number}:${member}:team`,
+      number,
+      concerns: member,
+      by: sender ? id(sender.id) : null,
+      what: `${sender ? plain(sender.login) : "Someone"} asked ${team}, a team you are on, for a review`,
+      more: titled(pull.title),
+    }));
+  }
   if (action === "review_requested" && requested_reviewer) {
     return [
       {
@@ -208,6 +239,7 @@ export async function tellGithubHook(
   out: Outbox,
   event: string | undefined,
   body: unknown,
+  bots?: BotTokens,
 ): Promise<number> {
   if (!event || !quick.has(event)) return 0;
   const repoId = githubRepoId.safeParse(body);
@@ -222,8 +254,19 @@ export async function tellGithubHook(
     });
   }
   const data = scoped(db, repo.accountId);
+  const team = event === "pull_request" ? githubAskedTeam(body) : null;
+  const members =
+    team && (body as { action?: unknown }).action === "review_requested"
+      ? await teamMembers(data, bots, {
+          platform: "github",
+          host,
+          reviewerId: teamReviewerId(team.id),
+          org: team.org,
+          slug: team.slug,
+        })
+      : null;
   const events = bySpecificity([
-    ...githubPullEvents(event, body, repo.id),
+    ...githubPullEvents(event, body, repo.id, members),
     ...githubCommentEvents(event, body, repo.id),
     ...(await keepGithubThread(data, event, body, repo.id)),
   ]);

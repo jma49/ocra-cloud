@@ -1,12 +1,15 @@
 import { z } from "zod";
 import type { Db } from "../db/client.js";
 import { reviewRepoFor } from "../db/review-jobs.js";
+import { teamReviewerId } from "../db/review-teams.js";
 import { scoped } from "../db/scoped.js";
 
 // Whose review an enrolled repository's pull request waits for, by the
 // platform's id of each reviewer, as its webhooks say: asked, asked no
 // more, or reviewed (src/db/review-requests.ts). Review reminders read it
-// (src/notify/reminders.ts); nothing asks the platform.
+// (src/notify/reminders.ts); nothing asks the platform. An ask of a GitHub
+// team is kept under the team ("team:<id>", ./teams.ts says who is on it);
+// a review by one of its members ends it.
 
 type Repo = { id: string; accountId: string };
 
@@ -22,8 +25,17 @@ const githubPullEvent = z.object({
   number: z.number().int().min(1),
   pull_request: z.object({ updated_at: z.string().nullish() }),
   requested_reviewer: githubUser.optional(),
-  repository: z.object({ id: z.number() }),
+  requested_team: z.object({ id: z.number(), slug: z.string().min(1).max(100) }).optional(),
+  repository: z.object({ id: z.number(), owner: z.object({ login: z.string() }).optional() }),
 });
+
+/** The team a pull_request delivery asked, or asked no more: its org and slug, as GitHub names them. */
+export function githubAskedTeam(body: unknown): { id: number; org: string; slug: string } | null {
+  const parsed = githubPullEvent.safeParse(body);
+  const team = parsed.success ? parsed.data.requested_team : undefined;
+  const org = parsed.success ? parsed.data.repository.owner?.login : undefined;
+  return team && org ? { id: team.id, org, slug: team.slug } : null;
+}
 
 const githubReviewEvent = z.object({
   action: z.literal("submitted"),
@@ -46,13 +58,16 @@ export async function recordGithubRequest(
     const { review, pull_request: pull, repository } = parsed.data;
     const repo = await reviewRepoFor(db, "github", host, String(repository.id));
     if (!repo || !review.user) return false;
-    await scoped(db, repo.accountId).reviewRequests.done({
+    const done = {
       reviewRepoId: repo.id,
       number: pull.number,
       reviewerId: String(review.user.id),
       reviewer: review.user.login ?? null,
       at: timeOf(review.submitted_at, now),
-    });
+    };
+    const requests = scoped(db, repo.accountId).reviewRequests;
+    await requests.done(done);
+    await requests.doneByMember({ ...done, platform: "github", host });
     return true;
   }
   if (event !== "pull_request") return false;
@@ -60,16 +75,14 @@ export async function recordGithubRequest(
   if (!parsed.success) return false;
   const { action, number, pull_request: pull, requested_reviewer: reviewer } = parsed.data;
   const asked = action === "review_requested";
-  if (!reviewer || (!asked && action !== "review_request_removed")) return false;
+  const team = githubAskedTeam(body);
+  const who = reviewer
+    ? { reviewerId: String(reviewer.id), reviewer: reviewer.login ?? null }
+    : team && { reviewerId: teamReviewerId(team.id), reviewer: `${team.org}/${team.slug}` };
+  if (!who || (!asked && action !== "review_request_removed")) return false;
   const repo = await reviewRepoFor(db, "github", host, String(parsed.data.repository.id));
   if (!repo) return false;
-  const e = {
-    reviewRepoId: repo.id,
-    number,
-    reviewerId: String(reviewer.id),
-    reviewer: reviewer.login ?? null,
-    at: timeOf(pull.updated_at, now),
-  };
+  const e = { reviewRepoId: repo.id, number, ...who, at: timeOf(pull.updated_at, now) };
   const requests = scoped(db, repo.accountId).reviewRequests;
   await (asked ? requests.asked(e) : requests.done(e));
   return true;
