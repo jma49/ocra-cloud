@@ -113,6 +113,8 @@ describe("restacking a pull request GitHub moved off a merged one", () => {
     github([layer(1, "main", { state: "MERGED" }), layer(2, "release")]);
     const { a, data } = await enrolled(true);
     await indexMerged(data);
+    // The index cannot tell where the merged one went: the platform's answer does.
+    expect(await steps(edited(2, "step-1", "release"))).toContain("intents");
     await deliver(edited(2, "step-1", "release"));
     expect((await history(a)).jobs).toEqual([]);
   });
