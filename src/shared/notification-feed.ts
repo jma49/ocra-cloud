@@ -7,8 +7,9 @@ import type { NotifyEvent } from "./notifications.js";
  * The events of the account's own pull requests it is told of (see
  * NOTIFY_EVENTS), and three of its own: review_finished, ocra's review of
  * a pull request stored; automation, a rule's notify action ran;
- * job_failed, a hosted job (a review, an answer, a draft, a learning run)
- * gave up. The reminders and pull_at_risk are not kept: they follow a
+ * job_failed, a hosted job (a review, an answer, a draft, a learning run,
+ * a fix) gave up; fix_finished, a fix asked of ocra was answered, proposed
+ * or not. The reminders and pull_at_risk are not kept: they follow a
  * channel's settings.
  */
 export const FEED_KINDS = [
@@ -25,7 +26,14 @@ export const FEED_KINDS = [
   "review_finished",
   "automation",
   "job_failed",
-] as const satisfies readonly (NotifyEvent | "review_finished" | "automation" | "job_failed")[];
+  "fix_finished",
+] as const satisfies readonly (
+  | NotifyEvent
+  | "review_finished"
+  | "automation"
+  | "job_failed"
+  | "fix_finished"
+)[];
 export type FeedKind = (typeof FEED_KINDS)[number];
 
 /** How many days a notice is kept. */

@@ -63,6 +63,10 @@ export type AuditDetails = {
   "pull.reviewed": Pull & { verdict: string };
   "pull.merged": Pull & { method: string };
   "pull.fix_applied": Pull & { finding: string };
+  /** A fix asked of ocra for a finding that came without one. */
+  "pull.fix_requested": Pull & { finding: string };
+  /** What `ocra fix` answered such a request: a proposed fix is the finding's from then on. */
+  "pull.fix_answered": Pull & { finding: string; outcome: string };
   "pull.reviewers_changed": Pull & People;
   "pull.assignees_changed": Pull & People;
   "pull.branch_updated": Pull & { head: string };
@@ -139,6 +143,8 @@ export const AUDIT_FIELDS: { readonly [K in AuditKind]: readonly (keyof AuditDet
   "pull.reviewed": ["pull", "verdict"],
   "pull.merged": ["pull", "method"],
   "pull.fix_applied": ["pull", "finding"],
+  "pull.fix_requested": ["pull", "finding"],
+  "pull.fix_answered": ["pull", "finding", "outcome"],
   "pull.reviewers_changed": ["pull", "added", "removed"],
   "pull.assignees_changed": ["pull", "added", "removed"],
   "pull.branch_updated": ["pull", "head"],

@@ -410,6 +410,14 @@ export const rows = {
     url: "https://github.com/octo/api/issues/7",
     claimedAt: new Date(),
   }),
+  // The finding and the enrolled repository it belongs to are made in beforeEach (the foreign keys need them).
+  fixJobs: (id: string) => ({
+    id,
+    reviewRepoId: "review-repo-of-a",
+    number: 1,
+    findingId: "finding-of-a",
+    head: `h-${id}`,
+  }),
   // The merge it belongs to is made in beforeEach (the foreign key needs one).
   stackMergeLayers: (id: string) => ({
     id,

@@ -119,6 +119,7 @@ describe("deleting an account", () => {
           "replyJobs",
           "generateJobs",
           "restackJobs",
+          "fixJobs",
           "learnJobs",
           "pullCommands",
           "pausedPulls",
@@ -186,6 +187,11 @@ describe("deleting an account", () => {
     await d.insert("restackJobs", {
       ...rows.restackJobs(id("restackJobs")),
       reviewRepoId: id("reviewRepos"),
+    });
+    await d.insert("fixJobs", {
+      ...rows.fixJobs(id("fixJobs")),
+      reviewRepoId: id("reviewRepos"),
+      findingId: id("findings"),
     });
     await d.insert("learnJobs", {
       ...rows.learnJobs(id("learnJobs")),

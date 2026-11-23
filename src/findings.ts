@@ -29,6 +29,10 @@ export type FindingRow = {
   fixStartLine: number | null;
   fixEndLine: number | null;
   fixReplacement: string | null;
+  /** Kept by --ultra though the judge would drop it; `ocra fix` asks no fix for it. */
+  lowConfidence: boolean;
+  /** What the reviewer read to reach it, one fact per entry; null when none was sent. */
+  evidence: string[] | null;
   redacted: boolean;
   truncated: boolean;
 };
@@ -78,6 +82,8 @@ export function parseFindings(list: unknown): {
       fixStartLine: fix?.startLine ?? null,
       fixEndLine: fix?.endLine ?? null,
       fixReplacement: fix?.replacement ?? null,
+      lowConfidence: f.lowConfidence === true,
+      evidence: f.evidence && f.evidence.length > 0 ? f.evidence.map((e) => text(e)) : null,
       redacted: false,
       truncated: false,
     };
@@ -88,7 +94,8 @@ export function parseFindings(list: unknown): {
       row.body.length +
       (row.suggestion?.length ?? 0) +
       (row.code?.length ?? 0) +
-      (row.fixReplacement?.length ?? 0);
+      (row.fixReplacement?.length ?? 0) +
+      (row.evidence ?? []).reduce((n, e) => n + e.length, 0);
     if (total + size > MAX_TOTAL_BYTES) {
       truncated = true;
       break;
@@ -108,4 +115,31 @@ function fixOf(fix: SharedFinding["fix"]) {
   if (!fix) return undefined;
   const r = redactField(fix.replacement);
   return r.redacted || r.truncated ? undefined : fix;
+}
+
+/**
+ * A stored finding as `ocra fix --finding` reads it (sharedFindingSchema):
+ * what the upload kept, redacted as it was stored, with its flags.
+ */
+export function findingInput(
+  f: Omit<FindingRow, "fixStartLine" | "fixEndLine" | "fixReplacement">,
+): SharedFinding {
+  return {
+    fingerprint: f.fingerprint,
+    reviewer: f.reviewer,
+    severity: f.severity,
+    category: f.category,
+    verification: f.verification,
+    file: f.file,
+    lineStart: f.lineStart,
+    lineEnd: f.lineEnd,
+    title: f.title,
+    body: f.body,
+    suggestion: f.suggestion,
+    code: f.code,
+    ...(f.evidence ? { evidence: f.evidence } : {}),
+    ...(f.lowConfidence ? { lowConfidence: true as const } : {}),
+    ...(f.redacted ? { redacted: true as const } : {}),
+    ...(f.truncated ? { truncated: true as const } : {}),
+  };
 }

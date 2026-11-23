@@ -1,4 +1,4 @@
-import { redactField } from "@open-cr-agent/cloud-contract";
+import { type FixOutcome, type FixReason, redactField } from "@open-cr-agent/cloud-contract";
 import type { FeedNotice } from "../db/notification-feed.js";
 import type { Row, Scoped } from "../db/scoped.js";
 import { errorName, logError } from "../log.js";
@@ -19,6 +19,8 @@ import type { PullEvent } from "./pull-events.js";
 // a comment reaches it only as the excerpt its channel notice carries.
 
 const MAX_SUBTITLE = 240;
+/** A finding's title as a fix's notice quotes it. */
+const MAX_FIX_TITLE = 120;
 
 type Place = { platform: CodePlatformKind; fullName: string };
 
@@ -113,11 +115,41 @@ export function automationNotice(
   };
 }
 
+/** What `ocra fix` answered a request for a fix of the finding: it opens the finding's review. */
+export function fixNotice(
+  job: { id: string; outcome: FixOutcome; reason: FixReason | null; finishedAt: Date },
+  finding: { title: string; reviewId: string },
+  repo: { fullName: string },
+  number: number,
+): FeedNotice {
+  const chars = [...plain(redactField(finding.title).text)];
+  const title =
+    chars.length > MAX_FIX_TITLE
+      ? `${chars.slice(0, MAX_FIX_TITLE - 1).join("")}…`
+      : chars.join("");
+  return {
+    eventKey: `fix:${job.id}@${job.finishedAt.getTime()}`,
+    kind: "fix_finished",
+    title:
+      job.outcome === "proposed"
+        ? `ocra proposed a fix for “${title}”`
+        : `ocra wrote no fix for “${title}”`,
+    subtitle: `${plain(repo.fullName)}#${number}${
+      job.outcome === "proposed" ? "" : ` · ${job.outcome}${job.reason ? ` (${job.reason})` : ""}`
+    }`,
+    link: `/reviews/${encodeURIComponent(finding.reviewId)}`,
+    repo: repo.fullName,
+    number,
+    createdAt: job.finishedAt,
+  };
+}
+
 const JOB_NOUN = {
   review: "review",
   reply: "answer to a comment",
   generate: "draft",
   learn: "learning run",
+  fix: "fix",
 } as const;
 
 /** A hosted job that gave up, once per time it did. */
@@ -142,6 +174,7 @@ const JOB_TABLE = {
   reply: "replyJobs",
   generate: "generateJobs",
   learn: "learnJobs",
+  fix: "fixJobs",
 } as const;
 
 /** Keeps a notice of the hosted job when it has just given up (failed, at now); never throws. */

@@ -16,6 +16,7 @@ import type { AppBindings } from "../types.js";
 import type { Exec } from "./checkout.js";
 import { runNextRestack } from "./restack-run.js";
 import {
+  runNextFix,
   runNextGeneration,
   runNextLearning,
   runNextReply,
@@ -89,6 +90,7 @@ export function startAutoReview(
           (await runNextReply(runner)) ||
           (await runNextGeneration(runner)) ||
           (await runNextLearning(runner)) ||
+          (await runNextFix(runner)) ||
           (await runNextRestack(runner)))
       );
     } catch (e) {

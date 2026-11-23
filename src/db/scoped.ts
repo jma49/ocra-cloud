@@ -35,6 +35,7 @@ import { countWhere, jsonMembers, jsonNumber, jsonRecords, utcDayOf } from "./di
 import { accountFindingIssues } from "./finding-issues.js";
 import { accountFindingOutcomes } from "./finding-outcomes.js";
 import { accountFindingThreads } from "./finding-threads.js";
+import { accountFixJobs } from "./fix-jobs.js";
 import { accountGenerateJobs } from "./generate-jobs.js";
 import { accountGraphs } from "./graphs.js";
 import { accountImpact } from "./impact.js";
@@ -121,6 +122,8 @@ const FINDING_FIELDS = {
   fixStartLine: "bigint",
   fixEndLine: "bigint",
   fixReplacement: "text",
+  lowConfidence: "bigint",
+  evidence: "text",
 } as const;
 
 /** Where a page of rows ends: the last row's primary key, column by column. */
@@ -380,6 +383,8 @@ export function scoped(db: Db, accountId: string) {
           position,
           redacted: f.redacted ? 1 : 0,
           truncated: f.truncated ? 1 : 0,
+          lowConfidence: f.lowConfidence ? 1 : 0,
+          evidence: f.evidence ? JSON.stringify(f.evidence) : null,
         })),
       );
       // Only when the review row above was this upload's own, and all of its
@@ -390,7 +395,8 @@ export function scoped(db: Db, accountId: string) {
           je."severity", je."category", je."verification", je."file", je."lineStart",
           je."lineEnd", je."title", je."body", je."suggestion", je."code", je."redacted",
           je."truncated", ${now.getTime()}, 'open', NULL, NULL, NULL, je."position",
-          je."fixStartLine", je."fixEndLine", je."fixReplacement", NULL, NULL
+          je."fixStartLine", je."fixEndLine", je."fixReplacement", NULL, NULL,
+          je."lowConfidence", je."evidence"
         FROM ${jsonRecords(db, rows, FINDING_FIELDS)}
         WHERE EXISTS (SELECT 1 FROM reviews WHERE id = ${review.id} AND account_id = ${accountId})
           AND ${findingsCounted(accountId, now)} + ${list.length} <= ${limits.maxFindings}`);
@@ -502,6 +508,7 @@ export function scoped(db: Db, accountId: string) {
     chat: accountReviewChat(db, accountId),
     generations: accountGenerateJobs(db, accountId),
     restacks: accountRestackJobs(db, accountId),
+    fixes: accountFixJobs(db, accountId),
     learning: accountLearnJobs(db, accountId),
     commands: accountPullCommands(db, accountId),
     audit: accountAuditEvents(db, accountId),

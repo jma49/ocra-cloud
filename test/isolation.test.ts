@@ -58,6 +58,7 @@ const changes = {
   reviewWalkthroughs: { overview: "changed" },
   generateJobs: { state: "done" as const },
   restackJobs: { state: "done" as const },
+  fixJobs: { state: "done" as const },
   learnJobs: { state: "done" as const },
   pullCommands: { outcome: "done" as const },
   pausedPulls: { number: 2 },
@@ -166,12 +167,16 @@ const withIds = (Object.keys(rows) as (keyof typeof rows)[]).filter(
 describe.each(withIds)("%s", (name) => {
   beforeEach(async () => {
     // A finding needs a review to belong to (foreign key).
-    if (["findings", "reviewWalkthroughs", "reviewChatMessages", "findingIssues"].includes(name)) {
+    if (
+      ["findings", "reviewWalkthroughs", "reviewChatMessages", "findingIssues", "fixJobs"].includes(
+        name,
+      )
+    ) {
       await db
         .insert(schema.reviews)
         .values({ id: "review-of-a", accountId: A, runId: "r", repoHash: "h", source: "local" });
     }
-    if (name === "findingIssues") {
+    if (name === "findingIssues" || name === "fixJobs") {
       await db.insert(schema.findings).values({ ...rows.findings("finding-of-a"), accountId: A });
     }
     if (
@@ -191,6 +196,7 @@ describe.each(withIds)("%s", (name) => {
         "mergeCheckRuns",
         "generateJobs",
         "restackJobs",
+        "fixJobs",
         "learnJobs",
         "pullCommands",
         "pausedPulls",

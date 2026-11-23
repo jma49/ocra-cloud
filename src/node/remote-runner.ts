@@ -1,3 +1,4 @@
+import { sharedFindingSchema } from "@open-cr-agent/cloud-contract";
 import { z } from "zod";
 import {
   type Assignment,
@@ -14,7 +15,7 @@ import { spawnExec } from "./checkout.js";
 import { type GraphMachine, runGraphBuild } from "./graph-job.js";
 import type { GitRead } from "./local-graph.js";
 import { runRestack } from "./restack-run.js";
-import { type Machine, run } from "./review-runner.js";
+import { type Machine, run, runFix } from "./review-runner.js";
 import { serverGraphs } from "./runner-graphs.js";
 
 // A remote runner (docs/runner.md): asks the server for the next hosted job
@@ -69,8 +70,13 @@ const assignment = z
     ok: z.array(z.number().int()),
     settled: z.array(z.number().int()),
     graph: z.object({ repoId: z.string(), pull: z.number().int() }).optional(),
+    finding: sharedFindingSchema.optional(),
   })
-  .transform(({ graph, ...work }) => ({ ...work, ...(graph ? { graph } : {}) }));
+  .transform(({ graph, finding, ...work }) => ({
+    ...work,
+    ...(graph ? { graph } : {}),
+    ...(finding ? { finding } : {}),
+  }));
 const graphBuild = z.object({
   ...claim,
   graphRepoId: z.string(),
@@ -119,16 +125,8 @@ export async function runRunner(options: RunnerOptions, stop: AbortSignal): Prom
     }
     return res.json();
   };
-  const settle = async (ref: WorkRef, failure: (typeof RUN_FAILURES)[number] | null) => {
-    for (let tries = 1; ; tries++) {
-      try {
-        return await call("settle", { ...ref, failure });
-      } catch (e) {
-        if (tries === SETTLE_TRIES) throw e;
-        await sleep(2_000 * tries, new AbortController().signal);
-      }
-    }
-  };
+  const settle = (ref: WorkRef, failure: (typeof RUN_FAILURES)[number] | null) =>
+    settleWith(call, "settle", { ...ref, failure });
   const graphs = serverGraphs(options.server, options.token, options.fetch);
   const machine = { ...options, graphs, keptGraphs: graphs };
   const pollMs = options.pollMs ?? POLL_MS;
@@ -145,6 +143,7 @@ export async function runRunner(options: RunnerOptions, stop: AbortSignal): Prom
           version: options.version,
           graphs: true,
           restack: true,
+          fix: true,
         }),
       );
       backoff = pollMs;
@@ -156,8 +155,15 @@ export async function runRunner(options: RunnerOptions, stop: AbortSignal): Prom
       }
       const { kind, id, accountId, attempts } = work;
       console.log(JSON.stringify({ level: "info", event: "runner_job_started", kind, job: id }));
-      const failure = await run(machine, work satisfies Assignment, new Date(), stop);
-      await settle({ kind, id, accountId, attempts }, failure);
+      let failure: (typeof RUN_FAILURES)[number] | null;
+      if (kind === "fix") {
+        const ran = await runFix(machine, work satisfies Assignment, new Date(), stop);
+        await settleWith(call, "settle-fix", { id, accountId, attempts, ran });
+        failure = "failure" in ran ? ran.failure : null;
+      } else {
+        failure = await run(machine, work satisfies Assignment, new Date(), stop);
+        await settle({ kind, id, accountId, attempts }, failure);
+      }
       console.log(
         JSON.stringify({ level: "info", event: "runner_job_ended", kind, job: id, failure }),
       );
@@ -171,6 +177,18 @@ export async function runRunner(options: RunnerOptions, stop: AbortSignal): Prom
 
 type Call = (path: string, body: unknown) => Promise<unknown>;
 
+/** A lost answer must not leave a finished job running until its lease lapses: tried SETTLE_TRIES times. */
+async function settleWith(call: Call, path: string, body: unknown) {
+  for (let tries = 1; ; tries++) {
+    try {
+      return await call(path, body);
+    } catch (e) {
+      if (tries === SETTLE_TRIES) throw e;
+      await sleep(2_000 * tries, new AbortController().signal);
+    }
+  }
+}
+
 async function runRestackJob(
   options: RunnerOptions,
   work: RestackAssignment,
@@ -181,15 +199,7 @@ async function runRestackJob(
   console.log(JSON.stringify({ level: "info", event: "runner_job_started", ...event }));
   const result = await runRestack(options.exec ?? spawnExec, work, new Date(), stop);
   const { id, accountId, attempts } = work;
-  for (let tries = 1; ; tries++) {
-    try {
-      await call("settle-restack", { id, accountId, attempts, result });
-      break;
-    } catch (e) {
-      if (tries === SETTLE_TRIES) throw e;
-      await sleep(2_000 * tries, new AbortController().signal);
-    }
-  }
+  await settleWith(call, "settle-restack", { id, accountId, attempts, result });
   const failure = "failure" in result ? result.failure : null;
   const outcome = "outcome" in result ? result.outcome : null;
   console.log(

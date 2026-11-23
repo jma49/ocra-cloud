@@ -497,6 +497,7 @@ describe("export and deletion", () => {
         "mergeCheckRuns",
         "generateJobs",
         "restackJobs",
+        "fixJobs",
         "learnJobs",
         "pullCommands",
         "pausedPulls",
@@ -512,6 +513,11 @@ describe("export and deletion", () => {
     await d.insert("findingIssues", {
       ...rows.findingIssues("x-findingIssues"),
       findingId: "x-findings",
+    });
+    await d.insert("fixJobs", {
+      ...rows.fixJobs("x-fixJobs"),
+      findingId: "x-findings",
+      reviewRepoId: "x-reviewRepos",
     });
     await d.insert("stackMergeLayers", {
       ...rows.stackMergeLayers("x-stackMergeLayers"),

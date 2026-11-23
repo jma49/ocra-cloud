@@ -24,6 +24,7 @@ import {
 import type { AppEnv } from "../types.js";
 import { enrollRepo, MAX_REVIEW_REPOS } from "./enroll.js";
 import { enrollRoute } from "./enroll-routes.js";
+import { fixRoute } from "./fix-routes.js";
 import { generateRoute } from "./generate.js";
 import { groupRoute } from "./group-routes.js";
 import { enrolledGitlabHook, gitlabHookRoute, removeEnrolledHook } from "./hook-routes.js";
@@ -90,6 +91,7 @@ export function autoReviewRoute(service: AutoReviewService) {
 
   route.route("/webhooks", autoReviewWebhooks(service));
   route.route("/generate", generateRoute(service));
+  route.route("/fixes", fixRoute(service));
   route.route("/", repoTokenRoute());
   route.route("/", pullCommandRoute());
   route.route("/", gitlabHookRoute());

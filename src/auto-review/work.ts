@@ -1,11 +1,14 @@
+import type { SharedFinding } from "@open-cr-agent/cloud-contract";
 import { accountSalt, loginOf, startHostedFindings } from "../db/accounts.js";
 import type { Db } from "../db/client.js";
+import { claimFix } from "../db/fix-jobs.js";
 import { claimGenerate } from "../db/generate-jobs.js";
 import { JOB_ATTEMPTS } from "../db/job-recovery.js";
 import { claimLearn } from "../db/learn-jobs.js";
 import { claimReply } from "../db/reply-jobs.js";
 import { claimJob } from "../db/review-jobs.js";
 import { type Row, scoped } from "../db/scoped.js";
+import { findingInput } from "../findings.js";
 import { reviewGraphRepo } from "../graph/review-graph.js";
 import type { GraphService } from "../graph/routes.js";
 import { errorName, logError } from "../log.js";
@@ -30,21 +33,29 @@ import { depthRun } from "./depths.js";
 import { readHostedConfig, tightenedBy, underServer } from "./hosted-config.js";
 
 // The server's half of a hosted job (ADR-0046, 4): claiming the next queued
-// review, answer to an @ocra comment, request for tests or docstrings or
-// pull request whose declined findings become learnings, giving its run
+// review, answer to an @ocra comment, request for tests or docstrings,
+// pull request whose declined findings become learnings, or request for a
+// fix of a stored finding (./fix-work.ts), giving its run
 // what it needs (the bot's credential, a CLI session of the enrolling
 // account, the CLI's arguments and configuration) and recording how it went. The run itself, a clone and the released CLI, is the
 // machine's half (src/node/review-runner.ts), in this process or on a
 // remote runner (./runner-api.ts).
 
-export const WORK_KINDS = ["review", "reply", "generate", "learn"] as const;
+export const WORK_KINDS = ["review", "reply", "generate", "learn", "fix"] as const;
 export type WorkKind = (typeof WORK_KINDS)[number];
 
 /** Why a run ended without its result; the last three are the machine's to report. */
 export const RUN_FAILURES = ["clone_failed", "review_failed", "not_committed"] as const;
 export type RunFailure = (typeof RUN_FAILURES)[number];
 /** token_rejected: GitLab answers the project's own access token with 401, revoked or expired. */
-type Failure = "repo_gone" | "platform_gone" | "no_bot" | "token_rejected" | RunFailure;
+type Failure =
+  | "repo_gone"
+  | "platform_gone"
+  | "no_bot"
+  | "token_rejected"
+  | "finding_gone"
+  | "no_answer"
+  | RunFailure;
 const RETRIED: ReadonlySet<Failure> = new Set(["clone_failed", "review_failed"]);
 
 /** A review's run, clone included; the CLI's own run timeout is shorter. */
@@ -55,6 +66,8 @@ const REPLY_LEASE_MS = 10 * 60_000;
 const GENERATE_LEASE_MS = 20 * 60_000;
 /** A helper call per declined finding, and one pull request. */
 const LEARN_LEASE_MS = 10 * 60_000;
+/** One fixer model call, a check of what it wrote, and no commit. */
+const FIX_LEASE_MS = 15 * 60_000;
 /** Declined findings drafted in one run: each is a model call of the account's. */
 const MAX_LEARN_DRAFTS = 10;
 const RETRY_AFTER_MS = 5 * 60_000;
@@ -87,6 +100,8 @@ export type Assignment = WorkRef & {
    * reads that graph and answers what the pull request reaches in it.
    */
   graph?: { repoId: string; pull: number };
+  /** A fix's finding, which the run gives `ocra fix --finding`; its stdout is the answer. */
+  finding?: SharedFinding;
 };
 
 export type WorkSource = {
@@ -111,6 +126,8 @@ type Claimed = {
   number: number;
   /** A review's own depth, chosen when a person asked for it. */
   depth?: ReviewDepth | null;
+  /** A fix's finding. */
+  findingId?: string;
 };
 type Command = {
   args: (pull: string[], repo: Row<"reviewRepos">) => string[];
@@ -180,6 +197,20 @@ async function claim(
       }
     );
   }
+  if (kind === "fix") {
+    const claimed = await claimFix(source.db, now, FIX_LEASE_MS, source.dailyCalls);
+    return (
+      claimed && {
+        claimed,
+        command: {
+          // Read-only: `ocra fix` writes nothing to the repository; the answer is its stdout.
+          args: (pull) => ["fix", ...pull, "--head", claimed.head, "--json"],
+          // 3: the finding's code is gone at the head, or the head moved; the answer says which.
+          ok: [0, 3],
+        },
+      }
+    );
+  }
   const claimed = await claimLearn(source.db, now, LEARN_LEASE_MS, source.dailyCalls);
   return (
     claimed && {
@@ -226,6 +257,11 @@ export async function assign(
     await settle(source, ref, !repo ? "repo_gone" : !platform ? "platform_gone" : "no_bot", now());
     return "refused";
   }
+  const finding = claimed.findingId ? await data.get("findings", claimed.findingId) : undefined;
+  if (kind === "fix" && !finding) {
+    await settle(source, ref, "finding_gone", now());
+    return "refused";
+  }
   // Switched off since it was queued: nothing is read.
   if (kind === "learn" && repo.learn === "off") {
     await settle(source, ref, null, now());
@@ -261,7 +297,9 @@ export async function assign(
   // Direct stops at once; the account's saved runtime, below this file, wins.
   const runtime = saved?.runtime ? {} : { runtime: "direct" as const };
   const maxCostUsd =
-    kind === "review" ? await reviewSpendCap(data, saved?.settings?.maxCostUsd, now()) : undefined;
+    kind === "review" || kind === "fix"
+      ? await reviewSpendCap(data, saved?.settings?.maxCostUsd, now())
+      : undefined;
   const pull =
     platform.kind === "github"
       ? ["--pr", String(claimed.number), "--repo", repo.fullName]
@@ -305,6 +343,7 @@ export async function assign(
     ok: command.ok,
     settled: command.settled ?? [],
     ...(graphRepoId ? { graph: { repoId: graphRepoId, pull: claimed.number } } : {}),
+    ...(finding ? { finding: findingInput(finding) } : {}),
   };
 }
 
@@ -371,6 +410,12 @@ export async function settle(
     reply: data.replies,
     generate: data.generations,
     learn: data.learning,
+    // A fix's answer is recorded by settleFix (./fix-work.ts): a run settled here without one has none.
+    fix: {
+      finish: (id: string, attempts: number, at: Date) =>
+        data.fixes.release(id, attempts, "no_answer", null, at),
+      release: data.fixes.release,
+    },
   }[ref.kind];
   // A run the limit stopped before any task finished exits as failed: the limit is still why.
   const limited =
