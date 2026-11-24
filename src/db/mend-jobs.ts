@@ -29,9 +29,10 @@ const RETRIABLE: MendItemOutcome[] = ["rejected", "deferred"];
 const j = mendJobs;
 const i = mendItems;
 
-/** What a round says of one finding it was given. */
+/** What a round says of one finding it was given, or of one failed check, which it names. */
 type RoundItem = {
   fingerprint: string;
+  check?: string | null;
   outcome: MendItemOutcome;
   reason: MendItemReason | null;
   cause: FixFailureCause | null;
@@ -53,16 +54,17 @@ export function accountMendJobs(db: Db, accountId: string) {
   const waiting = (jobId: string) => and(ownItem, eq(i.jobId, jobId), isNull(i.outcome));
 
   /** Queues the pull request's next round at `at`; one whose round is under way runs again after it. */
-  const queue = async (reviewRepoId: string, number: number, at: Date) => {
+  const queue = async (reviewRepoId: string, number: number, at: Date, checks = false) => {
     const idle = (column: SQLiteColumn, value: SQL): SQL =>
       sql`CASE WHEN ${j.state} = 'running' THEN ${column} ELSE ${value} END`;
     await db
       .insert(j)
-      .values({ id: crypto.randomUUID(), accountId, reviewRepoId, number, notBefore: at })
+      .values({ id: crypto.randomUUID(), accountId, reviewRepoId, number, notBefore: at, checks })
       .onConflictDoUpdate({
         target: [j.reviewRepoId, j.number],
         set: {
           again: sql`CASE WHEN ${j.state} = 'running' THEN 1 ELSE 0 END`,
+          ...(checks ? { checks: true } : {}),
           state: idle(j.state, sql`'queued'`),
           attempts: idle(j.attempts, sql`0`),
           notBefore: idle(j.notBefore, sql`${at.getTime()}`),
@@ -132,6 +134,40 @@ export function accountMendJobs(db: Db, accountId: string) {
       if (asked.length > 0) await queue(pull.reviewRepoId, pull.number, at);
       return { queued: asked.length, limited };
     },
+    /**
+     * Queues the pull request's next round at `at` to work on the failed
+     * checks of `head`, once per head however many of its checks fail,
+     * counted against the account's `cap` a day as a request is. Whether
+     * it queued one.
+     */
+    async askChecks(
+      pull: { reviewRepoId: string; number: number; head: string },
+      cap: number,
+      at: Date,
+      now: Date,
+    ): Promise<boolean> {
+      const { head, ...of } = pull;
+      const first = await db
+        .insert(j)
+        .values({
+          id: crypto.randomUUID(),
+          accountId,
+          ...of,
+          state: "done",
+          checksHead: head,
+          finishedAt: now,
+        })
+        .onConflictDoUpdate({
+          target: [j.reviewRepoId, j.number],
+          set: { checksHead: head },
+          setWhere: sql`${own} AND (${j.checksHead} IS NULL OR ${j.checksHead} <> ${head})`,
+        })
+        .returning({ id: j.id });
+      if (first.length === 0) return false;
+      if (!(await countOne(db, accountId, "fix_requests", cap, now))) return false;
+      await queue(of.reviewRepoId, of.number, at, true);
+      return true;
+    },
     /** The pull request's loop and the findings asked of it, oldest first. */
     async forPull(reviewRepoId: string, number: number) {
       const job = await jobOf(reviewRepoId, number);
@@ -176,6 +212,11 @@ export function accountMendJobs(db: Db, accountId: string) {
           outcome: round.outcome,
           commitSha: round.commitSha,
           loop: round.loop,
+          // Asked again during the round: the next one reads the checks anew.
+          checks: sql`CASE WHEN ${j.again} THEN ${j.checks} ELSE 0 END`,
+          checkItems: round.items.flatMap(({ check, outcome, reason, cause }) =>
+            check ? [{ check, outcome, reason, cause }] : [],
+          ),
           error: null,
           leaseUntil: null,
           finishedAt: now,
@@ -184,6 +225,7 @@ export function accountMendJobs(db: Db, accountId: string) {
       if (changedRows(ended) === 0) return undefined;
       const fixed: string[] = [];
       for (const item of round.items) {
+        if (item.check) continue;
         // Put off beside a commit: the next round, on the new head, takes it.
         if (item.outcome === "deferred" && round.outcome === "committed") continue;
         const written = await db
@@ -222,7 +264,14 @@ export function accountMendJobs(db: Db, accountId: string) {
     async skip(id: string, attempts: number, note: string, now: Date) {
       await db
         .update(j)
-        .set({ state: "done", again: false, error: note, leaseUntil: null, finishedAt: now })
+        .set({
+          state: "done",
+          again: false,
+          checks: false,
+          error: note,
+          leaseUntil: null,
+          finishedAt: now,
+        })
         .where(claimedBy(id, attempts));
     },
     /** Queues it again at retryAt, or gives it up with the error when retryAt is null. */

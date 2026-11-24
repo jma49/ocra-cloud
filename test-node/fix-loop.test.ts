@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { reviewUploadSchema } from "@open-cr-agent/cloud-contract";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { mendFailedChecks } from "../src/auto-review/mend-checks.js";
 import { scoped } from "../src/db/scoped.js";
 import { parseFindings } from "../src/findings.js";
 import type { Exec } from "../src/node/checkout.js";
@@ -95,8 +96,12 @@ beforeEach(async () => {
 });
 afterEach(() => s.host.close());
 
-const setLevel = (mend: string, headers = auth) =>
-  s.call(`/api/auto-review/repos/${repoId}/mend`, { method: "PUT", headers, json: { mend } });
+const setLevel = (mend: string, headers = auth, checks?: boolean) =>
+  s.call(`/api/auto-review/repos/${repoId}/mend`, {
+    method: "PUT",
+    headers,
+    json: { mend, ...(checks === undefined ? {} : { checks }) },
+  });
 const ask = async (findings: string[], headers = auth) =>
   s.call("/api/auto-review/mends", { method: "POST", headers, json: { findings } });
 const asked = async (findings: string[]) => (await (await ask(findings)).json()) as MendRequestView;
@@ -147,7 +152,8 @@ function fakeExec(printed: string, code = 0, during?: () => Promise<unknown>) {
     }
     seen.args = [...args];
     const file = (flag: string) => (args.includes(flag) ? args[args.indexOf(flag) + 1] : undefined);
-    seen.findings = JSON.parse(await readFile(file("--findings") ?? "", "utf8"));
+    const findings = file("--findings");
+    if (findings) seen.findings = JSON.parse(await readFile(findings, "utf8"));
     const state = file("--state");
     if (state) seen.state = JSON.parse(await readFile(state, "utf8"));
     await during?.();
@@ -177,7 +183,7 @@ describe("the repository's level", () => {
     });
     expect(await data().list("mendJobs")).toEqual([]);
     expect((await setLevel("off")).status).toBe(400);
-    expect(await (await setLevel("commit")).json()).toEqual({ mend: "commit" });
+    expect(await (await setLevel("commit")).json()).toEqual({ mend: "commit", checks: false });
     const audited = await data().list("auditEvents");
     expect(audited.find((e) => e.kind === "auto_review.mend_changed")?.detail).toMatchObject({
       repo: "Octo/API",
@@ -379,6 +385,78 @@ describe("a round", () => {
     await runRound(exec);
     expect(seen.args).toEqual([]);
     expect(await loop()).toMatchObject({ state: "done", error: "nothing_waiting" });
+  });
+});
+
+describe("a failed check", () => {
+  const failed = async (head = C1) => {
+    const repo = await data().get("reviewRepos", repoId);
+    if (!repo) throw new Error("no repository");
+    return mendFailedChecks(data(), repo, { head, numbers: [7] }, new Date());
+  };
+  const check = { fingerprint: "c0ffee0123456789", check: "test", outcome: "fixed", edits: [EDIT] };
+
+  it("starts no round unless the repository commits fixes and asked for this", async () => {
+    expect(await failed()).toBe(0);
+    expect(await (await setLevel("propose", auth, true)).json()).toEqual({
+      mend: "propose",
+      checks: false,
+    });
+    await setLevel("commit");
+    expect(await failed()).toBe(0);
+    expect(await loop()).toBeUndefined();
+    expect(await (await setLevel("commit", auth, true)).json()).toEqual({
+      mend: "commit",
+      checks: true,
+    });
+    expect(await failed()).toBe(1);
+    expect(await loop()).toMatchObject({ state: "queued", checks: true });
+    // Another failed check of the same head asks nothing more.
+    expect(await failed()).toBe(0);
+    const counted = (await data().list("usageCounters")).filter((c) => c.kind === "fix_requests");
+    expect(counted).toMatchObject([{ n: 1 }]);
+    await setLevel("propose");
+    expect(await data().get("reviewRepos", repoId)).toMatchObject({ mendChecks: false });
+  });
+
+  it("gets a round of ocra mend --checks, with the findings that wait, and keeps what became of it", async () => {
+    await setLevel("commit", auth, true);
+    await failed();
+    const { exec, seen } = fakeExec(
+      JSON.stringify(round({ items: [{ ...check, reason: null, cause: null }] })),
+    );
+    expect(await runRound(exec)).toBe(true);
+    expect(seen.args.slice(9)).toEqual([
+      "--checks",
+      "--config",
+      expect.stringMatching(/ocra\.json$/),
+    ]);
+    expect(seen.findings).toBeUndefined();
+    expect(await loop()).toMatchObject({ state: "done", outcome: "committed", checks: false });
+    expect(await view()).toMatchObject({
+      items: [],
+      checks: [{ check: "test", outcome: "fixed", reason: null, cause: null }],
+    });
+    await ask([second]);
+    await failed(C2);
+    const next = fakeExec(
+      JSON.stringify(round({ outcome: "waiting", commitSha: null, items: [] })),
+    );
+    await runRound(next.exec);
+    expect(next.seen.args).toContain("--checks");
+    expect(next.seen.findings?.map((f) => f.fingerprint)).toEqual(["fp-crit"]);
+    expect(await loop()).toMatchObject({ outcome: "waiting", checkItems: [] });
+  });
+
+  it("counts against the day's requests", async () => {
+    await setLevel("commit", auth, true);
+    await data().insert("usageCounters", {
+      kind: "fix_requests",
+      day: utcDay(new Date()),
+      n: MAX_DAILY_FIX_REQUESTS,
+    });
+    expect(await failed()).toBe(0);
+    expect(await loop()).toMatchObject({ state: "done", checks: false });
   });
 });
 

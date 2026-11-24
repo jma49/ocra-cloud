@@ -19,7 +19,7 @@ export const DEFAULT_MEND_LEVEL: MendLevel = "propose";
 export const MAX_MEND_REQUEST = 20;
 
 /** What the level setting of an enrolled repository answers. */
-export type AutoReviewMendView = { mend: MendLevel };
+export type AutoReviewMendView = { mend: MendLevel; checks: boolean };
 
 /** A finding asked of the loop: it waits while `outcome` is null. */
 export type MendItemView = {
@@ -34,6 +34,14 @@ export type MendItemView = {
   /** ISO 8601. */
   requestedAt: string;
   finishedAt: string | null;
+};
+
+/** A failed check the loop's last round worked on, by the check's name, and what became of it. */
+export type MendCheckView = {
+  check: string;
+  outcome: MendItemOutcome;
+  reason: MendItemReason | null;
+  cause: FixFailureCause | null;
 };
 
 /** The loop's last round, or the one that waits or runs. */
@@ -54,6 +62,8 @@ export type PullMendView = {
   level: MendLevel | null;
   loop: MendLoopView | null;
   items: MendItemView[];
+  /** The failed checks its last round worked on; empty when it worked on none. */
+  checks: MendCheckView[];
 };
 
 /**

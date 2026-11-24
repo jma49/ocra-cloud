@@ -73,6 +73,7 @@ const repoView = (r: Row<"reviewRepos">, latest: ReviewJobSummary | undefined) =
     learn: r.learn,
     restack: r.restack,
     mend: r.mend,
+    mendChecks: r.mendChecks,
     hasAccessToken: !!r.accessTokenCiphertext,
     accessTokenBot: r.accessTokenCiphertext ? r.accessTokenBot : null,
     webhookManaged: r.webhookId !== null,

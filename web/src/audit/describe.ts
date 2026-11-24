@@ -247,7 +247,7 @@ export function describe(e: AuditEventView): string {
       return `Turned restacking after merges ${e.detail.restack === false ? "off" : "on"} for ${named(e.detail.repo, "a repository")}`;
     case "auto_review.mend_changed":
       return e.detail.mend === "commit"
-        ? `Let ocra commit the fixes asked of it in ${named(e.detail.repo, "a repository")}`
+        ? `Let ocra commit the fixes asked of it${e.detail.checks === true ? ", and fix failed checks," : ""} in ${named(e.detail.repo, "a repository")}`
         : `Set the fixes asked of ocra to proposals in ${named(e.detail.repo, "a repository")}`;
     case "auto_review.unenrolled":
       return `Stopped automatic review of ${named(e.detail.repo, "a repository")}`;

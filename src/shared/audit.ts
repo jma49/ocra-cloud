@@ -47,7 +47,7 @@ export type AuditDetails = {
   "auto_review.learn_changed": { repo: string; learn: string };
   "auto_review.restack_changed": { repo: string; restack: boolean };
   /** How far a fix asked of ocra goes in the repository: proposed, or committed by the bot. */
-  "auto_review.mend_changed": { repo: string; mend: string };
+  "auto_review.mend_changed": { repo: string; mend: string; checks: boolean };
   "auto_review.unenrolled": { repo: string };
   "auto_review.renamed": { repo: string; previous: string };
   "auto_review.paused": { repo: string; reason: string };
@@ -132,7 +132,7 @@ export const AUDIT_FIELDS: { readonly [K in AuditKind]: readonly (keyof AuditDet
   "auto_review.automatic_changed": ["repo", "automatic"],
   "auto_review.learn_changed": ["repo", "learn"],
   "auto_review.restack_changed": ["repo", "restack"],
-  "auto_review.mend_changed": ["repo", "mend"],
+  "auto_review.mend_changed": ["repo", "mend", "checks"],
   "auto_review.unenrolled": ["repo"],
   "auto_review.renamed": ["repo", "previous"],
   "auto_review.paused": ["repo", "reason"],
