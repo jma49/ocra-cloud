@@ -36,6 +36,8 @@ export type RestackAssignment = RestackRef & {
     onto: { branch: string; commit: string | null };
     /** The parent's old head: the commits up to it are dropped. */
     upstream: string;
+    /** Asked for by hand: the run drops what the branch shares with its new base instead. */
+    fork: boolean;
   };
 };
 
@@ -102,6 +104,7 @@ export async function assignRestack(
       head: job.head,
       onto: { branch: job.ontoBranch, commit: job.ontoCommit },
       upstream: job.upstream,
+      fork: job.askedBy !== null,
     },
   };
 }

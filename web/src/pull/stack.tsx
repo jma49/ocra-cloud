@@ -19,6 +19,7 @@ import { useAction, useLoad } from "../ui.js";
 import { CheckMark } from "./check-mark.js";
 import { stackMethodLabels } from "./merge-method.js";
 import { pullPath } from "./path.js";
+import { RestackHere, useRestackHere } from "./restack-here.js";
 import { StackMergeJob, stackMergeActive, stackMergeStop } from "./stack-merge.js";
 import { stackBeside, stackLanes } from "./stack-order.js";
 
@@ -132,6 +133,7 @@ export function StackPanel(props: {
   const chain = chainTo(data.pulls, number);
   const lanes = stackLanes(data.pulls);
   const self = data.pulls.find((p) => p.number === number);
+  const below = self && data.pulls.find((p) => p.number === self.parent);
   const stop =
     under && data.pulls.some((p) => p.number === under.chain[under.step]?.number)
       ? stackMergeStop(under)
@@ -155,15 +157,18 @@ export function StackPanel(props: {
           />
         ))}
       </ol>
-      {self && self.parent !== null && self.behind !== null && self.behind > 0 && (
-        <div className="pull-stack-restack">
-          <span className="small">
-            This branch lacks {commits(self.behind)} of #{self.parent}. Restack it with{" "}
-            <span className="mono">ocra stack restack</span>
-            {props.restack ? ", or merge them in here." : "."}
-          </span>
-          {props.restack}
-        </div>
+      {self && below && self.behind !== null && self.behind > 0 && (
+        <Behind
+          pull={props.pull}
+          self={self}
+          below={below}
+          behind={self.behind}
+          mergeIn={props.restack}
+          onRestacked={() => {
+            reload();
+            props.onMerged();
+          }}
+        />
       )}
       {stop && under && (
         <p className="small pull-stack-stop" role="status">
@@ -186,6 +191,38 @@ export function StackPanel(props: {
         />
       )}
     </section>
+  );
+}
+
+/** This layer lacks commits of the one below: restacked here where ocra may, else locally or by a merge. */
+function Behind(props: {
+  pull: Ref;
+  self: StackedPull;
+  below: StackedPull;
+  behind: number;
+  mergeIn: ReactNode;
+  onRestacked: () => void;
+}) {
+  const { self, below } = props;
+  const at = useRestackHere(props.pull, self.headSha, below.headSha, props.onRestacked);
+  const local = <span className="mono">ocra stack restack</span>;
+  return (
+    <div className="pull-stack-restack">
+      <span className="small">
+        This branch lacks {commits(props.behind)} of #{below.number}.{" "}
+        {at.offered ? (
+          <>
+            ocra can rebase it onto #{below.number} and force-push it, or run {local} locally.
+          </>
+        ) : (
+          <>
+            Restack it with {local}
+            {props.mergeIn ? ", or merge them in here." : "."}
+          </>
+        )}
+      </span>
+      {at.offered ? <RestackHere at={at} /> : props.mergeIn}
+    </div>
   );
 }
 

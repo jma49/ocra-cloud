@@ -106,6 +106,7 @@ const restackJob = z.object({
     head: z.string().regex(COMMIT_ID),
     onto: z.object({ branch, commit: z.string().regex(COMMIT_ID).nullable() }),
     upstream: z.string().regex(COMMIT_ID),
+    fork: z.boolean().default(false),
   }),
 });
 const claimed = z.object({

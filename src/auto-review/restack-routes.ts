@@ -14,7 +14,7 @@ import type { AppEnv } from "../types.js";
 
 const restackBody = z.object({ restack: z.boolean() });
 
-const jobView = (j: Row<"restackJobs">) =>
+export const restackJobView = (j: Row<"restackJobs">) =>
   ({
     id: j.id,
     number: j.number,
@@ -27,6 +27,7 @@ const jobView = (j: Row<"restackJobs">) =>
     state: j.state === "superseded" ? "failed" : j.state,
     outcome: j.outcome,
     reason: j.error,
+    askedBy: j.askedBy,
     createdAt: j.createdAt.toISOString(),
     finishedAt: j.finishedAt?.toISOString() ?? null,
   }) satisfies RestackJobView;
@@ -38,7 +39,10 @@ export function restackRoute() {
     const repo = await c.var.data.get("reviewRepos", c.req.param("id"));
     if (!repo) return apiError(c, "not_found");
     const jobs = await c.var.data.restacks.forRepo(repo.id);
-    return c.json({ restack: repo.restack, jobs: jobs.map(jobView) } satisfies RestackHistoryView);
+    return c.json({
+      restack: repo.restack,
+      jobs: jobs.map(restackJobView),
+    } satisfies RestackHistoryView);
   });
 
   route.put(

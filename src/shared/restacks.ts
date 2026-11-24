@@ -37,6 +37,8 @@ export type RestackJobView = {
   outcome: RestackOutcome | null;
   /** Why it was skipped or failed; null otherwise. */
   reason: string | null;
+  /** The login of who asked for it on the pull request's page; null when a merge queued it. */
+  askedBy: string | null;
   createdAt: string;
   finishedAt: string | null;
 };
@@ -46,3 +48,20 @@ export type RestackHistoryView = { restack: boolean; jobs: RestackJobView[] };
 
 /** What PUT /api/auto-review/repos/:id/restack answers. */
 export type AutoReviewRestackView = { restack: boolean };
+
+/**
+ * GET /api/pulls/restack: whether a restack of the pull request can be asked
+ * for (its repository is one ocra reviews, with restacks on), and its newest
+ * one, a merge's or one asked for.
+ */
+export type PullRestackView = { offered: boolean; job: RestackJobView | null };
+
+/**
+ * What POST /api/pulls/restack answers: `queued`, with the job; `running`
+ * when one of the pull request is already under way (that one is the job);
+ * `stack_changed` when a head is not the one the page read, or `held` while
+ * a stack merge holds the pull request, so nothing was queued.
+ */
+export type PullRestackAnswer = PullRestackView & {
+  outcome: "queued" | "running" | "stack_changed" | "held";
+};

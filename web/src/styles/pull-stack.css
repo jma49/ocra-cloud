@@ -77,6 +77,12 @@
   padding-top: 0;
   border-top: 0;
 }
+.pull-restack-here {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+}
 .pull-stack-stop {
   display: grid;
   grid-template-columns: 18px minmax(0, 1fr);

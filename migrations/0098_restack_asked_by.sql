@@ -1,0 +1,1 @@
+ALTER TABLE `restack_jobs` ADD `asked_by` text;

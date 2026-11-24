@@ -22,6 +22,8 @@ export type RestackStart = {
   ontoBranch: string;
   ontoCommit: string | null;
   upstream: string;
+  /** Who asked for it by hand; left out when a merge queued it. */
+  askedBy?: string;
 };
 
 export function accountRestackJobs(db: Db, accountId: string) {
@@ -37,6 +39,41 @@ export function accountRestackJobs(db: Db, accountId: string) {
         .values({ id: crypto.randomUUID(), accountId, ...start })
         .onConflictDoNothing({ target: [j.reviewRepoId, j.number, j.parentMerge] });
       return changedRows(result) > 0;
+    },
+    /**
+     * Queues a restack someone asked for, or queues again the one these
+     * heads already had once it ended; whether it queued.
+     */
+    async ask(start: RestackStart & { askedBy: string }) {
+      const result = await db
+        .insert(j)
+        .values({ id: crypto.randomUUID(), accountId, ...start })
+        .onConflictDoUpdate({
+          target: [j.reviewRepoId, j.number, j.parentMerge],
+          set: {
+            state: "queued",
+            outcome: null,
+            restackedTo: null,
+            attempts: 0,
+            notBefore: null,
+            leaseUntil: null,
+            error: null,
+            finishedAt: null,
+            askedBy: start.askedBy,
+          },
+          setWhere: sql`${j.state} in ('done', 'failed')`,
+        });
+      return changedRows(result) > 0;
+    },
+    /** The newest restack of the pull request, if any. */
+    newestOf(reviewRepoId: string, number: number) {
+      return db
+        .select()
+        .from(j)
+        .where(and(own, eq(j.reviewRepoId, reviewRepoId), eq(j.number, number)))
+        .orderBy(desc(j.createdAt), desc(j.id))
+        .limit(1)
+        .then(first);
     },
     /** The repository's restacks, newest first. */
     forRepo(reviewRepoId: string) {
@@ -128,6 +165,7 @@ export async function claimRestack(
       ontoBranch: j.ontoBranch,
       ontoCommit: j.ontoCommit,
       upstream: j.upstream,
+      askedBy: j.askedBy,
       attempts: j.attempts,
     });
   return claimed ? { ...claimed, leaseUntil } : undefined;
