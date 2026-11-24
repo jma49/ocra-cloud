@@ -123,6 +123,12 @@ export function PullPage(props: {
         : Promise.resolve(undefined),
     [query.toString(), head],
   );
+  const readDescription = description.reload;
+  const reviewed = useCallback(() => {
+    readDescription();
+    readFindings();
+    readFixes();
+  }, [readDescription, readFindings, readFixes]);
   const code = useRef<HTMLDivElement>(null);
   const [headEl, setHeadEl] = useState<HTMLElement | null>(null);
   useClearance(headEl);
@@ -287,7 +293,7 @@ export function PullPage(props: {
           <OcraReviewBox review={description.data?.review} open={findings.length}>
             {props.runner && !settled ? (
               <>
-                <ReviewNowBox pull={ref} head={data.head} />
+                <ReviewNowBox pull={ref} head={data.head} onReviewed={reviewed} />
                 <OcraCommands pull={ref} />
               </>
             ) : undefined}

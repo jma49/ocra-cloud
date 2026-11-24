@@ -151,4 +151,21 @@ describe("the AI review card on a pull request", () => {
       vi.useRealTimers();
     }
   });
+
+  it("tells the page once a review it watched finishes, and not for one done before", async () => {
+    serve(job({ state: "running" }));
+    const reviewed = vi.fn();
+    render(<ReviewNowBox pull={pull} head={HEAD} onReviewed={reviewed} />);
+    expect(await screen.findByText(/ocra is reviewing this head/)).toBeTruthy();
+    expect(reviewed).not.toHaveBeenCalled();
+    serve(job());
+    await act(async () => void document.dispatchEvent(new Event("visibilitychange")));
+    expect(await screen.findByText(/ocra reviewed this head/)).toBeTruthy();
+    expect(reviewed).toHaveBeenCalledOnce();
+    cleanup();
+    const before = vi.fn();
+    render(<ReviewNowBox pull={pull} head={HEAD} onReviewed={before} />);
+    expect(await screen.findByText(/ocra reviewed this head/)).toBeTruthy();
+    expect(before).not.toHaveBeenCalled();
+  });
 });
