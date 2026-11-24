@@ -13,7 +13,7 @@ import { inboxCommands } from "../inbox/commands.js";
 import { useHeldOrder } from "../inbox/hold-order.js";
 import { KeyHints } from "../inbox/key-hints.js";
 import { rememberQueue } from "../inbox/queue.js";
-import { PullRow } from "../inbox/row.js";
+import { ColumnHead, PullRow } from "../inbox/row.js";
 import { SectionMenu } from "../inbox/section-menu.js";
 import {
   type Filters,
@@ -224,6 +224,7 @@ export function Inbox(props: { me?: Me }) {
         </div>
       ) : (
         <div ref={list} className="inbox-sections card">
+          <ColumnHead />
           {sections.map((s, place) => (
             <Section
               key={s.key}

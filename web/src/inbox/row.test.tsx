@@ -1,6 +1,6 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, expect, it } from "vitest";
-import { PullRow } from "./row.js";
+import { ColumnHead, PullRow } from "./row.js";
 import type { Row } from "./sections.js";
 
 afterEach(cleanup);
@@ -111,4 +111,18 @@ it("leaves out a side of the size that is zero and the viewer's own name", () =>
   expect(document.querySelector(".pull-diff")?.textContent).toBe("+3");
   expect(document.querySelector(".pull-author")?.textContent).toBe("");
   expect(document.querySelector(".pull-owner")?.textContent).toBe("octo/");
+});
+
+it("names the columns once, in the rows' own column classes", () => {
+  cleanup();
+  render(<ColumnHead />);
+  const head = document.querySelector(".inbox-cols");
+  expect([...(head?.children ?? [])].map((c) => [c.className, c.textContent])).toEqual([
+    ["pull-title", "Pull request"],
+    ["pull-ref", "Repository"],
+    ["pull-review", "Status"],
+    ["pull-diff", "Size"],
+    ["pull-author", "Author"],
+    ["pull-time", "Updated"],
+  ]);
 });

@@ -6,6 +6,7 @@ import type {
   PullFilesView,
   PullFindingView,
 } from "../../../src/shared/index.js";
+import { Seg } from "../ui.js";
 import { type ContextSource, useContextLines } from "./context-lines.js";
 import { anchorOf, type DiffLine, parsePatch, placeOnLines, splitPath } from "./diff.js";
 import { DiffRowView, type LineLook } from "./diff-row.js";
@@ -17,6 +18,7 @@ import { FOLD_LABEL, foldReason } from "./generated.js";
 import { type CodeRun, highlightDiff } from "./highlight.js";
 import { LazyBody, watchNear } from "./lazy-body.js";
 import { CommentBox, hasNotes, LineNotes, type Notes } from "./line-notes.js";
+import { isMarkdown, RenderedMarkdown } from "./markdown-view.js";
 import type { SearchFocus } from "./use-diff-search.js";
 
 // One changed file of a pull request: its header and its diff, where a
@@ -84,6 +86,7 @@ export function FileDiff(props: {
   const [folded, setFolded] = useState(
     file.status === "removed" || props.viewed || reason !== null,
   );
+  const [view, setView] = useState<"diff" | "rendered">("diff");
   // A tick, from the box or the page's key, folds the file.
   useEffect(() => {
     if (props.viewed) setFolded(true);
@@ -144,9 +147,11 @@ export function FileDiff(props: {
   }, [props.found, parsed, drawnAt]);
   const { focus } = props;
   const sought = focus ? (at(focus.line) ?? null) : null;
-  // A step to a match here opens the file; once its run is drawn, the match is scrolled to.
+  // A step to a match here opens the file's diff; once its run is drawn, the match is scrolled to.
   useEffect(() => {
-    if (focus) setFolded(false);
+    if (!focus) return;
+    setFolded(false);
+    setView("diff");
   }, [focus]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: each step to the same match scrolls to it again, and a new layout draws it elsewhere.
   useEffect(() => {
@@ -184,6 +189,8 @@ export function FileDiff(props: {
   };
   const chunks = useMemo(() => chunksOf(rows, RUN), [rows]);
   const { dir, name } = splitPath(file.path);
+  // A Markdown file at the head can also be read as the page it makes; the diff stays the default.
+  const page = isMarkdown(file.path) && file.status !== "removed" ? props.context : undefined;
   const rowNotes = (row: DiffRow) =>
     linesOfRow(row).map((at) => (
       <Fragment key={at}>
@@ -234,6 +241,22 @@ export function FileDiff(props: {
             </span>
           )}
         </button>
+        {page && (
+          <span className="diff-view">
+            <Seg
+              label={`Show ${name} as`}
+              value={view}
+              options={[
+                { value: "diff", label: "Diff" },
+                { value: "rendered", label: "Rendered" },
+              ]}
+              onChange={(v) => {
+                setView(v);
+                setFolded(false);
+              }}
+            />
+          </span>
+        )}
         <label className="check small diff-viewed">
           <input
             type="checkbox"
@@ -245,7 +268,9 @@ export function FileDiff(props: {
         </label>
       </div>
       {!folded &&
-        (file.patch === null ? (
+        (page && view === "rendered" ? (
+          <RenderedMarkdown source={page} path={file.path} />
+        ) : file.patch === null ? (
           <p className="card-pad subtle small m-0">
             The platform sent no diff for this file (binary or too large).
           </p>
