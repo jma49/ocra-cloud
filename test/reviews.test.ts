@@ -321,6 +321,8 @@ describe("review export", () => {
       thumbsUp: 0,
       thumbsDown: 0,
       reactionsReadAt: null,
+      ruleKind: null,
+      ruleId: null,
     };
     expect(exportFinding(bare)).toEqual({
       fingerprint: "fp-1",

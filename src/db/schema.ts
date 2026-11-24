@@ -1,4 +1,5 @@
 import {
+  FINDING_RULE_KINDS,
   FIX_FAILURE_CAUSES,
   FIX_OUTCOMES,
   FIX_REASONS,
@@ -522,6 +523,11 @@ export const findings = sqliteTable(
     thumbsUp: integer("thumbs_up").notNull().default(0),
     thumbsDown: integer("thumbs_down").notNull().default(0),
     reactionsReadAt: integer("reactions_read_at", { mode: "timestamp_ms" }),
+    // The rule or learning the finding says it applies, as the upload named
+    // it (ADR-0080 of the engine); null when it named none, or before the
+    // columns were added.
+    ruleKind: text("rule_kind", { enum: FINDING_RULE_KINDS }),
+    ruleId: text("rule_id"),
   },
   // review_id: a review's delete cascades here (by the user or retention).
   // findings_account_status_created leads with account_id, so it also
