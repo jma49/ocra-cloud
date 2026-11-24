@@ -120,10 +120,43 @@ it("names the columns once, in the rows' own column classes", () => {
   expect([...(head?.children ?? [])].map((c) => [c.className, c.textContent])).toEqual([
     ["chk", ""],
     ["pull-title", "Pull request"],
+    ["pull-talk", "Threads"],
     ["pull-ref", "Repository"],
     ["pull-review", "Status"],
     ["pull-diff", "Size"],
     ["pull-author", "Author"],
     ["pull-time", "Updated"],
   ]);
+});
+
+it("shows ocra's mark once ocra reviewed it, and its review threads resolved of all", () => {
+  cleanup();
+  const { container } = render(
+    <PullRow
+      r={row({ verdict: "blocking", threads: { resolved: 2, total: 3 } })}
+      i={0}
+      current={false}
+      run={null}
+      onOpen={() => {}}
+      onMark={() => {}}
+    />,
+  );
+  expect(container.querySelector(".ocra-mark")?.getAttribute("title")).toBe(
+    "ocra reviewed it and blocks it",
+  );
+  const threads = container.querySelector(".pull-threads");
+  expect(threads?.textContent).toBe("2/3");
+  expect(threads?.getAttribute("title")).toBe("2 of 3 review threads resolved");
+  cleanup();
+  const bare = render(
+    <PullRow
+      r={row({ verdict: null })}
+      i={0}
+      current={false}
+      run={null}
+      onOpen={() => {}}
+      onMark={() => {}}
+    />,
+  );
+  expect(bare.container.querySelector(".pull-talk")?.childElementCount).toBe(0);
 });

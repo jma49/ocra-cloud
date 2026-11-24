@@ -5,10 +5,12 @@ import FolderGit2 from "lucide-react/icons/folder-git-2";
 import GitPullRequest from "lucide-react/icons/git-pull-request";
 import Layers from "lucide-react/icons/layers";
 import MessageSquare from "lucide-react/icons/message-square";
+import MessagesSquare from "lucide-react/icons/messages-square";
 import User from "lucide-react/icons/user";
 import Users from "lucide-react/icons/users";
 import { type MouseEvent, useEffect } from "react";
 import { Status, type StatusTone } from "@/components/status";
+import { EyesMark } from "../eyes.js";
 import { since } from "../format.js";
 import { PersonMark } from "../person-mark.js";
 import { PlatformMark } from "../platform-mark.js";
@@ -140,6 +142,7 @@ function PullLink(props: {
           <span className="pull-team-name">{r.requestedTeam.split("/").pop()}</span>
         </span>
       )}
+      <PullTalk r={r} />
       <span className="pull-ref" title={`${r.repo} #${r.number}`}>
         <PlatformMark platform={r.platform} size={14} />
         <span className="pull-ref-text">
@@ -171,6 +174,31 @@ function PullLink(props: {
   );
 }
 
+const OCRA_SAID = { blocking: "ocra reviewed it and blocks it", not_blocking: "ocra reviewed it" };
+
+/** Who has talked on it: ocra's mark once ocra reviewed it, then its review threads, resolved of all. */
+function PullTalk(props: { r: Row }) {
+  const { verdict, threads } = props.r;
+  return (
+    <span className="pull-talk">
+      {verdict && (
+        <span className="ocra-mark" title={OCRA_SAID[verdict]}>
+          <EyesMark size={12} />
+        </span>
+      )}
+      {threads && (
+        <span
+          className="pull-threads"
+          title={`${threads.resolved} of ${threads.total} review ${threads.total === 1 ? "thread" : "threads"} resolved`}
+        >
+          <MessagesSquare size={14} aria-hidden="true" />
+          {threads.resolved}/{threads.total}
+        </span>
+      )}
+    </span>
+  );
+}
+
 /** Names the columns once over the list; it takes the rows' own column classes, so it lines up with them at every width. */
 export function ColumnHead() {
   return (
@@ -179,6 +207,10 @@ export function ColumnHead() {
         <GitPullRequest size={14} />
       </span>
       <span className="pull-title">Pull request</span>
+      <span className="pull-talk">
+        <MessagesSquare size={14} />
+        Threads
+      </span>
       <span className="pull-ref">
         <FolderGit2 size={14} />
         Repository

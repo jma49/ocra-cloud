@@ -83,6 +83,8 @@ export type PullItem = {
   stack?: PullStackPlace;
   /** Where it stands in its branch's merge queue; none when it is in no queue, or the listing does not say. */
   queued?: QueueState;
+  /** Its review threads and how many are resolved; none when it has none, or the platform's listing does not say (GitLab). */
+  threads?: { resolved: number; total: number };
 };
 
 /**
