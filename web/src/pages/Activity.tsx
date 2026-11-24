@@ -102,7 +102,7 @@ function ActivityBody(props: {
               <tbody>
                 {usage.models.map((m) => (
                   <tr key={`${m.provider}/${m.model}`}>
-                    <td className="mono">{m.model}</td>
+                    <td>{m.model}</td>
                     <td className="muted">{m.provider}</td>
                     <td className="num">
                       <span className="cell-name" aria-hidden="true">
@@ -157,7 +157,7 @@ function ActivityBody(props: {
                 {usage.calls.map((c) => (
                   <tr key={c.id}>
                     <td className="muted">{time(c.createdAt)}</td>
-                    <td className="mono">{c.model ?? "–"}</td>
+                    <td>{c.model ?? "–"}</td>
                     <td className="muted">{c.provider}</td>
                     <td>
                       {c.status === 0 ? (

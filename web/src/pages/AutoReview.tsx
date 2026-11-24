@@ -140,7 +140,7 @@ export function AutoReview(props: { platforms: readonly CodePlatformKind[] }) {
                   <Fragment key={r.id}>
                     <tr>
                       <td className="text">
-                        <div className="mono with-mark">
+                        <div className="strong with-mark">
                           <PlatformMark platform={r.platform} size={14} />
                           {r.fullName}
                         </div>

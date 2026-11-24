@@ -131,7 +131,7 @@ function PullLink(props: {
         {review && <span className={review.tone}>{review.label}</span>}
       </span>
       {r.additions !== null && r.deletions !== null && (
-        <span className="pull-diff mono">
+        <span className="pull-diff">
           {r.additions > 0 && <span className="add">+{r.additions}</span>}
           {r.additions > 0 && r.deletions > 0 && " "}
           {r.deletions > 0 && <span className="del">−{r.deletions}</span>}

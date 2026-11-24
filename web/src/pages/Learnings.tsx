@@ -1,4 +1,6 @@
 import Lightbulb from "lucide-react/icons/lightbulb";
+import Pencil from "lucide-react/icons/pencil";
+import Trash2 from "lucide-react/icons/trash-2";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import type {
@@ -109,19 +111,26 @@ function RepoLearnings(props: { at: RepoChoice }) {
                 learning={l}
                 usage={usage && { of: usage.of[l.id] ?? NEVER_USED, days: usage.days }}
                 actions={
-                  <span className="row-gap">
-                    <Button type="button" variant="outline" size="sm" onClick={() => setEditing(l)}>
-                      Edit
-                    </Button>
-                    <Button
+                  <span className="row-actions">
+                    <button
                       type="button"
-                      variant="destructive-outline"
-                      size="sm"
+                      className="icon-btn row-action"
+                      aria-label="Edit"
+                      title="Edit"
+                      onClick={() => setEditing(l)}
+                    >
+                      <Pencil size={14} aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      className="icon-btn row-action is-danger"
+                      aria-label="Delete"
+                      title="Delete"
                       disabled={remove.busy}
                       onClick={async () => done((await remove.run(l)) ?? null)}
                     >
-                      Delete
-                    </Button>
+                      <Trash2 size={14} aria-hidden="true" />
+                    </button>
                   </span>
                 }
               />

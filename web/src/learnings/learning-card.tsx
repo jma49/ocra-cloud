@@ -1,6 +1,7 @@
 import { type ReactNode, useId, useState } from "react";
 import type { LearningUsageView, LearningView } from "../../../src/shared/index.js";
 import { ago } from "../format.js";
+import { Markdown } from "../markdown.js";
 
 // One learning as a reviewer gets it: title, where it applies, and its text.
 
@@ -53,7 +54,7 @@ export function LearningCard(props: {
         {props.actions}
       </div>
       <div className="learning-text" id={text} hidden={!open}>
-        <pre className="pre-wrap">{l.body}</pre>
+        <Markdown text={l.body} />
         {(l.symbols.length > 0 || l.keywords.length > 0) && (
           <p className="subtle small m-0">
             {l.symbols.length > 0 && (

@@ -175,7 +175,7 @@ function RepoRow(props: {
   return (
     <li>
       <div className="row-gap">
-        <span className="mono with-mark grow">
+        <span className="with-mark grow">
           <PlatformMark platform={repo.platform} size={14} />
           {repo.fullName}
         </span>

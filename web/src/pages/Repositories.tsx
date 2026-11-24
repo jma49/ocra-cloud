@@ -145,7 +145,7 @@ function RepoName(props: {
       </div>
       <button
         type="button"
-        className={`icon-btn repo-rename${known ? "" : " is-shown"}`}
+        className={`icon-btn row-action${known ? "" : " is-shown"}`}
         aria-label={label}
         title={label}
         onClick={() => props.edit(true)}

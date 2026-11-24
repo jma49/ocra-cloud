@@ -818,6 +818,7 @@ td.finding-cell {
   text-align: right;
   white-space: nowrap;
   font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
   color: var(--t3);
 }
 .pull-diff .add {
@@ -1635,21 +1636,23 @@ td.finding-cell {
 .repo-name-text {
   min-width: 0;
 }
-.repo-rename {
+.row-action {
   flex: none;
   opacity: 0;
   transition: opacity var(--d-fast) var(--e-std);
 }
-.repo-rename.is-shown,
-.repo-rename:focus-visible,
-tr:hover .repo-rename,
-tr.is-current .repo-rename {
+.row-action.is-shown,
+.row-action:focus-visible,
+:is(tr, .learning-row):is(:hover, :focus-within, .is-current) .row-action {
   opacity: 1;
 }
 @media (hover: none) {
-  .repo-rename {
+  .row-action {
     opacity: 1;
   }
+}
+.row-action.is-danger:hover {
+  color: var(--destructive);
 }
 /* Connected platforms: a row per platform, the repositories its app reads folded under it. */
 .platform-row {

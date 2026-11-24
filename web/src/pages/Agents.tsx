@@ -248,10 +248,8 @@ export function Agents() {
                 return (
                   <tr key={a.id} className={enabled ? undefined : "agent-off"}>
                     <td className="text">
-                      <div className="mono strong">{a.id}</div>
-                      <div className="subtle small">
-                        {a.hint} · {a.tier}
-                      </div>
+                      <div className="strong">{a.id}</div>
+                      <div className="subtle small">{a.hint}</div>
                     </td>
                     <td>
                       {a.role ? (
@@ -274,7 +272,9 @@ export function Agents() {
                       ) : (
                         <span className="small">
                           <span className="subtle">
-                            {draft.models[a.tier]?.[0] ?? `${a.tier} tier (repository)`}
+                            {draft.models[a.tier]?.[0]
+                              ? `${split(draft.models[a.tier]?.[0] ?? "").model} · ${a.tier} tier`
+                              : `${a.tier} tier (repository)`}
                           </span>{" "}
                           <Button
                             type="button"

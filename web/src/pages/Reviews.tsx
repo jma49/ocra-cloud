@@ -166,7 +166,7 @@ export function Reviews(props: {
                   .sort((a, b) => b[1].findingsTotal - a[1].findingsTotal)
                   .map(([id, r]) => (
                     <tr key={id}>
-                      <td className="mono">{id}</td>
+                      <td>{id}</td>
                       <td className="num">{num(r.tasks)}</td>
                       <td className="num">
                         {r.failedTasks ? <span className="error">{r.failedTasks}</span> : 0}
