@@ -1576,8 +1576,14 @@ export const restackJobs = sqliteTable(
     /** What it is rebased onto: the branch, at `ontoCommit` when one is named. */
     ontoBranch: text("onto_branch").notNull(),
     ontoCommit: text("onto_commit"),
-    /** The parent's head before it merged or was restacked: its commits are dropped. */
+    /**
+     * The parent's head before it merged or was restacked: its commits are
+     * dropped. Of one asked for by hand, the parent's head as asked: the run
+     * drops what the branch shares with it instead.
+     */
     upstream: text("upstream").notNull(),
+    /** The login of who asked for it on the pull request's page; null when a merge queued it. */
+    askedBy: text("asked_by"),
     state: text("state", { enum: REVIEW_JOB_STATES }).notNull().default("queued"),
     outcome: text("outcome", { enum: RESTACK_OUTCOMES }),
     /** The head it pushed. */

@@ -112,16 +112,25 @@ async function inClone(
   const onto = restack.onto.commit ?? `refs/remotes/origin/${restack.onto.branch}`;
   // The layer below moved again since it was restacked: its own restack, or a person, follows.
   if (!(await commitOf(onto))) return { outcome: "lease_lost" };
-  // Branched from an older head of the layer below: only its author knows what to keep.
-  if (!(await ok(["merge-base", "--is-ancestor", restack.upstream, restack.head]))) {
-    return { outcome: "conflict" };
-  }
-  // Merged with a merge commit: the new base holds the old commits already.
-  if (await ok(["merge-base", "--is-ancestor", restack.upstream, onto])) {
-    return { outcome: "skipped", reason: "up_to_date" };
+  let upstream = restack.upstream;
+  if (restack.fork) {
+    // Asked for by hand: no one recorded the layer below's old head, so what the two share is dropped.
+    const shared = (await git(["merge-base", restack.head, onto], true)).stdout?.trim();
+    if (!shared || !isCommit(shared)) return { outcome: "conflict" };
+    if (shared === (await commitOf(onto))) return { outcome: "skipped", reason: "up_to_date" };
+    upstream = shared;
+  } else {
+    // Branched from an older head of the layer below: only its author knows what to keep.
+    if (!(await ok(["merge-base", "--is-ancestor", upstream, restack.head]))) {
+      return { outcome: "conflict" };
+    }
+    // Merged with a merge commit: the new base holds the old commits already.
+    if (await ok(["merge-base", "--is-ancestor", upstream, onto])) {
+      return { outcome: "skipped", reason: "up_to_date" };
+    }
   }
   if (!(await ok(["checkout", "--quiet", "--detach", restack.head]))) throw new Failed();
-  if (!(await ok(["rebase", "--quiet", "--no-autosquash", "--onto", onto, restack.upstream]))) {
+  if (!(await ok(["rebase", "--quiet", "--no-autosquash", "--onto", onto, upstream]))) {
     await git(["rebase", "--abort"]);
     return { outcome: "conflict" };
   }

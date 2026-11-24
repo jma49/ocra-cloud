@@ -64,7 +64,9 @@ function Job(props: { job: RestackJobView }) {
       <div className="grow">
         <div>
           <span className="mono">#{job.number}</span> onto <span className="mono">{job.onto}</span>
-          <span className="subtle"> after #{job.parent} merged</span>
+          <span className="subtle">
+            {job.askedBy ? ` asked by ${job.askedBy}` : ` after #${job.parent} merged`}
+          </span>
         </div>
         <div className="subtle small">
           <span className="mono">{job.branch}</span>
