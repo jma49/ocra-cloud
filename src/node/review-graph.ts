@@ -47,6 +47,26 @@ export async function writeReviewGraph(
   }
 }
 
+/**
+ * The graph an impact is read from: the pull request's base, whose lines its
+ * hunks name, made from the head's graph. The clone lacks a base on a branch
+ * it did not fetch; the head's graph then answers, and says it is not the base's.
+ */
+async function atBase(
+  clone: Clone,
+  written: WrittenGraph,
+  base: string,
+  signal: AbortSignal,
+): Promise<Omit<WrittenGraph, "file">> {
+  if (written.commit === base) return written;
+  try {
+    const built = await localGraph(clone, base, written.text, signal);
+    return { text: built.graph, commit: built.commit, files: built.files };
+  } catch {
+    return written;
+  }
+}
+
 /** Works out what the pull request reaches in the graph and has the server keep it. */
 export async function keepReviewImpact(
   { graphs, at }: Kept,
@@ -60,9 +80,11 @@ export async function keepReviewImpact(
     const reader =
       repo.platform === "github" ? githubChanges(githubHost(repo.url)) : gitlabChanges(repo.url);
     const changes = await reader.changes(bot.token, repo.fullName, at.pull);
-    const graph = engineGraphParser(written.text);
-    if (!changes || !graph) return;
+    if (!changes) return;
     const signal = AbortSignal.timeout(60_000);
+    const read = await atBase(clone, written, changes.base, signal);
+    const graph = engineGraphParser(read.text);
+    if (!graph) return;
     const impact = impactOf(graph, changes.files);
     const symbols = await withCode(impact.symbols, CODE_LINES, async (path) => {
       const blobId = blobIdOf(graph, path);
@@ -72,10 +94,10 @@ export async function keepReviewImpact(
     await graphs.keepImpact(work.accountId, at.repoId, at.pull, {
       pull: pullView(changes),
       graph: {
-        commit: written.commit,
-        current: written.commit === changes.base,
+        commit: read.commit,
+        current: read.commit === changes.base,
         truncated: false,
-        files: written.files,
+        files: read.files,
       },
       build: null,
       symbols,
