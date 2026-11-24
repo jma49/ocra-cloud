@@ -280,6 +280,20 @@ describe("query plans", () => {
     );
   });
 
+  it("the findings insights, by rule too, read only the account's findings through its index", async () => {
+    const seen: Captured[] = [];
+    const d = scoped(drizzle(recording(seen)), "acct");
+    await d.findingInsights(new Date(0), 20);
+    expect(seen.length).toBeGreaterThanOrEqual(8);
+    for (const q of seen) {
+      const p = await plan(q);
+      expect(p, q.sql).toMatch(
+        /SEARCH findings USING (COVERING )?INDEX findings_account_status_created/,
+      );
+      expect(p, q.sql).not.toMatch(/\bSCAN findings\b/);
+    }
+  });
+
   it("the inbox reads each listed pull's newest verdict through (account_id, pr_number, created_at)", async () => {
     const seen: Captured[] = [];
     const d = scoped(drizzle(recording(seen)), "acct");
