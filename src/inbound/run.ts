@@ -24,7 +24,12 @@ import { tellGithubHook, tellGitlabHook, tellGitlabNote } from "../notify/pull-h
 import type { WebhookPost } from "../notify/webhooks.js";
 import type { BotTokens } from "../platforms/bot.js";
 import { platformsOf } from "../platforms/registry.js";
-import { type MergedPull, moveGithubStacks, moveStacks } from "../stack-merge/hooks.js";
+import {
+  type MergedPull,
+  moveGithubStacks,
+  moveStacks,
+  type RetargetedPull,
+} from "../stack-merge/hooks.js";
 import type { AppBindings } from "../types.js";
 
 // A delivery's side effects after its answer: telling the account's
@@ -52,6 +57,8 @@ export type InboundWork = {
   signal?: { fullName: string; signal: PullSignal };
   /** GitLab's: the merge request that merged, whose stacked ones move onto its base. */
   merged?: MergedPull;
+  /** GitLab's: the merge request moved off another's source branch, whose restack it may queue. */
+  retargeted?: RetargetedPull;
   /** The repository's CI failed on a pull request's head, read when it arrived (src/notify/ci-hooks.ts). */
   ci?: CiFailure;
   /** GitHub's: the repositories added to an installation, still to enroll (src/auto-review/auto-enroll.ts). */
@@ -125,7 +132,14 @@ async function runStep(
     if (pull) await keepReviewedPaths(reader, { repo, number: pull.number, head: pull.head });
   } else if (step === "intents") {
     if (work.signal) await moveIntents(merges, repo, work.signal.fullName, work.signal.signal);
-    await moveStacks(merges, repo, repo.fullName, work.signal?.signal, work.merged);
+    await moveStacks(
+      merges,
+      repo,
+      repo.fullName,
+      work.signal?.signal,
+      work.merged,
+      work.retargeted,
+    );
   } else if (row.event === "Pipeline Hook") {
     if (work.ci) await tellCiFailed(db, scoped(db, repo.accountId), out, repo, work.ci);
   } else if (row.event === "Note Hook") {

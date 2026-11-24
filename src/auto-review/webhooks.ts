@@ -18,7 +18,7 @@ import { githubHostOf, gitlabClientOf } from "../platforms/registry.js";
 import { gitlabPullsTouched } from "../pull-changes.js";
 import { touchAndPublish } from "../pull-events/publish.js";
 import { indexGitlabEvent } from "../pull-index/hooks.js";
-import { gitlabMerged } from "../stack-merge/hooks.js";
+import { gitlabMerged, gitlabRetargeted } from "../stack-merge/hooks.js";
 import type { AppEnv } from "../types.js";
 import { recordGitlabClose } from "./closes.js";
 import { recordGitlabFlow } from "./flows.js";
@@ -167,7 +167,15 @@ export function autoReviewWebhooks(service: AutoReviewService) {
     const merged = gitlabMerged(kind, body);
     const ci = gitlabCiFailure(kind, body);
     const tells = !!note?.data || !!mr;
-    const steps = await gitlabSteps(c.var.db, repo, tells || !!ci, signal?.signal, merged);
+    const retargeted = gitlabRetargeted(kind, body);
+    const steps = await gitlabSteps(
+      c.var.db,
+      repo,
+      tells || !!ci,
+      signal?.signal,
+      merged,
+      retargeted,
+    );
     const received = await receive(c, {
       platform: "gitlab",
       host,
@@ -182,6 +190,7 @@ export function autoReviewWebhooks(service: AutoReviewService) {
           ? { signal: { fullName: repo.fullName, signal: signal.signal } }
           : {}),
         ...(merged && steps.includes("intents") ? { merged } : {}),
+        ...(retargeted && steps.includes("intents") ? { retargeted } : {}),
         ...(ci ? { ci } : {}),
       },
     });

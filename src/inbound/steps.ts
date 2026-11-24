@@ -10,6 +10,7 @@ import {
   githubRetargeted,
   hasStackWork,
   type MergedPull,
+  type RetargetedPull,
 } from "../stack-merge/hooks.js";
 import type { InboundStep } from "./run.js";
 
@@ -73,10 +74,11 @@ export async function gitlabSteps(
   tells: boolean,
   signal: PullSignal | undefined,
   merged: MergedPull | null,
+  retargeted: RetargetedPull | null = null,
 ): Promise<InboundStep[]> {
   const moves =
     !!signal &&
     ((await hasIntents(db, repo, repo.fullName, signal)) ||
-      (await hasStackWork(db, repo, repo.fullName, signal, merged)));
+      (await hasStackWork(db, repo, repo.fullName, signal, merged, retargeted)));
   return [...(tells ? (["tell"] as const) : []), ...(moves ? (["intents"] as const) : [])];
 }
