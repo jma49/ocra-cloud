@@ -29,10 +29,11 @@ const RETRIABLE: MendItemOutcome[] = ["rejected", "deferred"];
 const j = mendJobs;
 const i = mendItems;
 
-/** What a round says of one finding it was given, or of one failed check, which it names. */
+/** What a round says of one finding it was given, or of one failed check or conflicted file, which it names. */
 type RoundItem = {
   fingerprint: string;
   check?: string | null;
+  conflict?: string | null;
   outcome: MendItemOutcome;
   reason: MendItemReason | null;
   cause: FixFailureCause | null;
@@ -217,6 +218,9 @@ export function accountMendJobs(db: Db, accountId: string) {
           checkItems: round.items.flatMap(({ check, outcome, reason, cause }) =>
             check ? [{ check, outcome, reason, cause }] : [],
           ),
+          conflictItems: round.items.flatMap(({ conflict, outcome, reason, cause }) =>
+            conflict ? [{ path: conflict, outcome, reason, cause }] : [],
+          ),
           error: null,
           leaseUntil: null,
           finishedAt: now,
@@ -225,7 +229,7 @@ export function accountMendJobs(db: Db, accountId: string) {
       if (changedRows(ended) === 0) return undefined;
       const fixed: string[] = [];
       for (const item of round.items) {
-        if (item.check) continue;
+        if (item.check || item.conflict) continue;
         // Put off beside a commit: the next round, on the new head, takes it.
         if (item.outcome === "deferred" && round.outcome === "committed") continue;
         const written = await db

@@ -13,6 +13,7 @@ const repo = {
   fullName: "octo/api",
   mend: "propose",
   mendChecks: false,
+  mendConflicts: false,
 } as AutoReviewRepoView;
 
 /** Takes the level unless `refuse`, and keeps what was put. */
@@ -28,7 +29,11 @@ function serve(refuse = false) {
       put.push(body);
       return refuse
         ? Response.json({ error: "rate_limited" }, { status: 429 })
-        : Response.json({ mend: body.mend, checks: body.mend === "commit" && body.checks });
+        : Response.json({
+            mend: body.mend,
+            checks: body.mend === "commit" && body.checks,
+            conflicts: body.mend === "commit" && body.conflicts,
+          });
     }),
   );
   return put;
@@ -36,6 +41,7 @@ function serve(refuse = false) {
 
 const COMMITS = "Commit ocra's fixes in octo/api to the branch";
 const CHECKS = "Fix failed checks in octo/api";
+const CONFLICTS = "Resolve merge conflicts in octo/api";
 const flip = (name = COMMITS) =>
   act(async () => void fireEvent.click(screen.getByRole("switch", { name })));
 
@@ -47,12 +53,12 @@ it("starts with ocra proposing, and says what committing does once it is switche
   expect(box.getAttribute("aria-checked")).toBe("false");
   expect(screen.getByText(/a person commits it/)).toBeTruthy();
   await flip();
-  expect(put).toEqual([{ mend: "commit", checks: false }]);
+  expect(put).toEqual([{ mend: "commit", checks: false, conflicts: false }]);
   expect(box.getAttribute("aria-checked")).toBe("true");
   expect(screen.getByText(/It runs nothing from the repository/)).toBeTruthy();
   expect(changed).toHaveBeenCalledOnce();
   await flip();
-  expect(put.at(-1)).toEqual({ mend: "propose", checks: false });
+  expect(put.at(-1)).toEqual({ mend: "propose", checks: false, conflicts: false });
 });
 
 it("offers fixing failed checks only where ocra commits, and turns it off with that", async () => {
@@ -62,12 +68,25 @@ it("offers fixing failed checks only where ocra commits, and turns it off with t
   await flip();
   expect(screen.getByText("ocra fixes only what someone asks it to.")).toBeTruthy();
   await flip(CHECKS);
-  expect(put.at(-1)).toEqual({ mend: "commit", checks: true });
+  expect(put.at(-1)).toEqual({ mend: "commit", checks: true, conflicts: false });
   expect(screen.getByRole("switch", { name: CHECKS }).getAttribute("aria-checked")).toBe("true");
   expect(screen.getByText(/without being asked/)).toBeTruthy();
   await flip();
-  expect(put.at(-1)).toEqual({ mend: "propose", checks: false });
+  expect(put.at(-1)).toEqual({ mend: "propose", checks: false, conflicts: false });
   expect(screen.queryByRole("switch", { name: CHECKS })).toBeNull();
+});
+
+it("offers resolving merge conflicts only where ocra commits, and says it never rebases", async () => {
+  const put = serve();
+  render(<RepoMend r={repo} onChanged={() => {}} />);
+  expect(screen.queryByRole("switch", { name: CONFLICTS })).toBeNull();
+  await flip();
+  expect(screen.getByText("ocra leaves merge conflicts to a person.")).toBeTruthy();
+  await flip(CONFLICTS);
+  expect(put.at(-1)).toEqual({ mend: "commit", checks: false, conflicts: true });
+  expect(screen.getByText(/It never rebases or force-pushes/)).toBeTruthy();
+  await flip();
+  expect(put.at(-1)).toEqual({ mend: "propose", checks: false, conflicts: false });
 });
 
 it("puts the switch back when the server refuses", async () => {

@@ -20,6 +20,7 @@ const REPO: AutoReviewRepoView = {
   restack: false,
   mend: "propose",
   mendChecks: false,
+  mendConflicts: false,
   hasAccessToken: false,
   accessTokenBot: null,
   webhookManaged: false,

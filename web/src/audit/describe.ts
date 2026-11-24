@@ -247,7 +247,7 @@ export function describe(e: AuditEventView): string {
       return `Turned restacking after merges ${e.detail.restack === false ? "off" : "on"} for ${named(e.detail.repo, "a repository")}`;
     case "auto_review.mend_changed":
       return e.detail.mend === "commit"
-        ? `Let ocra commit the fixes asked of it${e.detail.checks === true ? ", and fix failed checks," : ""} in ${named(e.detail.repo, "a repository")}`
+        ? `Let ocra commit the fixes asked of it${e.detail.checks === true ? ", and fix failed checks," : ""}${e.detail.conflicts === true ? " and resolve merge conflicts" : ""} in ${named(e.detail.repo, "a repository")}`
         : `Set the fixes asked of ocra to proposals in ${named(e.detail.repo, "a repository")}`;
     case "auto_review.unenrolled":
       return `Stopped automatic review of ${named(e.detail.repo, "a repository")}`;
@@ -296,7 +296,9 @@ export function describe(e: AuditEventView): string {
     case "pull.mend_requested":
       return `Asked ocra to fix ${counted(e.detail.findings, "finding")} on ${named(e.detail.pull, "a pull request")}`;
     case "pull.mend_committed":
-      return `ocra committed ${counted(e.detail.fixed, "fix", "fixes")} to ${named(e.detail.pull, "a pull request")}${noted(e.detail.commit?.slice(0, 7))}`;
+      return (e.detail.merged ?? 0) > 0
+        ? `ocra merged the base branch into ${named(e.detail.pull, "a pull request")} and resolved conflicts in ${counted(e.detail.merged, "file")}${noted(e.detail.commit?.slice(0, 7))}`
+        : `ocra committed ${counted(e.detail.fixed, "fix", "fixes")} to ${named(e.detail.pull, "a pull request")}${noted(e.detail.commit?.slice(0, 7))}`;
     case "pull.reviewers_changed":
       return `Changed the reviewers of ${named(e.detail.pull, "a pull request")}${people(e.detail)}`;
     case "pull.assignees_changed":
