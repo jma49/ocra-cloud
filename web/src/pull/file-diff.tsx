@@ -72,6 +72,8 @@ export function FileDiff(props: {
   onFixDone: (outcome: PullActionOutcome) => void;
   /** Shows the diff without a way to comment on its lines. */
   readOnly?: boolean;
+  /** Why the file has no lines, when not for being binary or too large. */
+  noPatch?: string | undefined;
   /** Where the lines the diff left out are read; without it they stay out. */
   context?: ContextSource | undefined;
   /** What a find in the diffs found in this file, by the line's index in its patch, and the match shown. */
@@ -284,7 +286,7 @@ export function FileDiff(props: {
           <RenderedMarkdown source={page} path={file.path} />
         ) : file.patch === null ? (
           <p className="card-pad subtle small m-0">
-            The platform sent no diff for this file (binary or too large).
+            {props.noPatch ?? "The platform sent no diff for this file (binary or too large)."}
           </p>
         ) : whitespaceOnly && !hasNotes(notes, -1) ? (
           <p className="card-pad subtle small m-0">Only whitespace changed in this file.</p>

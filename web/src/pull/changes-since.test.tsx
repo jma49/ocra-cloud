@@ -52,13 +52,19 @@ const since = (state: string, from: string | null, changed: unknown[] = []) => (
   truncated: false,
 });
 
-function show(answer: (from: string | null) => unknown, filesAnswer = async () => files) {
+function show(
+  answer: (from: string | null) => unknown,
+  filesAnswer = async () => files,
+  other: (url: string) => unknown = () => undefined,
+) {
   const asked: string[] = [];
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
       asked.push(`${init?.method ?? "GET"} ${url}`);
       if (init?.method === "POST") return Response.json({ outcome: "done" });
+      const extra = other(url);
+      if (extra !== undefined) return Response.json(extra);
       if (url.startsWith("/api/pulls/since")) {
         return Response.json(answer(new URL(url, "http://x").searchParams.get("since")));
       }
@@ -159,5 +165,81 @@ describe("the changes since a head", () => {
     expect(await screen.findByRole("region", { name: "src/refund.ts" })).toBeTruthy();
     expect(screen.queryByRole("group", { name: "Changes shown" })).toBeNull();
     expect(screen.queryByRole("button", { name: /All changes/ })).toBeNull();
+  });
+});
+
+const V1 = "1".repeat(40);
+const V2 = "2".repeat(40);
+const version = (n: number, head: string, kind: string) => ({
+  version: n,
+  head,
+  pushedAt: "2026-01-01T00:00:00Z",
+  kind,
+});
+const versions = {
+  platform: "github",
+  repo: "octo/api",
+  number: 7,
+  head: HEAD,
+  versions: [version(1, V1, "first"), version(2, V2, "fast_forward"), version(3, HEAD, "rewrite")],
+  complete: false,
+};
+const compared = (from: string, to: string, lines: boolean) => ({
+  platform: "github",
+  repo: "octo/api",
+  number: 7,
+  from,
+  to,
+  state: "changes",
+  compare: lines ? "history" : "trees",
+  lines,
+  files: [{ ...file("src/ledger.ts"), patch: lines ? file("x").patch : null, viewed: null }],
+  truncated: false,
+});
+
+describe("the versions of a pull request", () => {
+  it("opens on the last push against the one before it, and compares any two", async () => {
+    const asked: string[] = [];
+    show(
+      (from) => since("same", from ?? REVIEWED),
+      async () => files,
+      (url) => {
+        if (url.startsWith("/api/pulls/versions/compare")) {
+          asked.push(url);
+          const q = new URL(url, "http://x").searchParams;
+          return compared(q.get("from") ?? "", q.get("to") ?? "", q.get("from") === V1);
+        }
+        if (url.startsWith("/api/pulls/versions")) return versions;
+        return undefined;
+      },
+    );
+    await pick(/^Versions$/);
+    expect(await screen.findByText(/History was rewritten between them/)).toBeTruthy();
+    expect(asked.at(-1)).toContain(`from=${V2}&to=${HEAD}`);
+    expect(
+      screen.getByText(/names the files that changed between them, not their lines/),
+    ).toBeTruthy();
+    expect(screen.getByText(/the platform sends no lines for this compare/)).toBeTruthy();
+    expect(screen.queryByRole("region", { name: "src/refund.ts" })).toBeNull();
+    expect(screen.getByText(/Pushes before ocra watched/)).toBeTruthy();
+    const from = screen.getByRole("combobox", { name: "From version" }) as HTMLSelectElement;
+    expect([...from.options].map((o) => o.text)[2]).toContain("v3 · force-pushed");
+    fireEvent.change(from, { target: { value: V1 } });
+    await waitFor(() => expect(asked.at(-1)).toContain(`from=${V1}&to=${HEAD}`));
+    await pick(/All changes/);
+    expect(await screen.findByRole("region", { name: "src/refund.ts" })).toBeTruthy();
+  });
+
+  it("offers no versions for a pull request pushed once", async () => {
+    show(
+      (from) => since("same", from ?? REVIEWED),
+      async () => files,
+      (url) =>
+        url.startsWith("/api/pulls/versions")
+          ? { ...versions, versions: [version(1, HEAD, "first")] }
+          : undefined,
+    );
+    expect(await screen.findByRole("button", { name: /All changes/ })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /^Versions$/ })).toBeNull();
   });
 });

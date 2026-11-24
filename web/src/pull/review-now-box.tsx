@@ -4,6 +4,7 @@ import { Status } from "@/components/status";
 import { Button } from "@/components/ui/button";
 import { Menu, MenuPopup, MenuTrigger } from "@/components/ui/menu";
 import type {
+  PullReviewChangesView,
   PullReviewJobView,
   PullReviewNowView,
   ReviewDepth,
@@ -13,10 +14,10 @@ import { DepthChoices } from "../auto-review/depth-menu.js";
 import { DEPTH } from "../auto-review/depths.js";
 import { useLimitReached } from "../auto-review/limit-reached.js";
 import { useRead } from "../cache.js";
-import { ago } from "../format.js";
+import { ago, count } from "../format.js";
 import { usePageCommands } from "../page-commands.js";
 import { Link } from "../router.js";
-import { useAction, usePoll } from "../ui.js";
+import { useAction, useLoad, usePoll } from "../ui.js";
 
 // An AI review of the pull request's current head by the server's runner,
 // asked for inside the ocra review card. The server answers only for a
@@ -35,6 +36,17 @@ const POLL_MS = 10_000;
 
 type Pull = { platform: string; repo: string; number: number };
 
+/** "3 new commits since ocra's last review, which left 2 findings open." */
+function movedSince(v: PullReviewChangesView): string {
+  const moved =
+    v.commits !== null
+      ? `${count(v.commits, "new commit")} since ocra's last review`
+      : v.versions !== null
+        ? `${count(v.versions, "push", "pushes")} since ocra's last review`
+        : "New changes since ocra's last review";
+  return `${moved}, which left ${count(v.openFindings, "finding")} open.`;
+}
+
 export function ReviewNowBox(props: {
   pull: Pull;
   head: string;
@@ -47,6 +59,10 @@ export function ReviewNowBox(props: {
     number: String(props.pull.number),
   }).toString();
   const { data, error, reload } = useRead<PullReviewNowView>(`/pulls/review-now?${query}`);
+  const changes = useLoad(
+    () => api<PullReviewChangesView>(`/pulls/review-changes?${query}`),
+    [query, props.head],
+  );
   const [picked, setPicked] = useState<ReviewDepth | null>(null);
   const depth = picked ?? data?.depth ?? "standard";
   const ask = useAction((force: boolean) =>
@@ -65,6 +81,7 @@ export function ReviewNowBox(props: {
   usePoll(active, reload, POLL_MS);
   const ofHead = job?.head === props.head ? job : null;
   const reviewed = ofHead?.state === "done";
+  const moved = !ofHead && changes.data?.reviewChanges ? changes.data : null;
   const watched = useRef(false);
   const { onReviewed } = props;
   useEffect(() => {
@@ -82,7 +99,11 @@ export function ReviewNowBox(props: {
     data && !active && !ask.busy
       ? [
           {
-            label: reviewed ? "Ask ocra to review again" : "Ask ocra to review",
+            label: moved
+              ? "Ask ocra to review the new commits"
+              : reviewed
+                ? "Ask ocra to review again"
+                : "Ask ocra to review",
             key: "a",
             run: send,
           },
@@ -109,9 +130,11 @@ export function ReviewNowBox(props: {
       <span className={ofHead?.state === "failed" ? "error small" : "subtle small"} role="status">
         {ofHead
           ? `${STATE[ofHead.state]}, asked ${ago(ofHead.queuedAt)}.`
-          : job
-            ? `The last review here was of ${job.head.slice(0, 7)}, before the newest commits.`
-            : "ocra has not reviewed this pull request on this server."}
+          : moved
+            ? movedSince(moved)
+            : job
+              ? `The last review here was of ${job.head.slice(0, 7)}, before the newest commits.`
+              : "ocra has not reviewed this pull request on this server."}
       </span>
       {ofHead?.state === "running" && data.live && (
         <Link to={`/live/${data.live.id}`} className="status-link">
@@ -133,7 +156,7 @@ export function ReviewNowBox(props: {
           loading={ask.busy}
           onClick={send}
         >
-          {reviewed ? "Review again" : "Review now"}
+          {moved ? "Review new commits" : reviewed ? "Review again" : "Review now"}
         </Button>
         <Menu>
           <MenuTrigger

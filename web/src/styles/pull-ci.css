@@ -1,0 +1,54 @@
+/* A pull request's CI in its rail, and a failed job's log in the drawer. */
+.ci-box > button {
+  justify-self: start;
+}
+.ci-job {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.ci-job-head {
+  align-items: center;
+  min-height: 24px;
+}
+.ci-job-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+a.ci-job-name {
+  color: inherit;
+}
+a.ci-job-name:hover {
+  text-decoration: underline;
+}
+.ci-rest[open] > summary {
+  margin-bottom: 8px;
+}
+.ci-log {
+  margin: 0;
+  max-height: 60dvh;
+  overflow: auto;
+  padding: 12px;
+  border-radius: var(--r-ctl);
+  background: var(--fill);
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  white-space: pre;
+  scrollbar-width: thin;
+}
+.ci-log:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.ci-explain {
+  padding: 12px;
+  border-radius: var(--r-ctl);
+  box-shadow: inset 0 0 0 0.5px var(--hair);
+}
+.ci-explain > .subtle,
+.ci-explain-ask > button {
+  justify-self: start;
+}

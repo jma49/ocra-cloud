@@ -1,0 +1,9 @@
+/* A pull request's versions: the two compared, over the diff. */
+.version-range {
+  flex-wrap: wrap;
+  align-items: center;
+}
+.version-pick {
+  width: auto;
+  max-width: 100%;
+}
