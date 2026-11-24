@@ -30,6 +30,7 @@
 }
 .brand-tag {
   font: 400 var(--text-xs) var(--mono);
+  font-variant-ligatures: none;
   line-height: 16px;
   color: var(--t3);
   padding: 1px 6px;
@@ -538,6 +539,7 @@
 }
 .command-hint.mono {
   font-family: var(--mono);
+  font-variant-ligatures: none;
 }
 .command-note {
   margin: 0;

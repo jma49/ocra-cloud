@@ -20,7 +20,7 @@ export function ConflictSuggestion(props: { conflicts: MendConflictView[] }) {
           <div key={`${file.path}:${region.line}`} className="code-card">
             <div className="code-card-head">
               <span className="mono">{file.path}</span>
-              <span className="subtle">line {region.line}</span>
+              <span className="subtle">Line {region.line}</span>
             </div>
             <CodeBlock label={`Suggested lines of ${file.path} from line ${region.line}`}>
               {region.resolved}

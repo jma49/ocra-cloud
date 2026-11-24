@@ -173,6 +173,7 @@
   border: 0.5px solid var(--hair2);
   background: var(--bg-subtle);
   font: var(--text-sm) var(--mono);
+  font-variant-ligatures: none;
   line-height: 16px;
 }
 
