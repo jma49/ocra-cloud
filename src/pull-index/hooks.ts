@@ -61,7 +61,7 @@ const githubPull = z.object({
 });
 
 /** A time a platform wrote, ISO or GitLab's older `2026-11-02 10:00:00 UTC`; undefined when it is none. */
-function hookTime(text: string | null | undefined): Date | undefined {
+export function hookTime(text: string | null | undefined): Date | undefined {
   if (!text) return undefined;
   const iso = text.replace(/^(\d{4}-\d\d-\d\d) (\d\d:\d\d:\d\d) UTC$/, "$1T$2Z");
   const ms = Date.parse(iso);
