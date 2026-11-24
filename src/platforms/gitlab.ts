@@ -2,6 +2,7 @@ import { gitlabAccess } from "./access.js";
 import { gitlabActions } from "./gitlab-actions.js";
 import { gitlabAutoMerge } from "./gitlab-auto-merge.js";
 import { gitlabChanges } from "./gitlab-changes.js";
+import { gitlabCi } from "./gitlab-ci.js";
 import { gitlabContents } from "./gitlab-contents.js";
 import { gitlabCycles } from "./gitlab-cycles.js";
 import { gitlabEdits } from "./gitlab-edits.js";
@@ -80,6 +81,7 @@ export function gitlab(client: GitlabClient, redirectUri: string): CodePlatform 
     learnings: gitlabLearnings(client.url),
     files,
     mergeStatus: gitlabMergeStatus(client.url),
+    ci: gitlabCi(client.url),
     readiness: gitlabReadiness(client.url, files),
     reviewers: gitlabReviewers(client.url),
     roster: gitlabRoster(client.url),
