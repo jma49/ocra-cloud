@@ -26,7 +26,7 @@ const symbol = z.object({
   path,
   startLine: line,
   endLine: line,
-  change: z.enum(["signature", "body"]),
+  change: z.enum(["signature", "body", "added"]),
   lines: z.array(z.tuple([line, line])).max(10_000),
   uses: z.array(use).max(MAX_USES),
   useCount: count,

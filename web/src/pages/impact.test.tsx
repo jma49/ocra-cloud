@@ -146,6 +146,29 @@ describe("the impact rail", () => {
     await within(rail).findByText("formatAmount");
   });
 
+  it("words a new symbol, a finding in a symbol nothing else uses, and a graph of one file", async () => {
+    const added: ImpactSymbol = {
+      ...formatAmount,
+      name: "retryAfter",
+      path: "src/money/parse.ts",
+      change: "added",
+      lines: [[31, 33]],
+    };
+    fakeApi(
+      answers(
+        view({
+          symbols: [added],
+          graph: { commit: BASE, current: true, truncated: false, files: 1 },
+        }),
+      ),
+    );
+    render(<ReviewDetail id="r1" graphs />);
+    const rail = await screen.findByRole("complementary", { name: "Impact" });
+    await within(rail).findByText("function · new");
+    expect(within(rail).getByText(/· 1 file ·/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "No other uses of retryAfter" })).toBeTruthy();
+  });
+
   it("says when the graph is behind the base or cut short", async () => {
     fakeApi(
       answers(

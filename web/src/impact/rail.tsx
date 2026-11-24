@@ -118,8 +118,10 @@ function RailBody(props: { impact: Impact; finding: FocusedFinding | null }) {
       {view.graph && (
         <p className="impact-foot subtle small">
           Graph of <span className="mono">{short(view.graph.commit)}</span>
-          {view.graph.files === null ? "" : ` · ${view.graph.files.toLocaleString()} files`} ·
-          matched by name, not type-resolved.
+          {view.graph.files === null
+            ? ""
+            : ` · ${view.graph.files.toLocaleString()} file${view.graph.files === 1 ? "" : "s"}`}{" "}
+          · matched by name, not type-resolved.
         </p>
       )}
     </>
@@ -164,7 +166,7 @@ function SymbolBlock(props: {
         <span className="grow">
           <span className="mono strong">{s.name}</span>{" "}
           <span className="subtle small">
-            {s.kind} · {s.change} changed
+            {s.kind} · {s.change === "added" ? "new" : `${s.change} changed`}
           </span>
           <span className="mono subtle small impact-where">
             {s.path}:{s.startLine}–{s.endLine}

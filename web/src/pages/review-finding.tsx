@@ -165,7 +165,9 @@ export function FindingEvent(props: {
               aria-pressed={props.focused}
               onClick={props.onImpact}
             >
-              Reaches {uses} use{uses === 1 ? "" : "s"} of {reached[0].name}
+              {uses === 0
+                ? `No other uses of ${reached[0].name}`
+                : `Reaches ${uses} use${uses === 1 ? "" : "s"} of ${reached[0].name}`}
               {reached.length > 1 ? ` and ${reached.length - 1} more` : ""}
             </Button>
           )}

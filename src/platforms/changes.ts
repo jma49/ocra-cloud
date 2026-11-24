@@ -4,7 +4,7 @@
 
 import type { PullState } from "../shared/index.js";
 
-/** One `@@ -oldStart,oldLines +newStart,newLines @@` header. */
+/** One run of changed lines, as an `@@ -oldStart,oldLines +newStart,newLines @@` header without context. */
 export type Hunk = { oldStart: number; oldLines: number; newStart: number; newLines: number };
 
 export type ChangedFile = {
@@ -84,16 +84,54 @@ const MAX_PATCH_BYTES = 4_000_000;
 /** Files read per pull request: GitHub lists at most 3,000. */
 export const MAX_CHANGED_FILES = 3000;
 
-const HEADER = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/gm;
+const HEADER = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/;
 
-/** The hunk headers of a unified diff, in order. */
+/**
+ * The runs of changed lines of a unified diff, in order, each as the header
+ * git would write for it without context: a hunk's own header also counts the
+ * unchanged lines around its changes, which belong to symbols it leaves alone.
+ * As in git, a run that only adds names the old line it follows, and one that
+ * only removes the new line it follows.
+ */
 export function hunksOf(patch: string): Hunk[] {
-  return [...patch.matchAll(HEADER)].map((m) => ({
-    oldStart: Number(m[1]),
-    oldLines: m[2] === undefined ? 1 : Number(m[2]),
-    newStart: Number(m[3]),
-    newLines: m[4] === undefined ? 1 : Number(m[4]),
-  }));
+  const runs: Hunk[] = [];
+  let oldLine = 0;
+  let newLine = 0;
+  let inHunk = false;
+  let run: Hunk | undefined;
+  const close = () => {
+    if (!run) return;
+    if (run.oldLines === 0) run.oldStart--;
+    if (run.newLines === 0) run.newStart--;
+    runs.push(run);
+    run = undefined;
+  };
+  for (const line of patch.split("\n")) {
+    const header = HEADER.exec(line);
+    if (header) {
+      close();
+      // A side with no lines names the line before its place.
+      oldLine = Number(header[1]) + (header[2] === "0" ? 1 : 0);
+      newLine = Number(header[3]) + (header[4] === "0" ? 1 : 0);
+      inHunk = true;
+    } else if (!inHunk || line.startsWith("\\")) {
+      // Before the first hunk, or "\ No newline at end of file": no line of either side.
+    } else if (line.startsWith("-")) {
+      run ??= { oldStart: oldLine, oldLines: 0, newStart: newLine, newLines: 0 };
+      run.oldLines++;
+      oldLine++;
+    } else if (line.startsWith("+")) {
+      run ??= { oldStart: oldLine, oldLines: 0, newStart: newLine, newLines: 0 };
+      run.newLines++;
+      newLine++;
+    } else {
+      close();
+      oldLine++;
+      newLine++;
+    }
+  }
+  close();
+  return runs;
 }
 
 /** The lines a unified diff adds and removes. */
