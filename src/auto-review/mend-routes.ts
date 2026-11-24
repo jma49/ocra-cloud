@@ -26,7 +26,7 @@ import type { AutoReviewService } from "./routes.js";
 // a person asks ocra to fix there, which queue the loop's next round; and
 // what the rounds did. Enrolling proved the account reaches the repository.
 
-const levelBody = z.object({ mend: z.enum(MEND_LEVELS) });
+const levelBody = z.object({ mend: z.enum(MEND_LEVELS), checks: z.boolean().optional() });
 const requestBody = z.object({
   findings: z
     .array(z.string().min(1).max(100))
@@ -69,6 +69,7 @@ async function pullView(data: Scoped, repo: Row<"reviewRepos">, number: number) 
         }
       : null,
     items: (found?.items ?? []).map(itemView),
+    checks: found?.job.checkItems ?? [],
   } satisfies PullMendView;
 }
 
@@ -81,12 +82,16 @@ export function mendRoute(service: AutoReviewService) {
     perMinute("settings"),
     jsonBody(levelBody),
     async (c) => {
-      const { mend } = c.req.valid("json");
+      const body = c.req.valid("json");
       const repo = await c.var.data.get("reviewRepos", c.req.param("id"));
-      const changed = repo && (await c.var.data.update("reviewRepos", repo.id, { mend }));
-      if (!repo || !changed) return apiError(c, "not_found");
-      await audit(c.var.data, "auto_review.mend_changed", { repo: repo.fullName, mend });
-      return c.json({ mend } satisfies AutoReviewMendView);
+      if (!repo) return apiError(c, "not_found");
+      // Failed checks are fixed only where the bot commits: a lower level turns them off.
+      const mend = body.mend;
+      const checks = mend === "commit" && (body.checks ?? repo.mendChecks);
+      const changed = await c.var.data.update("reviewRepos", repo.id, { mend, mendChecks: checks });
+      if (!changed) return apiError(c, "not_found");
+      await audit(c.var.data, "auto_review.mend_changed", { repo: repo.fullName, mend, checks });
+      return c.json({ mend, checks } satisfies AutoReviewMendView);
     },
   );
 
@@ -150,7 +155,8 @@ export function mendRoute(service: AutoReviewService) {
         host: platform.host,
         fullName: ref.data.repo,
       }));
-    if (!repo) return c.json({ level: null, loop: null, items: [] } satisfies PullMendView);
+    if (!repo)
+      return c.json({ level: null, loop: null, items: [], checks: [] } satisfies PullMendView);
     return c.json(await pullView(c.var.data, repo, ref.data.number));
   });
 

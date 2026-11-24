@@ -80,11 +80,13 @@ const assignment = z
           .array(z.object({ flag, input: z.unknown() }))
           .max(4)
           .optional(),
+        switches: z.array(flag).max(4).optional(),
       })
-      .transform(({ flag, input, more }) => ({
+      .transform(({ flag, input, more, switches }) => ({
         ...(flag !== undefined ? { flag } : {}),
         ...(input !== undefined ? { input } : {}),
         ...(more ? { more } : {}),
+        ...(switches ? { switches } : {}),
       }))
       .optional(),
   })

@@ -55,6 +55,7 @@ import {
   MERGE_INTENT_REASONS,
   MERGE_INTENT_STATES,
   MERGE_METHODS,
+  type MendCheckView,
   type MergeCheckResultView,
   type MergeChecksConclusion,
   type MergeCheckVerdictView,
@@ -897,6 +898,12 @@ export const reviewRepos = sqliteTable(
      * proposed for a person to commit, or committed to the branch by the bot.
      */
     mend: text("mend", { enum: MEND_LEVELS }).notNull().default(DEFAULT_MEND_LEVEL),
+    /**
+     * Whether a round also starts, unasked, when the repository's own CI
+     * fails on a pull request's head, to fix what failed. Only at the level
+     * `commit`.
+     */
+    mendChecks: integer("mend_checks", { mode: "boolean" }).notNull().default(false),
   },
   (t) => [
     uniqueIndex("review_repos_platform_repo").on(t.platform, t.host, t.platformRepoId),
@@ -1662,6 +1669,12 @@ export const mendJobs = sqliteTable(
     commitSha: text("commit_sha"),
     /** The contract's mendStateSchema: attempts per finding, rounds and spend so far. */
     loop: text("loop", { mode: "json" }).$type<MendState>(),
+    /** The head's failed checks wait for the next round (`ocra mend --checks`). */
+    checks: integer("checks", { mode: "boolean" }).notNull().default(false),
+    /** The head whose failed CI last asked for that: a head asks once. */
+    checksHead: text("checks_head"),
+    /** What the last round did with each failed check it worked on. */
+    checkItems: text("check_items", { mode: "json" }).$type<MendCheckView[]>(),
     finishedAt: integer("finished_at", { mode: "timestamp_ms" }),
     createdAt: createdAt(),
   },

@@ -1,5 +1,6 @@
 import { type EnrollWork, enrollAdded } from "../auto-review/auto-enroll.js";
 import { keepGitlabFindingThread, onceEach } from "../auto-review/finding-threads.js";
+import { mendFailedChecks } from "../auto-review/mend-checks.js";
 import { keepReviewedPaths, type PathReader } from "../auto-review/paths.js";
 import { type CallBudget, item, uncapped } from "../calls.js";
 import type { Db } from "../db/client.js";
@@ -112,7 +113,11 @@ async function runStep(
   const body = work.body ?? {};
   if (row.platform === "github" && step === "tell") {
     await tellGithubHook(db, row.host, out, row.event, body, runner.bots);
-    if (work.ci) await tellGithubCi(db, row.host, out, row.repo, work.ci);
+    if (work.ci) {
+      await tellGithubCi(db, row.host, out, row.repo, work.ci);
+      const repo = await reviewRepoFor(db, "github", row.host, row.repo);
+      if (repo) await mendFailedChecks(scoped(db, repo.accountId), repo, work.ci, new Date());
+    }
     return;
   }
   if (row.platform === "github" && step === "enroll") {
@@ -141,7 +146,11 @@ async function runStep(
       work.retargeted,
     );
   } else if (row.event === "Pipeline Hook") {
-    if (work.ci) await tellCiFailed(db, scoped(db, repo.accountId), out, repo, work.ci);
+    if (work.ci) {
+      const data = scoped(db, repo.accountId);
+      await tellCiFailed(db, data, out, repo, work.ci);
+      await mendFailedChecks(data, repo, work.ci, new Date());
+    }
   } else if (row.event === "Note Hook") {
     const startOf = onceEach(gitlabStartOf(reader, repo));
     await tellGitlabNote(db, out, repo, body, startOf);

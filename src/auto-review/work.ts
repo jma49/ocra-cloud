@@ -123,6 +123,8 @@ export type AnsweredRun = {
   flag?: string;
   input?: unknown;
   more?: { flag: string; input: unknown }[];
+  /** Flags given as they are, with no value. */
+  switches?: string[];
 };
 
 export type WorkSource = {

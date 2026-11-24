@@ -201,6 +201,7 @@ async function inCheckout(
         ...(graph ? ["--graph", graph.file] : []),
         ...(input && answered?.flag ? [answered.flag, input] : []),
         ...more,
+        ...(answered?.switches ?? []),
         "--config",
         config,
       ],

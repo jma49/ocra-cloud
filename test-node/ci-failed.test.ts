@@ -151,6 +151,21 @@ describe("CI failing on a GitHub pull request", () => {
     expect(platformCalls.length).toBe(calls);
   });
 
+  it("starts a round of the fix loop on the failed checks where the repository asked for it", async () => {
+    const { data, repo } = await me("github");
+    await pullBy(data, repo.id, 7, "1");
+    await deliver("check_suite", suite(C1, "failure"), "m-1");
+    await settle();
+    expect(await data.list("mendJobs")).toEqual([]);
+    await data.update("reviewRepos", repo.id, { mend: "commit", mendChecks: true });
+    await deliver("check_suite", suite(C1, "failure"), "m-2");
+    await deliver("check_suite", suite(C1, "success"), "m-3");
+    await settle();
+    expect(await data.list("mendJobs")).toMatchObject([
+      { number: 7, state: "queued", checks: true, checksHead: C1 },
+    ]);
+  });
+
   it("skips ocra's own App's suite, other authors, closed pulls and moved heads", async () => {
     const { data, repo } = await me("github");
     await pullBy(data, repo.id, 7, "1");

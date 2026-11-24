@@ -60,6 +60,7 @@ const NOT_MENDED: Record<MendReason, string> = {
   overlap: "it touches the lines of another fix in the same round.",
   no_room: "the round was full.",
   attempts: "ocra tried twice.",
+  conflicts: "the branch has merge conflicts to resolve first.",
   head_moved: "the branch moved while ocra worked.",
   not_writable: "ocra cannot write to this branch.",
 };

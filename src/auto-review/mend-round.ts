@@ -21,8 +21,9 @@ const MEND_SKIPS = ["switched_off", "nothing_waiting"] as const;
 /**
  * What the loop's next round reads, as files `ocra mend` is given (the
  * findings that wait, the most severe first, and the state the last round
- * printed), or why it has none to run: the repository's level is no longer
- * `commit`, or no finding waits.
+ * printed, and `--checks` when the head's failed checks wait too), or why
+ * it has none to run: the repository's level is no longer `commit`, or
+ * nothing waits.
  */
 export async function mendInput(
   data: Scoped,
@@ -34,11 +35,14 @@ export async function mendInput(
   const waiting = job ? await data.mends.waitingFindings(job.id, MAX_ROUND_FINDINGS) : [];
   // A finding decided since it was asked for needs no fix.
   const open = waiting.filter((f) => f.status === "open");
-  if (!job || open.length === 0) return "nothing_waiting";
+  const checks = job?.checks === true && repo.mendChecks;
+  if (!job || (open.length === 0 && !checks)) return "nothing_waiting";
   const rank = (f: Row<"findings">) => SEVERITIES.indexOf(f.severity);
   return {
-    flag: "--findings",
-    input: open.sort((a, b) => rank(a) - rank(b)).map(findingInput),
+    ...(open.length > 0
+      ? { flag: "--findings", input: open.sort((a, b) => rank(a) - rank(b)).map(findingInput) }
+      : {}),
     more: job.loop ? [{ flag: "--state", input: job.loop }] : [],
+    ...(checks ? { switches: ["--checks"] } : {}),
   };
 }
