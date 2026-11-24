@@ -148,6 +148,8 @@ export function PullPage(props: {
   const done = (what: Done, outcome: PullActionOutcome) => {
     said(what, outcome);
     if (outcome === "done" && what === "Review") setPending([]);
+    // A resolved thread, a review or a draft switch changes what merge readiness counts.
+    if (outcome === "done") setReadinessRev((n) => n + 1);
     // A committed fix moved the head, and a merge settled the pull request: what the page read is out of date.
     if (outcome === "done" && (what === "Fix" || what === "Merge")) reload();
   };
@@ -240,7 +242,11 @@ export function PullPage(props: {
               if (o === "done") description.reload();
             }}
           />
-          <ThreadsPanel pull={ref} onDone={(o) => done("Review threads", o)} />
+          <ThreadsPanel
+            pull={ref}
+            onDone={(o) => done("Review threads", o)}
+            onMoved={() => setReadinessRev((n) => n + 1)}
+          />
         </div>
         <aside className="pull-rail" aria-label="Status">
           {!settled && (
