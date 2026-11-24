@@ -71,7 +71,7 @@ function Notice(props: { run: Run; open: (run: Run) => void }) {
         </span>
         {item.subtitle && <span className="feed-subtitle">{item.subtitle}</span>}
         <span className="feed-meta subtle small">
-          {where && <span className="mono">{where}</span>}
+          {where && <span>{where}</span>}
           {times > 1 && <span>{times} times</span>}
           <time dateTime={item.at} title={time(item.at)}>
             {since(item.at)}

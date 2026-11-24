@@ -421,12 +421,15 @@ export function Findings(props: {
                       <div>
                         <Link to={`/reviews/${f.reviewId}`}>{f.title}</Link>
                       </div>
-                      <div className="mono subtle small">
-                        {f.file}
-                        {lines(f)} · {notes(f)}
+                      <div className="subtle small">
+                        <span className="mono">
+                          {f.file}
+                          {lines(f)}
+                        </span>{" "}
+                        · {notes(f)}
                       </div>
                     </td>
-                    <td className="mono">
+                    <td className={f.name ? undefined : "mono"}>
                       {f.name ?? f.repo}
                       {f.prNumber !== null && <span className="subtle"> #{f.prNumber}</span>}
                     </td>

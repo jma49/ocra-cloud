@@ -43,7 +43,7 @@ export function ReleasePulls(props: {
           <ul>
             {s.pulls.map((p) => (
               <li key={p.number}>
-                <a className="mono" href={p.url} target="_blank" rel="noreferrer">
+                <a href={p.url} target="_blank" rel="noreferrer">
                   {props.marker}
                   {p.number}
                 </a>
