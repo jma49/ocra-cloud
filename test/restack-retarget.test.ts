@@ -5,7 +5,7 @@ import { githubSteps } from "../src/inbound/steps.js";
 import { moveGithubStacks, restackOnMerge } from "../src/stack-merge/hooks.js";
 import { db, resetDb } from "./helpers.js";
 import { history, mergedOne, setUp, turn } from "./restack-fakes.js";
-import { github, layer, runner, sha } from "./stack-fakes.js";
+import { github, layer, mergeOf, runner, sha } from "./stack-fakes.js";
 import { rows } from "./table-rows.js";
 
 // GitHub moves the pull requests stacked on a merged one itself when it
@@ -100,10 +100,10 @@ describe("restacking a pull request GitHub moved off a merged one", () => {
   });
 
   it("queues nothing for a move off a branch that did not merge lately", async () => {
-    github([layer(1, "main", { state: "MERGED" }), layer(2, "main")]);
+    github([layer(1, "main", { state: "MERGED", mergedAt: minutesAgo(3 * 60) }), layer(2, "main")]);
     const { a, data } = await enrolled(true);
     await indexMerged(data, minutesAgo(3 * 60));
-    expect(await steps(edited(2, "step-1", "main"))).not.toContain("intents");
+    // Neither the index nor the platform has it merged within the window.
     await deliver(edited(2, "step-1", "main"));
     await deliver(edited(2, "step-9", "main"));
     expect((await history(a)).jobs).toEqual([]);
@@ -128,4 +128,44 @@ describe("restacking a pull request GitHub moved off a merged one", () => {
     await deliver({ ...edited(2, "step-1", "main"), changes: {} });
     expect((await history(a)).jobs).toEqual([]);
   });
+
+  it("queues it once when its move is handled before the merge's delivery indexed the merge", async () => {
+    github([layer(1, "main", { state: "MERGED" }), layer(2, "main")]);
+    const { a } = await enrolled(true);
+    const moved = edited(2, "step-1", "main");
+    expect(await steps(moved)).toContain("intents");
+    await deliver(moved);
+    const once = [[2, 1, "step-2", "main", sha(2), "queued"]];
+    const jobs = async () =>
+      (await history(a)).jobs.map((j) => [j.number, j.parent, j.branch, j.onto, j.from, j.state]);
+    expect(await jobs()).toEqual(once);
+    // The merge's own delivery comes next: #2 is already on main, and the key is the same.
+    await deliver(mergedDelivery);
+    await deliver(moved);
+    expect(await jobs()).toEqual(once);
+  });
+
+  it("queues nothing from the platform's answer while the old base has an open pull request", async () => {
+    github([
+      layer(1, "main", { state: "MERGED" }),
+      layer(5, "main", { head: "step-1" }),
+      layer(2, "main"),
+    ]);
+    const { a } = await enrolled(true);
+    await deliver(edited(2, "step-1", "main"));
+    expect((await history(a)).jobs).toEqual([]);
+  });
 });
+
+/** #1's merge, as GitHub delivers it. */
+const mergedDelivery = {
+  action: "closed",
+  number: 1,
+  repository: { id: 1, full_name: "octo/api" },
+  pull_request: {
+    merged: true,
+    merge_commit_sha: mergeOf(1),
+    head: { ref: "step-1", sha: sha(1) },
+    base: { ref: "main" },
+  },
+};

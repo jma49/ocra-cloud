@@ -7,7 +7,9 @@ import { platformCall, platformSend } from "./http.js";
 import {
   type BranchPair,
   type LayerStanding,
+  latestMerged,
   MAX_OPEN_PAGES,
+  MERGED_FROM_PAGE,
   type OpenPull,
   type PullStacks,
 } from "./stacks.js";
@@ -107,6 +109,8 @@ type RestPull = {
   title: string;
   html_url: string;
   draft?: boolean;
+  state?: "open" | "closed";
+  merged_at?: string | null;
   head: { ref: string; sha: string; repo: { id: number } | null };
   base: { ref: string; repo: { id: number } };
 };
@@ -229,6 +233,32 @@ export function githubStacks(host: GithubHost, post: GithubGraphql): PullStacks 
         mergeCommit: layer.mergeCommit?.oid ?? null,
         blocker: blockerOf(layer),
       };
+    },
+    async mergedFrom(token, fullName, head, base, since) {
+      const [owner] = fullName.split("/");
+      const params = new URLSearchParams({
+        state: "all",
+        head: `${owner}:${head}`,
+        sort: "updated",
+        direction: "desc",
+        per_page: String(MERGED_FROM_PAGE),
+      });
+      const listed = await platformCall<RestPull[]>(
+        `${host.api}/repos/${githubRepoPath(fullName)}/pulls?${params}`,
+        { headers: githubHeaders(token) },
+      );
+      if (!listed) return null;
+      const own = listed.filter((p) => p.head.repo?.id === p.base.repo.id && p.head.ref === head);
+      return latestMerged(
+        own.map((p) => ({
+          number: p.number,
+          open: p.state === "open",
+          base: p.base.ref,
+          mergedAt: p.merged_at ?? null,
+        })),
+        base,
+        since,
+      );
     },
     async behind(token, fullName, pairs) {
       if (pairs.length === 0) return [];

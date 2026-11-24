@@ -1,7 +1,14 @@
 import { outcomeOf } from "./actions.js";
 import { gitlabHeaders, mergeRequestUrl } from "./gitlab-changes.js";
 import { platformCall, platformSend } from "./http.js";
-import { type LayerStanding, MAX_OPEN_PAGES, type OpenPull, type PullStacks } from "./stacks.js";
+import {
+  type LayerStanding,
+  latestMerged,
+  MAX_OPEN_PAGES,
+  MERGED_FROM_PAGE,
+  type OpenPull,
+  type PullStacks,
+} from "./stacks.js";
 
 const PER_PAGE = 100;
 
@@ -16,6 +23,8 @@ type MergeRequest = {
   sha: string;
   source_project_id: number;
   target_project_id: number;
+  state?: "opened" | "closed" | "locked" | "merged";
+  merged_at?: string | null;
 };
 
 type Standing = {
@@ -85,6 +94,30 @@ export function gitlabStacks(origin: string): PullStacks {
     async children(token, fullName, branch) {
       const mrs = await listed(token, fullName, { target_branch: branch });
       return mrs ? own(mrs) : null;
+    },
+    async mergedFrom(token, fullName, head, base, since) {
+      const mrs = await listed(token, fullName, {
+        state: "all",
+        source_branch: head,
+        order_by: "updated_at",
+        sort: "desc",
+        per_page: String(MERGED_FROM_PAGE),
+      });
+      if (!mrs) return null;
+      const own = mrs.filter(
+        (mr) => mr.source_project_id === mr.target_project_id && mr.source_branch === head,
+      );
+      return latestMerged(
+        own.map((mr) => ({
+          number: mr.iid,
+          // A locked one is mid-merge: its branch still lives.
+          open: mr.state === "opened" || mr.state === "locked",
+          base: mr.target_branch,
+          mergedAt: mr.state === "merged" ? (mr.merged_at ?? null) : null,
+        })),
+        base,
+        since,
+      );
     },
     async standing(token, fullName, number) {
       const mr = await platformCall<Standing>(mergeRequestUrl(origin, fullName, number), {

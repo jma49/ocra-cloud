@@ -27,6 +27,8 @@ export type Fake = {
   checks: "SUCCESS" | "PENDING" | "FAILURE" | null;
   /** The head's check runs, each with whether the base branch requires it. */
   runs?: { name: string; conclusion: "SUCCESS" | "FAILURE" | null; required: boolean }[];
+  /** When a merged one merged; now when not given. */
+  mergedAt?: Date;
 };
 export type Sent = { method: string; url: string; body: unknown };
 
@@ -76,6 +78,7 @@ export function github(pulls: Fake[], options: { refuseRetarget?: boolean } = {}
     base: { ref: p.base, repo: { id: 1 } },
     state: p.state === "OPEN" ? "open" : "closed",
     merged: p.state === "MERGED",
+    merged_at: p.state === "MERGED" ? (p.mergedAt ?? new Date()).toISOString() : null,
   });
   githubFake({
     extra: async (req) => {
@@ -113,6 +116,11 @@ export function github(pulls: Fake[], options: { refuseRetarget?: boolean } = {}
         return Response.json({ data: { repository: { pullRequest: p ? node(p) : null } } });
       }
       if (req.method === "GET" && path === `${REPO}/pulls`) {
+        const head = url.searchParams.get("head");
+        if (head?.startsWith("octo:") && url.searchParams.get("state") === "all") {
+          const from = [...byNumber.values()].filter((p) => `octo:${p.head}` === head);
+          return Response.json(from.map(rest));
+        }
         const base = url.searchParams.get("base");
         const open = [...byNumber.values()].filter((p) => p.state === "OPEN" && p.base === base);
         return Response.json(open.map(rest));

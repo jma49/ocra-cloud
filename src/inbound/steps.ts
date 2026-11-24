@@ -20,7 +20,8 @@ import type { InboundStep } from "./run.js";
 // told apart by their fields alone; the rest cost a read or two, never a
 // write: the repository's enrollment (or an installation's switch, for
 // the repositories added to it), and whether an intent is armed or a
-// stack merge waits (a merged pull request always has work: its stack).
+// stack merge waits (a merged pull request always has work: its stack, and
+// so does one moved to another base where the repository restacks).
 
 /** The events whose side effects tell the account's channels (src/notify/pull-hooks.ts). */
 const TELLS = new Set([

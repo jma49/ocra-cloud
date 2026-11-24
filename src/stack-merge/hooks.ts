@@ -20,7 +20,9 @@ import { mergeKey, queueRestacks } from "./restack.js";
 // the merged head branch, and GitLab when it deletes the merged source
 // branch (at most four), sometimes before the merge's delivery is handled,
 // which then finds none: each such move's own delivery queues its restack,
-// under the same key, so the two never queue it twice.
+// under the same key, so the two never queue it twice. The move's delivery
+// may also come first, before the merge's has indexed it: the platform is
+// then asked which pull request merged from the old base.
 
 /**
  * A merged pull request's branches, and its head and merge commit where the
@@ -145,9 +147,6 @@ export function gitlabRetargeted(kind: string | undefined, body: unknown): Retar
   };
 }
 
-const mergedLately = (data: ReturnType<typeof scoped>, repoId: string, branch: string, now: Date) =>
-  data.pullIndex.mergedFrom(repoId, branch, new Date(now.getTime() - RETARGET_WINDOW_MS));
-
 /** A GitHub delivery's merged pull request; null for any other. */
 export function githubMerged(event: string | undefined, body: unknown): MergedPull | null {
   if (event !== "pull_request") return null;
@@ -183,9 +182,10 @@ const platformOf = (runner: StackRunner, repo: Row<"reviewRepos">) =>
   runner.platforms.find((p) => p.kind === repo.platform && p.host === repo.host);
 
 /**
- * Whether a delivery has stack work: a pull request merged, one moved off
- * a head branch merged lately where the repository restacks, or a stack
- * merge on what it names.
+ * Whether a delivery has stack work: a pull request merged, one moved to
+ * another base where the repository restacks (whether its old base merged
+ * lately may be known to the platform only), or a stack merge on what it
+ * names.
  */
 export async function hasStackWork(
   db: Db,
@@ -194,13 +194,9 @@ export async function hasStackWork(
   signal: PullSignal,
   merged: MergedPull | null,
   retargeted: RetargetedPull | null = null,
-  now = new Date(),
 ): Promise<boolean> {
-  if (merged) return true;
+  if (merged || (retargeted && repo.restack)) return true;
   const data = scoped(db, repo.accountId);
-  if (retargeted && repo.restack && (await mergedLately(data, repo.id, retargeted.from, now))) {
-    return true;
-  }
   const key = { platform: repo.platform, host: repo.host, fullName };
   const at = "head" in signal ? { head: signal.head } : { number: signal.number };
   return (await data.stackMerges.active(key, at, 1)).length > 0;
@@ -270,10 +266,11 @@ export async function restackOnMerge(
 
 /**
  * Queues the restack of a pull request the platform moved off the head
- * branch of one merged lately (the index holds it merged) onto that one's
- * base, where the repository restacks; whether it queued. The merge's
- * commit and head are the platform's, so the key is the one the merge's
- * own delivery queues under.
+ * branch of one merged lately onto that one's base, where the repository
+ * restacks; whether it queued. The merged one is the index's, else, when
+ * the merge's delivery has not indexed it yet, the platform's (one call).
+ * The merge's commit and head are the platform's, so the key is the one the
+ * merge's own delivery queues under.
  */
 async function restackOnRetarget(
   runner: StackRunner,
@@ -284,16 +281,20 @@ async function restackOnRetarget(
   const platform = platformOf(runner, repo);
   if (!platform || !repo.restack) return false;
   const data = scoped(runner.db, repo.accountId);
-  const merged = await mergedLately(data, repo.id, moved.from, now);
-  if (!merged) return false;
+  const since = new Date(now.getTime() - RETARGET_WINDOW_MS);
+  const indexed = await data.pullIndex.mergedFrom(repo.id, moved.from, since);
   const token = await accessToken(data, runner.env, platform);
   if (!token) return false;
-  const was = await platform.stacks.standing(token, repo.fullName, merged.number);
+  const number =
+    indexed?.number ??
+    (await platform.stacks.mergedFrom(token, repo.fullName, moved.from, moved.base, since));
+  if (number === null) return false;
+  const was = await platform.stacks.standing(token, repo.fullName, number);
   if (was?.state !== "merged" || was.headBranch !== moved.from || was.base !== moved.base) {
     return false;
   }
   const parent = {
-    number: merged.number,
+    number,
     merge: mergeKey(was.mergeCommit, was.head),
     head: was.head,
     onto: { branch: moved.base, commit: null },

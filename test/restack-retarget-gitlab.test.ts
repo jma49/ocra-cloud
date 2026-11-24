@@ -21,7 +21,7 @@ const FULL_NAME = "Group/Sub/Project";
 const PROJECT = `${GITLAB}/api/v4/projects/${encodeURIComponent(FULL_NAME)}`;
 const SECRET = "s".repeat(32);
 
-type Mr = { iid: number; source: string; target: string; state: "opened" | "merged" };
+type Mr = { iid: number; source: string; target: string; state: "opened" | "merged"; at?: Date };
 
 /** A GitLab project whose merge requests move as the writes sent to it say. */
 function gitlab(mrs: Mr[]) {
@@ -38,6 +38,7 @@ function gitlab(mrs: Mr[]) {
     source_project_id: 9,
     target_project_id: 9,
     squash_commit_sha: m.state === "merged" ? mergeOf(m.iid) : null,
+    merged_at: m.state === "merged" ? (m.at ?? new Date()).toISOString() : null,
     detailed_merge_status: "mergeable",
   });
   githubFake({
@@ -46,6 +47,10 @@ function gitlab(mrs: Mr[]) {
       const path = `${url.origin}${url.pathname}`;
       if (!path.startsWith(PROJECT)) return undefined;
       if (req.method === "GET" && path === `${PROJECT}/merge_requests`) {
+        const source = url.searchParams.get("source_branch");
+        if (source && url.searchParams.get("state") === "all") {
+          return Response.json([...byIid.values()].filter((m) => m.source === source).map(api));
+        }
         const target = url.searchParams.get("target_branch");
         const open = [...byIid.values()].filter((m) => m.state === "opened" && m.target === target);
         return Response.json(open.map(api));
@@ -202,5 +207,34 @@ describe("restacking a merge request after a merge on GitLab", () => {
     await deliver({ ...moved(2, "step-1", "main"), changes: {} });
     await deliver(moved(2, "main", "main"));
     expect(await queued(a)).toEqual([]);
+  });
+
+  it("queues one moved before the merge's hook indexed the merge, then nothing more", async () => {
+    gitlab([
+      { iid: 1, source: "step-1", target: "main", state: "merged" },
+      { iid: 2, source: "step-2", target: "main", state: "opened" },
+    ]);
+    const { a } = await enrolled(true);
+    await deliver(moved(2, "step-1", "main"));
+    const once = [[2, 1, "step-2", "main", sha(2), "queued"]];
+    expect(await queued(a)).toEqual(once);
+    await deliver(merged);
+    await deliver(moved(2, "step-1", "main"));
+    expect(await queued(a)).toEqual(once);
+  });
+
+  it("queues nothing from GitLab's answer for a merge out of the window or a live source", async () => {
+    const lab = gitlab([
+      { iid: 1, source: "step-1", target: "main", state: "merged", at: new Date(0) },
+      { iid: 2, source: "step-2", target: "main", state: "opened" },
+      { iid: 3, source: "step-3", target: "main", state: "merged" },
+      { iid: 5, source: "step-3", target: "release", state: "opened" },
+      { iid: 4, source: "step-4", target: "main", state: "opened" },
+    ]);
+    const { a } = await enrolled(true);
+    await deliver(moved(2, "step-1", "main"));
+    await deliver(moved(4, "step-3", "main"));
+    expect(await queued(a)).toEqual([]);
+    expect(lab.moved).toEqual([]);
   });
 });
