@@ -21,6 +21,7 @@ export * from "./flow.js";
 export * from "./graphs.js";
 export * from "./impact.js";
 export * from "./insights-impact.js";
+export * from "./instance-admin.js";
 export * from "./learnings.js";
 export * from "./live.js";
 export * from "./merge-checks.js";

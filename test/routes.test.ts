@@ -42,6 +42,7 @@ const ACCESS: Record<string, Access> = {
   "GET /api/me": "web+cli",
   "GET /api/usage": "web",
   "GET /api/sessions": "web",
+  "GET /api/admin/instance": "web",
   "DELETE /api/sessions/:id": "web",
   "GET /api/tokens": "web",
   "POST /api/tokens": "web",

@@ -1,5 +1,6 @@
 import { type Context, Hono } from "hono";
 import { account } from "./account.js";
+import { adminRoute } from "./admin.js";
 import { apiTokensRoute } from "./api-tokens.js";
 import { auditLog } from "./audit-log.js";
 import { auth } from "./auth.js";
@@ -150,6 +151,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
   app.route("/export", exportRoute);
   app.route("/account", account);
   app.route("/audit", auditLog);
+  app.route("/admin", adminRoute);
   app.route("/reviews", reviews);
   app.route("/reviews", reviewChat);
   app.route("/live", liveRoute);

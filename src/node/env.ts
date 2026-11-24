@@ -3,6 +3,7 @@ import { botSettingsFrom, gitlabReviews, runnerTokenFrom } from "../auto-review/
 import { catalogOf } from "../catalog.js";
 import { retentionDaysOf } from "../config.js";
 import { graphPolicy } from "../graph/policy.js";
+import { instanceAdminsOf } from "../instance-admins.js";
 import { githubHostOf } from "../platforms/registry.js";
 import { startingModels } from "../preferences.js";
 import { allowEntriesOf } from "../sign-in-allow.js";
@@ -28,6 +29,7 @@ const OPTIONAL = [
   "OIDC_NAME",
   "SIGN_IN_ALLOW",
   "RETENTION_DAYS",
+  "INSTANCE_ADMINS",
   "MASTER_KEY_PREVIOUS",
   "GITLAB_CLIENT_ID",
   "GITLAB_CLIENT_SECRET",
@@ -82,12 +84,13 @@ export function bindingsFrom(vars: Record<string, string | undefined>): AppBindi
     ...rateLimits("memory"),
   };
   // Read once here so that a malformed GITHUB_URL, MODEL_ENDPOINTS,
-  // BUILTIN_PROVIDERS, DEFAULT_MODELS, SIGN_IN_ALLOW or RETENTION_DAYS stops
-  // the server at start, not at a request.
+  // BUILTIN_PROVIDERS, DEFAULT_MODELS, SIGN_IN_ALLOW, RETENTION_DAYS or
+  // INSTANCE_ADMINS stops the server at start, not at a request.
   githubHostOf(bindings);
   startingModels(bindings);
   allowEntriesOf(bindings.SIGN_IN_ALLOW);
   retentionDaysOf(bindings.RETENTION_DAYS);
+  instanceAdminsOf(bindings.INSTANCE_ADMINS);
   return bindings;
 }
 
