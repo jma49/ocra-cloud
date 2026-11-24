@@ -205,23 +205,6 @@ describe("a round", () => {
     });
   });
 
-  it("counts what each round cost as the account's spend, outside the spend limits", async () => {
-    await ask([t.second]);
-    const proposed = round({
-      outcome: "proposed",
-      commitSha: null,
-      items: [item("fp-crit", "rejected", "unresolved")],
-    });
-    await runRound(fakeExec(JSON.stringify(proposed)).exec);
-    expect(await loop()).toMatchObject({ state: "done", outcome: "proposed" });
-    await ask([t.second]);
-    await runRound(fakeExec(JSON.stringify(round({ items: [item("fp-crit", "fixed")] }))).exec);
-    expect(await data().find("usageCounters", { kind: "other_spend" })).toMatchObject([
-      { day: utcDay(new Date()), n: 40_000 },
-    ]);
-    expect((await data().spent()).todayUsd).toBe(0);
-  });
-
   it("fails a run whose answer is unreadable, to be tried again, and leaves the findings waiting", async () => {
     await ask([t.second]);
     await runRound(fakeExec("[ocra] something went wrong").exec);

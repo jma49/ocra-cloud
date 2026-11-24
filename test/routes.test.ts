@@ -41,6 +41,8 @@ const ACCESS: Record<string, Access> = {
   "POST /api/device/refresh": "public",
   "GET /api/me": "web+cli",
   "GET /api/usage": "web",
+  "GET /api/ledger": "web",
+  "GET /api/ledger/csv": "web",
   "GET /api/sessions": "web",
   "GET /api/admin/instance": "web",
   "DELETE /api/sessions/:id": "web",

@@ -6,6 +6,7 @@ import { compact, num, period, time } from "../format.js";
 import { daysParam } from "../router.js";
 import { StackTable } from "../stack-table.js";
 import { EmptyNote, LoadError, Loading, PageHead, Seg, StackedBars } from "../ui.js";
+import { SpendLedger } from "../usage/spend-ledger.js";
 
 const RANGES = [7, 14, 30, 90].map(period);
 
@@ -131,6 +132,8 @@ function ActivityBody(props: {
           </StackTable>
         </div>
       )}
+
+      <SpendLedger />
 
       <div className="section card">
         <div className="card-head">

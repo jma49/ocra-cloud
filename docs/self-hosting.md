@@ -206,7 +206,7 @@ Tested against a stand-in server (`test-node/github-enterprise.test.ts`: sign-in
 | `auth` | no | `bearer` (the default) or `x-api-key`: how the key goes on the request |
 | `models` | no | a GET that lists the models in OpenAI's shape; it also checks a key |
 | `key` | no | the server's own key: every account's calls use it and nobody stores one. Without it, each person adds their own key for the endpoint on the keys page |
-| `prices` | no | what its models cost, by model id, in US dollars per million tokens: `{"qwen3-coder": {"input": 0.4, "output": 1.2, "cachedInput": 0.1}}` (`cachedInput` is optional). The CLI counts a review's cost and its spend limit (`maxCostUsd`) with them. A model without a price is counted at $0, and each review says so in a warning |
+| `prices` | no | what its models cost, by model id, in US dollars per million tokens: `{"qwen3-coder": {"input": 0.4, "output": 1.2, "cachedInput": 0.1}}` (`cachedInput` is optional). The CLI counts a review's cost and its spend limit (`maxCostUsd`) with them, and the usage ledger prices each call to the endpoint at them, cache writes as input (`docs/usage-reconciliation.md`). A model without a price is counted at $0 by the CLI, and each review says so in a warning; the ledger shows its calls as unpriced |
 
 An endpoint with a `key` is the company's bill: every account calls it through `/api/gateway`, held back only by the per-account daily caps. Without `SIGN_IN_ALLOW`, anyone who can sign in gets an account, and so does anyone with a GitHub account when people sign in with GitHub, so set it whenever an endpoint has a `key`; the server warns at start (`open_sign_in_with_server_key`) when one does and no list is set.
 

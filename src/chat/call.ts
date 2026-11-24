@@ -1,11 +1,12 @@
 import type { Context } from "hono";
+import { keepLargest, NO_USAGE, priceCall, type Usage } from "../call-usage.js";
 import { outboundFetch } from "../calls.js";
 import { catalogOf } from "../catalog.js";
 import { config } from "../config.js";
 import type { Row } from "../db/scoped.js";
 import { deadline } from "../deadline.js";
 import { defer } from "../defer.js";
-import { END_STATUS, HEADERS_TIMEOUT_MS, PENDING, TIMED_OUT, type Usage } from "../gateway.js";
+import { END_STATUS, HEADERS_TIMEOUT_MS, PENDING, TIMED_OUT } from "../gateway.js";
 import { apiError } from "../http.js";
 import { keyFor, masterKeys } from "../keyring.js";
 import { applyAuth, type ChatRoute, chatRoute, type Provider } from "../providers.js";
@@ -15,13 +16,10 @@ import type { AppEnv } from "../types.js";
 import { chatEvent, chatRequest, ssePayloads, type Turn } from "./model.js";
 
 // A model call the console makes for the account, with its own provider
-// key: it counts against the gateway's daily cap, is recorded as a gateway
-// call, and what it cost at its model's listed price is counted as the
-// account's spend. The prompt and the answer are never logged.
+// key: it counts against the gateway's daily cap and is recorded, with what
+// it cost, as a gateway call. The prompt and the answer are never logged.
 
 export type ChatModel = { ref: ModelRef; provider: Provider; route: ChatRoute; key: string };
-
-export const NO_USAGE: Usage = { tokensIn: 0, tokensOut: 0 };
 
 /** The models of the account's tiers, the standard tier's first, without repeats. */
 export function tierModels(prefs: Row<"preferences"> | undefined): string[] {
@@ -57,18 +55,6 @@ export async function takeDailyCall(c: Context<AppEnv>): Promise<Response | null
   return apiError(c, "daily_limit", { limit: dailyCallLimit(own, cap) });
 }
 
-/**
- * What a call cost at its model's listed price; nothing for a model without
- * one. The console's requests mark nothing for caching, so all of their
- * input is at the input price.
- */
-function callCostUsd(model: ChatModel, usage: Usage): number {
-  const prices = model.provider.prices;
-  const price = prices && Object.hasOwn(prices, model.ref.model) ? prices[model.ref.model] : null;
-  if (!price) return 0;
-  return (usage.tokensIn * price.input + usage.tokensOut * price.output) / 1_000_000;
-}
-
 /** A gateway call recorded as pending; `finish` records how it ended and what it cost. */
 export async function recordCall(c: Context<AppEnv>, model: ChatModel) {
   const data = c.var.data;
@@ -80,10 +66,12 @@ export async function recordCall(c: Context<AppEnv>, model: ChatModel) {
   });
   const started = Date.now();
   return (status: number, usage: Usage) =>
-    Promise.all([
-      data.update("gatewayCalls", id, { status, ...usage, ms: Date.now() - started }),
-      data.countOtherSpend(callCostUsd(model, usage)),
-    ]);
+    data.update("gatewayCalls", id, {
+      status,
+      ...usage,
+      ...priceCall(model.provider, model.ref.model, usage),
+      ms: Date.now() - started,
+    });
 }
 
 /**
@@ -158,8 +146,7 @@ export async function completeChat(
       const payload = await payloads.next();
       if (payload === null) break;
       const event = chatEvent(model.route.wire, payload);
-      usage.tokensIn = Math.max(usage.tokensIn, event.usage.tokensIn);
-      usage.tokensOut = Math.max(usage.tokensOut, event.usage.tokensOut);
+      keepLargest(usage, event.usage);
       if (event.failed) {
         failed = true;
         break;

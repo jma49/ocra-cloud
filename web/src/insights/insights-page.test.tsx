@@ -169,7 +169,7 @@ describe("Insights", () => {
     expect(text).not.toContain("1 finding fixed");
   });
 
-  it("gives as Spend all the account spent in the period, and says what that counts", async () => {
+  it("gives as Spend what the period's model calls cost, and says what that counts", async () => {
     const summary = {
       reviews: 2,
       repositories: 1,
@@ -205,7 +205,14 @@ describe("Insights", () => {
           });
         }
         if (url.startsWith("/api/reviews")) {
-          return Response.json({ days: 30, summary, spend, reviewers: {}, reviews: [] });
+          return Response.json({
+            days: 30,
+            summary,
+            spend,
+            unpricedCalls: 2,
+            reviewers: {},
+            reviews: [],
+          });
         }
         return Response.json({ error: "internal" }, { status: 500 });
       }),
@@ -214,8 +221,8 @@ describe("Insights", () => {
     const stat = await screen.findByRole("link", { name: /^Spend/ });
     expect(stat?.textContent).toContain("$3.50");
     expect(stat?.textContent).toContain("$0.20 a review");
-    expect(
-      screen.getByText(/^Spend is the cost reviews uploaded to ocra Cloud reported/),
-    ).toBeTruthy();
+    const note = screen.getByText(/^Spend is what every model call made with your keys/);
+    expect(note.textContent).toContain("2 calls on models without a price are not counted.");
+    expect(within(note).getByRole("link", { name: "See it by day and model" })).toBeTruthy();
   });
 });

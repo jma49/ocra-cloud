@@ -448,8 +448,9 @@ export const auditEvents = sqliteTable(
   ],
 );
 
-// One model call through the gateway: the audit log of key use, and the
-// usage behind the daily cap and statistics. Never a request or answer body.
+// One model call through the gateway or the console: the audit log of key
+// use, and the ledger of what each call used and cost, from the provider's
+// own counts. Never a request or answer body.
 export const gatewayCalls = sqliteTable(
   "gateway_calls",
   {
@@ -459,8 +460,16 @@ export const gatewayCalls = sqliteTable(
     path: text("path").notNull(),
     model: text("model"),
     status: integer("status").notNull(),
+    /** The whole prompt, the cache reads and writes below included. */
     tokensIn: integer("tokens_in").notNull().default(0),
     tokensOut: integer("tokens_out").notNull().default(0),
+    cacheRead: integer("cache_read").notNull().default(0),
+    cacheWrite5m: integer("cache_write_5m").notNull().default(0),
+    cacheWrite1h: integer("cache_write_1h").notNull().default(0),
+    /** Millionths of a US dollar at the model's list price; null when it has none. */
+    costMicroUsd: integer("cost_micro_usd"),
+    /** Which prices it was counted at (model-prices.ts's PRICES_VERSION, or "endpoint"). */
+    priceVersion: text("price_version"),
     ms: integer("ms").notNull().default(0),
     createdAt: createdAt(),
   },
@@ -645,10 +654,7 @@ export const accountMemory = sqliteTable(
 
 // What an account used on a UTC day, counted as it happens, so a cap is
 // checked by reading a row or a few instead of counting the account's
-// records (audit C1). Kept RETENTION_DAYS, like the records. For spend,
-// millionths of a US dollar: "spend" is what reviews reported, which the
-// spend limits count; "other_spend" what fix runs, fix-loop rounds and the
-// console's own model calls cost, which only Insights counts.
+// records (audit C1). Kept RETENTION_DAYS, like the records.
 export const usageCounters = sqliteTable(
   "usage_counters",
   {
@@ -664,7 +670,6 @@ export const usageCounters = sqliteTable(
         "report_sends",
         "spend",
         "fix_requests",
-        "other_spend",
       ],
     }).notNull(),
     /** The UTC date, YYYY-MM-DD. */

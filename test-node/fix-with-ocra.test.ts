@@ -306,18 +306,6 @@ describe("a fix's run", () => {
     ]);
   });
 
-  it("counts what its run cost as the account's spend, outside the spend limits", async () => {
-    await ask({ finding: findingId });
-    await runFix(fakeExec(JSON.stringify(answer({ fingerprint: "fp-other" }))).exec);
-    const data = scoped(s.host.db, accountId);
-    const counted = () => data.find("usageCounters", { kind: "other_spend" });
-    expect(await counted()).toEqual([]);
-    await data.update("fixJobs", (await jobs())[0]?.id ?? "", { notBefore: null });
-    await runFix(fakeExec(JSON.stringify(answer())).exec);
-    expect(await counted()).toMatchObject([{ day: utcDay(new Date()), n: 10_000 }]);
-    expect((await data.spent()).todayUsd).toBe(0);
-  });
-
   it("fails a run whose answer is unreadable or another finding's, to be tried again", async () => {
     await ask({ finding: findingId });
     await runFix(fakeExec("[ocra] something went wrong").exec);

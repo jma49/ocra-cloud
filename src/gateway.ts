@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { readText } from "./body.js";
+import { NO_USAGE, parseUsage, priceCall, type Usage } from "./call-usage.js";
 import { outboundFetch } from "./calls.js";
 import { catalogOf } from "./catalog.js";
 import { config } from "./config.js";
@@ -17,7 +18,8 @@ import type { AppEnv } from "./types.js";
 // for a provider it holds one for. The request body goes upstream as sent
 // and the answer streams back as it comes; the gateway reads only the model
 // name from the request and the token counts from the first and last bytes
-// of the answer. Bodies are never logged or stored.
+// of the answer, and records what the call cost at its model's list price.
+// Bodies are never logged or stored.
 
 const MAX_BODY = 8 * 1024 * 1024;
 const EDGE = 16 * 1024;
@@ -75,8 +77,16 @@ gateway.post("/:provider/*", async (c) => {
   }
 
   const started = Date.now();
-  const finish = (status: number, usage: Usage) =>
-    defer(c, data.update("gatewayCalls", id, { status, ...usage, ms: Date.now() - started }));
+  // Counting a prompt's tokens is free: its answer is a count, not usage.
+  const free = path.endsWith("/count_tokens");
+  const finish = (status: number, counted: Usage) => {
+    const usage = free ? NO_USAGE : counted;
+    const priced = priceCall(provider, model, usage);
+    defer(
+      c,
+      data.update("gatewayCalls", id, { status, ...usage, ...priced, ms: Date.now() - started }),
+    );
+  };
 
   const client = c.req.raw.signal;
   const clock = deadline(HEADERS_TIMEOUT_MS, client);
@@ -92,14 +102,14 @@ gateway.post("/:provider/*", async (c) => {
     });
   } catch {
     const status = client.aborted ? END_STATUS.cancelled : clock.timedOut() ? TIMED_OUT : 502;
-    finish(status, { tokensIn: 0, tokensOut: 0 });
+    finish(status, NO_USAGE);
     return apiError(c, "upstream_unreachable");
   } finally {
     clock.clear();
   }
   if (upstream.status >= 300 && upstream.status < 400) {
     await upstream.body?.cancel().catch(() => {});
-    finish(502, { tokensIn: 0, tokensOut: 0 });
+    finish(502, NO_USAGE);
     return apiError(c, "upstream_redirect", { status: upstream.status });
   }
 
@@ -109,7 +119,7 @@ gateway.post("/:provider/*", async (c) => {
     if (v) out.set(h, v);
   }
   if (!upstream.body) {
-    finish(upstream.status, { tokensIn: 0, tokensOut: 0 });
+    finish(upstream.status, NO_USAGE);
     return new Response(null, { status: upstream.status, headers: out });
   }
   const metered = usageMeter(upstream.body, (end, usage) =>
@@ -124,8 +134,6 @@ export const PENDING = 0;
 export const END_STATUS = { cancelled: 499, failed: 502 } as const;
 /** Recorded when the provider did not start answering within HEADERS_TIMEOUT_MS. */
 export const TIMED_OUT = 504;
-
-export type Usage = { tokensIn: number; tokensOut: number };
 
 /**
  * Passes the answer through unchanged, keeping its first and last EDGE
@@ -188,25 +196,6 @@ function usageMeter(
       await reader.cancel(reason).catch(() => {});
     },
   });
-}
-
-/**
- * Input counts: OpenAI-style and Gemini prompt counts include cached tokens;
- * Anthropic's input_tokens does not, so its cache reads and writes are added.
- */
-export function parseUsage(text: string): Usage {
-  const max = (re: RegExp) => {
-    let v = 0;
-    for (const m of text.matchAll(re)) v = Math.max(v, Number(m[1]));
-    return v;
-  };
-  return {
-    tokensIn:
-      max(/"(?:prompt_tokens|input_tokens|promptTokenCount)"\s*:\s*(\d+)/g) +
-      max(/"cache_read_input_tokens"\s*:\s*(\d+)/g) +
-      max(/"cache_creation_input_tokens"\s*:\s*(\d+)/g),
-    tokensOut: max(/"(?:completion_tokens|output_tokens|candidatesTokenCount)"\s*:\s*(\d+)/g),
-  };
 }
 
 /** The request's own model field; never one nested in messages or tools. */
