@@ -45,6 +45,8 @@
     // asked for before anyone signs in.
     "DEVICE_DAILY_CODES_PER_NETWORK": "20",
     "DEVICE_DAILY_CODES": "1000",
+    // INSTANCE_ADMINS is not a var here: it names operators' identities, so
+    // it is a Worker secret (wrangler secret put) and stays out of the repo.
     "PUBLIC_URL": "https://app.ocracloud.com"
   },
   // The web app is a single-page app; the Worker answers /api first.
