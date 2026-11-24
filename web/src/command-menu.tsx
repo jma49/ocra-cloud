@@ -28,6 +28,8 @@ export type CommandEntry = {
   within: string;
   /** Said beside the label: a pull request's reference, a finding's file. */
   hint?: string;
+  /** The hint is a literal (a path), set in the code face. */
+  literal?: boolean;
   /** The key or keys that do the same outside the menu. */
   key?: string;
   icon?: LucideIcon;
@@ -141,7 +143,11 @@ export function CommandMenu(props: { sections: CommandSection[] }) {
                           <entry.icon className="command-icon" size={16} aria-hidden="true" />
                         ) : null}
                         <span className="command-label">{entry.label}</span>
-                        {entry.hint && <span className="command-hint">{entry.hint}</span>}
+                        {entry.hint && (
+                          <span className={`command-hint${entry.literal ? " mono" : ""}`}>
+                            {entry.hint}
+                          </span>
+                        )}
                         {entry.key && <KeyCaps keys={entry.key} className="command-key" />}
                       </CommandItem>
                     )}

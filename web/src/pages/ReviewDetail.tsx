@@ -54,6 +54,12 @@ type Detail = {
 type Review = Detail["review"];
 
 const RANK = { critical: 0, warning: 1, suggestion: 2 } as const;
+const SEVERITIES = ["critical", "warning", "suggestion"] as const;
+const SEVERITY_LABEL = {
+  critical: "Critical",
+  warning: "Warning",
+  suggestion: "Suggestion",
+} as const;
 
 export function ReviewDetail(props: { id: string; graphs: boolean }) {
   const { data, error, reload } = useCached(`/reviews/${props.id}`, () =>
@@ -143,6 +149,7 @@ export function ReviewDetail(props: { id: string; graphs: boolean }) {
     );
   const r = data.review;
   const files = new Set(data.findings.map((f) => f.file)).size;
+  const present = SEVERITIES.filter((s) => data.findings.some((f) => f.severity === s));
   return (
     <div className="review-frame">
       <aside className="review-side" aria-label="Properties">
@@ -169,15 +176,13 @@ export function ReviewDetail(props: { id: string; graphs: boolean }) {
             Activity · {data.findings.length} finding{data.findings.length === 1 ? "" : "s"} in{" "}
             {files} file{files === 1 ? "" : "s"}
           </span>
-          {data.findings.length > 0 && (
+          {present.length > 1 && (
             <Seg
               label="Severity"
               value={severity}
               options={[
                 { value: "all", label: "All" },
-                { value: "critical", label: "Critical" },
-                { value: "warning", label: "Warning" },
-                { value: "suggestion", label: "Suggestion" },
+                ...present.map((s) => ({ value: s, label: SEVERITY_LABEL[s] })),
               ]}
               onChange={setSeverity}
             />
