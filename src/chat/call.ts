@@ -5,7 +5,16 @@ import { config } from "../config.js";
 import type { Row } from "../db/scoped.js";
 import { deadline } from "../deadline.js";
 import { defer } from "../defer.js";
-import { END_STATUS, HEADERS_TIMEOUT_MS, PENDING, TIMED_OUT, type Usage } from "../gateway.js";
+import {
+  costOf,
+  END_STATUS,
+  HEADERS_TIMEOUT_MS,
+  keepMost,
+  NO_USAGE,
+  PENDING,
+  TIMED_OUT,
+  type Usage,
+} from "../gateway.js";
 import { apiError } from "../http.js";
 import { keyFor, masterKeys } from "../keyring.js";
 import { applyAuth, type ChatRoute, chatRoute, type Provider } from "../providers.js";
@@ -19,8 +28,6 @@ import { chatEvent, chatRequest, ssePayloads, type Turn } from "./model.js";
 // gateway call. The prompt and the answer are never logged.
 
 export type ChatModel = { ref: ModelRef; provider: Provider; route: ChatRoute; key: string };
-
-export const NO_USAGE: Usage = { tokensIn: 0, tokensOut: 0 };
 
 /** The models of the account's tiers, the standard tier's first, without repeats. */
 export function tierModels(prefs: Row<"preferences"> | undefined): string[] {
@@ -64,10 +71,17 @@ export async function recordCall(c: Context<AppEnv>, model: ChatModel) {
     path: model.route.path,
     model: model.ref.model,
     status: PENDING,
+    origin: "console",
+    sessionId: c.var.session.sessionId,
   });
   const started = Date.now();
   return (status: number, usage: Usage) =>
-    data.update("gatewayCalls", id, { status, ...usage, ms: Date.now() - started });
+    data.update("gatewayCalls", id, {
+      status,
+      ...usage,
+      costUsd: costOf(model.provider.prices, model.ref.model, usage),
+      ms: Date.now() - started,
+    });
 }
 
 /**
@@ -142,8 +156,7 @@ export async function completeChat(
       const payload = await payloads.next();
       if (payload === null) break;
       const event = chatEvent(model.route.wire, payload);
-      usage.tokensIn = Math.max(usage.tokensIn, event.usage.tokensIn);
-      usage.tokensOut = Math.max(usage.tokensOut, event.usage.tokensOut);
+      keepMost(usage, event.usage);
       if (event.failed) {
         failed = true;
         break;

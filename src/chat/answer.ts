@@ -1,11 +1,10 @@
 import type { Context } from "hono";
 import type { Row } from "../db/scoped.js";
 import { defer } from "../defer.js";
-import { END_STATUS, type Usage } from "../gateway.js";
+import { END_STATUS, keepMost, NO_USAGE, type Usage } from "../gateway.js";
 import type { AppEnv } from "../types.js";
 import {
   type ChatModel,
-  NO_USAGE,
   recordCall,
   sendChat,
   takeDailyCall,
@@ -99,8 +98,7 @@ export async function streamAnswer<M>(c: Context<AppEnv>, ask: ChatAnswer<M>): P
           return;
         }
         const event = chatEvent(wire, payload);
-        usage.tokensIn = Math.max(usage.tokensIn, event.usage.tokensIn);
-        usage.tokensOut = Math.max(usage.tokensOut, event.usage.tokensOut);
+        keepMost(usage, event.usage);
         if (event.failed) {
           await payloads.cancel();
           await end("failed");

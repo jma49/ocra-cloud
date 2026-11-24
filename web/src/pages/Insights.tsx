@@ -116,7 +116,10 @@ export function Insights(props: { runner: boolean; platforms: readonly CodePlatf
     api<Insights>(`/findings/insights?days=${days}`),
   );
   const runs = useCached(`/reviews?days=${days}`, () => api<Reviews>(`/reviews?days=${days}`));
-  const series = useMemo(() => runs.data && daily(runs.data.reviews, days), [runs.data, days]);
+  const series = useMemo(
+    () => runs.data && daily(runs.data.reviews, days, Date.now(), runs.data.gateway.days),
+    [runs.data, days],
+  );
   const error = quality.error ?? runs.error;
   const reload = () => {
     quality.reload();
@@ -154,6 +157,7 @@ export function Insights(props: { runner: boolean; platforms: readonly CodePlatf
       ) : (
         <>
           <Kpis runs={runs.data} quality={data} />
+          <p className="muted small">Spend: {SPEND_COVERS}</p>
           {runs.data.reviews.length < runs.data.summary.reviews && (
             <p className="muted small">
               The charts show the newest {num(runs.data.reviews.length)} of{" "}
@@ -233,8 +237,20 @@ function SharedNote(props: { reported: number; quality: Insights }) {
   );
 }
 
+const SPEND_COVERS =
+  "Model spend for reviews and ocra actions in Cloud. Runs outside Cloud (CI, local) are not included unless they upload.";
+
+/** What the reviews cost each, and what ocra Cloud's own calls added. */
+export function spendNote(reviewsUsd: number, reviews: number, g: Reviews["gateway"]): string {
+  const parts = [reviews ? `${usd(reviewsUsd / reviews)} a review` : "No reviews"];
+  if (g.costUsd > 0) parts.push(`${usd(g.costUsd)} in ocra actions`);
+  if (g.unpriced > 0) parts.push(`${count(g.unpriced, "call")} unpriced`);
+  return parts.join(" · ");
+}
+
 function Kpis(props: { runs: Reviews; quality: Insights }) {
   const s = props.runs.summary;
+  const g = props.runs.gateway;
   const times = props.runs.reviews.map((r) => r.durationMs / 1000).sort((a, b) => a - b);
   const median = quantile(times, 0.5);
   const t = props.quality.total;
@@ -270,10 +286,8 @@ function Kpis(props: { runs: Reviews; quality: Insights }) {
       </div>
       <div className="card stat">
         <div className="stat-label">Spend</div>
-        <div className="stat-value">{usd(s.costUsd)}</div>
-        <div className="stat-note">
-          {s.reviews ? `${usd(s.costUsd / s.reviews)} a review` : "–"}
-        </div>
+        <div className="stat-value">{usd(s.costUsd + g.costUsd)}</div>
+        <div className="stat-note">{spendNote(s.costUsd, s.reviews, g)}</div>
       </div>
     </div>
   );

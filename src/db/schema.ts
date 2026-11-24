@@ -443,8 +443,22 @@ export const gatewayCalls = sqliteTable(
     path: text("path").notNull(),
     model: text("model"),
     status: integer("status").notNull(),
+    // Input counts every input token, cached ones too; the cache's share
+    // apart, since it costs less.
     tokensIn: integer("tokens_in").notNull().default(0),
     tokensOut: integer("tokens_out").notNull().default(0),
+    cacheReadTokens: integer("cache_read_tokens").notNull().default(0),
+    cacheWriteTokens: integer("cache_write_tokens").notNull().default(0),
+    // At the provider's listed price; null while pending or when the model has none.
+    costUsd: real("cost_usd"),
+    // "run": forwarded for a CLI run; "console": made by ocra Cloud itself
+    // (Ask ocra, Explain, review chat). Rows before the column read "run".
+    origin: text("origin", { enum: ["run", "console"] })
+      .notNull()
+      .default("run"),
+    sessionId: text("session_id"),
+    // The uploaded review whose own reported cost includes this call.
+    reviewId: text("review_id"),
     ms: integer("ms").notNull().default(0),
     createdAt: createdAt(),
   },

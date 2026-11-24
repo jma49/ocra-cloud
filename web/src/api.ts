@@ -1,6 +1,7 @@
 import type { ErrorCode } from "@open-cr-agent/cloud-contract";
 import type {
   CodePlatformKind,
+  GatewaySpendView,
   GraphPolicy,
   ProviderGroup,
   ReviewerCounts,
@@ -306,4 +307,5 @@ export type Reviews = {
     ReviewerCounts & { findingsTotal: number; acceptanceRate: number | null }
   >;
   reviews: Review[];
+  gateway: GatewaySpendView;
 };

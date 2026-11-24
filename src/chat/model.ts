@@ -1,4 +1,4 @@
-import { parseUsage, type Usage } from "../gateway.js";
+import { NO_USAGE, parseUsage, type Usage } from "../gateway.js";
 import type { Wire } from "../shared/index.js";
 
 // One streamed model call in the two wire formats the providers speak: an
@@ -45,7 +45,7 @@ export type ChatEvent = { text: string; usage: Usage; failed: boolean };
 
 /** What one `data:` payload of the stream says; non-JSON payloads (`[DONE]`) say nothing. */
 export function chatEvent(wire: Wire, payload: string): ChatEvent {
-  const none: ChatEvent = { text: "", usage: { tokensIn: 0, tokensOut: 0 }, failed: false };
+  const none: ChatEvent = { text: "", usage: NO_USAGE, failed: false };
   let json: unknown;
   try {
     json = JSON.parse(payload);

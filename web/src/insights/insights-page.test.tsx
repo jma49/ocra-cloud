@@ -61,6 +61,7 @@ describe("Insights", () => {
       downvoteRate: reacted ? down / reacted : null,
     });
     const { key: _, ...total } = row(null, 3, 1, 4);
+    const gateway = { costUsd: 0.15, calls: 3, console: 3, unpriced: 2, days: [] };
     const summary = {
       reviews: 2,
       repositories: 1,
@@ -89,7 +90,7 @@ describe("Insights", () => {
           });
         }
         if (url.startsWith("/api/reviews")) {
-          return Response.json({ days: 30, summary, reviewers: {}, reviews: [] });
+          return Response.json({ days: 30, summary, reviewers: {}, reviews: [], gateway });
         }
         return Response.json({ error: "internal" }, { status: 500 });
       }),
@@ -106,6 +107,12 @@ describe("Insights", () => {
     expect(within(tests).getAllByText("–")).toHaveLength(2);
     expect(screen.getByText(/· 75% upvoted/)).toBeTruthy();
     expect(screen.getByRole("row", { name: /^Warning/ })).toBeTruthy();
+    // The reviews' $0.40 and ocra Cloud's own calls' $0.15, and what it leaves out.
+    expect(screen.getByText("$0.55")).toBeTruthy();
+    expect(
+      screen.getByText("$0.20 a review · $0.15 in ocra actions · 2 calls unpriced"),
+    ).toBeTruthy();
+    expect(document.body.textContent).toContain("Runs outside Cloud (CI, local) are not included");
   });
 
   it("says which findings the tables count where the reviews reported more than were shared", async () => {
@@ -125,6 +132,7 @@ describe("Insights", () => {
       thumbsUpRate: null,
       downvoteRate: null,
     };
+    const gateway = { costUsd: 0, calls: 0, console: 0, unpriced: 0, days: [] };
     const summary = {
       reviews: 4,
       repositories: 1,
@@ -153,7 +161,7 @@ describe("Insights", () => {
           });
         }
         if (url.startsWith("/api/reviews")) {
-          return Response.json({ days: 30, summary, reviewers: {}, reviews: [] });
+          return Response.json({ days: 30, summary, reviewers: {}, reviews: [], gateway });
         }
         return Response.json({ error: "internal" }, { status: 500 });
       }),

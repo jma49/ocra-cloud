@@ -478,11 +478,18 @@ describe("checking a cap", () => {
       },
     });
     for (const p of plans) {
+      // The upload claims its session's gateway calls of the run's own
+      // minutes, a range of the account's newest calls, not a count of them.
+      if (/^\s*for update "gateway_calls"/m.test(p)) {
+        expect(p).toMatch(/gateway_calls_account_created \(account_id=\? AND created_at>\?\)/);
+        continue;
+      }
       expect(p).not.toMatch(COUNTED);
       // json_each is the upload's own findings; a subquery, its one count.
       expect(p).not.toMatch(/\bSCAN (?!json_each|\(subquery-\d+\))/);
     }
     expect(plans.join("\n")).toMatch(/insert into "usage_counters"/);
+    expect(plans.join("\n")).toMatch(/update "gateway_calls"/);
   });
 
   it("a gateway call counts none of the account's calls", async () => {

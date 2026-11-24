@@ -26,7 +26,7 @@ import { perMinute, retryTomorrow } from "./rate.js";
 import { repoNames } from "./repositories.js";
 import { pullOfReview, pullOnPlatform } from "./review-pull.js";
 import { requireSession } from "./session.js";
-import type { ReviewerCounts, ReviewWalkthroughView } from "./shared/index.js";
+import type { GatewaySpendView, ReviewerCounts, ReviewWalkthroughView } from "./shared/index.js";
 import { DAY } from "./time.js";
 import type { AppEnv } from "./types.js";
 import { parseWalkthrough } from "./walkthrough.js";
@@ -155,6 +155,9 @@ reviews.post("/", requireSession(["web", "cli"]), perMinute("upload"), uploadBod
     return apiError(c, "daily_limit", { limit });
   }
   const { id, findingsSkipped } = stored;
+  // The run's calls through the gateway are in its reported cost: claimed,
+  // so Insights does not count them a second time.
+  await c.var.data.gatewaySpend.claim(c.var.session.sessionId, upload.durationMs, id);
   // A retry of the run answers duplicate above, so this runs once per review.
   if (walkthrough) await c.var.data.insert("reviewWalkthroughs", { ...walkthrough, reviewId: id });
   const fixed = sharing ? fixedOnPull(upload) : null;
@@ -393,14 +396,16 @@ reviews.get("/", requireSession(), async (c) => {
   const days = queryDays(c, 30);
   const since = new Date(Date.now() - days * DAY);
   // The totals are summed in SQL (audit D5); the list shows the newest 500.
-  const [{ summary, byReviewer }, rows, names] = await Promise.all([
+  const [{ summary, byReviewer }, rows, names, gateway] = await Promise.all([
     c.var.data.reviewSummary(since),
     c.var.data.listSince("reviews", since, 500),
     repoNames(c.var.data),
+    c.var.data.gatewaySpend.unclaimed(since),
   ]);
   return c.json({
     days,
     summary,
+    gateway: gateway satisfies GatewaySpendView,
     reviewers: perReviewer(byReviewer),
     reviews: rows.map((r) => ({ ...listedReview(r), name: names.get(r.repoHash) ?? null })),
   });

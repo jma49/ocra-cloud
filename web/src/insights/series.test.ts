@@ -39,6 +39,15 @@ describe("the insights series", () => {
     expect(d.critical[0]?.start.toISOString()).toBe("2026-11-19T00:00:00.000Z");
   });
 
+  it("add ocra Cloud's own model calls to each day's spend", () => {
+    const d = daily([review(0, { costUsd: 0.1 })], 3, now, [
+      { day: "2026-11-20", costUsd: 0.5 },
+      { day: "2026-11-21", costUsd: 0.25 },
+      { day: "2026-11-01", costUsd: 9 },
+    ]);
+    expect(d.spend.map((p) => p.value)).toEqual([0, 0.5, 0.35]);
+  });
+
   it("give review time only on days that had reviews", () => {
     const d = daily(
       [

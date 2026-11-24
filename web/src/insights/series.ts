@@ -25,11 +25,25 @@ export function quantile(sorted: number[], q: number): number | null {
   return sorted[Math.min(sorted.length - 1, Math.ceil(q * sorted.length) - 1)] ?? null;
 }
 
-/** One point per UTC day of the last `days` days, ending today; review time in seconds, only on days with reviews. */
-export function daily(reviews: Review[], days: number, now = Date.now()): Daily {
+/**
+ * One point per UTC day of the last `days` days, ending today; review time
+ * in seconds, only on days with reviews. Spend adds `gateway`, the cost of
+ * ocra Cloud's model calls no review reports, by UTC day.
+ */
+export function daily(
+  reviews: Review[],
+  days: number,
+  now = Date.now(),
+  gateway: readonly { day: string; costUsd: number }[] = [],
+): Daily {
   const today = Math.floor(now / DAY) * DAY;
   const first = today - (days - 1) * DAY;
   const buckets = Array.from({ length: days }, () => [] as Review[]);
+  const calls = Array.from({ length: days }, () => 0);
+  for (const g of gateway) {
+    const i = Math.floor((Date.parse(`${g.day}T00:00:00Z`) - first) / DAY);
+    if (i >= 0 && i < days) calls[i] = (calls[i] ?? 0) + g.costUsd;
+  }
   for (const r of reviews) {
     const i = Math.floor((Date.parse(r.createdAt) - first) / DAY);
     if (i >= 0 && i < days) buckets[i]?.push(r);
@@ -42,7 +56,8 @@ export function daily(reviews: Review[], days: number, now = Date.now()): Daily 
     out.critical.push({ start, end, value: sum((r) => r.critical) });
     out.warning.push({ start, end, value: sum((r) => r.warning) });
     out.suggestion.push({ start, end, value: sum((r) => r.suggestion) });
-    out.spend.push({ start, end, value: Math.round(sum((r) => r.costUsd) * 100) / 100 });
+    const spent = sum((r) => r.costUsd) + (calls[i] ?? 0);
+    out.spend.push({ start, end, value: Math.round(spent * 100) / 100 });
     const times = day.map((r) => r.durationMs / 1000).sort((a, b) => a - b);
     const p50 = quantile(times, 0.5);
     const p95 = quantile(times, 0.95);

@@ -568,6 +568,13 @@
       "when": 1795505272775,
       "tag": "0080_pull_chat_messages",
       "breakpoints": true
+    },
+    {
+      "idx": 81,
+      "version": "7",
+      "when": 1795512151587,
+      "tag": "0081_gateway_call_cost",
+      "breakpoints": true
     }
   ]
 }

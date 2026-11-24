@@ -1,3 +1,4 @@
+import type { ModelPrice } from "@open-cr-agent/cloud-contract";
 import { Hono } from "hono";
 import { readText } from "./body.js";
 import { outboundFetch } from "./calls.js";
@@ -7,6 +8,7 @@ import { deadline } from "./deadline.js";
 import { defer } from "./defer.js";
 import { apiError } from "./http.js";
 import { keyFor, masterKeys } from "./keyring.js";
+import { callCostUsd, priceIn } from "./model-prices.js";
 import { applyAuth, matchRoute, PASS_HEADERS } from "./providers.js";
 import { perMinute, retryTomorrow } from "./rate.js";
 import { requireSession } from "./session.js";
@@ -57,7 +59,14 @@ gateway.post("/:provider/*", async (c) => {
     const own = (await data.findOne("budgets", {}))?.dailyCalls;
     return apiError(c, "daily_limit", { limit: dailyCallLimit(own, cap) });
   }
-  const id = await data.insert("gatewayCalls", { provider: name, path, model, status: PENDING });
+  const id = await data.insert("gatewayCalls", {
+    provider: name,
+    path,
+    model,
+    status: PENDING,
+    origin: "run",
+    sessionId: c.var.session.sessionId,
+  });
 
   const headers = new Headers({
     "content-type": c.req.header("content-type") ?? "application/json",
@@ -76,7 +85,15 @@ gateway.post("/:provider/*", async (c) => {
 
   const started = Date.now();
   const finish = (status: number, usage: Usage) =>
-    defer(c, data.update("gatewayCalls", id, { status, ...usage, ms: Date.now() - started }));
+    defer(
+      c,
+      data.update("gatewayCalls", id, {
+        status,
+        ...usage,
+        costUsd: costOf(provider.prices, model, usage),
+        ms: Date.now() - started,
+      }),
+    );
 
   const client = c.req.raw.signal;
   const clock = deadline(HEADERS_TIMEOUT_MS, client);
@@ -92,14 +109,14 @@ gateway.post("/:provider/*", async (c) => {
     });
   } catch {
     const status = client.aborted ? END_STATUS.cancelled : clock.timedOut() ? TIMED_OUT : 502;
-    finish(status, { tokensIn: 0, tokensOut: 0 });
+    finish(status, NO_USAGE);
     return apiError(c, "upstream_unreachable");
   } finally {
     clock.clear();
   }
   if (upstream.status >= 300 && upstream.status < 400) {
     await upstream.body?.cancel().catch(() => {});
-    finish(502, { tokensIn: 0, tokensOut: 0 });
+    finish(502, NO_USAGE);
     return apiError(c, "upstream_redirect", { status: upstream.status });
   }
 
@@ -109,7 +126,7 @@ gateway.post("/:provider/*", async (c) => {
     if (v) out.set(h, v);
   }
   if (!upstream.body) {
-    finish(upstream.status, { tokensIn: 0, tokensOut: 0 });
+    finish(upstream.status, NO_USAGE);
     return new Response(null, { status: upstream.status, headers: out });
   }
   const metered = usageMeter(upstream.body, (end, usage) =>
@@ -125,7 +142,37 @@ export const END_STATUS = { cancelled: 499, failed: 502 } as const;
 /** Recorded when the provider did not start answering within HEADERS_TIMEOUT_MS. */
 export const TIMED_OUT = 504;
 
-export type Usage = { tokensIn: number; tokensOut: number };
+export type Usage = {
+  tokensIn: number;
+  tokensOut: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+};
+
+export const NO_USAGE: Usage = {
+  tokensIn: 0,
+  tokensOut: 0,
+  cacheReadTokens: 0,
+  cacheWriteTokens: 0,
+};
+
+/** Each count's largest value of two readings of one answer's usage. */
+export function keepMost(into: Usage, seen: Usage): void {
+  into.tokensIn = Math.max(into.tokensIn, seen.tokensIn);
+  into.tokensOut = Math.max(into.tokensOut, seen.tokensOut);
+  into.cacheReadTokens = Math.max(into.cacheReadTokens, seen.cacheReadTokens);
+  into.cacheWriteTokens = Math.max(into.cacheWriteTokens, seen.cacheWriteTokens);
+}
+
+/** The call's cost at the provider's listed price for its model; null when it lists none. */
+export function costOf(
+  prices: Readonly<Record<string, ModelPrice>> | undefined,
+  model: string | null,
+  usage: Usage,
+): number | null {
+  const price = priceIn(prices, model);
+  return price ? callCostUsd(price, usage) : null;
+}
 
 /**
  * Passes the answer through unchanged, keeping its first and last EDGE
@@ -193,6 +240,7 @@ function usageMeter(
 /**
  * Input counts: OpenAI-style and Gemini prompt counts include cached tokens;
  * Anthropic's input_tokens does not, so its cache reads and writes are added.
+ * The cached share is kept apart too, for the price.
  */
 export function parseUsage(text: string): Usage {
   const max = (re: RegExp) => {
@@ -200,12 +248,17 @@ export function parseUsage(text: string): Usage {
     for (const m of text.matchAll(re)) v = Math.max(v, Number(m[1]));
     return v;
   };
+  const anthropicRead = max(/"cache_read_input_tokens"\s*:\s*(\d+)/g);
+  const anthropicWrite = max(/"cache_creation_input_tokens"\s*:\s*(\d+)/g);
   return {
     tokensIn:
       max(/"(?:prompt_tokens|input_tokens|promptTokenCount)"\s*:\s*(\d+)/g) +
-      max(/"cache_read_input_tokens"\s*:\s*(\d+)/g) +
-      max(/"cache_creation_input_tokens"\s*:\s*(\d+)/g),
+      anthropicRead +
+      anthropicWrite,
     tokensOut: max(/"(?:completion_tokens|output_tokens|candidatesTokenCount)"\s*:\s*(\d+)/g),
+    cacheReadTokens:
+      anthropicRead + max(/"(?:cached_tokens|cachedContentTokenCount)"\s*:\s*(\d+)/g),
+    cacheWriteTokens: anthropicWrite,
   };
 }
 

@@ -16,3 +16,33 @@ export const anthropicPrices: Prices = {
   // five times this, which one price per model cannot say.
   "claude-haiku-5-5": { input: 0.1, output: 0.5, cachedInput: 0.01 },
 };
+
+// What Anthropic charges for writing the five-minute prompt cache, as a
+// share of the input price; the engine's Direct runtime counts it alike.
+const CACHE_WRITE_FACTOR = 1.25;
+
+/**
+ * What a call cost at its model's listed price: input the cache served at
+ * the cached price, input written to the cache at the write price, the rest
+ * at the input price. `tokensIn` counts all three.
+ */
+export function callCostUsd(
+  price: ModelPrice,
+  t: { tokensIn: number; tokensOut: number; cacheReadTokens: number; cacheWriteTokens: number },
+): number {
+  const fresh = Math.max(0, t.tokensIn - t.cacheReadTokens - t.cacheWriteTokens);
+  const perMillion =
+    fresh * price.input +
+    t.cacheWriteTokens * price.input * CACHE_WRITE_FACTOR +
+    t.cacheReadTokens * (price.cachedInput ?? price.input) +
+    t.tokensOut * price.output;
+  return perMillion / 1_000_000;
+}
+
+/** The model's price in a provider's list; none for a model it does not list. */
+export function priceIn(
+  prices: Readonly<Record<string, ModelPrice>> | undefined,
+  model: string | null,
+): ModelPrice | undefined {
+  return prices && model !== null && Object.hasOwn(prices, model) ? prices[model] : undefined;
+}

@@ -36,6 +36,7 @@ import { accountFindingIssues } from "./finding-issues.js";
 import { accountFindingOutcomes } from "./finding-outcomes.js";
 import { accountFindingThreads } from "./finding-threads.js";
 import { accountFixJobs } from "./fix-jobs.js";
+import { accountGatewaySpend } from "./gateway-spend.js";
 import { accountGenerateJobs } from "./generate-jobs.js";
 import { accountGraphs } from "./graphs.js";
 import { accountImpact } from "./impact.js";
@@ -525,6 +526,7 @@ export function scoped(db: Db, accountId: string) {
     mergeIntents: accountMergeIntents(db, accountId),
     stackMerges: accountStackMerges(db, accountId),
     live: accountLive(db, accountId),
+    gatewaySpend: accountGatewaySpend(db, accountId),
     search: accountSearch(db, accountId),
     /** What this account's reviews cost on now's UTC day and in its calendar month. */
     spent: (now = new Date()) => spent(db, accountId, now),

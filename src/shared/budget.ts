@@ -92,3 +92,21 @@ export function spendLeftUsd(v: SpendView): number {
   );
   return Math.max(0, Math.min(...left));
 }
+
+/**
+ * Model calls ocra Cloud forwarded that no uploaded review reports the cost
+ * of, beside the reviews' own cost in Insights: ocra Cloud's own calls (Ask
+ * ocra, Explain, review chat) and runs through the gateway that uploaded no
+ * review. Priced at the provider's listed price; `unpriced` calls had
+ * tokens but no price (a model the provider lists none for, or a call made
+ * before prices were recorded) and count nothing.
+ */
+export type GatewaySpendView = {
+  costUsd: number;
+  calls: number;
+  /** Of `calls`, the ones ocra Cloud made itself. */
+  console: number;
+  unpriced: number;
+  /** Per UTC day (YYYY-MM-DD) with a cost, oldest first. */
+  days: { day: string; costUsd: number }[];
+};

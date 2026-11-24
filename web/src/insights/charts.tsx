@@ -99,7 +99,7 @@ export default function Charts(props: ChartsProps) {
             </CategoricalBarChart>
           )}
         </Chart>
-        <Chart title="Spend" sub="USD per day" wide time>
+        <Chart title="Spend" sub="USD per day, reviews and ocra actions in Cloud" wide time>
           {flat(daily.spend) ? (
             <EmptyNote>Nothing spent in this period</EmptyNote>
           ) : (

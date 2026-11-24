@@ -499,33 +499,43 @@ describe("usage view", () => {
 
 describe("parseUsage", () => {
   it("reads OpenAI, Responses and Anthropic counts", () => {
-    expect(parseUsage('{"usage":{"prompt_tokens":5,"completion_tokens":7}}')).toEqual({
+    expect(parseUsage('{"usage":{"prompt_tokens":5,"completion_tokens":7}}')).toMatchObject({
       tokensIn: 5,
       tokensOut: 7,
     });
-    expect(parseUsage('{"usage":{"input_tokens":9,"output_tokens":2}}')).toEqual({
+    expect(parseUsage('{"usage":{"input_tokens":9,"output_tokens":2}}')).toMatchObject({
       tokensIn: 9,
       tokensOut: 2,
     });
     const anthropic =
       'event: message_start\ndata: {"message":{"usage":{"input_tokens":300,"output_tokens":1}}}\n' +
       '...\nevent: message_delta\ndata: {"usage":{"output_tokens":45}}\n';
-    expect(parseUsage(anthropic)).toEqual({ tokensIn: 300, tokensOut: 45 });
-    expect(parseUsage("no counts")).toEqual({ tokensIn: 0, tokensOut: 0 });
+    expect(parseUsage(anthropic)).toMatchObject({ tokensIn: 300, tokensOut: 45 });
+    expect(parseUsage("no counts")).toEqual({
+      tokensIn: 0,
+      tokensOut: 0,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+    });
   });
 
-  it("adds Anthropic's cache reads and writes to the input count", () => {
+  it("adds Anthropic's cache reads and writes to the input count, and keeps them apart", () => {
     const anthropic =
       'event: message_start\ndata: {"message":{"usage":{"input_tokens":12,' +
       '"cache_creation_input_tokens":2000,"cache_read_input_tokens":30000,"output_tokens":1}}}\n' +
       '...\nevent: message_delta\ndata: {"usage":{"output_tokens":45}}\n';
-    expect(parseUsage(anthropic)).toEqual({ tokensIn: 32_012, tokensOut: 45 });
+    expect(parseUsage(anthropic)).toEqual({
+      tokensIn: 32_012,
+      tokensOut: 45,
+      cacheReadTokens: 30_000,
+      cacheWriteTokens: 2_000,
+    });
     // OpenAI's cached tokens are already part of prompt_tokens.
     expect(
       parseUsage(
         '{"usage":{"prompt_tokens":100,"prompt_tokens_details":{"cached_tokens":80},"completion_tokens":5}}',
       ),
-    ).toEqual({ tokensIn: 100, tokensOut: 5 });
+    ).toEqual({ tokensIn: 100, tokensOut: 5, cacheReadTokens: 80, cacheWriteTokens: 0 });
   });
 });
 
