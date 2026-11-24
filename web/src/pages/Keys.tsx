@@ -9,7 +9,7 @@ import { ProviderLogo } from "../provider-logo.js";
 import { anyProvider } from "../site.js";
 import { StackTable } from "../stack-table.js";
 import { EmptyState, LoadError, Loading, PageHead, useLoad, useProviders } from "../ui.js";
-import { AddKeyDrawer, formats, POPULAR } from "./KeyDrawer.js";
+import { AddKeyDrawer, hostOf, POPULAR } from "./KeyDrawer.js";
 
 // Like the channel pages of API relays: the page lists the keys you have;
 // adding one happens in a drawer (KeyDrawer.tsx).
@@ -200,7 +200,7 @@ function KeyRow(props: {
           <ProviderLogo name={k.provider} label={label} size={28} />
           <div>
             <div className="strong">{label}</div>
-            <div className="subtle small">{p ? formats(p) : ""}</div>
+            <div className="subtle small">{p ? hostOf(p) : ""}</div>
           </div>
         </div>
       </td>
