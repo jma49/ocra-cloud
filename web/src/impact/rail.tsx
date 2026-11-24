@@ -179,7 +179,7 @@ function SymbolBlock(props: {
       </button>
       {open &&
         (s.uses.length === 0 ? (
-          <p className="impact-pad subtle small">No uses outside this pull request.</p>
+          <p className="impact-pad impact-none subtle small">No uses outside this pull request.</p>
         ) : (
           <ul className="impact-uses">
             {s.uses.map((u) => (

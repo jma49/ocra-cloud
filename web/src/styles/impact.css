@@ -24,6 +24,10 @@
   margin: 0;
   padding: 12px 16px;
 }
+/* Said of the symbol over it: it sits with that symbol's lines, closer than the next symbol does. */
+.impact-none {
+  padding-top: 0;
+}
 .impact-pad [data-slot="button"] {
   margin-top: 8px;
 }
