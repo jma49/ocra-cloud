@@ -92,7 +92,7 @@ describe("the CLI's real upload", () => {
         ...f
       }) => f,
     );
-    // A finding uploaded without them is not low confidence and has no evidence.
+    // A finding uploaded without them is not low confidence, has no evidence and names no rule.
     expect(stored).toEqual(
       body.findingList.map((f) => ({
         redacted: false,
@@ -101,6 +101,7 @@ describe("the CLI's real upload", () => {
         ...f,
         lowConfidence: false,
         evidence: f.evidence ?? null,
+        rule: null,
       })),
     );
     expect(stored.some((f) => Array.isArray(f.evidence))).toBe(true);

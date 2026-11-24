@@ -568,6 +568,13 @@
       "when": 1795505272775,
       "tag": "0080_pull_chat_messages",
       "breakpoints": true
+    },
+    {
+      "idx": 81,
+      "version": "7",
+      "when": 1795511123221,
+      "tag": "0081_finding_rules",
+      "breakpoints": true
     }
   ]
 }

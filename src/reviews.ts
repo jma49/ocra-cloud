@@ -13,7 +13,7 @@ import type { FindingsOnPull } from "./db/finding-outcomes.js";
 import type { Row, Scoped } from "./db/scoped.js";
 import { defer } from "./defer.js";
 import { platformDismissals } from "./finding-dismissals.js";
-import { parseFindings } from "./findings.js";
+import { parseFindings, ruleOf } from "./findings.js";
 import { keepsFindings } from "./findings-kept.js";
 import { apiError, jsonBody, queryDays } from "./http.js";
 import { keepNotices, reviewNotice } from "./notify/feed.js";
@@ -26,7 +26,7 @@ import { perMinute, retryTomorrow } from "./rate.js";
 import { repoNames } from "./repositories.js";
 import { pullOfReview, pullOnPlatform } from "./review-pull.js";
 import { requireSession } from "./session.js";
-import type { ReviewerCounts, ReviewWalkthroughView } from "./shared/index.js";
+import type { FindingRule, ReviewerCounts, ReviewWalkthroughView } from "./shared/index.js";
 import { DAY } from "./time.js";
 import type { AppEnv } from "./types.js";
 import { parseWalkthrough } from "./walkthrough.js";
@@ -242,7 +242,7 @@ reviews.get("/:id", requireSession(), async (c) => {
 // version because that field changed. A field the report makes optional
 // is left out when unknown, never null. The report's inDiff, status and
 // provenance were never uploaded, so they are absent; evidence, fix and
-// lowConfidence are there when the CLI sent them (evidence redacted), and
+// lowConfidence, and the rule, are there when the CLI sent them (evidence redacted), and
 // the walkthrough beside the findings.
 // Two fields are ocra Cloud's own: `redacted` (the server or the CLI
 // replaced a secret-looking string with [redacted]) and `truncated` (a
@@ -335,12 +335,15 @@ function findingDto(f: FindingRow) {
     lowConfidence: f.lowConfidence,
     evidence: f.evidence,
     fix: fixOf(f),
-  } satisfies Omit<FindingRow, "accountId" | "reviewId" | "position" | FixColumn> & {
+    rule: ruleOf(f),
+  } satisfies Omit<FindingRow, "accountId" | "reviewId" | "position" | FixColumn | RuleColumn> & {
     fix: unknown;
+    rule: FindingRule;
   };
 }
 
 type FixColumn = "fixStartLine" | "fixEndLine" | "fixReplacement";
+type RuleColumn = "ruleKind" | "ruleId";
 
 /** The finding's fix, which the pull request page can commit; null without one. */
 export function fixOf(f: Pick<FindingRow, FixColumn>) {
@@ -350,6 +353,7 @@ export function fixOf(f: Pick<FindingRow, FixColumn>) {
 
 export function exportFinding(f: FindingRow) {
   const fix = fixOf(f);
+  const rule = ruleOf(f);
   return {
     fingerprint: f.fingerprint,
     reviewer: f.reviewer,
@@ -366,6 +370,7 @@ export function exportFinding(f: FindingRow) {
     ...(f.code !== null ? { code: f.code } : {}),
     ...(f.evidence ? { evidence: f.evidence } : {}),
     ...(fix ? { fix } : {}),
+    ...(rule ? { rule } : {}),
     ...(f.lowConfidence ? { lowConfidence: true } : {}),
     redacted: f.redacted,
     truncated: f.truncated,

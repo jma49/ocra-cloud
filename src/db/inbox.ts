@@ -28,6 +28,8 @@ export type InboxFilter = {
   verification?: Finding["verification"] | undefined;
   reviewer?: string | undefined;
   repoHash?: string | undefined;
+  /** null matches the findings that named no rule. */
+  rule?: { kind: NonNullable<Finding["ruleKind"]>; id: string } | null | undefined;
 };
 /** The last listed row's (created_at, id): the next page starts after it. */
 export type InboxCursor = { createdAt: Date; id: string };
@@ -54,6 +56,11 @@ export async function inbox(
         : undefined,
     filter.reviewer ? eq(f.reviewer, filter.reviewer) : undefined,
     filter.repoHash ? eq(r.repoHash, filter.repoHash) : undefined,
+    filter.rule === null
+      ? isNull(f.ruleKind)
+      : filter.rule
+        ? and(eq(f.ruleKind, filter.rule.kind), eq(f.ruleId, filter.rule.id))
+        : undefined,
     after
       ? or(
           lt(f.createdAt, after.createdAt),
@@ -156,11 +163,12 @@ export async function rememberFindings(
 
 /**
  * The account's findings since a time, counted per status in SQL, grouped
- * by reviewer, severity, category, verification and dismissal reason: what
+ * by reviewer, severity, category, verification, rule (the first ruleRows
+ * by findings, and how many there are) and dismissal reason: what
  * the inbox's decisions, and the reactions on ocra's comments, say about
  * each part of the review.
  */
-export async function findingInsights(db: Db, accountId: string, since: Date) {
+export async function findingInsights(db: Db, accountId: string, since: Date, ruleRows: number) {
   const f = findings;
   const where = and(eq(f.accountId, accountId), gte(f.createdAt, since));
   const tally = {
@@ -184,7 +192,7 @@ export async function findingInsights(db: Db, accountId: string, since: Date) {
       .groupBy(key)
       .orderBy(desc(count()))
       .limit(limit);
-  const [all, reviewer, severity, category, verification, reasons] = await db.batch([
+  const [all, reviewer, severity, category, verification, reasons, rule, rules] = await db.batch([
     db.select(tally).from(f).where(where),
     by(f.reviewer),
     by(sql`${f.severity}`),
@@ -195,6 +203,33 @@ export async function findingInsights(db: Db, accountId: string, since: Date) {
       .from(f)
       .where(and(where, eq(f.status, "dismissed")))
       .groupBy(f.reason),
+    db
+      .select({ kind: f.ruleKind, id: f.ruleId, ...tally })
+      .from(f)
+      .where(where)
+      .groupBy(f.ruleKind, f.ruleId)
+      // Ties in one order on every database: named rules first.
+      .orderBy(desc(count()), sql`${f.ruleKind} IS NULL`, f.ruleKind, f.ruleId)
+      .limit(ruleRows),
+    db
+      .select({ n: sql<number>`count(*)` })
+      .from(
+        db
+          .select({ kind: f.ruleKind })
+          .from(f)
+          .where(where)
+          .groupBy(f.ruleKind, f.ruleId)
+          .as("rules"),
+      ),
   ]);
-  return { all: all[0], reviewer, severity, category, verification, reasons };
+  return {
+    all: all[0],
+    reviewer,
+    severity,
+    category,
+    verification,
+    reasons,
+    rule,
+    rules: Number(rules[0]?.n ?? 0),
+  };
 }

@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Findings } from "./pages/Findings.js";
 import { ToastProvider } from "./toast.js";
@@ -31,6 +31,7 @@ const row = {
   decidedAt: null,
   thumbsUp: 0,
   thumbsDown: 0,
+  rule: null,
   createdAt: "2026-11-23T00:00:00.000Z",
 };
 
@@ -104,5 +105,34 @@ describe("the findings list", () => {
     expect(first?.querySelector(".status-warn")?.textContent).toBe("Merged unaddressed");
     expect(second?.querySelector(".status-quiet")?.textContent).toBe("Addressed");
     expect(screen.getByText("Merged unaddressed (1)")).toBeTruthy();
+  });
+
+  it("names a finding's rule, and filters by the rules listed or by none named", async () => {
+    const fetch = vi.fn(async (_url: string) =>
+      Response.json({
+        findings: [{ ...row, rule: { kind: "learning", id: "retry-on-409" } }],
+        next: null,
+        statuses: { open: 1, fixed: 0, dismissed: 0 },
+      }),
+    );
+    vi.stubGlobal("fetch", fetch);
+    render(
+      <ToastProvider>
+        <Findings />
+      </ToastProvider>,
+    );
+    const [first] = await screen.findAllByRole("row").then((rows) => rows.slice(1));
+    expect(first?.textContent).toContain("verified · learning retry-on-409");
+    const select = screen.getByLabelText("Rule");
+    fireEvent.change(select, { target: { value: "learning:retry-on-409" } });
+    await vi.waitFor(() =>
+      expect(fetch.mock.calls.map(([u]) => u)).toContain(
+        "/api/findings?status=open&rule=learning%3Aretry-on-409",
+      ),
+    );
+    fireEvent.change(select, { target: { value: "none" } });
+    await vi.waitFor(() =>
+      expect(fetch.mock.calls.map(([u]) => u)).toContain("/api/findings?status=open&rule=none"),
+    );
   });
 });
