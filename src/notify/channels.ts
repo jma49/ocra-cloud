@@ -64,12 +64,19 @@ export type ReviewNotice = {
 
 const MAX_TITLE = 120;
 
-/** One line of model text with nothing a chat reads as markup or a mention. */
+/**
+ * One line of model text with nothing a chat reads as markup or a mention.
+ * Parentheses stay ("fix(web): …"): with the brackets gone they can form no
+ * link, and a link's target is dropped with them.
+ */
 export function plain(text: string): string {
-  const line = text.replace(/\s+/g, " ").trim();
+  const line = text
+    .replace(/\]\([^()]*\)/g, "]")
+    .replace(/\s+/g, " ")
+    .trim();
   const safe = [...line]
     .filter((ch) => !/\p{Cc}/u.test(ch))
-    .map((ch) => ("<>&[]()*_~`@#|".includes(ch) ? " " : ch))
+    .map((ch) => ("<>&[]*_~`@#|".includes(ch) ? " " : ch))
     .join("")
     .replace(/ {2,}/g, " ")
     .trim();

@@ -13,6 +13,8 @@ export function OcraReviewBox(props: {
   open?: number;
   /** What the server's own runner adds: its queue's state and "Review now". */
   children?: ReactNode;
+  /** Open findings of earlier heads, folded. */
+  earlier?: ReactNode;
 }) {
   const { review } = props;
   if (review === undefined) return null;
@@ -51,6 +53,7 @@ export function OcraReviewBox(props: {
       {review?.current && props.open !== undefined && props.open > 0 && (
         <span className="small">{count(props.open, "open finding")} on the diff below.</span>
       )}
+      {props.earlier}
       {review && (
         <Link to={`/reviews/${review.id}`} className="status-link">
           Open the review

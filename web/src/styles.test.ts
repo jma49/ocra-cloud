@@ -173,3 +173,11 @@ describe("spacing scale", () => {
     },
   );
 });
+
+describe("pull request overview", () => {
+  it("lets a long rail scroll inside itself instead of setting the row's height", () => {
+    const rail = css(join("styles", "pull.css")).match(/\n\.pull-rail \{[^}]*\}/)?.[0] ?? "";
+    expect(rail).toContain("contain: size;");
+    expect(rail).toContain("overflow-y: auto;");
+  });
+});

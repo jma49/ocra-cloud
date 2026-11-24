@@ -193,10 +193,19 @@
   padding-right: 32px;
 }
 /* The rail is one quiet column of sections, not a pile of cards: a hairline
-   sets it apart from the read, and one between each section. */
+   sets it apart from the read, and one between each section. Its own size
+   never sets the row's (contain), so a long rail beside a short description
+   scrolls inside itself instead of leaving a blank band above the diff; the
+   few pixels of padding keep focus rings clear of the scroll edge. */
 .pull-rail {
   align-self: stretch;
-  padding-left: 32px;
+  contain: size;
+  min-height: min(560px, calc(100dvh - 160px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  margin-top: -4px;
+  padding: 4px 4px 4px 32px;
   box-shadow: -0.5px 0 0 var(--hair);
 }
 .pull-overview .card {
@@ -281,8 +290,26 @@
 .pull-description > :last-child {
   margin-bottom: 0;
 }
-.readiness-met[open] > summary {
+.readiness-met[open] > summary,
+.earlier-findings[open] > summary {
   margin-bottom: 8px;
+}
+.earlier-findings-list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.earlier-findings-list li {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.earlier-findings-list .mono {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 /* A link out of a status section (named apart from the shell's `.rail-link`). */
 .pull-command-rows {
@@ -372,6 +399,10 @@
   }
   .pull-rail {
     order: -1;
+    contain: none;
+    min-height: 0;
+    overflow-y: visible;
+    margin-top: 0;
     padding: 0 0 24px;
     box-shadow: 0 0.5px 0 var(--hair);
   }
