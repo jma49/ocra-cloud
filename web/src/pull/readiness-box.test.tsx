@@ -122,3 +122,24 @@ it("offers what the user can do about it under the requirements", async () => {
   render(<WithAction />);
   expect(await screen.findByRole("button", { name: "Update branch" })).toBeTruthy();
 });
+
+it("folds what is met even when nothing is in the way, and says all of it is", async () => {
+  serve({
+    ...pull,
+    platform: "github",
+    state: "open",
+    head: HEAD,
+    ready: "met",
+    items: [
+      { kind: "approvals", state: "met", detail: "Approved" },
+      { kind: "threads", state: "met", detail: "No unresolved threads" },
+    ],
+    codeOwners: [],
+    staleApprovals: [],
+    otherRules: [],
+    canUpdateBranch: false,
+  });
+  render(<Box />);
+  expect(await screen.findByText("All 2 met")).toBeTruthy();
+  expect(screen.getByText("Approved").closest("details")?.open).toBe(false);
+});

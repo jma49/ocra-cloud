@@ -163,10 +163,10 @@ export function ReadinessBox(props: {
         </ul>
       )}
       {met.length > 0 && (
-        <details className="readiness-met" open={open.length === 0}>
+        <details className="readiness-met">
           <summary className="subtle small">
             <span className="fold" aria-hidden="true" />
-            {met.length} met
+            {open.length === 0 ? `All ${met.length} met` : `${met.length} met`}
             {unread > 0 && `, ${unread} not readable with your sign-in`}
           </summary>
           <ul className="check-results">

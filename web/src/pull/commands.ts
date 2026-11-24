@@ -32,6 +32,14 @@ function findingBeside(code: HTMLElement | null, step: 1 | -1): Element | undefi
   return step === 1 ? notes.find((n) => at(n) > 1) : notes.findLast((n) => at(n) < -1);
 }
 
+/** Brings a part of the page into view and puts the keys on its first control that can act, so Enter does the next step. */
+function reach(el: Element | null | undefined, block: ScrollLogicalPosition): boolean {
+  if (!el) return false;
+  el.scrollIntoView({ block });
+  el.querySelector<HTMLElement>("button:not(:disabled)")?.focus({ preventScroll: true });
+  return true;
+}
+
 const step = (label: string, key: string, to: string | null | undefined): PageCommand[] =>
   to ? [{ label, key, run: () => navigate(to) }] : [];
 
@@ -46,12 +54,24 @@ export function pullCommands(page: {
   switchLayout?: { to: "unified" | "split"; run: () => void } | undefined;
   /** The pull requests beside this one in the inbox it was opened from. */
   beside: Beside | null;
+  /** Says, briefly, that a key found nothing to go to. */
+  say?: (text: string) => void;
 }): PageCommand[] {
   const { data, code } = page;
   if (!data) return [];
   const open = data.state !== "merged" && data.state !== "closed";
   const { url } = data;
   const to = (el: Element | null | undefined) => el?.scrollIntoView({ block: "start" });
+  const none = (way: 1 | -1) => {
+    const any = (code.current?.querySelectorAll(".finding-note").length ?? 0) > 0;
+    page.say?.(
+      !any
+        ? "No open findings on this diff"
+        : way === 1
+          ? "No findings below"
+          : "No findings above",
+    );
+  };
   return [
     ...(data.verdicts.length > 0 ? [{ label: "Review changes", key: "r", run: page.review }] : []),
     { label: "Jump to code", key: "c", run: () => to(code.current) },
@@ -60,12 +80,12 @@ export function pullCommands(page: {
     {
       label: "Next finding",
       key: "n",
-      run: () => findingBeside(code.current, 1)?.scrollIntoView({ block: "center" }),
+      run: () => reach(findingBeside(code.current, 1), "center") || none(1),
     },
     {
       label: "Previous finding",
       key: "N",
-      run: () => findingBeside(code.current, -1)?.scrollIntoView({ block: "center" }),
+      run: () => reach(findingBeside(code.current, -1), "center") || none(-1),
     },
     {
       label: "Toggle file viewed",
@@ -84,7 +104,13 @@ export function pullCommands(page: {
         ]
       : []),
     ...(open
-      ? [{ label: "Go to merge", key: "m", run: () => to(document.getElementById(MERGE_ID)) }]
+      ? [
+          {
+            label: "Go to merge",
+            key: "m",
+            run: () => void reach(document.getElementById(MERGE_ID), "center"),
+          },
+        ]
       : []),
     ...(url
       ? [

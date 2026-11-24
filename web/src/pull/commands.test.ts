@@ -76,4 +76,40 @@ describe("a pull request's commands", () => {
     vi.unstubAllGlobals();
     expect(shown).toEqual(["below", "above"]);
   });
+
+  it("puts the keys on the merge button with m, and on a finding's first action with n", () => {
+    const merge = document.createElement("div");
+    merge.id = "merge";
+    merge.innerHTML = "<button disabled>Merge</button><button>Merge when ready</button>";
+    merge.scrollIntoView = () => undefined;
+    document.body.append(merge);
+    pullCommands(page({}))
+      .find((c) => c.key === "m")
+      ?.run();
+    expect(document.activeElement?.textContent).toBe("Merge when ready");
+    merge.remove();
+
+    const code = document.createElement("div");
+    const note = document.createElement("section");
+    note.className = "finding-note";
+    note.innerHTML = "<button>Mark fixed</button><button>Dismiss</button>";
+    note.getBoundingClientRect = () => ({ top: 900, height: 100 }) as DOMRect;
+    note.scrollIntoView = () => undefined;
+    code.append(note);
+    document.body.append(code);
+    vi.stubGlobal("innerHeight", 800);
+    const say = vi.fn();
+    const run = (key: string, current: HTMLElement) =>
+      pullCommands({ ...page({}), code: { current }, say })
+        .find((c) => c.key === key)
+        ?.run();
+    run("n", code);
+    expect(document.activeElement?.textContent).toBe("Mark fixed");
+    run("N", code);
+    expect(say).toHaveBeenLastCalledWith("No findings above");
+    run("n", document.createElement("div"));
+    expect(say).toHaveBeenLastCalledWith("No open findings on this diff");
+    vi.unstubAllGlobals();
+    code.remove();
+  });
 });

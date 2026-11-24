@@ -43,14 +43,16 @@ export function Rules() {
         title="Rules"
         sub="Tell reviewers what your code must do, by path. They apply alongside a repository's own rules and AGENTS.md."
         actions={
-          <Button
-            type="button"
-            disabled={!draft || rules.length >= MAX}
-            onClick={() => add(rules.length)}
-          >
-            <Plus aria-hidden="true" />
-            Add rule
-          </Button>
+          rules.length > 0 && (
+            <Button
+              type="button"
+              disabled={!draft || rules.length >= MAX}
+              onClick={() => add(rules.length)}
+            >
+              <Plus aria-hidden="true" />
+              Add rule
+            </Button>
+          )
         }
       />
       {!draft ? (
@@ -61,7 +63,8 @@ export function Rules() {
             icon={ListChecks}
             title="No rules yet"
             action={
-              <Button type="button" variant="outline" onClick={() => add(0)}>
+              <Button type="button" onClick={() => add(0)}>
+                <Plus aria-hidden="true" />
                 Write your first rule
               </Button>
             }
