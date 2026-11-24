@@ -136,11 +136,17 @@ describe("a pull request's files", () => {
     const a = await signInWithGithub();
     const read = async (query: string) =>
       ((await (await a.send(`/api/pulls/files?${query}`)).json()) as PullFilesView).files.map(
-        (f) => f.patch,
+        (f) => [f.patch, f.additions, f.deletions],
       );
     const ref = "platform=github&repo=octo/api&number=7";
-    expect(await read(`${ref}&whitespace=ignore`)).toEqual(["", "@@ -1,2 +1,2 @@\n   a\n-b\n+c"]);
-    expect(await read(ref)).toEqual(["@@ -4 +4 @@\n-x\n+  x", "@@ -1,2 +1,2 @@\n-a\n-b\n+  a\n+c"]);
+    expect(await read(`${ref}&whitespace=ignore`)).toEqual([
+      ["", 0, 0],
+      ["@@ -1,2 +1,2 @@\n   a\n-b\n+c", 1, 1],
+    ]);
+    expect(await read(ref)).toEqual([
+      ["@@ -4 +4 @@\n-x\n+  x", 1, 1],
+      ["@@ -1,2 +1,2 @@\n-a\n-b\n+  a\n+c", 2, 2],
+    ]);
   });
 
   it("passes on an author's picture only from the host the console may load", () => {

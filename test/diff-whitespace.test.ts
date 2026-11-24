@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ignoreWhitespace } from "../src/diff-whitespace.js";
+import { changeCounts, ignoreWhitespace } from "../src/diff-whitespace.js";
 
 // The diff with whitespace-only changes taken out keeps every line's numbers,
 // so what is anchored to a line still finds it.
@@ -89,5 +89,20 @@ describe("a diff without whitespace changes", () => {
       " f",
     );
     expect(ignoreWhitespace(two)).toBe(patch("@@ -1,3 +1,3 @@", " a", "-b", "+B", " c"));
+  });
+});
+
+describe("a diff's counts", () => {
+  it("counts the lines each hunk adds and removes, and nothing before the first", () => {
+    expect(
+      changeCounts(
+        patch("@@ -1,2 +1,3 @@", " a", "-b", "+B", "+c", "\\ No newline at end of file"),
+      ),
+    ).toEqual({ additions: 2, deletions: 1 });
+    expect(changeCounts(patch("--- a/x", "+++ b/x", "@@ -3 +3 @@", "-x", "+y"))).toEqual({
+      additions: 1,
+      deletions: 1,
+    });
+    expect(changeCounts("")).toEqual({ additions: 0, deletions: 0 });
   });
 });

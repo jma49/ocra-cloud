@@ -30,6 +30,19 @@ export function ignoreWhitespace(patch: string): string {
   return out.join("\n");
 }
 
+/** The lines a diff adds and removes, as a file's +/− counts show them. */
+export function changeCounts(patch: string): { additions: number; deletions: number } {
+  let additions = 0;
+  let deletions = 0;
+  let inHunk = false;
+  for (const raw of patch.split("\n")) {
+    if (HUNK.test(raw)) inHunk = true;
+    else if (inHunk && raw.startsWith("+")) additions++;
+    else if (inHunk && raw.startsWith("-")) deletions++;
+  }
+  return { additions, deletions };
+}
+
 type Hunk = { heading: string; old: number; new: number; lines: Line[] };
 
 function hunksOf(patch: string): Hunk[] {

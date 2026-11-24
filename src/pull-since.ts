@@ -3,7 +3,7 @@ import { z } from "zod";
 import { apiError } from "./http.js";
 import type { PatchedFile } from "./platforms/changes.js";
 import type { SinceDiff } from "./platforms/since.js";
-import { byKind, patchAsAsked, pullRef, reach, sha, whitespace } from "./pull-page.js";
+import { byKind, changesAsAsked, pullRef, reach, sha, whitespace } from "./pull-page.js";
 import { perMinute } from "./rate.js";
 import { requireSession } from "./session.js";
 import type {
@@ -31,9 +31,7 @@ export const fileView = (f: PatchedFile, ws?: "ignore"): PullFileView => ({
   path: f.path,
   oldPath: f.oldPath,
   status: f.status,
-  additions: f.additions,
-  deletions: f.deletions,
-  patch: patchAsAsked(f.patch, ws),
+  ...changesAsAsked(f, ws),
   viewed: null,
 });
 

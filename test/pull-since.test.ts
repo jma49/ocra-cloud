@@ -88,7 +88,9 @@ describe("changes since the last review on GitHub", () => {
     });
     const a = await signInWithGithub();
     const view = (await (await a.send(since("&whitespace=ignore"))).json()) as PullSinceView;
-    expect(view.files.map((f) => f.patch)).toEqual(["@@ -1,1 +1,2 @@\n  a \n+c"]);
+    expect(view.files.map((f) => [f.patch, f.additions, f.deletions])).toEqual([
+      ["@@ -1,1 +1,2 @@\n  a \n+c", 1, 0],
+    ]);
   });
 
   it("compares from the reviewed head by default, and offers the read mark's too", async () => {
