@@ -1,32 +1,28 @@
 import { cloudModelSchema } from "@open-cr-agent/cloud-contract";
 import { type Context, Hono } from "hono";
 import { z } from "zod";
-import { outboundFetch } from "./calls.js";
-import { catalogOf } from "./catalog.js";
-import { chatEvent, chatRequest, ssePayloads, type Turn } from "./chat/model.js";
+import {
+  chatModelOf,
+  NO_USAGE,
+  recordCall,
+  sendChat,
+  takeDailyCall,
+  tierModels,
+} from "./chat/call.js";
+import { chatEvent, ssePayloads, type Turn } from "./chat/model.js";
 import { type ChatContext, makeNonce, systemPrompt } from "./chat/prompt.js";
-import { config } from "./config.js";
 import type { ChatMessageRow } from "./db/review-chat.js";
 import type { Row } from "./db/scoped.js";
-import { deadline } from "./deadline.js";
 import { defer } from "./defer.js";
 import { keepsFindings } from "./findings-kept.js";
-import { END_STATUS, HEADERS_TIMEOUT_MS, PENDING, TIMED_OUT, type Usage } from "./gateway.js";
+import { END_STATUS, type Usage } from "./gateway.js";
 import { apiError, jsonBody } from "./http.js";
-import { keyFor, masterKeys } from "./keyring.js";
 import { accessToken } from "./platforms/links.js";
 import { platformsOf } from "./platforms/registry.js";
-import { applyAuth, chatRoute } from "./providers.js";
-import { perMinute, retryTomorrow } from "./rate.js";
+import { perMinute } from "./rate.js";
 import { pullOfReview, pullOnPlatform } from "./review-pull.js";
 import { requireSession } from "./session.js";
-import {
-  dailyCallLimit,
-  parseModelId,
-  type ReviewChatEvent,
-  type ReviewChatMessageView,
-  type ReviewChatView,
-} from "./shared/index.js";
+import type { ReviewChatEvent, ReviewChatMessageView, ReviewChatView } from "./shared/index.js";
 import type { AppEnv } from "./types.js";
 
 // "Ask ocra" about one review (docs/self-hosting.md, Ask ocra): a question
@@ -59,12 +55,6 @@ const messageDto = (m: ChatMessageRow) =>
     text: m.text,
     createdAt: m.createdAt.toISOString(),
   }) satisfies ReviewChatMessageView;
-
-/** The models of the account's tiers, the standard tier's first, without repeats. */
-function tierModels(prefs: Row<"preferences"> | undefined): string[] {
-  const m = prefs?.models;
-  return [...new Set([...(m?.standard ?? []), ...(m?.top ?? []), ...(m?.light ?? [])])];
-}
 
 /** The account's standard model, else its top or light one; null with none set. */
 const defaultModel = (prefs: Row<"preferences"> | undefined): string | null =>
@@ -124,15 +114,8 @@ reviewChat.post(
     const review = await data.get("reviews", c.req.param("id"));
     if (!review) return apiError(c, "not_found");
 
-    const name = body.model ?? defaultModel(await data.findOne("preferences", {}));
-    const ref = name ? parseModelId(name) : null;
-    if (!ref) return apiError(c, "no_key", { provider: null });
-    const provider = catalogOf(c.env).get(ref.provider);
-    if (!provider) return apiError(c, "unknown_provider");
-    const route = chatRoute(provider);
-    if (!route) return apiError(c, "path_not_allowed");
-    const key = provider.sharedKey ?? (await keyFor(data, masterKeys(c.env), ref.provider));
-    if (!key) return apiError(c, "no_key", { provider: ref.provider });
+    const model = await chatModelOf(c, body.model);
+    if ("refusal" in model) return model.refusal;
 
     const [history, findings, walkthrough, live] = await Promise.all([
       data.chat.latest(review.id, HISTORY),
@@ -160,59 +143,20 @@ reviewChat.post(
     if (!questionId) return apiError(c, "memory_full", { limit: MAX_CHAT_MESSAGES });
     const unask = () => data.remove("reviewChatMessages", questionId);
 
-    const cap = config(c.env).gatewayDailyCalls;
-    if (!(await data.takeCall(cap))) {
+    const limited = await takeDailyCall(c);
+    if (limited) {
       await unask();
-      retryTomorrow(c);
-      const own = (await data.findOne("budgets", {}))?.dailyCalls;
-      return apiError(c, "daily_limit", { limit: dailyCallLimit(own, cap) });
+      return limited;
     }
-    const callId = await data.insert("gatewayCalls", {
-      provider: ref.provider,
-      path: route.path,
-      model: ref.model,
-      status: PENDING,
-    });
-    const started = Date.now();
-    const finish = (status: number, usage: Usage) =>
-      data.update("gatewayCalls", callId, { status, ...usage, ms: Date.now() - started });
-
-    const request = chatRequest(route.wire, ref.model, system, turns);
-    const headers = new Headers({
-      "content-type": "application/json",
-      accept: "text/event-stream",
-      ...request.headers,
-    });
-    applyAuth(headers, route.auth, key);
-    const client = c.req.raw.signal;
-    const clock = deadline(HEADERS_TIMEOUT_MS, client);
-    let upstream: Response;
-    try {
-      upstream = await outboundFetch(new URL(provider.base + route.path), {
-        method: "POST",
-        headers,
-        body: request.body,
-        redirect: "manual",
-        signal: clock.signal,
-      });
-    } catch {
-      const status = client.aborted ? END_STATUS.cancelled : clock.timedOut() ? TIMED_OUT : 502;
-      defer(c, Promise.all([finish(status, NO_USAGE), unask()]));
-      return apiError(c, "upstream_unreachable");
-    } finally {
-      clock.clear();
-    }
-    if (upstream.status !== 200 || !upstream.body) {
-      await upstream.body?.cancel().catch(() => {});
-      defer(
-        c,
-        Promise.all([finish(upstream.status === 200 ? 502 : upstream.status, NO_USAGE), unask()]),
-      );
-      return apiError(c, "upstream_unreachable", { status: upstream.status });
+    const finish = await recordCall(c, model);
+    const sent = await sendChat(model, system, turns, c.req.raw.signal);
+    if ("status" in sent) {
+      defer(c, Promise.all([finish(sent.status, NO_USAGE), unask()]));
+      return apiError(c, "upstream_unreachable", { status: sent.status });
     }
 
-    const payloads = ssePayloads(upstream.body);
-    const wire = route.wire;
+    const payloads = ssePayloads(sent.body);
+    const wire = model.route.wire;
     let answer = "";
     const usage: Usage = { ...NO_USAGE };
     let ended = false;
@@ -291,5 +235,3 @@ reviewChat.post(
     });
   },
 );
-
-const NO_USAGE: Usage = { tokensIn: 0, tokensOut: 0 };

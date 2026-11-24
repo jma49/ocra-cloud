@@ -93,3 +93,21 @@ export type PullCiRerunAnswer = {
   /** GitHub workflow runs or GitLab jobs the platform took. */
   rerun: number;
 };
+
+/**
+ * What POST /api/pulls/ci/explain answers: the account's model's short
+ * explanation of why the job failed and what to look at, from the end of
+ * its log; no patch, and nothing kept. null, with no model call, when the
+ * job has no log or report (`source` is `none`).
+ */
+export type PullCiExplainView = {
+  job: string;
+  name: string;
+  url: string | null;
+  source: CiLogSource;
+  /** The model that answered, as `ocra-<provider>/<model>`; null with no call. */
+  model: string | null;
+  explanation: string | null;
+  /** Whether a secret-looking token was replaced in the explanation. */
+  redacted: boolean;
+};
