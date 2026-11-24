@@ -95,7 +95,7 @@ describe("a finding decision shown before the server answers", () => {
   const page = {
     findings: [row("x", "open"), row("y", "open")],
     next: null,
-    statuses: { open: 2, fixed: 0, dismissed: 0 },
+    statuses: { open: 2, fixed: 0, dismissed: 0, addressed: 0, merged: 0 },
   };
 
   it("takes rows out of a status they left and moves the counts", () => {
@@ -104,7 +104,7 @@ describe("a finding decision shown before the server answers", () => {
       reason: "not_important",
     });
     expect(p.findings.map((f) => f.id)).toEqual(["y"]);
-    expect(p.statuses).toEqual({ open: 1, fixed: 0, dismissed: 1 });
+    expect(p.statuses).toEqual({ open: 1, fixed: 0, dismissed: 1, addressed: 0, merged: 0 });
   });
 
   it("changes rows in place under All", () => {
