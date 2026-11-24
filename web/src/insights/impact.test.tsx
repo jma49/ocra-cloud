@@ -51,6 +51,8 @@ const busy = counts({
     fixed: 6,
     fixedVia: { applied: 2, suggestion: 1, manual: 2, rereview: 0, unknown: 1 },
     dismissed: 4,
+    addressed: 2,
+    merged: 1,
     open: 15,
     issueOpened: 1,
     threadResolved: 3,
@@ -86,7 +88,7 @@ describe("what ocra changed on Insights", () => {
     expect(within(section).getByText("9h")).toBeTruthy();
     expect(
       within(section).getByText(
-        "In the console: 6 marked fixed (2 by committing ocra's fix, 1 by a suggestion, 2 by hand, 1 before this was recorded), 4 dismissed, 15 open, 1 issue opened from a finding, 3 threads resolved.",
+        "In the console: 6 marked fixed (2 by committing ocra's fix, 1 by a suggestion, 2 by hand, 1 before this was recorded), 4 dismissed, 2 addressed on the platform, 1 merged unaddressed, 15 open, 1 issue opened from a finding, 3 threads resolved.",
       ),
     ).toBeTruthy();
     expect(within(section).getByText("acme/ledger")).toBeTruthy();

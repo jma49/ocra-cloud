@@ -488,7 +488,8 @@ export const findings = sqliteTable(
     redacted: integer("redacted", { mode: "boolean" }).notNull().default(false),
     truncated: integer("truncated", { mode: "boolean" }).notNull().default(false),
     createdAt: createdAt(),
-    // What the account decided about the finding in the console; after
+    // What the account decided about the finding in the console, or what
+    // its platform said of one still open (FINDING_STATUSES); after
     // createdAt, in the order the migration added them (insertReview names
     // every column in this order).
     status: text("status", { enum: FINDING_STATUSES }).notNull().default("open"),
@@ -505,8 +506,9 @@ export const findings = sqliteTable(
     // How it became fixed, set in the write that fixes it; null while not
     // fixed, and on one fixed before this column was added.
     fixedVia: text("fixed_via", { enum: FIXED_VIA }),
-    // When the user resolved its comment's thread from the console; cleared
-    // when they reopen it. A resolved thread says neither fixed nor dismissed.
+    // When a person resolved its comment's thread, from the console or on the
+    // platform; cleared when they reopen it. A resolved thread says neither
+    // fixed nor dismissed: an open finding becomes addressed (FINDING_STATUSES).
     threadResolvedAt: integer("thread_resolved_at", { mode: "timestamp_ms" }),
     // Kept by --ultra though the judge would drop it: `ocra fix` asks no fix
     // for it. False on a finding uploaded before this column was added.

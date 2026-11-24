@@ -57,11 +57,22 @@ export const SIGN_IN_NOT_ALLOWED = "sign_in_not_allowed";
 export const PLATFORM_RATE_LIMITED = "platform_rate_limited";
 
 /**
- * What the account decided about a finding in the console. The engine's
+ * What the account can decide about a finding in the console. The engine's
  * feedback schema (team memory) will name these words; until it is
  * published they are the cloud's own.
  */
-export const FINDING_STATUSES = ["open", "fixed", "dismissed"] as const;
+export const DECISION_STATUSES = ["open", "fixed", "dismissed"] as const;
+export type DecisionStatus = (typeof DECISION_STATUSES)[number];
+
+/**
+ * Where a finding stands: a decision, or what happened on its platform to
+ * one still open. `addressed`: a person resolved its comment's thread (it
+ * is open again when they reopen the thread). `merged`: its pull request
+ * merged with it still open, no fix seen. A fix seen later still makes
+ * either one fixed. Each name sorts below "open", so a read of the status
+ * index backwards lists open findings first (src/db/search.ts).
+ */
+export const FINDING_STATUSES = [...DECISION_STATUSES, "addressed", "merged"] as const;
 export type FindingStatus = (typeof FINDING_STATUSES)[number];
 
 /**

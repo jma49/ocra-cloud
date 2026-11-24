@@ -18,11 +18,15 @@ type ImpactActedOn = {
   /** The fixed ones by how they became fixed (FIXED_VIA); unknown for one fixed before that was kept. */
   fixedVia: Record<FixedVia | "unknown", number>;
   dismissed: number;
-  /** Neither fixed nor dismissed. */
+  /** Its comment's thread resolved by a person, on the platform or from the console, and not decided since. */
+  addressed: number;
+  /** Its pull request merged with it still open, and no fix seen. */
+  merged: number;
+  /** None of the above. */
   open: number;
   /** An issue was opened from it. */
   issueOpened: number;
-  /** Its comment's thread resolved from the console, whatever its status. */
+  /** Its comment's thread resolved, from the console or on the platform, whatever its status. */
   threadResolved: number;
 };
 

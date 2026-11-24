@@ -8,7 +8,7 @@ import { type StartOf, timeOf } from "../notify/thread-hooks.js";
 import { repoIdentity } from "../platforms/platform.js";
 import { isBotLogin } from "../platforms/reviewers.js";
 import { findingStarting } from "../platforms/threads.js";
-import { MAX_DISMISSAL_REASON_CHARS } from "../shared/index.js";
+import { MAX_DISMISSAL_REASON_CHARS, type ThreadDismissalState } from "../shared/index.js";
 
 // What people do, on the platform, to the thread of ocra's comment of a
 // finding on an enrolled repository's pull request: resolve it, open it
@@ -23,7 +23,10 @@ import { MAX_DISMISSAL_REASON_CHARS } from "../shared/index.js";
 // text is redacted and cut before it is kept, and never logged. A person's
 // answer or resolution also queues the pull request for `ocra learn
 // feedback` (src/db/learn-jobs.ts), which reads the threads itself and
-// decides whose words count, unless the repository switched that off.
+// decides whose words count, unless the repository switched that off. A
+// person's resolution, or reopening, moves the thread's finding on that
+// pull request too (src/db/finding-outcomes.ts): resolved, an open finding
+// is addressed; reopened, it is open again.
 
 type Repo = Row<"reviewRepos">;
 type Person = { id: string; login: string };
@@ -45,6 +48,22 @@ const LEARN_AFTER_MS = 5 * 60_000;
 async function queueLearning(data: Scoped, repo: Repo, number: number, now: Date) {
   if (repo.learn === "off") return;
   await data.learning.queue(repo.id, number, new Date(now.getTime() + LEARN_AFTER_MS));
+}
+
+/** Moves the thread's finding as a person's resolution or reopening of it says, when it moved the thread. */
+async function moveFinding(
+  data: Scoped,
+  on: { reviewRepoId: string; threadKey: string },
+  state: ThreadDismissalState,
+  at: Date,
+) {
+  const thread = await data.findingThreads.find(on);
+  if (!thread) return;
+  await data.findingOutcomes.markThreadResolved(
+    { identity: thread.repository, number: thread.number, fingerprints: [thread.fingerprint] },
+    state === "resolved",
+    at,
+  );
 }
 
 async function keepReply(data: Scoped, reviewRepoId: string, threadKey: string, reply: Reply) {
@@ -136,16 +155,13 @@ export async function recordGithubFindingThread(
     if (known) await queueLearning(data, repo, number, now);
   }
   if (!changed || isBot(changed.sender)) return;
-  await data.findingThreads.setState(
-    {
-      reviewRepoId: repo.id,
-      threadKey,
-      state: changed.action,
-      by: person(changed.sender),
-      at: timeOf(changed.pull_request.updated_at, now),
-    },
+  const at = timeOf(changed.pull_request.updated_at, now);
+  const on = { reviewRepoId: repo.id, threadKey };
+  const moved = await data.findingThreads.setState(
+    { ...on, state: changed.action, by: person(changed.sender), at },
     now,
   );
+  if (moved) await moveFinding(data, on, changed.action, at);
   const said = changed.thread.comments
     .slice(1)
     .filter((c) => !isBot(c.user) && c.user.id !== first.user.id);
@@ -245,12 +261,18 @@ export async function keepGitlabFindingThread(
   if (!resolved) return;
   if (resolved.resolved) {
     if (resolved.by && isBotLogin(resolved.by.login)) return;
-    await data.findingThreads.setState(
-      { ...on, state: "resolved", by: resolved.by, at: timeOf(resolved.at, now) },
+    const when = timeOf(resolved.at, now);
+    const moved = await data.findingThreads.setState(
+      { ...on, state: "resolved", by: resolved.by, at: when },
       now,
     );
+    if (moved) await moveFinding(data, on, "resolved", when);
   } else if (thread.state === "resolved") {
     // GitLab does not say who opened it again, nor when: no earlier than this note.
-    await data.findingThreads.setState({ ...on, state: "unresolved", by: null, at }, now);
+    const moved = await data.findingThreads.setState(
+      { ...on, state: "unresolved", by: null, at },
+      now,
+    );
+    if (moved) await moveFinding(data, on, "unresolved", at);
   }
 }
