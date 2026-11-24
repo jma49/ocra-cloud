@@ -383,7 +383,7 @@ describe("the auto review page", () => {
     );
     render(<AutoReview platforms={["github"]} />);
     const cell = (await screen.findByText("acme/api")).closest("td");
-    expect(cell?.querySelector(".badge")?.textContent).toBe("Paused");
+    expect(cell?.querySelector(".status")?.textContent).toBe("Paused");
     expect(cell?.textContent).toContain("Reviews resume when it is added back.");
     expect(screen.getByText("acme/web").closest("td")?.textContent).not.toContain("Paused");
   });

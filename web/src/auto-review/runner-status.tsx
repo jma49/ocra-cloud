@@ -1,3 +1,4 @@
+import { Status } from "@/components/status";
 import type { ReviewRunnersView } from "../../../src/shared/index.js";
 import { useRead } from "../cache.js";
 import { ago } from "../format.js";
@@ -25,9 +26,7 @@ export function RunnerStatus() {
         return (
           <li key={r.name}>
             <span className="strong">{r.name}</span>{" "}
-            <span className={`badge ${online ? "badge-ok" : "badge-err"}`}>
-              {online ? "Online" : "Offline"}
-            </span>{" "}
+            <Status tone={online ? "ok" : "err"}>{online ? "Online" : "Offline"}</Status>{" "}
             <span className="subtle small">
               Asked for work {ago(r.lastSeenAt)} · ocra {r.version}
             </span>

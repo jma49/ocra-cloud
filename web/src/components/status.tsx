@@ -20,10 +20,15 @@ const ICON: Record<StatusTone, LucideIcon> = {
  * How something stands, as a mark and a word in its tone, with no fill or edge,
  * so it never reads as a button beside the actions it sits with (web/DESIGN.md).
  */
-export function Status(props: { tone: StatusTone; icon?: LucideIcon; children: ReactNode }) {
+export function Status(props: {
+  tone: StatusTone;
+  icon?: LucideIcon;
+  title?: string | undefined;
+  children: ReactNode;
+}) {
   const Icon = props.icon ?? ICON[props.tone];
   return (
-    <span className={`status status-${props.tone}`}>
+    <span className={`status status-${props.tone}`} title={props.title}>
       <Icon size={14} aria-hidden="true" />
       {props.children}
     </span>

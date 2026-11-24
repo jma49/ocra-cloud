@@ -52,7 +52,7 @@ it("says the one thing to know before opening a pull request", () => {
   expect(standing({})).toBe("");
   expect(standing({ draft: true, verdict: "blocking", review: "required" })).toBe("Draft");
   expect(standing({ verdict: "blocking", review: "approved" })).toBe("ocra blocks");
-  expect(screen.getByText("ocra blocks").className).toContain("badge-err");
+  expect(screen.getByText("ocra blocks").className).toContain("status-err");
   expect(standing({ verdict: "not_blocking", review: "changes_requested" })).toBe(
     "Changes requested",
   );
@@ -63,7 +63,7 @@ it("says the one thing to know before opening a pull request", () => {
 it("says where a queued pull request stands in the merge queue, ahead of its review", () => {
   expect(standing({ queued: "waiting", review: "approved" })).toBe("Queued");
   expect(standing({ queued: "blocked", verdict: "not_blocking" })).toBe("Cannot merge");
-  expect(screen.getByText("Cannot merge").className).toBe("badge badge-err");
+  expect(screen.getByText("Cannot merge").className).toBe("status status-err");
 });
 
 it("names the state of the checks and shows the author with their mark", () => {

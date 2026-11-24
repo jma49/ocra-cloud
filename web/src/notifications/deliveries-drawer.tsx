@@ -1,5 +1,6 @@
 import RotateCw from "lucide-react/icons/rotate-cw";
 import { useState } from "react";
+import { Status, type StatusTone } from "@/components/status";
 import { Button } from "@/components/ui/button";
 import type {
   NotifyChannelView,
@@ -21,10 +22,10 @@ import { ActionError, LoadError, Loading, useAction } from "../ui.js";
 // A channel up close: how its last deliveries went, and a webhook's signing
 // secret, which can be replaced but never read again.
 
-const STATE: Record<NotifyDeliveryView["state"], { label: string; tone: string }> = {
-  delivered: { label: "Delivered", tone: "badge badge-ok" },
-  pending: { label: "Will retry", tone: "badge badge-warn" },
-  failed: { label: "Failed", tone: "badge badge-err" },
+const STATE: Record<NotifyDeliveryView["state"], { label: string; tone: StatusTone }> = {
+  delivered: { label: "Delivered", tone: "ok" },
+  pending: { label: "Will retry", tone: "warn" },
+  failed: { label: "Failed", tone: "err" },
 };
 const ERROR: Record<NotifyDeliveryError, string> = {
   refused: "Address not allowed",
@@ -180,7 +181,7 @@ export function DeliveriesDrawer(props: { channel: NotifyChannelView; onClose: (
                       {c.kind === "webhook" ? d.event : EVENT[d.event]}
                     </td>
                     <td>
-                      <span className={STATE[d.state].tone}>{STATE[d.state].label}</span>
+                      <Status tone={STATE[d.state].tone}>{STATE[d.state].label}</Status>
                     </td>
                     <td className="text muted">
                       {answer(d, c.kind === "email")}

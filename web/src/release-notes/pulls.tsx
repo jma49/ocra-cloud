@@ -1,3 +1,4 @@
+import { Status, type StatusTone } from "@/components/status";
 import type {
   ReleasePullView,
   ReleaseReviewVerdict,
@@ -16,11 +17,11 @@ const SECTION_LABEL: Record<ReleaseSection, string> = {
   other: "Other changes",
   hidden: "Maintenance",
 };
-const VERDICT: Record<ReleaseReviewVerdict, { label: string; tone: string }> = {
-  approved: { label: "Approved", tone: "badge badge-ok" },
-  approved_with_comments: { label: "Approved with comments", tone: "badge badge-ok" },
-  minor_issues: { label: "Minor issues", tone: "badge badge-warn" },
-  significant_concerns: { label: "Significant concerns", tone: "badge badge-err" },
+const VERDICT: Record<ReleaseReviewVerdict, { label: string; tone: StatusTone }> = {
+  approved: { label: "Approved", tone: "ok" },
+  approved_with_comments: { label: "Approved with comments", tone: "ok" },
+  minor_issues: { label: "Minor issues", tone: "warn" },
+  significant_concerns: { label: "Significant concerns", tone: "err" },
 };
 
 export function ReleasePulls(props: {
@@ -49,9 +50,9 @@ export function ReleasePulls(props: {
                 </a>
                 <span className="grow">{p.title}</span>
                 {p.review?.verdict && (
-                  <span className={VERDICT[p.review.verdict].tone}>
+                  <Status tone={VERDICT[p.review.verdict].tone}>
                     {VERDICT[p.review.verdict].label}
-                  </span>
+                  </Status>
                 )}
                 {p.author && <span className="subtle small hide-narrow">{p.author}</span>}
               </li>

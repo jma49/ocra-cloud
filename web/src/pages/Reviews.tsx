@@ -1,5 +1,6 @@
 import GitPullRequest from "lucide-react/icons/git-pull-request";
 import { useRef, useState } from "react";
+import { Status } from "@/components/status";
 import { Button } from "@/components/ui/button";
 import { api, type Review, type Reviews as ReviewsData, why } from "../api.js";
 import { useCached } from "../cache.js";
@@ -17,16 +18,15 @@ function Verdict(props: { r: Review }) {
   const { verdict, complete } = props.r;
   if (!complete)
     return (
-      <span className="badge badge-warn" title="Some files were not reviewed">
+      <Status tone="warn" title="Some files were not reviewed">
         Incomplete
-      </span>
+      </Status>
     );
-  if (verdict === "significant_concerns")
-    return <span className="badge badge-err">Significant concerns</span>;
-  if (verdict === "minor_issues") return <span className="badge badge-warn">Minor issues</span>;
-  if (verdict === "approved_with_comments") return <span className="badge">Comments</span>;
-  if (verdict === "approved") return <span className="badge badge-ok">Approved</span>;
-  return <span className="badge">–</span>;
+  if (verdict === "significant_concerns") return <Status tone="err">Significant concerns</Status>;
+  if (verdict === "minor_issues") return <Status tone="warn">Minor issues</Status>;
+  if (verdict === "approved_with_comments") return <Status tone="quiet">Comments</Status>;
+  if (verdict === "approved") return <Status tone="ok">Approved</Status>;
+  return <Status tone="quiet">–</Status>;
 }
 
 /** What a review was of, as its link: the pull request where it had one, then how it ran. */
