@@ -118,6 +118,7 @@ it("names the columns once, in the rows' own column classes", () => {
   render(<ColumnHead />);
   const head = document.querySelector(".inbox-cols");
   expect([...(head?.children ?? [])].map((c) => [c.className, c.textContent])).toEqual([
+    ["chk", ""],
     ["pull-title", "Pull request"],
     ["pull-ref", "Repository"],
     ["pull-review", "Status"],

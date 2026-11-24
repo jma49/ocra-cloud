@@ -7,6 +7,7 @@ import {
   type ReviewThreadView,
   type ThreadSuggestion,
 } from "../../../src/shared/index.js";
+import { EyesMark } from "../eyes.js";
 import { ago } from "../format.js";
 import { KeyCaps } from "../shortcuts/keys.js";
 import { splitPath } from "./diff.js";
@@ -68,7 +69,11 @@ function Comment(props: ItemProps & { c: ReviewThreadView["comments"][number] })
       aria-busy={isSending(c.id) || undefined}
     >
       <span className="avatar thread-avatar" aria-hidden="true">
-        {(c.author ?? (isSending(c.id) ? "Y" : "?")).slice(0, 1).toUpperCase()}
+        {said.head ? (
+          <EyesMark size={16} />
+        ) : (
+          (c.author ?? (isSending(c.id) ? "Y" : "?")).slice(0, 1).toUpperCase()
+        )}
       </span>
       <div className="thread-said">
         <div>

@@ -598,30 +598,44 @@ td.finding-cell {
     inset 0 0.5px 0 var(--hair);
 }
 /* The column names: the rows' own widths, the title's start past the unread mark and the check. */
+/* The column names sit where each row's text starts; a column whose cells lead with a mark leads with one too, in the same place. */
 .inbox-cols {
   display: flex;
   align-items: center;
   gap: 12px;
   height: 32px;
-  padding: 0 16px 0 calc(32px + 16px + 12px);
+  padding: 0 16px 0 32px;
   color: var(--t3);
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
+  line-height: 16px;
   box-shadow: inset 0 -0.5px 0 var(--hair2);
 }
 .inbox-cols > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   color: inherit;
   font-weight: 400;
+}
+/* A name wider than its narrow column (Updated) runs into the gap before it rather than squeezing its mark. */
+.inbox-cols svg {
+  flex: none;
+}
+.inbox-cols > :is(.pull-diff, .pull-time) {
+  justify-content: flex-end;
+  font-size: var(--text-sm);
 }
 :is(.inbox-group:first-child, .inbox-cols + .inbox-group) .inbox-group-head {
   box-shadow: inset 0 -0.5px 0 var(--hair2);
 }
+/* The chevron in the rows' check column, the section's name where their titles start. */
 .section-toggle {
   flex: 1;
   display: flex;
   align-items: center;
   gap: 8px;
   height: 36px;
-  padding: 0 16px;
+  padding: 0 16px 0 32px;
   border: 0;
   background: none;
   color: inherit;
@@ -647,6 +661,10 @@ td.finding-cell {
   transition:
     rotate var(--d-move) var(--e-std),
     border-color var(--d-fast) var(--e-std);
+}
+/* 5 + 6 + 9 + the 8 px gap: the chevron fills the 16 px check column and the 12 px after it. */
+.section-toggle > .fold {
+  margin-inline: calc((16px - 6px) / 2) calc((16px - 6px) / 2 + 4px);
 }
 /* A fold that opens with its own chevron in place of the browser's marker. */
 /* Below any class's rule, so a fold's own head keeps its layout. */
@@ -799,7 +817,16 @@ td.finding-cell {
 .pull-ref {
   flex: none;
   width: 208px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   color: var(--t3);
+}
+.pull-ref > svg {
+  flex: none;
+}
+.pull-ref-text {
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -848,6 +875,17 @@ td.finding-cell {
   text-align: right;
   color: var(--t3);
   font-variant-numeric: tabular-nums;
+}
+.inbox-cols .chk {
+  color: var(--t3);
+}
+.inbox-cols .pull-author {
+  gap: 8px;
+}
+.inbox-cols .col-mark {
+  display: grid;
+  place-items: center;
+  width: 18px;
 }
 /* The inbox's keys, under the list; nothing to press on a touch screen. */
 .key-hints {
