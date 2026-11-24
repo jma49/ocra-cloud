@@ -72,6 +72,10 @@ export type LearningProposalView = {
   head: string;
   author: string | null;
   createdAt: string;
+  /** The platform merges it once what the branch requires is met; otherwise a person does. */
+  autoMerge: boolean;
+  /** Who it asks to review it. */
+  reviewers: string[];
   /** The learnings it adds or changes, as they are at its head. */
   learnings: LearningView[];
   invalid: InvalidLearningView[];
