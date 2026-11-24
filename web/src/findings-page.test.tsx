@@ -55,4 +55,29 @@ describe("the findings list", () => {
     expect(second?.textContent).toContain("correctness · security · verified");
     expect(second?.textContent).not.toContain("#");
   });
+
+  it("says where each finding stands in the page's words", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          findings: [
+            { ...row, status: "merged" },
+            { ...row, id: "f2", status: "addressed" },
+          ],
+          next: null,
+          statuses: { open: 0, fixed: 0, dismissed: 0, addressed: 1, merged: 1 },
+        }),
+      ),
+    );
+    render(
+      <ToastProvider>
+        <Findings />
+      </ToastProvider>,
+    );
+    const [first, second] = await screen.findAllByRole("row").then((rows) => rows.slice(1));
+    expect(first?.querySelector(".status-warn")?.textContent).toBe("Merged unaddressed");
+    expect(second?.querySelector(".status-quiet")?.textContent).toBe("Addressed");
+    expect(screen.getByText("Merged unaddressed (1)")).toBeTruthy();
+  });
 });
