@@ -35,6 +35,7 @@ const job = (over: Partial<FixJobView>): FixJobView => ({
   state: "queued",
   outcome: null,
   reason: null,
+  cause: null,
   error: null,
   createdAt: "2026-11-23T10:00:00.000Z",
   finishedAt: null,
@@ -47,6 +48,7 @@ const item = (over: Partial<MendItemView>): MendItemView => ({
   finding: "f1",
   outcome: null,
   reason: null,
+  cause: null,
   commit: null,
   requestedAt: "2026-11-23T10:00:00.000Z",
   finishedAt: null,
@@ -151,6 +153,15 @@ it("offers a request again when the fixer's call to the model failed", async () 
   fireEvent.click(screen.getByRole("button", { name: "Try the fix again" }));
   expect(await screen.findByText("Fix queued")).toBeTruthy();
   expect(asked).toEqual([{ finding: "f1" }]);
+});
+
+it("says what failed in the fixer's call where the run named it", async () => {
+  serve([[job({ state: "done", outcome: "rejected", reason: "failed", cause: "quota" })]]);
+  show(finding());
+  expect(
+    await screen.findByText("No fix: the model's quota or rate limit is used up."),
+  ).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Try the fix again" })).toBeTruthy();
 });
 
 it("says the day's fixes are used up when the server refuses one", async () => {
