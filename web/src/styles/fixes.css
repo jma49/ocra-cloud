@@ -36,6 +36,10 @@
   font-family: var(--font);
   white-space: normal;
 }
+/* A standing in the row sits on the buttons' centre line, not on a text line's baseline. */
+.finding-decide > [role="status"] {
+  display: inline-flex;
+}
 .finding-note-body {
   font-family: var(--font);
   white-space: normal;

@@ -5,6 +5,8 @@ import {
   type FixJobView,
   type FixRequestView,
   MAX_DAILY_FIX_REQUESTS,
+  type MendItemView,
+  type MendRequestView,
   type PullFindingView,
 } from "../../../src/shared/index.js";
 import { ApiError, api, why } from "../api.js";
@@ -24,6 +26,32 @@ const NO_FIX: Record<Reason, string> = {
   syntax: "the fix it wrote did not parse.",
   not_candidate: "this finding is not one ocra writes a fix for.",
 };
+
+type MendReason = NonNullable<MendItemView["reason"]>;
+
+const NOT_MENDED: Record<MendReason, string> = {
+  ...NO_FIX,
+  out_of_scope: "it needs a file outside this pull request.",
+  protected: "it needs a file ocra does not edit.",
+  tamper: "the fix it wrote weakened a test or a check.",
+  unresolved: "the fix it wrote did not pass ocra's check of it.",
+  unsure: "ocra could not tell that its fix was right.",
+  unchecked: "the check of its fix failed.",
+  overlap: "it touches the lines of another fix in the same round.",
+  no_room: "the round was full.",
+  attempts: "ocra tried twice.",
+  head_moved: "the branch moved while ocra worked.",
+  not_writable: "ocra cannot write to this branch.",
+};
+
+/** Outcomes that close a finding for the loop: asking again changes nothing. */
+const CLOSED: ReadonlySet<MendItemView["outcome"]> = new Set(["needs_human", "gone"]);
+
+/** Why the loop committed no fix for it, in a sentence. */
+const notMended = (item: MendItemView) =>
+  `No fix: ${item.reason ? NOT_MENDED[item.reason] : "ocra gave no reason."}${
+    item.outcome === "needs_human" ? " This one is for a person." : ""
+  }`;
 
 /** Why a finished request left no fix, in a sentence; nothing for one that left one. */
 function noFix(job: FixJobView): string | null {
@@ -45,21 +73,68 @@ const refused = (e: unknown) =>
 
 /**
  * Asks ocra for a fix of a finding that came without one, and says how the
- * request stands. Nothing where no fix can be asked for: outside a
+ * request stands. Where the repository lets ocra commit, the request goes to
+ * the pull request's fix loop, which commits the fix to the branch. Nothing
+ * where no fix can be asked for: outside a
  * repository ocra reviews, for a finding ocra is unsure of, or one with a fix.
  */
 export function FixWithOcra(props: { finding: PullFindingView }) {
   const { finding: f } = props;
   const jobs = useFixJobs();
   const job = jobs.of(f.id);
+  const asked = jobs.commits ? jobs.mendOf(f.id) : undefined;
   const ask = useAction(async () => {
-    await api<FixRequestView>("/auto-review/fixes", {
-      method: "POST",
-      body: JSON.stringify({ finding: f.id }),
-    });
+    if (jobs.commits) {
+      await api<MendRequestView>("/auto-review/mends", {
+        method: "POST",
+        body: JSON.stringify({ findings: [f.id] }),
+      });
+    } else {
+      await api<FixRequestView>("/auto-review/fixes", {
+        method: "POST",
+        body: JSON.stringify({ finding: f.id }),
+      });
+    }
     jobs.reload();
   });
   if (!jobs.enrolled || f.lowConfidence || f.hasFix) return null;
+
+  if (asked) {
+    if (!asked.outcome) {
+      return (
+        <span role="status">
+          <Status tone="run">{jobs.mending ? "Fixing" : "Fix queued"}</Status>
+        </span>
+      );
+    }
+    if (asked.outcome === "fixed") {
+      return (
+        <span role="status">
+          <Status tone="ok">
+            Fixed{asked.commit && <span className="mono"> {asked.commit.slice(0, 7)}</span>}
+          </Status>
+        </span>
+      );
+    }
+    if (CLOSED.has(asked.outcome)) {
+      return (
+        <span className="subtle small" role="status">
+          {notMended(asked)}
+        </span>
+      );
+    }
+    return (
+      <>
+        <Button size="sm" variant="outline" disabled={ask.busy} onClick={() => void ask.run()}>
+          <Wrench size={14} aria-hidden="true" />
+          Try the fix again
+        </Button>
+        <span className={ask.error != null ? "error small" : "subtle small"} role="status">
+          {ask.error != null ? refused(ask.error) : notMended(asked)}
+        </span>
+      </>
+    );
+  }
 
   if (job?.state === "queued" || job?.state === "running") {
     return (

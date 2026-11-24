@@ -18,6 +18,7 @@ import { Hook } from "../auto-review/hook-card.js";
 import { jobError, pausedWhy } from "../auto-review/job-error.js";
 import { LimitReachedNotice } from "../auto-review/limit-reached.js";
 import { NoKeyNotice } from "../auto-review/no-key.js";
+import { RepoMend } from "../auto-review/repo-mend.js";
 import { RepoRestack } from "../auto-review/repo-restack.js";
 import { RepoWebhook } from "../auto-review/repo-webhook.js";
 import { RunnerStatus } from "../auto-review/runner-status.js";
@@ -39,7 +40,7 @@ import { ActionError, EmptyState, LoadError, Loading, PageHead, useAction } from
 type Repos = { repos: AutoReviewRepoView[] };
 type Job = NonNullable<AutoReviewRepoView["latest"]>;
 /** What a repository's row opens under itself. */
-type Panel = "checks" | "restack" | "token" | "webhook";
+type Panel = "checks" | "fixes" | "restack" | "token" | "webhook";
 
 const STATE: Record<Job["state"], { label: string; tone: string }> = {
   queued: { label: "Queued", tone: "badge-run" },
@@ -177,6 +178,15 @@ export function AutoReview(props: { platforms: readonly CodePlatformKind[] }) {
                           type="button"
                           variant="outline"
                           size="sm"
+                          aria-expanded={shows(r.id, "fixes")}
+                          onClick={() => toggle(r.id, "fixes")}
+                        >
+                          Fixes
+                        </Button>{" "}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
                           aria-expanded={shows(r.id, "restack")}
                           onClick={() => toggle(r.id, "restack")}
                         >
@@ -219,6 +229,13 @@ export function AutoReview(props: { platforms: readonly CodePlatformKind[] }) {
                       <tr className="checks-row">
                         <td colSpan={5}>
                           <RepoChecks repoId={r.id} fullName={r.fullName} />
+                        </td>
+                      </tr>
+                    )}
+                    {shows(r.id, "fixes") && (
+                      <tr className="checks-row">
+                        <td colSpan={5}>
+                          <RepoMend r={r} onChanged={reload} />
                         </td>
                       </tr>
                     )}
