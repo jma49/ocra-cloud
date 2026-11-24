@@ -354,6 +354,19 @@ describe("retention", () => {
     expect((await d.list("reviewChatMessages")).map((m) => m.id)).toEqual(["m-new"]);
   });
 
+  it("deletes a pull request's old questions and answers", async () => {
+    const { account } = await signIn(1, "octo");
+    const d = scoped(db, account.id);
+    for (const [id, days] of [
+      ["old", 91],
+      ["new", 1],
+    ] as const) {
+      await d.insert("pullChatMessages", { ...rows.pullChatMessages(id), createdAt: ago(days) });
+    }
+    await enforceRetention(db, now);
+    expect((await d.list("pullChatMessages")).map((m) => m.id)).toEqual(["new"]);
+  });
+
   it("deletes the record of an issue opened from an old review's finding with it", async () => {
     const { account } = await signIn(1, "octo");
     const d = scoped(db, account.id);
