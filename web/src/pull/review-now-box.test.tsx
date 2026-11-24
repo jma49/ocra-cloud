@@ -182,3 +182,39 @@ describe("the AI review card on a pull request", () => {
     expect(before).not.toHaveBeenCalled();
   });
 });
+
+describe("a pull request that moved since ocra's last review", () => {
+  it("says how far it moved and offers to review the new commits", async () => {
+    const sent: unknown[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (String(url).includes("/review-changes")) {
+          return Response.json({
+            platform: "github",
+            repo: "octo/api",
+            number: 7,
+            head: HEAD,
+            review: { id: "r1", head: "c".repeat(40), at: "2026-01-01T00:00:00Z" },
+            state: "changes",
+            commits: 3,
+            versions: 1,
+            openFindings: 2,
+            automatic: false,
+            reviewChanges: true,
+          });
+        }
+        if (init?.method === "POST") sent.push(JSON.parse(String(init.body)));
+        return Response.json({ job: job({ head: "c".repeat(40) }), depth: "standard", live: null });
+      }),
+    );
+    render(<ReviewNowBox pull={pull} head={HEAD} />);
+    expect(
+      await screen.findByText(
+        "3 new commits since ocra's last review, which left 2 findings open.",
+      ),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Review new commits" }));
+    await waitFor(() => expect(sent).toEqual([{ ...pull, force: false }]));
+  });
+});

@@ -19,6 +19,7 @@ import { PlatformMark } from "../platform-mark.js";
 import { PullBatch } from "../pull/batch.js";
 import { SinceBar, sinceFiles, useSince } from "../pull/changes-since.js";
 import { ChecksBox } from "../pull/checks-box.js";
+import { CiBox } from "../pull/ci-box.js";
 import { useClearance } from "../pull/clearance.js";
 import { MERGE_ID, pullCommands } from "../pull/commands.js";
 import { CompactBar } from "../pull/compact-bar.js";
@@ -54,6 +55,7 @@ import { conflicts, nextStep, PullStatus } from "../pull/status.js";
 import { ThreadsPanel } from "../pull/threads.js";
 import { UpdateBranch } from "../pull/update-branch.js";
 import { useDiffSearch } from "../pull/use-diff-search.js";
+import { useVersions, versionFiles } from "../pull/versions.js";
 import { useViewed } from "../pull/viewed.js";
 import { rememberPull } from "../recent-pulls.js";
 import { setPageTitle } from "../title.js";
@@ -93,6 +95,7 @@ export function PullPage(props: {
   const updatedAt = stale ? undefined : data?.updatedAt;
   const head = data?.head;
   const since = useSince(query.toString(), filter);
+  const versions = useVersions(query.toString(), head);
   const compared = since.ready;
   useEffect(() => {
     // The comparison reads the last visit's mark, so it goes first.
@@ -160,7 +163,9 @@ export function PullPage(props: {
   const layout = useDiffLayout();
   const wrap = useDiffWrap(layout.narrow);
   const otherLayout = layout.picked === "split" ? "unified" : "split";
-  const search = useDiffSearch(sinceFiles(since) ?? data?.files ?? NO_FILES);
+  const search = useDiffSearch(
+    versionFiles(versions) ?? sinceFiles(since) ?? data?.files ?? NO_FILES,
+  );
   usePageCommands(
     "This pull request",
     pullCommands({
@@ -194,7 +199,7 @@ export function PullPage(props: {
     reload();
     setReadinessRev((n) => n + 1);
   };
-  const narrowed = sinceFiles(since);
+  const narrowed = versionFiles(versions) ?? sinceFiles(since);
   const shown = treeOrder(narrowed ?? data.files);
   const queues = queue.data?.enabled === true;
   const step = nextStep(
@@ -337,6 +342,7 @@ export function PullPage(props: {
               </>
             ) : undefined}
           </OcraReviewBox>
+          <CiBox pull={ref} head={data.head} />
           <ChecksBox pull={ref} head={data.head} />
           <PeopleCard
             pull={ref}
@@ -356,11 +362,11 @@ export function PullPage(props: {
         <div className="pull-main">
           <SearchBar search={search} />
           <DiffBar layout={layout} wrap={wrap} whitespace={whitespace} />
-          <SinceBar since={since} />
+          <SinceBar since={since} versions={versions} />
           <FixJobsOf query={query.toString()} onProposed={fixProposed}>
             {shown.map((f) => (
               <FileDiff
-                key={`${since.picked ?? ""}:${drawn?.filter}:${f.path}`}
+                key={`${versions.range?.from ?? ""}:${versions.range?.to ?? since.picked ?? ""}:${drawn?.filter}:${f.path}`}
                 hideWhitespace={drawn?.filter !== ""}
                 layout={layout.drawn}
                 wrap={wrap.drawn}
@@ -368,6 +374,11 @@ export function PullPage(props: {
                 focus={search.focus?.path === f.path ? search.focus : null}
                 context={{ pull: ref, head: data.head }}
                 readOnly={narrowed !== null}
+                noPatch={
+                  versions.view?.lines === false
+                    ? `Changed between these versions (${f.status}); the platform sends no lines for this compare.`
+                    : undefined
+                }
                 file={f}
                 viewed={viewed.isViewed(f.path)}
                 onViewed={(v) => viewed.mark(f.path, v)}

@@ -22,6 +22,8 @@
 @import "./styles/release-notes.css";
 @import "./styles/learnings.css";
 @import "./styles/merge-checks.css";
+@import "./styles/pull-ci.css";
+@import "./styles/pull-versions.css";
 @import "./styles/review-chat.css";
 @import "./styles/live.css";
 @import "./styles/get-started.css";

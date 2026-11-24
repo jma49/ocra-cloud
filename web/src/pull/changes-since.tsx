@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import type { PullSinceOption, PullSinceView } from "../../../src/shared/index.js";
 import { api } from "../api.js";
 import { Seg, useLoad } from "../ui.js";
+import { VersionPicker, type Versions } from "./versions.js";
 
 const SOURCE: Record<PullSinceOption["source"], string> = {
   reviewed: "your last review",
@@ -11,6 +12,7 @@ const SOURCE: Record<PullSinceOption["source"], string> = {
 
 // A toggle needs a value that is not empty for the whole diff.
 const ALL = "all";
+const VERSIONS = "versions";
 
 const short = (sha: string) => sha.slice(0, 7);
 
@@ -50,6 +52,15 @@ export function useSince(query: string, filter = "") {
   };
 }
 
+const choices = (props: { since: Since; versions: Versions }) => [
+  { value: ALL, label: "All changes" },
+  ...props.since.options.map((o) => ({
+    value: o.head,
+    label: `Since ${SOURCE[o.source]} · ${short(o.head)}`,
+  })),
+  ...(props.versions.versions.length >= 2 ? [{ value: VERSIONS, label: "Versions" }] : []),
+];
+
 /** The files to show instead of the whole diff, or null to show the whole diff. */
 export function sinceFiles(since: Since): PullSinceView["files"] | null {
   if (since.picked === null || since.failed) return null;
@@ -59,25 +70,37 @@ export function sinceFiles(since: Since): PullSinceView["files"] | null {
   return state === "same" || state === "rebased" ? [] : null;
 }
 
-export function SinceBar(props: { since: Since }) {
-  const { since } = props;
-  if (since.options.length === 0) return null;
+export function SinceBar(props: { since: Since; versions: Versions }) {
+  const { since, versions } = props;
+  const byVersion = versions.versions.length >= 2;
+  if (since.options.length === 0 && !byVersion) return null;
   const option = since.options.find((o) => o.head === since.picked);
   const from = option ? `${SOURCE[option.source]} (${short(option.head)})` : "";
   const state = since.failed ? "unavailable" : since.view?.state;
+  const pick = (v: string) => {
+    if (v === VERSIONS) {
+      since.pick(null);
+      versions.openLatest();
+      return;
+    }
+    versions.pick(null);
+    since.pick(v === ALL ? null : v);
+  };
+  if (versions.range) {
+    return (
+      <section className="stack-tight" aria-label="Changes shown">
+        <Seg label="Changes shown" value={VERSIONS} onChange={pick} options={choices(props)} />
+        <VersionPicker versions={versions} />
+      </section>
+    );
+  }
   return (
     <section className="stack-tight" aria-label="Changes shown">
       <Seg
         label="Changes shown"
         value={since.picked ?? ALL}
-        onChange={(v) => since.pick(v === ALL ? null : v)}
-        options={[
-          { value: ALL, label: "All changes" },
-          ...since.options.map((o) => ({
-            value: o.head,
-            label: `Since ${SOURCE[o.source]} · ${short(o.head)}`,
-          })),
-        ]}
+        onChange={pick}
+        options={choices(props)}
       />
       {since.loading && <p className="muted small m-0">Reading the changes…</p>}
       {!since.loading && option && state === "changes" && (
