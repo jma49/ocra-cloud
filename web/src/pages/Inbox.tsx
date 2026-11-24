@@ -111,11 +111,6 @@ export function Inbox(props: { me?: Me }) {
       <PageHead
         title="Pull requests"
         sub="What waits on you across every connected platform, read live."
-        actions={
-          <Button type="button" variant="outline" onClick={() => setEditing({ draft: BLANK })}>
-            New section
-          </Button>
-        }
       />
       {offered && (
         <div className="note" role="status">
@@ -175,6 +170,14 @@ export function Inbox(props: { me?: Me }) {
             Mark all read
           </Button>
         )}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setEditing({ draft: BLANK })}
+        >
+          New section
+        </Button>
       </div>
       {error && data ? (
         <p className="error small row-gap inbox-old" role="alert">

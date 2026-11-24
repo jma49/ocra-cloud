@@ -45,6 +45,7 @@ import { GO_TO, useGlobalKeys } from "./shortcuts/global-keys.js";
 import { ShortcutsDrawer } from "./shortcuts/shortcuts-drawer.js";
 import { DOCS } from "./site.js";
 import { chooseTheme, THEMES, type ThemeChoice, useThemeChoice } from "./theme.js";
+import { NamedByBar } from "./ui.js";
 
 // The signed-in frame: the icon rail of places on the ground, and the open
 // page on a panel beside it, headed by where it is and its place's tabs.
@@ -317,6 +318,8 @@ export function Frame(props: {
   children: ReactNode;
 }) {
   const settings = props.route?.place === "settings";
+  // A place's own tab is named by the bar over it; settings pages keep their title.
+  const named = props.route?.tab !== undefined && !settings;
   const [shortcuts, setShortcuts] = useState(false);
   const showShortcuts = () => setShortcuts(true);
   const theme = useThemeChoice();
@@ -328,7 +331,9 @@ export function Frame(props: {
         <PageBar me={props.me} route={props.route} path={props.path} />
         <div className={settings ? "panel-body with-nav" : "panel-body"}>
           {settings && <SettingsNav me={props.me} path={props.path} />}
-          <main className="content">{props.children}</main>
+          <main className="content">
+            <NamedByBar.Provider value={named}>{props.children}</NamedByBar.Provider>
+          </main>
         </div>
       </div>
       <CommandMenu sections={commandSections(props.me, showShortcuts, theme)} />

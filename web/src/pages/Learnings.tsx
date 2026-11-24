@@ -30,7 +30,8 @@ export function Learnings() {
     <>
       <PageHead
         title="Learnings"
-        sub="What reviews know about a repository, from .ocra/learnings on its default branch. Each change you make here is a commit of yours, opened as a pull request."
+        sub="What reviews know about a repository, from .ocra/learnings on its default branch."
+        note="Each change you make here is a commit of yours, opened as a pull request."
         actions={choice.select}
       />
       {choice.body(Lightbulb, (repo, key) => (

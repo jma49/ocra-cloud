@@ -46,7 +46,8 @@ export function RepoConfig() {
     <>
       <PageHead
         title="Review config"
-        sub="How reviews of a repository run, from .ocra on its default branch. A change you make here is checked first, then committed as you and opened as a pull request."
+        sub="How reviews of a repository run, from .ocra on its default branch."
+        note="A change you make here is checked first, then committed as you and opened as a pull request."
         actions={
           <>
             <Seg label="File" value={file} onChange={setFile} options={FILES} />
