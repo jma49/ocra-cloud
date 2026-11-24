@@ -1,5 +1,6 @@
 import KeyRound from "lucide-react/icons/key-round";
 import { useMemo, useState } from "react";
+import { Status } from "@/components/status";
 import { Button } from "@/components/ui/button";
 import { forgetKeys, loadKeys } from "../account-keys.js";
 import { api, type CheckStatus, type Key, type ProviderInfo, why } from "../api.js";
@@ -137,33 +138,30 @@ function StatusBadge(props: {
   switch (props.status) {
     case "ok":
       return (
-        <span className="badge badge-ok" title={when}>
-          <span className="dot" />
+        <Status tone="ok" title={when}>
           Verified
-        </span>
+        </Status>
       );
     case "invalid":
       return (
-        <span className="badge badge-err" title={when}>
-          <span className="dot" />
+        <Status tone="err" title={when}>
           Rejected
-        </span>
+        </Status>
       );
     case "error":
       return (
-        <span className="badge badge-warn" title={when}>
-          <span className="dot" />
+        <Status tone="warn" title={when}>
           Check failed
-        </span>
+        </Status>
       );
     default:
       return (
-        <span
-          className="badge"
+        <Status
+          tone="quiet"
           title={props.checkable ? "" : "This provider cannot check a key in advance"}
         >
           Not checked
-        </span>
+        </Status>
       );
   }
 }

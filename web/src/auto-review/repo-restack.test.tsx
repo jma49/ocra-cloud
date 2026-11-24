@@ -89,7 +89,7 @@ describe("a repository's restacks", () => {
     ]);
     render(<RepoRestack r={repo} onChanged={() => {}} />);
     const rows = await screen.findAllByRole("listitem");
-    expect(rows.map((r) => r.querySelector(".badge")?.textContent)).toEqual([
+    expect(rows.map((r) => r.querySelector(".status")?.textContent)).toEqual([
       "Restacked",
       "Conflict",
       "Skipped",

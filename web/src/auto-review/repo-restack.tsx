@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Status, type StatusTone } from "@/components/status";
 import { Switch } from "@/components/ui/switch";
 import type {
   AutoReviewRepoView,
@@ -27,30 +28,30 @@ const SKIPPED: Record<string, string> = {
   push_refused: "The platform refused the bot's push",
 };
 
-/** How a restack stands, in a badge, and what it left to do, in words. */
-function standing(job: RestackJobView): { label: string; tone: string; note?: string | null } {
-  if (job.state === "queued") return { label: "Queued", tone: "badge badge-run" };
-  if (job.state === "running") return { label: "Rebasing", tone: "badge badge-run" };
-  if (job.state === "failed") return { label: "Failed", tone: "badge badge-err", note: job.reason };
+/** How a restack stands, as a `Status`, and what it left to do, in words. */
+function standing(job: RestackJobView): { label: string; tone: StatusTone; note?: string | null } {
+  if (job.state === "queued") return { label: "Queued", tone: "run" };
+  if (job.state === "running") return { label: "Rebasing", tone: "run" };
+  if (job.state === "failed") return { label: "Failed", tone: "err", note: job.reason };
   switch (job.outcome) {
     case "restacked":
-      return { label: "Restacked", tone: "badge badge-ok" };
+      return { label: "Restacked", tone: "ok" };
     case "conflict":
       return {
         label: "Conflict",
-        tone: "badge badge-warn",
+        tone: "warn",
         note: "Nothing was pushed; its author restacks it locally",
       };
     case "lease_lost":
       return {
         label: "Left alone",
-        tone: "badge",
+        tone: "quiet",
         note: "The branch moved while it was rebased",
       };
     default:
       return {
         label: "Skipped",
-        tone: "badge",
+        tone: "quiet",
         note: (job.reason && SKIPPED[job.reason]) ?? job.reason,
       };
   }
@@ -75,7 +76,7 @@ function Job(props: { job: RestackJobView }) {
           {note && ` · ${note}`}
         </div>
       </div>
-      <span className={tone}>{label}</span>
+      <Status tone={tone}>{label}</Status>
       <span className="subtle small nobreak">{ago(job.finishedAt ?? job.createdAt)}</span>
     </li>
   );

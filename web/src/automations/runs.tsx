@@ -1,3 +1,4 @@
+import { Status, type StatusTone } from "@/components/status";
 import type { AutomationActionOutcome, AutomationRunView } from "../../../src/shared/index.js";
 import { ago } from "../format.js";
 import { EmptyNote } from "../ui.js";
@@ -20,12 +21,12 @@ const WARN = new Set<AutomationActionOutcome>(["no_candidates"]);
 const tone = (o: AutomationActionOutcome) =>
   QUIET.has(o) ? "muted" : WARN.has(o) ? "warn-inline" : "error-inline";
 
-const RUN_TONE: Record<AutomationRunView["outcome"], string> = {
-  running: "badge",
-  done: "badge badge-ok",
-  partial: "badge badge-warn",
-  failed: "badge badge-err",
-  skipped: "badge",
+const RUN_TONE: Record<AutomationRunView["outcome"], StatusTone> = {
+  running: "run",
+  done: "ok",
+  partial: "warn",
+  failed: "err",
+  skipped: "quiet",
 };
 
 export function Runs(props: { runs: AutomationRunView[] }) {
@@ -51,7 +52,7 @@ export function Runs(props: { runs: AutomationRunView[] }) {
             <tr key={r.id}>
               <td className="text">
                 <div className="strong">{r.ruleName}</div>
-                <span className={RUN_TONE[r.outcome]}>{RUN_LABEL[r.outcome]}</span>
+                <Status tone={RUN_TONE[r.outcome]}>{RUN_LABEL[r.outcome]}</Status>
               </td>
               <td>{r.pull}</td>
               <td className="text">

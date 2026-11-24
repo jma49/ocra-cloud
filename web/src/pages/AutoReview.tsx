@@ -1,5 +1,6 @@
 import FolderGit2 from "lucide-react/icons/folder-git-2";
 import { Fragment, useState } from "react";
+import { Status, type StatusTone } from "@/components/status";
 import { Button } from "@/components/ui/button";
 import {
   type AutoReviewRepoView,
@@ -42,12 +43,12 @@ type Job = NonNullable<AutoReviewRepoView["latest"]>;
 /** What a repository's row opens under itself. */
 type Panel = "checks" | "fixes" | "restack" | "token" | "webhook";
 
-const STATE: Record<Job["state"], { label: string; tone: string }> = {
-  queued: { label: "Queued", tone: "badge-run" },
-  running: { label: "Reviewing", tone: "badge-run" },
-  done: { label: "Reviewed", tone: "badge-ok" },
-  failed: { label: "Failed", tone: "badge-err" },
-  superseded: { label: "Superseded", tone: "" },
+const STATE: Record<Job["state"], { label: string; tone: StatusTone }> = {
+  queued: { label: "Queued", tone: "run" },
+  running: { label: "Reviewing", tone: "run" },
+  done: { label: "Reviewed", tone: "ok" },
+  failed: { label: "Failed", tone: "err" },
+  superseded: { label: "Superseded", tone: "quiet" },
 };
 
 export function AutoReview(props: { platforms: readonly CodePlatformKind[] }) {
@@ -150,7 +151,7 @@ export function AutoReview(props: { platforms: readonly CodePlatformKind[] }) {
                         </div>
                         {r.paused && (
                           <div className="small repo-paused">
-                            <span className="badge badge-warn">Paused</span>{" "}
+                            <Status tone="warn">Paused</Status>{" "}
                             <span className="subtle">{pausedWhy(r.paused)}</span>
                           </div>
                         )}
@@ -281,7 +282,7 @@ function LastJob(props: { r: AutoReviewRepoView }) {
     <div className="stack-tight">
       <span>
         <Link to={pullPath(r.platform, r.fullName, job.number)}>#{job.number}</Link>{" "}
-        <span className={`badge ${state.tone}`}>{state.label}</span>{" "}
+        <Status tone={state.tone}>{state.label}</Status>{" "}
         {job.finishedAt && <span className="subtle small">{ago(job.finishedAt)}</span>}
       </span>
       {job.state === "queued" && job.error === DAILY_LIMIT_WAIT ? (

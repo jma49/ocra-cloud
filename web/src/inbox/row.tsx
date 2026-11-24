@@ -2,6 +2,7 @@ import Layers from "lucide-react/icons/layers";
 import MessageSquare from "lucide-react/icons/message-square";
 import Users from "lucide-react/icons/users";
 import { type MouseEvent, useEffect } from "react";
+import { Status, type StatusTone } from "@/components/status";
 import { since } from "../format.js";
 import { PersonMark } from "../person-mark.js";
 import { CheckMark } from "../pull/check-mark.js";
@@ -12,21 +13,29 @@ import type { Row } from "./sections.js";
 import { UNREAD_REASON } from "./unread.js";
 
 const REVIEW = {
-  approved: { label: "Approved", tone: "badge badge-ok" },
-  changes_requested: { label: "Changes requested", tone: "badge badge-warn" },
-  required: { label: "Review required", tone: "badge" },
+  approved: { label: "Approved", tone: "ok" },
+  changes_requested: { label: "Changes requested", tone: "warn" },
+  required: { label: "Review required", tone: "quiet" },
 } as const;
 
-type Standing = { label: string; tone: string };
+type Standing = { label: string; tone: StatusTone };
+
+const QUEUE_TONE: Record<keyof typeof QUEUE_STATE, StatusTone> = {
+  waiting: "quiet",
+  checking: "run",
+  ready: "ok",
+  merging: "run",
+  blocked: "err",
+};
 
 /** The one thing to know before opening it: what it is, where its merge stands, then what blocks it, then how its review stands. */
 function standingOf(r: Row): Standing | null {
   if (r.state !== "open") return null;
-  if (r.draft) return { label: "Draft", tone: "badge" };
-  if (r.queued) return QUEUE_STATE[r.queued];
-  if (r.verdict === "blocking") return { label: "ocra blocks", tone: "badge badge-err" };
+  if (r.draft) return { label: "Draft", tone: "quiet" };
+  if (r.queued) return { label: QUEUE_STATE[r.queued].label, tone: QUEUE_TONE[r.queued] };
+  if (r.verdict === "blocking") return { label: "ocra blocks", tone: "err" };
   if (r.review) return REVIEW[r.review];
-  return r.verdict === "not_blocking" ? { label: "ocra passed", tone: "badge badge-ok" } : null;
+  return r.verdict === "not_blocking" ? { label: "ocra passed", tone: "ok" } : null;
 }
 
 const runClass = (run: { first: boolean; last: boolean } | null) =>
@@ -128,7 +137,7 @@ function PullLink(props: {
         <RepoName repo={r.repo} /> <span className="pull-num">#{r.number}</span>
       </span>
       <span className="pull-review">
-        {review && <span className={review.tone}>{review.label}</span>}
+        {review && <Status tone={review.tone}>{review.label}</Status>}
       </span>
       {r.additions !== null && r.deletions !== null && (
         <span className="pull-diff">

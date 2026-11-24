@@ -86,7 +86,8 @@ Shared controls are coss ui (Base UI + Tailwind), copied into `web/src/component
 | One of a few options, all visible | `Seg` (coss Toggle Group) |
 | One of many options | native `select.input` |
 | Several independent options in a form | `.check` checkboxes |
-| A status word in a table or list row | `.badge` (`-ok`, `-warn`, `-run`, `-err`): a 20 px tag with `--r-tag` corners, smaller and squarer than any control |
+| How something stands, anywhere (a row, a head, a card) | `Status` (`web/src/components/status.tsx`): a 14 px mark and a word in its tone (ok, warn, err, run, quiet), no fill |
+| A tag in a table or list row (a severity, a kind such as Browser or CLI) | `.badge` (`-ok`, `-warn`, `-run`, `-err`): a 20 px tag with `--r-tag` corners, smaller and squarer than any control |
 | A standing beside actions, in a head or on a card's title line | `Status` (`web/src/components/status.tsx`): a 14 px mark and the word in its tone, no fill and no edge |
 | A sentence of status or help | `.note` (`.ok`, `.err`) |
 | An empty list, a failed load, a missing page | `EmptyState` (coss Empty): icon, what appears here, one action |

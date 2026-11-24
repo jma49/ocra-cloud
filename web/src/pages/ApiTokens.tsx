@@ -1,5 +1,6 @@
 import KeySquare from "lucide-react/icons/key-square";
 import { useState } from "react";
+import { Status } from "@/components/status";
 import { Button } from "@/components/ui/button";
 import {
   API_TOKEN_MAX,
@@ -102,7 +103,7 @@ export function ApiTokens() {
                       {new Date(t.expiresAt).getTime() - Date.now() < SOON_MS && (
                         <>
                           {" "}
-                          <span className="badge badge-warn">Soon</span>
+                          <Status tone="warn">Soon</Status>
                         </>
                       )}
                     </td>

@@ -1,3 +1,4 @@
+import { Status } from "@/components/status";
 import { spendReached } from "../../../src/shared/index.js";
 import { type Budget, dailyLimit, resetLabel } from "../budget/budget.js";
 import { useRead } from "../cache.js";
@@ -42,7 +43,7 @@ export function LimitReachedNotice() {
   if (!reached) return null;
   return (
     <p className="small limit-reached" role="status">
-      <span className="badge badge-warn">{reached.badge}</span> {reached.why} Queued reviews start{" "}
+      <Status tone="warn">{reached.badge}</Status> {reached.why} Queued reviews start{" "}
       {reached.resumes}. <Link to="/budget">Budget</Link>
     </p>
   );

@@ -1,3 +1,4 @@
+import { Status } from "@/components/status";
 import type { LinkedTaskView } from "../../../src/shared/index.js";
 
 const TRACKER = { github: "GitHub", gitlab: "GitLab", jira: "Jira", tapd: "TAPD" } as const;
@@ -29,7 +30,9 @@ export function LinkedTasks(props: { tasks: readonly LinkedTaskView[] | null }) 
                 </span>{" "}
                 <span className="subtle">{TRACKER[t.tracker]}</span>
                 {t.state && (
-                  <span className={t.state === "open" ? "badge badge-ok" : "badge"}>{t.state}</span>
+                  <Status tone={t.state === "open" ? "ok" : "quiet"}>
+                    {t.state === "open" ? "Open" : "Closed"}
+                  </Status>
                 )}
                 {t.title && <span className="linked-task-title">{t.title}</span>}
               </li>

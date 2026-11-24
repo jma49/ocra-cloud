@@ -1,5 +1,6 @@
 import Network from "lucide-react/icons/network";
 import { useState } from "react";
+import { Status } from "@/components/status";
 import { Button } from "@/components/ui/button";
 import type { CodePlatformKind, GraphPolicy, GraphRepoView } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
@@ -335,45 +336,32 @@ function GraphRow(props: { repo: GraphRepoView; put: (r: GraphRepoView) => void;
 
 function BuildState(props: { repo: GraphRepoView }) {
   const latest = props.repo.latest;
-  if (!latest) return <span className="badge">No graph</span>;
+  if (!latest) return <Status tone="quiet">No graph</Status>;
   switch (latest.state) {
     case "done":
       return latest.truncated ? (
-        <span className="badge badge-warn" title="The platform listed only part of the repository">
-          <span className="dot" />
+        <Status tone="warn" title="The platform listed only part of the repository">
           Partial
-        </span>
+        </Status>
       ) : (
-        <span className="badge badge-ok">
-          <span className="dot" />
-          Built
-        </span>
+        <Status tone="ok">Built</Status>
       );
     case "running":
-      return (
-        <span className="badge badge-warn">
-          <span className="dot" />
-          Building
-        </span>
-      );
+      return <Status tone="run">Building</Status>;
     case "queued":
       return (
-        <span className="badge" title={latest.error ? failure(latest.error) : undefined}>
-          <span className="dot" />
+        <Status tone="quiet" title={latest.error ? failure(latest.error) : undefined}>
           {latest.error ? "Retrying" : "Queued"}
-        </span>
+        </Status>
       );
     case "failed":
       return (
         <>
-          <span className="badge badge-err">
-            <span className="dot" />
-            Failed
-          </span>
+          <Status tone="err">Failed</Status>
           {latest.error && <div className="subtle small">{failure(latest.error)}</div>}
         </>
       );
     case "superseded":
-      return <span className="badge">Superseded</span>;
+      return <Status tone="quiet">Superseded</Status>;
   }
 }

@@ -1,4 +1,5 @@
 import { type FormEvent, useState } from "react";
+import { Status } from "@/components/status";
 import { Button } from "@/components/ui/button";
 import { ApiError, api, type KeyCheck, type ProviderInfo } from "../api.js";
 import { Drawer } from "../drawer.js";
@@ -240,7 +241,7 @@ function PickList(props: {
         <button key={x.name} type="button" className="pick" onClick={() => props.onPick(x.name)}>
           <ProviderLogo name={x.name} label={x.label} size={24} />
           <span className="grow">{x.label}</span>
-          {props.configured.has(x.name) && <span className="badge badge-ok">Configured</span>}
+          {props.configured.has(x.name) && <Status tone="ok">Configured</Status>}
         </button>
       ))}
     </div>

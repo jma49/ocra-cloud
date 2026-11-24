@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Status } from "@/components/status";
 import { api, type Usage } from "../api.js";
 import { useCached } from "../cache.js";
 import { compact, num, period, time } from "../format.js";
@@ -161,11 +162,9 @@ function ActivityBody(props: {
                     <td className="muted">{c.provider}</td>
                     <td>
                       {c.status === 0 ? (
-                        <span className="badge">pending</span>
+                        <Status tone="quiet">Pending</Status>
                       ) : (
-                        <span className={`badge ${c.status < 400 ? "badge-ok" : "badge-err"}`}>
-                          {c.status}
-                        </span>
+                        <Status tone={c.status < 400 ? "ok" : "err"}>{c.status}</Status>
                       )}
                     </td>
                     <td className="num">

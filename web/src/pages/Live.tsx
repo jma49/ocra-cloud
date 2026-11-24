@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import Radio from "lucide-react/icons/radio";
 import Users from "lucide-react/icons/users";
+import { Status } from "@/components/status";
 import type { LiveRunView } from "../../../src/shared/index.js";
 import { useRead } from "../cache.js";
 import { ago, sourceLabel, usd } from "../format.js";
@@ -13,9 +14,9 @@ import { EmptyState, LoadError, Loading, PageHead } from "../ui.js";
 type LiveList = { runs: LiveRunView[]; shared: LiveRunView[] };
 
 const STATE = {
-  running: { label: "Running", cls: "badge-run" },
-  finished: { label: "Finished", cls: "badge-ok" },
-  failed: { label: "Stopped", cls: "badge-err" },
+  running: { label: "Running", tone: "run" },
+  finished: { label: "Finished", tone: "ok" },
+  failed: { label: "Stopped", tone: "err" },
 } as const;
 
 export function Live() {
@@ -77,7 +78,7 @@ function Runs(props: {
             return (
               <li key={r.id}>
                 <Link className="list-row" to={`/live/${r.id}`}>
-                  <span className={`badge ${state.cls}`}>{state.label}</span>
+                  <Status tone={state.tone}>{state.label}</Status>
                   <span className="grow stack-tight">
                     <span className="strong">{r.title || r.target || "Review"}</span>
                     <span className="subtle small">
