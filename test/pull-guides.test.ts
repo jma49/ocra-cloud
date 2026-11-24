@@ -99,4 +99,23 @@ describe("a pull request's tour and highlights", () => {
       body: { error: "not_found", available: false },
     });
   });
+
+  it("ask no generator for a platform the account has not connected", async () => {
+    githubFake();
+    const a = await signInWithGithub();
+    let asked = 0;
+    const send = withGuides(
+      {
+        tour: async () => {
+          asked++;
+          return null;
+        },
+        highlights: async () => null,
+      },
+      a.cookie,
+    );
+    const res = await send(`/api/pulls/tour?${QUERY.replace("github", "gitlab")}`);
+    expect(res.status).not.toBe(200);
+    expect(asked).toBe(0);
+  });
 });
