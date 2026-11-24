@@ -37,6 +37,23 @@ async function ask(a: Session, path: string, init: RequestInit = {}) {
   return res;
 }
 
+/** A GitLab hook to the server's own address, proved by the project's secret. */
+export async function gitlabHook(secret: string, body: unknown) {
+  const ctx = createExecutionContext();
+  const req = new Request(`${ORIGIN}/api/auto-review/webhooks/gitlab`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-gitlab-event": "Merge Request Hook",
+      "x-gitlab-token": secret,
+    },
+    body: JSON.stringify(body),
+  });
+  const res = await app.fetch(req, env, ctx);
+  await waitOnExecutionContext(ctx);
+  return res;
+}
+
 export async function setUp() {
   const a = await signInWithGithub();
   const [account] = await db.select().from(schema.accounts);

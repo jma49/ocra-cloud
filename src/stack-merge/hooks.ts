@@ -17,7 +17,8 @@ import { mergeKey, queueRestacks } from "./restack.js";
 // server-side writes use), so they do not merge into a branch that landed;
 // where the repository turned restacks on, each moved one is queued to be
 // rebased there too (./restack.ts). GitHub moves them itself when it deletes
-// the merged head branch, sometimes before the merge's delivery is handled,
+// the merged head branch, and GitLab when it deletes the merged source
+// branch (at most four), sometimes before the merge's delivery is handled,
 // which then finds none: each such move's own delivery queues its restack,
 // under the same key, so the two never queue it twice.
 
@@ -33,7 +34,7 @@ export type MergedPull = {
   mergeCommit?: string | null;
 };
 
-/** A GitHub pull request moved off `from` onto `base`, its head branch in the repository. */
+/** A pull request moved off `from` onto `base`, its head branch in the repository. */
 export type RetargetedPull = {
   number: number;
   from: string;
@@ -89,6 +90,24 @@ const githubRetargetedBody = z.object({
   }),
 });
 
+// GitLab sends it for its own move (its source-branch deletion's retarget),
+// for a user's and for ocra's alike (src/platforms/gitlab-stack.ts).
+const gitlabRetargetedBody = z.object({
+  object_attributes: z.object({
+    iid: z.number().int().min(1),
+    action: z.literal("update"),
+    state: z.literal("opened"),
+    source_branch: z.string().min(1),
+    target_branch: z.string().min(1),
+    source_project_id: z.number(),
+    target_project_id: z.number(),
+    last_commit: z.object({ id: z.string() }),
+  }),
+  changes: z.object({
+    target_branch: z.object({ previous: z.string().min(1), current: z.string().min(1) }),
+  }),
+});
+
 export const GITHUB_STACK_FIELDS = [githubMergedBody, githubRetargetedBody];
 
 /** A GitHub delivery's open pull request moved to another base, its head in the repository; null for any other. */
@@ -106,6 +125,23 @@ export function githubRetargeted(event: string | undefined, body: unknown): Reta
     base: pull.base.ref,
     head: pull.head.ref,
     headSha: pull.head.sha,
+  };
+}
+
+/** A GitLab hook's open merge request moved to another target, its source in the project; else null. */
+export function gitlabRetargeted(kind: string | undefined, body: unknown): RetargetedPull | null {
+  if (kind !== "Merge Request Hook") return null;
+  const p = gitlabRetargetedBody.safeParse(body);
+  if (!p.success) return null;
+  const { object_attributes: a, changes } = p.data;
+  const from = changes.target_branch.previous;
+  if (a.source_project_id !== a.target_project_id || from === a.target_branch) return null;
+  return {
+    number: a.iid,
+    from,
+    base: a.target_branch,
+    head: a.source_branch,
+    headSha: a.last_commit.id,
   };
 }
 
