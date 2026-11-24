@@ -109,6 +109,7 @@ describe("deleting an account", () => {
           "reviews",
           "findings",
           "reviewWalkthroughs",
+          "reviewTraces",
           "reviewChatMessages",
           "findingIssues",
           "stackMergeLayers",
@@ -148,6 +149,10 @@ describe("deleting an account", () => {
     await d.insert("findings", { ...rows.findings(id("findings")), reviewId: id("reviews") });
     await d.insert("reviewWalkthroughs", {
       ...rows.reviewWalkthroughs(id("reviewWalkthroughs")),
+      reviewId: id("reviews"),
+    });
+    await d.insert("reviewTraces", {
+      ...rows.reviewTraces(id("reviewTraces")),
       reviewId: id("reviews"),
     });
     await d.insert("reviewChatMessages", {

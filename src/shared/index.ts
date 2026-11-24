@@ -57,5 +57,6 @@ export * from "./scheduled-reports.js";
 export * from "./search.js";
 export * from "./sign-in.js";
 export * from "./stacks.js";
+export * from "./trace.js";
 export * from "./walkthrough.js";
 export * from "./webhooks.js";

@@ -26,8 +26,14 @@ import { perMinute, retryTomorrow } from "./rate.js";
 import { repoNames } from "./repositories.js";
 import { pullOfReview, pullOnPlatform } from "./review-pull.js";
 import { requireSession } from "./session.js";
-import type { FindingRule, ReviewerCounts, ReviewWalkthroughView } from "./shared/index.js";
+import type {
+  FindingRule,
+  ReviewerCounts,
+  ReviewTraceView,
+  ReviewWalkthroughView,
+} from "./shared/index.js";
 import { DAY } from "./time.js";
+import { parseTrace } from "./trace.js";
 import type { AppEnv } from "./types.js";
 import { parseWalkthrough } from "./walkthrough.js";
 
@@ -134,6 +140,7 @@ reviews.post("/", requireSession(["web", "cli"]), perMinute("upload"), uploadBod
       ? parseFindings(list)
       : { rows: [], truncated: false, dropped: 0 };
   const walkthrough = sharing ? parseWalkthrough(upload.walkthrough) : undefined;
+  const trace = sharing ? parseTrace(upload.trace) : undefined;
   // What was left out is reported, never silently lost (audit K-models).
   const dropped = {
     ...(parsed.dropped > 0 ? { findings: parsed.dropped } : {}),
@@ -157,6 +164,7 @@ reviews.post("/", requireSession(["web", "cli"]), perMinute("upload"), uploadBod
   const { id, findingsSkipped } = stored;
   // A retry of the run answers duplicate above, so this runs once per review.
   if (walkthrough) await c.var.data.insert("reviewWalkthroughs", { ...walkthrough, reviewId: id });
+  if (trace) await c.var.data.insert("reviewTraces", { trace, reviewId: id });
   const fixed = sharing ? fixedOnPull(upload) : null;
   if (fixed) await c.var.data.findingOutcomes.markFixedOnRereview(fixed);
   publishReview(c, id);
@@ -215,9 +223,10 @@ async function recheckPull(c: Context<AppEnv>, id: string) {
 reviews.get("/:id", requireSession(), async (c) => {
   const review = await c.var.data.get("reviews", c.req.param("id"));
   if (!review) return apiError(c, "not_found");
-  const [list, walkthrough, issues, dismissals] = await Promise.all([
+  const [list, walkthrough, traced, issues, dismissals] = await Promise.all([
     c.var.data.findingsOf(review.id),
     c.var.data.findOne("reviewWalkthroughs", { reviewId: review.id }),
+    c.var.data.count("reviewTraces", { reviewId: review.id }),
     c.var.data.findingIssues.ofReview(review.id),
     platformDismissals(c.var.data, review),
   ]);
@@ -229,7 +238,18 @@ reviews.get("/:id", requireSession(), async (c) => {
       platformDismissal: dismissals.get(f.fingerprint) ?? null,
     })),
     walkthrough: walkthrough ? walkthroughDto(walkthrough) : null,
+    // Whether GET /:id/trace has one, so the page asks only then.
+    traced: traced > 0,
   });
+});
+
+// How the review came to its findings, read when its page opens the trace;
+// absent (404) when the review kept none.
+reviews.get("/:id/trace", requireSession(), async (c) => {
+  const review = await c.var.data.get("reviews", c.req.param("id"));
+  const kept = review && (await c.var.data.findOne("reviewTraces", { reviewId: review.id }));
+  if (!kept) return apiError(c, "not_found");
+  return c.json({ trace: kept.trace satisfies ReviewTraceView });
 });
 
 // ocra-cloud/review-export: the uploaded counts and findings. Not a report:

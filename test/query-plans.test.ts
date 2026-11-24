@@ -105,6 +105,7 @@ const TABLE: Record<string, string> = {
   pullCommands: "pull_commands",
   pausedPulls: "paused_pulls",
   reviewWalkthroughs: "review_walkthroughs",
+  reviewTraces: "review_traces",
   automationRules: "automation_rules",
   automationRuns: "automation_runs",
   automationAssignments: "automation_assignments",

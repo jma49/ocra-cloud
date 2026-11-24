@@ -81,6 +81,7 @@ import {
   type ReportSection,
   type ReviewerCounts,
   type ReviewSettings,
+  type ReviewTraceView,
   type ReviewWalkthroughView,
   SIGN_IN_PROVIDERS,
   STACK_MERGE_REASONS,
@@ -585,6 +586,26 @@ export const reviewWalkthroughs = sqliteTable(
   (t) => [
     uniqueIndex("review_walkthroughs_review").on(t.reviewId),
     index("review_walkthroughs_account_created").on(t.accountId, t.createdAt),
+  ],
+);
+
+// A review's trace (ADR-0081 of the engine): how the run came to its
+// findings, kept as its walkthrough is: only while the account shares
+// findings, redacted again on the server, gone with its review.
+export const reviewTraces = sqliteTable(
+  "review_traces",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    reviewId: text("review_id")
+      .notNull()
+      .references(() => reviews.id, { onDelete: "cascade" }),
+    trace: text("trace", { mode: "json" }).$type<ReviewTraceView>().notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("review_traces_review").on(t.reviewId),
+    index("review_traces_account_created").on(t.accountId, t.createdAt),
   ],
 );
 
@@ -2300,6 +2321,7 @@ export const accountTables = {
   reviewTargets,
   replyJobs,
   reviewWalkthroughs,
+  reviewTraces,
   generateJobs,
   restackJobs,
   fixJobs,
