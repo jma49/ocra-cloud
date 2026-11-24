@@ -116,6 +116,7 @@ const TABLE: Record<string, string> = {
   stackMerges: "stack_merges",
   stackMergeLayers: "stack_merge_layers",
   reviewChatMessages: "review_chat_messages",
+  pullChatMessages: "pull_chat_messages",
   findingIssues: "finding_issues",
   liveRuns: "live_runs",
   liveEvents: "live_events",
@@ -360,6 +361,24 @@ describe("query plans", () => {
     expect(cascade).toMatch(
       /SEARCH review_chat_messages USING (COVERING )?INDEX review_chat_messages_review/,
     );
+  });
+
+  it("a pull request's conversation is read and capped through (account_id, platform, repo, number, created_at)", async () => {
+    const seen: Captured[] = [];
+    const d = scoped(drizzle(recording(seen)), "acct");
+    const pull = { platform: "github" as const, repo: "octo/api", number: 7 };
+    await d.pullChat.latest(pull, 20);
+    // The plan is what matters: no account row exists for its foreign key.
+    await d.pullChat
+      .add(pull, "user", "q", { findingId: null, file: null }, new Date(), 99)
+      .catch(() => null);
+    const [latest, add] = await Promise.all(seen.map(plan));
+    expect(latest).toMatch(/SEARCH pull_chat_messages USING INDEX pull_chat_messages_account_pull/);
+    expect(latest).not.toMatch(/\bSCAN\b|TEMP B-TREE/);
+    expect(add).toMatch(
+      /SEARCH pull_chat_messages USING COVERING INDEX pull_chat_messages_account_pull/,
+    );
+    expect(add).not.toMatch(/SCAN pull_chat_messages/);
   });
 
   it("the search reads each table through its account index, newest first, without a sort", async () => {
@@ -766,6 +785,7 @@ describe("retention", () => {
       "notify_deliveries",
       "notify_held",
       "notify_sends",
+      "pull_chat_messages",
       "pull_commands",
       "pull_file_views",
       "pull_flows",

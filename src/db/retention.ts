@@ -28,6 +28,7 @@ import {
   notifyDeliveries,
   notifyHeld,
   notifySends,
+  pullChatMessages,
   pullCommands,
   pullFileViews,
   pullFlows,
@@ -55,7 +56,7 @@ import {
 import { scoped } from "./scoped.js";
 
 // What the data policy (web /privacy) promises: review records, live runs, gateway call
-// records, merged and closed pull requests, the periods scheduled reports sent, their review flow, the inbox's index of pull requests (closed ones after PULL_INDEX_CLOSED_DAYS), review threads and the threads of ocra's findings, the heads pull requests were pushed to, who a rule assigned to review them, the inbox's read marks, the finished jobs of auto review (reviews, answers, generated
+// records, merged and closed pull requests, the periods scheduled reports sent, their review flow, the inbox's index of pull requests (closed ones after PULL_INDEX_CLOSED_DAYS), review threads and the threads of ocra's findings, the heads pull requests were pushed to, who a rule assigned to review them, the inbox's read marks, the questions asked about pull requests on their pages and the answers, the finished jobs of auto review (reviews, answers, generated
 // tests and docs), the pre-merge checks' results, the daily counts and the audit log are deleted after
 // RETENTION_DAYS (src/config.ts, 90 unless the deployment sets it); expired login codes, sessions and API tokens go at once; a notice held in
 // quiet hours after HELD_FOR; a channel's delivery record after DELIVERY_DAYS, a platform's
@@ -273,6 +274,15 @@ export async function enforceRetention(
         db
           .delete(pullSeen)
           .where(and(ofEachAccount(pullSeen.accountId), lt(pullSeen.seenAt, cutoff))),
+    ],
+    [
+      "pull_chat_messages",
+      () =>
+        db
+          .delete(pullChatMessages)
+          .where(
+            and(ofEachAccount(pullChatMessages.accountId), lt(pullChatMessages.createdAt, cutoff)),
+          ),
     ],
     [
       "pull_file_views",

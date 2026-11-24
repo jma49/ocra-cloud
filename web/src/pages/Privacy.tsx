@@ -63,6 +63,13 @@ export function Privacy() {
           provider with your key; the diff is not stored.
         </li>
         <li>
+          <b>Questions you ask ocra about a pull request</b> on its page, with the finding or file
+          each was about, and the answers: at most 100 per pull request, deleted after 90 days, when
+          you clear them, or when you stop sending findings and delete what you sent. To answer, the
+          pull request's diff, read then as you, and ocra's newest review of it go to your own model
+          provider with your key; the diff is not stored.
+        </li>
+        <li>
           <b>Daily counts</b> of your review uploads, model calls and findings sent, which the daily
           limits are checked against.
         </li>
@@ -84,8 +91,8 @@ export function Privacy() {
         <li>
           Your prompts or model answers. When the CLI calls a model through ocra Cloud, the request
           and the answer pass through our gateway in memory only; they are never written to storage,
-          logs or error reports. The one exception is the questions you ask ocra on a review's page
-          and their answers, kept as listed above and never logged.
+          logs or error reports. The one exception is the questions you ask ocra on a review's or a
+          pull request's page and their answers, kept as listed above and never logged.
         </li>
         <li>
           Your code, file paths or finding text, unless you turn on sending findings; then only what

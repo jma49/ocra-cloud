@@ -450,6 +450,14 @@ export const rows = {
     role: "user" as const,
     text: `question ${id}`,
   }),
+  pullChatMessages: (id: string) => ({
+    id,
+    platform: "github" as const,
+    repo: "octo/api",
+    number: 7,
+    role: "user" as const,
+    text: `question ${id}`,
+  }),
   repositories: (id: string) => ({ id, repoHash: `h-${id}`, name: `octo/${id}` }),
   liveRuns: (id: string) => ({
     id,

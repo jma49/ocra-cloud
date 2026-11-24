@@ -2098,6 +2098,38 @@ export const reviewChatMessages = sqliteTable(
   ],
 );
 
+// "Ask ocra" on a pull request's page: the account's questions about the
+// pull request and the answers, at most MAX_PULL_CHAT_MESSAGES per pull
+// request (src/db/pull-chat.ts), each question with the finding or file it
+// was asked about. Deleted after RETENTION_DAYS, with the account, and when
+// it stops sharing findings.
+export const pullChatMessages = sqliteTable(
+  "pull_chat_messages",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    platform: text("platform", { enum: CODE_PLATFORMS }).notNull(),
+    // Lower case: platforms compare repository paths without case.
+    repo: text("repo").notNull(),
+    number: integer("number").notNull(),
+    role: text("role", { enum: REVIEW_CHAT_ROLES }).notNull(),
+    text: text("text").notNull(),
+    findingId: text("finding_id"),
+    file: text("file"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("pull_chat_messages_account_pull").on(
+      t.accountId,
+      t.platform,
+      t.repo,
+      t.number,
+      t.createdAt,
+    ),
+    index("pull_chat_messages_account_created").on(t.accountId, t.createdAt),
+  ],
+);
+
 // A review relayed while it runs (ADR-0056), by the CLI's run id; its
 // events are kept by seq, first write wins. The share link, while it is on,
 // is an HMAC of linkNonce (src/live/link.ts); a new nonce replaces it.
@@ -2281,6 +2313,7 @@ export const accountTables = {
   stackMerges,
   stackMergeLayers,
   reviewChatMessages,
+  pullChatMessages,
   findingIssues,
   liveRuns,
   liveEvents,

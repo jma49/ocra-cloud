@@ -95,6 +95,7 @@ async function deleteFindings(data: Scoped): Promise<number> {
   const deleted = await data.removeWhere("findings", {});
   await data.removeWhere("reviewWalkthroughs", {});
   await data.removeWhere("reviewChatMessages", {});
+  await data.removeWhere("pullChatMessages", {});
   await data.findingThreads.forgetReasons();
   return deleted;
 }

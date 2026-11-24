@@ -76,6 +76,7 @@ const changes = {
   stackMerges: { state: "cancelled" as const },
   stackMergeLayers: { number: 2 },
   reviewChatMessages: { text: "changed" },
+  pullChatMessages: { text: "changed" },
   findingIssues: { url: "https://github.com/octo/api/issues/8" },
   liveRuns: { target: "changed" },
   liveEvents: { kind: "changed" },

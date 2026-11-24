@@ -22,11 +22,11 @@ async function refusal(res: Response): Promise<ChatRefusal> {
  * (text/event-stream, one JSON event per `data:` line); the stored answer,
  * or throws the refusal.
  */
-export async function askReview(
+export async function askReview<M extends ReviewChatMessageView = ReviewChatMessageView>(
   path: string,
   body: { message: string; model?: string },
   onText: (text: string) => void,
-): Promise<ReviewChatMessageView> {
+): Promise<M> {
   const res = await fetch(`/api${path}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -46,7 +46,7 @@ export async function askReview(
       if (!block.startsWith("data: ")) continue;
       const event = JSON.parse(block.slice(6)) as ReviewChatEvent;
       if (event.type === "delta") onText(event.text);
-      if (event.type === "done") return event.message;
+      if (event.type === "done") return event.message as M;
       if (event.type === "error") throw new ChatRefusal(502, event.error);
     }
     if (done) throw new ChatRefusal(502, "upstream_unreachable");
