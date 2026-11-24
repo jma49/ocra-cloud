@@ -350,6 +350,17 @@ describe("a fix's run", () => {
     });
   });
 
+  it("records what failed in the fixer's call, and forgets it when asked again", async () => {
+    await ask({ finding: findingId });
+    const failed = answer({ outcome: "rejected", fix: null, reason: "failed", cause: "quota" });
+    await runFix(fakeExec(JSON.stringify(failed)).exec);
+    expect((await jobs())[0]).toMatchObject({ state: "done", reason: "failed", cause: "quota" });
+    expect(await (await ask({ finding: findingId })).json()).toMatchObject({
+      outcome: "queued",
+      job: { state: "queued", reason: null, cause: null },
+    });
+  });
+
   it("can be asked again when the fixer's call failed, not after another answer without a fix", async () => {
     await ask({ finding: findingId });
     const [job] = await jobs();
