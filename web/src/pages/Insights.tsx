@@ -42,7 +42,16 @@ const rate = (r: number | null) => (r === null ? "–" : `${Math.round(r * 100)}
 /** A share of the findings someone reacted to, with how many that is. */
 const reacted = (r: number | null, of: number) => (r === null ? "–" : `${rate(r)} of ${num(of)}`);
 
-function Breakdown(props: { title: string; column: string; rows: Row[]; none: string }) {
+/** A vocabulary word ("warning", "verified") as a label. */
+const sentence = (key: string) => key.charAt(0).toUpperCase() + key.slice(1);
+
+function Breakdown(props: {
+  title: string;
+  column: string;
+  rows: Row[];
+  none: string;
+  name?: (key: string) => string;
+}) {
   if (props.rows.length === 0) return null;
   return (
     <div className="section card">
@@ -70,7 +79,13 @@ function Breakdown(props: { title: string; column: string; rows: Row[]; none: st
           <tbody>
             {props.rows.map((r) => (
               <tr key={r.key ?? ""}>
-                <td>{r.key ?? <span className="subtle">{props.none}</span>}</td>
+                <td>
+                  {r.key ? (
+                    (props.name ?? String)(r.key)
+                  ) : (
+                    <span className="subtle">{props.none}</span>
+                  )}
+                </td>
                 <td className="num">{num(r.total)}</td>
                 <td className="num hide-narrow">{num(r.open)}</td>
                 <td className="num">{num(r.fixed)}</td>
@@ -155,12 +170,19 @@ export function Insights(props: { runner: boolean; platforms: readonly CodePlatf
             </Suspense>
           </div>
           <Breakdown title="By reviewer" column="Reviewer" rows={data.byReviewer} none="(none)" />
-          <Breakdown title="By severity" column="Severity" rows={data.bySeverity} none="(none)" />
+          <Breakdown
+            title="By severity"
+            column="Severity"
+            rows={data.bySeverity}
+            none="(none)"
+            name={sentence}
+          />
           <Breakdown
             title="By verification"
             column="Verification"
             rows={data.byVerification}
             none="Not verified"
+            name={sentence}
           />
           <Breakdown
             title="By category (top 20)"

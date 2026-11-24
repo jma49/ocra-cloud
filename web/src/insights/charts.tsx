@@ -18,6 +18,18 @@ const tone = (name: string) =>
   getComputedStyle(document.documentElement).getPropertyValue(`--${name}`).trim();
 const line = (name: string, datapoints: Point[]) => ({ name, datapoints });
 
+/**
+ * Each reason named with its share and count: the legend says what a slice
+ * label would, which a narrow card cuts short.
+ */
+const shares = (reasons: { reason: string; n: number }[]) => {
+  const all = reasons.reduce((sum, r) => sum + r.n, 0);
+  return reasons.map((r) => ({
+    category: `${r.reason} · ${Math.round((r.n / all) * 100)}% (${r.n})`,
+    value: r.n,
+  }));
+};
+
 function Chart(props: {
   title: string;
   sub: string;
@@ -127,8 +139,9 @@ export default function Charts(props: ChartsProps) {
             <DonutChart
               height={220}
               colorPalette={[tone("ink"), tone("blue"), tone("teal"), muted]}
-              data={{ slices: props.reasons.map((r) => ({ category: r.reason, value: r.n })) }}
+              data={{ slices: shares(props.reasons) }}
             >
+              <DonutChart.Labels hidden />
               <DonutChart.Legend position="right" />
             </DonutChart>
           </Chart>

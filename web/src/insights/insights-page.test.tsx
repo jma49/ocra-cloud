@@ -82,7 +82,7 @@ describe("Insights", () => {
             days: 30,
             total,
             byReviewer: [row("security", 3, 1, 4), row("tests", 0, 0, 0)],
-            bySeverity: [],
+            bySeverity: [row("warning", 0, 0, 0)],
             byCategory: [],
             byVerification: [],
             dismissReasons: [],
@@ -105,5 +105,6 @@ describe("Insights", () => {
     const tests = screen.getByRole("row", { name: /^tests/ });
     expect(within(tests).getAllByText("–")).toHaveLength(2);
     expect(screen.getByText(/· 75% upvoted/)).toBeTruthy();
+    expect(screen.getByRole("row", { name: /^Warning/ })).toBeTruthy();
   });
 });
