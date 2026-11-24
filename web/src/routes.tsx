@@ -17,6 +17,7 @@ const AuditLog = lazyPage(() => import("./pages/AuditLog.js"), "AuditLog");
 const AutoReview = lazyPage(() => import("./pages/AutoReview.js"), "AutoReview");
 const Automations = lazyPage(() => import("./pages/Automations.js"), "Automations");
 const BudgetPage = lazyPage(() => import("./pages/Budget.js"), "BudgetPage");
+const CodeGraph = lazyPage(() => import("./pages/CodeGraph.js"), "CodeGraph");
 const CodeGraphs = lazyPage(() => import("./pages/CodeGraphs.js"), "CodeGraphs");
 const Defaults = lazyPage(() => import("./pages/Defaults.js"), "Defaults");
 const Device = lazyPage(() => import("./pages/Device.js"), "Device");
@@ -57,6 +58,8 @@ export type Route = {
   tab?: string;
   /** Where a settings page sits in the settings list. */
   group?: SettingsGroup;
+  /** What the page bar names a page under its place by, where it is no tab of it. */
+  crumb?: string;
   /** Shown only for whom it holds; absent: for everyone. */
   shown?: (me: Me) => boolean;
   /** Edits the account's preferences: the save bar and its draft apply. */
@@ -136,6 +139,14 @@ const ROUTES: readonly Route[] = [
     tab: "Code graphs",
     shown: graphsKept,
     page: (me) => <CodeGraphs policy={me.codeGraphs} platforms={me.platforms} />,
+  },
+  {
+    path: "/code-graphs/:id",
+    place: "repositories",
+    crumb: "Code graph",
+    shown: graphsKept,
+    reads: () => ["/graphs/repos"],
+    page: (_me, [id]) => <CodeGraph id={id ?? ""} />,
   },
   {
     path: "/auto-review",

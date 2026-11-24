@@ -158,7 +158,12 @@ export function ReviewDetail(props: { id: string; graphs: boolean }) {
     <div className="review-frame">
       <aside className="review-side" aria-label="Properties">
         <Properties r={r} />
-        <ImpactRail impact={impact} finding={focused} onClose={() => setFocused(null)} />
+        <ImpactRail
+          impact={impact}
+          finding={focused}
+          onClose={() => setFocused(null)}
+          {...(r.prNumber ? { pull: r.prNumber } : {})}
+        />
       </aside>
       <section className="review-main" aria-label="Activity">
         <div className="review-title">

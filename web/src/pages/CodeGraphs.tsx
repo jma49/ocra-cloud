@@ -5,8 +5,10 @@ import { Button } from "@/components/ui/button";
 import type { CodePlatformKind, GraphPolicy, GraphRepoView } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
 import { useCached } from "../cache.js";
+import { graphPath } from "../code-graph/place.js";
 import { ago, bytes, count } from "../format.js";
 import { PLATFORM_NAME, PlatformSelect } from "../platform-names.js";
+import { Link } from "../router.js";
 import { StackTable } from "../stack-table.js";
 import { useToast } from "../toast.js";
 import {
@@ -249,7 +251,9 @@ function GraphRow(props: { repo: GraphRepoView; put: (r: GraphRepoView) => void;
   return (
     <tr>
       <td>
-        <div className="strong">{repo.fullName}</div>
+        <div className="strong">
+          {latest ? <Link to={graphPath(repo.id)}>{repo.fullName}</Link> : repo.fullName}
+        </div>
         <div className="subtle small">
           {PLATFORM_NAME[repo.platform]} · {repo.host} · {repo.branch}
         </div>
@@ -299,6 +303,11 @@ function GraphRow(props: { repo: GraphRepoView; put: (r: GraphRepoView) => void;
             </>
           ) : (
             <>
+              {latest && (
+                <Button variant="outline" size="sm" render={<Link to={graphPath(repo.id)} />}>
+                  Explore
+                </Button>
+              )}
               <Button
                 type="button"
                 variant="outline"
