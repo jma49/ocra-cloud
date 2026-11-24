@@ -70,13 +70,16 @@ export async function recordCall(c: Context<AppEnv>, model: ChatModel) {
     data.update("gatewayCalls", id, { status, ...usage, ms: Date.now() - started });
 }
 
-/** Sends the streamed request; the answer, or why it failed as a gateway status. */
+/**
+ * Sends the streamed request; the answer, or why it failed as a gateway
+ * status, with `answered` when that status is the provider's own.
+ */
 export async function sendChat(
   model: ChatModel,
   system: string,
   turns: readonly Turn[],
   client: AbortSignal,
-): Promise<{ body: ReadableStream<Uint8Array> } | { status: number }> {
+): Promise<{ body: ReadableStream<Uint8Array> } | { status: number; answered: boolean }> {
   const request = chatRequest(model.route.wire, model.ref.model, system, turns);
   const headers = new Headers({
     "content-type": "application/json",
@@ -95,16 +98,21 @@ export async function sendChat(
       signal: clock.signal,
     });
   } catch {
-    return { status: client.aborted ? END_STATUS.cancelled : clock.timedOut() ? TIMED_OUT : 502 };
+    const status = client.aborted ? END_STATUS.cancelled : clock.timedOut() ? TIMED_OUT : 502;
+    return { status, answered: false };
   } finally {
     clock.clear();
   }
   if (upstream.status !== 200 || !upstream.body) {
     await upstream.body?.cancel().catch(() => {});
-    return { status: upstream.status === 200 ? 502 : upstream.status };
+    return { status: upstream.status === 200 ? 502 : upstream.status, answered: true };
   }
   return { body: upstream.body };
 }
+
+/** The refusal for a request that got no answer, with the provider's status when it gave one. */
+export const unreachable = (c: Context<AppEnv>, sent: { status: number; answered: boolean }) =>
+  apiError(c, "upstream_unreachable", sent.answered ? { status: sent.status } : {});
 
 /**
  * One whole answer, read to its end or to `maxChars`: the day's call is
@@ -123,7 +131,7 @@ export async function completeChat(
   const sent = await sendChat(model, system, turns, c.req.raw.signal);
   if ("status" in sent) {
     defer(c, finish(sent.status, NO_USAGE));
-    return { refusal: apiError(c, "upstream_unreachable", { status: sent.status }) };
+    return { refusal: unreachable(c, sent) };
   }
   const payloads = ssePayloads(sent.body);
   const usage: Usage = { ...NO_USAGE };

@@ -8,6 +8,7 @@ import {
   sendChat,
   takeDailyCall,
   tierModels,
+  unreachable,
 } from "./chat/call.js";
 import { chatEvent, ssePayloads, type Turn } from "./chat/model.js";
 import { type ChatContext, makeNonce, systemPrompt } from "./chat/prompt.js";
@@ -152,7 +153,7 @@ reviewChat.post(
     const sent = await sendChat(model, system, turns, c.req.raw.signal);
     if ("status" in sent) {
       defer(c, Promise.all([finish(sent.status, NO_USAGE), unask()]));
-      return apiError(c, "upstream_unreachable", { status: sent.status });
+      return unreachable(c, sent);
     }
 
     const payloads = ssePayloads(sent.body);
