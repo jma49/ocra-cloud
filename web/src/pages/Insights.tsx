@@ -1,7 +1,11 @@
 import ChartColumn from "lucide-react/icons/chart-column";
 import { lazy, Suspense, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import type { CodePlatformKind } from "../../../src/shared/index.js";
+import type {
+  CodePlatformKind,
+  FindingInsightRow,
+  FindingInsightsView,
+} from "../../../src/shared/index.js";
 import { api, type Reviews } from "../api.js";
 import { useCached } from "../cache.js";
 import { count, num, period, usd } from "../format.js";
@@ -25,23 +29,8 @@ const Charts = lazy(() =>
   Promise.all([import("../insights/charts.js"), document.fonts.ready]).then(([m]) => m),
 );
 
-type Row = {
-  key: string | null;
-  total: number;
-  open: number;
-  fixed: number;
-  dismissed: number;
-  acceptanceRate: number | null;
-};
-type Insights = {
-  days: number;
-  total: Row;
-  byReviewer: Row[];
-  bySeverity: Row[];
-  byCategory: Row[];
-  byVerification: Row[];
-  dismissReasons: { key: string | null; n: number }[];
-};
+type Row = FindingInsightRow;
+type Insights = FindingInsightsView;
 
 const REASON: Record<string, string> = {
   false_positive: "False positive",
