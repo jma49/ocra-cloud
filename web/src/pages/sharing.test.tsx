@@ -98,6 +98,16 @@ describe("sharing findings", () => {
     screen.getByText(/Up to 1,000 findings can be sent in any 90 days; deleting findings/);
   });
 
+  it("says each machine sends findings only after running ocra login while this is on", async () => {
+    fakeSharing(() =>
+      Response.json({ shareFindings: false, findingsStored: 0, findingsAllowance: 1000 }),
+    );
+    render(<Settings me={me} />);
+    await screen.findByRole("switch");
+    const hint = screen.getByText(/A machine sends findings only once it agrees/);
+    expect(hint.textContent).toMatch(/run ocra login on each machine/);
+  });
+
   it("offers to keep hosted reviews' findings where the server runs reviews, and says their code is kept", async () => {
     const sent: { url: string; body: unknown }[] = [];
     vi.stubGlobal(

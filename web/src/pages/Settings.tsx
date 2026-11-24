@@ -258,6 +258,10 @@ function Sharing({ load }: { load: SharingLoad }) {
           so later reviews stop reporting them. Kept 90 days with their review.
         </span>
         <span>
+          A machine sends findings only once it agrees: after turning this on, or off and on again,
+          run <span className="mono">ocra login</span> on each machine.
+        </span>
+        <span>
           Up to {num(data.findingsAllowance)} findings can be sent in any 90 days; deleting findings
           does not give that room back.
         </span>
