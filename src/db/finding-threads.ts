@@ -88,7 +88,7 @@ export function accountFindingThreads(db: Db, accountId: string) {
         .onConflictDoUpdate({
           target: [t.reviewRepoId, t.threadKey],
           set: { commentId },
-          setWhere: isNull(t.commentId),
+          setWhere: sql`${eq(t.accountId, accountId)} AND ${isNull(t.commentId)}`,
         });
     },
 
