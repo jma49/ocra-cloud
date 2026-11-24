@@ -142,4 +142,15 @@ describe("explaining a failed CI job", () => {
     expect(view.redacted).toBe(true);
     expect(view.explanation).not.toContain("ghp_abcdefghijklmnopqrstuvwxyz0123456789");
   });
+
+  it("counts against the account's daily calls", async () => {
+    const calls = fakes("Explained.");
+    const { a, data } = await signedIn();
+    await data.insert("budgets", { dailyCalls: 1 });
+    expect((await explain(a.send)).status).toBe(200);
+    const refused = await explain(a.send);
+    expect(refused.status).toBe(429);
+    expect(await refused.json()).toEqual({ error: "daily_limit", limit: 1 });
+    expect(calls).toHaveLength(1);
+  });
 });
