@@ -1,4 +1,5 @@
 import Bell from "lucide-react/icons/bell";
+import CheckCheck from "lucide-react/icons/check-check";
 import { type ReactElement, useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,6 +12,7 @@ import {
 import { api } from "../api.js";
 import { Drawer } from "../drawer.js";
 import { count, since, time } from "../format.js";
+import { IconButton } from "../icon-button.js";
 import { Link } from "../router.js";
 import { ActionError, EmptyNote, LoadError, Loading, useAction, usePoll } from "../ui.js";
 
@@ -153,9 +155,13 @@ function FeedDrawer(props: { onClose: () => void; onUnread: (unread: number) => 
             Unread only
           </label>
           {unread > 0 && (
-            <Button type="button" variant="outline" disabled={read.busy} onClick={readAll}>
-              Mark all read
-            </Button>
+            <IconButton
+              label="Mark all read"
+              icon={CheckCheck}
+              variant="outline"
+              disabled={read.busy}
+              onClick={readAll}
+            />
           )}
         </>
       }

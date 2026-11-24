@@ -108,7 +108,7 @@ describe("the API tokens page", () => {
     const shown = await screen.findByRole("region", { name: "Your new token" });
     expect(within(shown).getByText(SECRET)).toBeTruthy();
     await act(
-      async () => void fireEvent.click(within(shown).getByRole("button", { name: "Copy" })),
+      async () => void fireEvent.click(within(shown).getByRole("button", { name: "Copy token" })),
     );
     expect(writeText).toHaveBeenCalledWith(SECRET);
     fireEvent.click(within(shown).getByRole("button", { name: "Done" }));

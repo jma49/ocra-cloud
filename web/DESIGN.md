@@ -117,6 +117,7 @@ A new shared control comes from coss ui first, then from a small component in `w
 - Product marks are the products' own, in their own colours: GitHub and GitLab through `PlatformMark` (simple-icons; GitLab's orange is `--brand-gitlab`, GitHub's mark is black so it is drawn in ink), model providers through `ProviderLogo`, a quiet tile holding the brand's colour art from `web/public/marks/` (from `@lobehub/icons-static-svg`, or simple-icons' brand colour) or, for a brand whose mark is black (OpenAI, Anthropic, xAI, Vercel, …), its path in ink so it reads in both themes (`provider-marks.ts`). A brand's colours are the one place colour enters a page besides status and the diff. Every provider the gateway lists has one (the type fails otherwise); only a name it does not list falls back to two letters.
 - **Files and folders** are the one exception to Lucide: a file tree, a diff's head and a thread's head show the kind of file with Material Icon Theme's icon (`FileTypeIcon`, `web/src/pull/file-icon.tsx`; MIT), in its own colours, 16 px. Only the kinds listed there are bundled; any other gets the plain file or folder.
 - An icon never carries meaning alone: it has a visible label or an accessible name and tooltip.
+- **Icon-only buttons** (`IconButton`, `CopyButton iconOnly`) for actions whose icon says it plainly: copy beside what it copies, refresh, mark all read, clear, remove a comment, a row's edit and delete. A verb that commits or names its object (Save, Merge, Copy Markdown, Add key) keeps its words.
 
 ## Motion
 

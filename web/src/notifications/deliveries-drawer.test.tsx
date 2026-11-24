@@ -104,7 +104,9 @@ describe("a webhook channel", () => {
     );
     expect(sent).toEqual([{ url: "/api/notifications/channels/n1/secret", method: "POST" }]);
     expect(within(box).getByText(SECRET)).toBeTruthy();
-    await act(async () => void fireEvent.click(within(box).getByRole("button", { name: "Copy" })));
+    await act(
+      async () => void fireEvent.click(within(box).getByRole("button", { name: "Copy secret" })),
+    );
     expect(writeText).toHaveBeenCalledWith(SECRET);
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
     fireEvent.click(screen.getByRole("button", { name: /deliveries to Deploy bot$/ }));

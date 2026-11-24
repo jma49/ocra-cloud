@@ -1,3 +1,4 @@
+import Eraser from "lucide-react/icons/eraser";
 import MessageSquare from "lucide-react/icons/message-square";
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -5,6 +6,7 @@ import type { ReviewChatMessageView, ReviewChatView } from "../../../src/shared/
 import { api } from "../api.js";
 import { Elapsed } from "../elapsed.js";
 import { count } from "../format.js";
+import { IconButton } from "../icon-button.js";
 import { Markdown } from "../markdown.js";
 import { LoadError } from "../ui.js";
 import { modelName, NoModel, Refusal } from "./refusal.js";
@@ -179,9 +181,12 @@ export function ReviewChat(props: { reviewId: string }) {
                   Enter to send, Shift+Enter for a new line
                 </span>
                 {messages.length > 0 && (
-                  <Button size="sm" variant="ghost" disabled={!!pending} onClick={clear}>
-                    Clear conversation
-                  </Button>
+                  <IconButton
+                    label="Clear conversation"
+                    icon={Eraser}
+                    disabled={!!pending}
+                    onClick={clear}
+                  />
                 )}
                 <Button
                   size="sm"

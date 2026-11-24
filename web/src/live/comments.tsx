@@ -1,9 +1,11 @@
+import Trash2 from "lucide-react/icons/trash-2";
 import { type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { LiveCommentView } from "../../../src/shared/index.js";
 import { MAX_LIVE_COMMENT } from "../../../src/shared/index.js";
 import { why } from "../api.js";
 import { ago } from "../format.js";
+import { IconButton } from "../icon-button.js";
 
 // Comments on a live run: a thread under a finding, or the run's own.
 // Their text is shown as text.
@@ -39,9 +41,7 @@ export function CommentThread(props: {
                 <span className="strong">{c.author}</span>
                 <span className="subtle">{ago(c.createdAt)}</span>
                 {c.removable && (
-                  <Button type="button" variant="ghost" size="sm" onClick={() => remove(c.id)}>
-                    Remove
-                  </Button>
+                  <IconButton label="Remove" icon={Trash2} onClick={() => remove(c.id)} />
                 )}
               </div>
               <p className="live-comment-body">{c.body}</p>
