@@ -125,7 +125,7 @@ describe("a GitLab merge request's changes", () => {
         head: C2,
         files: [
           { path: "lib/b.ts", oldPath: "lib/a.ts", status: "renamed" },
-          { path: "lib/c.ts", status: "modified", patch: "@@ -4,2 +4,3 @@\n x" },
+          { path: "lib/c.ts", status: "modified", patch: "@@ -4,2 +4,3 @@\n x\n+y\n z" },
           { path: "lib/big.ts", status: "modified" },
         ],
       },
@@ -148,7 +148,7 @@ describe("a GitLab merge request's changes", () => {
           path: "lib/c.ts",
           oldPath: "lib/c.ts",
           status: "modified",
-          hunks: [{ oldStart: 4, oldLines: 2, newStart: 4, newLines: 3 }],
+          hunks: [{ oldStart: 4, oldLines: 0, newStart: 5, newLines: 1 }],
         },
         { path: "lib/big.ts", oldPath: "lib/big.ts", status: "modified", hunks: null },
       ],

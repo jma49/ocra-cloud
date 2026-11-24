@@ -5,7 +5,8 @@ import type { ImpactSymbol, ImpactUse, ImpactView } from "../shared/index.js";
 // The impact of a pull request on the base side's graph, without its code:
 // a definition is changed when a hunk's old range has a line whose innermost
 // definition it is, as the engine's impact analysis decides on its side;
-// its uses are the other files' identifiers of that name.
+// its uses are the other files' identifiers of that name. With the head's
+// graph too, a definition the pull request adds is listed as added.
 
 type FileSymbols = NonNullable<ReturnType<CodeGraph["symbols"]["get"]>>;
 type Definition = FileSymbols["definitions"][number];
@@ -17,16 +18,25 @@ const MAX_HUNK_LINES = 2000;
 const IGNORED = new Set(["constructor"]);
 const READS_AT_ONCE = 8;
 
-type Changed = { def: Definition; path: string; signature: boolean; lines: [number, number][] };
+type Changed = {
+  def: Definition;
+  path: string;
+  change: ImpactSymbol["change"];
+  lines: [number, number][];
+};
 
 export type Impact = { symbols: ImpactSymbol[]; more: number };
 
-export function impactOf(graph: CodeGraph, files: readonly ChangedFile[]): Impact {
+export function impactOf(
+  graph: CodeGraph,
+  files: readonly ChangedFile[],
+  head?: CodeGraph,
+): Impact {
   const changed = new Map<string, Changed>();
-  const mark = (path: string, def: Definition, signature: boolean, hunk?: Hunk) => {
+  const mark = (path: string, def: Definition, change: Changed["change"], hunk?: Hunk) => {
     const key = `${path}\0${def.startLine}\0${def.name}`;
-    const seen = changed.get(key) ?? { def, path, signature: false, lines: [] };
-    seen.signature ||= signature;
+    const seen = changed.get(key) ?? { def, path, change, lines: [] };
+    if (change === "signature") seen.change = change;
     if (hunk) {
       const range = newRange(hunk);
       if (!seen.lines.some(([a, b]) => a === range[0] && b === range[1])) seen.lines.push(range);
@@ -34,19 +44,19 @@ export function impactOf(graph: CodeGraph, files: readonly ChangedFile[]): Impac
     changed.set(key, seen);
   };
   for (const file of files) {
-    if (file.status === "added") continue;
-    const defs = symbolsOf(graph, file.oldPath)?.definitions;
-    if (!defs) continue;
+    const defs = file.status === "added" ? [] : symbolsOf(graph, file.oldPath)?.definitions;
     if (file.status === "removed") {
-      for (const def of defs) mark(file.oldPath, def, true);
+      for (const def of defs ?? []) mark(file.oldPath, def, "signature");
       continue;
     }
     for (const hunk of file.hunks ?? []) {
-      for (const line of oldLines(hunk)) {
-        const def = innermost(defs, line, hunk.oldLines === 0);
-        if (def) mark(file.oldPath, def, line === def.startLine && hunk.oldLines > 0, hunk);
+      for (const line of defs ? oldLines(hunk) : []) {
+        const def = innermost(defs ?? [], line, hunk.oldLines === 0);
+        const signature = def !== undefined && line === def.startLine && hunk.oldLines > 0;
+        if (def) mark(file.oldPath, def, signature ? "signature" : "body", hunk);
       }
     }
+    for (const [def, hunk] of addedIn(file, defs ?? [], head)) mark(file.path, def, "added", hunk);
   }
   const own = new Set(files.flatMap((f) => [f.path, f.oldPath]));
   const symbols = [...changed.values()]
@@ -85,7 +95,7 @@ function symbolOf(graph: CodeGraph, c: Changed, own: ReadonlySet<string>): Impac
     path: c.path,
     startLine: c.def.startLine,
     endLine: c.def.endLine,
-    change: c.signature ? "signature" : "body",
+    change: c.change,
     lines: c.lines.sort((a, b) => a[0] - b[0]),
     uses: uses.slice(0, MAX_USES).map((u) => ({ ...u, code: null })),
     useCount: uses.length,
@@ -131,6 +141,25 @@ export async function withCode(
     if (line !== undefined) use.code = line.trimEnd().slice(0, 240);
   }
   return symbols;
+}
+
+/** The head's definitions in the file's added lines that its base has none of by that name. */
+function addedIn(
+  file: ChangedFile,
+  base: readonly Definition[],
+  head: CodeGraph | undefined,
+): [Definition, Hunk][] {
+  const defs = head && symbolsOf(head, file.path)?.definitions;
+  if (!defs) return [];
+  const known = new Set(base.map((d) => `${d.kind}\0${d.name}`));
+  return defs.flatMap((def): [Definition, Hunk][] => {
+    if (known.has(`${def.kind}\0${def.name}`)) return [];
+    const hunk = (file.hunks ?? []).find((h) => {
+      const [start, end] = newRange(h);
+      return h.newLines > 0 && start <= def.endLine && def.startLine <= end;
+    });
+    return hunk ? [[def, hunk]] : [];
+  });
 }
 
 function symbolsOf(graph: CodeGraph, path: string): FileSymbols | undefined {

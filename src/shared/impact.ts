@@ -17,12 +17,15 @@ export type ImpactUse = {
 export type ImpactSymbol = {
   name: string;
   kind: string;
-  /** Where it is defined on the base side. */
+  /** Where it is defined on the base side; on the head side when the pull request adds it. */
   path: string;
   startLine: number;
   endLine: number;
-  /** signature: a hunk touches its first line, or the file is deleted. */
-  change: "signature" | "body";
+  /**
+   * signature: a hunk touches its first line, or the file is deleted.
+   * added: the pull request defines it, known only where the head's graph is read too.
+   */
+  change: "signature" | "body" | "added";
   /** Head-side line ranges of the hunks that changed it, inclusive: where its findings sit. */
   lines: [number, number][];
   uses: ImpactUse[];

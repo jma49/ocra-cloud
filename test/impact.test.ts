@@ -66,11 +66,29 @@ const money = graphOf({
   },
 });
 
-describe("hunk headers", () => {
-  it("read every header, with a count of 1 where it is left out", () => {
-    const patch =
-      "@@ -12,3 +12,4 @@ function a\n-x\n+y\n+z\n context @@ -1 +1 @@\n@@ -40 +41,0 @@\n-gone";
-    expect(hunksOf(patch)).toEqual([hunk(12, 3, 12, 4), hunk(40, 1, 41, 0)]);
+describe("a diff's hunks", () => {
+  it("are its runs of changed lines, without the unchanged lines around them", () => {
+    const patch = [
+      "@@ -10,7 +10,8 @@ function a",
+      " before",
+      " before",
+      "-x",
+      "+y",
+      "+z",
+      " between",
+      "-gone",
+      " after",
+      " after",
+    ].join("\n");
+    expect(hunksOf(patch)).toEqual([hunk(12, 1, 12, 2), hunk(14, 1, 14, 0)]);
+  });
+
+  it("name the line before, on a side a run has no lines of", () => {
+    expect(hunksOf("@@ -40 +41,0 @@\n-gone")).toEqual([hunk(40, 1, 41, 0)]);
+    expect(hunksOf("@@ -3,2 +3,3 @@\n a\n+new\n b")).toEqual([hunk(3, 0, 4, 1)]);
+    expect(hunksOf("@@ -0,0 +1,2 @@\n+a\n+b\n\\ No newline at end of file")).toEqual([
+      hunk(0, 0, 1, 2),
+    ]);
   });
 });
 
@@ -99,6 +117,34 @@ describe("a changed symbol", () => {
     ]);
     expect(removed.symbols).toMatchObject([
       { name: "parseAmount", change: "signature", lines: [] },
+    ]);
+  });
+
+  it("keeps its signature when only the unchanged lines around a change reach its first line", () => {
+    // cartTotal starts at line 30: a change of line 33 shows lines 30 to 36.
+    const patch = "@@ -30,7 +30,7 @@\n a\n b\n c\n-x\n+y\n d\n e\n f";
+    const file: ChangedFile = {
+      path: "src/checkout/total.ts",
+      oldPath: "src/checkout/total.ts",
+      status: "modified",
+      hunks: hunksOf(patch),
+    };
+    expect(impactOf(money, [file]).symbols).toMatchObject([{ name: "cartTotal", change: "body" }]);
+  });
+
+  it("is added when the head's graph defines it in added lines and the base has none of its name", () => {
+    const head = graphOf({
+      "src/checkout/total.ts": {
+        definitions: [
+          { name: "cartTotal", kind: "function", startLine: 30, endLine: 50 },
+          { name: "roundUp", kind: "function", startLine: 52, endLine: 56 },
+        ],
+      },
+    });
+    const file = modified("src/checkout/total.ts", hunk(50, 0, 51, 6));
+    expect(impactOf(money, [file]).symbols).toEqual([]);
+    expect(impactOf(money, [file], head).symbols).toMatchObject([
+      { name: "roundUp", change: "added", startLine: 52, endLine: 56, lines: [[51, 56]] },
     ]);
   });
 

@@ -67,6 +67,15 @@ async function atBase(
   }
 }
 
+/** The graph of the pull request's head, which the review fetched; undefined when the clone lacks it. */
+async function atHead(clone: Clone, written: WrittenGraph, head: string, signal: AbortSignal) {
+  try {
+    return engineGraphParser((await localGraph(clone, head, written.text, signal)).graph);
+  } catch {
+    return undefined;
+  }
+}
+
 /** Works out what the pull request reaches in the graph and has the server keep it. */
 export async function keepReviewImpact(
   { graphs, at }: Kept,
@@ -85,7 +94,8 @@ export async function keepReviewImpact(
     const read = await atBase(clone, written, changes.base, signal);
     const graph = engineGraphParser(read.text);
     if (!graph) return;
-    const impact = impactOf(graph, changes.files);
+    const head = await atHead(clone, written, changes.head, signal);
+    const impact = impactOf(graph, changes.files, head);
     const symbols = await withCode(impact.symbols, CODE_LINES, async (path) => {
       const blobId = blobIdOf(graph, path);
       const bytes = blobId && (await blobOf(clone, blobId, signal));
