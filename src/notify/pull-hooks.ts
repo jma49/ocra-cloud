@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { PathReader } from "../auto-review/paths.js";
-import { githubAskedTeam } from "../auto-review/requests.js";
+import { githubAskedTeam, gitlabReasked } from "../auto-review/requests.js";
 import { teamMembers } from "../auto-review/teams.js";
 import type { Db } from "../db/client.js";
 import { refreshGithubLogin, refreshGitlabLogin } from "../db/logins.js";
@@ -156,6 +156,10 @@ export function githubPullEvents(
 }
 
 const gitlabUser = z.object({ id: z.number(), username: z.string() });
+const gitlabReviewer = gitlabUser.extend({
+  state: z.string().optional(),
+  re_requested: z.boolean().optional(),
+});
 
 const gitlabEvent = z.object({
   object_attributes: z.object({
@@ -170,15 +174,19 @@ const gitlabEvent = z.object({
     .object({
       reviewers: z
         .object({
-          previous: z.array(gitlabUser).nullish(),
-          current: z.array(gitlabUser).nullish(),
+          previous: z.array(gitlabReviewer).nullish(),
+          current: z.array(gitlabReviewer).nullish(),
         })
         .optional(),
     })
     .optional(),
 });
 
-/** The events of a GitLab merge request hook, for the enrolled repository it proved. */
+/**
+ * The events of a GitLab merge request hook, for the enrolled repository it
+ * proved. A reviewer asked again has the key of their first ask:
+ * tellGitlabHook adds the round, which their answer ended.
+ */
 export function gitlabPullEvents(body: unknown, repoId: string): PullEvent[] {
   const parsed = gitlabEvent.safeParse(body);
   if (!parsed.success) return [];
@@ -196,6 +204,15 @@ export function gitlabPullEvents(body: unknown, repoId: string): PullEvent[] {
       concerns: id(u.id),
       what: `${who} asked for your review`,
     }));
+  for (const r of gitlabReasked(changes)) {
+    events.push({
+      ...base,
+      kind: "review_requested",
+      key: `gitlab:requested:${repoId}#${a.iid}:${r.id}`,
+      concerns: id(r.id),
+      what: `${who} asked for your review again`,
+    });
+  }
   if (a.author_id === undefined) return events;
   const author = id(a.author_id);
   if (a.action === "approved" || a.action === "approval") {
