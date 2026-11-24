@@ -1,95 +1,126 @@
-/* A live run: progress on the left, findings in the middle, the discussion
-   on the right; the discussion goes under the findings at 1100 px, and the
-   progress above them at 900 px. */
+/* A live run: properties, stages and reviewers on the left as on a finished
+   review's page; findings, then the discussion, on the right. The left
+   column goes above at 900 px. */
 .live-frame {
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr) 300px;
+  grid-template-columns: 300px minmax(0, 1fr);
   gap: 32px;
   align-items: start;
 }
-.live-side,
-.live-talk {
+.live-side {
   position: sticky;
   top: 72px;
   display: grid;
-  gap: 16px;
+  gap: 24px;
+  min-width: 0;
+  padding-top: 8px;
+}
+.live-side .prop-actions {
+  margin-top: 0;
+}
+.live-main {
   min-width: 0;
 }
-.live-talk h2 {
-  margin: 0;
-  font-size: var(--text-base);
-}
-.live-state {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.live-stages {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+/* A group of steps under a quiet head that counts them; rows on the property list's 28 px pitch. */
+.live-group {
   display: grid;
-  gap: 8px;
-}
-.live-stage {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--t3);
-  transition: color var(--d-move) var(--e-std);
-}
-.live-stage.is-done {
-  color: var(--t2);
-}
-.live-stage.is-current {
-  color: var(--t1);
-  font-weight: 500;
-}
-.live-stage-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  box-shadow: inset 0 0 0 1px var(--t4);
-  transition:
-    background-color var(--d-move) var(--e-std),
-    box-shadow var(--d-move) var(--e-std);
-}
-.live-stage.is-done .live-stage-dot {
-  background: var(--t3);
-  box-shadow: none;
-}
-.live-stage.is-current .live-stage-dot {
-  background: var(--blue);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--blue) 20%, transparent);
-}
-.live-stage .elapsed {
-  margin-left: auto;
-  font-weight: 400;
-}
-/* A row per reviewer task; the list scrolls once a large change opens many.
-   A mark sits on the stage dots' axis, a name on the stage names' edge. */
-.live-tasks {
-  list-style: none;
-  margin: 0 0 0 -4px;
-  padding: 0;
-  display: grid;
-  gap: 8px;
-  max-height: 232px;
-  overflow-y: auto;
-}
-.live-task {
-  display: flex;
-  align-items: center;
   gap: 4px;
-  min-width: 0;
+  padding-top: 16px;
+  box-shadow: inset 0 0.5px 0 var(--hair);
 }
-.live-task-name {
+.live-group-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 20px;
+  font-weight: 500;
+  color: var(--t3);
+}
+.live-group-head .subtle {
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+.live-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.live-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  min-width: 0;
+  color: var(--t1);
+}
+.live-step-name {
   flex: 1;
-  margin-right: 4px;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.live-step.is-running .live-step-name {
+  font-weight: 500;
+}
+/* Eight steps in a row: done in green, the running one in ink and breathing, the rest a hairline. */
+.stage-bar {
+  display: flex;
+  gap: 4px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.stage-seg {
+  flex: 1;
+  height: 6px;
+  border-radius: 2px;
+  background: var(--hair2);
+  transition: background-color var(--d-move) var(--e-std);
+}
+.stage-seg.is-completed {
+  background: var(--green);
+}
+.stage-seg.is-running {
+  background: var(--t1);
+  animation: stage-breathe 1.6s var(--e-std) infinite alternate;
+}
+.stage-seg.is-skipped {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--hair2);
+}
+@keyframes stage-breathe {
+  to {
+    opacity: 0.4;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stage-seg.is-running {
+    animation: none;
+  }
+}
+.stage-now {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 28px;
+  margin: 0;
+}
+.stage-now .elapsed {
+  color: var(--t3);
+  font-variant-numeric: tabular-nums;
+}
+.live-step .elapsed {
+  color: var(--t3);
+  font-variant-numeric: tabular-nums;
+}
+.live-tasks {
+  max-height: 232px;
+  overflow-y: auto;
 }
 .task-mark {
   flex: none;
@@ -138,6 +169,50 @@
   .task-mark {
     animation: none;
   }
+}
+/* No finding yet, or none at all: one line in a card, not a picture. */
+.live-empty {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 0;
+  padding: 16px;
+  border-radius: var(--r-ctl);
+  background: var(--raised);
+  box-shadow: var(--shadow);
+  color: var(--t3);
+}
+.live-empty > svg {
+  flex: none;
+  margin-top: 2px;
+}
+.live-empty.is-done > svg {
+  color: var(--green);
+}
+.live-empty > span {
+  display: grid;
+  gap: 2px;
+}
+.live-empty strong {
+  color: var(--t1);
+  font-weight: 500;
+}
+.live-talk {
+  display: grid;
+  gap: 12px;
+  margin-top: 32px;
+  padding-top: 24px;
+  box-shadow: inset 0 0.5px 0 var(--hair);
+}
+.live-talk h2 {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  font-size: var(--text-base);
+}
+.live-talk h2 .subtle {
+  font-weight: 400;
 }
 .live-thread {
   display: grid;
@@ -252,24 +327,12 @@
   min-width: 0;
 }
 
-@media (max-width: 1100px) {
-  .live-frame {
-    grid-template-columns: 280px minmax(0, 1fr);
-  }
-  .live-talk {
-    position: static;
-    grid-column: 2;
-  }
-}
 @media (max-width: 900px) {
   .live-frame {
     grid-template-columns: minmax(0, 1fr);
   }
   .live-side {
     position: static;
-  }
-  .live-talk {
-    grid-column: auto;
   }
 }
 @media (max-width: 560px) {

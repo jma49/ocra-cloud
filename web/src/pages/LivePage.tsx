@@ -2,28 +2,33 @@ import CircleCheck from "lucide-react/icons/circle-check";
 import EyeOff from "lucide-react/icons/eye-off";
 import Radio from "lucide-react/icons/radio";
 import Share2 from "lucide-react/icons/share-2";
+import Trash2 from "lucide-react/icons/trash-2";
 import { useMemo, useState } from "react";
 import { Status } from "@/components/status";
 import { Button } from "@/components/ui/button";
 import type { LiveCommentView, LiveRunView } from "../../../src/shared/index.js";
 import { ApiError, api } from "../api.js";
 import { CopyButton } from "../copy-button.js";
-import { sourceLabel, time, verdictLabel } from "../format.js";
+import { ago, sourceLabel, time, usd } from "../format.js";
 import { CommentThread } from "../live/comments.js";
 import { LiveFindingEvent } from "../live/finding.js";
 import { shownFindings } from "../live/fold.js";
-import { LiveCounts, LiveStages } from "../live/progress.js";
+import { LiveStages } from "../live/progress.js";
 import { ShareDrawer } from "../live/share-drawer.js";
 import { LiveTasks } from "../live/tasks.js";
 import { linkKey, useLive } from "../live/use-live.js";
+import { PlatformMark } from "../platform-mark.js";
+import { pullPath } from "../pull/path.js";
 import { Link, navigate } from "../router.js";
+import { SeverityCounts } from "../severity.js";
 import { ActionError, EmptyState, LoadError, Loading, PageHead, useAction } from "../ui.js";
+import { VerdictStatus } from "../verdict-status.js";
 
-// A review watched while it runs (ADR-0056): where it is on the left, its
-// findings in the middle (the confirmed ones while it runs, all of them
-// once it ended), the discussion on the right. The
-// owner shares it from here; people it is shared with watch, and comment
-// when allowed.
+// A review watched while it runs (ADR-0056): its properties and where it is
+// on the left, like a finished review's page; its findings (the confirmed
+// ones while it runs, all of them once it ended) and then the discussion on
+// the right. The owner shares it from here; people it is shared with watch,
+// and comment when allowed.
 
 const RANK = { critical: 0, warning: 1, suggestion: 2 } as const;
 
@@ -83,27 +88,67 @@ export function LivePage(props: { id: string }) {
   const general = byFinding.get(null) ?? [];
   const actions = { add: comments.add, remove: comments.remove };
 
+  const pull =
+    r.source !== "local" && r.repo && r.prNumber
+      ? { platform: r.source, repo: r.repo, number: r.prNumber }
+      : null;
+  const counts = { critical: 0, warning: 0, suggestion: 0 };
+  for (const f of findings) counts[f.severity] += 1;
+
   return (
     <div className="live-frame">
       <aside className="live-side" aria-label="Progress">
-        <div className="live-state">
-          <Status tone={state.tone}>{state.label}</Status>
-          {progress.ending?.kind === "finished" && (
-            <span>{verdictLabel(progress.ending.verdict)}</span>
-          )}
-        </div>
-        <LiveStages progress={progress} ended={ended} />
-        <LiveTasks tasks={progress.tasks} ended={ended} />
         <dl className="prop-list">
-          <LiveCounts progress={progress} />
-          <dt>Repository</dt>
-          <dd>{r.repo ?? "Unnamed"}</dd>
-          <dt>Source</dt>
-          <dd>{sourceLabel(r.source)}</dd>
+          <dt>Status</dt>
+          <dd>
+            <Status tone={state.tone}>{state.label}</Status>
+          </dd>
+          {progress.ending?.kind === "finished" && (
+            <>
+              <dt>Verdict</dt>
+              <dd>
+                <VerdictStatus
+                  verdict={progress.ending.verdict}
+                  complete={progress.ending.complete}
+                />
+              </dd>
+            </>
+          )}
+          {ended && (
+            <>
+              <dt>Findings</dt>
+              <dd>
+                <SeverityCounts counts={counts} />
+              </dd>
+            </>
+          )}
+          {pull ? (
+            <>
+              <dt>{pull.platform === "gitlab" ? "Merge request" : "Pull request"}</dt>
+              <dd className="prop-pull">
+                <PlatformMark platform={pull.platform} size={14} />
+                <Link to={pullPath(pull.platform, pull.repo, pull.number)}>
+                  {pull.repo} <span className="subtle">#{pull.number}</span>
+                </Link>
+              </dd>
+            </>
+          ) : (
+            <>
+              <dt>Repository</dt>
+              <dd>{r.repo ?? "Unnamed"}</dd>
+              <dt>Source</dt>
+              <dd>{sourceLabel(r.source)}</dd>
+            </>
+          )}
           <dt>Started</dt>
-          <dd>{time(r.createdAt)}</dd>
+          <dd>
+            <time dateTime={r.createdAt}>{time(r.createdAt)}</time>
+            <span className="subtle"> · {ago(r.createdAt)}</span>
+          </dd>
           <dt>Owner</dt>
           <dd>{owner ? "You" : r.owner}</dd>
+          <dt>Spent</dt>
+          <dd>{usd(progress.costUsd)}</dd>
           <dt>Run</dt>
           <dd className="prop-copy">
             <span className="mono subtle prop-copy-text" title={r.runId}>
@@ -112,33 +157,39 @@ export function LivePage(props: { id: string }) {
             <CopyButton text={r.runId} label="Copy run id" iconOnly />
           </dd>
         </dl>
+        <LiveStages progress={progress} ended={ended} />
+        <LiveTasks progress={progress} ended={ended} />
         {owner && (
           <div className="prop-actions">
-            <Button type="button" onClick={() => setSharing(true)}>
-              <Share2 size={14} aria-hidden="true" /> Share
+            <Button type="button" variant="outline" size="sm" onClick={() => setSharing(true)}>
+              <Share2 aria-hidden="true" />
+              Share
             </Button>
             {confirming ? (
               <>
                 <Button
                   type="button"
                   variant="destructive"
+                  size="sm"
                   disabled={remove.busy}
                   onClick={async () => {
                     if (await remove.run()) navigate("/live");
                   }}
                 >
-                  Confirm: delete run
+                  Delete run
                 </Button>
-                <Button type="button" variant="outline" onClick={() => setConfirming(false)}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setConfirming(false)}
+                >
                   Cancel
                 </Button>
               </>
             ) : (
-              <Button
-                type="button"
-                variant="destructive-outline"
-                onClick={() => setConfirming(true)}
-              >
+              <Button type="button" variant="outline" size="sm" onClick={() => setConfirming(true)}>
+                <Trash2 aria-hidden="true" />
                 Delete
               </Button>
             )}
@@ -169,16 +220,21 @@ export function LivePage(props: { id: string }) {
           </span>
         </div>
         {findings.length === 0 ? (
-          <div className="card">
-            <EmptyState
-              icon={ended ? CircleCheck : Radio}
-              title={ended ? "No findings" : "No confirmed findings yet"}
-            >
-              {ended
-                ? "The review ended without a finding."
-                : "A critical finding appears here as soon as it is confirmed. The rest follow when the review ends."}
-            </EmptyState>
-          </div>
+          <p className={`live-empty${ended ? " is-done" : ""}`}>
+            {ended ? (
+              <CircleCheck size={16} aria-hidden="true" />
+            ) : (
+              <Radio size={16} aria-hidden="true" />
+            )}
+            <span>
+              <strong>{ended ? "No findings" : "No confirmed findings yet"}</strong>
+              <span className="subtle">
+                {ended
+                  ? "The review ended without a finding."
+                  : "A critical finding appears here as soon as it is confirmed; the rest follow when the review ends."}
+              </span>
+            </span>
+          </p>
         ) : (
           <ol className="timeline">
             {findings.map((f) => (
@@ -201,27 +257,33 @@ export function LivePage(props: { id: string }) {
             ))}
           </div>
         )}
+        <section className="live-talk" aria-label="Discussion">
+          <h2>
+            Discussion
+            {general.length > 0 && <span className="subtle">{general.length}</span>}
+          </h2>
+          {comments.list.error && !comments.list.data ? (
+            <LoadError
+              what="the comments"
+              error={comments.list.error}
+              retry={comments.list.reload}
+            />
+          ) : (
+            <CommentThread
+              comments={general}
+              findingId={null}
+              canComment={canComment}
+              actions={actions}
+              placeholder="Comment on this run"
+            />
+          )}
+          {!canComment && (
+            <p className="subtle small m-0">
+              You can watch this run. Ask its owner to let you comment.
+            </p>
+          )}
+        </section>
       </section>
-
-      <aside className="live-talk" aria-label="Discussion">
-        <h2>Discussion</h2>
-        {comments.list.error && !comments.list.data ? (
-          <LoadError what="the comments" error={comments.list.error} retry={comments.list.reload} />
-        ) : (
-          <CommentThread
-            comments={general}
-            findingId={null}
-            canComment={canComment}
-            actions={actions}
-            placeholder="Comment on this run"
-          />
-        )}
-        {!canComment && (
-          <p className="subtle small m-0">
-            You can watch this run. Ask its owner to let you comment.
-          </p>
-        )}
-      </aside>
 
       {sharing && currentShare && (
         <ShareDrawer
