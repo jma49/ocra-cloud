@@ -99,7 +99,9 @@ describe("the Automations page", () => {
     const sent = serve([]);
     render(<Automations me={me(false)} />);
     await screen.findByText("No rules yet");
-    fireEvent.click(screen.getByRole("button", { name: "New rule" }));
+    // An empty list offers its one action in its empty state, not again in the page's head.
+    expect(screen.queryByRole("button", { name: "New rule" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Write your first rule" }));
     const form = screen.getByRole("form", { name: "New rule" });
     expect(within(form).queryByLabelText("Authors")).toBeNull();
     expect(within(form).queryByRole("option", { name: "Skip the review" })).toBeNull();
@@ -170,7 +172,9 @@ describe("the Automations page", () => {
     const sent = serve([]);
     render(<Automations me={me(true)} />);
     await screen.findByText("No rules yet");
-    fireEvent.click(screen.getByRole("button", { name: "New rule" }));
+    // An empty list offers its one action in its empty state, not again in the page's head.
+    expect(screen.queryByRole("button", { name: "New rule" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Write your first rule" }));
     const form = screen.getByRole("form", { name: "New rule" });
     const add = within(form).getByRole("button", { name: "Add rule" }) as HTMLButtonElement;
     const set = (label: string, value: string) =>

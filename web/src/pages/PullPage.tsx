@@ -166,6 +166,7 @@ export function PullPage(props: {
         ? undefined
         : { to: otherLayout, run: () => layout.pick(otherLayout) },
       beside,
+      say: (text) => toast(text),
     }),
   );
   if (error && !data) {

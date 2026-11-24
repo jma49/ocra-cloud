@@ -107,13 +107,15 @@ export function Automations(props: { me: Me }) {
             : "Rules for your reviews: when one is uploaded and matches, ocra notifies a chat. Labels, reviewer requests and comments need a self-hosted server."
         }
         actions={
-          <Button
-            type="button"
-            disabled={list.length >= MAX_RULES}
-            onClick={() => setEditing("new")}
-          >
-            <AddGlyph size={14} /> New rule
-          </Button>
+          list.length > 0 && (
+            <Button
+              type="button"
+              disabled={list.length >= MAX_RULES}
+              onClick={() => setEditing("new")}
+            >
+              <AddGlyph size={14} /> New rule
+            </Button>
+          )
         }
       />
       {toggle.error !== null && <ActionError what="change the rule" error={toggle.error} />}
@@ -136,8 +138,8 @@ export function Automations(props: { me: Me }) {
             title="No rules yet"
             action={
               editing === null && (
-                <Button variant="outline" onClick={() => setEditing("new")}>
-                  Write your first rule
+                <Button onClick={() => setEditing("new")}>
+                  <AddGlyph size={14} /> Write your first rule
                 </Button>
               )
             }
@@ -180,18 +182,21 @@ export function Automations(props: { me: Me }) {
         )
       )}
       {list.length > 0 && <DryRun queued={queued} repos={repoChoices} />}
-      <div className="card section">
-        <div className="card-head">
-          <h2>Recent runs</h2>
+      {/* Runs come from rules: with none, nor any run left from one, there is nothing to list. */}
+      {(list.length > 0 || (runs.data?.runs.length ?? 0) > 0) && (
+        <div className="card section">
+          <div className="card-head">
+            <h2>Recent runs</h2>
+          </div>
+          {runs.error && !runs.data ? (
+            <LoadError what="the runs" error={runs.error} retry={runs.reload} inCard />
+          ) : !runs.data ? (
+            <Loading what="runs" inCard />
+          ) : (
+            <Runs runs={runs.data.runs} />
+          )}
         </div>
-        {runs.error && !runs.data ? (
-          <LoadError what="the runs" error={runs.error} retry={runs.reload} inCard />
-        ) : !runs.data ? (
-          <Loading what="runs" inCard />
-        ) : (
-          <Runs runs={runs.data.runs} />
-        )}
-      </div>
+      )}
     </>
   );
 }
