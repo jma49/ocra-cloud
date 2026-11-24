@@ -14,6 +14,8 @@ export const OUTCOME: Record<PullActionOutcome, string> = {
 export type Done =
   | "Viewed"
   | "Draft"
+  | "Title"
+  | "State"
   | "Description"
   | "Review threads"
   | "Merge queue"
@@ -26,6 +28,8 @@ export type Done =
 export const DONE: Record<Done, string | null> = {
   Viewed: null,
   Draft: null,
+  Title: null,
+  State: null,
   Description: "Description saved",
   "Review threads": "Suggestions committed",
   "Merge queue": "Merge queue updated",

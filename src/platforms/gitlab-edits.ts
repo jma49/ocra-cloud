@@ -1,6 +1,12 @@
 import { MAX_REPO_LABELS, type PullState } from "../shared/index.js";
 import { outcomeOf } from "./actions.js";
-import { forbiddenUnlessLimited, labelColor, type PullEdits } from "./edits.js";
+import {
+  editOutcome,
+  forbiddenUnlessLimited,
+  labelColor,
+  type PullEdits,
+  plannedDetails,
+} from "./edits.js";
 import { gitlabHeaders, mergeRequestUrl } from "./gitlab-changes.js";
 import { platformCall, platformSend } from "./http.js";
 
@@ -9,7 +15,13 @@ import { platformCall, platformSend } from "./http.js";
 // other way to set it, and its branch rebased on the target.
 
 type Label = { name: string; color?: string | null; description?: string | null };
-type MergeRequest = { title: string; state: string; draft?: boolean; labels?: string[] };
+type MergeRequest = {
+  title: string;
+  description?: string | null;
+  state: string;
+  draft?: boolean;
+  labels?: string[];
+};
 type Diverged = {
   state: string;
   sha: string;
@@ -29,6 +41,9 @@ function stripDraft(title: string): string {
 
 const STATE: Record<string, PullState> = { opened: "open", merged: "merged" };
 
+/** What GitLab's state_event is for each end; a locked merge request takes neither. */
+const EVENT = { open: ["closed", "reopen"], closed: ["opened", "close"] } as const;
+
 export function gitlabEdits(origin: string): PullEdits {
   const read = (token: string, fullName: string, number: number) =>
     platformCall<MergeRequest>(mergeRequestUrl(origin, fullName, number), {
@@ -36,6 +51,23 @@ export function gitlabEdits(origin: string): PullEdits {
     });
   const update = async (token: string, fullName: string, number: number, body: unknown) =>
     outcomeOf(
+      await platformSend(mergeRequestUrl(origin, fullName, number), {
+        method: "PUT",
+        headers: { ...gitlabHeaders(token), "content-type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    );
+  // A read whose 404 is told apart from an unreachable platform, for a write that follows it.
+  const readOrMissing = async (token: string, fullName: string, number: number) => {
+    const read = await platformSend<MergeRequest>(mergeRequestUrl(origin, fullName, number), {
+      headers: gitlabHeaders(token),
+    });
+    if (read?.status === 200 && read.body) return { found: read.body } as const;
+    const outcome = editOutcome(read);
+    return { outcome: outcome === "done" ? null : outcome } as const;
+  };
+  const put = async (token: string, fullName: string, number: number, body: unknown) =>
+    editOutcome(
       await platformSend(mergeRequestUrl(origin, fullName, number), {
         method: "PUT",
         headers: { ...gitlabHeaders(token), "content-type": "application/json" },
@@ -80,6 +112,30 @@ export function gitlabEdits(origin: string): PullEdits {
       if ((mr.draft === true) === draft) return "done";
       const title = stripDraft(mr.title);
       return update(token, fullName, number, { title: draft ? `Draft: ${title}` : title });
+    },
+    async editDetails(token, fullName, number, edit) {
+      // GitLab has no guard on an edit: what it replaces is read just before.
+      const read = await readOrMissing(token, fullName, number);
+      if (!("found" in read)) return read.outcome;
+      const now = { title: read.found.title, body: read.found.description ?? "" };
+      const send = plannedDetails(now, edit);
+      if (send === "stale") return "stale";
+      if (send.length === 0) return "unchanged";
+      const field = { title: "title", body: "description" } as const;
+      return put(
+        token,
+        fullName,
+        number,
+        Object.fromEntries(send.map((f) => [field[f], edit[f]?.to])),
+      );
+    },
+    async setOpenness(token, fullName, number, state) {
+      const read = await readOrMissing(token, fullName, number);
+      if (!("found" in read)) return read.outcome;
+      const [from, event] = EVENT[state];
+      if (read.found.state === (state === "open" ? "opened" : "closed")) return "unchanged";
+      if (read.found.state !== from) return "refused";
+      return put(token, fullName, number, { state_event: event });
     },
     async updateBranch(token, fullName, number, head) {
       const url = mergeRequestUrl(origin, fullName, number);

@@ -76,3 +76,39 @@ export type PullUpdateBranchRequest = {
 };
 
 export type PullUpdateBranchAnswer = { outcome: BranchUpdateOutcome };
+
+/** A title as long as GitLab takes one (GitHub takes 256). */
+export const MAX_TITLE_CHARS = 255;
+
+/** A field's new value and the value the page last showed, which must still be the platform's. */
+export type PullFieldEdit = { from: string; to: string };
+
+/**
+ * POST /api/pulls/details: the title, the description, or both. Each is
+ * changed only while it still reads `from` (line endings aside): one
+ * someone changed since the page read it is refused as `stale` (409),
+ * unsent, rather than overwritten.
+ */
+export type PullDetailsRequest = {
+  platform: CodePlatformKind;
+  repo: string;
+  number: number;
+  title?: PullFieldEdit | undefined;
+  body?: PullFieldEdit | undefined;
+};
+
+/** A merged pull request can be neither closed nor reopened. */
+export const PULL_OPENNESS = ["open", "closed"] as const;
+export type PullOpenness = (typeof PULL_OPENNESS)[number];
+
+/**
+ * POST /api/pulls/state: closes or reopens. One already so is `done`,
+ * unsent; a merged one, or one the platform will not reopen (its branch
+ * gone), is `refused`.
+ */
+export type PullStateRequest = {
+  platform: CodePlatformKind;
+  repo: string;
+  number: number;
+  state: PullOpenness;
+};

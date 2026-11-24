@@ -48,6 +48,7 @@ import { pullBatch } from "./pull-batch.js";
 import { pullCi } from "./pull-ci.js";
 import { pullCiExplain } from "./pull-ci-explain.js";
 import { pullDescription } from "./pull-description.js";
+import { pullDetails } from "./pull-details.js";
 import { pullEdits } from "./pull-edits.js";
 import type { PullsHub } from "./pull-events/hub.js";
 import { pullEventsRoute } from "./pull-events/stream.js";
@@ -187,6 +188,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
   app.route("/pulls", pullCiExplain);
   app.route("/pulls", pullThreads);
   app.route("/pulls", pullEdits);
+  app.route("/pulls", pullDetails);
   app.route("/pulls", reviewers);
   app.route("/pulls", pullPeople);
   app.route("/pulls", pullReadiness);
