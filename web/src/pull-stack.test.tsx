@@ -53,6 +53,8 @@ function show(
   answer: unknown = { outcome: "started", job: job(0, "waiting") },
   /** The stack's merge already on the server when the page loads. */
   under: unknown = null,
+  /** The pull request whose page it is. */
+  number = 2,
 ) {
   const sent: { url: string; method: string; body: unknown }[] = [];
   const onMerged = vi.fn();
@@ -79,7 +81,7 @@ function show(
   );
   render(
     <StackPanel
-      pull={{ platform: "github", repo: "octo/api", number: 2 }}
+      pull={{ platform: "github", repo: "octo/api", number }}
       mergeMethods={["squash", "merge"]}
       onMerged={onMerged}
       restack={<button type="button">Update branch</button>}
@@ -234,6 +236,14 @@ describe("a pull request's stack", () => {
     ]);
     expect(screen.getByText(/This branch lacks 2 commits of #1/)).toBeTruthy();
     expect(screen.getByRole("button", { name: "Update branch" })).toBeTruthy();
+  });
+
+  it("warns before a merge that a layer under this one needs a restack", async () => {
+    show([stacked(1, null), { ...stacked(2, 1), behind: 3 }, stacked(3, 2)], undefined, null, 3);
+    fireEvent.click(await screen.findByRole("button", { name: "Merge stack up to here" }));
+    expect(screen.getByRole("note").textContent).toBe(
+      "#2 lacks 3 commits of #1: restack it first, or its merge may conflict.",
+    );
   });
 
   it("offers no update while this branch has all of the one under it", async () => {
