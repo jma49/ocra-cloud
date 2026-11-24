@@ -103,9 +103,8 @@ describe("rail", () => {
     const insights = screen.getByRole("link", { name: "Insights" });
     expect(insights.getAttribute("title")).toBeNull();
     fireEvent.focus(insights);
-    expect(
-      (await screen.findByText("Insights")).closest("[data-slot=tooltip-popup]"),
-    ).not.toBeNull();
+    const tip = (await screen.findByText("Insights")).closest("[data-slot=tooltip-popup]");
+    expect(tip?.textContent).toBe("Insightsgn");
   });
 });
 

@@ -509,6 +509,10 @@
     animation: none;
   }
 }
+/* A rail tip's key sits after its name, a step apart. */
+.rail-tip-key {
+  margin-left: 8px;
+}
 .command-icon {
   flex: none;
   color: var(--t3);
