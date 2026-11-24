@@ -21,22 +21,23 @@ export type Since = ReturnType<typeof useSince>;
  * the one picked. The first answer is read before the page marks the pull
  * request seen, so its options still say what the last visit read.
  */
-export function useSince(query: string) {
+export function useSince(query: string, filter = "") {
   const [picked, pick] = useState<string | null>(null);
   const first = useLoad(() => api<PullSinceView>(`/pulls/since?${query}`), [query]);
   const offered = first.data?.since ?? null;
+  // The first answer names what can be compared from; a filtered diff is read on its own.
   const other = useLoad(
     () =>
-      picked && picked !== offered
-        ? api<PullSinceView>(`/pulls/since?${query}&since=${picked}`)
+      picked && (picked !== offered || filter)
+        ? api<PullSinceView>(`/pulls/since?${query}&since=${picked}${filter}`)
         : Promise.resolve(null),
-    [query, picked, offered],
+    [query, picked, offered, filter],
   );
   // Two sources may name one head: the first, the review, keeps it.
   const options = (first.data?.options ?? []).filter(
     (o, i, all) => all.findIndex((x) => x.head === o.head) === i,
   );
-  const reading = picked !== null && picked !== offered;
+  const reading = picked !== null && (picked !== offered || filter !== "");
   return {
     /** True once the first answer is in, or failed: the page may mark the pull request seen. */
     ready: !first.loading,

@@ -77,6 +77,8 @@ export function FileDiff(props: {
   /** What a find in the diffs found in this file, by the line's index in its patch, and the match shown. */
   found?: ReadonlyMap<number, WordRange[]> | undefined;
   focus?: SearchFocus | null | undefined;
+  /** Whether the diff leaves out changes of whitespace alone, so some lines are not in it. */
+  hideWhitespace?: boolean;
 }) {
   const { file, layout } = props;
   const parsed = useMemo(() => (file.patch ? parsePatch(file.patch) : []), [file.patch]);
@@ -184,10 +186,20 @@ export function FileDiff(props: {
     review: props.review,
     onDecided: props.onDecided,
     onFixDone: props.onFixDone,
-    pendingAt: (at) => props.pending.filter((c) => sameAnchor(c, file.path, lines[at])),
+    // A comment on a line the diff does not draw (a removed line that only re-spaced) waits at its top.
+    pendingAt: (at) =>
+      at < 0
+        ? props.pending.filter(
+            (c) => c.path === file.path && !lines.some((l) => sameAnchor(c, file.path, l)),
+          )
+        : props.pending.filter((c) => sameAnchor(c, file.path, lines[at])),
     onDrop: props.onDrop,
   };
   const chunks = useMemo(() => chunksOf(rows, RUN), [rows]);
+  const whitespaceOnly =
+    props.hideWhitespace === true &&
+    file.additions + file.deletions > 0 &&
+    !parsed.some((l) => l.kind === "add" || l.kind === "del");
   const { dir, name } = splitPath(file.path);
   // A Markdown file at the head can also be read as the page it makes; the diff stays the default.
   const page = isMarkdown(file.path) && file.status !== "removed" ? props.context : undefined;
@@ -274,6 +286,8 @@ export function FileDiff(props: {
           <p className="card-pad subtle small m-0">
             The platform sent no diff for this file (binary or too large).
           </p>
+        ) : whitespaceOnly && !hasNotes(notes, -1) ? (
+          <p className="card-pad subtle small m-0">Only whitespace changed in this file.</p>
         ) : (
           <Wide wrap={wrap}>
             <table
@@ -298,6 +312,13 @@ export function FileDiff(props: {
               </colgroup>
               {hasNotes(notes, -1) && (
                 <tbody>
+                  {props.hideWhitespace && (
+                    <tr className="diff-note">
+                      <td colSpan={columns} className="subtle small">
+                        On lines hidden by the whitespace filter, or not in the diff:
+                      </td>
+                    </tr>
+                  )}
                   <LineNotes at={-1} notes={notes} columns={columns} />
                 </tbody>
               )}
