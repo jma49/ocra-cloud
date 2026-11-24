@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { forgetKeys } from "../account-keys.js";
 import type { Me } from "../api.js";
@@ -72,6 +72,17 @@ describe("Set up reviews", () => {
     const current = screen.getByRole("listitem", { current: "step" });
     expect(current.textContent).toContain("Add a provider key");
     expect(screen.getAllByRole("link").map((a) => a.textContent)).toEqual(["Add a key"]);
+  });
+
+  it("reads the repositories again on coming back from installing the app", async () => {
+    serve({ keys: 1 });
+    render(<GetStarted me={me} />);
+    const choose = await screen.findByRole("link", { name: "Choose repositories" });
+    choose.addEventListener("click", (e) => e.preventDefault());
+    fireEvent.click(choose);
+    serve({ keys: 1, repos: 1 });
+    await act(async () => void document.dispatchEvent(new Event("visibilitychange")));
+    expect(await screen.findByText("Set up auto review")).toBeTruthy();
   });
 
   it("is gone once the first review is in", async () => {

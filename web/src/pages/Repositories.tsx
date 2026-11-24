@@ -14,7 +14,7 @@ import { PlatformMark } from "../platform-mark.js";
 import { PLATFORM_NAME } from "../platform-names.js";
 import { Link } from "../router.js";
 import { PLATFORM_DOCS } from "../site.js";
-import { EmptyState, LoadError, Loading, PageHead, useAction } from "../ui.js";
+import { EmptyState, LoadError, Loading, PageHead, useAction, useReloadOnReturn } from "../ui.js";
 
 // The repositories the account's reviews came from, by name: the one the
 // account gave, else the platform's name for its hash, else the path a pull
@@ -157,7 +157,7 @@ function RepoName(props: {
 }
 
 /** The code platforms the console reads as the user, and how to connect one that is not. */
-function PlatformsSection(props: { me: Me; data: PlatformRepos }) {
+function PlatformsSection(props: { me: Me; data: PlatformRepos; onLeave: () => void }) {
   return (
     <div className="card platforms">
       <div className="card-head">
@@ -191,7 +191,7 @@ function PlatformsSection(props: { me: Me; data: PlatformRepos }) {
               </div>
               <PlatformState p={p} />
             </div>
-            <Connect me={props.me} p={p} />
+            <Connect me={props.me} p={p} onLeave={props.onLeave} />
           </div>
           {p.linked && !p.failed && p.repositories.length > 0 && <PlatformRepoList p={p} />}
         </div>
@@ -249,7 +249,7 @@ function PlatformRepoList(props: { p: PlatformRepos["platforms"][number] }) {
   );
 }
 
-function Connect(props: { me: Me; p: PlatformRepos["platforms"][number] }) {
+function Connect(props: { me: Me; p: PlatformRepos["platforms"][number]; onLeave: () => void }) {
   const { p } = props;
   if (p.linked && !p.failed)
     return p.installUrl ? (
@@ -257,6 +257,7 @@ function Connect(props: { me: Me; p: PlatformRepos["platforms"][number] }) {
         variant="outline"
         size="sm"
         render={<a href={p.installUrl} target="_blank" rel="noopener noreferrer" />}
+        onClick={props.onLeave}
       >
         Choose repositories
       </Button>
@@ -299,7 +300,7 @@ function PlatformState(props: { p: PlatformRepos["platforms"][number] }) {
     return (
       <p className="subtle small m-0">
         The ocra Cloud app is not installed on any repository you can reach. Choose the repositories
-        it may read, then reload this page.
+        it may read, and they show up here when you come back.
       </p>
     );
   return (
@@ -333,6 +334,7 @@ export function Repositories(props: { me: Me }) {
     api<{ repositories: Repo[] }>("/repositories"),
   );
   const platforms = useRead<PlatformRepos>("/platforms/repos");
+  const leaving = useReloadOnReturn(platforms.reload);
   useSyncNames(data?.repositories, platforms.data, reload);
   const list = useRef<HTMLTableSectionElement>(null);
   const rows = data?.repositories ?? [];
@@ -371,7 +373,7 @@ export function Repositories(props: { me: Me }) {
       ) : !platforms.data ? (
         <Loading what="your connected platforms" />
       ) : (
-        <PlatformsSection me={props.me} data={platforms.data} />
+        <PlatformsSection me={props.me} data={platforms.data} onLeave={leaving} />
       )}
       {error && !data ? (
         <LoadError what="repositories" error={error} retry={reload} />

@@ -151,6 +151,7 @@ Sessions and API tokens are checked too. An account's answer is kept in its row 
 On GitHub, one App of the company's own does three things: people sign in with it, the console acts as each person through it (comments, reviews, merges, fixes, issues), and its installation is the bot that reviews. Create it under the organization: Settings, Developer settings, GitHub Apps, New GitHub App.
 
 - **Callback URL** `<PUBLIC_URL>/api/auth/github/callback`, with "Expire user authorization tokens" on.
+- **Setup URL** `<PUBLIC_URL>/repositories`, with "Redirect on update" on, so whoever installs the App or changes its repositories comes back to the console. The tab they left reads their repositories again when they return to it.
 - **Webhook** active, URL `<PUBLIC_URL>/api/webhooks/github`, and a secret of your choosing: `GITHUB_WEBHOOK_SECRET`. The server refuses webhooks without it, and a delivery whose signature does not match answers 401.
 - **Repository permissions**, each needed by what follows it:
 
