@@ -1,13 +1,15 @@
 import Check from "lucide-react/icons/check";
-import { type CSSProperties, useState } from "react";
+import type { CSSProperties } from "react";
 import type { PullFilesView } from "../../../src/shared/index.js";
 import { count } from "../format.js";
 import { FileTypeIcon } from "./file-icon.js";
 import { fileTree } from "./file-tree.js";
+import { FileViewBar } from "./file-view-menu.js";
+import { type FileViews, isNarrowed } from "./file-views.js";
 
 type File = PullFilesView["files"][number];
 
-/** Past this many files a field narrows the tree by path. */
+/** From this many files the tree offers its views; with fewer, once this browser keeps one. */
 const FILTER_FROM = 8;
 
 /** What happened to a file: the letter after its name, and the word in its title. */
@@ -18,37 +20,34 @@ const MARK: Record<File["status"], { letter: string; cls: string; label: string 
   renamed: { letter: "R", cls: "", label: "renamed" },
 };
 
-/** The changed files beside the diff, as a tree: how many are viewed, and a link to each. */
-export function FileList(props: { files: File[]; isViewed: (f: File) => boolean }) {
-  const [filter, setFilter] = useState("");
-  const viewed = props.files.filter(props.isViewed).length;
-  const wanted = filter.trim().toLowerCase();
-  const shown = wanted
-    ? props.files.filter((f) => f.path.toLowerCase().includes(wanted))
-    : props.files;
+/**
+ * The changed files beside the diff, as a tree: how many are viewed, the
+ * view that narrows them, and a link to each file it shows.
+ */
+export function FileList(props: {
+  files: File[];
+  /** The files the view keeps, which the diffs show too. */
+  shown: File[];
+  isViewed: (f: File) => boolean;
+  views: FileViews;
+}) {
+  const { files, shown, views } = props;
+  const viewed = files.filter(props.isViewed).length;
+  const narrowed = isNarrowed(views.narrowing);
   return (
     <nav className="file-list" aria-label="Changed files">
       <div className="file-progress">
         <span className="subtle small">
-          {viewed} of {props.files.length} files viewed
+          {viewed} of {files.length} files viewed
         </span>
         <div className="meter" aria-hidden="true">
-          <span
-            style={{ width: `${props.files.length ? (viewed / props.files.length) * 100 : 0}%` }}
-          />
+          <span style={{ width: `${files.length ? (viewed / files.length) * 100 : 0}%` }} />
         </div>
       </div>
-      {props.files.length >= FILTER_FROM && (
-        <input
-          className="input file-filter"
-          type="search"
-          aria-label="Filter files by path"
-          placeholder="Filter files"
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-        />
+      {(files.length >= FILTER_FROM || narrowed || views.views.length > 0) && (
+        <FileViewBar views={views} />
       )}
-      {wanted && shown.length === 0 && <p className="subtle small file-none">No file matches.</p>}
+      {narrowed && shown.length === 0 && <p className="subtle small file-none">No file matches.</p>}
       {fileTree(shown).map((row) => {
         const indent = { "--depth": row.depth } as CSSProperties;
         if (row.kind === "dir")
@@ -85,9 +84,9 @@ export function FileList(props: { files: File[]; isViewed: (f: File) => boolean 
           </a>
         );
       })}
-      {wanted && shown.length > 0 && (
+      {narrowed && shown.length > 0 && (
         <p className="subtle small file-none">
-          {count(shown.length, "file")} of {props.files.length}
+          {count(shown.length, "file")} of {files.length}
         </p>
       )}
     </nav>

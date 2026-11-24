@@ -34,6 +34,8 @@ import { FileDiff } from "../pull/file-diff.js";
 import { FileList } from "../pull/file-list.js";
 import { fileAtHead } from "../pull/file-menu.js";
 import { treeOrder } from "../pull/file-tree.js";
+import { NoFileShown } from "../pull/file-view-menu.js";
+import { useFileViews, useSameList } from "../pull/file-views.js";
 import { usePullFindings } from "../pull/findings.js";
 import { GenerateBox } from "../pull/generate-box.js";
 import { useHeadMoved } from "../pull/head-moved.js";
@@ -172,8 +174,15 @@ export function PullPage(props: {
   const convo = useConversationOpen();
   // A conversation's line being shown, for the files as drawn when it was asked for.
   const [jump, setJump] = useState<(SearchFocus & { drawn: string }) | null>(null);
+  const fileViews = useFileViews(query.toString());
+  const isViewed = (f: { path: string }) => viewed.isViewed(f.path);
   const search = useDiffSearch(
-    versionFiles(versions) ?? sinceFiles(since) ?? data?.files ?? NO_FILES,
+    useSameList(
+      fileViews.narrow(
+        versionFiles(versions) ?? sinceFiles(since) ?? data?.files ?? NO_FILES,
+        isViewed,
+      ),
+    ),
   );
   usePageCommands(
     "This pull request",
@@ -210,14 +219,21 @@ export function PullPage(props: {
     setReadinessRev((n) => n + 1);
   };
   const narrowed = versionFiles(versions) ?? sinceFiles(since);
-  const shown = treeOrder(narrowed ?? data.files);
+  const listed = treeOrder(narrowed ?? data.files);
+  const shown = fileViews.narrow(listed, isViewed);
   const items = conversationOf(threads.data?.threads ?? [], narrowed === null ? findings : []);
   const onFile = commentsByFile(items);
   const drawnAs = `${versions.range?.from ?? ""}:${versions.range?.to ?? since.picked ?? ""}:${drawn?.filter}`;
   const goTo = (item: (typeof items)[number]) => {
-    const to = jumpOf(shown, item, (jump?.step ?? 0) + 1);
+    // A conversation on a file the view leaves out shows all files first.
+    const hidden = !shown.some((f) => f.path === item.path);
+    if (hidden) fileViews.pick(null);
+    const to = jumpOf(listed, item, (jump?.step ?? 0) + 1);
+    const scroll = () =>
+      document.getElementById(`file-${item.path}`)?.scrollIntoView({ block: "start" });
     if (to) setJump({ ...to, drawn: drawnAs });
-    else document.getElementById(`file-${item.path}`)?.scrollIntoView({ block: "start" });
+    else if (hidden) requestAnimationFrame(scroll);
+    else scroll();
   };
   const commentsOn = (path: string) => {
     const on = onFile.get(path);
@@ -391,7 +407,7 @@ export function PullPage(props: {
       </div>
       <div className={`pull-frame${convo.open ? " has-convo" : ""}`} ref={code}>
         <aside className="pull-side">
-          <FileList files={shown} isViewed={(f) => viewed.isViewed(f.path)} />
+          <FileList files={listed} shown={shown} isViewed={isViewed} views={fileViews} />
         </aside>
         <div className="pull-main">
           <SearchBar search={search} />
@@ -399,6 +415,9 @@ export function PullPage(props: {
             <SinceBar since={since} versions={versions} />
             <DiffBar layout={layout} wrap={wrap} whitespace={whitespace} />
           </div>
+          {shown.length === 0 && listed.length > 0 && (
+            <NoFileShown onShowAll={() => fileViews.pick(null)} />
+          )}
           <FixJobsOf query={query.toString()} onProposed={fixProposed}>
             {shown.map((f) => (
               <FileDiff
