@@ -3,6 +3,7 @@ import { z } from "zod";
 import { audit } from "./audit.js";
 import { changeCounts, ignoreWhitespace } from "./diff-whitespace.js";
 import { apiError, jsonBody } from "./http.js";
+import type { PatchedFile } from "./platforms/changes.js";
 import { fixMessage, repoFilePath } from "./platforms/fix.js";
 import { accessToken } from "./platforms/links.js";
 import type { CodePlatform } from "./platforms/platform.js";
@@ -76,10 +77,9 @@ const filesQuery = z.object({ ...pullRef, ...whitespace });
  * A file's diff and its +/− counts as asked: with whitespace-only changes left
  * out when the query says so, counted from what is left.
  */
-export function changesAsAsked(
-  f: { additions: number; deletions: number; patch: string | null },
-  ws: "ignore" | undefined,
-): { additions: number; deletions: number; patch: string | null } {
+type Changes = Pick<PatchedFile, "additions" | "deletions" | "patch">;
+
+export function changesAsAsked(f: Changes, ws: "ignore" | undefined): Changes {
   if (f.patch === null || ws !== "ignore")
     return { additions: f.additions, deletions: f.deletions, patch: f.patch };
   const patch = ignoreWhitespace(f.patch);
