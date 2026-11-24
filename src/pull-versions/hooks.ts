@@ -3,6 +3,7 @@ import type { Db } from "../db/client.js";
 import { reviewRepoFor } from "../db/review-jobs.js";
 import { type Row, scoped } from "../db/scoped.js";
 import { COMMIT_ID } from "../platforms/contents.js";
+import { hookTime } from "../pull-index/hooks.js";
 
 // Each head an enrolled repository's pull request is pushed to, from its
 // webhooks: GitHub's pull_request opened, reopened and synchronize, and a
@@ -32,12 +33,8 @@ const gitlabPush = z.object({
   }),
 });
 
-/** A time a platform wrote, ISO or GitLab's older `2026-11-02 10:00:00 UTC`. */
-function pushTime(text: string | null | undefined, now: Date): Date {
-  if (!text) return now;
-  const ms = Date.parse(text.replace(/^(\d{4}-\d\d-\d\d) (\d\d:\d\d:\d\d) UTC$/, "$1T$2Z"));
-  return Number.isFinite(ms) ? new Date(ms) : now;
-}
+/** The platform's update time, else the delivery's. */
+const pushTime = (text: string | null | undefined, now: Date) => hookTime(text) ?? now;
 
 /** A GitHub App delivery (src/webhooks.ts verified it); true when it kept a new head. */
 export async function recordGithubVersion(
