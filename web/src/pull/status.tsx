@@ -26,6 +26,8 @@ const unmet = (view: PullReadinessView | undefined, kind: string) =>
   view?.items.some((i) => i.kind === kind && i.state === "unmet") === true;
 
 const isDraft = (view: PullReadinessView | undefined) => unmet(view, "draft");
+/** Whether the platform says it conflicts with its base: no merge until that is resolved. */
+export const conflicts = (view: PullReadinessView | undefined) => unmet(view, "conflicts");
 
 export function nextStep(view: PullReadinessView | undefined, canMerge: boolean): NextStep {
   if (isDraft(view)) return "ready";
@@ -45,11 +47,11 @@ function badges(
     return [{ text: q.label, tone: toneOf(q.tone), icon: ListOrdered }];
   }
   const draft = isDraft(view);
-  const conflicts = unmet(view, "conflicts");
+  const conflicted = conflicts(view);
   const shown: Badge[] = [];
   if (draft) shown.push({ text: "Draft", tone: "quiet", icon: GitPullRequestDraft });
-  if (conflicts) shown.push({ text: "Conflicts", tone: "err", icon: CircleAlert });
-  if (draft || conflicts || !view?.ready) return shown;
+  if (conflicted) shown.push({ text: "Conflicts", tone: "err", icon: CircleAlert });
+  if (draft || conflicted || !view?.ready) return shown;
   if (view.ready === "met") return [{ text: "Ready to merge", tone: "ok", icon: GitMerge }];
   // Quiet here: the readiness card marks each requirement that is not met.
   if (view.ready === "unmet") return [{ text: "Not ready", tone: "quiet", icon: CircleDashed }];
