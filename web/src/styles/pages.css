@@ -358,18 +358,18 @@ td.finding-cell {
   align-items: center;
   gap: 6px;
 }
-.sev-dot {
+.sev-mark {
   flex: none;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--t4);
+  color: var(--t3);
 }
-.sev-dot.sev-critical {
-  background: var(--critical);
+.sev-mark.sev-critical {
+  color: var(--critical);
 }
-.sev-dot.sev-warning {
-  background: var(--warning);
+.sev-mark.sev-warning {
+  color: var(--warning);
+}
+.prop-list .status {
+  font-size: inherit;
 }
 .prop-actions {
   display: flex;
