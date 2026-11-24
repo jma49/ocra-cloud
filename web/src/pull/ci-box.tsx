@@ -133,10 +133,11 @@ export function CiBox(props: { pull: Pull; head: string }) {
       : running.length > 0
         ? { text: "Running", tone: "badge" }
         : { text: "Passing", tone: "badge badge-ok" };
+  const other = rest.length - passed - running.length;
   const others = [
     passed > 0 && `${passed} passed`,
     running.length > 0 && `${running.length} running`,
-    rest.length - passed - running.length > 0 && `${rest.length - passed - running.length} other`,
+    other > 0 && `${other} other`,
   ].filter(Boolean);
   return (
     <section className="card card-pad stack ci-box" aria-label="CI">
