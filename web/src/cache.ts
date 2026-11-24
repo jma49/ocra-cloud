@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, forgetPrefetched } from "./api.js";
+import { forgetRecentPulls } from "./recent-pulls.js";
 
 const DB = "ocra-cache";
 const STORE = "answers";
@@ -58,6 +59,7 @@ export async function cacheFor(login: string): Promise<void> {
 export async function clearCache(): Promise<void> {
   memory.clear();
   forgetPrefetched();
+  forgetRecentPulls();
   owner = undefined;
   await run("readwrite", (s) => s.clear());
 }
