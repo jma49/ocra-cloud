@@ -92,6 +92,8 @@ const ACCESS: Record<string, Access> = {
   "GET /api/pulls/merge-stack": "web",
   "POST /api/pulls/merge-stack": "web",
   "DELETE /api/pulls/merge-stack": "web",
+  "GET /api/pulls/restack": "web",
+  "POST /api/pulls/restack": "web",
   "GET /api/pulls/reviewers": "web",
   "POST /api/pulls/reviewers": "web",
   "GET /api/pulls/people": "web",
