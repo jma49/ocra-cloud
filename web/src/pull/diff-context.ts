@@ -66,6 +66,8 @@ export function withContext(
   lines: readonly DiffLine[],
   gaps: readonly Gap[],
   revealed: Revealed,
+  /** Whether to offer lines past the last hunk while the file's length is still unknown. */
+  offerUnknownEnd = true,
 ): { lines: DiffLine[]; open: Map<number, OpenGap> } {
   const out: DiffLine[] = [];
   const open = new Map<number, OpenGap>();
@@ -74,7 +76,7 @@ export function withContext(
     const shown = revealed.shown.get(gap.key) ?? { top: 0, bottom: 0 };
     const hidden = hiddenIn(gap, revealed);
     for (let n = gap.from; n < gap.from + shown.top; n++) out.push(context(gap, n, revealed));
-    const hides = hidden !== 0;
+    const hides = hidden === null ? offerUnknownEnd : hidden > 0;
     // A hunk's own head stays until the reader has opened all of the gap above it.
     if (hides || (head && shown.top + shown.bottom === 0)) {
       if (hides) open.set(out.length, { gap, hidden });

@@ -78,15 +78,6 @@ export function FileDiff(props: {
   const parsed = useMemo(() => (file.patch ? parsePatch(file.patch) : []), [file.patch]);
   // Only a file on both sides has unchanged lines to show around its changes.
   const both = file.status === "modified" || file.status === "renamed";
-  const shown = useContextLines(parsed, file.path, both ? props.context : undefined);
-  const { lines } = shown;
-  const words = useMemo(() => wordChanges(lines), [lines]);
-  const rows = useMemo(() => rowsOf(lines, layout), [lines, layout]);
-  const fixesAt = useMemo(() => placeOnLines(lines, props.fixes), [lines, props.fixes]);
-  const findingsAt = useMemo(
-    () => placeOnLines(lines, props.findings.map(underLine)),
-    [lines, props.findings],
-  );
   const reason = foldReason(file.path);
   const [folded, setFolded] = useState(
     file.status === "removed" || props.viewed || reason !== null,
@@ -104,6 +95,21 @@ export function FileDiff(props: {
     if (!el || near) return;
     return watchNear(el, (now) => now && setNear(true));
   }, [near]);
+  // The file's end is asked for once its diff is open near the window, so no row offers lines it lacks.
+  const shown = useContextLines(
+    parsed,
+    file.path,
+    both ? props.context : undefined,
+    near && !folded,
+  );
+  const { lines } = shown;
+  const words = useMemo(() => wordChanges(lines), [lines]);
+  const rows = useMemo(() => rowsOf(lines, layout), [lines, layout]);
+  const fixesAt = useMemo(() => placeOnLines(lines, props.fixes), [lines, props.fixes]);
+  const findingsAt = useMemo(
+    () => placeOnLines(lines, props.findings.map(underLine)),
+    [lines, props.findings],
+  );
   const [runs, setRuns] = useState<ReadonlyMap<number, CodeRun[]>>(NO_RUNS);
   useEffect(() => {
     // Colours wait until the file is open and near the window: a long page reads only what is read.

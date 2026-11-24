@@ -102,7 +102,7 @@ it("folds a lock file and names it, one click from its diff", () => {
   expect(document.querySelector("table")).not.toBeNull();
 });
 
-it("shows the lines left out above a hunk, read at the head, numbered on both sides", async () => {
+const serveLines = (total: number) => {
   const asked: string[] = [];
   vi.stubGlobal(
     "fetch",
@@ -110,32 +110,49 @@ it("shows the lines left out above a hunk, read at the head, numbered on both si
       asked.push(url);
       const q = new URL(url, "http://x").searchParams;
       const from = Number(q.get("from"));
-      const to = Number(q.get("to"));
+      const to = Math.min(Number(q.get("to")), total);
       return Response.json({
         path: q.get("path"),
         head: q.get("head"),
         from,
-        lines: Array.from({ length: to - from + 1 }, (_, i) => `kept ${from + i}`),
-        total: 80,
+        lines: Array.from({ length: Math.max(0, to - from + 1) }, (_, i) => `kept ${from + i}`),
+        total,
       });
     }),
   );
+  return asked;
+};
+const LINES = `/api/pulls/lines?platform=github&repo=acme%2Fpay&number=4&head=${HEAD}&path=src%2Frefunds%2Fpartial.ts`;
+
+it("shows the lines left out above a hunk, read at the head, numbered on both sides", async () => {
+  const asked = serveLines(80);
   show("unified", undefined, undefined, true);
   expect(screen.getByText("51 hidden")).toBeTruthy();
-  // Nothing comes before the first hunk, so its gap only opens upward; the end only downward.
+  // The file's end is read ahead; then the end opens only downward, the first gap only upward.
+  await waitFor(() => expect(screen.getByText("25 hidden")).toBeTruthy());
   expect(screen.getAllByRole("button", { name: /below the change above/ })).toHaveLength(1);
   expect(screen.getAllByRole("button", { name: /above the change below/ })).toHaveLength(1);
   fireEvent.click(screen.getByRole("button", { name: "Show 20 lines above the change below" }));
   await waitFor(() => expect(screen.getByText("kept 51")).toBeTruthy());
-  expect(asked).toEqual([
-    `/api/pulls/lines?platform=github&repo=acme%2Fpay&number=4&head=${HEAD}&path=src%2Frefunds%2Fpartial.ts&from=32&to=51`,
-  ]);
+  expect(asked).toEqual([`${LINES}&from=56&to=75`, `${LINES}&from=32&to=51`]);
   expect(screen.getByText("31 hidden")).toBeTruthy();
   const row = screen.getByText("kept 51").closest("tr");
   expect([...(row?.querySelectorAll(".diff-no") ?? [])].map((c) => c.textContent)).toEqual([
     "51",
     "51",
   ]);
+  // The lines read ahead open without asking again.
+  fireEvent.click(screen.getByRole("button", { name: "Show 20 lines below the change above" }));
+  expect(screen.getByText("kept 75")).toBeTruthy();
+  expect(asked).toHaveLength(2);
+});
+
+it("offers no lines past the last hunk when the file ends there", async () => {
+  const asked = serveLines(55);
+  show("unified", undefined, undefined, true);
+  await waitFor(() => expect(asked).toHaveLength(1));
+  await waitFor(() => expect(screen.getAllByText(/hidden$/)).toHaveLength(1));
+  expect(screen.queryByRole("button", { name: /below the change above/ })).toBeNull();
 });
 
 it("leaves an added file without gaps to open", () => {
