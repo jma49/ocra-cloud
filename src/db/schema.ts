@@ -1682,6 +1682,8 @@ export const mendJobs = sqliteTable(
     checksHead: text("checks_head"),
     /** What the last round did with each failed check it worked on. */
     checkItems: text("check_items", { mode: "json" }).$type<MendCheckView[]>(),
+    /** A person asked for the pull request's merge conflicts: they wait for the next round. */
+    conflicts: integer("conflicts", { mode: "boolean" }).notNull().default(false),
     /** What the last round did with each conflicted file it was given. */
     conflictItems: text("conflict_items", { mode: "json" }).$type<MendConflictView[]>(),
     finishedAt: integer("finished_at", { mode: "timestamp_ms" }),

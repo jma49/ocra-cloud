@@ -37,7 +37,9 @@ export async function mendInput(
   // A finding decided since it was asked for needs no fix.
   const open = waiting.filter((f) => f.status === "open");
   const checks = job?.checks === true && repo.mendChecks;
-  if (!job || (open.length === 0 && !checks)) return "nothing_waiting";
+  // A person asked for the conflicts: a round runs for them alone.
+  const conflicts = job?.conflicts === true && repo.mendConflicts;
+  if (!job || (open.length === 0 && !checks && !conflicts)) return "nothing_waiting";
   const switches = [
     ...(checks ? ["--checks"] : []),
     ...(repo.mendConflicts ? ["--conflicts"] : []),

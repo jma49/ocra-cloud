@@ -71,6 +71,8 @@ export type AuditDetails = {
   "pull.fix_answered": Pull & { finding: string; outcome: string };
   /** Findings asked of the pull request's fix loop, which commits what it fixes. */
   "pull.mend_requested": Pull & { findings: number };
+  /** The pull request's merge conflicts asked of its fix loop. */
+  "pull.mend_conflicts_requested": Pull;
   /** The bot committed a round's fixes on top of `head`. */
   "pull.mend_committed": Pull & { head: string; commit: string; fixed: number; merged: number };
   "pull.reviewers_changed": Pull & People;
@@ -153,6 +155,7 @@ export const AUDIT_FIELDS: { readonly [K in AuditKind]: readonly (keyof AuditDet
   "pull.fix_requested": ["pull", "finding"],
   "pull.fix_answered": ["pull", "finding", "outcome"],
   "pull.mend_requested": ["pull", "findings"],
+  "pull.mend_conflicts_requested": ["pull"],
   "pull.mend_committed": ["pull", "head", "commit", "fixed", "merged"],
   "pull.reviewers_changed": ["pull", "added", "removed"],
   "pull.assignees_changed": ["pull", "added", "removed"],
