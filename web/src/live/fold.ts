@@ -102,3 +102,16 @@ export function fold(progress: LiveProgress, events: readonly LiveEventView[]): 
   }
   return next;
 }
+
+/**
+ * What the page shows of a run's findings. While it runs, only the settled
+ * ones: the engine's report carries those as they are. The rest may still
+ * be refuted, merged or dropped, so they are counted and not shown, and no
+ * finding appears only to go away.
+ */
+export function shownFindings(progress: LiveProgress, ended: boolean) {
+  const all = [...progress.findings.values()];
+  if (ended) return { shown: all, checking: 0 };
+  const shown = all.filter((f) => f.settled);
+  return { shown, checking: all.length - shown.length };
+}

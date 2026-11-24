@@ -14,6 +14,8 @@ import { call, db, ORIGIN, resetDb, signIn, signInCli } from "./helpers.js";
 beforeEach(resetDb);
 
 const events = fixture.events;
+// The fixture ends with a kind this server does not know, which it skips.
+const STORED = events.length - 1;
 const run = {
   repoHash: "a".repeat(64),
   source: "github",
@@ -57,7 +59,7 @@ describe("relaying a run", () => {
     };
     expect(stored.events.map((e) => e.seq)).toEqual(events.slice(0, -1).map((e) => e.seq));
     const after = (await (
-      await get("GET", `/api/live/${id}/events?after=16`)
+      await get("GET", `/api/live/${id}/events?after=${STORED - 2}`)
     ).json()) as typeof stored;
     expect(after.events.map((e) => e.kind)).toEqual(["warning", "finished"]);
     const view = (await (await get("GET", `/api/live/${id}`)).json()) as { run: LiveRunView };
@@ -143,6 +145,33 @@ describe("relaying a run", () => {
       run: LiveRunView;
     };
     expect(view.run.state).toBe("finished");
+  });
+});
+
+describe("the run of a pull request", () => {
+  const PULL = "https://github.com/octo/web";
+  const lately = () => new Date(Date.now() - 60_000);
+
+  it("is found while it runs, whatever the case of its address, and not once it ended", async () => {
+    const o = await owner();
+    const data = scoped(db, o.cli.account.id);
+    const id = idOf((await o.relay(events.slice(0, 3))).watch);
+    expect((await data.live.runningOfPull(PULL, 7, lately()))?.id).toBe(id);
+    expect((await data.live.runningOfPull("https://github.com/Octo/Web", 7, lately()))?.id).toBe(
+      id,
+    );
+    expect(await data.live.runningOfPull(PULL, 8, lately())).toBeUndefined();
+    await o.relay(events.slice(3));
+    expect(await data.live.runningOfPull(PULL, 7, lately())).toBeUndefined();
+  });
+
+  it("is not found once its relay fell silent, nor by another account", async () => {
+    const o = await owner();
+    await o.relay(events.slice(0, 3));
+    const data = scoped(db, o.cli.account.id);
+    expect(await data.live.runningOfPull(PULL, 7, new Date(Date.now() + 60_000))).toBeUndefined();
+    const other = scoped(db, (await signIn(2, "mona")).account.id);
+    expect(await other.live.runningOfPull(PULL, 7, lately())).toBeUndefined();
   });
 });
 
@@ -291,11 +320,14 @@ describe("the live stream", () => {
     const id = idOf(answer.watch);
     const res = await call(`/api/live/${id}/stream`, {
       auth: o.web.auth,
-      headers: { "last-event-id": "16" },
+      headers: { "last-event-id": String(STORED - 2) },
     });
     expect(res.headers.get("content-type")).toContain("text/event-stream");
     const text = await res.text();
-    expect([...text.matchAll(/^id: (\d+)$/gm)].map((m) => m[1])).toEqual(["17", "18"]);
+    expect([...text.matchAll(/^id: (\d+)$/gm)].map((m) => m[1])).toEqual([
+      String(STORED - 1),
+      String(STORED),
+    ]);
     expect(text).toContain("event: end\ndata: finished");
   });
 });

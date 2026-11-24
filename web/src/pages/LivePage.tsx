@@ -10,6 +10,7 @@ import { ApiError, api } from "../api.js";
 import { sourceLabel, time, verdictLabel } from "../format.js";
 import { CommentThread } from "../live/comments.js";
 import { LiveFindingEvent } from "../live/finding.js";
+import { shownFindings } from "../live/fold.js";
 import { LiveCounts, LiveStages } from "../live/progress.js";
 import { ShareDrawer } from "../live/share-drawer.js";
 import { LiveTasks } from "../live/tasks.js";
@@ -18,7 +19,8 @@ import { Link, navigate } from "../router.js";
 import { ActionError, EmptyState, LoadError, Loading, PageHead, useAction } from "../ui.js";
 
 // A review watched while it runs (ADR-0056): where it is on the left, its
-// findings as they arrive in the middle, the discussion on the right. The
+// findings in the middle (the confirmed ones while it runs, all of them
+// once it ended), the discussion on the right. The
 // owner shares it from here; people it is shared with watch, and comment
 // when allowed.
 
@@ -43,14 +45,6 @@ export function LivePage(props: { id: string }) {
     for (const c of comments.all) map.set(c.findingId, [...(map.get(c.findingId) ?? []), c]);
     return map;
   }, [comments.all]);
-  const findings = useMemo(
-    () =>
-      [...progress.findings.values()].sort(
-        (a, b) => RANK[a.severity] - RANK[b.severity] || a.file.localeCompare(b.file),
-      ),
-    [progress.findings],
-  );
-
   if (run.error && !run.data) {
     if (run.error instanceof ApiError && run.error.status === 404) return <NotShared />;
     return (
@@ -72,6 +66,10 @@ export function LivePage(props: { id: string }) {
   const owner = r.access === "owner";
   const canComment = r.access !== "watch";
   const ended = progress.ending !== null || r.state !== "running";
+  const { shown, checking } = shownFindings(progress, ended);
+  const findings = shown.sort(
+    (a, b) => RANK[a.severity] - RANK[b.severity] || a.file.localeCompare(b.file),
+  );
   const state =
     STATE[
       progress.ending?.kind === "failed" || r.state === "failed"
@@ -149,20 +147,30 @@ export function LivePage(props: { id: string }) {
           <h1>{r.title || progress.target || r.target || "Review"}</h1>
         </div>
         <div className="review-tabs">
-          <span className="quiet-label">
-            {findings.length} finding{findings.length === 1 ? "" : "s"}
-            {ended ? "" : " so far"}
+          <span className="quiet-label" role="status">
+            {ended
+              ? `${findings.length} finding${findings.length === 1 ? "" : "s"}`
+              : [
+                  findings.length > 0 || checking === 0
+                    ? `${findings.length} confirmed so far`
+                    : null,
+                  checking > 0
+                    ? `${checking} ${findings.length > 0 ? "more " : ""}being checked`
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
           </span>
         </div>
         {findings.length === 0 ? (
           <div className="card">
             <EmptyState
               icon={ended ? CircleCheck : Radio}
-              title={ended ? "No findings" : "No findings yet"}
+              title={ended ? "No findings" : "No confirmed findings yet"}
             >
               {ended
                 ? "The review ended without a finding."
-                : "Findings appear here as the reviewers report them."}
+                : "A critical finding appears here as soon as it is confirmed. The rest follow when the review ends."}
             </EmptyState>
           </div>
         ) : (

@@ -109,6 +109,29 @@ export function accountLive(db: Db, accountId: string) {
       return db.select().from(liveRuns).where(own).orderBy(desc(liveRuns.updatedAt)).limit(limit);
     },
 
+    /** The newest run of a pull request still running and heard from since `since`. */
+    runningOfPull(
+      repository: string,
+      number: number,
+      since: Date,
+    ): Promise<LiveRunRow | undefined> {
+      return db
+        .select()
+        .from(liveRuns)
+        .where(
+          and(
+            own,
+            eq(liveRuns.state, "running"),
+            eq(sql`lower(${liveRuns.prRepository})`, repository.toLowerCase()),
+            eq(liveRuns.prNumber, number),
+            gt(liveRuns.updatedAt, since),
+          ),
+        )
+        .orderBy(desc(liveRuns.updatedAt))
+        .limit(1)
+        .then(first);
+    },
+
     run(id: string): Promise<LiveRunRow | undefined> {
       return db
         .select()

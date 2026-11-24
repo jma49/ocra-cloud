@@ -226,6 +226,8 @@ export type PullReviewNowView = {
   job: PullReviewJobView | null;
   /** The repository's depth, which a review takes unless one is chosen for it. */
   depth: ReviewDepth;
+  /** The pull request's review while it runs and is relayed (ADR-0056), to watch. */
+  live: { id: string } | null;
 };
 
 /**

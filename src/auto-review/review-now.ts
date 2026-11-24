@@ -3,8 +3,10 @@ import { z } from "zod";
 import type { ReviewJobSummary } from "../db/review-jobs.js";
 import { apiError, jsonBody } from "../http.js";
 import { COMMIT_ID } from "../platforms/contents.js";
+import type { CodePlatform } from "../platforms/platform.js";
 import { byKind, pullRef, reach } from "../pull-page.js";
 import { perMinute } from "../rate.js";
+import { identityOf } from "../review-pull.js";
 import { requireSession } from "../session.js";
 import { type PullReviewJobView, type PullReviewNowView, REVIEW_DEPTHS } from "../shared/index.js";
 import type { AppEnv } from "../types.js";
@@ -51,15 +53,29 @@ async function enrolledPull(c: Context<AppEnv>, pull: Pull) {
   return { platform, token, repo, enrolled, service: c.var.autoReview } as const;
 }
 
+/** A relay silent for this long is of a run that stopped without saying so. */
+const LIVE_SILENCE_MS = 10 * 60_000;
+
+/** The pull request's review as it is relayed while it runs, when the account shares findings. */
+async function liveOf(c: Context<AppEnv>, platform: CodePlatform, pull: Pull) {
+  const identity = identityOf(platform, pull.repo);
+  if (!identity) return null;
+  const since = new Date(Date.now() - LIVE_SILENCE_MS);
+  const run = await c.var.data.live.runningOfPull(identity, pull.number, since);
+  return run ? { id: run.id } : null;
+}
+
 reviewNow.get("/review-now", requireSession(["web"]), perMinute("platform"), async (c) => {
   const pull = pullQuery.safeParse(c.req.query());
   if (!pull.success) return apiError(c, "not_found");
   const found = await enrolledPull(c, pull.data);
   if ("refusal" in found) return found.refusal;
   const job = await c.var.data.autoReview.latestPullJob(found.enrolled.id, pull.data.number);
+  const live = job?.state === "running" ? await liveOf(c, found.platform, pull.data) : null;
   return c.json({
     job: job ? jobView(job) : null,
     depth: found.enrolled.reviewDepth,
+    live,
   } satisfies PullReviewNowView);
 });
 
@@ -92,6 +108,7 @@ reviewNow.post(
     return c.json({
       job: jobView(job),
       depth: found.enrolled.reviewDepth,
+      live: null,
     } satisfies PullReviewNowView);
   },
 );

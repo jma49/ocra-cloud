@@ -66,7 +66,7 @@ const jobs = () => s.host.db.select().from(schema.reviewJobs).orderBy(schema.rev
 
 describe("a review asked for on the console", () => {
   it("queues the platform's head once, whatever the request names", async () => {
-    expect(await latest()).toEqual({ job: null, depth: "standard" });
+    expect(await latest()).toEqual({ job: null, depth: "standard", live: null });
     const first = await request({ head: C3 });
     expect(first).toMatchObject({ status: 200, body: { job: { state: "queued", head: C2 } } });
     const again = await request();
@@ -74,7 +74,7 @@ describe("a review asked for on the console", () => {
     expect(await jobs()).toMatchObject([{ number: 7, head: C2, run: 0, state: "queued" }]);
     expect(await latest()).toEqual(first.body);
     // Another pull request of the repository has its own jobs.
-    expect(await latest(8)).toEqual({ job: null, depth: "standard" });
+    expect(await latest(8)).toEqual({ job: null, depth: "standard", live: null });
   });
 
   it("queues for a repository whose automatic reviews are switched off", async () => {
