@@ -24,15 +24,28 @@ export function useHoverGlide(ref: RefObject<HTMLElement | null>, selector: stri
   useEffect(() => {
     const box = ref.current;
     if (!box) return;
+    let under: Element | null = null;
     const over = (e: PointerEvent) => {
       if (e.pointerType !== "mouse" || !(e.target instanceof Element)) return;
       const item = e.target.closest(selector);
-      if (item && box.contains(item)) place(box, item);
+      if (!item || !box.contains(item)) return;
+      under = item;
+      place(box, item);
     };
-    const leave = () => place(box, null);
+    const leave = () => {
+      under = null;
+      place(box, null);
+    };
+    // A container that widens under the pointer (the rail) widens its items: the highlight follows.
+    const watch =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(() => under && place(box, under));
+    watch?.observe(box);
     box.addEventListener("pointerover", over);
     box.addEventListener("pointerleave", leave);
     return () => {
+      watch?.disconnect();
       box.removeEventListener("pointerover", over);
       box.removeEventListener("pointerleave", leave);
     };

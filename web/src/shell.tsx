@@ -93,9 +93,10 @@ function useRailRow(): boolean {
   );
 }
 
-/** Names an icon-only rail control beside it, on hover and on keyboard focus. */
+/** Names an icon-only control in the phone's row of places; the side rail names its own as it opens. */
 function RailTip(props: { label: string; keys?: string | undefined; children: ReactElement }) {
   const row = useRailRow();
+  if (!row) return props.children;
   return (
     <Tooltip>
       <TooltipTrigger render={props.children} />
@@ -129,6 +130,8 @@ function RailLink(props: {
         label={props.label}
       >
         <NavIcon icon={props.icon} size={20} />
+        <span className="rail-label">{props.label}</span>
+        {props.keys && <KeyCaps keys={props.keys} className="rail-key" />}
       </Link>
     </RailTip>
   );
@@ -140,42 +143,46 @@ function Rail(props: { me: Me; place: Place | undefined }) {
   useHoverGlide(nav, ".rail-link");
   return (
     <TooltipProvider delay={300}>
-      <nav className="rail glide" aria-label="Console" ref={nav}>
-        <Link to="/" className="rail-brand" label="ocra">
-          <EyesMark size={22} />
-        </Link>
-        {PLACES.map((p) => (
+      <div className="rail-slot">
+        <nav className="rail glide" aria-label="Console" ref={nav}>
+          <Link to="/" className="rail-brand" label="ocra">
+            <EyesMark size={20} />
+            <span className="rail-label">ocra</span>
+          </Link>
+          {PLACES.map((p) => (
+            <RailLink
+              key={p.id}
+              to={placeHome(p.id)}
+              label={p.label}
+              on={props.place === p.id}
+              icon={p.icon}
+              keys={goKeys(p.id)}
+            />
+          ))}
+          <span className="rail-gap" />
+          <FeedBell tip={(label, control) => <RailTip label={label}>{control}</RailTip>} />
+          <RailTip label="Documentation">
+            <a
+              className="rail-link"
+              href={DOCS}
+              target="_blank"
+              rel="noreferrer"
+              aria-label="Documentation"
+            >
+              <NavIcon icon={BookOpen} size={20} />
+              <span className="rail-label">Documentation</span>
+            </a>
+          </RailTip>
           <RailLink
-            key={p.id}
-            to={placeHome(p.id)}
-            label={p.label}
-            on={props.place === p.id}
-            icon={p.icon}
-            keys={goKeys(p.id)}
+            to={placeHome("settings")}
+            label="Settings"
+            on={props.place === "settings"}
+            icon={Settings}
+            keys={goKeys("settings")}
           />
-        ))}
-        <span className="rail-gap" />
-        <FeedBell tip={(label, control) => <RailTip label={label}>{control}</RailTip>} />
-        <RailTip label="Documentation">
-          <a
-            className="rail-link"
-            href={DOCS}
-            target="_blank"
-            rel="noreferrer"
-            aria-label="Documentation"
-          >
-            <NavIcon icon={BookOpen} size={20} />
-          </a>
-        </RailTip>
-        <RailLink
-          to={placeHome("settings")}
-          label="Settings"
-          on={props.place === "settings"}
-          icon={Settings}
-          keys={goKeys("settings")}
-        />
-        <AccountMenu me={props.me} compact side={row ? "bottom" : "right"} />
-      </nav>
+          <AccountMenu me={props.me} compact side={row ? "bottom" : "right"} />
+        </nav>
+      </div>
     </TooltipProvider>
   );
 }

@@ -94,7 +94,7 @@ describe("theme", () => {
 });
 
 describe("rail", () => {
-  it("names an icon-only place beside it on keyboard focus", async () => {
+  it("carries each place's name and keys, which show as the rail opens", () => {
     history.replaceState(null, "", "/");
     render(
       <Frame me={me} route={matchRoute("/")?.route} path="/">
@@ -103,9 +103,8 @@ describe("rail", () => {
     );
     const insights = screen.getByRole("link", { name: "Insights" });
     expect(insights.getAttribute("title")).toBeNull();
-    fireEvent.focus(insights);
-    const tip = (await screen.findByText("Insights")).closest("[data-slot=tooltip-popup]");
-    expect(tip?.textContent).toBe("Insightsgn");
+    expect(insights.querySelector(".rail-label")?.textContent).toBe("Insights");
+    expect(insights.querySelector(".rail-key")?.textContent).toBe("gn");
   });
 });
 
