@@ -54,9 +54,16 @@ function Breakdown(props: { title: string; column: string; rows: Row[]; none: st
           <thead>
             <tr>
               <th>{props.column}</th>
-              <th className="num">Findings</th>
+              <th className="num" title="Shared findings: one for each review that reported it">
+                Findings
+              </th>
               <th className="num hide-narrow">Open</th>
-              <th className="num">Fixed</th>
+              <th
+                className="num"
+                title="Marked fixed in any way: in Findings, by committing ocra's fix or a suggestion, or not found again on a later review"
+              >
+                Fixed
+              </th>
               <th className="num hide-narrow">Dismissed</th>
               <th className="num">Accepted</th>
               <th className="num hide-narrow" title="Of the findings whose comment got a reaction">
@@ -154,6 +161,7 @@ export function Insights(props: { runner: boolean; platforms: readonly CodePlatf
               />
             </Suspense>
           </div>
+          <SharedNote reported={runs.data.summary.findings} quality={data} />
           <Breakdown title="By reviewer" column="Reviewer" rows={data.byReviewer} none="(none)" />
           <Breakdown title="By severity" column="Severity" rows={data.bySeverity} none="(none)" />
           <Breakdown
@@ -183,6 +191,26 @@ export function Insights(props: { runner: boolean; platforms: readonly CodePlatf
   );
 }
 
+/**
+ * The Findings figure counts what the period's reviews reported; the tables
+ * count the shared findings, one per review that reported each, and their
+ * Fixed counts a finding marked fixed in any way. Says so where they differ.
+ */
+function SharedNote(props: { reported: number; quality: Insights }) {
+  const t = props.quality.total;
+  if (t.total === 0) return null;
+  const fewer = t.total < props.reported;
+  return (
+    <p className="muted small">
+      {fewer
+        ? `The tables count the ${num(t.total)} of the ${num(props.reported)} findings that were shared with ocra Cloud; the other reviews did not send theirs (sharing off on that machine, or past the account's limit). `
+        : "The tables count the shared findings, one for each review that reported it. "}
+      Their Fixed counts a finding marked fixed in any way, so it can differ from those fixed on a
+      later review.
+    </p>
+  );
+}
+
 function Kpis(props: { runs: Reviews; quality: Insights }) {
   const s = props.runs.summary;
   const times = props.runs.reviews.map((r) => r.durationMs / 1000).sort((a, b) => a - b);
@@ -203,7 +231,7 @@ function Kpis(props: { runs: Reviews; quality: Insights }) {
       <div className="card stat">
         <div className="stat-label">Critical</div>
         <div className="stat-value">{num(s.critical)}</div>
-        <div className="stat-note">{count(s.fixed, "finding")} fixed</div>
+        <div className="stat-note">{num(s.fixed)} fixed on a later review</div>
       </div>
       <div className="card stat">
         <div className="stat-label">Accepted</div>
