@@ -75,7 +75,8 @@ const assignment = z
     answered: z
       .object({
         flag: flag.optional(),
-        input: z.unknown(),
+        // A round over failed checks or conflicts alone brings no input.
+        input: z.unknown().optional(),
         more: z
           .array(z.object({ flag, input: z.unknown() }))
           .max(4)
