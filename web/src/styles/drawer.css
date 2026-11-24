@@ -136,9 +136,9 @@
   opacity: 0.55;
 }
 .group-label {
-  font: 400 var(--text-sm) var(--mono);
+  font: 500 var(--text-sm) var(--font);
   line-height: 16px;
-  color: var(--fg-muted);
+  color: var(--t3);
   margin: 24px 0 8px;
 }
 .pick-list {

@@ -107,7 +107,7 @@ function Reviewers(props: { reviewers: ReviewLoadView["reviewers"] }) {
         <tbody>
           {props.reviewers.map((r) => (
             <tr key={r.login}>
-              <td className="mono">{r.login}</td>
+              <td>{r.login}</td>
               <td className="num">{num(r.reviews)}</td>
               <td className="num hide-narrow">{num(r.asked)}</td>
               <td className="num">

@@ -13,7 +13,7 @@ export function LinkedTasks(props: { tasks: readonly LinkedTaskView[] | null }) 
       <dt>Linked tasks</dt>
       <dd>
         {tasks.length === 0 ? (
-          <span className="subtle">None linked</span>
+          <span className="muted">None</span>
         ) : (
           <ul className="linked-tasks">
             {tasks.map((t) => (

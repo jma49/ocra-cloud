@@ -33,7 +33,7 @@ function Row(props: { source: Source; what: string; opens: string; put: string }
   };
   return (
     <li>
-      <span className="mono strong">{now.name}</span>
+      <span className="strong">{now.name}</span>
       <span className="with-mark">
         <Switch
           aria-label={`Enroll new ${props.what} of ${now.name}`}

@@ -176,7 +176,7 @@ export function BulkEnroll(props: {
             <ul className="enroll-refused small">
               {refused.map((r) => (
                 <li key={r.fullName}>
-                  <span className="mono">{r.fullName}</span>:{" "}
+                  <span className="strong">{r.fullName}</span>:{" "}
                   {r.outcome === "refused" &&
                     (r.reason === "not_found" ? words.unreached : REFUSED[r.reason])}
                 </li>
@@ -206,7 +206,7 @@ export function BulkEnroll(props: {
           {byHand.map((h) => (
             <div key={h.fullName} className="stack-tight">
               <span className="small">
-                <span className="mono">{h.fullName}</span>
+                <span>{h.fullName}</span>
                 {h.problem && <span className="subtle">: {h.problem}</span>}
               </span>
               {h.secret && <SecretOnce secret={h.secret} what="Secret token" />}

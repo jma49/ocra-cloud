@@ -1,4 +1,6 @@
 import FolderGit2 from "lucide-react/icons/folder-git-2";
+import Lock from "lucide-react/icons/lock";
+import Pencil from "lucide-react/icons/pencil";
 import Unplug from "lucide-react/icons/unplug";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -127,26 +129,29 @@ function RepoName(props: {
         }}
       />
     );
+  const label = `${known ? "Rename" : "Name"} ${known?.name ?? repo.repo}`;
   return (
     <div className="repo-name">
-      <div>
-        <div className={known ? "mono strong with-mark" : "muted"}>
-          {known?.platform && <PlatformMark platform={known.platform} size={14} />}
-          {known?.name ?? "Unknown repository"}
-        </div>
+      {known?.platform ? (
+        <PlatformMark platform={known.platform} size={16} />
+      ) : (
+        <span className="repo-name-mark" aria-hidden="true" />
+      )}
+      <div className="repo-name-text">
+        <div className={known ? "strong" : "muted"}>{known?.name ?? "Unknown repository"}</div>
         <div className="subtle small">
-          {known?.where ? `${known.where} · ` : ""}
-          <span className="mono">{repo.repo}</span>
+          {known ? (known.where ?? "Named by you") : <span className="mono">{repo.repo}</span>}
         </div>
       </div>
-      <Button
-        variant="outline"
-        size="sm"
-        aria-label={`${known ? "Rename" : "Name"} ${known?.name ?? repo.repo}`}
+      <button
+        type="button"
+        className={`icon-btn repo-rename${known ? "" : " is-shown"}`}
+        aria-label={label}
+        title={label}
         onClick={() => props.edit(true)}
       >
-        {known ? "Rename" : "Name it"}
-      </Button>
+        <Pencil size={14} aria-hidden="true" />
+      </button>
     </div>
   );
 }
@@ -154,7 +159,7 @@ function RepoName(props: {
 /** The code platforms the console reads as the user, and how to connect one that is not. */
 function PlatformsSection(props: { me: Me; data: PlatformRepos }) {
   return (
-    <div className="card">
+    <div className="card platforms">
       <div className="card-head">
         <h2>Connected platforms</h2>
       </div>
@@ -176,14 +181,19 @@ function PlatformsSection(props: { me: Me; data: PlatformRepos }) {
         </EmptyState>
       )}
       {props.data.platforms.map((p) => (
-        <div className="list-row row-top" key={`${p.platform}:${p.host}`}>
-          <div className="grow">
-            <div className="strong">
-              {PLATFORM_NAME[p.platform]} <span className="muted small mono">{p.host}</span>
+        <div className="platform" key={`${p.platform}:${p.host}`}>
+          <div className="list-row platform-row">
+            <PlatformMark platform={p.platform} size={20} />
+            <div className="grow">
+              <div>
+                <span className="strong">{PLATFORM_NAME[p.platform]}</span>{" "}
+                <span className="subtle">{p.host}</span>
+              </div>
+              <PlatformState p={p} />
             </div>
-            <PlatformState p={p} />
+            <Connect me={props.me} p={p} />
           </div>
-          <Connect me={props.me} p={p} />
+          {p.linked && !p.failed && p.repositories.length > 0 && <PlatformRepoList p={p} />}
         </div>
       ))}
       {!props.data.sharing && props.data.platforms.some((p) => p.repositories.length > 0) && (
@@ -195,6 +205,47 @@ function PlatformsSection(props: { me: Me; data: PlatformRepos }) {
         </div>
       )}
     </div>
+  );
+}
+
+/** The repositories a platform's app may read, folded under its row: owner quiet, name in ink. */
+function PlatformRepoList(props: { p: PlatformRepos["platforms"][number] }) {
+  const { p } = props;
+  return (
+    <details className="platform-repos">
+      <summary className="fold-row">
+        <span className="fold" aria-hidden="true" />
+        Repositories it can read
+        <span className="subtle">
+          {num(p.repositories.length)}
+          {p.more ? "+" : ""}
+        </span>
+      </summary>
+      <ul className="platform-repo-list">
+        {p.repositories.map((r) => {
+          const cut = r.fullName.lastIndexOf("/") + 1;
+          return (
+            <li key={r.id} className="platform-repo">
+              <span className="platform-repo-name">
+                <span className="subtle">{r.fullName.slice(0, cut)}</span>
+                {r.fullName.slice(cut)}
+              </span>
+              {r.private && (
+                <span className="subtle small with-mark">
+                  <Lock size={12} aria-hidden="true" />
+                  Private
+                </span>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      {p.more && (
+        <p className="platform-repos-more subtle small">
+          The platform listed the first {num(p.repositories.length)}.
+        </p>
+      )}
+    </details>
   );
 }
 
@@ -233,39 +284,29 @@ function PlatformState(props: { p: PlatformRepos["platforms"][number] }) {
   const { p } = props;
   if (!p.linked)
     return (
-      <p className="muted small">
-        Not connected yet. Connect it to see your {p.platform === "gitlab" ? "merge" : "pull"}{" "}
-        requests and your repositories by name.
+      <p className="subtle small m-0">
+        Not connected. Connect it to see your {p.platform === "gitlab" ? "merge" : "pull"} requests
+        and your repositories by name.
       </p>
     );
   if (p.failed)
     return (
-      <p className="error small">
+      <p className="error small m-0">
         {PLATFORM_NAME[p.platform]} refused to list your repositories. Reconnect to renew access.
       </p>
     );
   if (p.repositories.length === 0)
     return (
-      <p className="muted small">
+      <p className="subtle small m-0">
         The ocra Cloud app is not installed on any repository you can reach. Choose the repositories
         it may read, then reload this page.
       </p>
     );
   return (
-    <details className="small">
-      <summary className="muted">
-        {count(p.repositories.length, "repository", "repositories")}
-        {p.more ? " (the first ones)" : ""}
-      </summary>
-      <ul className="mono repo-list">
-        {p.repositories.map((r) => (
-          <li key={r.id}>
-            {r.fullName}
-            {r.private ? " (private)" : ""}
-          </li>
-        ))}
-      </ul>
-    </details>
+    <p className="subtle small m-0">
+      Connected · the app reads {count(p.repositories.length, "repository", "repositories")}
+      {p.more ? " or more" : ""}
+    </p>
   );
 }
 
@@ -388,7 +429,7 @@ export function Repositories(props: { me: Me }) {
                     <td className="num">{num(r.findings)}</td>
                     <td className="num">{num(r.openFindings)}</td>
                     <td className="muted hide-narrow">
-                      {r.lastReviewAt ? ago(r.lastReviewAt) : "none"}
+                      {r.lastReviewAt ? ago(r.lastReviewAt) : "Never"}
                     </td>
                   </tr>
                 ))}

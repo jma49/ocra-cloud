@@ -1,8 +1,10 @@
+import MessageSquare from "lucide-react/icons/message-square";
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { ReviewChatMessageView, ReviewChatView } from "../../../src/shared/index.js";
 import { api } from "../api.js";
 import { Elapsed } from "../elapsed.js";
+import { count } from "../format.js";
 import { Markdown } from "../markdown.js";
 import { LoadError } from "../ui.js";
 import { modelName, NoModel, Refusal } from "./refusal.js";
@@ -93,9 +95,12 @@ export function ReviewChat(props: { reviewId: string }) {
     >
       <summary className="walkthrough-head">
         <span className="fold" aria-hidden="true" />
-        <span className="strong">Ask ocra</span>
-        {messages.length > 0 && <span className="subtle small">{messages.length} messages</span>}
-        {asking && <span className="subtle small mono chat-model">{modelName(asking)}</span>}
+        <h2 className="walkthrough-title">Ask ocra</h2>
+        <span className="walkthrough-meta subtle small">
+          {messages.length > 0
+            ? count(messages.length, "message")
+            : "Questions about this review, answered by your model"}
+        </span>
       </summary>
       {loadError !== null ? (
         <LoadError what="the conversation" error={loadError} retry={load} />
@@ -110,13 +115,16 @@ export function ReviewChat(props: { reviewId: string }) {
             )}
             {messages.length === 0 && !pending ? (
               view.model && (
-                <div className="chat-starters">
+                <ul className="chat-starters" aria-label="Suggested questions">
                   {STARTERS.map((s) => (
-                    <Button key={s} size="sm" variant="outline" onClick={() => ask(s)}>
-                      {s}
-                    </Button>
+                    <li key={s}>
+                      <button type="button" className="chat-starter" onClick={() => ask(s)}>
+                        <MessageSquare size={14} aria-hidden="true" />
+                        {s}
+                      </button>
+                    </li>
                   ))}
-                </div>
+                </ul>
               )
             ) : (
               <div className="chat-log" ref={log} role="log" aria-label="Conversation">
@@ -137,22 +145,21 @@ export function ReviewChat(props: { reviewId: string }) {
             )}
             {!view.model && <NoModel />}
             {error !== null && <Refusal error={error} limit={view.limit} onClear={clear} />}
-            <div className="chat-ask">
+            <div className={`chat-composer${view.model ? "" : " is-off"}`}>
               <textarea
                 aria-label="Question about this review"
-                className="input"
                 rows={2}
                 maxLength={MAX_QUESTION}
-                placeholder="Ask about a finding or the change. Enter sends, Shift+Enter adds a line."
+                placeholder="Ask about a finding or the change"
                 value={question}
                 disabled={!view.model}
                 onChange={(e) => setQuestion(e.target.value)}
                 onKeyDown={onKey}
               />
               <div className="chat-tools">
-                {view.models.length > 1 && (
+                {view.models.length > 1 ? (
                   <select
-                    className="input mono"
+                    className="chat-model"
                     aria-label="Model to ask"
                     value={asking ?? ""}
                     disabled={!!pending}
@@ -164,8 +171,13 @@ export function ReviewChat(props: { reviewId: string }) {
                       </option>
                     ))}
                   </select>
+                ) : (
+                  asking && <span className="subtle small">{modelName(asking)}</span>
                 )}
                 <span className="grow" />
+                <span className="chat-hint subtle small" aria-hidden="true">
+                  Enter to send, Shift+Enter for a new line
+                </span>
                 {messages.length > 0 && (
                   <Button size="sm" variant="ghost" disabled={!!pending} onClick={clear}>
                     Clear conversation

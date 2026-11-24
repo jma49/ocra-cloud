@@ -85,7 +85,6 @@ export function AddRepo(props: {
           >
             <AutocompleteInput
               size="sm"
-              className="mono"
               aria-label="Repository"
               placeholder={platform === "gitlab" ? "group/project" : "owner/repo"}
               maxLength={400}
@@ -97,7 +96,7 @@ export function AddRepo(props: {
                 </AutocompleteEmpty>
                 <AutocompleteList>
                   {(name: string) => (
-                    <AutocompleteItem key={name} value={name} className="mono">
+                    <AutocompleteItem key={name} value={name}>
                       {name}
                     </AutocompleteItem>
                   )}

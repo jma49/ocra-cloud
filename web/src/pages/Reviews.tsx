@@ -36,7 +36,7 @@ function ReviewOf(props: { r: Review }) {
   return (
     <div className="review-of">
       <Link to={`/reviews/${r.id}`}>
-        <span className="mono">{repo}</span>
+        <span className={r.name ? undefined : "mono"}>{repo}</span>
         {r.prNumber != null && <span className="review-of-num"> #{r.prNumber}</span>}
       </Link>
       <span className="subtle small">

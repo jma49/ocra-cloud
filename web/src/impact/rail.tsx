@@ -36,14 +36,14 @@ export function ImpactRail(props: Props) {
           <div className="subtle small">
             {finding ? (
               <>
-                of the {finding.severity} finding at{" "}
+                Of the {finding.severity} finding at{" "}
                 <span className="mono">
                   {finding.file.split("/").pop()}
                   {finding.lineStart === null ? "" : `:${finding.lineStart}`}
                 </span>
               </>
             ) : (
-              "of the whole pull request · pick a finding to narrow it"
+              "Uses of what the pull request changes. Pick a finding to narrow it."
             )}
           </div>
         </div>
@@ -95,7 +95,7 @@ function RailBody(props: { impact: Impact; finding: FocusedFinding | null }) {
       ))}
       {view.graph &&
         (shown.length === 0 ? (
-          <p className="impact-pad subtle">
+          <p className="impact-pad muted">
             {finding
               ? "This finding's lines are in no symbol the pull request changes."
               : "The pull request changes no symbol the graph knows."}

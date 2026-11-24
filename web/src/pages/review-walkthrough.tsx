@@ -1,42 +1,50 @@
 import { useState } from "react";
 import type { ReviewWalkthroughView } from "../../../src/shared/index.js";
+import { count } from "../format.js";
+import { Markdown } from "../markdown.js";
 import { splitPath } from "../pull/diff.js";
+import { FileTypeIcon } from "../pull/file-icon.js";
 import { Diagram } from "../walkthrough/diagram.js";
 
 // The change's walkthrough above a review's findings: what it does, its files
-// grouped by purpose, and the diagram's text. All of it is plain text: the
-// walkthrough is model output about untrusted code.
+// grouped by purpose, and the diagram's text. The model's prose is drawn as
+// Markdown, which keeps links and HTML as text: it is about untrusted code.
 
 export function Walkthrough(props: { w: ReviewWalkthroughView }) {
   const { w } = props;
+  const files = new Set(w.groups.flatMap((g) => g.files)).size;
+  const notes = [w.redacted && "secrets redacted", w.truncated && "shortened"].filter(Boolean);
   return (
     <details className="card walkthrough" open>
       <summary className="walkthrough-head">
         <span className="fold" aria-hidden="true" />
-        <span className="strong">Walkthrough</span>
-        {(w.redacted || w.truncated) && (
-          <span className="subtle small">
-            {[w.redacted && "secrets redacted", w.truncated && "shortened"]
-              .filter(Boolean)
-              .join(", ")}
-          </span>
-        )}
+        <h2 className="walkthrough-title">Walkthrough</h2>
+        <span className="walkthrough-meta subtle small">
+          {[files > 0 && count(files, "file"), ...notes].filter(Boolean).join(" · ")}
+        </span>
       </summary>
-      <div className="card-pad stack">
-        <p className="pre-wrap m-0">{w.overview}</p>
+      <div className="walkthrough-body">
+        <Markdown text={w.overview} />
         {w.groups.length > 0 && (
           <ul className="walkthrough-groups">
             {w.groups.map((g) => (
               <li key={g.title}>
-                <div className="strong">{g.title}</div>
-                {g.note && <p className="muted m-0">{g.note}</p>}
+                <h3>{g.title}</h3>
+                {g.note && (
+                  <div className="muted">
+                    <Markdown text={g.note} />
+                  </div>
+                )}
                 <ul className="walkthrough-files">
                   {g.files.map((f) => {
                     const { dir, name } = splitPath(f);
                     return (
-                      <li key={f} className="mono small" title={f}>
-                        <span className="subtle">{dir}</span>
-                        {name}
+                      <li key={f} title={f}>
+                        <FileTypeIcon name={name} />
+                        <span className="mono small">
+                          <span className="subtle">{dir}</span>
+                          {name}
+                        </span>
                       </li>
                     );
                   })}

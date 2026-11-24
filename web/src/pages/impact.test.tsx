@@ -128,7 +128,7 @@ describe("the impact rail", () => {
     render(<ReviewDetail id="r1" graphs />);
     const rail = await screen.findByRole("complementary", { name: "Impact" });
     await within(rail).findByText("formatAmount");
-    expect(within(rail).getByText(/of the whole pull request/)).toBeTruthy();
+    expect(within(rail).getByText(/Uses of what the pull request changes/)).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Reaches 2 uses of parseAmount" }));
     expect(within(rail).queryByText("formatAmount")).toBeNull();

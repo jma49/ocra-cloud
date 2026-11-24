@@ -35,7 +35,7 @@ describe("a review's linked tasks", () => {
 
   it("says none were linked when the review looked, and shows nothing when it did not", () => {
     list([]);
-    expect(screen.getByText("None linked")).toBeTruthy();
+    expect(screen.getByText("None")).toBeTruthy();
     cleanup();
     const { container } = list(null);
     expect(container.textContent).toBe("");

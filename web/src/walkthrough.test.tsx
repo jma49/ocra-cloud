@@ -20,10 +20,10 @@ describe("a review's walkthrough", () => {
       />,
     );
     expect(screen.getByText(/Refunds now check what is left/)).toBeTruthy();
-    expect(container.querySelector("img")).toBeNull();
+    expect(container.querySelector('img[src="x"]')).toBeNull();
     expect(screen.getByText("Refund limit")).toBeTruthy();
     expect(screen.getByTitle("src/refunds/partial.ts").textContent).toBe("src/refunds/partial.ts");
     expect(screen.getByText("graph TD; A-->B")).toBeTruthy();
-    expect(screen.getByText("secrets redacted")).toBeTruthy();
+    expect(screen.getByText("1 file · secrets redacted")).toBeTruthy();
   });
 });

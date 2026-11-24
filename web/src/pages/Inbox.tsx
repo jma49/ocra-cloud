@@ -215,7 +215,7 @@ export function Inbox(props: { me?: Me }) {
         <div className="section card">
           <EmptyState
             icon={InboxIcon}
-            title={<>{filtering ? "No pull request matches" : "Nothing waits on you"}</>}
+            title={filtering ? "No pull request matches" : "Nothing waits on you"}
           >
             {filtering
               ? "Clear the search or the repository to see every section."
