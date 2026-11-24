@@ -181,13 +181,5 @@ export function gitlabActions(origin: string): PullActions {
       return outcome && { outcome, skipped };
     },
     description,
-    async setDescription(token, fullName, number, edit) {
-      // GitLab has no head guard on an edit: the head is read just before, as a review's is.
-      const now = await description(token, fullName, number);
-      if (!now) return null;
-      if (now.head !== edit.head) return "head_moved";
-      const url = mergeRequestUrl(origin, fullName, number);
-      return outcomeOf(await send(token, "PUT", url, { description: edit.body }));
-    },
   };
 }

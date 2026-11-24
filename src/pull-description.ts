@@ -2,32 +2,22 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { draftSection, withSection } from "./description-draft.js";
 import { keepsFindings } from "./findings-kept.js";
-import { apiError, jsonBody } from "./http.js";
-import { byKind, pullRef, reach, sha } from "./pull-page.js";
+import { apiError } from "./http.js";
+import { byKind, pullRef, reach } from "./pull-page.js";
 import { perMinute } from "./rate.js";
 import { identityOf } from "./review-pull.js";
 import { requireSession } from "./session.js";
-import {
-  MAX_DESCRIPTION_CHARS,
-  type PullActionOutcome,
-  type PullDescriptionDraftView,
-  type PullDescriptionRequest,
-} from "./shared/index.js";
+import type { PullDescriptionDraftView } from "./shared/index.js";
 import type { AppEnv } from "./types.js";
 
 // "Write the PR description" (docs/self-hosting.md): a draft from ocra's
 // stored review of the pull request, of its head now or else the newest,
-// built without a model (./description-draft.ts), and the user's edit of
-// it saved to the platform as them, only on the head they drafted on.
+// built without a model (./description-draft.ts). The user's edit of it is
+// saved with POST /api/pulls/details (./pull-details.ts).
 
 export const pullDescription = new Hono<AppEnv>();
 
 const draftQuery = z.object(pullRef);
-const saveBody = z.object({
-  ...pullRef,
-  head: sha,
-  body: z.string().max(MAX_DESCRIPTION_CHARS),
-});
 
 pullDescription.get(
   "/description-draft",
@@ -70,22 +60,5 @@ pullDescription.get(
         createdAt: review.createdAt.toISOString(),
       },
     } satisfies PullDescriptionDraftView);
-  },
-);
-
-pullDescription.post(
-  "/description",
-  requireSession(["web"]),
-  perMinute("platform"),
-  // A character is at most 6 bytes in JSON (\u escapes), with room for the rest of the request.
-  jsonBody(saveBody, { max: MAX_DESCRIPTION_CHARS * 6 + 4096 }),
-  async (c) => {
-    const edit: PullDescriptionRequest = c.req.valid("json");
-    const reached = await reach(c, byKind(edit));
-    if ("refusal" in reached) return reached.refusal;
-    const { platform, token } = reached;
-    const outcome = await platform.actions.setDescription(token, edit.repo, edit.number, edit);
-    if (!outcome) return apiError(c, "upstream_unreachable");
-    return c.json({ outcome } satisfies { outcome: PullActionOutcome });
   },
 );

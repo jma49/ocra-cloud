@@ -87,13 +87,6 @@ export interface PullActions {
   ): Promise<FixCommitResult | null>;
   /** null when it could not be read. */
   description(token: string, fullName: string, number: number): Promise<PullDescription | null>;
-  /** Replaces the description; `head_moved`, unsent, when the head is no longer `edit.head`. */
-  setDescription(
-    token: string,
-    fullName: string,
-    number: number,
-    edit: PullDescription,
-  ): Promise<PullActionOutcome | null>;
 }
 
 /** A write's status as an outcome: a refusal for 4xx but 429 (try later), unreached for the rest. */
