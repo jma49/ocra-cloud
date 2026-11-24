@@ -11,7 +11,7 @@ import type {
 import { ApiError, api } from "../api.js";
 import { useCached } from "../cache.js";
 import { useFixes } from "../fixes/use-fixes.js";
-import { ago, count, sourceLabel, time } from "../format.js";
+import { ago, count, sourceLabel, time, verdictLabel } from "../format.js";
 import { type FocusedFinding, ImpactRail } from "../impact/rail.js";
 import { useImpact } from "../impact/use-impact.js";
 import { useListCursor } from "../list-cursor.js";
@@ -247,12 +247,12 @@ function pullOf(r: Review) {
 function Properties(props: { r: Review }) {
   const { r } = props;
   const pull = pullOf(r);
-  const verdict = !r.complete ? "Incomplete" : (r.verdict ?? "–").replaceAll("_", " ");
+  const verdict = !r.complete ? "Incomplete" : r.verdict ? verdictLabel(r.verdict) : "–";
   return (
     <div className="props">
       <dl className="prop-list">
         <dt>Verdict</dt>
-        <dd className="capitalize">{verdict}</dd>
+        <dd>{verdict}</dd>
         <dt>Findings</dt>
         <dd className="sev-counts">
           <span className="badge badge-err">{r.critical} critical</span>

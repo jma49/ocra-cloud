@@ -16,7 +16,7 @@ const review = (learnings: string[] | null) => ({
     runId: "run",
     repo: "abcd1234",
     source: "local",
-    verdict: "approve",
+    verdict: "approved_with_comments",
     complete: true,
     critical: 0,
     warning: 0,
@@ -56,6 +56,7 @@ describe("a review's properties", () => {
     render(<ReviewDetail id="r1" graphs={false} />);
     const props = await screen.findByRole("complementary", { name: "Properties" });
     expect(within(props).queryByText("Learnings")).toBeNull();
+    expect(within(props).getByText("Approved with comments")).toBeTruthy();
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Review of abcd1234");
   });
 });
