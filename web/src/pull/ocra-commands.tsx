@@ -22,6 +22,8 @@ const COMMAND: Record<CommentCommand, string> = {
   pause: "pause",
   resume: "resume",
   resolve: "resolve",
+  fix: "fix",
+  stop: "stop",
   generate_tests: "generate tests",
   generate_docstrings: "generate docstrings",
   help: "help",

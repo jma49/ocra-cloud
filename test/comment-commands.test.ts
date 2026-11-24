@@ -10,6 +10,8 @@ describe("reading a command", () => {
     expect(parseCommand("@ocra generate   tests")).toBe("generate_tests");
     expect(parseCommand("@ocra generate docstrings")).toBe("generate_docstrings");
     expect(parseCommand("@ocra help!")).toBe("help");
+    expect(parseCommand("@ocra fix")).toBe("fix");
+    expect(parseCommand("@ocra stop.")).toBe("stop");
   });
 
   it("leaves a question, an unknown word, a quote and a code block to the question path", () => {
@@ -17,6 +19,7 @@ describe("reading a command", () => {
       "@ocra review this function, is it safe?",
       "@ocra frobnicate",
       "@ocra generate poems",
+      "@ocra fix the null check here",
       "> @ocra pause",
       "```\n@ocra resolve\n```",
       "please @ocra resume",

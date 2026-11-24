@@ -16,15 +16,15 @@ export const MEND_DEBOUNCE_MS = 15_000;
 const MAX_ROUND_FINDINGS = 20;
 
 /** Why a round ran nothing, as the loop's `error` says. */
-const MEND_SKIPS = ["switched_off", "nothing_waiting"] as const;
+const MEND_SKIPS = ["switched_off", "nothing_waiting", "stopped"] as const;
 
 /**
  * What the loop's next round reads, as files `ocra mend` is given (the
  * findings that wait, the most severe first, and the state the last round
  * printed, `--checks` when the head's failed checks wait too, and
  * `--conflicts` where the repository lets the bot merge its base branch), or why
- * it has none to run: the repository's level is no longer `commit`, or
- * nothing waits.
+ * it has none to run: `@ocra stop` came during the last round, the
+ * repository's level is no longer `commit`, or nothing waits.
  */
 export async function mendInput(
   data: Scoped,
@@ -32,6 +32,7 @@ export async function mendInput(
   repo: Row<"reviewRepos">,
 ): Promise<AnsweredRun | (typeof MEND_SKIPS)[number]> {
   const job = await data.get("mendJobs", jobId);
+  if (job?.stop) return "stopped";
   // A suggestion writes nothing, so the repository's level does not hold it back; findings wait for a round that commits.
   if (job?.suggest && job.conflicts) {
     return {

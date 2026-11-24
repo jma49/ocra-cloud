@@ -462,6 +462,8 @@ A comment with a line that is only `@ocra` and a command (outside a quote or cod
 | `@ocra pause` | stops reviewing the pull request as it gains commits (`paused_pulls`); a review asked for still runs |
 | `@ocra resume` | reviews it as it gains commits again |
 | `@ocra resolve` | resolves ocra's open review threads (those whose first comment is a finding's), at most 20 per command |
+| `@ocra fix` | asks the pull request's fix loop for the open findings the judge kept of its current head, at most 20, as Fix with ocra does, where the repository's level is `commit`; the bot labels the pull request `ocra: fixing` until no round waits or runs (`mend_jobs.labeled`), and each commit's note says how to undo it |
+| `@ocra stop` | stops the fix loop: a round that waits does not run and its findings are put off (`deferred`, which may be asked for again); a round under way finishes and commits what it fixed, and none runs after it (`mend_jobs.stop`) |
 | `@ocra generate tests`, `@ocra generate docstrings` | queues `ocra generate` for the head, committed to the branch |
 | `@ocra help` | lists the commands |
 
