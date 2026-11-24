@@ -1,6 +1,6 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, expect, it } from "vitest";
-import { ColumnHead, othersWrote, PullRow } from "./row.js";
+import { ColumnHead, PullRow } from "./row.js";
 import type { Row } from "./sections.js";
 
 afterEach(cleanup);
@@ -95,7 +95,7 @@ it("names the team a review was asked of when it reached the user through one", 
   );
 });
 
-it("leaves out a side of the size that is zero and the viewer's own name", () => {
+it("leaves out a side of the size that is zero and shows the viewer's own picture and name", () => {
   cleanup();
   render(
     <PullRow
@@ -103,13 +103,12 @@ it("leaves out a side of the size that is zero and the viewer's own name", () =>
       i={0}
       current={false}
       run={null}
-      self="ada"
       onOpen={() => undefined}
       onMark={() => undefined}
     />,
   );
   expect(document.querySelector(".pull-diff")?.textContent).toBe("+3");
-  expect(document.querySelector(".pull-author")?.textContent).toBe("");
+  expect(document.querySelector(".pull-author")?.textContent).toBe("Aada");
   expect(document.querySelector(".pull-owner")?.textContent).toBe("octo/");
 });
 
@@ -159,10 +158,4 @@ it("shows ocra's mark once ocra reviewed it, and its review threads resolved of 
     />,
   );
   expect(bare.container.querySelector(".pull-talk")?.childElementCount).toBe(0);
-});
-
-it("keeps the author column only when someone else wrote a row", () => {
-  expect(othersWrote([row({ author: "me" }), row({ author: "me" })], "me")).toBe(false);
-  expect(othersWrote([row({ author: "me" }), row({ author: "ada" })], "me")).toBe(true);
-  expect(othersWrote([row({ author: null })], "me")).toBe(false);
 });

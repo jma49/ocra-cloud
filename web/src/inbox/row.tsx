@@ -57,8 +57,6 @@ export function PullRow(props: {
   current: boolean;
   /** Set when the rows beside it are of its stack: the rail that joins them. */
   run: { first: boolean; last: boolean } | null;
-  /** The signed-in user: their own pull requests do not repeat their name. */
-  self?: string | undefined;
   onOpen: () => void;
   onMark: (read: boolean) => void;
 }) {
@@ -97,7 +95,6 @@ function PullLink(props: {
   onClick: (e: MouseEvent) => void;
   review: Standing | null;
   when: string;
-  self?: string | undefined;
 }) {
   const { r, to, onClick, review, when, current } = props;
   const intent = useIntent(to);
@@ -160,7 +157,7 @@ function PullLink(props: {
         </span>
       )}
       <span className="pull-author">
-        {r.author && r.author !== props.self && (
+        {r.author && (
           <>
             <PersonMark login={r.author} avatar={r.authorAvatar} size={18} />
             <span className="pull-author-login">{r.author}</span>
@@ -198,10 +195,6 @@ function PullTalk(props: { r: Row }) {
     </span>
   );
 }
-
-/** Whether someone else wrote any of the rows; when none, the list drops its author column. */
-export const othersWrote = (rows: readonly Row[], self: string | undefined) =>
-  rows.some((r) => r.author !== null && r.author !== self);
 
 /** Names the columns once over the list; it takes the rows' own column classes, so it lines up with them at every width. */
 export function ColumnHead() {

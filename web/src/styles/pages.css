@@ -936,13 +936,6 @@ td.finding-cell {
 .inbox-cols .pull-author {
   gap: 8px;
 }
-/* Every row is the user's own: no author column, the titles take its width; the time keeps room for its heading. */
-.inbox-sections[data-own-only] .pull-author {
-  display: none;
-}
-.inbox-sections[data-own-only] .pull-time {
-  width: 96px;
-}
 .inbox-cols .col-mark {
   display: grid;
   place-items: center;
