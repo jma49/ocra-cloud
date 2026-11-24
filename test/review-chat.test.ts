@@ -201,6 +201,32 @@ describe("asking about a review", () => {
     expect(typeof sent[0]?.body.system).toBe("string");
     const [recorded] = await scoped(db, a.id).list("gatewayCalls");
     expect(recorded).toMatchObject({ provider: "anthropic", tokensIn: 50, tokensOut: 9 });
+    // An unpriced model costs nothing that could be counted.
+    expect(await scoped(db, a.id).find("usageCounters", { kind: "other_spend" })).toEqual([]);
+  });
+
+  it("counts what the answer cost at its model's listed price as the account's spend", async () => {
+    const { auth, account: a } = await account(["ocra-anthropic/claude-sonnet-5-5"]);
+    model(() =>
+      sse(
+        [
+          { type: "message_start", message: { usage: { input_tokens: 40_000, output_tokens: 1 } } },
+          { type: "content_block_delta", delta: { type: "text_delta", text: "Use a parameter." } },
+          { type: "message_delta", usage: { output_tokens: 2_000 } },
+          { type: "message_stop" },
+        ],
+        false,
+      ),
+    );
+    await saveKey(auth, "anthropic", "sk-ant-0123456789abcdef");
+    const id = await reviewOf(a.id);
+    await events(await ask(id, auth, { message: "How would I fix it?" }));
+    const data = scoped(db, a.id);
+    // 40,000 tokens in at $2 a million and 2,000 out at $10.
+    expect(await data.find("usageCounters", { kind: "other_spend" })).toMatchObject([
+      { n: 100_000 },
+    ]);
+    expect((await data.spent()).todayUsd).toBe(0);
   });
 
   it("says when the account does not share findings", async () => {

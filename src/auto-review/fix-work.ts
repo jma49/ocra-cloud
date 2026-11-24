@@ -42,6 +42,7 @@ export async function settleFixAnswer(
   );
   await data.remove("sessions", ref.id).catch(() => {});
   if (!recorded) return;
+  await data.countOtherSpend(result.usage.costUsd, now);
   try {
     const repo = await data.get("reviewRepos", job.reviewRepoId);
     if (!repo) return;

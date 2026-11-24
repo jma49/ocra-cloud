@@ -1,8 +1,8 @@
-import type { Review } from "../api.js";
+import type { Review, Reviews } from "../api.js";
 
-// Daily series for the insights charts, from the listed reviews: findings by
-// severity, spend, and review time. Pure, so the charts' numbers are tested
-// without the chart library.
+// Daily series for the insights charts: findings by severity and review
+// time from the listed reviews, spend from the account's spend per day.
+// Pure, so the charts' numbers are tested without the chart library.
 
 export type Point = { start: Date; end: Date; value: number };
 export type Daily = {
@@ -26,7 +26,13 @@ export function quantile(sorted: number[], q: number): number | null {
 }
 
 /** One point per UTC day of the last `days` days, ending today; review time in seconds, only on days with reviews. */
-export function daily(reviews: Review[], days: number, now = Date.now()): Daily {
+export function daily(
+  reviews: Review[],
+  spend: Reviews["spend"],
+  days: number,
+  now = Date.now(),
+): Daily {
+  const spent = new Map(spend.map((s) => [s.day, s.usd]));
   const today = Math.floor(now / DAY) * DAY;
   const first = today - (days - 1) * DAY;
   const buckets = Array.from({ length: days }, () => [] as Review[]);
@@ -42,7 +48,8 @@ export function daily(reviews: Review[], days: number, now = Date.now()): Daily 
     out.critical.push({ start, end, value: sum((r) => r.critical) });
     out.warning.push({ start, end, value: sum((r) => r.warning) });
     out.suggestion.push({ start, end, value: sum((r) => r.suggestion) });
-    out.spend.push({ start, end, value: Math.round(sum((r) => r.costUsd) * 100) / 100 });
+    const usd = spent.get(start.toISOString().slice(0, 10)) ?? 0;
+    out.spend.push({ start, end, value: Math.round(usd * 100) / 100 });
     const times = day.map((r) => r.durationMs / 1000).sort((a, b) => a - b);
     const p50 = quantile(times, 0.5);
     const p95 = quantile(times, 0.95);

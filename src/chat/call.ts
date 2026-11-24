@@ -15,8 +15,9 @@ import type { AppEnv } from "../types.js";
 import { chatEvent, chatRequest, ssePayloads, type Turn } from "./model.js";
 
 // A model call the console makes for the account, with its own provider
-// key: it counts against the gateway's daily cap and is recorded as a
-// gateway call. The prompt and the answer are never logged.
+// key: it counts against the gateway's daily cap, is recorded as a gateway
+// call, and what it cost at its model's listed price is counted as the
+// account's spend. The prompt and the answer are never logged.
 
 export type ChatModel = { ref: ModelRef; provider: Provider; route: ChatRoute; key: string };
 
@@ -56,7 +57,19 @@ export async function takeDailyCall(c: Context<AppEnv>): Promise<Response | null
   return apiError(c, "daily_limit", { limit: dailyCallLimit(own, cap) });
 }
 
-/** A gateway call recorded as pending; `finish` records how it ended. */
+/**
+ * What a call cost at its model's listed price; nothing for a model without
+ * one. The console's requests mark nothing for caching, so all of their
+ * input is at the input price.
+ */
+function callCostUsd(model: ChatModel, usage: Usage): number {
+  const prices = model.provider.prices;
+  const price = prices && Object.hasOwn(prices, model.ref.model) ? prices[model.ref.model] : null;
+  if (!price) return 0;
+  return (usage.tokensIn * price.input + usage.tokensOut * price.output) / 1_000_000;
+}
+
+/** A gateway call recorded as pending; `finish` records how it ended and what it cost. */
 export async function recordCall(c: Context<AppEnv>, model: ChatModel) {
   const data = c.var.data;
   const id = await data.insert("gatewayCalls", {
@@ -67,7 +80,10 @@ export async function recordCall(c: Context<AppEnv>, model: ChatModel) {
   });
   const started = Date.now();
   return (status: number, usage: Usage) =>
-    data.update("gatewayCalls", id, { status, ...usage, ms: Date.now() - started });
+    Promise.all([
+      data.update("gatewayCalls", id, { status, ...usage, ms: Date.now() - started }),
+      data.countOtherSpend(callCostUsd(model, usage)),
+    ]);
 }
 
 /**

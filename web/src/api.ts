@@ -301,6 +301,8 @@ export type Reviews = {
     tokensOut: number;
     costUsd: number;
   };
+  /** All the account spent on each of the period's UTC days, reviews and the rest; days with none left out. */
+  spend: { day: string; usd: number }[];
   reviewers: Record<
     string,
     ReviewerCounts & { findingsTotal: number; acceptanceRate: number | null }

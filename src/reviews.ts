@@ -32,7 +32,7 @@ import type {
   ReviewTraceView,
   ReviewWalkthroughView,
 } from "./shared/index.js";
-import { DAY } from "./time.js";
+import { DAY, utcDay, utcDayStart } from "./time.js";
 import { parseTrace } from "./trace.js";
 import type { AppEnv } from "./types.js";
 import { parseWalkthrough } from "./walkthrough.js";
@@ -418,14 +418,18 @@ reviews.get("/", requireSession(), async (c) => {
   const days = queryDays(c, 30);
   const since = new Date(Date.now() - days * DAY);
   // The totals are summed in SQL (audit D5); the list shows the newest 500.
-  const [{ summary, byReviewer }, rows, names] = await Promise.all([
+  // Spend is all the account spent on each of the last `days` UTC days:
+  // reviews, fix runs, fix-loop rounds and the console's own model calls.
+  const [{ summary, byReviewer }, rows, names, spend] = await Promise.all([
     c.var.data.reviewSummary(since),
     c.var.data.listSince("reviews", since, 500),
     repoNames(c.var.data),
+    c.var.data.spendByDay(utcDay(new Date(utcDayStart().getTime() - (days - 1) * DAY))),
   ]);
   return c.json({
     days,
     summary,
+    spend,
     reviewers: perReviewer(byReviewer),
     reviews: rows.map((r) => ({ ...listedReview(r), name: names.get(r.repoHash) ?? null })),
   });
