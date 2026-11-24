@@ -1291,7 +1291,7 @@ td.finding-cell {
 .diff-viewed.is-viewed {
   color: var(--t2);
 }
-.diff-viewed.is-viewed svg {
+.diff-viewed.is-viewed .lucide {
   color: var(--green);
 }
 .diff-viewed-box {
