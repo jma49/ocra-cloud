@@ -12,9 +12,41 @@
   height: 3px;
   margin-top: 8px;
 }
-.file-filter {
+/* The view shown and the filter menu on one line, the path field under them. */
+.file-views {
+  display: grid;
+  gap: 8px;
   margin: 0 0 8px;
+}
+.file-views-row,
+.file-view-save {
+  display: flex;
+  gap: 8px;
+}
+.file-view-pick {
+  flex: 1;
+  min-width: 0;
+  justify-content: flex-start;
+}
+.file-view-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.file-view-pick svg {
+  margin-inline-start: auto;
+}
+.file-view-save .input,
+.file-filter {
+  flex: 1;
+  min-width: 0;
   width: 100%;
+}
+/* In place of the diffs when a view leaves none: the note, and the way back under it. */
+.file-views-none {
+  display: grid;
+  justify-items: center;
+  padding-bottom: 32px;
 }
 .file-none {
   margin: 0;

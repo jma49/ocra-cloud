@@ -170,6 +170,29 @@ describe("a pull request's page", () => {
     expect(order).toEqual(["docs/a.md", "src/b.ts", "README.md"]);
   });
 
+  it("narrows the diffs to the files the picked view keeps, and shows all when it keeps none", async () => {
+    const view = (path: string) =>
+      JSON.stringify({ views: [{ name: "Docs", narrowing: { path } }], picked: "Docs" });
+    localStorage.setItem("ocra-pull-file-views", view("*.md"));
+    const file = (path: string) => ({ ...files.files[0], path, oldPath: path });
+    const listed = { ...files, files: [file("README.md"), file("docs/a.md"), file("src/b.ts")] };
+    show(undefined, listed);
+    await screen.findByRole("heading", { name: "Cap refunds at the order total" });
+    const drawn = () =>
+      [...document.querySelectorAll(".diff-file .diff-path")].map((e) => e.textContent);
+    expect(drawn()).toEqual(["docs/a.md", "README.md"]);
+    expect(screen.getByText("2 files of 3")).toBeTruthy();
+    cleanup();
+
+    localStorage.setItem("ocra-pull-file-views", view("*.go"));
+    show(undefined, listed);
+    await screen.findByText("No changed file fits this view.");
+    expect(drawn()).toEqual([]);
+    fireEvent.click(screen.getByRole("button", { name: "Show all files" }));
+    await waitFor(() => expect(drawn()).toEqual(["docs/a.md", "src/b.ts", "README.md"]));
+    localStorage.removeItem("ocra-pull-file-views");
+  });
+
   it("sends a review with its line comments against the head it read", async () => {
     const sent = show();
     fireEvent.click(await screen.findByRole("button", { name: "Comment on removed line 11" }));
