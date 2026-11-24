@@ -49,9 +49,6 @@
 .warn-inline {
   color: var(--warning);
 }
-.capitalize {
-  text-transform: capitalize;
-}
 .footnote {
   margin-top: 12px;
 }

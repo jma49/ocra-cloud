@@ -1,3 +1,4 @@
+import type { Verdict } from "@open-cr-agent/cloud-contract";
 import type { ReviewSource } from "../../src/shared/index.js";
 
 // How numbers and times read on the console's pages.
@@ -58,6 +59,19 @@ export const time = (iso: string) =>
     hour: "numeric",
     minute: "2-digit",
   });
+
+const VERDICTS: Record<Verdict, string> = {
+  approved: "Approved",
+  approved_with_comments: "Approved with comments",
+  minor_issues: "Minor issues",
+  significant_concerns: "Significant concerns",
+};
+/** A review's verdict in words, in sentence case as every label; one this console does not know, as written. */
+export function verdictLabel(verdict: string): string {
+  if (verdict in VERDICTS) return VERDICTS[verdict as Verdict];
+  const words = verdict.replaceAll("_", " ");
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
 
 const SOURCES: Record<ReviewSource, string> = {
   local: "Local",

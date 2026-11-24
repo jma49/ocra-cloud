@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ago, count, elapsed, period, since, time } from "./format.js";
+import { ago, count, elapsed, period, since, time, verdictLabel } from "./format.js";
 
 describe("how counts and times read", () => {
   it("counts work under way in seconds, then minutes", () => {
@@ -12,6 +12,12 @@ describe("how counts and times read", () => {
     const at = new Date(2026, 0, 5, 4, 5).toISOString();
     expect(time(at)).toMatch(/\b4:05/);
     expect(time(at)).not.toMatch(/\b04:05/);
+  });
+
+  it("says a verdict in sentence case", () => {
+    expect(verdictLabel("approved_with_comments")).toBe("Approved with comments");
+    expect(verdictLabel("significant_concerns")).toBe("Significant concerns");
+    expect(verdictLabel("new_word")).toBe("New word");
   });
 
   it("puts a count's noun in the right number", () => {

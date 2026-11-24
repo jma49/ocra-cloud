@@ -7,7 +7,7 @@ import { Status } from "@/components/status";
 import { Button } from "@/components/ui/button";
 import type { LiveCommentView, LiveRunView } from "../../../src/shared/index.js";
 import { ApiError, api } from "../api.js";
-import { sourceLabel, time } from "../format.js";
+import { sourceLabel, time, verdictLabel } from "../format.js";
 import { CommentThread } from "../live/comments.js";
 import { LiveFindingEvent } from "../live/finding.js";
 import { LiveCounts, LiveStages } from "../live/progress.js";
@@ -90,7 +90,7 @@ export function LivePage(props: { id: string }) {
         <div className="live-state">
           <Status tone={state.tone}>{state.label}</Status>
           {progress.ending?.kind === "finished" && (
-            <span className="capitalize">{progress.ending.verdict.replaceAll("_", " ")}</span>
+            <span>{verdictLabel(progress.ending.verdict)}</span>
           )}
         </div>
         <LiveStages progress={progress} ended={ended} />
