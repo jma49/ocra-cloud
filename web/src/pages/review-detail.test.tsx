@@ -141,6 +141,36 @@ describe("a finding's fix on its review", () => {
     expect(screen.getByRole("button", { name: "Commit fix" })).toBeTruthy();
   });
 
+  it("says where it stands: fixed, dismissed, or its thread resolved on the platform", async () => {
+    const resolved = {
+      state: "resolved",
+      by: "rita",
+      at: null,
+      reason: null,
+      reasonBy: null,
+      reasonAt: null,
+      redacted: false,
+      truncated: false,
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        url === "/api/reviews/r1"
+          ? Response.json({
+              ...ofPull,
+              findings: [
+                { ...finding, platformDismissal: resolved },
+                { ...finding, id: "f2", title: "Second", status: "dismissed" },
+              ],
+            })
+          : Response.json({ error: "not_found" }, { status: 404 }),
+      ),
+    );
+    render(<ReviewDetail id="r1" graphs={false} />);
+    expect(await screen.findByText("Thread resolved by rita")).toBeTruthy();
+    expect(screen.getByText("Dismissed")).toBeTruthy();
+  });
+
   it("names the lines it replaces, beside the quoted code, when they could not be read", async () => {
     vi.stubGlobal(
       "fetch",

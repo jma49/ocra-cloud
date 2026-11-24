@@ -82,6 +82,16 @@ export function PlatformThread(props: { d: PlatformDismissal }) {
   );
 }
 
+/** Where the finding stands: fixed, dismissed, or its thread resolved on the platform. */
+function Standing(props: { f: Finding; committed: boolean }) {
+  const { f } = props;
+  if (f.status === "fixed" || props.committed) return <Status tone="ok">Fixed</Status>;
+  if (f.status === "dismissed") return <Status tone="quiet">Dismissed</Status>;
+  const thread = f.platformDismissal;
+  if (thread?.state !== "resolved") return null;
+  return <Status tone="quiet">Thread resolved{thread.by && ` by ${thread.by}`}</Status>;
+}
+
 export function FindingEvent(props: {
   f: Finding;
   impact: Impact;
@@ -182,7 +192,7 @@ export function FindingEvent(props: {
               Commit fix
             </Button>
           )}
-          {(f.status === "fixed" || fixed === "done") && <Status tone="ok">Fixed</Status>}
+          <Standing f={f} committed={fixed === "done"} />
           {props.canFix && <FindingIssue findingId={f.id} issue={f.issue} />}
         </div>
         <CommitFixNote state={fixed} />
