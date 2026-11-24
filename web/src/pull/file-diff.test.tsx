@@ -211,3 +211,36 @@ it("marks what a find found, opens a folded file to its match and scrolls to it"
   expect(scrolled).toHaveBeenCalled();
   expect((scrolled.mock.contexts[0] as Element).getAttribute("data-at")).toBe("3");
 });
+
+it("lets long lines run on, as wide as the file's longest, when they do not wrap", () => {
+  render(
+    <FileDiff
+      file={file()}
+      layout="unified"
+      wrap={false}
+      viewed={false}
+      onViewed={() => undefined}
+      pending={[]}
+      onComment={() => undefined}
+      onDrop={() => undefined}
+      findings={[]}
+      review={null}
+      fixes={[]}
+      onDecided={() => undefined}
+      onFixDone={() => undefined}
+    />,
+  );
+  const longest = Math.max(
+    ...PATCH.split("\n")
+      .slice(1)
+      .map((l) => l.length - 1),
+  );
+  const table = document.querySelector<HTMLTableElement>(".diff-wide > table.is-nowrap");
+  expect(table?.style.getPropertyValue("--line-ch")).toBe(`${longest}ch`);
+});
+
+it("wraps long lines unless told otherwise", () => {
+  show("unified");
+  expect(document.querySelector(".diff-wide")).toBeNull();
+  expect(document.querySelector(".is-nowrap")).toBeNull();
+});

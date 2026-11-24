@@ -1184,7 +1184,7 @@ td.finding-cell {
   line-height: 22px;
 }
 /* A file's diff: fixed columns, so each run of rows, drawn on its own, lines up with the rest. Long lines wrap. */
-.diff-file > .diff {
+.diff-main {
   table-layout: fixed;
 }
 .diff-no-col {
@@ -1223,7 +1223,7 @@ td.finding-cell {
   white-space: pre;
 }
 /* A wrapped line hangs under its text, past the sign. */
-.diff-file > .diff .diff-code {
+.diff-main .diff-code {
   padding-left: 16px;
   text-indent: -16px;
   white-space: pre-wrap;
@@ -1254,8 +1254,23 @@ td.finding-cell {
 .diff.is-split .diff-code:nth-child(2) {
   border-right: 0.5px solid var(--hair);
 }
-.diff-file > .diff.is-split .diff-code {
+.diff-main.is-split .diff-code {
   padding-left: 24px;
+}
+/* Unwrapped: a line runs on, the diff scrolls sideways, and what is not code stays in the box's view. */
+.diff-wide {
+  overflow-x: auto;
+  container-type: inline-size;
+}
+/* At least the box's width; else the number columns, and each code column as wide as the file's longest line (`--line-ch`) and its padding. */
+.diff-main.is-nowrap {
+  width: max(100%, calc(112px + var(--line-ch) + 2ch + 32px));
+}
+.diff-main.is-nowrap.is-split {
+  width: max(100%, calc(112px + 2 * (var(--line-ch) + 40px)));
+}
+.diff-main.is-nowrap > tbody > tr > .diff-code {
+  white-space: pre;
 }
 .diff-empty {
   background: var(--fill);
@@ -1329,6 +1344,13 @@ td.finding-cell {
   align-items: center;
   gap: 8px;
   min-width: 0;
+}
+/* Unwrapped, a hunk's head and a note stay in the box's view while the code scrolls under them. */
+.diff-main.is-nowrap .diff-note > td > *,
+.diff-main.is-nowrap .diff-hunk-row {
+  position: sticky;
+  left: 16px;
+  max-width: calc(100cqw - 32px);
 }
 .diff-expands {
   display: flex;

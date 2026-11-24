@@ -53,6 +53,8 @@ const sameAnchor = (c: LineComment, path: string, line: DiffLine | undefined) =>
 export function FileDiff(props: {
   file: File;
   layout: DiffLayout;
+  /** Whether long lines wrap; when not, the diff scrolls sideways. Wraps unless told otherwise. */
+  wrap?: boolean;
   viewed: boolean;
   /** Ticks or unticks the file; a tick folds it. */
   onViewed: (viewed: boolean) => void;
@@ -152,6 +154,9 @@ export function FileDiff(props: {
     section.current?.querySelector(`[data-at="${sought}"]`)?.scrollIntoView({ block: "center" });
   }, [sought, folded, focus?.step, layout]);
   const columns = layout === "split" ? 4 : 3;
+  const wrap = props.wrap ?? true;
+  // Unwrapped, every run must be as wide as the file's longest line, drawn or not: the width is set from all of them.
+  const longest = useMemo(() => (wrap ? 0 : Math.max(0, ...lines.map(widthOf))), [wrap, lines]);
   const look: LineLook = {
     lines,
     runs,
@@ -245,57 +250,70 @@ export function FileDiff(props: {
             The platform sent no diff for this file (binary or too large).
           </p>
         ) : (
-          <table className={`diff is-${layout}`}>
-            <colgroup>
-              {layout === "split" ? (
-                <>
-                  <col className="diff-no-col" />
-                  <col />
-                  <col className="diff-no-col" />
-                  <col />
-                </>
-              ) : (
-                <>
-                  <col className="diff-no-col" />
-                  <col className="diff-no-col" />
-                  <col />
-                </>
+          <Wide wrap={wrap}>
+            <table
+              className={`diff diff-main is-${layout}${wrap ? "" : " is-nowrap"}`}
+              style={wrap ? undefined : ({ "--line-ch": `${longest}ch` } as React.CSSProperties)}
+            >
+              <colgroup>
+                {layout === "split" ? (
+                  <>
+                    <col className="diff-no-col" />
+                    <col />
+                    <col className="diff-no-col" />
+                    <col />
+                  </>
+                ) : (
+                  <>
+                    <col className="diff-no-col" />
+                    <col className="diff-no-col" />
+                    <col />
+                  </>
+                )}
+              </colgroup>
+              {hasNotes(notes, -1) && (
+                <tbody>
+                  <LineNotes at={-1} notes={notes} columns={columns} />
+                </tbody>
               )}
-            </colgroup>
-            {hasNotes(notes, -1) && (
-              <tbody>
-                <LineNotes at={-1} notes={notes} columns={columns} />
-              </tbody>
-            )}
-            {chunks.map((chunk, k) => {
-              const held = chunk.flatMap(linesOfRow);
-              const noted = held.filter((at) => hasNotes(notes, at)).length;
-              return (
-                <LazyBody
-                  // biome-ignore lint/suspicious/noArrayIndexKey: a run is its place in the diff.
-                  key={k}
-                  columns={columns}
-                  estimate={chunk.length * ROW_PX + noted * NOTE_PX}
-                  pinned={
-                    (open !== null && held.includes(open)) ||
-                    (sought !== null && held.includes(sought))
-                  }
-                >
-                  {() =>
-                    chunk.map((row) => (
-                      <Fragment key={row.kind === "pair" ? `${row.left}:${row.right}` : row.line}>
-                        <DiffRowView row={row} look={look} columns={columns} />
-                        {rowNotes(row)}
-                      </Fragment>
-                    ))
-                  }
-                </LazyBody>
-              );
-            })}
-          </table>
+              {chunks.map((chunk, k) => {
+                const held = chunk.flatMap(linesOfRow);
+                const noted = held.filter((at) => hasNotes(notes, at)).length;
+                return (
+                  <LazyBody
+                    // biome-ignore lint/suspicious/noArrayIndexKey: a run is its place in the diff.
+                    key={k}
+                    columns={columns}
+                    estimate={chunk.length * ROW_PX + noted * NOTE_PX}
+                    pinned={
+                      (open !== null && held.includes(open)) ||
+                      (sought !== null && held.includes(sought))
+                    }
+                  >
+                    {() =>
+                      chunk.map((row) => (
+                        <Fragment key={row.kind === "pair" ? `${row.left}:${row.right}` : row.line}>
+                          <DiffRowView row={row} look={look} columns={columns} />
+                          {rowNotes(row)}
+                        </Fragment>
+                      ))
+                    }
+                  </LazyBody>
+                );
+              })}
+            </table>
+          </Wide>
         ))}
     </section>
   );
+}
+
+/** Columns a line takes in the code font, a tab counted at its widest. */
+const widthOf = (line: DiffLine) => line.text.length + 7 * (line.text.split("\t").length - 1);
+
+/** Unwrapped, a diff scrolls sideways in its own box, under the file's head. */
+function Wide(props: { wrap: boolean; children: React.ReactNode }) {
+  return props.wrap ? props.children : <div className="diff-wide">{props.children}</div>;
 }
 
 const NO_RUNS: ReadonlyMap<number, CodeRun[]> = new Map();
