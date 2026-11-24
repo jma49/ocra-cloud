@@ -169,7 +169,7 @@ function ImpactBody(props: { data: Impact }) {
             <tbody>
               {data.repos.map((r) => (
                 <tr key={`${r.repo}:${r.enrolled}`}>
-                  <td className="mono">{r.repo}</td>
+                  <td>{r.repo}</td>
                   <td className="num">{r.enrolled ? num(r.pulls) : "–"}</td>
                   <td className="num">
                     {r.enrolled ? share(r.reviewedPulls, r.pulls) : num(r.reviewedPulls)}

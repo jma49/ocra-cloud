@@ -146,16 +146,15 @@ export function FindingEvent(props: {
       <span className={`event-mark sev-${f.severity}`} aria-hidden="true" />
       <div className="event-body">
         <div className="event-meta">
-          <span>Finding</span>
           <SeverityBadge severity={f.severity} />
-          <span className="subtle">
+          <span className="subtle small">
             {f.reviewer}
             {f.verification ? ` · ${f.verification}` : ""}
             {f.redacted ? " · redacted" : ""}
             {f.truncated ? " · cut" : ""}
           </span>
         </div>
-        <p className="event-text finding-title">{f.title}</p>
+        <h2 className="finding-title">{f.title}</h2>
         <div className="code-card">
           <div className="code-card-head">
             <span className="mono">{f.file}</span>

@@ -1,3 +1,4 @@
+import Download from "lucide-react/icons/download";
 import Flag from "lucide-react/icons/flag";
 import SearchX from "lucide-react/icons/search-x";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -150,9 +151,14 @@ export function ReviewDetail(props: { id: string; graphs: boolean }) {
       </aside>
       <section className="review-main" aria-label="Activity">
         <div className="review-title">
-          <span className="subtle">
+          <span className="subtle small">
             {sourceLabel(r.source)}
-            {r.prHeadSha && <span className="mono"> {r.prHeadSha.slice(0, 7)}</span>}
+            {r.prHeadSha && (
+              <>
+                {" · "}
+                <span className="mono">{r.prHeadSha.slice(0, 7)}</span>
+              </>
+            )}
           </span>
           <h1>{titleOf(r)}</h1>
         </div>
@@ -185,8 +191,8 @@ export function ReviewDetail(props: { id: string; graphs: boolean }) {
                 <span>Review ran</span>
                 <span className="subtle">{ago(r.createdAt)}</span>
               </div>
-              <p className="event-text">
-                {sourceLabel(r.source)}, run <span className="mono">{r.runId}</span>.
+              <p className="event-text muted">
+                {sourceLabel(r.source)}, run <span className="mono small">{r.runId}</span>
               </p>
             </div>
           </li>
@@ -254,21 +260,17 @@ function Properties(props: { r: Review }) {
         <dt>Verdict</dt>
         <dd>{verdict}</dd>
         <dt>Findings</dt>
-        <dd className="sev-counts">
-          <span className="badge badge-err">{r.critical} critical</span>
-          <span className="badge badge-warn">{count(r.warning, "warning")}</span>
-          <span className="badge">{count(r.suggestion, "suggestion")}</span>
+        <dd>
+          <SeverityCounts r={r} />
         </dd>
         <dt>Repository</dt>
-        <dd className="mono">{r.repo}</dd>
+        <dd>{pull ? pull.repo : <span className="mono small">{r.repo}</span>}</dd>
         {r.prRepository && r.prNumber && (
           <>
-            <dt>Pull request</dt>
-            <dd className="mono">
+            <dt>{r.source === "gitlab" ? "Merge request" : "Pull request"}</dt>
+            <dd>
               {pull ? (
-                <Link to={pullPath(pull.platform, pull.repo, pull.number)}>
-                  {pull.repo}#{pull.number}
-                </Link>
+                <Link to={pullPath(pull.platform, pull.repo, pull.number)}>#{pull.number}</Link>
               ) : (
                 `${r.prRepository}#${r.prNumber}`
               )}
@@ -303,16 +305,41 @@ function Properties(props: { r: Review }) {
         <dt>Reviewed</dt>
         <dd>{time(r.createdAt)}</dd>
         <dt>Run</dt>
-        <dd className="mono">{r.runId}</dd>
+        <dd className="mono small muted">{r.runId}</dd>
       </dl>
       <div className="prop-actions">
-        <Button variant="outline" render={<Link to="/reviews" />}>
-          All reviews
-        </Button>
-        <Button variant="outline" render={<a href={`/api/reviews/${r.id}/export`} download />}>
+        <Button
+          variant="outline"
+          size="sm"
+          render={<a href={`/api/reviews/${r.id}/export`} download />}
+        >
+          <Download aria-hidden="true" />
           Download JSON
         </Button>
       </div>
     </div>
+  );
+}
+
+/** The review's counts by severity, the empty ones left out: a dot in the severity's colour and the count in words. */
+function SeverityCounts(props: { r: Review }) {
+  const { r } = props;
+  const counts = (
+    [
+      ["critical", r.critical],
+      ["warning", r.warning],
+      ["suggestion", r.suggestion],
+    ] as const
+  ).filter(([, n]) => n > 0);
+  if (counts.length === 0) return <span className="muted">None</span>;
+  return (
+    <span className="sev-counts">
+      {counts.map(([severity, n]) => (
+        <span key={severity} className="sev-count">
+          <span className={`sev-dot sev-${severity}`} aria-hidden="true" />
+          {count(n, severity)}
+        </span>
+      ))}
+    </span>
   );
 }

@@ -20,7 +20,7 @@ export function Hook(props: { added: Added; onDone: () => void }) {
       <section className="card card-pad stack hook-card" aria-label="Webhook">
         <h2 className="card-title">Webhook added</h2>
         <p className="m-0">
-          ocra added its webhook to <span className="mono">{repo.fullName}</span> and removes it
+          ocra added its webhook to <span className="strong">{repo.fullName}</span> and removes it
           when you remove the project. Nothing is left to do on GitLab.
         </p>
         {done}
@@ -37,13 +37,13 @@ export function Hook(props: { added: Added; onDone: () => void }) {
       )}
       {repo.platform === "gitlab" ? (
         <p className="m-0">
-          In <span className="mono">{repo.fullName}</span>, open Settings, Webhooks, and add this
+          In <span className="strong">{repo.fullName}</span>, open Settings, Webhooks, and add this
           address with the secret token below. Turn on Merge request events, Comments and Pipeline
           events. The secret is shown only now.
         </p>
       ) : (
         <p className="m-0">
-          Install this server's GitHub App on <span className="mono">{repo.fullName}</span>. The
+          Install this server's GitHub App on <span className="strong">{repo.fullName}</span>. The
           App's webhook sends pull request events to this address.
         </p>
       )}

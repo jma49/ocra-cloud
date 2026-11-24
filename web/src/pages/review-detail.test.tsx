@@ -106,7 +106,7 @@ describe("a finding's fix on its review", () => {
     );
     render(<ReviewDetail id="r1" graphs={false} />);
     const title = await screen.findByRole("heading", { name: "Review of octo/api #7" });
-    expect(title.parentElement?.textContent).toContain("GitHub PR aaaaaaa");
+    expect(title.parentElement?.textContent).toContain("GitHub PR · aaaaaaa");
   });
 
   it("folds the finding's evidence under its details, a fact a line", async () => {

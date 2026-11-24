@@ -147,8 +147,9 @@
   border: 1px solid var(--border-strong);
   display: grid;
   place-items: center;
-  font: 500 var(--text-xs) var(--mono);
+  font: 500 var(--text-xs) var(--font);
   line-height: 16px;
+  font-variant-numeric: tabular-nums;
   color: var(--fg-muted);
   flex: none;
   margin-top: 1px;

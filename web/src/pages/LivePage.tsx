@@ -96,7 +96,7 @@ export function LivePage(props: { id: string }) {
         <dl className="prop-list">
           <LiveCounts progress={progress} />
           <dt>Repository</dt>
-          <dd className="mono">{r.repo ?? "Unnamed"}</dd>
+          <dd>{r.repo ?? "Unnamed"}</dd>
           <dt>Source</dt>
           <dd>{sourceLabel(r.source)}</dd>
           <dt>Started</dt>

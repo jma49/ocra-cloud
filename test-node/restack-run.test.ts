@@ -131,7 +131,7 @@ describe("a restack's run", () => {
     expect(after.length).toBeGreaterThan(3);
     for (const c of after) expect(c.slice(1, 3)).toEqual(["-c", "core.hooksPath=/dev/null"]);
     expect(calls.find((c) => c.includes("push"))).toContain(
-      "--force-with-lease=refs/heads/step-2:" + repo.child,
+      `--force-with-lease=refs/heads/step-2:${repo.child}`,
     );
     // The token never reaches a command line.
     expect(JSON.stringify(calls)).not.toContain("ghs_bot");

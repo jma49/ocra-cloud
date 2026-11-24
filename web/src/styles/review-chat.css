@@ -2,18 +2,40 @@
 .chat {
   margin: 16px 0;
 }
-.chat-model {
-  margin-left: auto;
-}
 .chat-body {
   display: grid;
   gap: 12px;
-  padding: 4px 16px 16px;
+  padding: 16px var(--gutter);
 }
+/* Suggested questions: quiet rows, each one click from being asked. */
 .chat-starters {
+  display: grid;
+  margin: 0 0 0 -8px;
+  padding: 0;
+  list-style: none;
+}
+.chat-starter {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
+  width: 100%;
+  min-height: var(--ctl-h);
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--r-ctl);
+  background: none;
+  color: var(--t2);
+  font: inherit;
+  line-height: 20px;
+  text-align: left;
+  cursor: pointer;
+}
+.chat-starter:hover {
+  background: var(--fill);
+  color: var(--t1);
+}
+.chat-starter .lucide {
+  color: var(--t3);
 }
 .chat-log {
   display: grid;
@@ -59,24 +81,61 @@
   align-items: center;
   margin-top: 0;
 }
-.chat-ask {
+/* The question and what sends it share one field: the text on top, the model and Ask on a bar inside its foot. */
+.chat-composer {
   display: grid;
-  gap: 8px;
+  border-radius: var(--r-ctl);
+  background: var(--field);
+  box-shadow: var(--field-edge);
 }
-.chat-ask textarea {
+.chat-composer:focus-within {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.chat-composer textarea {
   width: 100%;
-  height: auto;
-  padding: 8px var(--ctl-pad);
+  min-height: 48px;
+  padding: 8px var(--ctl-pad) 0;
+  border: 0;
+  outline: none;
+  background: none;
+  color: var(--t1);
+  font: inherit;
+  line-height: 20px;
   resize: vertical;
+}
+.chat-composer textarea::placeholder {
+  color: var(--t4);
 }
 .chat-tools {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+  padding: 8px;
 }
-.chat-tools select {
-  max-width: 260px;
+.chat-model {
+  max-width: 220px;
+  height: var(--ctl-h);
+  padding: 0 4px;
+  border: 0;
+  border-radius: var(--r-ctl);
+  background: none;
+  color: var(--t2);
+  font: inherit;
+  font-size: var(--text-sm);
+  line-height: 16px;
+  cursor: pointer;
+}
+.chat-model:hover {
+  background: var(--fill);
+  color: var(--t1);
+}
+@media (max-width: 560px) {
+  .chat-hint,
+  .chat .walkthrough-meta {
+    display: none;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

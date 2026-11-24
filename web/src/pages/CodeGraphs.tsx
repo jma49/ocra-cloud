@@ -251,7 +251,7 @@ function GraphRow(props: { repo: GraphRepoView; put: (r: GraphRepoView) => void;
   return (
     <tr>
       <td>
-        <div className="strong mono">{repo.fullName}</div>
+        <div className="strong">{repo.fullName}</div>
         <div className="subtle small">
           {PLATFORM_NAME[repo.platform]} · {repo.host} · {repo.branch}
         </div>
