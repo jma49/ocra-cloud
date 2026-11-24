@@ -1,3 +1,5 @@
+import Pencil from "lucide-react/icons/pencil";
+import Trash2 from "lucide-react/icons/trash-2";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -142,27 +144,27 @@ export function ScheduledReports(props: {
             >
               Send now
             </Button>
-            <Button
+            <button
               type="button"
-              variant="outline"
-              size="sm"
+              className="icon-btn row-action"
               aria-label={`Edit ${r.name}`}
+              title="Edit"
               onClick={() => setEditing(r.id)}
             >
-              Edit
-            </Button>
-            <Button
+              <Pencil size={14} aria-hidden="true" />
+            </button>
+            <button
               type="button"
-              variant="destructive-outline"
-              size="sm"
+              className="icon-btn row-action is-danger"
               disabled={remove.busy}
               aria-label={`Remove ${r.name}`}
+              title="Remove"
               onClick={async () => {
                 if ((await remove.run(r.id)) !== undefined) list.reload();
               }}
             >
-              Remove
-            </Button>
+              <Trash2 size={14} aria-hidden="true" />
+            </button>
           </div>
         ))
       )}

@@ -1643,7 +1643,7 @@ td.finding-cell {
 }
 .row-action.is-shown,
 .row-action:focus-visible,
-:is(tr, .learning-row):is(:hover, :focus-within, .is-current) .row-action {
+:is(tr, .list-row, .learning-row):is(:hover, :focus-within, .is-current) .row-action {
   opacity: 1;
 }
 @media (hover: none) {

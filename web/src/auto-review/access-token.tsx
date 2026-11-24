@@ -42,7 +42,7 @@ export function AccessToken(props: { r: AutoReviewRepoView; onChanged: () => voi
         {r.hasAccessToken ? (
           <>
             ocra reads this project and posts its reviews as{" "}
-            <span className="mono">{r.accessTokenBot}</span>, the bot of the token you gave.
+            <span className="strong">{r.accessTokenBot}</span>, the bot of the token you gave.
           </>
         ) : (
           "ocra reads this project and posts its reviews as the server's bot. Give the project's own token, with the api scope and the Developer role, to post as the project's bot instead."

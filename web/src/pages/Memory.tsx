@@ -1,4 +1,5 @@
 import Brain from "lucide-react/icons/brain";
+import Trash2 from "lucide-react/icons/trash-2";
 import { Button } from "@/components/ui/button";
 import { api, why } from "../api.js";
 import { useRead } from "../cache.js";
@@ -92,14 +93,15 @@ export function Memory() {
                     <td className="text">{m.reason}</td>
                     <td className="muted">{ago(m.createdAt)}</td>
                     <td className="num">
-                      <Button
+                      <button
                         type="button"
-                        variant="destructive-outline"
-                        size="sm"
+                        className="icon-btn row-action is-danger"
+                        aria-label="Forget"
+                        title="Forget"
                         onClick={() => remove(m.id)}
                       >
-                        Forget
-                      </Button>
+                        <Trash2 size={14} aria-hidden="true" />
+                      </button>
                     </td>
                   </tr>
                 ))}

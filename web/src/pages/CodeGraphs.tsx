@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import type { CodePlatformKind, GraphPolicy, GraphRepoView } from "../../../src/shared/index.js";
 import { api, why } from "../api.js";
 import { useCached } from "../cache.js";
-import { ago, bytes, num } from "../format.js";
+import { ago, bytes, count } from "../format.js";
 import { PLATFORM_NAME, PlatformSelect } from "../platform-names.js";
 import { StackTable } from "../stack-table.js";
 import { useToast } from "../toast.js";
@@ -108,10 +108,7 @@ function GraphRepos(props: {
                 <tr>
                   <th>Repository</th>
                   <th>Status</th>
-                  <th>Commit</th>
-                  <th className="num">Files</th>
-                  <th className="num">Size</th>
-                  <th>Last build</th>
+                  <th>Graph</th>
                   <th>
                     <span className="sr-only">Actions</span>
                   </th>
@@ -264,20 +261,24 @@ function GraphRow(props: { repo: GraphRepoView; put: (r: GraphRepoView) => void;
           </div>
         ) : null}
       </td>
-      <td className="mono">{latest ? latest.commit.slice(0, 7) : "–"}</td>
-      <td className="num">
-        <span className="cell-name" aria-hidden="true">
-          Files
-        </span>
-        {latest?.files != null ? num(latest.files) : "–"}
+      <td>
+        {latest ? (
+          <>
+            <div className="mono">{latest.commit.slice(0, 7)}</div>
+            <div className="subtle small">
+              {[
+                latest.files != null && count(latest.files, "file"),
+                latest.bytes != null && bytes(latest.bytes),
+                latest.finishedAt && ago(latest.finishedAt),
+              ]
+                .filter(Boolean)
+                .join(" · ") || "Not built yet"}
+            </div>
+          </>
+        ) : (
+          <span className="muted">None kept</span>
+        )}
       </td>
-      <td className="num">
-        <span className="cell-name" aria-hidden="true">
-          Size
-        </span>
-        {latest?.bytes != null ? bytes(latest.bytes) : "–"}
-      </td>
-      <td className="muted">{latest?.finishedAt ? ago(latest.finishedAt) : "–"}</td>
       <td>
         <div className="row-actions">
           {confirm ? (

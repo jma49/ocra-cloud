@@ -53,7 +53,7 @@ export function Runs(props: { runs: AutomationRunView[] }) {
                 <div className="strong">{r.ruleName}</div>
                 <span className={RUN_TONE[r.outcome]}>{RUN_LABEL[r.outcome]}</span>
               </td>
-              <td className="mono">{r.pull}</td>
+              <td>{r.pull}</td>
               <td className="text">
                 {r.reason && <span className="muted">{SKIP_LABEL[r.reason]}</span>}
                 {r.retryAt && <span className="muted">Will retry</span>}
