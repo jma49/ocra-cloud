@@ -380,6 +380,20 @@ describe("a GitLab merge request's CI", () => {
     expect(view).toMatchObject({ source: "job_log", log: "Running tests\nFAIL src/a.test.ts" });
   });
 
+  it("answers no log, with the job's address, when its trace is refused", async () => {
+    platform({
+      [`GET ${PROJECT}/jobs/1`]: () => Response.json(job(1, "unit", "failed")),
+      [`GET ${PROJECT}/jobs/1/trace`]: () => new Response(null, { status: 403 }),
+    });
+    const a = await signedIn();
+    const view = (await (await a.send(`/api/pulls/ci/log?${LAB}&job=1`)).json()) as PullCiLogView;
+    expect(view).toMatchObject({
+      source: "none",
+      log: "",
+      url: `${GITLAB}/Group/Sub/Project/-/jobs/1`,
+    });
+  });
+
   it("retries the head's failed jobs, not those allowed to fail", async () => {
     const seen = platform({
       ...lab,
