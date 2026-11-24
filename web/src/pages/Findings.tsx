@@ -11,6 +11,7 @@ import type {
 import { api, why } from "../api.js";
 import { useCached } from "../cache.js";
 import { DISMISS_REASONS, reasonLabel } from "../dismiss-reasons.js";
+import { FindingReactions } from "../finding-reactions.js";
 import { FINDING_STATUS_NAME, FindingStanding } from "../finding-status.js";
 import { ago } from "../format.js";
 import { useListCursor } from "../list-cursor.js";
@@ -46,6 +47,8 @@ type Listed = {
   reason: DismissReason | null;
   note: string | null;
   decidedAt: string | null;
+  thumbsUp: number;
+  thumbsDown: number;
   createdAt: string;
 };
 type Page = { findings: Listed[]; next: string | null; statuses: Record<FindingStatus, number> };
@@ -434,6 +437,7 @@ export function Findings(props: {
                       <FindingStanding status={f.status} />
                       {f.reason && <div className="muted small">{reasonLabel(f.reason)}</div>}
                       {f.note && <div className="subtle small">{f.note}</div>}
+                      <FindingReactions up={f.thumbsUp} down={f.thumbsDown} />
                     </td>
                     <td className="muted">{ago(f.createdAt)}</td>
                   </tr>

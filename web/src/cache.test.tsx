@@ -91,6 +91,8 @@ describe("a finding decision shown before the server answers", () => {
     reason: null,
     note: null,
     decidedAt: null,
+    thumbsUp: 0,
+    thumbsDown: 0,
     createdAt: "2026-11-01T00:00:00Z",
   });
   const page = {
