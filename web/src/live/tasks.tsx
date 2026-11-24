@@ -11,31 +11,48 @@ const STATUS: Record<LiveTask["status"], string> = {
   cancelled: "Cancelled",
 };
 
-export function LiveTasks(props: { tasks: LiveProgress["tasks"]; ended: boolean }) {
-  if (props.tasks.size === 0) return null;
+/** A row per reviewer task under a head that counts them; the list scrolls once a large change opens many. */
+export function LiveTasks(props: { progress: LiveProgress; ended: boolean }) {
+  const { tasks, files } = props.progress;
+  if (tasks.size === 0) return null;
+  // A run that stopped never finishes the tasks it had open.
+  const rows = [...tasks].map(
+    ([id, task]) =>
+      [id, task, task.status === "running" && props.ended ? "cancelled" : task.status] as const,
+  );
+  const done = rows.filter(([, , status]) => status !== "running").length;
   return (
-    <ul className="live-tasks" aria-label="Tasks">
-      {[...props.tasks].map(([id, task]) => {
-        // A run that stopped never finishes the tasks it had open.
-        const status = task.status === "running" && props.ended ? "cancelled" : task.status;
-        const quiet = status === "running" || status === "completed";
-        return (
-          <li key={id} className="live-task">
-            <TaskMark status={status} />
-            <span className="live-task-name">{task.reviewer}</span>
-            <span className="subtle small">
-              {quiet ? count(task.files, "file") : STATUS[status]}
-            </span>
-            {quiet && <span className="sr-only">{STATUS[status]}</span>}
-          </li>
-        );
-      })}
-    </ul>
+    <section className="live-group" aria-label="Reviewers">
+      <h2 className="live-group-head">
+        Reviewers
+        <span className="subtle">
+          {done} of {rows.length}
+          {files.total > 0 && ` · ${files.reviewed} of ${count(files.total, "file")}`}
+        </span>
+      </h2>
+      <ul className="live-steps live-tasks" aria-label="Tasks">
+        {rows.map(([id, task, status]) => {
+          const quiet = status === "running" || status === "completed";
+          return (
+            <li key={id} className={`live-step is-${status}`}>
+              <StepMark status={status} />
+              <span className="live-step-name">{task.reviewer}</span>
+              <span className="subtle small">
+                {quiet ? count(task.files, "file") : STATUS[status]}
+              </span>
+              {quiet && <span className="sr-only">{STATUS[status]}</span>}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }
 
-function TaskMark(props: { status: LiveTask["status"] }) {
-  if (props.status === "running") {
+/** A task's standing as a 16 px mark: a turning ring while it runs, a check once done, a cross when it failed. */
+function StepMark(props: { status: LiveTask["status"] }) {
+  const { status } = props;
+  if (status === "running") {
     return (
       <svg className="task-mark is-running" viewBox="0 0 16 16" aria-hidden="true">
         <circle className="task-ring-track" cx="8" cy="8" r="6" />
@@ -43,9 +60,9 @@ function TaskMark(props: { status: LiveTask["status"] }) {
       </svg>
     );
   }
-  const Icon = props.status === "completed" ? Check : X;
+  const Icon = status === "completed" ? Check : X;
   return (
-    <span className={`task-mark is-${props.status === "completed" ? "done" : "failed"}`}>
+    <span className={`task-mark is-${status === "completed" ? "done" : "failed"}`}>
       <Icon size={12} aria-hidden="true" />
     </span>
   );

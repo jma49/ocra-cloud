@@ -189,7 +189,7 @@ describe("the live page", () => {
     });
     const task = within(await screen.findByRole("list", { name: "Tasks" })).getByRole("listitem");
     expect(task.textContent).toBe("security2 filesRunning");
-    expect(within(screen.getByRole("list", { name: "Stages" })).getByText(/\ds$/)).toBeTruthy();
+    expect(within(screen.getByRole("region", { name: "Stages" })).getByText(/\ds$/)).toBeTruthy();
     act(() => {
       for (const e of events.slice(0, until("task.finished"))) source.emit("review", e);
     });

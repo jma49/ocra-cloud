@@ -13,7 +13,7 @@ import { ApiError, api } from "../api.js";
 import { useCached } from "../cache.js";
 import { CopyButton } from "../copy-button.js";
 import { useFixes } from "../fixes/use-fixes.js";
-import { ago, count, sourceLabel, time } from "../format.js";
+import { ago, sourceLabel, time } from "../format.js";
 import { type FocusedFinding, ImpactRail } from "../impact/rail.js";
 import { useImpact } from "../impact/use-impact.js";
 import { useListCursor } from "../list-cursor.js";
@@ -22,7 +22,7 @@ import { PlatformMark } from "../platform-mark.js";
 import { pullPath } from "../pull/path.js";
 import { ReviewChat } from "../review-chat/chat.js";
 import { Link } from "../router.js";
-import { SeverityMark } from "../severity.js";
+import { SeverityCounts } from "../severity.js";
 import { EmptyState, LoadError, Loading, PageHead, Seg } from "../ui.js";
 import { VerdictStatus } from "../verdict-status.js";
 import { reviewCommands } from "./review-commands.js";
@@ -276,7 +276,7 @@ function Properties(props: { r: Review }) {
         </dd>
         <dt>Findings</dt>
         <dd>
-          <SeverityCounts r={r} />
+          <SeverityCounts counts={r} />
         </dd>
         {pull ? (
           <>
@@ -351,28 +351,5 @@ function Properties(props: { r: Review }) {
         </Button>
       </div>
     </div>
-  );
-}
-
-/** The review's counts by severity, the empty ones left out: the severity's mark in its colour and the count in words. */
-function SeverityCounts(props: { r: Review }) {
-  const { r } = props;
-  const counts = (
-    [
-      ["critical", r.critical],
-      ["warning", r.warning],
-      ["suggestion", r.suggestion],
-    ] as const
-  ).filter(([, n]) => n > 0);
-  if (counts.length === 0) return <span className="muted">None</span>;
-  return (
-    <span className="sev-counts">
-      {counts.map(([severity, n]) => (
-        <span key={severity} className="sev-count">
-          <SeverityMark severity={severity} />
-          {count(n, severity)}
-        </span>
-      ))}
-    </span>
   );
 }
