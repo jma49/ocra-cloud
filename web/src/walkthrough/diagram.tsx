@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { isDark, useThemeChoice } from "../theme.js";
 import { applyParkedStyles, liftStyles } from "./svg-styles.js";
 
 // A walkthrough's Mermaid diagram, drawn in the browser. The text is model
@@ -11,11 +12,12 @@ let ids = 0;
 export function Diagram(props: { source: string }) {
   const host = useRef<HTMLDivElement>(null);
   const [failed, setFailed] = useState(false);
+  useThemeChoice();
+  const dark = isDark();
   useEffect(() => {
     let live = true;
     const draw = async () => {
       const { default: mermaid } = await import("mermaid");
-      const dark = matchMedia("(prefers-color-scheme: dark)").matches;
       mermaid.initialize({
         startOnLoad: false,
         securityLevel: "strict",
@@ -39,7 +41,7 @@ export function Diagram(props: { source: string }) {
     return () => {
       live = false;
     };
-  }, [props.source]);
+  }, [props.source, dark]);
   if (failed)
     return <p className="subtle small m-0">This diagram could not be drawn; its text is below.</p>;
   return (

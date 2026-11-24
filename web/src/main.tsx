@@ -11,6 +11,7 @@ import { Frame } from "./shell.js";
 import { rememberSignedIn, wasSignedIn } from "./signed-in.js";
 import { SignIn } from "./signin.js";
 import { reloadOnStaleBuild } from "./stale-build.js";
+import { followTheme } from "./theme.js";
 import { setPageTitle } from "./title.js";
 import { ToastProvider } from "./toast.js";
 import { ErrorBoundary, Loading, NotFound } from "./ui.js";
@@ -90,6 +91,7 @@ function App() {
 }
 
 reloadOnStaleBuild();
+followTheme();
 const root = document.getElementById("root");
 if (root) {
   createRoot(root).render(

@@ -5,8 +5,9 @@ import { describe, expect, it } from "vitest";
 // Text tones meet WCAG AA (4.5:1) on the surfaces they sit on, in both themes.
 const base = readFileSync(join(import.meta.dirname, "styles", "base.css"), "utf8");
 const forms = readFileSync(join(import.meta.dirname, "styles", "forms.css"), "utf8");
-const dark = base.slice(base.indexOf("@media (prefers-color-scheme: dark)"));
-const light = base.slice(0, base.indexOf("@media (prefers-color-scheme: dark)"));
+const DARK = ':root[data-theme="dark"]';
+const dark = base.slice(base.indexOf(DARK));
+const light = base.slice(0, base.indexOf(DARK));
 
 type Rgb = [number, number, number];
 function token(css: string, name: string): string {

@@ -1,3 +1,4 @@
+import type { LucideIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   Command,
@@ -27,6 +28,7 @@ export type CommandEntry = {
   hint?: string;
   /** The key or keys that do the same outside the menu. */
   key?: string;
+  icon?: LucideIcon;
 } & (
   | { to: string; external?: boolean; run?: undefined }
   /** Something the open page or the console does. */
@@ -115,6 +117,9 @@ export function CommandMenu(props: { sections: CommandSection[] }) {
                         value={entry}
                         onClick={() => pick(entry)}
                       >
+                        {entry.icon ? (
+                          <entry.icon className="command-icon" size={16} aria-hidden="true" />
+                        ) : null}
                         <span className="command-label">{entry.label}</span>
                         {entry.hint && <span className="command-hint">{entry.hint}</span>}
                         {entry.key && <KeyCaps keys={entry.key} className="command-key" />}

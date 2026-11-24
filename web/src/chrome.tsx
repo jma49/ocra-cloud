@@ -1,8 +1,12 @@
 import {
   Menu,
+  MenuGroup,
+  MenuGroupLabel,
   MenuItem,
   MenuLinkItem,
   MenuPopup,
+  MenuRadioGroup,
+  MenuRadioItem,
   MenuSeparator,
   MenuTrigger,
 } from "@/components/ui/menu";
@@ -12,6 +16,7 @@ import { EyesMark } from "./eyes.js";
 import { Link } from "./router.js";
 import { rememberSignedIn } from "./signed-in.js";
 import { brandTag, DOCS, GITHUB } from "./site.js";
+import { chooseTheme, THEMES, type ThemeChoice, useThemeChoice } from "./theme.js";
 
 // The bar across the top of the signed-out pages, the account menu, the footer.
 
@@ -56,6 +61,7 @@ export async function signOut(): Promise<void> {
 
 export function AccountMenu(props: { me: Me; compact?: boolean; side?: "bottom" | "right" }) {
   const { me } = props;
+  const theme = useThemeChoice();
   return (
     <Menu>
       <MenuTrigger
@@ -77,6 +83,17 @@ export function AccountMenu(props: { me: Me; compact?: boolean; side?: "bottom" 
           Documentation
         </MenuLinkItem>
         <MenuLinkItem href="/privacy">Data policy</MenuLinkItem>
+        <MenuSeparator />
+        <MenuGroup>
+          <MenuGroupLabel>Theme</MenuGroupLabel>
+          <MenuRadioGroup value={theme} onValueChange={(v) => chooseTheme(v as ThemeChoice)}>
+            {THEMES.map((t) => (
+              <MenuRadioItem key={t.value} value={t.value}>
+                {t.label}
+              </MenuRadioItem>
+            ))}
+          </MenuRadioGroup>
+        </MenuGroup>
         <MenuSeparator />
         <MenuItem onClick={signOut}>Sign out</MenuItem>
       </MenuPopup>

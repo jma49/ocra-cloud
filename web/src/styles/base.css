@@ -131,39 +131,38 @@
   color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --ground: #0d0d0e;
-    --panel: #141415;
-    --raised: #1b1b1d;
-    --t1: rgb(255 255 255 / 0.92);
-    --t2: rgb(255 255 255 / 0.64);
-    --t3: rgb(255 255 255 / 0.5);
-    --t4: rgb(255 255 255 / 0.32);
-    --hair: rgb(255 255 255 / 0.08);
-    --hair2: rgb(255 255 255 / 0.12);
-    --fill: rgb(255 255 255 / 0.05);
-    --fill2: rgb(255 255 255 / 0.08);
-    --ink: #ededee;
-    --red: #ff6b57;
-    --amber: #f0b24a;
-    --green: #5cc98a;
-    --blue: #7c9cf5;
-    --teal: #5cc2b3;
-    --violet: #b79bff;
-    --shadow: 0 0 0 0.5px rgb(255 255 255 / 0.08), 0 8px 24px -8px rgb(0 0 0 / 0.6);
-    --float: 0 0 0 0.5px rgb(255 255 255 / 0.1), 0 12px 32px -8px rgb(0 0 0 / 0.7);
-    /* A field on a card: the card's own surface and drop shadow would hide it, so it is a step lighter with an outline button's edge. */
-    --field: color-mix(in srgb, var(--white) 4%, var(--raised));
-    --field-edge: 0 0 0 1px var(--hair2);
-    --scrim: rgb(0 0 0 / 0.5);
-    --bg-subtle: color-mix(in srgb, var(--white) 3%, var(--panel));
-    --border-strong: rgb(255 255 255 / 0.2);
-    --on-primary: #111112;
-    --on-button: #111112;
-    --switch-off: rgb(255 255 255 / 0.4);
-    color-scheme: dark;
-  }
+/* Dark: set on <html> by public/theme.js and web/src/theme.ts, from the user's choice or the system's. */
+:root[data-theme="dark"] {
+  --ground: #0d0d0e;
+  --panel: #141415;
+  --raised: #1b1b1d;
+  --t1: rgb(255 255 255 / 0.92);
+  --t2: rgb(255 255 255 / 0.64);
+  --t3: rgb(255 255 255 / 0.5);
+  --t4: rgb(255 255 255 / 0.32);
+  --hair: rgb(255 255 255 / 0.08);
+  --hair2: rgb(255 255 255 / 0.12);
+  --fill: rgb(255 255 255 / 0.05);
+  --fill2: rgb(255 255 255 / 0.08);
+  --ink: #ededee;
+  --red: #ff6b57;
+  --amber: #f0b24a;
+  --green: #5cc98a;
+  --blue: #7c9cf5;
+  --teal: #5cc2b3;
+  --violet: #b79bff;
+  --shadow: 0 0 0 0.5px rgb(255 255 255 / 0.08), 0 8px 24px -8px rgb(0 0 0 / 0.6);
+  --float: 0 0 0 0.5px rgb(255 255 255 / 0.1), 0 12px 32px -8px rgb(0 0 0 / 0.7);
+  /* A field on a card: the card's own surface and drop shadow would hide it, so it is a step lighter with an outline button's edge. */
+  --field: color-mix(in srgb, var(--white) 4%, var(--raised));
+  --field-edge: 0 0 0 1px var(--hair2);
+  --scrim: rgb(0 0 0 / 0.5);
+  --bg-subtle: color-mix(in srgb, var(--white) 3%, var(--panel));
+  --border-strong: rgb(255 255 255 / 0.2);
+  --on-primary: #111112;
+  --on-button: #111112;
+  --switch-off: rgb(255 255 255 / 0.4);
+  color-scheme: dark;
 }
 
 /* Where the coss ui controls grow for touch (Tailwind's sm), the rest grow with them. */
