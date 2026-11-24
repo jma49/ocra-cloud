@@ -94,6 +94,15 @@ describe("the self-hosted server", () => {
     );
   });
 
+  it("refuses to start with an INSTANCE_ADMINS entry it cannot read", () => {
+    expect(bindingsFrom({ ...VARS, INSTANCE_ADMINS: "github:42,oidc:ops" }).INSTANCE_ADMINS).toBe(
+      "github:42,oidc:ops",
+    );
+    expect(() => bindingsFrom({ ...VARS, INSTANCE_ADMINS: "user:octocat" })).toThrow(
+      'INSTANCE_ADMINS: "user:octocat" is not github:<numeric user id> or oidc:<subject>',
+    );
+  });
+
   it("refuses to start with a GITHUB_URL that is not a server's address", () => {
     for (const url of ["ftp://github.example.com", "https://u:p@github.example.com"]) {
       expect(() => bindingsFrom({ ...VARS, GITHUB_URL: url })).toThrow(

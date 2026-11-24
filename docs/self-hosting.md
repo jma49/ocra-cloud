@@ -62,6 +62,7 @@ Without Docker: `npm ci && npm run build:web && npm run build:node`, then `node 
 | `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` | one way to sign in | An OpenID Connect provider: the company's SSO (Keycloak, Azure AD, Okta) or a self-hosted GitLab, which is one. A confidential client with the scopes `openid profile email` and the redirect URI `<PUBLIC_URL>/api/auth/oidc/callback`; the issuer is the URL its discovery document names, such as `https://gitlab.example.com`. With the same client and address as `GITLAB_CLIENT_ID` and `GITLAB_URL`, the sign-in also asks for `api` and connects GitLab (gitlab.md) |
 | `OIDC_NAME` | no | the provider's name on the sign-in button, "SSO" when unset |
 | `SIGN_IN_ALLOW` | no; the server warns at start when a `MODEL_ENDPOINTS` entry has a `key` and it is unset | who may sign in, as a comma list of `org:`, `user:`, `domain:` and `group:` entries (Who may sign in below); anyone the sign-in providers vouch for when unset |
+| `INSTANCE_ADMINS` | no | who may read the deployment's state (`GET /api/admin/instance`, Instance status below), as a comma list of `github:<numeric user id>` and `oidc:<subject>` entries; nobody when unset |
 | `MASTER_KEY` | yes | base64 of 32 random bytes (`openssl rand -base64 32`); wraps every stored key. Losing it loses them |
 | `MASTER_KEY_PREVIOUS` | during a rotation | the key `MASTER_KEY` replaces: rows sealed under it still open until they are re-wrapped (Rotating the master key below) |
 | `SESSION_SECRET` | yes | signs the sign-in state cookie |
@@ -305,6 +306,12 @@ groups:
         expr: resets(ocra_process_uptime_seconds[30m]) > 2
         annotations: { summary: "The server keeps restarting" }
 ```
+
+### Instance status
+
+`GET /api/admin/instance` answers the deployment's state, read only, to the operators `INSTANCE_ADMINS` names, from a web session; anyone else, and everyone while it is unset, gets `404 not_found`, as for a route that does not exist. An entry names the identity an account signs in with, which never changes: `github:<id>` is the GitHub user's numeric id (`gh api users/<login> --jq .id`, or `<GITHUB_URL>/api/v3/users/<login>` on GitHub Enterprise Server), and `oidc:<subject>` the provider's `sub` claim. A login is not accepted: GitHub lets one be renamed and taken by someone else, and a provider's username is whatever it sends. At most 50 entries; the server refuses to start with one it cannot read.
+
+The answer holds counts and health only, never an account's, repository's or login's name, id or content (`InstanceStatus` in `src/shared/instance-admin.ts`): `engine` (the `cli` and `contract` versions this build pins), `schema` (`newest`, the newest migration this build expects, and `expected`, `applied`, `missing` and `unknown` counts of the database's, null when it records none), `accounts`, `enrolledRepos`, `jobs` by queue (`review`, `reply`, `generate`, `learn`, `restack`, `fix`, `mend`, `graph`: `queued`, `running`, `failedLast24h`, `oldestQueuedSeconds`), `runners` (`lastSeenAt`, when a remote runner last asked for work this week, and `stale` past 5 minutes) and `deliveries` (`notify`: outgoing notifications `pending`, `due` and `failed`; `inbound`: platform webhooks whose steps are `pending` or `failed`), with `checkedAt`. Each read counts rows across the whole database, so poll `/metrics` instead.
 
 ## Code graphs
 

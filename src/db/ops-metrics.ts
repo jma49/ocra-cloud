@@ -1,5 +1,6 @@
 import { inArray, type SQL, sql } from "drizzle-orm";
 import type { SQLiteColumn, SQLiteTable } from "drizzle-orm/sqlite-core";
+import type { InstanceQueue } from "../shared/index.js";
 import type { Db } from "./client.js";
 import { countWhere } from "./dialect.js";
 import {
@@ -61,7 +62,7 @@ type QueueTable = SQLiteTable & {
 };
 
 /** The job tables a worker or runner takes from, each with queued, running and failed states. */
-const QUEUES: Record<string, QueueTable> = {
+export const QUEUES = {
   review: reviewJobs,
   reply: replyJobs,
   generate: generateJobs,
@@ -70,42 +71,57 @@ const QUEUES: Record<string, QueueTable> = {
   fix: fixJobs,
   mend: mendJobs,
   graph: graphBuilds,
-};
+} satisfies Record<InstanceQueue, QueueTable>;
 
 type DeliveryTable = SQLiteTable & { state: SQLiteColumn; retryAt: SQLiteColumn };
 
 /** The outgoing delivery tables, each with pending and failed states and a retry time. */
-const DELIVERIES: Record<string, DeliveryTable> = { notify: notifyDeliveries };
+export const DELIVERIES = { notify: notifyDeliveries } satisfies Record<string, DeliveryTable>;
 
 const is = (column: SQLiteColumn, value: string): SQL => sql`${column} = ${value}`;
 
-async function queue(db: Db, name: string, t: QueueTable, now: Date): Promise<Sample[]> {
+/** A queue's jobs queued and running, failed for good since `failedSince`, and its oldest queued job's time. */
+export async function queueCounts(db: Db, t: QueueTable, failedSince: number) {
   const [row] = await db
     .select({
       queued: countWhere(is(t.state, "queued")).mapWith(Number),
       running: countWhere(is(t.state, "running")).mapWith(Number),
       failed: countWhere(
-        sql`${is(t.state, "failed")} AND ${t.finishedAt} >= ${now.getTime() - HOUR_MS}`,
+        sql`${is(t.state, "failed")} AND ${t.finishedAt} >= ${failedSince}`,
       ).mapWith(Number),
       oldest: sql<number | null>`min(CASE WHEN ${is(t.state, "queued")} THEN ${t.createdAt} END)`,
     })
     .from(t)
     .where(inArray(t.state, ["queued", "running", "failed"]));
-  const oldest = row?.oldest == null ? undefined : Number(row.oldest);
+  return {
+    queued: row?.queued ?? 0,
+    running: row?.running ?? 0,
+    failed: row?.failed ?? 0,
+    oldestQueuedAt: row?.oldest == null ? undefined : Number(row.oldest),
+  };
+}
+
+/** Seconds since `at`, 0 when nothing waits. */
+export const waitedSeconds = (at: number | undefined, now: Date) =>
+  at === undefined ? 0 : Math.max(0, (now.getTime() - at) / 1000);
+
+async function queue(db: Db, name: string, t: QueueTable, now: Date): Promise<Sample[]> {
+  const row = await queueCounts(db, t, now.getTime() - HOUR_MS);
   const labels = { queue: name };
   return [
-    { metric: "ocra_jobs", labels: { ...labels, state: "queued" }, value: row?.queued ?? 0 },
-    { metric: "ocra_jobs", labels: { ...labels, state: "running" }, value: row?.running ?? 0 },
-    { metric: "ocra_jobs_failed_last_hour", labels, value: row?.failed ?? 0 },
+    { metric: "ocra_jobs", labels: { ...labels, state: "queued" }, value: row.queued },
+    { metric: "ocra_jobs", labels: { ...labels, state: "running" }, value: row.running },
+    { metric: "ocra_jobs_failed_last_hour", labels, value: row.failed },
     {
       metric: "ocra_jobs_oldest_queued_seconds",
       labels,
-      value: oldest === undefined ? 0 : Math.max(0, (now.getTime() - oldest) / 1000),
+      value: waitedSeconds(row.oldestQueuedAt, now),
     },
   ];
 }
 
-async function deliveries(db: Db, kind: string, t: DeliveryTable, now: Date): Promise<Sample[]> {
+/** A delivery table's rows by state, and the pending ones whose next attempt is due. */
+export async function deliveryCounts(db: Db, t: DeliveryTable, now: Date) {
   const [row] = await db
     .select({
       pending: countWhere(is(t.state, "pending")).mapWith(Number),
@@ -116,19 +132,26 @@ async function deliveries(db: Db, kind: string, t: DeliveryTable, now: Date): Pr
       ),
     })
     .from(t);
+  return {
+    pending: row?.pending ?? 0,
+    delivered: row?.delivered ?? 0,
+    failed: row?.failed ?? 0,
+    due: row?.due ?? 0,
+  };
+}
+
+async function deliveries(db: Db, kind: string, t: DeliveryTable, now: Date): Promise<Sample[]> {
+  const row = await deliveryCounts(db, t, now);
   return [
-    { metric: "ocra_deliveries", labels: { kind, state: "pending" }, value: row?.pending ?? 0 },
-    {
-      metric: "ocra_deliveries",
-      labels: { kind, state: "delivered" },
-      value: row?.delivered ?? 0,
-    },
-    { metric: "ocra_deliveries", labels: { kind, state: "failed" }, value: row?.failed ?? 0 },
-    { metric: "ocra_delivery_retries_due", labels: { kind }, value: row?.due ?? 0 },
+    { metric: "ocra_deliveries", labels: { kind, state: "pending" }, value: row.pending },
+    { metric: "ocra_deliveries", labels: { kind, state: "delivered" }, value: row.delivered },
+    { metric: "ocra_deliveries", labels: { kind, state: "failed" }, value: row.failed },
+    { metric: "ocra_delivery_retries_due", labels: { kind }, value: row.due },
   ];
 }
 
-async function inbound(db: Db): Promise<Sample[]> {
+/** Platform webhook deliveries recorded for the steps after their answer, by state. */
+export async function inboundCounts(db: Db) {
   const t = inboundEvents;
   const [row] = await db
     .select({
@@ -137,10 +160,15 @@ async function inbound(db: Db): Promise<Sample[]> {
       failed: countWhere(is(t.state, "failed")).mapWith(Number),
     })
     .from(t);
+  return { pending: row?.pending ?? 0, done: row?.done ?? 0, failed: row?.failed ?? 0 };
+}
+
+async function inbound(db: Db): Promise<Sample[]> {
+  const row = await inboundCounts(db);
   return (["pending", "done", "failed"] as const).map((state) => ({
     metric: "ocra_inbound_events",
     labels: { state },
-    value: row?.[state] ?? 0,
+    value: row[state],
   }));
 }
 
@@ -164,8 +192,9 @@ const each = <T>(tables: Record<string, T>, read: (name: string, t: T) => Promis
 
 /** The collectors, by the name their `ocra_metrics_collector_up` series carries. */
 export const COLLECTORS: Record<string, Collector> = {
-  jobs: (db, now) => each(QUEUES, (name, t) => queue(db, name, t, now)),
-  deliveries: (db, now) => each(DELIVERIES, (kind, t) => deliveries(db, kind, t, now)),
+  jobs: (db, now) => each<QueueTable>(QUEUES, (name, t) => queue(db, name, t, now)),
+  deliveries: (db, now) =>
+    each<DeliveryTable>(DELIVERIES, (kind, t) => deliveries(db, kind, t, now)),
   inbound_events: (db) => inbound(db),
   merge_intents: (db) => intents(db),
 };
