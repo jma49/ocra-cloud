@@ -90,8 +90,10 @@ describe("totals past 10,000 rows", () => {
     const n = 1_200;
     await many(
       n,
-      `INSERT INTO reviews (id, account_id, run_id, repo_hash, source, verdict, findings, critical, by_reviewer, created_at)
-       SELECT 'r' || i, ?1, 'run' || i, 'repo' || (i % 7), 'local',
+      // Two of the seven hashes are one pull request's repository.
+      `INSERT INTO reviews (id, account_id, run_id, repo_hash, pr_repository, source, verdict, findings, critical, by_reviewer, created_at)
+       SELECT 'r' || i, ?1, 'run' || i, 'repo' || (i % 7),
+         CASE i % 7 WHEN 0 THEN 'https://github.com/Octo/api' WHEN 1 THEN 'https://github.com/octo/api' END, 'local',
          CASE i % 4 WHEN 0 THEN 'significant_concerns' ELSE 'approved' END, 3, 1,
          '{"security":{"tasks":2,"failedTasks":0,"findings":{"critical":1,"warning":0,"suggestion":0},"costUsd":0,"fixed":1,"dismissed":1}}',
          CAST(?2 AS bigint) - i FROM seq`,
@@ -107,7 +109,7 @@ describe("totals past 10,000 rows", () => {
     expect(body.days).toBe(90);
     expect(body.summary).toMatchObject({
       reviews: n,
-      repositories: 7,
+      repositories: 6,
       findings: 3 * n,
       critical: n,
       blocking: n / 4,

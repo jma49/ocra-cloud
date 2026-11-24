@@ -599,7 +599,8 @@ export function scoped(db: Db, accountId: string) {
         db
           .select({
             reviews: sql<number>`count(*)`,
-            repositories: sql<number>`count(distinct ${r.repoHash})`,
+            // A pull request's repository is one repository whatever hashes its reviews sent.
+            repositories: sql<number>`count(distinct coalesce(lower(${r.prRepository}), ${r.repoHash}))`,
             findings: total(r.findings),
             critical: total(r.critical),
             // significant_concerns is the verdict that blocks a merge.
