@@ -135,4 +135,50 @@ describe("the findings list", () => {
       expect(fetch.mock.calls.map(([u]) => u)).toContain("/api/findings?status=open&rule=none"),
     );
   });
+
+  it("offers to clear filters that hide an account's findings, not to set up reviews", async () => {
+    const fetch = vi.fn(async (_url: string) =>
+      Response.json({
+        findings: [],
+        next: null,
+        statuses: { open: 0, fixed: 2, dismissed: 0, addressed: 0, merged: 0 },
+      }),
+    );
+    vi.stubGlobal("fetch", fetch);
+    render(
+      <ToastProvider>
+        <Findings runner />
+      </ToastProvider>,
+    );
+    expect(await screen.findByText("No open findings")).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Set up auto review" })).toBeNull();
+
+    fireEvent.change(screen.getByLabelText("Severity"), { target: { value: "critical" } });
+    expect(await screen.findByText("No finding matches these filters")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    await vi.waitFor(() => expect(fetch.mock.calls.at(-1)?.[0]).toBe("/api/findings?status=open"));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Show all findings" }));
+    await vi.waitFor(() => expect(fetch.mock.calls.at(-1)?.[0]).toBe("/api/findings"));
+  });
+
+  it("guides an account with no findings at all to set up reviews", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          findings: [],
+          next: null,
+          statuses: { open: 0, fixed: 0, dismissed: 0, addressed: 0, merged: 0 },
+        }),
+      ),
+    );
+    render(
+      <ToastProvider>
+        <Findings runner />
+      </ToastProvider>,
+    );
+    expect(await screen.findByRole("link", { name: "Set up auto review" })).toBeTruthy();
+    expect(screen.queryByText("Clear filters")).toBeNull();
+  });
 });
