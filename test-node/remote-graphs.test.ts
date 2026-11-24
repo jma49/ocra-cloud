@@ -296,6 +296,31 @@ describe("a hosted review of a repository whose graph is kept", () => {
     ]);
   });
 
+  it("reads a pull request's impact from the graph of its base, not of the branch's head", async () => {
+    const base = await repo.commit({ "src/price.ts": PRICE, "src/cart.ts": CART });
+    const head = await repo.commit({ "src/later.ts": "export const later = 1;\n" });
+    repoFake({}, head, {
+      7: {
+        base,
+        head: C2,
+        files: [{ path: "src/price.ts", status: "modified", patch: "@@ -2,1 +2,1 @@\n-x\n+y" }],
+      },
+    });
+    const jobs = data().autoReview;
+    const reviewed = await jobs.enroll(
+      { platform: "github", host: "github.com", platformRepoId: "11", fullName: "Octo/API" },
+      100,
+    );
+    await jobs.queue(reviewed ?? "", 7, C2, new Date());
+
+    await runOnce();
+
+    const [kept] = await data().find("graphRepos", {});
+    const view = await impactOf(kept?.id ?? "");
+    expect(view.graph).toMatchObject({ commit: base, current: true, files: 2 });
+    expect(view.symbols).toMatchObject([{ name: "price", useCount: 2 }]);
+  });
+
   it("says the impact waits for a review until one ran", async () => {
     const repoId = await keep(await repo.commit({ "src/price.ts": PRICE }));
     expect(await impactOf(repoId)).toEqual({
