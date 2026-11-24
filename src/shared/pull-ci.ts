@@ -1,4 +1,5 @@
 import type { CodePlatformKind } from "./domain.js";
+import type { MendCheckView } from "./mend.js";
 
 // A pull request's CI on its head, read live from the platform as the user:
 // GitHub's check runs and commit statuses, or the jobs of GitLab's newest
@@ -32,6 +33,12 @@ export type PullCiJob = {
   hasLog: boolean;
   /** Whether `/ci/rerun` can run it again: an Actions job or a GitLab job that ended. */
   rerunnable: boolean;
+  /**
+   * What the fix loop's last round did with this failed check (`GET
+   * /api/auto-review/mends`, `checks`), matched by name, while that round
+   * read this head; null otherwise.
+   */
+  mend: MendCheckView | null;
 };
 
 export type PullCiView = {

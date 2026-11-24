@@ -1,7 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import * as schema from "../src/db/schema.js";
+import { scoped } from "../src/db/scoped.js";
 import type { PullCiLogView, PullCiRerunAnswer, PullCiView } from "../src/shared/index.js";
-import { resetDb } from "./helpers.js";
+import { db, resetDb } from "./helpers.js";
 import { connectGitlab, GITLAB, githubFake, signInWithGithub } from "./platform-fakes.js";
+import { rows } from "./table-rows.js";
 
 // A pull request's CI panel, read and run again live as the user.
 
@@ -106,6 +109,45 @@ describe("a GitHub pull request's CI", () => {
     const test = view.jobs.find((j) => j.name === "test");
     expect(test).toMatchObject({ id: "2", failedStep: "Run npm test", durationSeconds: 125 });
     expect(view.jobs.find((j) => j.source === "status")).toMatchObject({ id: null, hasLog: false });
+  });
+
+  it("names what the fix loop's last round on this head did with a failed check", async () => {
+    platform({
+      ...pull,
+      [`GET ${REPO}/commits/${HEAD}/check-runs`]: () =>
+        Response.json({
+          total_count: 2,
+          check_runs: [
+            checkRun(2, "test", { conclusion: "failure" }),
+            checkRun(5, "lint", { conclusion: "failure" }),
+          ],
+        }),
+      [`GET ${REPO}/commits/${HEAD}/status`]: () => Response.json({ statuses: [] }),
+      [`GET ${REPO}/actions/jobs/2`]: () => Response.json({ steps: [] }),
+      [`GET ${REPO}/actions/jobs/5`]: () => Response.json({ steps: [] }),
+    });
+    const a = await signInWithGithub();
+    const [account] = await db.select().from(schema.accounts);
+    const data = scoped(db, account?.id ?? "");
+    await data.insert("reviewRepos", { ...rows.reviewRepos("r"), fullName: "octo/api" });
+    await data.insert("mendJobs", {
+      id: "m",
+      reviewRepoId: "r",
+      number: 7,
+      checksHead: "c".repeat(40),
+      checkItems: [{ check: "test", outcome: "needs_human", reason: null, cause: null }],
+    });
+    const read = async () =>
+      (await (
+        await a.send("/api/pulls/ci?platform=github&repo=octo/api&number=7")
+      ).json()) as PullCiView;
+    expect((await read()).jobs.map((j) => j.mend)).toEqual([null, null]);
+    await data.update("mendJobs", "m", { checksHead: HEAD });
+    const view = await read();
+    expect(view.jobs.map((j) => [j.name, j.mend?.outcome ?? null])).toEqual([
+      ["lint", null],
+      ["test", "needs_human"],
+    ]);
   });
 
   it("answers the end of an Actions job's log, cleaned and redacted, read past the redirect without the token", async () => {
