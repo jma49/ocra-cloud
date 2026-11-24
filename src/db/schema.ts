@@ -2173,6 +2173,32 @@ export const liveComments = sqliteTable(
 );
 
 /** The tables scoped by account, by the name scoped() uses. */
+// Each head an enrolled repository's pull request has had, from its
+// platform's webhooks (src/pull-versions/hooks.ts): one row per head, the
+// first push of it kept, for the pull request page's versions
+// (src/pull-versions.ts), which adds what the platform still lists.
+export const pullVersions = sqliteTable(
+  "pull_versions",
+  {
+    id: text("id").primaryKey(),
+    accountId: accountId(),
+    reviewRepoId: text("review_repo_id")
+      .notNull()
+      .references(() => reviewRepos.id, { onDelete: "cascade" }),
+    number: integer("number").notNull(),
+    head: text("head").notNull(),
+    pushedAt: integer("pushed_at", { mode: "timestamp_ms" }).notNull(),
+    /** Pushed by opening the pull request: no version came before it. */
+    opened: integer("opened", { mode: "boolean" }).notNull().default(false),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("pull_versions_head").on(t.reviewRepoId, t.number, t.head),
+    index("pull_versions_pull").on(t.reviewRepoId, t.number, t.pushedAt),
+    index("pull_versions_account_pushed").on(t.accountId, t.pushedAt),
+  ],
+);
+
 export const accountTables = {
   sessions,
   apiTokens,
@@ -2212,6 +2238,7 @@ export const accountTables = {
   reviewThreads,
   findingThreads,
   pullPaths,
+  pullVersions,
   reviewRequests,
   reviewTeams,
   reviewTargets,

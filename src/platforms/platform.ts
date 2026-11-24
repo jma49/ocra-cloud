@@ -23,6 +23,7 @@ import type { PullRoster } from "./roster.js";
 import type { PullSince } from "./since.js";
 import type { PullStacks } from "./stacks.js";
 import type { PullThreads } from "./threads.js";
+import type { PullVersions } from "./versions.js";
 import type { PullFileViewed } from "./viewed.js";
 
 // What the product layer needs from a code platform, whatever it is: GitHub,
@@ -90,6 +91,7 @@ export interface CodePlatform {
   readonly contents: RepoContents;
   readonly changes: PullDiffs;
   readonly since: PullSince;
+  readonly versions: PullVersions;
   readonly actions: PullActions;
   /** Read as the bot: who may give ocra a command on the repository. */
   readonly access: RepoAccess;

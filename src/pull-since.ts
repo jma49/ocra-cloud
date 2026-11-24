@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { apiError } from "./http.js";
+import type { PatchedFile } from "./platforms/changes.js";
 import type { SinceDiff } from "./platforms/since.js";
 import { byKind, pullRef, reach, sha } from "./pull-page.js";
 import { perMinute } from "./rate.js";
@@ -20,10 +21,21 @@ import type { AppEnv } from "./types.js";
 export const pullSince = new Hono<AppEnv>();
 
 /** A sha as a link or a hand writes it: any case, spaces around. */
-const shaOf = z.string().max(80).trim().toLowerCase().pipe(sha);
+export const shaOf = z.string().max(80).trim().toLowerCase().pipe(sha);
 const sinceQuery = z.object({ ...pullRef, since: shaOf.optional() });
 
 const isSha = (s: string | null | undefined): s is string => sha.safeParse(s).success;
+
+/** A compared file in the page's shape; whether it is viewed, the full page's files say. */
+export const fileView = (f: PatchedFile): PullFileView => ({
+  path: f.path,
+  oldPath: f.oldPath,
+  status: f.status,
+  additions: f.additions,
+  deletions: f.deletions,
+  patch: f.patch,
+  viewed: null,
+});
 
 const stateOf = (diff: SinceDiff | null): PullSinceState => diff?.state ?? "unavailable";
 
@@ -63,17 +75,7 @@ pullSince.get("/since", requireSession(["web"]), perMinute("platform"), async (c
     since,
     state,
     options,
-    files: (changed?.files ?? []).map(
-      (f): PullFileView => ({
-        path: f.path,
-        oldPath: f.oldPath,
-        status: f.status,
-        additions: f.additions,
-        deletions: f.deletions,
-        patch: f.patch,
-        viewed: null,
-      }),
-    ),
+    files: (changed?.files ?? []).map(fileView),
     truncated: changed?.truncated ?? false,
   } satisfies PullSinceView);
 });
