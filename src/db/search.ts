@@ -50,7 +50,7 @@ export function accountSearch(db: Db, accountId: string) {
     /** Shared findings by title or file path, open ones first, newest first. */
     findings(text: string, limit: number) {
       const f = findings;
-      // "open" > "fixed" > "dismissed": the index read backwards.
+      // "open" sorts above every other status (FINDING_STATUSES): the index read backwards.
       return db
         .select({
           id: f.id,

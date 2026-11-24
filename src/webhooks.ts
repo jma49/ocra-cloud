@@ -99,7 +99,7 @@ export function githubWebhook(host: WebhookHost) {
         const site = { kind: "github" as const, host: github, url: githubUrl };
         await githubLifecycle(c.var.db, site, event, body, new Date());
         // A close is kept wherever the repository is enrolled, reviews or not.
-        if (event === "pull_request") await recordGithubClose(c.var.db, github, body);
+        if (event === "pull_request") await recordGithubClose(c.var.db, github, githubUrl, body);
         received.reviewed(await recordGithubFlow(c.var.db, github, event, body));
         await recordGithubRequest(c.var.db, github, event, body);
         await recordGithubFindingThread(c.var.db, github, githubUrl, event, body);

@@ -63,10 +63,16 @@ export function accountFindingThreads(db: Db, accountId: string) {
         .onConflictDoNothing({ target: [t.reviewRepoId, t.threadKey] });
     },
 
-    /** The thread on record: who started it and what it says now. */
+    /** The thread on record: who started it, of which finding, and what it says now. */
     async find(on: OnThread) {
       const [row] = await db
-        .select({ starterId: t.starterId, state: t.state })
+        .select({
+          starterId: t.starterId,
+          state: t.state,
+          repository: t.repository,
+          number: t.number,
+          fingerprint: t.fingerprint,
+        })
         .from(t)
         .where(thread(on))
         .limit(1);
