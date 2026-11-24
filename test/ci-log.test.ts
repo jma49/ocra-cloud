@@ -57,4 +57,10 @@ describe("checkLogTail", () => {
       "section_start:1:step_script\r\u001b[0KExecuting\n$ npm test\nFAIL\nsection_end:2:step_script\r\u001b[0Ksection_start:3:after_script\r\u001b[0Kafter\n";
     expect(checkLogTail(log)).toBe("Executing\n$ npm test\nFAIL");
   });
+
+  it("keeps the lines through the last error when no step opens before it", () => {
+    expect(checkLogTail("setting up\n##[error]no runner\ncleaning up")).toBe(
+      "setting up\n##[error]no runner",
+    );
+  });
 });
