@@ -56,7 +56,12 @@ function laidOver(t: ReviewThreadView, steps: Step[]): ReviewThreadView {
   return { ...t, resolved, comments: [...t.comments, ...sending] };
 }
 
-export function ThreadsPanel(props: { pull: Pull; onDone: (o: PullActionOutcome) => void }) {
+export function ThreadsPanel(props: {
+  pull: Pull;
+  onDone: (o: PullActionOutcome) => void;
+  /** A thread was resolved, reopened or answered: what merge readiness counts may have moved. */
+  onMoved?: () => void;
+}) {
   const query = new URLSearchParams({ ...props.pull, number: String(props.pull.number) });
   const { data, error, reload } = useRead<PullThreadsView>(`/pulls/threads?${query}`);
   const toast = useToast();
@@ -96,6 +101,7 @@ export function ThreadsPanel(props: { pull: Pull; onDone: (o: PullActionOutcome)
     }
     setSteps((all) => all.map((s) => (s === step ? { ...s, seen: shown.current } : s)));
     reload();
+    props.onMoved?.();
     return true;
   };
 

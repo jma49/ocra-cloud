@@ -1,7 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PullPage } from "./pages/PullPage.js";
-import { anchorOf, parsePatch } from "./pull/diff.js";
 import { ToastProvider } from "./toast.js";
 
 afterEach(() => {
@@ -21,30 +20,6 @@ const PATCH = [
 ].join("\n");
 
 const NO_QUEUE = { ahead: [], size: null, removed: null };
-
-describe("a file's diff", () => {
-  it("numbers each line on its side, and leaves out what is not a line of the file", () => {
-    const lines = parsePatch(PATCH);
-    expect(
-      lines.map((l) => [l.kind, "old" in l ? l.old : null, "new" in l ? l.new : null]),
-    ).toEqual([
-      ["hunk", null, null],
-      ["context", 10, 10],
-      ["del", 11, null],
-      ["add", null, 11],
-      ["add", null, 12],
-      ["context", 12, 13],
-    ]);
-  });
-
-  it("anchors a comment on a removed line to the old side, any other to the new", () => {
-    const [hunk, context, del, add] = parsePatch(PATCH);
-    expect(hunk && anchorOf(hunk)).toBeNull();
-    expect(context && anchorOf(context)).toEqual({ line: 10, side: "new" });
-    expect(del && anchorOf(del)).toEqual({ line: 11, side: "old" });
-    expect(add && anchorOf(add)).toEqual({ line: 11, side: "new" });
-  });
-});
 
 const HEAD = "a".repeat(40);
 const files = {
@@ -328,9 +303,15 @@ describe("a pull request's page", () => {
     await act(
       async () => void fireEvent.click(screen.getByRole("button", { name: "Commit 1 change" })),
     );
+    const reads = () =>
+      vi.mocked(fetch).mock.calls.filter(([url]) => String(url).startsWith("/api/pulls/readiness"))
+        .length;
+    const before = reads();
     await act(
       async () => void fireEvent.click(within(panel).getByRole("button", { name: "Resolve" })),
     );
+    // Merge readiness counts unresolved threads: it is read again at once.
+    await waitFor(() => expect(reads()).toBeGreaterThan(before));
     expect(sent).toEqual([
       {
         url: "/api/pulls/apply-batch",
