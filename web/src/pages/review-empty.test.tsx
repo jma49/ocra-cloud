@@ -33,7 +33,11 @@ describe("a console with no reviews yet", () => {
   });
 
   it("says where findings come from, by what the server can do", async () => {
-    answers({ findings: [], counts: {}, repositories: [] });
+    answers({
+      findings: [],
+      next: null,
+      statuses: { open: 0, fixed: 0, dismissed: 0, addressed: 0, merged: 0 },
+    });
     const page = render(<Findings runner />);
     expect(await screen.findByRole("link", { name: "Set up auto review" })).toBeTruthy();
     page.unmount();

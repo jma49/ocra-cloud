@@ -1,4 +1,3 @@
-import Flag from "lucide-react/icons/flag";
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type {
@@ -15,13 +14,14 @@ import { DISMISS_REASONS, reasonLabel } from "../dismiss-reasons.js";
 import { FindingReactions } from "../finding-reactions.js";
 import { RuleFilter, ruleName } from "../finding-rule-filter.js";
 import { FINDING_STATUS_NAME, FindingStanding } from "../finding-status.js";
+import { FindingsEmpty } from "../findings-empty.js";
 import { ago } from "../format.js";
 import { useListCursor } from "../list-cursor.js";
 import { usePageCommands } from "../page-commands.js";
 import { Link } from "../router.js";
 import { StackTable } from "../stack-table.js";
 import { useToast } from "../toast.js";
-import { EmptyState, LoadError, Loading, PageHead, Seg, useAction } from "../ui.js";
+import { LoadError, Loading, PageHead, Seg, useAction } from "../ui.js";
 import { findingsCommands } from "./findings-commands.js";
 
 // Every shared finding of the account, across its reviews: filter them,
@@ -378,25 +378,12 @@ export function Findings(props: {
         ) : !data ? (
           <Loading what="findings" />
         ) : rows.length === 0 ? (
-          <EmptyState
-            icon={Flag}
-            title="No findings here"
-            action={
-              props.runner ? (
-                <Button variant="outline" render={<Link to="/auto-review" />}>
-                  Set up auto review
-                </Button>
-              ) : (
-                <Button variant="outline" render={<Link to="/settings" />}>
-                  Open settings
-                </Button>
-              )
-            }
-          >
-            {props.runner
-              ? "Findings come from ocra's reviews of pull requests in repositories with auto review on, and from CLI reviews once you turn on sharing in Settings."
-              : "Findings appear once you turn on sharing in Settings and a signed-in review uploads them."}
-          </EmptyState>
+          <FindingsEmpty
+            runner={props.runner}
+            statuses={data.statuses}
+            filters={filters}
+            set={set}
+          />
         ) : (
           <StackTable>
             <table className="findings-table">
