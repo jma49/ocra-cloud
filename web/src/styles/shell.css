@@ -133,7 +133,7 @@
   .rail:hover {
     transition-delay: var(--d-fast);
   }
-  .rail:is(:hover, :focus-within) {
+  .rail:is(:hover, :has(:focus-visible)) {
     width: 208px;
     box-shadow: var(--float);
   }
@@ -180,7 +180,7 @@
 .rail-key {
   margin-left: auto;
 }
-.rail:is(:hover, :focus-within) :is(.rail-label, .rail-key) {
+.rail:is(:hover, :has(:focus-visible)) :is(.rail-label, .rail-key) {
   opacity: 1;
 }
 .rail .avatar-btn.compact {
@@ -439,7 +439,7 @@
     height: auto;
   }
   .rail,
-  .rail:is(:hover, :focus-within) {
+  .rail:is(:hover, :has(:focus-visible)) {
     position: static;
     width: 100%;
     flex-direction: row;

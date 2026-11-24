@@ -106,6 +106,22 @@ describe("rail", () => {
     expect(insights.querySelector(".rail-label")?.textContent).toBe("Insights");
     expect(insights.querySelector(".rail-key")?.textContent).toBe("gn");
   });
+
+  it("lets go of a link clicked with the pointer, so it closes when the pointer leaves", () => {
+    history.replaceState(null, "", "/");
+    render(
+      <Frame me={me} route={matchRoute("/")?.route} path="/">
+        <p>page</p>
+      </Frame>,
+    );
+    const insights = screen.getByRole("link", { name: "Insights" });
+    insights.focus();
+    fireEvent.click(insights, { detail: 1 });
+    expect(document.activeElement).not.toBe(insights);
+    insights.focus();
+    fireEvent.click(insights, { detail: 0 });
+    expect(document.activeElement).toBe(insights);
+  });
 });
 
 describe("page head", () => {
