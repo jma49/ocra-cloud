@@ -1,10 +1,15 @@
+import { reviewUploadSchema } from "@open-cr-agent/cloud-contract";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { recordGithubClose } from "../src/auto-review/closes.js";
 import { accounts, findings } from "../src/db/schema.js";
+import { scoped } from "../src/db/scoped.js";
+import { parseFindings } from "../src/findings.js";
+import { reviewRow } from "../src/reviews.js";
 import { bot, enrolled, FP, HUB, PR, thread } from "./finding-events-fakes.js";
+import { finding, upload } from "./finding-uploads.js";
 import { seed } from "./fix-fakes.js";
-import { call, db, resetDb } from "./helpers.js";
+import { call, db, resetDb, signIn } from "./helpers.js";
 
 // What happens on the platform moves ocra's finding out of the open state:
 // a person resolving its comment's thread (addressed, open again when they
@@ -101,6 +106,30 @@ describe("a merged pull request", () => {
     // A fix a later review sees still counts.
     expect(await fixedOnRereview(data)).toBe(1);
     expect((await data.get("findings", open.id))?.status).toBe("fixed");
+  });
+
+  it("moves only the enrolling account's findings, not another's review of the same pull request", async () => {
+    await enrolled();
+    const other = await signIn(43, "nat");
+    const data = scoped(db, other.account.id);
+    const { reviewersDropped: _, ...row } = reviewRow(
+      reviewUploadSchema.parse({
+        ...upload("run-nat", []),
+        pullRequest: { repository: PR, number: 7, headSha: "b".repeat(40) },
+      }),
+    );
+    const stored = await data.insertReview(
+      row,
+      parseFindings([finding({ fingerprint: FP })]).rows,
+      {
+        dailyUploads: 10,
+        maxFindings: 10,
+      },
+    );
+    if (stored.outcome !== "stored") throw new Error(stored.outcome);
+    await thread("resolved", "2026-11-02T12:00:00Z");
+    expect(await closed(true)).toBe(true);
+    expect((await data.findingsOf(stored.id)).map((f) => f.status)).toEqual(["open"]);
   });
 
   it("leaves a closed pull request's findings open: it may be reopened", async () => {
