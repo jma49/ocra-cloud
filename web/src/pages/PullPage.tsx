@@ -23,6 +23,8 @@ import { CiBox } from "../pull/ci-box.js";
 import { useClearance } from "../pull/clearance.js";
 import { MERGE_ID, pullCommands } from "../pull/commands.js";
 import { CompactBar } from "../pull/compact-bar.js";
+import { commentsByFile, conversationOf, jumpOf } from "../pull/conversation.js";
+import { ConversationColumn, useConversationOpen } from "../pull/conversation-column.js";
 import { DescriptionBox } from "../pull/description-box.js";
 import { DiffBar } from "../pull/diff-bar.js";
 import { useDiffLayout, useDiffWhitespace, useDiffWrap, useHeld } from "../pull/diff-layout.js";
@@ -30,6 +32,7 @@ import { DraftToggle } from "../pull/draft-toggle.js";
 import { EarlierFindings, useEarlierFindings } from "../pull/earlier-findings.js";
 import { FileDiff } from "../pull/file-diff.js";
 import { FileList } from "../pull/file-list.js";
+import { fileAtHead } from "../pull/file-menu.js";
 import { treeOrder } from "../pull/file-tree.js";
 import { usePullFindings } from "../pull/findings.js";
 import { GenerateBox } from "../pull/generate-box.js";
@@ -54,9 +57,9 @@ import { ReviewersPanel } from "../pull/reviewers.js";
 import { SearchBar } from "../pull/search-bar.js";
 import { StackPanel } from "../pull/stack.js";
 import { conflicts, nextStep, PullStatus } from "../pull/status.js";
-import { ThreadsPanel } from "../pull/threads.js";
+import { ThreadsPanel, usePullThreads } from "../pull/threads.js";
 import { UpdateBranch } from "../pull/update-branch.js";
-import { useDiffSearch } from "../pull/use-diff-search.js";
+import { type SearchFocus, useDiffSearch } from "../pull/use-diff-search.js";
 import { useVersions, versionFiles } from "../pull/versions.js";
 import { useViewed } from "../pull/viewed.js";
 import { rememberPull } from "../recent-pulls.js";
@@ -165,6 +168,10 @@ export function PullPage(props: {
   const layout = useDiffLayout();
   const wrap = useDiffWrap(layout.narrow);
   const otherLayout = layout.picked === "split" ? "unified" : "split";
+  const threads = usePullThreads(ref);
+  const convo = useConversationOpen();
+  // A conversation's line being shown, for the files as drawn when it was asked for.
+  const [jump, setJump] = useState<(SearchFocus & { drawn: string }) | null>(null);
   const search = useDiffSearch(
     versionFiles(versions) ?? sinceFiles(since) ?? data?.files ?? NO_FILES,
   );
@@ -175,6 +182,7 @@ export function PullPage(props: {
       code,
       review: () => setReviewing(true),
       toggleViewed: viewed.toggle,
+      toggleConversation: convo.toggle,
       switchLayout: layout.narrow
         ? undefined
         : { to: otherLayout, run: () => layout.pick(otherLayout) },
@@ -203,6 +211,18 @@ export function PullPage(props: {
   };
   const narrowed = versionFiles(versions) ?? sinceFiles(since);
   const shown = treeOrder(narrowed ?? data.files);
+  const items = conversationOf(threads.data?.threads ?? [], narrowed === null ? findings : []);
+  const onFile = commentsByFile(items);
+  const drawnAs = `${versions.range?.from ?? ""}:${versions.range?.to ?? since.picked ?? ""}:${drawn?.filter}`;
+  const goTo = (item: (typeof items)[number]) => {
+    const to = jumpOf(shown, item, (jump?.step ?? 0) + 1);
+    if (to) setJump({ ...to, drawn: drawnAs });
+    else document.getElementById(`file-${item.path}`)?.scrollIntoView({ block: "start" });
+  };
+  const commentsOn = (path: string) => {
+    const on = onFile.get(path);
+    return on && { count: on.count, open: () => goTo(on.first) };
+  };
   const queues = queue.data?.enabled === true;
   const step = nextStep(
     readiness,
@@ -302,6 +322,7 @@ export function PullPage(props: {
           />
           <ThreadsPanel
             pull={ref}
+            read={threads}
             onDone={(o) => done("Review threads", o)}
             onMoved={() => setReadinessRev((n) => n + 1)}
           />
@@ -368,7 +389,7 @@ export function PullPage(props: {
           {props.runner && !settled && <GenerateBox pull={ref} head={data.head} />}
         </aside>
       </div>
-      <div className="pull-frame" ref={code}>
+      <div className={`pull-frame${convo.open ? " has-convo" : ""}`} ref={code}>
         <aside className="pull-side">
           <FileList files={shown} isViewed={(f) => viewed.isViewed(f.path)} />
         </aside>
@@ -381,12 +402,20 @@ export function PullPage(props: {
           <FixJobsOf query={query.toString()} onProposed={fixProposed}>
             {shown.map((f) => (
               <FileDiff
-                key={`${versions.range?.from ?? ""}:${versions.range?.to ?? since.picked ?? ""}:${drawn?.filter}:${f.path}`}
+                key={`${drawnAs}:${f.path}`}
                 hideWhitespace={drawn?.filter !== ""}
                 layout={layout.drawn}
                 wrap={wrap.drawn}
                 found={search.found.get(f.path)}
-                focus={search.focus?.path === f.path ? search.focus : null}
+                focus={
+                  search.focus?.path === f.path
+                    ? search.focus
+                    : jump?.path === f.path && jump.drawn === drawnAs
+                      ? jump
+                      : null
+                }
+                comments={commentsOn(f.path)}
+                atHead={f.status === "removed" ? null : fileAtHead(data.url, data.head, f.path)}
                 context={{ pull: ref, head: data.head }}
                 readOnly={narrowed !== null}
                 noPatch={
@@ -413,6 +442,7 @@ export function PullPage(props: {
             ))}
           </FixJobsOf>
         </div>
+        <ConversationColumn items={items} open={convo.open} onToggle={convo.toggle} onJump={goTo} />
       </div>
       <JumpToCode target={code} />
       <ReviewBox

@@ -2,7 +2,14 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PullThreadsView, ReviewThreadView } from "../../../src/shared/index.js";
 import { ToastProvider } from "../toast.js";
-import { ThreadsPanel } from "./threads.js";
+import { ThreadsPanel, usePullThreads } from "./threads.js";
+
+function Panel(props: {
+  pull: { platform: string; repo: string; number: number };
+  onDone: () => void;
+}) {
+  return <ThreadsPanel {...props} read={usePullThreads(props.pull)} />;
+}
 
 afterEach(() => {
   cleanup();
@@ -46,7 +53,7 @@ const show = async (platform: string, threads: ReviewThreadView[]) => {
     "fetch",
     vi.fn(async () => Response.json(view)),
   );
-  render(<ThreadsPanel pull={{ platform, repo: "octo/api", number: 7 }} onDone={() => {}} />);
+  render(<Panel pull={{ platform, repo: "octo/api", number: 7 }} onDone={() => {}} />);
   await screen.findByRole("region", { name: "Review threads" });
 };
 
@@ -69,7 +76,7 @@ const writes = async (threads: ReviewThreadView[]) => {
   );
   render(
     <ToastProvider>
-      <ThreadsPanel pull={{ platform: "github", repo: "octo/api", number: 7 }} onDone={() => {}} />
+      <Panel pull={{ platform: "github", repo: "octo/api", number: 7 }} onDone={() => {}} />
     </ToastProvider>,
   );
   await screen.findByRole("region", { name: "Review threads" });

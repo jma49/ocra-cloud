@@ -95,7 +95,7 @@ it("comments on a removed line from its old number and an added one from its new
 
 it("folds a lock file and names it, one click from its diff", () => {
   show("unified", undefined, "package-lock.json");
-  const head = screen.getByRole("button", { expanded: false });
+  const head = screen.getByRole("button", { expanded: false, name: /^package-lock/ });
   expect(head.textContent).toContain("Lock file");
   expect(document.querySelector("table")).toBeNull();
   fireEvent.click(head);

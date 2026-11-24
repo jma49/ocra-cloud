@@ -50,6 +50,8 @@ export function pullCommands(page: {
   review: () => void;
   /** Ticks or unticks a file as viewed, by its path. */
   toggleViewed: (path: string) => void;
+  /** Opens or folds the conversation column beside the diff. */
+  toggleConversation?: () => void;
   /** Draws the diffs the other way, unified or split; undefined where only one fits. */
   switchLayout?: { to: "unified" | "split"; run: () => void } | undefined;
   /** Leaves whitespace-only changes out of the diffs, or puts them back. */
@@ -97,6 +99,9 @@ export function pullCommands(page: {
         if (path !== undefined) page.toggleViewed(path);
       },
     },
+    ...(page.toggleConversation
+      ? [{ label: "Show or hide the conversation", key: "t", run: page.toggleConversation }]
+      : []),
     ...(page.switchLayout
       ? [
           {

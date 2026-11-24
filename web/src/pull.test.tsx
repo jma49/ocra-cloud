@@ -234,7 +234,9 @@ describe("a pull request's page", () => {
     expect(screen.getByText(/1 of 1 files viewed/)).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Comment on line 11" })).toBeNull();
     expect(screen.getByTitle("src/refund.ts (changed, viewed)")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { expanded: false, name: /refund\.ts/ }));
+    fireEvent.click(
+      screen.getByRole("button", { expanded: false, name: /^(?!Actions for).*refund\.ts/ }),
+    );
     expect(screen.getByRole("button", { name: "Comment on line 11" })).toBeTruthy();
   });
 
