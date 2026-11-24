@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { hookUrl, messageOf, reviewMessage, whensFor } from "../src/notify/channels.js";
+import { hookUrl, messageOf, plain, reviewMessage, whensFor } from "../src/notify/channels.js";
 import { upload } from "./finding-uploads.js";
 import { call, resetDb, signIn, signInCli } from "./helpers.js";
 
@@ -75,6 +75,12 @@ describe("a review's message", () => {
     expect(wecom.markdown.content).toContain("[octo/api#7](https://github.com/octo/api/pull/7)");
     expect(wecom.markdown.content).not.toContain("@all");
     expect(wecom.markdown.content.split("\n")).toHaveLength(4);
+  });
+
+  it("keeps a title's parentheses but no link's target", () => {
+    expect(plain("fix(web): keep (this) one")).toBe("fix(web): keep (this) one");
+    expect(plain("see [the docs](https://evil.test) now")).toBe("see the docs now");
+    expect(plain("![x](https://evil.test/a.png)")).toBe("! x");
   });
 
   it("goes to the channels set for its kind of review", () => {

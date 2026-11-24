@@ -26,6 +26,7 @@ import { DescriptionBox } from "../pull/description-box.js";
 import { DiffBar } from "../pull/diff-bar.js";
 import { useDiffLayout, useDiffWrap } from "../pull/diff-layout.js";
 import { DraftToggle } from "../pull/draft-toggle.js";
+import { EarlierFindings, useEarlierFindings } from "../pull/earlier-findings.js";
 import { FileDiff } from "../pull/file-diff.js";
 import { FileList } from "../pull/file-list.js";
 import { treeOrder } from "../pull/file-tree.js";
@@ -99,6 +100,7 @@ export function PullPage(props: {
     head ? `/pulls/fixes?${query}&head=${head}` : null,
   );
   const found = usePullFindings(head ? `/pulls/findings?${query}&head=${head}` : null);
+  const earlier = useEarlierFindings(head ? `/pulls/findings/earlier?${query}&head=${head}` : null);
   const readFindings = found.reload;
   const fixProposed = useCallback(() => {
     readFixes();
@@ -318,7 +320,11 @@ export function PullPage(props: {
               )
             )}
           </div>
-          <OcraReviewBox review={description.data?.review} open={findings.length}>
+          <OcraReviewBox
+            review={description.data?.review}
+            open={findings.length}
+            earlier={<EarlierFindings findings={earlier} />}
+          >
             {props.runner && !settled ? (
               <>
                 <ReviewNowBox pull={ref} head={data.head} onReviewed={reviewed} />

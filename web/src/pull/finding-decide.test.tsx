@@ -46,6 +46,7 @@ const finding = {
 };
 const READS: Record<string, unknown> = {
   "/api/pulls/files": files,
+  "/api/pulls/findings/earlier": { findings: [] },
   "/api/pulls/findings": { review: { id: "r1", head: HEAD }, findings: [finding] },
   "/api/pulls/readiness": {
     ready: null,

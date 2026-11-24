@@ -27,3 +27,14 @@ export type PullFindingsView = {
   review: { id: string; head: string } | null;
   findings: PullFindingView[];
 };
+
+/** An open finding of a review of an earlier head that no review of the head shown took a word on. */
+export type EarlierFindingView = PullFindingView & {
+  /** The head its review was of. */
+  head: string;
+  /** Whether the lines it is about changed since that head. */
+  outdated: boolean;
+};
+
+/** GET /api/pulls/findings/earlier?platform=&repo=&number=&head= */
+export type EarlierFindingsView = { findings: EarlierFindingView[] };
