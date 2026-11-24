@@ -73,3 +73,14 @@ it("remembers whether it was open in this browser", () => {
   act(() => again.result.current.pick(true));
   expect(renderHook(() => useConversationOpen()).result.current.open).toBe(true);
 });
+
+it("names ocra as the author of its findings and says when there are none", () => {
+  const ocra = { ...item("g", "open"), ocra: true, author: "ocra-bot", title: "Null check" };
+  const { unmount } = render(
+    <ConversationColumn items={[ocra]} open onToggle={() => {}} onJump={() => {}} />,
+  );
+  expect(document.querySelector(".convo-title")?.textContent).toBe("ocra Null check");
+  unmount();
+  render(<ConversationColumn items={[]} open onToggle={() => {}} onJump={() => {}} />);
+  expect(screen.getByText("No comments on this diff yet.")).toBeTruthy();
+});
