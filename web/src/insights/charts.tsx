@@ -6,6 +6,7 @@ import {
 } from "@dynatrace/strato-components/charts";
 import { AppRoot } from "@dynatrace/strato-components/core";
 import type { ReactNode } from "react";
+import { isDark, useThemeChoice } from "../theme.js";
 import { EmptyNote } from "../ui.js";
 import { type Daily, flat, type Point } from "./series.js";
 
@@ -37,9 +38,11 @@ export type ChartsProps = {
 
 export default function Charts(props: ChartsProps) {
   const { daily } = props;
+  useThemeChoice();
   const muted = tone("c5");
+  // Series colours are read from the tokens once: a theme switch draws the charts again.
   return (
-    <AppRoot>
+    <AppRoot key={isDark() ? "dark" : "light"}>
       <div className="charts">
         <Chart title="Findings by severity" sub="per day" wide>
           {flat(daily.critical) && flat(daily.warning) && flat(daily.suggestion) ? (

@@ -496,6 +496,10 @@
     animation: none;
   }
 }
+.command-icon {
+  flex: none;
+  color: var(--t3);
+}
 .command-label {
   min-width: 0;
   overflow: hidden;

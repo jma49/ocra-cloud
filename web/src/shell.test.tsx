@@ -64,11 +64,30 @@ describe("command menu", () => {
     fireEvent.keyDown(document, { key: "k", ctrlKey: true });
     const input = await screen.findByPlaceholderText("Search or go to…");
     fireEvent.change(input, { target: { value: "insights" } });
-    const usage = await screen.findByRole("option", { name: "Usage" });
-    expect(screen.queryByRole("option", { name: "Inbox" })).toBeNull();
+    const usage = await screen.findByRole("option", { name: /^Usage/ });
+    expect(screen.queryByRole("option", { name: /^Inbox/ })).toBeNull();
     fireEvent.click(usage);
     expect(location.pathname).toBe("/usage");
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+});
+
+describe("theme", () => {
+  it("is chosen from the command menu and kept in this browser", async () => {
+    history.replaceState(null, "", "/");
+    localStorage.removeItem("ocra.theme");
+    render(
+      <Frame me={me} route={matchRoute("/")?.route} path="/">
+        <p>page</p>
+      </Frame>,
+    );
+    fireEvent.keyDown(document, { key: "k", ctrlKey: true });
+    const input = await screen.findByPlaceholderText("Search or go to…");
+    fireEvent.change(input, { target: { value: "dark" } });
+    fireEvent.click(await screen.findByRole("option", { name: /Use the dark theme/ }));
+    expect(document.documentElement.dataset.theme).toBe("dark");
+    expect(localStorage.getItem("ocra.theme")).toBe("dark");
+    localStorage.removeItem("ocra.theme");
   });
 });
 

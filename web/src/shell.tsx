@@ -11,11 +11,16 @@ import History from "lucide-react/icons/history";
 import Inbox from "lucide-react/icons/inbox";
 import KeyRound from "lucide-react/icons/key-round";
 import KeySquare from "lucide-react/icons/key-square";
+import Keyboard from "lucide-react/icons/keyboard";
 import ListChecks from "lucide-react/icons/list-checks";
+import LogOut from "lucide-react/icons/log-out";
+import Monitor from "lucide-react/icons/monitor";
+import Moon from "lucide-react/icons/moon";
 import Puzzle from "lucide-react/icons/puzzle";
 import ScrollText from "lucide-react/icons/scroll-text";
 import Settings from "lucide-react/icons/settings";
 import SlidersHorizontal from "lucide-react/icons/sliders-horizontal";
+import Sun from "lucide-react/icons/sun";
 import Terminal from "lucide-react/icons/terminal";
 import UserRound from "lucide-react/icons/user-round";
 import {
@@ -39,6 +44,7 @@ import { type Place, placeHome, placeTabs, type Route, settingsGroups } from "./
 import { GO_TO, useGlobalKeys } from "./shortcuts/global-keys.js";
 import { ShortcutsDrawer } from "./shortcuts/shortcuts-drawer.js";
 import { DOCS } from "./site.js";
+import { chooseTheme, THEMES, type ThemeChoice, useThemeChoice } from "./theme.js";
 
 // The signed-in frame: the icon rail of places on the ground, and the open
 // page on a panel beside it, headed by where it is and its place's tabs.
@@ -256,23 +262,51 @@ const goKey = (path: string) => {
   return go ? { key: `g ${go.key}` } : {};
 };
 
-function commandSections(me: Me, showShortcuts: () => void): CommandSection[] {
-  const entries = (within: string, routes: { path: string; tab: string }[]) =>
-    routes.map((r) => ({ label: r.tab, to: r.path, within, ...goKey(r.path) }));
+function commandSections(me: Me, showShortcuts: () => void, theme: ThemeChoice): CommandSection[] {
+  const entries = (within: string, routes: { path: string; tab: string }[], icon?: LucideIcon) =>
+    routes.map((r) => ({
+      label: r.tab,
+      to: r.path,
+      within,
+      icon: icon ?? SETTINGS_ICONS[r.path] ?? Settings,
+      ...(r.tab === within ? {} : { hint: within }),
+      ...goKey(r.path),
+    }));
   return [
-    ...PLACES.map((p) => ({ value: p.label, items: entries(p.label, placeTabs(p.id, me)) })),
+    { value: "Go to", items: PLACES.flatMap((p) => entries(p.label, placeTabs(p.id, me), p.icon)) },
     ...settingsGroups(me).map((g) => ({
       value: `Settings: ${g.label}`,
       items: entries("Settings", g.routes),
     })),
     {
+      value: "Theme",
+      items: THEMES.filter((t) => t.value !== theme).map((t) => ({
+        label:
+          t.value === "system"
+            ? "Match the system's theme"
+            : `Use the ${t.label.toLowerCase()} theme`,
+        icon: t.value === "dark" ? Moon : t.value === "light" ? Sun : Monitor,
+        run: () => chooseTheme(t.value),
+        within: "Theme",
+      })),
+    },
+    {
       value: "Help",
       items: [
-        { label: "Keyboard shortcuts", key: "?", run: showShortcuts, within: "Help" },
-        { label: "Documentation", to: DOCS, within: "Help", external: true },
+        {
+          label: "Keyboard shortcuts",
+          key: "?",
+          icon: Keyboard,
+          run: showShortcuts,
+          within: "Help",
+        },
+        { label: "Documentation", icon: BookOpen, to: DOCS, within: "Help", external: true },
       ],
     },
-    { value: "Account", items: [{ label: "Sign out", run: signOut, within: "Account" }] },
+    {
+      value: "Account",
+      items: [{ label: "Sign out", icon: LogOut, run: signOut, within: "Account" }],
+    },
   ];
 }
 
@@ -285,6 +319,7 @@ export function Frame(props: {
   const settings = props.route?.place === "settings";
   const [shortcuts, setShortcuts] = useState(false);
   const showShortcuts = () => setShortcuts(true);
+  const theme = useThemeChoice();
   useGlobalKeys(showShortcuts);
   return (
     <div className="frame">
@@ -296,7 +331,7 @@ export function Frame(props: {
           <main className="content">{props.children}</main>
         </div>
       </div>
-      <CommandMenu sections={commandSections(props.me, showShortcuts)} />
+      <CommandMenu sections={commandSections(props.me, showShortcuts, theme)} />
       {shortcuts && <ShortcutsDrawer onClose={() => setShortcuts(false)} />}
     </div>
   );
