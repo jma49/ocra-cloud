@@ -50,7 +50,7 @@ Pages and components style only through the custom properties in `base.css`.
 
 ## Page patterns
 
-- **Page head:** title and one sentence on what the page is for, actions on the right, on the title's line. A filter of the whole page (a range, a kind) is one of its actions.
+- **Page head:** on a place's own tab the bar over the page already names it, so the head keeps only its actions on one line, right-aligned, and the title is for screen readers (`NamedByBar`); the sentence on what the page is for goes, but a `note` saying what the page does with the user's code or data stays as a quiet line. Settings pages, pages under a place (a review, a live run) and an error keep the title and one sentence, actions on the right on the title's line. A filter of the whole page (a range, a kind) is one of its actions.
 - **Cards** (`.card`, `.card-head`, `.card-pad`) group one subject. Don't nest cards.
 - **Tables** for records the user compares; list rows for records the user opens. A row of one text line is one height whatever it holds: a badge or a platform mark does not make it taller. Row actions sit at the row's right end, quietest first, destructive last. A table that would outgrow its card with them puts them behind one menu button (`Ellipsis`, named "Actions for …"). A table goes in `StackTable`: when its card is too narrow to hold it, at any window width, each row becomes a block (first cell as its title, the rest flowing after it, a `.cell-name` caption where a column head carried the meaning) instead of scrolling inside the card.
 - **Stats row:** up to four `.stat` cards, label above value, a note below.

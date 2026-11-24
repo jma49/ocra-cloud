@@ -19,7 +19,8 @@ export function Activity() {
     <>
       <PageHead
         title="Activity"
-        sub="Every model call made with your keys. Request and answer bodies are never stored."
+        sub="Every model call made with your keys."
+        note="Request and answer bodies are never stored."
         actions={<Seg label="Time range" value={days} options={RANGES} onChange={setDays} />}
       />
       {error && !usage ? (

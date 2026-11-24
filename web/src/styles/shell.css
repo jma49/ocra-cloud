@@ -337,6 +337,19 @@
 .page-head + .section {
   margin-top: 0;
 }
+/* Under a bar that names the page: only the actions and a note keep a line. */
+.page-head.named {
+  align-items: center;
+  margin-bottom: 16px;
+}
+.page-head.named.bare:not(:has(.page-note)) {
+  margin-bottom: 0;
+}
+.page-head .page-note {
+  margin: 0;
+  color: var(--t3);
+  font-size: var(--text-sm);
+}
 .section-title {
   font-size: var(--text-base);
   font-weight: 600;

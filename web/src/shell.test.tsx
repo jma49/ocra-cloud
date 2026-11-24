@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Me } from "./api.js";
 import { matchRoute } from "./routes.js";
 import { Frame } from "./shell.js";
+import { PageHead } from "./ui.js";
 
 const me: Me = {
   login: "sample-user",
@@ -105,5 +106,28 @@ describe("rail", () => {
     expect(
       (await screen.findByText("Insights")).closest("[data-slot=tooltip-popup]"),
     ).not.toBeNull();
+  });
+});
+
+describe("page head", () => {
+  const head = (path: string) => {
+    history.replaceState(null, "", path);
+    render(
+      <Frame me={me} route={matchRoute(path)?.route} path={path}>
+        <PageHead title="Title" sub="What the page is for." note="What it does with your code." />
+      </Frame>,
+    );
+    return screen.getByRole("heading", { level: 1, name: "Title" });
+  };
+
+  it("leaves a place's tab to the bar's name, keeping only its note", () => {
+    expect(head("/findings").className).toBe("sr-only");
+    expect(screen.queryByText("What the page is for.")).toBeNull();
+    expect(screen.getByText("What it does with your code.")).not.toBeNull();
+  });
+
+  it("keeps a settings page's title and sentence", () => {
+    expect(head("/sessions").className).toBe("");
+    expect(screen.getByText("What the page is for.")).not.toBeNull();
   });
 });

@@ -1,6 +1,15 @@
 import MapPinOff from "lucide-react/icons/map-pin-off";
 import TriangleAlert from "lucide-react/icons/triangle-alert";
-import { Component, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import {
+  Component,
+  createContext,
+  type ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -10,12 +19,39 @@ import { compact } from "./format.js";
 import { usePickedGlide } from "./glide.js";
 import { Link } from "./router.js";
 
-export function PageHead(props: { title: string; sub?: ReactNode; actions?: ReactNode }) {
+/** Set by the frame on a place's own tabs, whose bar already names the page. */
+export const NamedByBar = createContext(false);
+
+/**
+ * The page's title, its sentence and its actions. Under a bar that names the page, the title is
+ * only for screen readers, the sentence goes, and the actions keep their line; a `note` (what a
+ * page does with the user's code or data) stays as a quiet line. A `standalone` head (an error,
+ * a missing page) always shows.
+ */
+export function PageHead(props: {
+  title: string;
+  sub?: ReactNode;
+  note?: ReactNode;
+  actions?: ReactNode;
+  standalone?: boolean;
+}) {
+  const named = useContext(NamedByBar) && !props.standalone;
+  if (named)
+    return (
+      <div className={`page-head named${props.actions ? "" : " bare"}`}>
+        <div>
+          <h1 className="sr-only">{props.title}</h1>
+          {props.note && <p className="page-note">{props.note}</p>}
+        </div>
+        {props.actions}
+      </div>
+    );
   return (
     <div className="page-head">
       <div>
         <h1>{props.title}</h1>
         {props.sub && <p>{props.sub}</p>}
+        {props.note && <p>{props.note}</p>}
       </div>
       {props.actions}
     </div>
@@ -277,7 +313,7 @@ const capital = (s: string) => (s.startsWith("ocra") ? s : s.charAt(0).toUpperCa
 export function NotFound() {
   return (
     <>
-      <PageHead title="Page not found" />
+      <PageHead title="Page not found" standalone />
       <div className="card">
         <EmptyState
           icon={MapPinOff}
@@ -305,7 +341,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { failed: 
     if (!this.state.failed) return this.props.children;
     return (
       <>
-        <PageHead title="Something went wrong" />
+        <PageHead title="Something went wrong" standalone />
         <div className="card">
           <EmptyState
             role="alert"
