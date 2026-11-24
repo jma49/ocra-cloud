@@ -19,15 +19,57 @@
   text-decoration: underline;
 }
 .pull-head {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 24px;
+}
+/* The one line that stands for the head once it has scrolled away: it takes
+   no room in the page, sits under the page bar, and holds the same next step. */
+.pull-bar-anchor {
   position: sticky;
   top: 56px;
   z-index: 4;
-  display: grid;
-  gap: 8px;
-  margin: -12px 0 24px;
-  padding: 12px 0;
+  height: 48px;
+  margin-bottom: -48px;
+  pointer-events: none;
+}
+.pull-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 100%;
   background: var(--panel);
   box-shadow: 0 0.5px 0 var(--hair);
+  pointer-events: auto;
+  animation: bar-in var(--d-move) var(--e-enter);
+}
+.pull-bar-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--t1);
+  font-size: var(--text-md);
+  line-height: 20px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pull-bar-number {
+  margin-right: 8px;
+  color: var(--t3);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+.pull-bar-status {
+  flex: none;
+  display: inline-flex;
+  gap: 16px;
+}
+@keyframes bar-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
 }
 /* The head while the page reads: a title's and a meta line's height, so the page does not move. */
 .pull-head-skeleton {
@@ -335,10 +377,9 @@
   }
 }
 @media (max-width: 760px) {
-  .pull-head {
-    position: static;
-    margin-top: 0;
-    padding-top: 0;
+  /* The page bar wraps on a phone: the head scrolls away with nothing in its place. */
+  .pull-bar-anchor {
+    display: none;
   }
   .pull-head-row {
     flex-direction: column;
@@ -348,7 +389,8 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .jump-to-code {
+  .jump-to-code,
+  .pull-bar {
     animation: none;
   }
 }

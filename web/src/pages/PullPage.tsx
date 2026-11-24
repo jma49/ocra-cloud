@@ -20,6 +20,7 @@ import { SinceBar, sinceFiles, useSince } from "../pull/changes-since.js";
 import { ChecksBox } from "../pull/checks-box.js";
 import { useClearance } from "../pull/clearance.js";
 import { MERGE_ID, pullCommands } from "../pull/commands.js";
+import { CompactBar } from "../pull/compact-bar.js";
 import { DescriptionBox } from "../pull/description-box.js";
 import { DiffBar } from "../pull/diff-bar.js";
 import { useDiffLayout } from "../pull/diff-layout.js";
@@ -137,7 +138,8 @@ export function PullPage(props: {
   }, [readDescription, readFindings, readFixes]);
   const code = useRef<HTMLDivElement>(null);
   const [headEl, setHeadEl] = useState<HTMLElement | null>(null);
-  useClearance(headEl);
+  const [barEl, setBarEl] = useState<HTMLElement | null>(null);
+  useClearance(barEl);
   const where = `${props.repo} #${props.number}`;
   const title = data?.title ?? where;
   useEffect(() => {
@@ -186,6 +188,28 @@ export function PullPage(props: {
     readiness,
     queues ? queue.data?.entry === null : data.mergeMethods.length > 0,
   );
+  const status = (
+    <PullStatus state={data.state} view={readiness} queued={queue.data?.entry?.state ?? null} />
+  );
+  const actions = (
+    <>
+      {data.verdicts.length > 0 && (
+        <Button
+          variant={step === "review" && !settled ? "default" : "outline"}
+          onClick={() => setReviewing(true)}
+        >
+          Review changes
+          {pending.length > 0 && <span className="num">{pending.length}</span>}
+        </Button>
+      )}
+      {!settled && (
+        <DraftToggle pull={ref} primary={step === "ready"} onDone={(o) => done("Draft", o)} />
+      )}
+      {!settled && step === "merge" && (
+        <Button render={<a href={`#${MERGE_ID}`} />}>{queues ? "Queue" : "Merge"}</Button>
+      )}
+    </>
+  );
   return (
     <PullBatch pull={ref} head={data.head} onCommitted={committed}>
       <p className="pull-where">
@@ -201,35 +225,18 @@ export function PullPage(props: {
       <header className="pull-head" ref={setHeadEl}>
         <div className="pull-head-row">
           <h1>{title}</h1>
-          <div className="pull-actions">
-            {data.verdicts.length > 0 && (
-              <Button
-                variant={step === "review" && !settled ? "default" : "outline"}
-                onClick={() => setReviewing(true)}
-              >
-                Review changes
-                {pending.length > 0 && <span className="num">{pending.length}</span>}
-              </Button>
-            )}
-            {!settled && (
-              <DraftToggle pull={ref} primary={step === "ready"} onDone={(o) => done("Draft", o)} />
-            )}
-            {!settled && step === "merge" && (
-              <Button render={<a href={`#${MERGE_ID}`} />}>{queues ? "Queue" : "Merge"}</Button>
-            )}
-          </div>
+          <div className="pull-actions">{actions}</div>
         </div>
-        <PullMeta
-          data={data}
-          status={
-            <PullStatus
-              state={data.state}
-              view={readiness}
-              queued={queue.data?.entry?.state ?? null}
-            />
-          }
-        />
+        <PullMeta data={data} status={status} />
       </header>
+      <CompactBar
+        head={headEl}
+        number={props.number}
+        title={title}
+        status={status}
+        actions={actions}
+        onAnchor={setBarEl}
+      />
       {settled && (
         <p className="muted small">
           This pull request is {data.state}: you can still comment on it, but not approve or merge
