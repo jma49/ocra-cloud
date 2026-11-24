@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MAX_STACK, type OpenPull, stackOf } from "../src/platforms/stacks.js";
+import { latestMerged, MAX_STACK, type OpenPull, stackOf } from "../src/platforms/stacks.js";
 import { chainTo } from "../src/shared/index.js";
 
 // A stack read from the open pull requests' branches alone (ADR-0052).
@@ -98,5 +98,32 @@ describe("a stack of pull requests", () => {
     const stack = stackOf(open, 12)?.pulls ?? [];
     expect(chainTo(stack, 11).map((p) => p.number)).toEqual([10, 11]);
     expect(chainTo(stack, 99)).toEqual([]);
+  });
+});
+
+describe("the pull request merged lately from a branch", () => {
+  const since = new Date("2026-01-01T10:00:00Z");
+  const from = (number: number, base: string, mergedAt: string | null, open = false) => ({
+    number,
+    open,
+    base,
+    mergedAt,
+  });
+
+  it("is the latest merged into the base within the window", () => {
+    const listed = [
+      from(1, "main", "2026-01-01T10:30:00Z"),
+      from(2, "main", "2026-01-01T11:00:00Z"),
+      from(3, "release", "2026-01-01T11:30:00Z"),
+      from(4, "main", "2026-01-01T09:00:00Z"),
+      from(5, "main", null),
+    ];
+    expect(latestMerged(listed, "main", since)).toBe(2);
+    expect(latestMerged(listed.slice(3), "main", since)).toBeNull();
+  });
+
+  it("is none while one from the branch is open", () => {
+    const listed = [from(1, "main", "2026-01-01T10:30:00Z"), from(6, "dev", null, true)];
+    expect(latestMerged(listed, "main", since)).toBeNull();
   });
 });
