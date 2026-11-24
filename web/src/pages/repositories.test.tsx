@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Me } from "../api.js";
 import { clearCache } from "../cache.js";
@@ -136,5 +136,30 @@ describe("a server with no code platform", () => {
     expect(screen.getByRole("link", { name: "How to connect one" }).getAttribute("href")).toMatch(
       /self-hosting\.md#a-github-app-of-your-own$/,
     );
+  });
+});
+
+describe("the repositories list's keys", () => {
+  it("move a current row and open its name for editing", async () => {
+    serve(
+      [],
+      [
+        repo({ name: "octo/api" }),
+        repo({ repoHash: "b".repeat(64), repo: "bbbbbbbb", name: "octo/web" }),
+      ],
+    );
+    render(<Repositories me={ME} />);
+    const first = (await screen.findByText("octo/api")).closest("tr") as HTMLElement;
+    expect(first.className).not.toContain("is-current");
+
+    fireEvent.keyDown(document.body, { key: "j" });
+    expect(first.className).toContain("is-current");
+    fireEvent.keyDown(document.body, { key: "j" });
+    fireEvent.keyDown(document.body, { key: "e" });
+    expect(screen.getByRole("textbox", { name: "Name of octo/web" })).toHaveProperty(
+      "value",
+      "octo/web",
+    );
+    expect(screen.queryByRole("textbox", { name: "Name of octo/api" })).toBeNull();
   });
 });
