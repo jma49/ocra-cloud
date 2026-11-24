@@ -378,6 +378,8 @@ describe("GitLab finding threads", () => {
       at: "2026-11-02T11:00:05.000Z",
       reason: "Resolving.",
     });
+    const status = async () => (await data.list("findings")).map((f) => f.status);
+    expect(await status()).toEqual(["addressed"]);
     resolved = false;
     await keep(
       hook({ id: 4, by: lena, note: "Reopened: still wrong." }, "2026-11-02 12:00:00 UTC"),
@@ -388,6 +390,7 @@ describe("GitLab finding threads", () => {
       at: "2026-11-02T12:00:00.000Z",
       reason: "Reopened: still wrong.",
     });
+    expect(await status()).toEqual(["open"]);
   });
 
   it("makes no call of its own for a discussion not on record, and takes one already answered", async () => {

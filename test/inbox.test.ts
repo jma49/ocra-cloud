@@ -64,7 +64,7 @@ describe("the findings inbox", () => {
 
     const all = await a.list();
     expect(all.findings.map((f) => f.title).sort()).toEqual(["first", "second", "third"]);
-    expect(all.statuses).toEqual({ open: 3, fixed: 0, dismissed: 0 });
+    expect(all.statuses).toEqual({ open: 3, fixed: 0, dismissed: 0, addressed: 0, merged: 0 });
     expect(Object.fromEntries(all.findings.map((f) => [f.title, f.prNumber]))).toEqual({
       first: 12,
       second: null,
@@ -111,7 +111,7 @@ describe("the findings inbox", () => {
     expect(await dismissed.json()).toEqual({ changed: 1, remembered: 0 });
     await a.decide({ ids: [two.id], status: "fixed" });
     const after = await a.list();
-    expect(after.statuses).toEqual({ open: 0, fixed: 1, dismissed: 1 });
+    expect(after.statuses).toEqual({ open: 0, fixed: 1, dismissed: 1, addressed: 0, merged: 0 });
     expect(after.findings.find((f) => f.id === one.id)).toMatchObject({
       status: "dismissed",
       reason: "false_positive",

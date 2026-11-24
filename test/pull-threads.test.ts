@@ -343,14 +343,17 @@ describe("what the threads' actions record of ocra's findings", () => {
     expect(await (await resolve(true)).json()).toEqual({ outcome: "done" });
     const first = (await data.get("findings", id))?.threadResolvedAt;
     expect(first).toBeInstanceOf(Date);
-    // Resolving it again keeps when it was first resolved; its status is untouched.
+    // Resolving it again keeps when it was first resolved; the open finding is addressed.
     expect(await (await resolve(true)).json()).toEqual({ outcome: "done" });
     expect(await data.get("findings", id)).toMatchObject({
-      status: "open",
+      status: "addressed",
       threadResolvedAt: first,
     });
     expect(await (await resolve(false)).json()).toEqual({ outcome: "done" });
-    expect((await data.get("findings", id))?.threadResolvedAt).toBeNull();
+    expect(await data.get("findings", id)).toMatchObject({
+      status: "open",
+      threadResolvedAt: null,
+    });
   });
 });
 

@@ -208,7 +208,7 @@ export function autoReviewWebhooks(service: AutoReviewService) {
         await recordGitlabRequests(c.var.db, repo, body);
       }
       await automatePullEvents(c, await gitlabPullEvents(c.var.db, repo, kind, body));
-      if (mr && (await recordGitlabClose(c.var.db, repo, body))) return 0;
+      if (mr && (await recordGitlabClose(c.var.db, repo, client.url, body))) return 0;
       const event = mr?.data;
       if (event && gitlabEdited(event.object_attributes)) {
         service.checkPull?.(repo.accountId, repo.id, event.object_attributes.iid);
