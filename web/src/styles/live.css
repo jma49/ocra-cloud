@@ -29,7 +29,7 @@
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 6px;
+  gap: 8px;
 }
 .live-stage {
   display: flex;
