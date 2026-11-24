@@ -1,9 +1,10 @@
-import { type Context, Hono } from "hono";
+import { Hono } from "hono";
 import { z } from "zod";
 import type { Row } from "./db/scoped.js";
 import { apiError } from "./http.js";
 import { linesAt, MAX_FIX_FILE_BYTES, repoFilePath } from "./platforms/fix.js";
 import type { CodePlatform } from "./platforms/platform.js";
+import { openAtHead } from "./pull-open-findings.js";
 import { byKind, pullRef, reach, sha } from "./pull-page.js";
 import { perMinute } from "./rate.js";
 import { identityOf, pullOfReview, pullOnPlatform } from "./review-pull.js";
@@ -27,15 +28,11 @@ pullFixes.get("/fixes", requireSession(["web"]), perMinute("platform"), async (c
   if ("refusal" in reached) return reached.refusal;
   const { repo, number, head } = ref.data;
   const identity = identityOf(reached.platform, repo);
-  const [review] = identity
-    ? await c.var.data.listNewest("reviews", 1, {
-        prRepository: identity,
-        prNumber: number,
-        prHeadSha: head,
-      })
-    : [];
+  const { review, open } = identity
+    ? await openAtHead(c.var.data, { prRepository: identity, prNumber: number, prHeadSha: head })
+    : { review: undefined, open: [] };
   if (!review) return c.json({ review: null, fixes: [] } satisfies FixProposalsView);
-  return c.json(await proposals(c, reached, repo, review, head));
+  return c.json(await proposals(reached, repo, review.id, open, head));
 });
 
 pullFixes.get("/fixes/review/:id", requireSession(["web"]), perMinute("platform"), async (c) => {
@@ -45,18 +42,20 @@ pullFixes.get("/fixes/review/:id", requireSession(["web"]), perMinute("platform"
   const reached = await reach(c, (p) => pullOnPlatform([p], reviewed) !== undefined);
   if ("refusal" in reached) return reached.refusal;
   const pull = pullOnPlatform([reached.platform], reviewed)?.pull ?? reviewed;
-  return c.json(await proposals(c, reached, pull.repo, review, reviewed.head));
+  const found = (await c.var.data.findingsOf(review.id)).filter((f) => f.status === "open");
+  return c.json(await proposals(reached, pull.repo, review.id, found, reviewed.head));
 });
 
+/** The fixes of the open findings given, of the review named or of earlier ones of its head. */
 async function proposals(
-  c: Context<AppEnv>,
   reached: { platform: CodePlatform; token: string },
   repo: string,
-  review: Row<"reviews">,
+  review: string,
+  found: Row<"findings">[],
   head: string,
 ): Promise<FixProposalsView> {
-  const open = (await c.var.data.findingsOf(review.id)).flatMap((f) => {
-    const fix = f.status === "open" ? fixOf(f) : null;
+  const open = found.flatMap((f) => {
+    const fix = fixOf(f);
     return fix ? [{ f, fix, path: repoFilePath(f.file) }] : [];
   });
   const paths = [...new Set(open.flatMap((o) => (o.path ? [o.path] : [])))];
@@ -85,5 +84,5 @@ async function proposals(
       after: replacementLines(fix.replacement),
     };
   });
-  return { review: { id: review.id, head }, fixes };
+  return { review: { id: review, head }, fixes };
 }

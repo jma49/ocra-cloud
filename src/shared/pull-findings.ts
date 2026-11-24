@@ -5,6 +5,8 @@ import type { Severity } from "./domain.js";
 
 export type PullFindingView = {
   id: string;
+  /** The review that found it: the newest of the head, or an earlier one of the same head. */
+  review: string;
   severity: Severity;
   title: string;
   /** What the reviewer wrote: a model's text about untrusted code. */
