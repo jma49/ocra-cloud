@@ -1,6 +1,7 @@
 // What the account's findings say about its reviews, for the Insights page:
 // the console's decisions, the platform's outcomes and the 👍 and 👎 people
-// gave ocra's comments on the platform. Only shared findings count.
+// gave ocra's comments on the platform. Only shared findings count, one
+// row for each review that reported it; the reviews' own counts may be more.
 
 /** One group of findings (a reviewer, severity, category or verification; key null for none). */
 export type FindingInsightRow = {
