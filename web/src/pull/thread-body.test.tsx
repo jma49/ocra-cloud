@@ -94,12 +94,13 @@ describe("a review comment's body", () => {
     expect(text).not.toContain("const a = 1;");
   });
 
-  it("leaves a folded block in a person's comment as the text it was written as", () => {
+  it("folds a folded block in a person's comment, as the platform does", () => {
     const { container } = render(
       <ThreadBody body={"Mine.\n\n<details><summary>Evidence</summary>\n\n- x\n\n</details>"} />,
     );
-    expect(container.querySelector("details")).toBeNull();
-    expect(container.textContent).toContain("<details>");
+    expect(container.querySelector("details summary")?.textContent).toBe("Evidence");
+    expect(container.querySelector("details li")?.textContent).toBe("x");
+    expect(container.textContent).not.toContain("<details>");
   });
 
   it("draws a person's comment as Markdown, with its https links, and no head", () => {
@@ -113,12 +114,12 @@ describe("a review comment's body", () => {
     expect(container.querySelector(".thread-finding")).toBeNull();
     expect(container.querySelector("strong")?.textContent).toBe("Looks like a head");
     expect(container.querySelector("a")?.getAttribute("href")).toBe("https://example.com/a");
-    expect(container.querySelector("pre code")?.textContent).toBe("const b = 2;");
+    expect(container.querySelector("pre code")?.textContent?.trim()).toBe("const b = 2;");
   });
 
   it("hides an HTML comment left open to the end, and draws nothing for an empty body", () => {
     const { container } = render(<ThreadBody body={"Kept. <!-- hidden\nstill hidden"} />);
-    expect(container.textContent).toBe("Kept.");
+    expect(container.textContent?.trim()).toBe("Kept.");
     cleanup();
     expect(render(<ThreadBody body={"<!-- only -->\n"} />).container.innerHTML).toBe("");
   });

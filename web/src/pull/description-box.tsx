@@ -8,7 +8,7 @@ import {
 import { api, why } from "../api.js";
 import { Drawer } from "../drawer.js";
 import { num } from "../format.js";
-import { Markdown } from "../markdown.js";
+import { PlatformMarkdown } from "../platform-markdown.js";
 import { useAction } from "../ui.js";
 
 // The pull request's description, read where the diff is, and "Draft with
@@ -72,7 +72,11 @@ export function DescriptionBox(props: {
         )}
       </summary>
       <div className="pull-description">
-        {body ? <Markdown text={body} links /> : <p className="subtle m-0">No description yet.</p>}
+        {body ? (
+          <PlatformMarkdown text={body} />
+        ) : (
+          <p className="subtle m-0">No description yet.</p>
+        )}
       </div>
       {open && (
         <Drawer

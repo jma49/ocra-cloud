@@ -1,5 +1,6 @@
 import type { Severity } from "../../../src/shared/index.js";
 import { Markdown } from "../markdown.js";
+import { PlatformMarkdown } from "../platform-markdown.js";
 import { SeverityBadge } from "../severity.js";
 
 // A review comment as the platform draws it: Markdown, with its HTML comments
@@ -117,7 +118,7 @@ export function ThreadBody(props: { said: Said }) {
           </div>
         </div>
       )}
-      {text && <Markdown links text={text} />}
+      {text && <PlatformMarkdown text={text} />}
     </div>
   );
 }
