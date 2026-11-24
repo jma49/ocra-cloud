@@ -19,7 +19,7 @@ export const DEFAULT_MEND_LEVEL: MendLevel = "propose";
 export const MAX_MEND_REQUEST = 20;
 
 /** What the level setting of an enrolled repository answers. */
-export type AutoReviewMendView = { mend: MendLevel; checks: boolean };
+export type AutoReviewMendView = { mend: MendLevel; checks: boolean; conflicts: boolean };
 
 /** A finding asked of the loop: it waits while `outcome` is null. */
 export type MendItemView = {
@@ -39,6 +39,14 @@ export type MendItemView = {
 /** A failed check the loop's last round worked on, by the check's name, and what became of it. */
 export type MendCheckView = {
   check: string;
+  outcome: MendItemOutcome;
+  reason: MendItemReason | null;
+  cause: FixFailureCause | null;
+};
+
+/** A file that conflicted with the base branch in the loop's last round, and what became of it. */
+export type MendConflictView = {
+  path: string;
   outcome: MendItemOutcome;
   reason: MendItemReason | null;
   cause: FixFailureCause | null;
@@ -64,6 +72,8 @@ export type PullMendView = {
   items: MendItemView[];
   /** The failed checks its last round worked on; empty when it worked on none. */
   checks: MendCheckView[];
+  /** The conflicted files its last round was given; empty when the base branch merged cleanly. */
+  conflicts: MendConflictView[];
 };
 
 /**

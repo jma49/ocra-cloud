@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { reviewUploadSchema } from "@open-cr-agent/cloud-contract";
@@ -15,6 +15,7 @@ import { reviewRow } from "../src/reviews.js";
 import { MAX_DAILY_FIX_REQUESTS, type MendRequestView } from "../src/shared/index.js";
 import { utcDay } from "../src/time.js";
 import { finding, upload } from "../test/finding-uploads.js";
+import { EDIT, fakeExec, item, round, STATE } from "./fix-loop-fakes.js";
 import { C1, C2, C3 } from "./graph-fakes.js";
 import { graphServer, ORIGIN, type Server } from "./graph-server.js";
 
@@ -96,11 +97,11 @@ beforeEach(async () => {
 });
 afterEach(() => s.host.close());
 
-const setLevel = (mend: string, headers = auth, checks?: boolean) =>
+const setLevel = (mend: string, headers = auth, checks?: boolean, conflicts?: boolean) =>
   s.call(`/api/auto-review/repos/${repoId}/mend`, {
     method: "PUT",
     headers,
-    json: { mend, ...(checks === undefined ? {} : { checks }) },
+    json: { mend, checks, conflicts },
   });
 const ask = async (findings: string[], headers = auth) =>
   s.call("/api/auto-review/mends", { method: "POST", headers, json: { findings } });
@@ -114,53 +115,6 @@ const view = async () =>
       headers: auth,
     })
   ).json();
-
-const STATE = { rounds: 1, costUsd: 0.02, items: { "fp-crit": { attempts: 1 } } };
-const EDIT = { path: "src/db.ts", startLine: 10, endLine: 10, replacement: "db.query(sql, [id]);" };
-const item = (fingerprint: string, outcome: string, reason: string | null = null) => ({
-  fingerprint,
-  outcome,
-  reason,
-  edits: outcome === "fixed" ? [EDIT] : [],
-});
-const round = (over: Record<string, unknown> = {}) => ({
-  headSha: C1,
-  outcome: "committed",
-  stopped: null,
-  commitSha: C2,
-  items: [item("fp-crit", "fixed"), item("fp-warn", "rejected", "unresolved")],
-  state: STATE,
-  usage: {
-    inputTokens: 100,
-    cachedTokens: 0,
-    outputTokens: 20,
-    reasoningTokens: 0,
-    costUsd: 0.02,
-  },
-  ...over,
-});
-
-type Seen = { args: string[]; findings?: { fingerprint: string }[]; state?: unknown };
-
-/** The machine: git clones, the CLI prints `printed` and exits with code. */
-function fakeExec(printed: string, code = 0, during?: () => Promise<unknown>) {
-  const seen: Seen = { args: [] };
-  const exec: Exec = async (command, args, options) => {
-    if (command === "git") {
-      await mkdir(join(args.at(-1) ?? "", ".git"), { recursive: true });
-      return { code: 0 };
-    }
-    seen.args = [...args];
-    const file = (flag: string) => (args.includes(flag) ? args[args.indexOf(flag) + 1] : undefined);
-    const findings = file("--findings");
-    if (findings) seen.findings = JSON.parse(await readFile(findings, "utf8"));
-    const state = file("--state");
-    if (state) seen.state = JSON.parse(await readFile(state, "utf8"));
-    await during?.();
-    return { code, ...(options.stdout ? { stdout: printed } : {}) };
-  };
-  return { exec, seen };
-}
 
 /** Runs the loop's next round, past the wait that lets clicks share one. */
 const runRound = (exec: Exec) =>
@@ -183,7 +137,11 @@ describe("the repository's level", () => {
     });
     expect(await data().list("mendJobs")).toEqual([]);
     expect((await setLevel("off")).status).toBe(400);
-    expect(await (await setLevel("commit")).json()).toEqual({ mend: "commit", checks: false });
+    expect(await (await setLevel("commit")).json()).toEqual({
+      mend: "commit",
+      checks: false,
+      conflicts: false,
+    });
     const audited = await data().list("auditEvents");
     expect(audited.find((e) => e.kind === "auto_review.mend_changed")?.detail).toMatchObject({
       repo: "Octo/API",
@@ -401,6 +359,7 @@ describe("a failed check", () => {
     expect(await (await setLevel("propose", auth, true)).json()).toEqual({
       mend: "propose",
       checks: false,
+      conflicts: false,
     });
     await setLevel("commit");
     expect(await failed()).toBe(0);
@@ -408,6 +367,7 @@ describe("a failed check", () => {
     expect(await (await setLevel("commit", auth, true)).json()).toEqual({
       mend: "commit",
       checks: true,
+      conflicts: false,
     });
     expect(await failed()).toBe(1);
     expect(await loop()).toMatchObject({ state: "queued", checks: true });
@@ -457,6 +417,51 @@ describe("a failed check", () => {
     });
     expect(await failed()).toBe(0);
     expect(await loop()).toMatchObject({ state: "done", checks: false });
+  });
+});
+
+describe("a pull request that conflicts with its base branch", () => {
+  const merged = round({
+    mergeParent: C3,
+    items: [
+      { ...item("c0ffee0123456789", "fixed"), conflict: "src/db.ts", edits: [] },
+      item("fp-crit", "deferred", "conflicts"),
+    ],
+  });
+
+  it("is left to a person unless the repository commits fixes and asked for the merge", async () => {
+    await setLevel("commit");
+    await ask([second]);
+    const { exec, seen } = fakeExec(JSON.stringify(round()));
+    await runRound(exec);
+    expect(seen.args).not.toContain("--conflicts");
+    expect(await (await setLevel("propose", auth, false, true)).json()).toMatchObject({
+      conflicts: false,
+    });
+  });
+
+  it("gets a round of ocra mend --conflicts, whose merge commit leaves the findings waiting", async () => {
+    expect(await (await setLevel("commit", auth, false, true)).json()).toMatchObject({
+      conflicts: true,
+    });
+    await ask([second]);
+    const { exec, seen } = fakeExec(JSON.stringify(merged));
+    await runRound(exec);
+    expect(seen.args.slice(11)).toEqual(["--conflicts", "--config", expect.any(String)]);
+    expect(await loop()).toMatchObject({ state: "queued", outcome: "committed", commitSha: C2 });
+    expect(await view()).toMatchObject({
+      items: [{ finding: second, outcome: null }],
+      conflicts: [{ path: "src/db.ts", outcome: "fixed", reason: null, cause: null }],
+    });
+    expect(await data().get("findings", second)).toMatchObject({ status: "open" });
+    const audited = await data().list("auditEvents");
+    expect(audited.find((e) => e.kind === "pull.mend_committed")?.detail).toMatchObject({
+      fixed: 0,
+      merged: 1,
+    });
+    expect(await data().list("notificationFeed")).toMatchObject([
+      { title: "ocra merged the base branch and resolved its conflicts" },
+    ]);
   });
 });
 

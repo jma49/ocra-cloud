@@ -146,14 +146,19 @@ export function fixNotice(
 
 /** A round of a pull request's fix loop that committed fixes: it opens the pull request. */
 export function mendNotice(
-  round: { id: string; commit: string; fixed: number; finishedAt: Date },
+  round: { id: string; commit: string; fixed: number; merged: number; finishedAt: Date },
   repo: Place,
   number: number,
 ): FeedNotice {
   return {
     eventKey: `mend:${round.id}@${round.commit}`,
     kind: "fix_finished",
-    title: round.fixed === 1 ? "ocra committed a fix" : `ocra committed ${round.fixed} fixes`,
+    title:
+      round.merged > 0
+        ? "ocra merged the base branch and resolved its conflicts"
+        : round.fixed === 1
+          ? "ocra committed a fix"
+          : `ocra committed ${round.fixed} fixes`,
     subtitle: `${plain(repo.fullName)}#${number} · ${round.commit.slice(0, 7)}`,
     link: pullPath(repo.platform, repo.fullName, number),
     repo: repo.fullName,

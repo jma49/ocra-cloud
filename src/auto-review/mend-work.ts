@@ -46,14 +46,18 @@ export async function settleMendAnswer(
     const repo = job && (await data.get("reviewRepos", job.reviewRepoId));
     if (!job || !repo) return;
     const commit = result.commitSha;
+    const written = result.items.filter((item) => item.outcome === "fixed");
+    // A commit holds fixes (of findings and of failed checks) or, alone, the merge of the base branch.
+    const merged = written.filter((item) => item.conflict).length;
+    const count = { fixed: written.length - merged, merged };
     await audit(data, "pull.mend_committed", {
       pull: `${repo.fullName}#${job.number}`,
       head: result.headSha,
       commit,
-      fixed: fixed.length,
+      ...count,
     });
     await data.feed.record([
-      mendNotice({ id: job.id, commit, fixed: fixed.length, finishedAt: now }, repo, job.number),
+      mendNotice({ id: job.id, commit, ...count, finishedAt: now }, repo, job.number),
     ]);
   } catch (e) {
     logError("mend_follow_up_failed", { job: ref.id, error: errorName(e) });

@@ -42,7 +42,13 @@ const job = (over: Partial<FixJobView>): FixJobView => ({
   ...over,
 });
 
-const NO_LOOP: PullMendView = { level: "propose", loop: null, items: [], checks: [] };
+const NO_LOOP: PullMendView = {
+  level: "propose",
+  loop: null,
+  items: [],
+  checks: [],
+  conflicts: [],
+};
 
 const item = (over: Partial<MendItemView>): MendItemView => ({
   finding: "f1",
@@ -61,6 +67,7 @@ const looping = (items: MendItemView[], state: "queued" | "running" | "done" = "
     loop: { state, outcome: null, error: null, finishedAt: null },
     items,
     checks: [],
+    conflicts: [],
   }) satisfies PullMendView;
 
 /**

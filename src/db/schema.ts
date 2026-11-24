@@ -56,6 +56,7 @@ import {
   MERGE_INTENT_STATES,
   MERGE_METHODS,
   type MendCheckView,
+  type MendConflictView,
   type MergeCheckResultView,
   type MergeChecksConclusion,
   type MergeCheckVerdictView,
@@ -904,6 +905,12 @@ export const reviewRepos = sqliteTable(
      * `commit`.
      */
     mendChecks: integer("mend_checks", { mode: "boolean" }).notNull().default(false),
+    /**
+     * Whether a round resolves a pull request's merge conflicts and pushes
+     * them as a merge commit of the base branch (ADR-0079). Only at the
+     * level `commit`.
+     */
+    mendConflicts: integer("mend_conflicts", { mode: "boolean" }).notNull().default(false),
   },
   (t) => [
     uniqueIndex("review_repos_platform_repo").on(t.platform, t.host, t.platformRepoId),
@@ -1675,6 +1682,8 @@ export const mendJobs = sqliteTable(
     checksHead: text("checks_head"),
     /** What the last round did with each failed check it worked on. */
     checkItems: text("check_items", { mode: "json" }).$type<MendCheckView[]>(),
+    /** What the last round did with each conflicted file it was given. */
+    conflictItems: text("conflict_items", { mode: "json" }).$type<MendConflictView[]>(),
     finishedAt: integer("finished_at", { mode: "timestamp_ms" }),
     createdAt: createdAt(),
   },

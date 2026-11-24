@@ -74,6 +74,7 @@ const repoView = (r: Row<"reviewRepos">, latest: ReviewJobSummary | undefined) =
     restack: r.restack,
     mend: r.mend,
     mendChecks: r.mendChecks,
+    mendConflicts: r.mendConflicts,
     hasAccessToken: !!r.accessTokenCiphertext,
     accessTokenBot: r.accessTokenCiphertext ? r.accessTokenBot : null,
     webhookManaged: r.webhookId !== null,

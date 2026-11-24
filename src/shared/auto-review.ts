@@ -88,6 +88,8 @@ export type AutoReviewRepoView = {
   mend: MendLevel;
   /** Whether a failed check on a pull request starts a round that fixes it, unasked; only at `commit`. */
   mendChecks: boolean;
+  /** Whether a round resolves a pull request's merge conflicts as a merge commit of its base branch; only at `commit`. */
+  mendConflicts: boolean;
   /** Whether the account gave the GitLab project its own access token, never the token itself. */
   hasAccessToken: boolean;
   /** The username of that token's bot user; null without one. */
