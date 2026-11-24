@@ -286,7 +286,6 @@ function commandSections(me: Me, showShortcuts: () => void, theme: ThemeChoice):
       to: r.path,
       within,
       icon: icon ?? SETTINGS_ICONS[r.path] ?? Settings,
-      ...(r.tab === within ? {} : { hint: within }),
       ...goKey(r.path),
     }));
   return [
