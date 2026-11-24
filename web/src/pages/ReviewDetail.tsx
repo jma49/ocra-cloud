@@ -22,6 +22,7 @@ import { PlatformMark } from "../platform-mark.js";
 import { pullPath } from "../pull/path.js";
 import { ReviewChat } from "../review-chat/chat.js";
 import { Link } from "../router.js";
+import { SeverityMark } from "../severity.js";
 import { EmptyState, LoadError, Loading, PageHead, Seg } from "../ui.js";
 import { VerdictStatus } from "../verdict-status.js";
 import { reviewCommands } from "./review-commands.js";
@@ -328,7 +329,7 @@ function Properties(props: { r: Review }) {
         </dd>
         <dt>Run</dt>
         <dd className="prop-copy">
-          <span className="mono small subtle prop-copy-text" title={r.runId}>
+          <span className="mono subtle prop-copy-text" title={r.runId}>
             {r.runId}
           </span>
           <CopyButton text={r.runId} label="Copy run id" iconOnly />
@@ -348,7 +349,7 @@ function Properties(props: { r: Review }) {
   );
 }
 
-/** The review's counts by severity, the empty ones left out: a dot in the severity's colour and the count in words. */
+/** The review's counts by severity, the empty ones left out: the severity's mark in its colour and the count in words. */
 function SeverityCounts(props: { r: Review }) {
   const { r } = props;
   const counts = (
@@ -363,7 +364,7 @@ function SeverityCounts(props: { r: Review }) {
     <span className="sev-counts">
       {counts.map(([severity, n]) => (
         <span key={severity} className="sev-count">
-          <span className={`sev-dot sev-${severity}`} aria-hidden="true" />
+          <SeverityMark severity={severity} />
           {count(n, severity)}
         </span>
       ))}
