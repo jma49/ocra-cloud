@@ -161,3 +161,21 @@ describe("the review threads panel", () => {
     );
   });
 });
+
+describe("a comment's mark", () => {
+  it("is ocra's eyes on ocra's finding comment and a person's initial otherwise", async () => {
+    const ocra = thread("t1", "src/a.ts");
+    ocra.comments[0] = {
+      id: "t1c",
+      createdAt: null,
+      author: "ocra-cloud",
+      body: "<!-- ocra:finding e9953cfd0d2ebf46 -->\n**TTL in seconds** · warning · correctness\n\nText.",
+      suggestions: [],
+    };
+    await show("github", [ocra, thread("t2", "src/b.ts")]);
+    const marks = [...document.querySelectorAll(".thread-avatar")];
+    expect(marks[0]?.querySelector("svg")).not.toBeNull();
+    expect(marks[0]?.textContent).toBe("");
+    expect(marks[1]?.textContent).toBe("R");
+  });
+});

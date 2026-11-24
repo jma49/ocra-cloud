@@ -1,10 +1,17 @@
+import CircleDot from "lucide-react/icons/circle-dot";
+import Clock from "lucide-react/icons/clock";
+import Diff from "lucide-react/icons/diff";
+import FolderGit2 from "lucide-react/icons/folder-git-2";
+import GitPullRequest from "lucide-react/icons/git-pull-request";
 import Layers from "lucide-react/icons/layers";
 import MessageSquare from "lucide-react/icons/message-square";
+import User from "lucide-react/icons/user";
 import Users from "lucide-react/icons/users";
 import { type MouseEvent, useEffect } from "react";
 import { Status, type StatusTone } from "@/components/status";
 import { since } from "../format.js";
 import { PersonMark } from "../person-mark.js";
+import { PlatformMark } from "../platform-mark.js";
 import { CheckMark } from "../pull/check-mark.js";
 import { pullPath } from "../pull/path.js";
 import { QUEUE_STATE } from "../pull/queue-words.js";
@@ -134,7 +141,10 @@ function PullLink(props: {
         </span>
       )}
       <span className="pull-ref" title={`${r.repo} #${r.number}`}>
-        <RepoName repo={r.repo} /> <span className="pull-num">#{r.number}</span>
+        <PlatformMark platform={r.platform} size={14} />
+        <span className="pull-ref-text">
+          <RepoName repo={r.repo} /> <span className="pull-num">#{r.number}</span>
+        </span>
       </span>
       <span className="pull-review">
         {review && <Status tone={review.tone}>{review.label}</Status>}
@@ -165,12 +175,32 @@ function PullLink(props: {
 export function ColumnHead() {
   return (
     <div className="inbox-cols" aria-hidden="true">
+      <span className="chk">
+        <GitPullRequest size={14} />
+      </span>
       <span className="pull-title">Pull request</span>
-      <span className="pull-ref">Repository</span>
-      <span className="pull-review">Status</span>
-      <span className="pull-diff">Size</span>
-      <span className="pull-author">Author</span>
-      <span className="pull-time">Updated</span>
+      <span className="pull-ref">
+        <FolderGit2 size={14} />
+        Repository
+      </span>
+      <span className="pull-review">
+        <CircleDot size={14} />
+        Status
+      </span>
+      <span className="pull-diff">
+        <Diff size={14} />
+        Size
+      </span>
+      <span className="pull-author">
+        <span className="col-mark">
+          <User size={14} />
+        </span>
+        Author
+      </span>
+      <span className="pull-time">
+        <Clock size={14} />
+        Updated
+      </span>
     </div>
   );
 }
