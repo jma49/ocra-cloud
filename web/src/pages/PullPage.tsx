@@ -44,6 +44,7 @@ import { PullFailed, PullLoading } from "../pull/opening.js";
 import { DONE, type Done, OUTCOME } from "../pull/outcome.js";
 import { pullPath } from "../pull/path.js";
 import { PeopleCard } from "../pull/people.js";
+import { PullChat } from "../pull/pull-chat.js";
 import { EditTitle, OpenClose } from "../pull/pull-details.js";
 import { QueueBox } from "../pull/queue-box.js";
 import { ReadinessBox, useReadiness } from "../pull/readiness-box.js";
@@ -353,6 +354,7 @@ export function PullPage(props: {
               </>
             ) : undefined}
           </OcraReviewBox>
+          <PullChat pull={ref} findings={findings} files={data.files.map((f) => f.path)} />
           <CiBox pull={ref} head={data.head} />
           <ChecksBox pull={ref} head={data.head} />
           <PeopleCard

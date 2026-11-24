@@ -85,6 +85,7 @@ export const EXPORTED = {
   stackMerges: "stackMerges",
   stackMergeLayers: "stackMergeLayers",
   reviewChatMessages: "reviewChat",
+  pullChatMessages: "pullChat",
   findingIssues: "findingIssues",
   liveRuns: "liveRuns",
   liveEvents: "liveEvents",

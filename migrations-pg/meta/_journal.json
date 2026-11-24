@@ -561,6 +561,13 @@
       "when": 1795499562831,
       "tag": "0079_mend_suggest",
       "breakpoints": true
+    },
+    {
+      "idx": 80,
+      "version": "7",
+      "when": 1795505272775,
+      "tag": "0080_pull_chat_messages",
+      "breakpoints": true
     }
   ]
 }
