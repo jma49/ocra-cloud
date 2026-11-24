@@ -266,6 +266,14 @@ function MergeStack(props: {
             <span className="mono">{props.trunk}</span>. Each one waits for its checks, and the
             merge stops at the first that cannot land.
           </span>
+          {props.chain
+            .filter((p) => p.behind !== null && p.behind > 0 && p.parent !== null)
+            .map((p) => (
+              <span key={p.number} className="small warn" role="note">
+                #{p.number} lacks {commits(p.behind ?? 0)} of #{p.parent}: restack it first, or its
+                merge may conflict.
+              </span>
+            ))}
           {props.methods.length > 1 && (
             <select
               className="input"
