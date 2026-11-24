@@ -44,12 +44,22 @@ export type MendCheckView = {
   cause: FixFailureCause | null;
 };
 
+/**
+ * A conflicted region of a file as a proposed round answered it: `line` is
+ * where the answer starts in the resolved file, `ours` the pull request's
+ * lines, `theirs` the base branch's and `resolved` the lines proposed, each
+ * joined by newlines.
+ */
+export type MendConflictRegion = { line: number; ours: string; theirs: string; resolved: string };
+
 /** A file that conflicted with the base branch in the loop's last round, and what became of it. */
 export type MendConflictView = {
   path: string;
   outcome: MendItemOutcome;
   reason: MendItemReason | null;
   cause: FixFailureCause | null;
+  /** The regions a proposed resolution answered; empty unless `outcome` is `proposed`. */
+  regions: MendConflictRegion[];
 };
 
 /** The loop's last round, or the one that waits or runs. */
@@ -76,6 +86,8 @@ export type PullMendView = {
   conflicts: MendConflictView[];
   /** Whether ocra may be asked to resolve this pull request's conflicts: its repository lets it merge the base branch. */
   resolves: boolean;
+  /** Whether ocra may be asked only to suggest a resolution, which a person applies: an enrolled repository that does not let it merge. */
+  suggests: boolean;
 };
 
 /**
@@ -88,9 +100,9 @@ export type PullMendView = {
 /**
  * What POST /api/auto-review/mends/conflicts answers (body `{ platform,
  * repo, number }`): `queued` a round that resolves the pull request's
- * merge conflicts, `requested` when one already waits, `not_enabled` where
- * the repository does not let ocra merge its base branch. A day's requests
- * used up answer daily_limit.
+ * merge conflicts, or only suggests a resolution where the repository does
+ * not let ocra merge its base branch; `requested` when one already waits.
+ * A day's requests used up answer daily_limit.
  */
 export type MendRequestView = {
   outcome: "queued" | "requested" | "not_enabled";

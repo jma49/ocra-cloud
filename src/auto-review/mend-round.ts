@@ -31,8 +31,15 @@ export async function mendInput(
   jobId: string,
   repo: Row<"reviewRepos">,
 ): Promise<AnsweredRun | (typeof MEND_SKIPS)[number]> {
-  if (repo.mend !== "commit") return "switched_off";
   const job = await data.get("mendJobs", jobId);
+  // A suggestion writes nothing, so the repository's level does not hold it back; findings wait for a round that commits.
+  if (job?.suggest && job.conflicts) {
+    return {
+      more: job.loop ? [{ flag: "--state", input: job.loop }] : [],
+      switches: ["--conflicts"],
+    };
+  }
+  if (repo.mend !== "commit") return "switched_off";
   const waiting = job ? await data.mends.waitingFindings(job.id, MAX_ROUND_FINDINGS) : [];
   // A finding decided since it was asked for needs no fix.
   const open = waiting.filter((f) => f.status === "open");

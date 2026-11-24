@@ -1,0 +1,1 @@
+ALTER TABLE `mend_jobs` ADD `suggest` integer DEFAULT false NOT NULL;

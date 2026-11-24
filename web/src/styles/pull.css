@@ -500,3 +500,13 @@
   gap: 8px;
   align-items: start;
 }
+/* A suggested resolution of merge conflicts, under the control that asked for it. */
+.conflict-suggestion {
+  justify-self: stretch;
+}
+.conflict-sides {
+  display: grid;
+  gap: 4px;
+  padding: 8px 12px;
+  border-top: 0.5px solid var(--hair);
+}

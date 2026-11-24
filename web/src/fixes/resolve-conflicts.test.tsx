@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import type { PullMendView } from "../../../src/shared/index.js";
+import type { MendConflictView, PullMendView } from "../../../src/shared/index.js";
 import { ResolveConflicts } from "./resolve-conflicts.js";
 
 afterEach(() => {
@@ -16,6 +16,7 @@ const mend = (over: Partial<PullMendView> = {}): PullMendView => ({
   checks: [],
   conflicts: [],
   resolves: true,
+  suggests: false,
   ...over,
 });
 const QUEUED = { state: "queued", outcome: null, error: null, finishedAt: null } as const;
@@ -44,8 +45,8 @@ const show = async (onChanged = () => {}) => {
 };
 const click = () => act(async () => void fireEvent.click(screen.getByRole("button")));
 
-it("offers nothing where the repository does not let ocra merge its base branch", async () => {
-  serve([mend({ resolves: false })]);
+it("offers nothing where the repository is not enrolled", async () => {
+  serve([mend({ level: null, resolves: false })]);
   await show();
   expect(screen.queryByRole("button")).toBeNull();
 });
@@ -64,8 +65,8 @@ it("says which file the last round left to a person, and offers to try again", a
   serve([
     mend({
       conflicts: [
-        { path: "src/a.ts", outcome: "deferred", reason: "conflicts", cause: null },
-        { path: "src/db.ts", outcome: "needs_human", reason: "unsure", cause: null },
+        { path: "src/a.ts", outcome: "deferred", reason: "conflicts", cause: null, regions: [] },
+        { path: "src/db.ts", outcome: "needs_human", reason: "unsure", cause: null, regions: [] },
       ],
     }),
   ]);
@@ -81,4 +82,47 @@ it("says when the day's requests are used up", async () => {
   await show();
   await click();
   expect(screen.getByRole("alert").textContent).toMatch(/fixes are used up/);
+});
+
+const SUGGESTS = { level: "propose", resolves: false, suggests: true } as const;
+const proposed: MendConflictView = {
+  path: "limits.ts",
+  outcome: "proposed",
+  reason: null,
+  cause: null,
+  regions: [
+    {
+      line: 3,
+      ours: "export const MAX_QUERY_PARAMS = 32;",
+      theirs: "export const MAX_COOKIES = 50;",
+      resolved: "export const MAX_QUERY_PARAMS = 32;\nexport const MAX_COOKIES = 50;",
+    },
+  ],
+};
+
+it("asks only for a suggestion where the repository does not let ocra merge its base branch", async () => {
+  const posted = serve([mend(SUGGESTS), mend({ ...SUGGESTS, loop: QUEUED })]);
+  await show();
+  expect(screen.getByRole("button").textContent).toBe("Suggest a resolution");
+  expect(screen.getByText(/writes nothing to this branch/)).toBeTruthy();
+  await click();
+  expect(posted).toEqual([["/api/auto-review/mends/conflicts", pull]]);
+  expect(screen.getByRole("status").textContent).toBe("Queued for ocra");
+});
+
+it("shows each suggested region with both sides, and says nothing was written", async () => {
+  serve([mend({ ...SUGGESTS, conflicts: [proposed] })]);
+  await show();
+  expect(screen.getByRole("button").textContent).toBe("Suggest a resolution again");
+  expect(screen.getByText(/Nothing was written to the branch/)).toBeTruthy();
+  expect(screen.queryByText(/left the merge to a person/)).toBeNull();
+  const suggested = screen.getByRole("region", {
+    name: "Suggested lines of limits.ts from line 3",
+  });
+  expect(suggested.textContent).toBe(
+    "export const MAX_QUERY_PARAMS = 32;\nexport const MAX_COOKIES = 50;",
+  );
+  expect(
+    screen.getByRole("region", { name: "The base branch's lines of limits.ts" }).textContent,
+  ).toBe("export const MAX_COOKIES = 50;");
 });

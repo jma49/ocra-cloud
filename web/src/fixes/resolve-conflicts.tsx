@@ -10,10 +10,12 @@ import {
 } from "../../../src/shared/index.js";
 import { ApiError, api, why } from "../api.js";
 import { useAction, useLoad, usePoll } from "../ui.js";
+import { ConflictSuggestion } from "./conflict-suggestion.js";
 
 // Asks ocra to resolve a pull request's merge conflicts, from the readiness
-// section that says it has them, where the repository lets ocra merge the
-// base branch: one merge commit, which the page then reads.
+// section that says it has them: where the repository lets ocra merge the
+// base branch, one merge commit, which the page then reads; elsewhere a
+// suggested resolution, which writes nothing.
 
 const ACTIVE_MS = 5_000;
 
@@ -37,7 +39,9 @@ const LEFT: Partial<Record<NonNullable<MendConflictView["reason"]>, string>> = {
 
 /** Why the last round wrote no merge, by the first file it left. */
 function left(conflicts: MendConflictView[]): string | null {
-  const file = conflicts.find((c) => c.outcome !== "fixed" && c.reason !== "conflicts");
+  const file = conflicts.find(
+    (c) => c.outcome !== "fixed" && c.outcome !== "proposed" && c.reason !== "conflicts",
+  );
   if (!file) return null;
   const why = (file.reason && LEFT[file.reason]) ?? "ocra gave no reason";
   return `ocra left the merge to a person: ${file.path}, ${why}.`;
@@ -69,22 +73,33 @@ export function ResolveConflicts(props: {
     });
     reload();
   });
-  if (!mend?.resolves) return null;
+  if (!mend || (!mend.resolves && !mend.suggests)) return null;
   if (busy) {
     return (
       <div className="stack update-branch" role="status">
         <Status tone="run">
-          {mend.loop?.state === "running" ? "ocra is working on this branch" : "Queued for ocra"}
+          {mend.loop?.state !== "running"
+            ? "Queued for ocra"
+            : mend.resolves
+              ? "ocra is working on this branch"
+              : "ocra is working out a resolution"}
         </Status>
       </div>
     );
   }
   const said = left(mend.conflicts);
+  const suggested = mend.conflicts.some((c) => c.outcome === "proposed");
   return (
     <div className="stack update-branch">
       <Button type="button" variant="outline" size="sm" loading={ask.busy} onClick={ask.run}>
         <GitMerge size={14} aria-hidden="true" />
-        {said ? "Try resolving the conflicts again" : "Resolve conflicts with ocra"}
+        {mend.resolves
+          ? said
+            ? "Try resolving the conflicts again"
+            : "Resolve conflicts with ocra"
+          : said || suggested
+            ? "Suggest a resolution again"
+            : "Suggest a resolution"}
       </Button>
       {ask.error !== null ? (
         <p className="error small" role="alert">
@@ -95,9 +110,14 @@ export function ResolveConflicts(props: {
       ) : (
         <span className="subtle small" role="status">
           {said ??
-            "ocra merges the base branch into this one and resolves the conflicts in one merge commit. It never rebases or force-pushes."}
+            (mend.resolves
+              ? "ocra merges the base branch into this one and resolves the conflicts in one merge commit. It never rebases or force-pushes."
+              : suggested
+                ? null
+                : "ocra suggests how to resolve each conflict and writes nothing to this branch.")}
         </span>
       )}
+      {!mend.resolves && <ConflictSuggestion conflicts={mend.conflicts} />}
     </div>
   );
 }
