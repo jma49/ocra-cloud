@@ -11,20 +11,15 @@ it("draws a listed provider's own mark, and the same one for its China endpoint"
   const openai = tile("openai", "OpenAI");
   expect(openai.querySelector("svg path")?.getAttribute("d")).toBeTruthy();
   expect(openai.textContent).toBe("");
-  const d = (name: string) => tile(name, "Qwen").querySelector("path")?.getAttribute("d");
-  expect(d("qwen-cn")).toBe(d("qwen"));
-  expect(d("qwen")).not.toBe(openai.querySelector("path")?.getAttribute("d"));
+  const art = (name: string) => tile(name, "Qwen").querySelector("img")?.getAttribute("src");
+  expect(art("qwen-cn")).toBe(art("qwen"));
 });
 
-it("keeps the parts a mark draws at half strength", () => {
-  const paths = [...tile("volcengine", "Volcengine").querySelectorAll("path")];
-  expect(paths.map((p) => p.getAttribute("fill-opacity"))).toEqual([
-    "0.5",
-    null,
-    "0.5",
-    null,
-    null,
-  ]);
+it("draws a brand with colours of its own from its colour art, and a black mark in ink", () => {
+  const deepseek = tile("deepseek", "DeepSeek");
+  expect(deepseek.querySelector("img")?.getAttribute("src")).toBe("/marks/deepseek.svg");
+  expect(deepseek.querySelector("img")?.getAttribute("alt")).toBe("");
+  expect(tile("openai", "OpenAI").querySelector("svg")?.getAttribute("fill")).toBe("currentColor");
 });
 
 it("falls back to two letters for a name the gateway does not list", () => {

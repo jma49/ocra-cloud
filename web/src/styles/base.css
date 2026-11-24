@@ -25,6 +25,8 @@
   --amber: #925600;
   --green: #17723d;
   --blue: #3059c6;
+  /* GitLab's own orange: a platform mark in its brand colour (DESIGN.md, Icons). GitHub's is black, so ink. */
+  --brand-gitlab: #fc6d26;
   --teal: #2f9e8f;
   --violet: #8a6cf0;
   --shadow:
