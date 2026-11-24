@@ -4,9 +4,7 @@ import type { ReactNode } from "react";
 // paragraphs, headings, lists, tables, code and emphasis. Links, images and
 // HTML stay the text they were written as, so an answer cannot point the
 // reader anywhere or load anything. That is why this is not a Markdown
-// library. Text a person wrote on the platform (a pull request's
-// description) may ask for its links: those open the https address written,
-// in a new tab, as the platform's own page would.
+// library. Text a person wrote on the platform is `PlatformMarkdown`.
 
 type Block =
   | { kind: "p"; text: string }
@@ -96,14 +94,6 @@ const INLINE = new RegExp(
     `|(?<![\\w*])\\*(?!\\s)${within("*")}(?<!\\s)\\*(?![\\w*])` +
     `|(?<![\\w_])_(?!\\s)${within("_")}(?<!\\s)_(?![\\w_]))`,
 );
-const LINK = /^\[([^\]\n]+)\]\(([^)\s]+)\)$/;
-
-/** The address a link opens: https only, as `URL` reads it, never what was written. */
-function httpsAddress(written: string): string | null {
-  if (!URL.canParse(written)) return null;
-  const url = new URL(written);
-  return url.protocol === "https:" ? url.href : null;
-}
 
 function codeText(span: string): string {
   if (!span.startsWith("``")) return span.slice(1, -1);
@@ -112,35 +102,22 @@ function codeText(span: string): string {
   return padded ? held.slice(1, -1) : held;
 }
 
-function inline(text: string, links: boolean): ReactNode[] {
+function inline(text: string): ReactNode[] {
   return text.split(INLINE).map((part, i) => {
     const key = `${i}:${part}`;
     if (i % 2 === 0) return part;
     if (part.startsWith("`")) return <code key={key}>{codeText(part)}</code>;
-    const link = LINK.exec(part);
-    if (link) {
-      const href = links ? httpsAddress(link[2] ?? "") : null;
-      if (href === null) return part;
-      return (
-        <a key={key} href={href} target="_blank" rel="noopener noreferrer nofollow">
-          {inline(link[1] ?? "", false)}
-        </a>
-      );
-    }
-    if (part.startsWith("**")) return <strong key={key}>{inline(part.slice(2, -2), links)}</strong>;
-    return <em key={key}>{inline(part.slice(1, -1), links)}</em>;
+    if (part.startsWith("[")) return part;
+    if (part.startsWith("**")) return <strong key={key}>{inline(part.slice(2, -2))}</strong>;
+    return <em key={key}>{inline(part.slice(1, -1))}</em>;
   });
 }
 
 /** A document's headings start under the page's own: `#` is an h3, and the smallest an h6. */
 const HEADINGS = ["h3", "h4", "h5", "h6"] as const;
 
-export function Markdown(props: {
-  text: string;
-  /** Only for text a person wrote on the platform: its https links open. */
-  links?: boolean;
-}) {
-  const say = (text: string) => inline(text, props.links === true);
+export function Markdown(props: { text: string }) {
+  const say = inline;
   return (
     <div className="md">
       {blocks(props.text).map((b, i) => {

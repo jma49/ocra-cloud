@@ -104,3 +104,38 @@
 .pull-description .md code {
   font-size: var(--text-base);
 }
+/* Text a person wrote on the platform (`web/src/platform-markdown.tsx`): its HTML as the platform allows it. */
+.md-html p {
+  white-space: normal;
+}
+.md-html blockquote {
+  padding-left: 12px;
+  border-left: 2px solid var(--hair2);
+  color: var(--t2);
+}
+.md-html hr {
+  border: 0;
+  border-top: 0.5px solid var(--hair2);
+}
+.md-html details > summary {
+  width: fit-content;
+}
+.md-html details[open] > summary {
+  margin-bottom: 8px;
+}
+.md-html kbd {
+  padding: 0 4px;
+  border-radius: var(--r-tag);
+  box-shadow:
+    inset 0 -0.5px 0 var(--hair2),
+    0 0 0 0.5px var(--hair2);
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+}
+.md-html li:has(> input[type="checkbox"]) {
+  list-style: none;
+}
+.md-html input[type="checkbox"] {
+  margin: 0 8px 0 -24px;
+  vertical-align: -1px;
+}

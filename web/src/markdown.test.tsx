@@ -56,40 +56,19 @@ describe("Markdown", () => {
     expect(container.textContent).toContain('<img src=x onerror="alert(1)">');
   });
 
-  it("opens a person's https links when asked, and nothing else", () => {
-    const { container } = render(
-      <Markdown
-        links
-        text={
-          '_See_ [the **note**](https://example.com/a?b=1) [x](javascript:alert(1)) [y](http://example.com/) ![z](https://example.com/p.png) <a href="https://evil.example">here</a>'
-        }
-      />,
-    );
-    const links = [...container.querySelectorAll("a")];
-    expect(links.map((a) => [a.getAttribute("href"), a.textContent, a.target, a.rel])).toEqual([
-      ["https://example.com/a?b=1", "the note", "_blank", "noopener noreferrer nofollow"],
-    ]);
-    expect(container.querySelector("a strong")?.textContent).toBe("note");
-    expect(container.querySelector("em")?.textContent).toBe("See");
-    expect(container.querySelector("img")).toBeNull();
-    expect(container.textContent).toContain("[x](javascript:alert(1))");
-    expect(container.textContent).toContain("[y](http://example.com/)");
-    expect(container.textContent).toContain("![z](https://example.com/p.png)");
-  });
-
   it("runs emphasis around a link or code that has the mark in it", () => {
     const { container } = render(
       <Markdown
-        links
         text={
           "_By **Ada** in [the thread](https://example.com/t?id=a_b_c) and `snake_case`_ then a_b"
         }
       />,
     );
     const em = container.querySelector("em");
-    expect(em?.textContent).toBe("By Ada in the thread and snake_case");
+    expect(em?.textContent).toBe(
+      "By Ada in [the thread](https://example.com/t?id=a_b_c) and snake_case",
+    );
     expect(em?.querySelector("strong")?.textContent).toBe("Ada");
-    expect(em?.querySelector("a")?.getAttribute("href")).toBe("https://example.com/t?id=a_b_c");
     expect(em?.querySelector("code")?.textContent).toBe("snake_case");
     expect(container.textContent).toContain(" then a_b");
   });
@@ -99,7 +78,7 @@ describe("Markdown", () => {
     const started = performance.now();
     for (const part of ["`a` ", "`` `a` `` ", "`` a ", "[a](b) ", "[ ` ", "_a "]) {
       const text = `_${part.repeat(22)}`;
-      const { container } = render(<Markdown links text={`${text}\n\n*${part.repeat(22)}`} />);
+      const { container } = render(<Markdown text={`${text}\n\n*${part.repeat(22)}`} />);
       expect(container.querySelector("em")).toBeNull();
       cleanup();
     }
