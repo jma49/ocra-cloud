@@ -1,0 +1,554 @@
+/* The code graph explorer (web/src/code-graph/): a folder's map, a focus's
+   three columns and the details beside them. Names and paths are code, set
+   in mono; colour is kept for what a pull request changes. A work page: as
+   wide as a pull request's. */
+.content:has(> .graph-page) {
+  max-width: 1360px;
+}
+.graph-trail ol {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  /* The first step's text, not its hover box, starts on the page's edge. */
+  margin: 0 0 12px -6px;
+  padding: 0;
+  list-style: none;
+}
+.graph-trail li {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.graph-trail li + li::before {
+  content: "/";
+  color: var(--t4);
+}
+.graph-step {
+  height: var(--ctl-h);
+  padding: 0 6px;
+  border: 0;
+  border-radius: var(--r-chip);
+  background: transparent;
+  color: var(--t2);
+  font-size: var(--text-base);
+  line-height: 20px;
+  cursor: pointer;
+}
+.graph-step.mono {
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+}
+.graph-step:hover {
+  background: var(--fill);
+  color: var(--t1);
+}
+.graph-step.here {
+  display: inline-flex;
+  align-items: center;
+  color: var(--t1);
+  font-weight: 500;
+  cursor: default;
+}
+.graph-step.here:hover {
+  background: transparent;
+}
+
+.graph-work {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
+  gap: 16px;
+  align-items: start;
+}
+.graph-stage {
+  position: relative;
+  min-width: 0;
+  min-height: 320px;
+  background: var(--raised);
+  border-radius: var(--r-ctl);
+  box-shadow: var(--shadow);
+  transition: opacity var(--d-fast) var(--e-std);
+}
+.graph-stage.is-busy {
+  opacity: 0.7;
+}
+.graph-stage.map {
+  height: clamp(420px, calc(100vh - 260px), 760px);
+  overflow: hidden;
+}
+.graph-wait,
+.graph-loading {
+  margin: 0;
+  padding: 48px 16px;
+  text-align: center;
+  color: var(--t2);
+}
+.graph-missing {
+  padding: 24px var(--gutter);
+}
+.graph-missing p {
+  margin: 0 0 12px;
+}
+.graph-quiet {
+  margin: 8px 0;
+  padding: 0 var(--gutter);
+  color: var(--t3);
+  font-size: var(--text-sm);
+  line-height: 16px;
+}
+
+/* The map: discs and lines on the stage, drawn at screen width whatever the zoom. */
+.map-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.map-canvas.is-dragging {
+  cursor: grabbing;
+}
+.map-canvas > g {
+  animation: graph-in var(--d-move) var(--e-enter);
+}
+.map-edge {
+  stroke: var(--t4);
+  stroke-opacity: 0.55;
+  vector-effect: non-scaling-stroke;
+  transition: stroke-opacity var(--d-fast) var(--e-std);
+}
+.has-hover .map-edge {
+  stroke-opacity: 0.12;
+}
+.has-hover .map-edge.on {
+  stroke: var(--t1);
+  stroke-opacity: 0.7;
+}
+.map-node {
+  cursor: pointer;
+  transition: opacity var(--d-fast) var(--e-std);
+}
+.map-node circle {
+  fill: var(--raised);
+  stroke: var(--t4);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  transition:
+    fill var(--d-fast) var(--e-std),
+    stroke var(--d-fast) var(--e-std);
+}
+.map-node.folder circle {
+  fill: color-mix(in srgb, var(--t1) 7%, var(--raised));
+  stroke: var(--t3);
+}
+.map-node text {
+  fill: var(--t2);
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  pointer-events: none;
+}
+.map-node.is-dim {
+  opacity: 0.3;
+}
+.map-node.is-lit circle {
+  stroke: var(--t1);
+  stroke-width: 1.5;
+}
+.map-node.is-lit text,
+.map-node.is-near text {
+  fill: var(--t1);
+}
+.map-node.is-near circle {
+  stroke: var(--t2);
+}
+.map-tools {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--r-ctl);
+  background: var(--raised);
+  box-shadow: var(--shadow);
+}
+
+/* A path: its folders quiet, its last part in ink; short of room, the folders give way. */
+.path-text {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+  font-size: var(--text-sm);
+}
+.path-dir {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--t3);
+}
+.path-base {
+  flex: none;
+  white-space: nowrap;
+  color: var(--t1);
+}
+.symbol-mark {
+  color: var(--t3);
+}
+
+/* A focus: what uses it, it, what it uses; curves behind the rows. */
+.gcols {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.85fr) minmax(0, 1fr);
+  gap: 48px;
+  padding: var(--gutter);
+  animation: graph-in var(--d-move) var(--e-enter);
+}
+.gcols.two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.gcurves {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+.gcurves path {
+  fill: none;
+  stroke: var(--t4);
+  stroke-opacity: 0.6;
+  transition:
+    stroke var(--d-fast) var(--e-std),
+    stroke-opacity var(--d-fast) var(--e-std);
+}
+.gcurves path.on {
+  stroke: var(--t1);
+  stroke-opacity: 0.7;
+}
+.gcurves path.off {
+  stroke-opacity: 0.15;
+}
+.gcol {
+  position: relative;
+  min-width: 0;
+}
+.gcol-center {
+  align-self: center;
+}
+.gcol-title {
+  margin: 0 0 8px;
+  font-size: var(--text-sm);
+  line-height: 16px;
+  font-weight: 500;
+  color: var(--t3);
+}
+.gcol-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.gcol-empty {
+  margin: 0;
+  color: var(--t3);
+  font-size: var(--text-sm);
+  line-height: 16px;
+}
+.gcol-more {
+  margin-top: 8px;
+}
+.gnode {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 4px 12px;
+  border: 0.5px solid var(--hair2);
+  border-radius: var(--r-ctl);
+  background: var(--raised);
+  color: var(--t1);
+  font: inherit;
+  line-height: 20px;
+  text-align: left;
+  /* Its own, not motion.css's: rows away from the one pointed at fade too. */
+  transition:
+    background-color var(--d-fast) var(--e-std),
+    border-color var(--d-fast) var(--e-std),
+    opacity var(--d-fast) var(--e-std);
+}
+button.gnode {
+  cursor: pointer;
+}
+button.gnode:hover,
+.gnode.is-lit {
+  background: var(--fill);
+}
+.gnode.is-focus {
+  border-color: var(--t3);
+  background: var(--fill2);
+}
+.gnode.is-dim {
+  opacity: 0.45;
+}
+.gnode-mark {
+  display: flex;
+  flex: none;
+  color: var(--t3);
+}
+.gnode-text {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+.gnode-name,
+.gnode-sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gnode-name .mono {
+  font-size: var(--text-sm);
+}
+.gnode-sub {
+  color: var(--t3);
+  font-size: var(--text-sm);
+  line-height: 16px;
+}
+.gnode-sub :is(.path-text, .mono) {
+  font-size: var(--text-xs);
+}
+.gnode-sub .path-dir,
+.gnode-sub .path-base {
+  color: inherit;
+}
+.gnode-meta {
+  flex: none;
+  color: var(--t3);
+  font-size: var(--text-sm);
+  line-height: 16px;
+  white-space: nowrap;
+}
+.gnode.is-warn .gnode-meta {
+  color: var(--warning);
+}
+.gnode.is-ok .gnode-meta {
+  color: var(--green);
+}
+
+/* The details beside the stage: a card of rows. */
+.graph-details {
+  position: sticky;
+  top: 76px;
+  max-height: calc(100vh - 96px);
+  overflow-y: auto;
+  min-width: 0;
+}
+.graph-details-head {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+.graph-details-head h2 {
+  overflow-wrap: anywhere;
+}
+.graph-details-head .small {
+  margin-top: 2px;
+  line-height: 16px;
+  overflow-wrap: anywhere;
+}
+.graph-details-actions {
+  display: flex;
+  flex: none;
+  gap: 8px;
+}
+.graph-where {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 var(--gutter);
+  border-bottom: 0.5px solid var(--hair);
+}
+.graph-where .path-text {
+  flex-wrap: wrap;
+}
+.graph-where .path-dir {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.graph-details .impact-note {
+  margin-bottom: 12px;
+}
+.graph-section {
+  margin: 0;
+  padding: 12px var(--gutter) 4px;
+  font-size: var(--text-sm);
+  line-height: 16px;
+  font-weight: 500;
+  color: var(--t3);
+}
+.graph-rows {
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+}
+.graph-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 36px;
+  padding: 0 var(--gutter);
+  border: 0;
+  background: transparent;
+  color: var(--t1);
+  font: inherit;
+  line-height: 20px;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.graph-row:hover,
+.graph-row.is-lit {
+  background: var(--fill);
+}
+.graph-row-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.graph-row-name {
+  font-size: var(--text-sm);
+}
+.graph-row-meta {
+  flex: none;
+  margin-left: auto;
+  padding-left: 8px;
+  color: var(--t3);
+  font-size: var(--text-sm);
+  line-height: 16px;
+  white-space: nowrap;
+}
+.graph-group + .graph-group {
+  border-top: 0.5px solid var(--hair);
+}
+.graph-group-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 var(--gutter);
+}
+
+/* Find a file or symbol: a field over its matches. */
+.graph-search {
+  position: relative;
+  width: 300px;
+}
+.graph-search .input {
+  width: 100%;
+  padding-left: 32px;
+}
+.graph-search-icon {
+  position: absolute;
+  top: calc((var(--ctl-h) - 14px) / 2);
+  left: 10px;
+  color: var(--t3);
+  pointer-events: none;
+}
+.graph-hits {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 4px);
+  right: 0;
+  width: min(560px, calc(100vw - 32px));
+  max-height: 360px;
+  margin: 0;
+  padding: 4px;
+  overflow-y: auto;
+  list-style: none;
+  border-radius: var(--r-ctl);
+  background: var(--raised);
+  box-shadow: var(--float);
+}
+.graph-hits [role="option"],
+.graph-hits-none {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 0 8px;
+  border-radius: var(--r-chip);
+  cursor: pointer;
+}
+.graph-hits .is-current {
+  background: var(--fill2);
+}
+.graph-hits-none {
+  margin: 0;
+  color: var(--t3);
+  cursor: default;
+}
+.graph-hit-where {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.graph-hit-where .path-text {
+  font-size: var(--text-xs);
+}
+.graph-hit-where .path-base {
+  color: var(--t3);
+}
+
+@keyframes graph-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (max-width: 1100px) {
+  .graph-work {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .graph-details {
+    position: static;
+    max-height: none;
+  }
+}
+@media (max-width: 760px) {
+  .gcols,
+  .gcols.two {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+  .gcurves {
+    display: none;
+  }
+  .gcol-center {
+    order: -1;
+  }
+  .graph-search {
+    width: 100%;
+  }
+  .graph-stage.map {
+    height: 420px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .map-canvas > g,
+  .gcols {
+    animation: none;
+  }
+}

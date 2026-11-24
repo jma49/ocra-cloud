@@ -231,6 +231,7 @@ function PageBar(props: { me: Me; route: Route | undefined; path: string }) {
   const pull = props.route?.path.startsWith("/pull/") === true;
   const here =
     props.route?.tab ??
+    props.route?.crumb ??
     (props.route?.path === "/reviews/:id" ? "Review" : pull ? "Pull request" : undefined);
   const settings = props.route?.place === "settings";
   // A page under a place leads back to it; the place's own pages only name it.

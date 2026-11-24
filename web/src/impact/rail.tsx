@@ -6,6 +6,7 @@ import type {
   ImpactUse,
   Severity,
 } from "../../../src/shared/index.js";
+import { graphPath } from "../code-graph/place.js";
 import { Link } from "../router.js";
 import { lineUrl, noticesOf, type RailNotice, short, symbolsOf } from "./select.js";
 import type { Impact } from "./use-impact.js";
@@ -23,7 +24,13 @@ export type FocusedFinding = {
   body: string;
 };
 
-type Props = { impact: Impact; finding: FocusedFinding | null; onClose: () => void };
+type Props = {
+  impact: Impact;
+  finding: FocusedFinding | null;
+  onClose: () => void;
+  /** The pull request the impact is of, to draw it as a graph. */
+  pull?: number;
+};
 
 export function ImpactRail(props: Props) {
   const { impact, finding } = props;
@@ -47,10 +54,22 @@ export function ImpactRail(props: Props) {
             )}
           </div>
         </div>
-        {finding && (
+        {finding ? (
           <Button variant="outline" size="sm" onClick={props.onClose}>
             Show all
           </Button>
+        ) : (
+          impact.state === "ready" &&
+          impact.view.symbols.length > 0 &&
+          props.pull !== undefined && (
+            <Button
+              variant="outline"
+              size="sm"
+              render={<Link to={graphPath(impact.repo.id, { view: "impact", pull: props.pull })} />}
+            >
+              Graph
+            </Button>
+          )
         )}
       </div>
       <RailBody impact={impact} finding={finding} />
