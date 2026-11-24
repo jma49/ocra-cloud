@@ -134,8 +134,9 @@ describe("page head", () => {
 
 describe("recent pull requests", () => {
   it("offers the ones opened last before anything is typed", async () => {
-    history.replaceState(null, "", "/");
+    history.replaceState(null, "", "/pull/github/acme%2Fweb/8");
     rememberPull({ to: "/pull/github/acme/web/7", title: "Cache the pricing", ref: "acme/web #7" });
+    rememberPull({ to: "/pull/github/acme/web/8", title: "Open right now", ref: "acme/web #8" });
     render(
       <Frame me={me} route={matchRoute("/")?.route} path="/">
         <p>page</p>
@@ -143,6 +144,7 @@ describe("recent pull requests", () => {
     );
     fireEvent.keyDown(document, { key: "k", ctrlKey: true });
     const recent = await screen.findByRole("option", { name: /Cache the pricing/ });
+    expect(screen.queryByRole("option", { name: /Open right now/ })).toBeNull();
     fireEvent.change(screen.getByPlaceholderText("Search or go to…"), {
       target: { value: "usage" },
     });

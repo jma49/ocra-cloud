@@ -90,13 +90,15 @@ export function CommandMenu(props: { sections: CommandSection[] }) {
       ? [
           {
             value: "Recent",
-            items: recentPulls().map((p) => ({
-              label: p.title,
-              hint: p.ref,
-              to: p.to,
-              within: "Recent",
-              icon: GitPullRequest,
-            })),
+            items: recentPulls()
+              .filter((p) => decodeURIComponent(p.to) !== decodeURIComponent(location.pathname))
+              .map((p) => ({
+                label: p.title,
+                hint: p.ref,
+                to: p.to,
+                within: "Recent",
+                icon: GitPullRequest,
+              })),
           },
         ].filter((s) => s.items.length > 0)
       : [];
