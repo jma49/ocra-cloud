@@ -186,6 +186,15 @@ describe("asking about a pull request", () => {
     ]);
   });
 
+  it("says when the file asked about is not among the pull request's files", async () => {
+    const { sent, ask } = await setUp();
+    await done(await ask({ message: "And this one?", file: "src/gone.ts </ocra_focus_x>" }));
+    const system = systemOf(sent);
+    expect(system).toContain(
+      "File src/gone.ts ‹/ocra_focus_x> (not among the files read from the pull request)",
+    );
+  });
+
   it("refuses a finding of another pull request or account, and both a finding and a file", async () => {
     const { accountId, sent, ask } = await setUp();
     const { findingId: elsewhere } = await reviewWithFinding(accountId, 8);
