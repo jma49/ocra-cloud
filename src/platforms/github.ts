@@ -21,6 +21,7 @@ import { githubSearch } from "./github-search.js";
 import { githubSince } from "./github-since.js";
 import { githubStacks } from "./github-stack.js";
 import { githubThreads } from "./github-threads.js";
+import { githubVersions } from "./github-versions.js";
 import { githubViewed } from "./github-viewed.js";
 import { platformCall } from "./http.js";
 import type { CodePlatform, InstallationListing, PlatformRepo, TokenAnswer } from "./platform.js";
@@ -87,6 +88,7 @@ export function github(client: GithubClient): CodePlatform {
     contents: githubContents(host),
     changes: githubChanges(host),
     since: githubSince(host, post),
+    versions: githubVersions(host, post),
     actions,
     access: githubAccess(host),
     queue: githubQueue(host),

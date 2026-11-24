@@ -20,6 +20,7 @@ import { gitlabSearch } from "./gitlab-search.js";
 import { gitlabSince } from "./gitlab-since.js";
 import { gitlabStacks } from "./gitlab-stack.js";
 import { gitlabThreads } from "./gitlab-threads.js";
+import { gitlabVersions } from "./gitlab-versions.js";
 import { platformCall } from "./http.js";
 import type { CodePlatform, LinkedUser, PlatformRepo, TokenAnswer } from "./platform.js";
 import { LOGIN } from "./reviewers.js";
@@ -71,6 +72,7 @@ export function gitlab(client: GitlabClient, redirectUri: string): CodePlatform 
     contents: gitlabContents(client.url),
     changes: gitlabChanges(client.url),
     since: gitlabSince(client.url),
+    versions: gitlabVersions(client.url),
     actions: gitlabActions(client.url),
     access: gitlabAccess(client.url),
     queue: gitlabQueue(client.url),

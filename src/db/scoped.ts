@@ -66,6 +66,7 @@ import { accountPullFlows } from "./pull-flows.js";
 import { accountPullIndex } from "./pull-index.js";
 import { accountPullPaths } from "./pull-paths.js";
 import { accountPullSeen } from "./pull-seen.js";
+import { accountPullVersions } from "./pull-versions.js";
 import { accountPullViews } from "./pull-views.js";
 import { accountReleaseDrafts } from "./release-drafts.js";
 import { accountReplyJobs } from "./reply-jobs.js";
@@ -497,6 +498,8 @@ export function scoped(db: Db, accountId: string) {
     /** The inbox's index of enrolled repositories' pull requests (./pull-index.ts). */
     pullIndex: accountPullIndex(db, accountId),
     pullPaths: accountPullPaths(db, accountId),
+    /** The heads enrolled repositories' pull requests were pushed to (./pull-versions.ts). */
+    pullVersions: accountPullVersions(db, accountId),
     reviewRequests: accountReviewRequests(db, accountId),
     reviewTeams: accountReviewTeams(db, accountId),
     reviewThreads: accountReviewThreads(db, accountId),

@@ -18,6 +18,7 @@ import { githubHostOf, gitlabClientOf } from "../platforms/registry.js";
 import { gitlabPullsTouched } from "../pull-changes.js";
 import { touchAndPublish } from "../pull-events/publish.js";
 import { indexGitlabEvent } from "../pull-index/hooks.js";
+import { recordGitlabVersion } from "../pull-versions/hooks.js";
 import { gitlabMerged, gitlabRetargeted } from "../stack-merge/hooks.js";
 import type { AppEnv } from "../types.js";
 import { recordGitlabClose } from "./closes.js";
@@ -206,6 +207,7 @@ export function autoReviewWebhooks(service: AutoReviewService) {
       if (mr) {
         received.reviewed(await recordGitlabFlow(c.var.db, repo, body));
         await recordGitlabRequests(c.var.db, repo, body);
+        await recordGitlabVersion(c.var.db, repo, body);
       }
       await automatePullEvents(c, await gitlabPullEvents(c.var.db, repo, kind, body));
       if (mr && (await recordGitlabClose(c.var.db, repo, client.url, body))) return 0;
