@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { CHECK_LOG_LIMITS, checkLogTail } from "../src/platforms/ci-log.js";
 
-// The mirror of the contract's checkLogTail (0.23.0): the same steps and limits.
+// The mirror of the contract's checkLogTail (0.23.1): the same steps and limits.
 
 describe("checkLogTail", () => {
   it("splits on CRLF and LF and drops empty lines", () => {
@@ -34,5 +34,27 @@ describe("checkLogTail", () => {
     const cut = checkLogTail(long);
     expect(cut).toHaveLength(CHECK_LOG_LIMITS.chars);
     expect(cut.endsWith(`9${"x".repeat(4_999)}`)).toBe(true);
+  });
+
+  it("keeps an Actions log from the failed step's start through its last error", () => {
+    const log = [
+      "##[group]Run npm ci",
+      "added 10 packages",
+      "##[group]Run npm test",
+      "##[error]first",
+      "FAIL a.test.ts",
+      "##[error]Process completed with exit code 1.",
+      "Post job cleanup.",
+      "##[group]Run actions/checkout@v4",
+    ].join("\n");
+    expect(checkLogTail(log)).toBe(
+      "##[group]Run npm test\n##[error]first\nFAIL a.test.ts\n##[error]Process completed with exit code 1.",
+    );
+  });
+
+  it("keeps a GitLab trace's last script section, its marks on their own lines", () => {
+    const log =
+      "section_start:1:step_script\r\u001b[0KExecuting\n$ npm test\nFAIL\nsection_end:2:step_script\r\u001b[0Ksection_start:3:after_script\r\u001b[0Kafter\n";
+    expect(checkLogTail(log)).toBe("Executing\n$ npm test\nFAIL");
   });
 });
