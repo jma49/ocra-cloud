@@ -161,6 +161,26 @@ describe("a GitHub pull request's CI", () => {
     });
   });
 
+  it("falls back to what an Actions job reported when its log is refused", async () => {
+    platform({
+      [`GET ${REPO}/check-runs/2`]: () =>
+        Response.json(
+          checkRun(2, "test", {
+            conclusion: "failure",
+            output: { title: "Process completed with exit code 1", summary: null, text: null },
+          }),
+        ),
+      [`GET ${REPO}/actions/jobs/2/logs`]: () => new Response(null, { status: 403 }),
+    });
+    const a = await signInWithGithub();
+    const res = await a.send("/api/pulls/ci/log?platform=github&repo=octo/api&number=7&job=2");
+    const view = (await res.json()) as PullCiLogView;
+    expect(view).toMatchObject({
+      source: "check_output",
+      log: "Process completed with exit code 1",
+    });
+  });
+
   it("refuses a job id that is not a number", async () => {
     platform({});
     const a = await signInWithGithub();
