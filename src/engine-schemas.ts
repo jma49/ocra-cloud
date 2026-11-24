@@ -8,6 +8,7 @@ export const RULES_JSON_SCHEMA = {
       items: {
         type: "object",
         properties: {
+          id: { type: "string", pattern: "^[a-z0-9][a-z0-9-]{0,63}$" },
           path: {
             anyOf: [
               { type: "string", minLength: 1 },
