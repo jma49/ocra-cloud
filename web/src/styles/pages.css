@@ -1996,3 +1996,13 @@ tr.is-current .repo-rename {
 .feed-more {
   margin-top: 12px;
 }
+/* The thumbs a finding's comment got on the platform. */
+.finding-reactions {
+  display: inline-flex;
+  gap: 8px;
+}
+.finding-reactions > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}

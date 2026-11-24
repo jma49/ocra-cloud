@@ -29,6 +29,8 @@ const row = {
   reason: null,
   note: null,
   decidedAt: null,
+  thumbsUp: 0,
+  thumbsDown: 0,
   createdAt: "2026-11-23T00:00:00.000Z",
 };
 
@@ -54,6 +56,29 @@ describe("the findings list", () => {
     expect(first?.textContent).toContain("octo/api #12");
     expect(second?.textContent).toContain("correctness · security · verified");
     expect(second?.textContent).not.toContain("#");
+  });
+
+  it("shows the thumbs a finding's comment got, and nothing without any", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          findings: [
+            { ...row, thumbsUp: 3, thumbsDown: 1 },
+            { ...row, id: "f2" },
+          ],
+          next: null,
+          statuses: { open: 2, fixed: 0, dismissed: 0 },
+        }),
+      ),
+    );
+    render(
+      <ToastProvider>
+        <Findings />
+      </ToastProvider>,
+    );
+    expect(await screen.findByRole("img", { name: "Reactions: 3 thumbs up, 1 thumbs down" }));
+    expect(screen.getAllByRole("img", { name: /^Reactions/ })).toHaveLength(1);
   });
 
   it("says where each finding stands in the page's words", async () => {

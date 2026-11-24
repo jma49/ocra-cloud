@@ -39,6 +39,8 @@ const REASON: Record<string, string> = {
   already_known: "Already known",
 };
 const rate = (r: number | null) => (r === null ? "–" : `${Math.round(r * 100)}%`);
+/** A share of the findings someone reacted to, with how many that is. */
+const reacted = (r: number | null, of: number) => (r === null ? "–" : `${rate(r)} of ${num(of)}`);
 
 function Breakdown(props: { title: string; column: string; rows: Row[]; none: string }) {
   if (props.rows.length === 0) return null;
@@ -57,6 +59,12 @@ function Breakdown(props: { title: string; column: string; rows: Row[]; none: st
               <th className="num">Fixed</th>
               <th className="num hide-narrow">Dismissed</th>
               <th className="num">Accepted</th>
+              <th className="num hide-narrow" title="Of the findings whose comment got a reaction">
+                Upvoted
+              </th>
+              <th className="num hide-narrow" title="Of the findings whose comment got a reaction">
+                Downvoted
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -68,6 +76,8 @@ function Breakdown(props: { title: string; column: string; rows: Row[]; none: st
                 <td className="num">{num(r.fixed)}</td>
                 <td className="num hide-narrow">{num(r.dismissed)}</td>
                 <td className="num">{rate(r.acceptanceRate)}</td>
+                <td className="num hide-narrow">{reacted(r.thumbsUpRate, r.reacted)}</td>
+                <td className="num hide-narrow">{reacted(r.downvoteRate, r.reacted)}</td>
               </tr>
             ))}
           </tbody>
@@ -198,7 +208,10 @@ function Kpis(props: { runs: Reviews; quality: Insights }) {
       <div className="card stat">
         <div className="stat-label">Accepted</div>
         <div className="stat-value">{rate(t.acceptanceRate)}</div>
-        <div className="stat-note">of {num(t.fixed + t.dismissed)} decided</div>
+        <div className="stat-note">
+          of {num(t.fixed + t.dismissed)} decided
+          {t.reacted > 0 && ` · ${rate(t.thumbsUpRate)} upvoted`}
+        </div>
       </div>
       <div className="card stat">
         <div className="stat-label">Review time</div>
