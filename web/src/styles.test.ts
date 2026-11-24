@@ -19,6 +19,13 @@ describe("type scale", () => {
   });
 });
 
+describe("code as typed", () => {
+  it.each(sheets)("%s keeps ligatures off where a code font shorthand resets them", (sheet) => {
+    const rules = css(sheet).match(/[^{}]*\{[^{}]*\bfont:[^;]*var\(--mono\)[^{}]*\}/g) ?? [];
+    expect(rules.filter((r) => !r.includes("font-variant-ligatures: none"))).toEqual([]);
+  });
+});
+
 describe("focus ring", () => {
   it.each([...sheets, join("styles", "base.css")])(
     "%s draws focus outlines in the focus colour",

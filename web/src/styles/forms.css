@@ -263,6 +263,7 @@ label.field .input {
   border: 0.5px solid var(--hair2);
   background: var(--bg-subtle);
   font: var(--text-sm) var(--mono);
+  font-variant-ligatures: none;
   line-height: 16px;
 }
 .chip-x button {
@@ -288,6 +289,7 @@ label.field .input {
   padding: var(--gutter);
   background: var(--bg-subtle);
   font: var(--text-sm) / 1.6 var(--mono);
+  font-variant-ligatures: none;
   overflow-x: auto;
   white-space: pre;
   border-top: 0.5px solid var(--hair2);
