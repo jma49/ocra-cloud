@@ -55,6 +55,7 @@ import type { PullsHub } from "./pull-events/hub.js";
 import { pullEventsRoute } from "./pull-events/stream.js";
 import { pullFindings } from "./pull-findings.js";
 import { pullFixes } from "./pull-fixes.js";
+import { type PullGuides, pullGuidesRoute } from "./pull-guides.js";
 import { pullLines } from "./pull-lines.js";
 import { pullPage } from "./pull-page.js";
 import { pullPeople } from "./pull-people.js";
@@ -118,6 +119,8 @@ export type Host<E extends AppBindings> = {
   webhookPost?: WebhookPost;
   /** Where webhooks tell the open inboxes of their changes: a Durable Object on Workers, memory on Node. */
   pullsHub?: PullsHub;
+  /** What writes pull requests' tours and highlights, where the host has it; nothing does yet. */
+  pullGuides?: PullGuides;
   /** Whether a deep health check asks that a remote runner reported in lately (src/node/). */
   runnerHeartbeat?: boolean;
 };
@@ -138,6 +141,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
     c.set("mailer", host.mailer);
     c.set("webhookPost", host.webhookPost);
     c.set("pullsHub", host.pullsHub);
+    c.set("pullGuides", host.pullGuides);
     await next();
   });
   app.use(platformLimits);
@@ -184,6 +188,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
   app.route("/pulls", pullFindings);
   app.route("/pulls", pullChat);
   app.route("/pulls", pullFixes);
+  app.route("/pulls", pullGuidesRoute);
   app.route("/pulls", pullBatch);
   app.route("/pulls", pullStack);
   app.route("/pulls", pullCi);

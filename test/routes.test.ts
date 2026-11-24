@@ -98,6 +98,8 @@ const ACCESS: Record<string, Access> = {
   "POST /api/pulls/merge-when-ready": "web",
   "DELETE /api/pulls/merge-when-ready": "web",
   "GET /api/pulls/stack": "web",
+  "GET /api/pulls/tour": "web",
+  "GET /api/pulls/highlights": "web",
   "GET /api/pulls/merge-stack": "web",
   "POST /api/pulls/merge-stack": "web",
   "DELETE /api/pulls/merge-stack": "web",

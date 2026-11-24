@@ -6,6 +6,7 @@ import type { Mailer } from "./notify/email.js";
 import type { WebhookPost } from "./notify/webhooks.js";
 import type { BotTokens } from "./platforms/bot.js";
 import type { PullsHub } from "./pull-events/hub.js";
+import type { PullGuides } from "./pull-guides.js";
 
 /**
  * What the app reads from its host: settings, secrets and rate limiters,
@@ -37,5 +38,7 @@ export type AppEnv = {
     webhookPost: WebhookPost | undefined;
     /** Where webhooks tell open consoles of pull request changes; undefined where the host has none. */
     pullsHub: PullsHub | undefined;
+    /** What writes pull requests' tours and highlights; undefined where the host has nothing. */
+    pullGuides: PullGuides | undefined;
   };
 };
