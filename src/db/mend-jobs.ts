@@ -55,17 +55,22 @@ export function accountMendJobs(db: Db, accountId: string) {
   const waiting = (jobId: string) => and(ownItem, eq(i.jobId, jobId), isNull(i.outcome));
 
   /** Queues the pull request's next round at `at`; one whose round is under way runs again after it. */
-  const queue = async (reviewRepoId: string, number: number, at: Date, checks = false) => {
+  const queue = async (
+    reviewRepoId: string,
+    number: number,
+    at: Date,
+    asks: { checks?: true; conflicts?: true } = {},
+  ) => {
     const idle = (column: SQLiteColumn, value: SQL): SQL =>
       sql`CASE WHEN ${j.state} = 'running' THEN ${column} ELSE ${value} END`;
     await db
       .insert(j)
-      .values({ id: crypto.randomUUID(), accountId, reviewRepoId, number, notBefore: at, checks })
+      .values({ id: crypto.randomUUID(), accountId, reviewRepoId, number, notBefore: at, ...asks })
       .onConflictDoUpdate({
         target: [j.reviewRepoId, j.number],
         set: {
           again: sql`CASE WHEN ${j.state} = 'running' THEN 1 ELSE 0 END`,
-          ...(checks ? { checks: true } : {}),
+          ...asks,
           state: idle(j.state, sql`'queued'`),
           attempts: idle(j.attempts, sql`0`),
           notBefore: idle(j.notBefore, sql`${at.getTime()}`),
@@ -166,8 +171,46 @@ export function accountMendJobs(db: Db, accountId: string) {
         .returning({ id: j.id });
       if (first.length === 0) return false;
       if (!(await countOne(db, accountId, "fix_requests", cap, now))) return false;
-      await queue(of.reviewRepoId, of.number, at, true);
+      await queue(of.reviewRepoId, of.number, at, { checks: true });
       return true;
+    },
+    /**
+     * Queues the pull request's next round at `at` to resolve its merge
+     * conflicts, because a person asked: once while that waits, counted
+     * against the account's `cap` a day as a request is.
+     */
+    async askConflicts(
+      pull: { reviewRepoId: string; number: number },
+      cap: number,
+      at: Date,
+      now: Date,
+    ): Promise<"queued" | "requested" | "limited"> {
+      const [first] = await db
+        .insert(j)
+        .values({
+          id: crypto.randomUUID(),
+          accountId,
+          ...pull,
+          state: "done",
+          conflicts: true,
+          finishedAt: now,
+        })
+        .onConflictDoUpdate({
+          target: [j.reviewRepoId, j.number],
+          set: { conflicts: true },
+          setWhere: sql`${own} AND ${j.conflicts} = ${false}`,
+        })
+        .returning({ id: j.id });
+      if (!first) return "requested";
+      if (!(await countOne(db, accountId, "fix_requests", cap, now))) {
+        await db
+          .update(j)
+          .set({ conflicts: false })
+          .where(and(own, eq(j.id, first.id)));
+        return "limited";
+      }
+      await queue(pull.reviewRepoId, pull.number, at, { conflicts: true });
+      return "queued";
     },
     /** The pull request's loop and the findings asked of it, oldest first. */
     async forPull(reviewRepoId: string, number: number) {
@@ -215,6 +258,7 @@ export function accountMendJobs(db: Db, accountId: string) {
           loop: round.loop,
           // Asked again during the round: the next one reads the checks anew.
           checks: sql`CASE WHEN ${j.again} THEN ${j.checks} ELSE 0 END`,
+          conflicts: sql`CASE WHEN ${j.again} THEN ${j.conflicts} ELSE 0 END`,
           checkItems: round.items.flatMap(({ check, outcome, reason, cause }) =>
             check ? [{ check, outcome, reason, cause }] : [],
           ),
@@ -272,6 +316,7 @@ export function accountMendJobs(db: Db, accountId: string) {
           state: "done",
           again: false,
           checks: false,
+          conflicts: false,
           error: note,
           leaseUntil: null,
           finishedAt: now,

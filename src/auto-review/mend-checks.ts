@@ -15,6 +15,13 @@ import { MEND_DEBOUNCE_MS } from "./mend-round.js";
 /** Pull requests of one head given a round at once, of one delivery. */
 const MAX_PULLS = 5;
 
+/** Whether the pull request is open, as the deliveries said: one closed and not reopened since is not. */
+export async function pullIsOpen(data: Scoped, reviewRepoId: string, number: number) {
+  const closed = await data.findOne("closedPulls", { reviewRepoId, number });
+  const flow = closed && (await data.findOne("pullFlows", { reviewRepoId, number }));
+  return !closed || !!(flow?.reopenedAt && closed.closedAt < flow.reopenedAt);
+}
+
 /** Queues a round for each pull request the failure names; how many it queued. */
 export async function mendFailedChecks(
   data: Scoped,
@@ -25,9 +32,7 @@ export async function mendFailedChecks(
   if (repo.mend !== "commit" || !repo.mendChecks) return 0;
   let queued = 0;
   for (const number of failure.numbers.slice(0, MAX_PULLS)) {
-    const closed = await data.findOne("closedPulls", { reviewRepoId: repo.id, number });
-    const flow = closed && (await data.findOne("pullFlows", { reviewRepoId: repo.id, number }));
-    if (closed && !(flow?.reopenedAt && closed.closedAt < flow.reopenedAt)) continue;
+    if (!(await pullIsOpen(data, repo.id, number))) continue;
     const asked = await data.mends.askChecks(
       { reviewRepoId: repo.id, number, head: failure.head },
       MAX_DAILY_FIX_REQUESTS,

@@ -11,6 +11,7 @@ import type {
 import { api } from "../api.js";
 import { useRead } from "../cache.js";
 import { FixJobsOf } from "../fixes/fix-jobs.js";
+import { ResolveConflicts } from "../fixes/resolve-conflicts.js";
 import { useFixesRead } from "../fixes/use-fixes.js";
 import { useBeside } from "../inbox/queue.js";
 import { usePageCommands } from "../page-commands.js";
@@ -285,6 +286,9 @@ export function PullPage(props: {
             <ReadinessBox view={readiness}>
               {readiness?.canUpdateBranch && (
                 <UpdateBranch pull={ref} head={data.head} onChanged={refresh} />
+              )}
+              {readiness?.items.some((i) => i.kind === "conflicts" && i.state === "unmet") && (
+                <ResolveConflicts pull={ref} onChanged={refresh} />
               )}
             </ReadinessBox>
           )}

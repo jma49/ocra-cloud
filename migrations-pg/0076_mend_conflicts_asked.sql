@@ -1,0 +1,1 @@
+ALTER TABLE "mend_jobs" ADD COLUMN "conflicts" bigint DEFAULT 0 NOT NULL;

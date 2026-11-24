@@ -1,5 +1,5 @@
 import { MEND_LEVELS } from "@open-cr-agent/cloud-contract";
-import { Hono } from "hono";
+import { type Context, Hono } from "hono";
 import { z } from "zod";
 import { audit } from "../audit.js";
 import type { Row, Scoped } from "../db/scoped.js";
@@ -18,6 +18,7 @@ import {
 } from "../shared/index.js";
 import type { AppEnv } from "../types.js";
 import { enrolledPull } from "./fix-routes.js";
+import { pullIsOpen } from "./mend-checks.js";
 import { MEND_DEBOUNCE_MS } from "./mend-round.js";
 import type { AutoReviewService } from "./routes.js";
 
@@ -75,6 +76,7 @@ async function pullView(data: Scoped, repo: Row<"reviewRepos">, number: number) 
     items: (found?.items ?? []).map(itemView),
     checks: found?.job.checkItems ?? [],
     conflicts: found?.job.conflictItems ?? [],
+    resolves: repo.mend === "commit" && repo.mendConflicts,
   } satisfies PullMendView;
 }
 
@@ -159,17 +161,59 @@ export function mendRoute(service: AutoReviewService) {
     },
   );
 
-  route.get("/mends", requireSession(["web"]), async (c) => {
-    const ref = pullQuery.safeParse(c.req.query());
-    if (!ref.success) return apiError(c, "not_found");
-    const platform = platformsOf(c.env, c.req.url).find((p) => p.kind === ref.data.platform);
-    const repo =
+  /** The account's enrolled repository a pull request is named in. */
+  const repoOf = async (c: Context<AppEnv>, ref: { platform: string; repo: string }) => {
+    const platform = platformsOf(c.env, c.req.url).find((p) => p.kind === ref.platform);
+    return (
       platform &&
       (await c.var.data.findOne("reviewRepos", {
         platform: platform.kind,
         host: platform.host,
-        fullName: ref.data.repo,
-      }));
+        fullName: ref.repo,
+      }))
+    );
+  };
+
+  route.post(
+    "/mends/conflicts",
+    requireSession(["web"]),
+    perMinute("platform"),
+    jsonBody(pullQuery),
+    async (c) => {
+      const data = c.var.data;
+      const ref = c.req.valid("json");
+      const repo = await repoOf(c, ref);
+      if (!repo || !(await pullIsOpen(data, repo.id, ref.number))) return apiError(c, "not_found");
+      const answer = async (outcome: MendRequestView["outcome"]) =>
+        c.json({
+          outcome,
+          mend: await pullView(data, repo, ref.number),
+        } satisfies MendRequestView);
+      if (repo.mend !== "commit" || !repo.mendConflicts) return answer("not_enabled");
+      const now = new Date();
+      const asked = await data.mends.askConflicts(
+        { reviewRepoId: repo.id, number: ref.number },
+        MAX_DAILY_FIX_REQUESTS,
+        new Date(now.getTime() + MEND_DEBOUNCE_MS),
+        now,
+      );
+      if (asked === "limited") {
+        return apiError(c, "daily_limit", { limit: MAX_DAILY_FIX_REQUESTS });
+      }
+      if (asked === "queued") {
+        await audit(data, "pull.mend_conflicts_requested", {
+          pull: `${repo.fullName}#${ref.number}`,
+        });
+        service.kick();
+      }
+      return answer(asked);
+    },
+  );
+
+  route.get("/mends", requireSession(["web"]), async (c) => {
+    const ref = pullQuery.safeParse(c.req.query());
+    if (!ref.success) return apiError(c, "not_found");
+    const repo = await repoOf(c, ref.data);
     if (!repo)
       return c.json({
         level: null,
@@ -177,6 +221,7 @@ export function mendRoute(service: AutoReviewService) {
         items: [],
         checks: [],
         conflicts: [],
+        resolves: false,
       } satisfies PullMendView);
     return c.json(await pullView(c.var.data, repo, ref.data.number));
   });

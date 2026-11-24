@@ -74,6 +74,8 @@ export type PullMendView = {
   checks: MendCheckView[];
   /** The conflicted files its last round was given; empty when the base branch merged cleanly. */
   conflicts: MendConflictView[];
+  /** Whether ocra may be asked to resolve this pull request's conflicts: its repository lets it merge the base branch. */
+  resolves: boolean;
 };
 
 /**
@@ -82,6 +84,13 @@ export type PullMendView = {
  * already waits or was answered; `not_enabled` when the repository's level
  * is not `commit`. A day's requests used up before any was asked answer
  * daily_limit.
+ */
+/**
+ * What POST /api/auto-review/mends/conflicts answers (body `{ platform,
+ * repo, number }`): `queued` a round that resolves the pull request's
+ * merge conflicts, `requested` when one already waits, `not_enabled` where
+ * the repository does not let ocra merge its base branch. A day's requests
+ * used up answer daily_limit.
  */
 export type MendRequestView = {
   outcome: "queued" | "requested" | "not_enabled";

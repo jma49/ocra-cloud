@@ -99,6 +99,7 @@ export const KIND_GROUPS: { label: string; kinds: [AuditKind, string][] }[] = [
       ["pull.fix_requested", "Fix asked of ocra"],
       ["pull.fix_answered", "Fix answered by ocra"],
       ["pull.mend_requested", "Fixes asked of ocra"],
+      ["pull.mend_conflicts_requested", "Merge conflicts asked of ocra"],
       ["pull.mend_committed", "Fixes committed by ocra"],
       ["pull.reviewers_changed", "Reviewers changed"],
       ["pull.assignees_changed", "Assignees changed"],
@@ -295,6 +296,8 @@ export function describe(e: AuditEventView): string {
         : `ocra wrote no fix on ${named(e.detail.pull, "a pull request")}${noted(e.detail.outcome)}`;
     case "pull.mend_requested":
       return `Asked ocra to fix ${counted(e.detail.findings, "finding")} on ${named(e.detail.pull, "a pull request")}`;
+    case "pull.mend_conflicts_requested":
+      return `Asked ocra to resolve the merge conflicts of ${named(e.detail.pull, "a pull request")}`;
     case "pull.mend_committed":
       return (e.detail.merged ?? 0) > 0
         ? `ocra merged the base branch into ${named(e.detail.pull, "a pull request")} and resolved conflicts in ${counted(e.detail.merged, "file")}${noted(e.detail.commit?.slice(0, 7))}`

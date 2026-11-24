@@ -1,0 +1,1 @@
+ALTER TABLE `mend_jobs` ADD `conflicts` integer DEFAULT false NOT NULL;
