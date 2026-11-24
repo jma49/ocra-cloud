@@ -111,6 +111,38 @@ describe("a pull request's files", () => {
     expect(view.mergeMethods).toEqual(["merge", "squash", "rebase"]);
   });
 
+  it("leaves out whitespace-only changes when asked, keeping each line's numbers", async () => {
+    platform({
+      [`GET ${PULL}`]: () =>
+        Response.json({ base: { sha: BASE }, head: { sha: HEAD }, changed_files: 2 }),
+      [`GET ${PULL}/files?per_page=100&page=1`]: () =>
+        Response.json([
+          {
+            filename: "a.ts",
+            status: "modified",
+            additions: 1,
+            deletions: 1,
+            patch: "@@ -4 +4 @@\n-x\n+  x",
+          },
+          {
+            filename: "b.ts",
+            status: "modified",
+            additions: 2,
+            deletions: 2,
+            patch: "@@ -1,2 +1,2 @@\n-a\n-b\n+  a\n+c",
+          },
+        ]),
+    });
+    const a = await signInWithGithub();
+    const read = async (query: string) =>
+      ((await (await a.send(`/api/pulls/files?${query}`)).json()) as PullFilesView).files.map(
+        (f) => f.patch,
+      );
+    const ref = "platform=github&repo=octo/api&number=7";
+    expect(await read(`${ref}&whitespace=ignore`)).toEqual(["", "@@ -1,2 +1,2 @@\n   a\n-b\n+c"]);
+    expect(await read(ref)).toEqual(["@@ -4 +4 @@\n-x\n+  x", "@@ -1,2 +1,2 @@\n-a\n-b\n+  a\n+c"]);
+  });
+
   it("passes on an author's picture only from the host the console may load", () => {
     expect(avatarOf("https://avatars.githubusercontent.com/u/1")).toBe(
       "https://avatars.githubusercontent.com/u/1",
