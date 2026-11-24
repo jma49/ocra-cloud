@@ -8,7 +8,7 @@ import { AppRoot } from "@dynatrace/strato-components/core";
 import type { ReactNode } from "react";
 import { isDark, useThemeChoice } from "../theme.js";
 import { EmptyNote } from "../ui.js";
-import { type Daily, flat, type Point } from "./series.js";
+import { type Acceptance, acceptanceChart, type Daily, flat, type Point } from "./series.js";
 
 // The insights charts, drawn with Dynatrace's Strato charts (Apache-2.0).
 // This module and the library load only when Insights opens. Series take
@@ -32,7 +32,7 @@ function Chart(props: { title: string; sub: string; wide?: boolean; children: Re
 
 export type ChartsProps = {
   daily: Daily;
-  acceptance: { reviewer: string; rate: number }[];
+  acceptance: Acceptance[];
   reasons: { reason: string; n: number }[];
 };
 
@@ -40,6 +40,7 @@ export default function Charts(props: ChartsProps) {
   const { daily } = props;
   useThemeChoice();
   const muted = tone("c5");
+  const accepted = acceptanceChart(props.acceptance);
   // Series colours are read from the tokens once: a theme switch draws the charts again.
   return (
     <AppRoot key={isDark() ? "dark" : "light"}>
@@ -63,13 +64,17 @@ export default function Charts(props: ChartsProps) {
           )}
         </Chart>
         <Chart title="Acceptance by reviewer" sub="% of decided findings">
-          {props.acceptance.length === 0 ? (
-            <EmptyNote>No decided findings yet</EmptyNote>
+          {"decided" in accepted ? (
+            <EmptyNote>
+              {accepted.decided === 0
+                ? "No decided findings yet"
+                : `${accepted.decided} decided so far: too few to compare reviewers`}
+            </EmptyNote>
           ) : (
             <CategoricalBarChart
               height={220}
               layout="horizontal"
-              data={props.acceptance.map((a) => ({
+              data={accepted.bars.map((a) => ({
                 category: a.reviewer,
                 value: Math.round(a.rate * 100),
                 color: tone("ink"),
@@ -84,9 +89,8 @@ export default function Charts(props: ChartsProps) {
             <EmptyNote>Nothing spent in this period</EmptyNote>
           ) : (
             <TimeseriesChart
-              variant="area"
+              variant="bar"
               height={220}
-              pointsDisplay="never"
               colorPalette={{ Spend: tone("blue") }}
               data={[line("Spend", daily.spend)]}
             >
@@ -102,6 +106,7 @@ export default function Charts(props: ChartsProps) {
               variant="line"
               curve="smooth"
               height={220}
+              pointsDisplay="always"
               colorPalette={{ p50: tone("ink"), p95: tone("blue") }}
               data={[line("p50", daily.p50), line("p95", daily.p95)]}
             >

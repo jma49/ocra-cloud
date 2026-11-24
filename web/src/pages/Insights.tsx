@@ -145,7 +145,7 @@ export function Insights(props: { runner: boolean; platforms: readonly CodePlatf
                 daily={series}
                 acceptance={data.byReviewer.flatMap((r) =>
                   r.key && r.acceptanceRate !== null
-                    ? [{ reviewer: r.key, rate: r.acceptanceRate }]
+                    ? [{ reviewer: r.key, rate: r.acceptanceRate, decided: r.fixed + r.dismissed }]
                     : [],
                 )}
                 reasons={data.dismissReasons.map((r) => ({

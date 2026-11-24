@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Review } from "../api.js";
-import { daily, flat, quantile } from "./series.js";
+import { acceptanceChart, daily, flat, quantile } from "./series.js";
 
 const DAY = 86_400_000;
 const now = Date.UTC(2026, 10, 21, 15);
@@ -57,5 +57,22 @@ describe("the insights series", () => {
     const quiet = daily([review(0, { costUsd: 0 })], 3, now);
     expect(flat(quiet.spend)).toBe(true);
     expect(flat(daily([review(0, { costUsd: 0.2 })], 3, now).spend)).toBe(false);
+  });
+});
+
+describe("acceptance chart", () => {
+  it("says how many were decided while too few were to compare rates", () => {
+    expect(acceptanceChart([{ reviewer: "correctness", rate: 1, decided: 1 }])).toEqual({
+      decided: 1,
+    });
+  });
+
+  it("charts the reviewers with decided findings once there are enough", () => {
+    const rows = [
+      { reviewer: "correctness", rate: 0.75, decided: 4 },
+      { reviewer: "security", rate: 1, decided: 2 },
+      { reviewer: "style", rate: 0, decided: 0 },
+    ];
+    expect(acceptanceChart(rows)).toEqual({ bars: rows.slice(0, 2) });
   });
 });

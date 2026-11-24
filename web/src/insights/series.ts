@@ -51,3 +51,14 @@ export function daily(reviews: Review[], days: number, now = Date.now()): Daily 
   });
   return out;
 }
+
+/** Below this many decided findings, a rate per reviewer is noise: say so instead of drawing it. */
+export const FEW_DECIDED = 5;
+
+export type Acceptance = { reviewer: string; rate: number; decided: number };
+
+/** The reviewers' rates worth a chart, or how many findings were decided when too few were. */
+export function acceptanceChart(rows: Acceptance[]): { bars: Acceptance[] } | { decided: number } {
+  const decided = rows.reduce((n, r) => n + r.decided, 0);
+  return decided < FEW_DECIDED ? { decided } : { bars: rows.filter((r) => r.decided > 0) };
+}
