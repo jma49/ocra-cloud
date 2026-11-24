@@ -8,7 +8,7 @@ import { config, retentionDaysOf } from "../src/config.js";
 import { githubIdentity, upsertAccount } from "../src/db/accounts.js";
 import * as schema from "../src/db/schema.js";
 import { bindingsFrom } from "../src/node/env.js";
-import { openHost, parseHeaders } from "../src/node/host.js";
+import { headersFor, openHost, parseHeaders } from "../src/node/host.js";
 import { memoryRateLimit } from "../src/node/limits.js";
 import { startCliSession, startWebSession } from "../src/session.js";
 import { finding, upload } from "../test/finding-uploads.js";
@@ -276,10 +276,19 @@ describe("the in-memory rate limit", () => {
     expect((await limit.limit({ key: "b" })).success).toBe(true);
   });
 
-  it("reads the headers of a _headers file's /* block", () => {
-    expect(parseHeaders("# c\n/*\n  A: 1\n  B: x: y\n/api/*\n  C: 2\n")).toEqual([
+  it("applies a _headers file's blocks to the paths they match, in order", () => {
+    const rules = parseHeaders(
+      "# c\n/*\n  A: 1\n  B: x: y\n  Cache-Control: max-age=0\n/assets/*\n  ! Cache-Control\n  Cache-Control: immutable\n  A: 2\n/api/*\n  C: 2\n",
+    );
+    expect(headersFor(rules, "/findings")).toEqual([
       ["A", "1"],
       ["B", "x: y"],
+      ["Cache-Control", "max-age=0"],
+    ]);
+    expect(headersFor(rules, "/assets/app.js")).toEqual([
+      ["A", "1, 2"],
+      ["B", "x: y"],
+      ["Cache-Control", "immutable"],
     ]);
   });
 });

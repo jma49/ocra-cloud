@@ -18,7 +18,8 @@ function rules(path = "/*"): Map<string, string> {
     }
     if (!inAll) continue;
     const at = raw.indexOf(":");
-    out.set(raw.slice(0, at).trim().toLowerCase(), raw.slice(at + 1).trim());
+    if (at < 0) out.set(raw.trim().toLowerCase(), "");
+    else out.set(raw.slice(0, at).trim().toLowerCase(), raw.slice(at + 1).trim());
   }
   return out;
 }
@@ -41,9 +42,13 @@ describe("web app headers", () => {
     expect(csp().get("font-src")).toEqual(["'self'"]);
     expect(viteConfig).toMatch(/assetsInlineLimit:\s*0\b/);
   });
-  it("keep the build's content-named files without asking again, and nothing else", () => {
+  it("revalidate a page, and keep the build's content-named files without asking again", () => {
+    expect(rules().get("cache-control")).toMatch(/^public, max-age=0, must-revalidate\b/);
+    expect(rules("/assets/*").get("! cache-control")).toBe("");
     expect(rules("/assets/*").get("cache-control")).toBe("public, max-age=31536000, immutable");
-    expect(rules().get("cache-control")).toBeUndefined();
+  });
+  it("forbid the edge to rewrite a page, so it injects no script the CSP refuses (#610)", () => {
+    expect(rules().get("cache-control")?.split(/,\s*/)).toContain("no-transform");
   });
   it("send nosniff and no referrer on every path", () => {
     expect(rules().get("x-content-type-options")).toBe("nosniff");

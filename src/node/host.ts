@@ -156,10 +156,12 @@ export async function openHost(options: HostOptions) {
   const site = new Hono();
   if (options.web) {
     const root = options.web;
-    const headers = parseHeaders(await readFile(join(root, "_headers"), "utf8").catch(() => ""));
+    const rules = parseHeaders(await readFile(join(root, "_headers"), "utf8").catch(() => ""));
     site.use(async (c, next) => {
       await next();
-      for (const [name, value] of headers) c.res.headers.set(name, value);
+      for (const [name, value] of headersFor(rules, new URL(c.req.url).pathname)) {
+        c.res.headers.set(name, value);
+      }
     });
     site.use("/*", serveStatic({ root }));
     site.get("*", serveStatic({ root, path: "index.html" }));
@@ -351,18 +353,41 @@ function rebase(url: string, origin: string): string {
   return origin + u.pathname + u.search;
 }
 
-/** The headers of a `_headers` file's `/*` block. */
-export function parseHeaders(text: string): [string, string][] {
-  const out: [string, string][] = [];
-  let inAll = false;
+type HeaderRule = { path: string; set: [string, string][]; detach: string[] };
+
+/** A `_headers` file's blocks, in file order: what each sets, and what it detaches (`! Name`). */
+export function parseHeaders(text: string): HeaderRule[] {
+  const out: HeaderRule[] = [];
   for (const line of text.split("\n")) {
     if (!line.trim() || line.trimStart().startsWith("#")) continue;
     if (!/^\s/.test(line)) {
-      inAll = line.trim() === "/*";
+      out.push({ path: line.trim(), set: [], detach: [] });
       continue;
     }
-    const at = line.indexOf(":");
-    if (inAll && at > 0) out.push([line.slice(0, at).trim(), line.slice(at + 1).trim()]);
+    const rule = out.at(-1);
+    const entry = line.trim();
+    const at = entry.indexOf(":");
+    if (!rule) continue;
+    if (entry.startsWith("!")) rule.detach.push(entry.slice(1).trim());
+    else if (at > 0) rule.set.push([entry.slice(0, at).trim(), entry.slice(at + 1).trim()]);
   }
   return out;
+}
+
+const matches = (path: string, pathname: string) =>
+  path.endsWith("/*") ? pathname.startsWith(path.slice(0, -1)) : pathname === path;
+
+/** The headers a path gets, as Workers static assets apply the rules: in order, a repeated header joined, a detached one dropped. */
+export function headersFor(rules: HeaderRule[], pathname: string): [string, string][] {
+  const out = new Map<string, [string, string]>();
+  for (const rule of rules) {
+    if (!matches(rule.path, pathname)) continue;
+    for (const name of rule.detach) out.delete(name.toLowerCase());
+    for (const [name, value] of rule.set) {
+      const key = name.toLowerCase();
+      const had = out.get(key);
+      out.set(key, [name, had ? `${had[1]}, ${value}` : value]);
+    }
+  }
+  return [...out.values()];
 }
