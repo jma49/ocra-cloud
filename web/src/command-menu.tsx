@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import GitPullRequest from "lucide-react/icons/git-pull-request";
 import { useEffect, useState } from "react";
 import {
   Command,
@@ -15,6 +16,7 @@ import {
   CommandPanel,
 } from "@/components/ui/command";
 import { useOpenPageCommands } from "./page-commands.js";
+import { recentPulls } from "./recent-pulls.js";
 import { navigate } from "./router.js";
 import { resultSections, unanswered } from "./search/sections.js";
 import { useSearch } from "./search/use-search.js";
@@ -83,7 +85,23 @@ export function CommandMenu(props: { sections: CommandSection[] }) {
   };
   const [reference, ...found] = results ? resultSections(results) : [];
   const jump = reference?.value === "Pull request" ? [reference] : [];
+  const recent: CommandSection[] =
+    open && query === ""
+      ? [
+          {
+            value: "Recent",
+            items: recentPulls().map((p) => ({
+              label: p.title,
+              hint: p.ref,
+              to: p.to,
+              within: "Recent",
+              icon: GitPullRequest,
+            })),
+          },
+        ].filter((s) => s.items.length > 0)
+      : [];
   const shown = [
+    ...recent,
     ...jump,
     ...pagesMatching([...here, ...props.sections], query),
     ...(reference && jump.length === 0 ? [reference] : []),

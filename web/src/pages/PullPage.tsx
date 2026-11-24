@@ -53,6 +53,7 @@ import { ThreadsPanel } from "../pull/threads.js";
 import { UpdateBranch } from "../pull/update-branch.js";
 import { useDiffSearch } from "../pull/use-diff-search.js";
 import { useViewed } from "../pull/viewed.js";
+import { rememberPull } from "../recent-pulls.js";
 import { setPageTitle } from "../title.js";
 import { useToast } from "../toast.js";
 import { useLoad } from "../ui.js";
@@ -143,8 +144,10 @@ export function PullPage(props: {
   const where = `${props.repo} #${props.number}`;
   const title = data?.title ?? where;
   useEffect(() => {
-    if (data?.title) setPageTitle(`#${props.number} ${data.title}`);
-  }, [data?.title, props.number]);
+    if (!data?.title) return;
+    setPageTitle(`#${props.number} ${data.title}`);
+    rememberPull({ to: pullPath(platform, props.repo, number), title: data.title, ref: where });
+  }, [data?.title, props.number, platform, props.repo, number, where]);
   const beside = useBeside(pullPath(platform, props.repo, number));
   const viewed = useViewed(ref, data, (o) => said("Viewed", o));
   const layout = useDiffLayout();

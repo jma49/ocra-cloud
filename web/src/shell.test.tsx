@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Me } from "./api.js";
+import { forgetRecentPulls, recentPulls, rememberPull } from "./recent-pulls.js";
 import { matchRoute } from "./routes.js";
 import { Frame } from "./shell.js";
 import { PageHead } from "./ui.js";
@@ -128,5 +129,25 @@ describe("page head", () => {
   it("keeps a settings page's title and sentence", () => {
     expect(head("/sessions").className).toBe("");
     expect(screen.getByText("What the page is for.")).not.toBeNull();
+  });
+});
+
+describe("recent pull requests", () => {
+  it("offers the ones opened last before anything is typed", async () => {
+    history.replaceState(null, "", "/");
+    rememberPull({ to: "/pull/github/acme/web/7", title: "Cache the pricing", ref: "acme/web #7" });
+    render(
+      <Frame me={me} route={matchRoute("/")?.route} path="/">
+        <p>page</p>
+      </Frame>,
+    );
+    fireEvent.keyDown(document, { key: "k", ctrlKey: true });
+    const recent = await screen.findByRole("option", { name: /Cache the pricing/ });
+    fireEvent.change(screen.getByPlaceholderText("Search or go to…"), {
+      target: { value: "usage" },
+    });
+    await waitFor(() => expect(recent.isConnected).toBe(false));
+    forgetRecentPulls();
+    expect(recentPulls()).toEqual([]);
   });
 });
