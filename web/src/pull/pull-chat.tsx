@@ -1,22 +1,63 @@
+import Sparkles from "lucide-react/icons/sparkles";
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipPopup, TooltipTrigger } from "@/components/ui/tooltip";
 import type {
   CodePlatformKind,
   PullChatMessageView,
   PullChatRequest,
   PullFindingView,
 } from "../../../src/shared/index.js";
+import { Drawer } from "../drawer.js";
 import { Chat } from "../review-chat/chat.js";
+import { KeyCaps } from "../shortcuts/keys.js";
+import { ASK_KEY } from "./commands.js";
 
-// "Ask ocra" on a pull request's page: about the whole pull request, one of
-// its open findings, or one of its files.
+// "Ask ocra" on a pull request's page, in a drawer opened from its head: about
+// the whole pull request, one of its open findings, or one of its files.
 
 type Pull = { platform: CodePlatformKind; repo: string; number: number };
 
-export function PullChat(props: {
-  pull: Pull;
-  findings: readonly PullFindingView[];
-  files: readonly string[];
-}) {
+type About = { pull: Pull; findings: readonly PullFindingView[]; files: readonly string[] };
+
+export function AskOcraButton(props: { onOpen: () => void }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            variant="outline"
+            size="icon"
+            aria-label="Ask ocra"
+            aria-haspopup="dialog"
+            aria-keyshortcuts={ASK_KEY}
+            onClick={(e) => {
+              // Safari leaves a clicked button unfocused; the drawer gives focus back to what had it.
+              e.currentTarget.focus();
+              props.onOpen();
+            }}
+          />
+        }
+      >
+        <Sparkles size={16} aria-hidden="true" />
+      </TooltipTrigger>
+      <TooltipPopup>
+        Ask ocra
+        <KeyCaps keys={ASK_KEY} className="tip-key" />
+      </TooltipPopup>
+    </Tooltip>
+  );
+}
+
+export function AskOcraDrawer(props: About & { onClose: () => void }) {
+  return (
+    <Drawer title="Ask ocra" onClose={props.onClose}>
+      <PullChat pull={props.pull} findings={props.findings} files={props.files} />
+    </Drawer>
+  );
+}
+
+function PullChat(props: About) {
   const { platform, repo, number } = props.pull;
   const query = new URLSearchParams({ platform, repo, number: String(number) });
   const [about, setAbout] = useState("");
@@ -36,6 +77,7 @@ export function PullChat(props: {
       extra={extra}
       subject="this pull request"
       labelOf={labelOf}
+      bare
       about={
         <select
           className="input"

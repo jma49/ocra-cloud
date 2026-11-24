@@ -583,8 +583,8 @@
     animation: none;
   }
 }
-/* A rail tip's key sits after its name, a step apart. */
-.rail-tip-key {
+/* A tooltip's key sits after its name, a step apart. */
+.tip-key {
   margin-left: 8px;
 }
 .command-icon {

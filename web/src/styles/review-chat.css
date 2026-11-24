@@ -143,3 +143,24 @@
     animation: none;
   }
 }
+/* In a drawer the box is the panel's body: the conversation scrolls inside it
+   and the question keeps the foot. */
+.drawer-body:has(> .chat-bare) {
+  display: flex;
+  flex-direction: column;
+}
+.chat-bare {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+.chat-bare .chat-log {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+}
+.chat-bare .chat-composer {
+  margin-top: auto;
+}

@@ -5,9 +5,14 @@ import { ago, count } from "../format.js";
 import { PersonMark } from "../person-mark.js";
 
 // The line under a pull request's title: where it stands, who opened it, what it merges into
-// what, how much it changes, and when it last moved.
+// what, how much it changes, when it last moved, and who is asked to review it.
 
-export function PullMeta(props: { data: PullFilesView; status?: ReactNode }) {
+export function PullMeta(props: {
+  data: PullFilesView;
+  status?: ReactNode;
+  /** Last, since it is read after the rest: nothing before it moves when it comes. */
+  reviewers?: ReactNode;
+}) {
   const { data } = props;
   const add = data.files.reduce((n, f) => n + f.additions, 0);
   const del = data.files.reduce((n, f) => n + f.deletions, 0);
@@ -40,6 +45,7 @@ export function PullMeta(props: { data: PullFilesView; status?: ReactNode }) {
         <span className="del-n">−{del}</span>
       </span>
       {data.updatedAt && <span>Updated {ago(data.updatedAt)}</span>}
+      {props.reviewers}
     </div>
   );
 }

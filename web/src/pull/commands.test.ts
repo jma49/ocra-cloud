@@ -35,6 +35,15 @@ describe("a pull request's commands", () => {
     expect(p.review).toHaveBeenCalled();
   });
 
+  it("opens Ask ocra on q, where the page offers it", () => {
+    const ask = vi.fn();
+    expect(keys({})).not.toContain("q");
+    pullCommands({ ...page({}), ask })
+      .find((c) => c.key === "q")
+      ?.run();
+    expect(ask).toHaveBeenCalled();
+  });
+
   it("ticks the file being read on v", () => {
     const code = document.createElement("div");
     const file = (path: string, top: number) => {

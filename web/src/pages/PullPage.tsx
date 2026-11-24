@@ -48,13 +48,14 @@ import { OcraReviewBox } from "../pull/ocra-review-box.js";
 import { PullFailed, PullLoading } from "../pull/opening.js";
 import { DONE, type Done, OUTCOME } from "../pull/outcome.js";
 import { pullPath } from "../pull/path.js";
-import { PeopleCard } from "../pull/people.js";
-import { PullChat } from "../pull/pull-chat.js";
+import { PeopleCard, usePullPeople } from "../pull/people.js";
+import { AskOcraButton, AskOcraDrawer } from "../pull/pull-chat.js";
 import { EditTitle, OpenClose } from "../pull/pull-details.js";
 import { QueueBox } from "../pull/queue-box.js";
 import { ReadinessBox, useReadiness } from "../pull/readiness-box.js";
 import { ReviewBox } from "../pull/review-box.js";
 import { ReviewNowBox } from "../pull/review-now-box.js";
+import { ReviewerStack } from "../pull/reviewer-stack.js";
 import { ReviewersPanel } from "../pull/reviewers.js";
 import { SearchBar } from "../pull/search-bar.js";
 import { StackPanel } from "../pull/stack.js";
@@ -139,6 +140,8 @@ export function PullPage(props: {
   };
   const [reviewing, setReviewing] = useState(false);
   const [peopleRev, setPeopleRev] = useState(0);
+  const people = usePullPeople(ref, peopleRev);
+  const [asking, setAsking] = useState(false);
   const [readinessRev, setReadinessRev] = useState(0);
   const readiness = useReadiness(ref, head, readinessRev);
   const description = useLoad(
@@ -190,6 +193,7 @@ export function PullPage(props: {
       data,
       code,
       review: () => setReviewing(true),
+      ask: () => setAsking(true),
       toggleViewed: viewed.toggle,
       toggleConversation: convo.toggle,
       switchLayout: layout.narrow
@@ -247,8 +251,10 @@ export function PullPage(props: {
   const status = (
     <PullStatus state={data.state} view={readiness} queued={queue.data?.entry?.state ?? null} />
   );
+  const reviewers = <ReviewerStack view={people.data} />;
   const actions = (
     <>
+      <AskOcraButton onOpen={() => setAsking(true)} />
       {data.verdicts.length > 0 && (
         <Button
           variant={step === "review" && !settled ? "default" : "outline"}
@@ -293,13 +299,14 @@ export function PullPage(props: {
           <h1>{title}</h1>
           <div className="pull-actions">{actions}</div>
         </div>
-        <PullMeta data={data} status={status} />
+        <PullMeta data={data} status={status} reviewers={reviewers} />
       </header>
       <CompactBar
         head={headEl}
         number={props.number}
         title={title}
         status={status}
+        reviewers={reviewers}
         actions={actions}
         onAnchor={setBarEl}
       />
@@ -391,13 +398,12 @@ export function PullPage(props: {
               </>
             ) : undefined}
           </OcraReviewBox>
-          <PullChat pull={ref} findings={findings} files={data.files.map((f) => f.path)} />
           <CiBox pull={ref} head={data.head} />
           <ChecksBox pull={ref} head={data.head} />
           <PeopleCard
             pull={ref}
+            read={people}
             editable={!settled}
-            rev={peopleRev}
             onChanged={() => setPeopleRev((n) => n + 1)}
           />
           <ReviewersPanel pull={ref} rev={peopleRev} onChanged={() => setPeopleRev((n) => n + 1)} />
@@ -473,6 +479,14 @@ export function PullPage(props: {
         onClose={() => setReviewing(false)}
         onDone={(o) => done("Review", o)}
       />
+      {asking && (
+        <AskOcraDrawer
+          pull={ref}
+          findings={findings}
+          files={data.files.map((f) => f.path)}
+          onClose={() => setAsking(false)}
+        />
+      )}
     </PullBatch>
   );
 }

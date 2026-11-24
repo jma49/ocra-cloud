@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PullPeopleView } from "../../../src/shared/index.js";
-import { PeopleCard } from "./people.js";
+import { PeopleCard, usePullPeople } from "./people.js";
 
 afterEach(() => {
   cleanup();
@@ -20,6 +20,11 @@ const view: PullPeopleView = {
   assignees: ["sample-user"],
   truncated: false,
 };
+
+function Card(props: { editable: boolean }) {
+  const read = usePullPeople(pull);
+  return <PeopleCard pull={pull} read={read} editable={props.editable} />;
+}
 
 function show(outcome = "done", editable = true) {
   const sent: { path: string; body: unknown }[] = [];
@@ -45,7 +50,7 @@ function show(outcome = "done", editable = true) {
       return Response.json(view);
     }),
   );
-  render(<PeopleCard pull={pull} editable={editable} />);
+  render(<Card editable={editable} />);
   return { sent, asked };
 }
 

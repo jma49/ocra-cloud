@@ -1,8 +1,8 @@
 import { type ReactNode, useEffect, useState } from "react";
 
 // Once the pull request's head has scrolled away, one line takes its place
-// under the page bar: its number, title, standing and next step, so the diff
-// gets the window and the next step stays in reach.
+// under the page bar: its number, title, standing, reviewers and next step, so
+// the diff gets the window and the next step stays in reach.
 
 /** Whether `head` has gone up past the page bar. */
 function useScrolledPast(head: HTMLElement | null): boolean {
@@ -28,6 +28,7 @@ export function CompactBar(props: {
   number: string;
   title: string;
   status: ReactNode;
+  reviewers?: ReactNode;
   actions: ReactNode;
   onAnchor: (el: HTMLElement | null) => void;
 }) {
@@ -40,7 +41,10 @@ export function CompactBar(props: {
             <span className="pull-bar-number">#{props.number}</span>
             {props.title}
           </span>
-          <span className="pull-bar-status">{props.status}</span>
+          <span className="pull-bar-status">
+            {props.status}
+            {props.reviewers}
+          </span>
           <div className="pull-actions">{props.actions}</div>
         </div>
       )}

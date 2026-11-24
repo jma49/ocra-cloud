@@ -21,13 +21,16 @@ import { PeoplePicker } from "./people-picker.js";
 type Ref = { platform: CodePlatformKind; repo: string; number: number };
 type List = "reviewers" | "assignees";
 
-const STATE: Record<ReviewerState, { text: string; tone: StatusTone }> = {
+export const REVIEWER_STATE: Record<ReviewerState, { text: string; tone: StatusTone }> = {
   requested: { text: "Asked", tone: "quiet" },
   approved: { text: "Approved", tone: "ok" },
   changes_requested: { text: "Changes requested", tone: "warn" },
   commented: { text: "Commented", tone: "quiet" },
   dismissed: { text: "Dismissed", tone: "quiet" },
 };
+
+/** The rail's reviewers, which the head's reviewer marks lead to. */
+export const REVIEWERS_ID = "reviewers";
 
 const NOUN: Record<List, string> = { reviewers: "reviewer", assignees: "assignee" };
 
@@ -39,7 +42,7 @@ function Person(props: {
   removeLabel: string;
   busy: boolean;
 }) {
-  const state = props.state && STATE[props.state];
+  const state = props.state && REVIEWER_STATE[props.state];
   return (
     <li>
       <span className="mono people-login">{props.login}</span>
@@ -60,20 +63,23 @@ function Person(props: {
   );
 }
 
+/** Who the pull request asks for a review and who it is assigned to; read again when `rev` moves. */
+export function usePullPeople(pull: Ref, rev = 0) {
+  const { platform, repo, number } = pull;
+  const query = new URLSearchParams({ platform, repo, number: String(number) }).toString();
+  return useLoad(() => api<PullPeopleView>(`/pulls/people?${query}`), [query, rev]);
+}
+
 export function PeopleCard(props: {
   pull: Ref;
+  read: ReturnType<typeof usePullPeople>;
   /** Whether the pull request still takes changes. */
   editable: boolean;
-  /** Bumped when reviewers changed elsewhere on the page. */
-  rev?: number;
   onChanged?: () => void;
 }) {
-  const { platform, repo, number } = props.pull;
+  const { platform, repo } = props.pull;
   const repoQuery = new URLSearchParams({ platform, repo }).toString();
-  const { data, reload } = useLoad(
-    () => api<PullPeopleView>(`/pulls/people?${repoQuery}&number=${number}`),
-    [repoQuery, number, props.rev],
-  );
+  const { data, reload } = props.read;
   const [adding, setAdding] = useState<List | null>(null);
   const [said, setSaid] = useState<PullActionOutcome | null>(null);
   const write = useAction((list: List, change: Pick<PullPeopleRequest, "add" | "remove">) =>
@@ -120,7 +126,12 @@ export function PeopleCard(props: {
     );
   const reviewers = data.reviewers.map((r) => r.login);
   return (
-    <section className="card card-pad stack" aria-label="Reviewers and assignees">
+    <section
+      id={REVIEWERS_ID}
+      className="card card-pad stack"
+      aria-label="Reviewers and assignees"
+      tabIndex={-1}
+    >
       {head(
         "reviewers",
         "Reviewers",
