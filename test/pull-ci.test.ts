@@ -182,6 +182,40 @@ describe("a GitHub pull request's CI", () => {
     expect(blob?.authorization).toBeNull();
   });
 
+  it("keeps the failed step's part of an Actions log, not the steps after it", async () => {
+    const at = (n: number) => `2026-11-24T03:54:${String(n % 60).padStart(2, "0")}.1234567Z`;
+    const log = [
+      `${at(0)} ##[group]Run actions/checkout@v4`,
+      `${at(1)} Syncing repository: octo/api`,
+      `${at(2)} ##[endgroup]`,
+      `${at(3)} ##[group]Run npm run typecheck`,
+      `${at(4)} npm run typecheck`,
+      `${at(5)} ##[endgroup]`,
+      `${at(6)} src/refund.ts(12,5): error TS2322: Type 'string' is not assignable to type 'number'.`,
+      `${at(7)} ##[error]Process completed with exit code 2.`,
+      `${at(8)} ##[group]Run npm run build`,
+      ...Array.from({ length: 300 }, (_, i) => `${at(i)} dist/assets/chunk-${i}.js  1.2 kB`),
+      `${at(9)} Post job cleanup.`,
+      `${at(10)} [command]/usr/bin/git version`,
+      `${at(11)} Cleaning up orphan processes`,
+    ].join("\n");
+    platform({
+      [`GET ${REPO}/check-runs/2`]: () =>
+        Response.json(checkRun(2, "verify", { conclusion: "failure" })),
+      [`GET ${REPO}/actions/jobs/2/logs`]: () => new Response(log),
+    });
+    const a = await signInWithGithub();
+    const res = await a.send("/api/pulls/ci/log?platform=github&repo=octo/api&number=7&job=2");
+    const view = (await res.json()) as PullCiLogView;
+    expect(view.log.split("\n")).toEqual([
+      "##[group]Run npm run typecheck",
+      "npm run typecheck",
+      "##[endgroup]",
+      "src/refund.ts(12,5): error TS2322: Type 'string' is not assignable to type 'number'.",
+      "##[error]Process completed with exit code 2.",
+    ]);
+  });
+
   it("answers what another app's check reported, and its address", async () => {
     platform({
       [`GET ${REPO}/check-runs/4`]: () =>
@@ -392,6 +426,32 @@ describe("a GitLab merge request's CI", () => {
       log: "",
       url: `${GITLAB}/Group/Sub/Project/-/jobs/1`,
     });
+  });
+
+  it("keeps a GitLab trace's script section, not the sections after it", async () => {
+    const trace = [
+      "\u001b[0KRunning with gitlab-runner 17.0.0",
+      "section_start:1732420000:prepare_script\r\u001b[0K\u001b[0K\u001b[36;1mPreparing environment\u001b[0;m",
+      "Running on runner-1",
+      "section_end:1732420001:prepare_script\r\u001b[0K",
+      'section_start:1732420002:step_script\r\u001b[0K\u001b[0K\u001b[36;1mExecuting "step_script" stage\u001b[0;m',
+      "$ npm test",
+      "FAIL src/refund.test.ts",
+      "section_end:1732420003:step_script\r\u001b[0K",
+      "section_start:1732420004:upload_artifacts_on_failure\r\u001b[0KUploading artifacts",
+      ...Array.from({ length: 300 }, (_, i) => `coverage/file-${i}.html: found`),
+      "section_end:1732420005:upload_artifacts_on_failure\r\u001b[0K",
+      "\u001b[31;1mERROR: Job failed: exit code 1\u001b[0;m",
+    ].join("\n");
+    platform({
+      [`GET ${PROJECT}/jobs/1`]: () => Response.json(job(1, "unit", "failed")),
+      [`GET ${PROJECT}/jobs/1/trace`]: () => new Response(trace),
+    });
+    const a = await signedIn();
+    const view = (await (await a.send(`/api/pulls/ci/log?${LAB}&job=1`)).json()) as PullCiLogView;
+    expect(view.log).toContain("FAIL src/refund.test.ts");
+    expect(view.log).not.toContain("coverage/file-");
+    expect(view.log).not.toContain("Preparing environment");
   });
 
   it("retries the head's failed jobs, not those allowed to fail", async () => {
