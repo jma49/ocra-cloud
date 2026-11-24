@@ -8,7 +8,14 @@ import { AppRoot } from "@dynatrace/strato-components/core";
 import type { ReactNode } from "react";
 import { isDark, useThemeChoice } from "../theme.js";
 import { EmptyNote } from "../ui.js";
-import { type Acceptance, acceptanceChart, type Daily, flat, type Point } from "./series.js";
+import {
+  type Acceptance,
+  acceptanceChart,
+  type Daily,
+  flat,
+  type Point,
+  shares,
+} from "./series.js";
 
 // The insights charts, drawn with Dynatrace's Strato charts (Apache-2.0).
 // This module and the library load only when Insights opens. Series take
@@ -17,18 +24,6 @@ import { type Acceptance, acceptanceChart, type Daily, flat, type Point } from "
 const tone = (name: string) =>
   getComputedStyle(document.documentElement).getPropertyValue(`--${name}`).trim();
 const line = (name: string, datapoints: Point[]) => ({ name, datapoints });
-
-/**
- * Each reason named with its share and count: the legend says what a slice
- * label would, which a narrow card cuts short.
- */
-const shares = (reasons: { reason: string; n: number }[]) => {
-  const all = reasons.reduce((sum, r) => sum + r.n, 0);
-  return reasons.map((r) => ({
-    category: `${r.reason} · ${Math.round((r.n / all) * 100)}% (${r.n})`,
-    value: r.n,
-  }));
-};
 
 function Chart(props: {
   title: string;
