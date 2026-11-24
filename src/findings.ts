@@ -5,7 +5,7 @@ import {
   type SharedFinding,
   sharedFindingSchema,
 } from "@open-cr-agent/cloud-contract";
-import type { Severity, Verification } from "./shared/index.js";
+import type { FindingRule, FindingRuleKind, Severity, Verification } from "./shared/index.js";
 
 // A finding as the CLI uploads it when the account shares findings
 // (ADR-0028, 2), checked with the contract's schema, then bounded and
@@ -33,6 +33,9 @@ export type FindingRow = {
   lowConfidence: boolean;
   /** What the reviewer read to reach it, one fact per entry; null when none was sent. */
   evidence: string[] | null;
+  /** The rule or learning it says it applies; null when it named none. */
+  ruleKind: FindingRuleKind | null;
+  ruleId: string | null;
   redacted: boolean;
   truncated: boolean;
 };
@@ -84,6 +87,8 @@ export function parseFindings(list: unknown): {
       fixReplacement: fix?.replacement ?? null,
       lowConfidence: f.lowConfidence === true,
       evidence: f.evidence && f.evidence.length > 0 ? f.evidence.map((e) => text(e)) : null,
+      ruleKind: f.rule?.kind ?? null,
+      ruleId: f.rule?.id ?? null,
       redacted: false,
       truncated: false,
     };
@@ -106,6 +111,11 @@ export function parseFindings(list: unknown): {
   return { rows, truncated, dropped };
 }
 
+/** A stored finding's rule, as the API answers it: both columns or none. */
+export function ruleOf(f: Pick<FindingRow, "ruleKind" | "ruleId">): FindingRule {
+  return f.ruleKind && f.ruleId ? { kind: f.ruleKind, id: f.ruleId } : null;
+}
+
 /**
  * A fix is code that a commit writes as it is: kept only when the server's
  * own pass leaves it whole, since a redacted or cut replacement would break
@@ -124,6 +134,7 @@ function fixOf(fix: SharedFinding["fix"]) {
 export function findingInput(
   f: Omit<FindingRow, "fixStartLine" | "fixEndLine" | "fixReplacement">,
 ): SharedFinding {
+  const rule = ruleOf(f);
   return {
     fingerprint: f.fingerprint,
     reviewer: f.reviewer,
@@ -138,6 +149,7 @@ export function findingInput(
     suggestion: f.suggestion,
     code: f.code,
     ...(f.evidence ? { evidence: f.evidence } : {}),
+    ...(rule ? { rule } : {}),
     ...(f.lowConfidence ? { lowConfidence: true as const } : {}),
     ...(f.redacted ? { redacted: true as const } : {}),
     ...(f.truncated ? { truncated: true as const } : {}),

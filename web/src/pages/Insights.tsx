@@ -1,10 +1,11 @@
 import ChartColumn from "lucide-react/icons/chart-column";
 import { lazy, Suspense, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import type {
-  CodePlatformKind,
-  FindingInsightRow,
-  FindingInsightsView,
+import {
+  type CodePlatformKind,
+  type FindingInsightRow,
+  type FindingInsightsView,
+  MAX_RULE_ROWS,
 } from "../../../src/shared/index.js";
 import { api, type Reviews } from "../api.js";
 import { useCached } from "../cache.js";
@@ -21,7 +22,7 @@ import { EmptyState, LoadError, Loading, PageHead, Seg } from "../ui.js";
 // How the reviews went: what they found, what they cost and how long they
 // took, from the uploaded reviews; and what the decisions in the findings
 // inbox say about them: of the findings someone marked fixed or dismissed,
-// how many were right, per reviewer, severity, category and verification,
+// how many were right, per reviewer, severity, category, verification and rule,
 // and why the rest were dismissed. Only shared findings count there.
 
 // The charts measure their labels once, so they wait for the console's font.
@@ -51,6 +52,8 @@ function Breakdown(props: {
   rows: Row[];
   none: string;
   name?: (key: string) => string;
+  /** A line under the table, for the rows it leaves out. */
+  more?: string | undefined;
 }) {
   if (props.rows.length === 0) return null;
   return (
@@ -105,8 +108,20 @@ function Breakdown(props: {
           </tbody>
         </table>
       </div>
+      {props.more && <p className="muted small">{props.more}</p>}
     </div>
   );
+}
+
+/** A rule's row as `<id> (<kind>)`: its key is `<kind>:<id>`, and an id holds no colon. */
+const ruleName = (key: string) => {
+  const at = key.indexOf(":");
+  return `${key.slice(at + 1)} (${key.slice(0, at)})`;
+};
+
+function otherRules(rest: Insights["otherRules"]) {
+  if (!rest) return undefined;
+  return `And ${count(rest.rules, "more rule")}, with ${count(rest.total, "finding")}: ${rate(rest.acceptanceRate)} accepted.`;
 }
 
 /** `runner`: the server reviews enrolled repositories itself, so their webhooks record the flow. */
@@ -197,6 +212,14 @@ export function Insights(props: { runner: boolean; platforms: readonly CodePlatf
             column="Category"
             rows={data.byCategory}
             none="No category"
+          />
+          <Breakdown
+            title={`By rule (top ${MAX_RULE_ROWS})`}
+            column="Rule or learning"
+            rows={data.byRule}
+            none="No rule named"
+            name={ruleName}
+            more={otherRules(data.otherRules)}
           />
         </>
       )}

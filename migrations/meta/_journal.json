@@ -757,6 +757,13 @@
       "when": 1795505271332,
       "tag": "0107_pull_chat_messages",
       "breakpoints": true
+    },
+    {
+      "idx": 108,
+      "version": "6",
+      "when": 1795511120907,
+      "tag": "0108_finding_rules",
+      "breakpoints": true
     }
   ]
 }
