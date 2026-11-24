@@ -4,7 +4,7 @@ import { scoped } from "../src/db/scoped.js";
 import { instanceAdminsOf } from "../src/instance-admins.js";
 import { startWebSession } from "../src/session.js";
 import { INSTANCE_QUEUES, type InstanceStatus } from "../src/shared/index.js";
-import { call, db, resetDb, signIn } from "./helpers.js";
+import { call, db, resetDb, signIn, signInCli } from "./helpers.js";
 
 // GET /api/admin/instance: the deployment's operators read counts and
 // health across every account; anyone else is answered as if the route did
@@ -67,6 +67,13 @@ describe("GET /api/admin/instance", () => {
       expect(res.status).toBe(404);
       expect(await res.json()).toEqual({ error: "not_found" });
     }
+  });
+
+  it("refuses an operator's CLI session, which only a web session may use", async () => {
+    const cli = await signInCli(583231, "octo");
+    const res = await read(cli.auth, "github:583231");
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({ error: "forbidden_for_session" });
   });
 
   it("answers an operator signed in through GitHub or OpenID Connect", async () => {
