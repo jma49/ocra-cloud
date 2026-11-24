@@ -146,13 +146,15 @@ describe("fixing from a comment", () => {
     expect(labelWrites().map((w) => w.method)).toEqual(["POST", "DELETE"]);
   });
 
-  it("says so where the repository does not let ocra commit", async () => {
+  it("says where to turn fixes on where the repository does not let ocra commit", async () => {
     await platform();
     await comment("@ocra fix");
     expect(await loop()).toBeUndefined();
     expect(labelWrites()).toEqual([]);
     expect(said()).toEqual([
-      expect.stringMatching(/^ocra does not commit fixes to this repository/),
+      expect.stringMatching(
+        /^ocra does not commit fixes to this repository yet: an admin turns on its Fixes on \[Auto review\]\(https?:\/\/[^)]+\/auto-review\)/,
+      ),
     ]);
   });
 });
