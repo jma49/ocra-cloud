@@ -62,7 +62,7 @@ export async function inbox(
       : undefined,
   ];
   const rows = await db
-    .select({ finding: f, repoHash: r.repoHash, runId: r.runId })
+    .select({ finding: f, repoHash: r.repoHash, runId: r.runId, prNumber: r.prNumber })
     .from(f)
     .innerJoin(r, and(eq(r.id, f.reviewId), eq(r.accountId, accountId)))
     .where(and(...conditions))

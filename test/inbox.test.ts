@@ -9,6 +9,7 @@ type Listed = {
     id: string;
     title: string;
     repoHash: string;
+    prNumber: number | null;
     status: string;
     reason: string | null;
     note: string | null;
@@ -44,7 +45,15 @@ async function sharing(id = 1, login = "octo") {
 describe("the findings inbox", () => {
   it("lists every review's findings newest first, filters them and pages through them", async () => {
     const a = await sharing();
-    await a.post(upload("r1", [finding({ fingerprint: "fp-a1", title: "first" })]));
+    await a.post({
+      ...upload("r1", [finding({ fingerprint: "fp-a1", title: "first" })]),
+      source: "github",
+      pullRequest: {
+        repository: "https://github.com/octo/api",
+        number: 12,
+        headSha: "a".repeat(40),
+      },
+    });
     await a.post({
       ...upload("r2", [
         finding({ fingerprint: "fp-b1", title: "second", severity: "warning" }),
@@ -56,6 +65,11 @@ describe("the findings inbox", () => {
     const all = await a.list();
     expect(all.findings.map((f) => f.title).sort()).toEqual(["first", "second", "third"]);
     expect(all.statuses).toEqual({ open: 3, fixed: 0, dismissed: 0 });
+    expect(Object.fromEntries(all.findings.map((f) => [f.title, f.prNumber]))).toEqual({
+      first: 12,
+      second: null,
+      third: null,
+    });
     expect(all.next).toBeNull();
 
     expect((await a.list(`?repo=${HASH}`)).findings.map((f) => f.title)).toEqual(["first"]);

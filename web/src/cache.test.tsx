@@ -78,6 +78,7 @@ describe("a finding decision shown before the server answers", () => {
     repoHash: "h",
     repo: "github.com/a/b",
     name: null,
+    prNumber: null,
     reviewer: "bugs",
     severity: "warning" as const,
     category: null,
