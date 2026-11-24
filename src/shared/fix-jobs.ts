@@ -1,4 +1,4 @@
-import type { FixOutcome, FixReason } from "@open-cr-agent/cloud-contract";
+import type { FixFailureCause, FixOutcome, FixReason } from "@open-cr-agent/cloud-contract";
 
 // "Fix with ocra": a fix asked of `ocra fix` in the runner for a stored
 // finding of a hosted review that came without one (ADR-0077). A proposed
@@ -24,6 +24,8 @@ export type FixJobView = {
   outcome: FixOutcome | null;
   /** Why no fix was proposed, as `ocra fix` says; null when one was, or before an answer. */
   reason: FixReason | null;
+  /** What failed when the reason is `failed`; null otherwise, or from a run that gave none. */
+  cause: FixFailureCause | null;
   /** Why the run failed, or the retry waits; null otherwise. */
   error: string | null;
   /** ISO 8601. */

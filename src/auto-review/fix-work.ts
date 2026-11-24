@@ -37,7 +37,7 @@ export async function settleFixAnswer(
   const recorded = await data.fixes.finish(
     ref.id,
     ref.attempts,
-    { outcome: result.outcome, reason: result.reason, fix: result.fix },
+    { outcome: result.outcome, reason: result.reason, cause: result.cause, fix: result.fix },
     now,
   );
   await data.remove("sessions", ref.id).catch(() => {});

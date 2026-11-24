@@ -1,4 +1,4 @@
-import type { FixOutcome, FixReason } from "@open-cr-agent/cloud-contract";
+import type { FixFailureCause, FixOutcome, FixReason } from "@open-cr-agent/cloud-contract";
 import { and, desc, eq, isNull, lte, or, sql } from "drizzle-orm";
 import { changedRows, type Db, first } from "./client.js";
 import { countOne, mayStart, uncountOne } from "./counters.js";
@@ -47,6 +47,7 @@ export function accountFixJobs(db: Db, accountId: string) {
             error: null,
             outcome: null,
             reason: null,
+            cause: null,
             finishedAt: null,
           },
           setWhere: sql`${j.state} = 'failed' or (${j.state} = 'done' and ${j.reason} = 'failed')`,
@@ -82,7 +83,12 @@ export function accountFixJobs(db: Db, accountId: string) {
     async finish(
       id: string,
       attempts: number,
-      answer: { outcome: FixOutcome; reason: FixReason | null; fix: ProposedFix | null },
+      answer: {
+        outcome: FixOutcome;
+        reason: FixReason | null;
+        cause: FixFailureCause | null;
+        fix: ProposedFix | null;
+      },
       now: Date,
     ): Promise<boolean> {
       const [done] = await db
@@ -91,6 +97,7 @@ export function accountFixJobs(db: Db, accountId: string) {
           state: "done",
           outcome: answer.outcome,
           reason: answer.reason,
+          cause: answer.cause,
           error: null,
           leaseUntil: null,
           finishedAt: now,

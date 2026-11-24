@@ -1,4 +1,5 @@
 import type {
+  FixFailureCause,
   MendItemOutcome,
   MendItemReason,
   MendLevel,
@@ -26,6 +27,8 @@ export type MendItemView = {
   outcome: MendItemOutcome | null;
   /** Why no edit was written for it, as `ocra mend` says; null when one was, or while it waits. */
   reason: MendItemReason | null;
+  /** What failed when the reason is `failed`; null otherwise. */
+  cause: FixFailureCause | null;
   /** The commit that fixed it; null otherwise. */
   commit: string | null;
   /** ISO 8601. */
