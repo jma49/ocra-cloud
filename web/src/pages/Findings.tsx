@@ -30,6 +30,8 @@ type Listed = {
   repoHash: string;
   repo: string;
   name: string | null;
+  /** The pull request the review was of, if any. */
+  prNumber: number | null;
   reviewer: string;
   severity: Severity;
   category: string | null;
@@ -104,6 +106,12 @@ const STATUS_DONE: Record<FindingStatus, string> = {
   fixed: "marked fixed",
   dismissed: "dismissed",
 };
+
+/** Who found it, in what category and how it was checked; a category the reviewer is named after once. */
+const notes = (f: Listed) =>
+  [f.reviewer, f.category === f.reviewer ? null : f.category, f.verification]
+    .filter(Boolean)
+    .join(" · ");
 
 const rowClass = (selected: boolean, current: boolean) =>
   [selected && "selected", current && "is-current"].filter(Boolean).join(" ") || undefined;
@@ -408,12 +416,13 @@ export function Findings(props: {
                       </div>
                       <div className="mono subtle small">
                         {f.file}
-                        {lines(f)} · {f.reviewer}
-                        {f.category ? ` · ${f.category}` : ""}
-                        {f.verification ? ` · ${f.verification}` : ""}
+                        {lines(f)} · {notes(f)}
                       </div>
                     </td>
-                    <td className="mono">{f.name ?? f.repo}</td>
+                    <td className="mono">
+                      {f.name ?? f.repo}
+                      {f.prNumber !== null && <span className="subtle"> #{f.prNumber}</span>}
+                    </td>
                     <td>
                       {f.status}
                       {f.reason && <div className="muted small">{reasonLabel(f.reason)}</div>}

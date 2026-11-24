@@ -94,13 +94,14 @@ inbox.get("/", requireSession(), async (c) => {
   const statuses = Object.fromEntries(FINDING_STATUSES.map((s) => [s, 0]));
   for (const { status, n } of counts) statuses[status] = n;
   return c.json({
-    findings: rows.map(({ finding: f, repoHash, runId }) => ({
+    findings: rows.map(({ finding: f, repoHash, runId, prNumber }) => ({
       id: f.id,
       reviewId: f.reviewId,
       runId,
       repoHash,
       repo: repoHash.slice(0, 8),
       name: names.get(repoHash) ?? null,
+      prNumber,
       fingerprint: f.fingerprint,
       reviewer: f.reviewer,
       severity: f.severity,
