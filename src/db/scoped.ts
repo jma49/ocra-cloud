@@ -60,6 +60,7 @@ import { accountNotify } from "./notify.js";
 import { accountNotifyDeliveries } from "./notify-deliveries.js";
 import { type PreferencesSave, savePreferences } from "./preferences.js";
 import { pullsChangedAt } from "./pull-changes.js";
+import { accountPullChat } from "./pull-chat.js";
 import { accountPullCommands } from "./pull-commands.js";
 import { accountPullFileViews } from "./pull-file-views.js";
 import { accountPullFlows } from "./pull-flows.js";
@@ -510,6 +511,7 @@ export function scoped(db: Db, accountId: string) {
     findingThreads: accountFindingThreads(db, accountId),
     replies: accountReplyJobs(db, accountId),
     chat: accountReviewChat(db, accountId),
+    pullChat: accountPullChat(db, accountId),
     generations: accountGenerateJobs(db, accountId),
     restacks: accountRestackJobs(db, accountId),
     fixes: accountFixJobs(db, accountId),

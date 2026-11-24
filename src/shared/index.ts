@@ -33,6 +33,7 @@ export * from "./models.js";
 export * from "./notification-feed.js";
 export * from "./notifications.js";
 export * from "./pull-batch.js";
+export * from "./pull-chat.js";
 export * from "./pull-ci.js";
 export * from "./pull-description.js";
 export * from "./pull-edits.js";
