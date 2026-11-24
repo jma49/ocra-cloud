@@ -20,8 +20,10 @@ th {
   font-size: var(--text-sm);
   background: transparent;
 }
+/* Cells meet on their first line's baseline, so a two-line cell does not push its neighbours' text to the middle. */
 td {
   padding: 8px 12px;
+  vertical-align: baseline;
   border-bottom: 0.5px solid var(--hair);
   white-space: nowrap;
   font-variant-numeric: tabular-nums;

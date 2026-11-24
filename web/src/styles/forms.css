@@ -100,15 +100,20 @@ select.input {
   background: color-mix(in srgb, var(--critical) 8%, transparent);
 }
 /* A standing beside actions or in a head: a mark and a word in its tone, no fill (`Status`). */
+/* Mark and word meet on the word's baseline (the mark nudged down to its middle), so a standing lines up with text beside it in a row or a cell. */
 .status {
   display: inline-flex;
-  align-items: center;
+  align-items: baseline;
   gap: 6px;
   font-size: var(--text-sm);
   line-height: 16px;
   font-weight: 500;
   white-space: nowrap;
   color: var(--t2);
+}
+.status > svg {
+  flex: none;
+  margin-bottom: -2px;
 }
 .status-ok {
   color: var(--green);
@@ -121,6 +126,16 @@ select.input {
 }
 .status-err {
   color: var(--critical);
+}
+/* As a value in a table cell or a property list, a standing takes its neighbours' size and weight. */
+td .status,
+dd .status {
+  font-size: inherit;
+  font-weight: inherit;
+}
+dd .status {
+  height: 20px;
+  vertical-align: top;
 }
 .dot {
   width: 6px;

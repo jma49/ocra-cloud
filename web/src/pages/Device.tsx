@@ -1,4 +1,5 @@
 import { type FormEvent, useEffect, useState } from "react";
+import { Status } from "@/components/status";
 import { Button } from "@/components/ui/button";
 import { ApiError, api } from "../api.js";
 import { ago } from "../format.js";
@@ -96,9 +97,9 @@ export function Device() {
               <dt>Terminal</dt>
               <dd>
                 {info.label ?? "Unnamed"}{" "}
-                <span className="badge badge-warn" title="The terminal chose this name">
-                  unverified
-                </span>
+                <Status tone="warn" title="The terminal chose this name">
+                  Unverified
+                </Status>
                 <div className="muted small">
                   The name was sent by whoever asked for the code. ocra cannot check it.
                 </div>

@@ -7,6 +7,7 @@ import { Status } from "@/components/status";
 import { Button } from "@/components/ui/button";
 import type { LiveCommentView, LiveRunView } from "../../../src/shared/index.js";
 import { ApiError, api } from "../api.js";
+import { CopyButton } from "../copy-button.js";
 import { sourceLabel, time, verdictLabel } from "../format.js";
 import { CommentThread } from "../live/comments.js";
 import { LiveFindingEvent } from "../live/finding.js";
@@ -104,7 +105,12 @@ export function LivePage(props: { id: string }) {
           <dt>Owner</dt>
           <dd>{owner ? "You" : r.owner}</dd>
           <dt>Run</dt>
-          <dd className="mono">{r.runId}</dd>
+          <dd className="prop-copy">
+            <span className="mono subtle prop-copy-text" title={r.runId}>
+              {r.runId}
+            </span>
+            <CopyButton text={r.runId} label="Copy run id" iconOnly />
+          </dd>
         </dl>
         {owner && (
           <div className="prop-actions">

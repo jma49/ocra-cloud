@@ -183,25 +183,35 @@
 .danger-zone {
   border-color: color-mix(in srgb, var(--critical) 35%, var(--border));
 }
+/* A property list's rows, like `.prop-list`'s, are one 28 px step with the value on its name's line. */
 .kv {
   display: grid;
-  grid-template-columns: 160px 1fr;
-  gap: 8px 16px;
+  grid-template-columns: 160px minmax(0, 1fr);
+  gap: 0 16px;
   font-size: var(--text-base);
+  line-height: 20px;
 }
 .kv dt {
-  color: var(--fg-muted);
+  padding-block: 4px;
+  color: var(--t3);
 }
 .kv dd {
   margin: 0;
+  padding-block: 4px;
+  min-width: 0;
 }
 @media (max-width: 560px) {
   .kv {
     grid-template-columns: 1fr;
-    gap: 2px;
+  }
+  .kv dt {
+    padding-bottom: 0;
+  }
+  .kv dd {
+    padding-top: 2px;
   }
   .kv dd + dt {
-    margin-top: 12px;
+    margin-top: 8px;
   }
 }
 

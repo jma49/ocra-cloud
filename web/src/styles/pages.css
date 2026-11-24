@@ -372,12 +372,6 @@ td.finding-cell {
 .sev-mark.sev-warning {
   color: var(--warning);
 }
-.prop-list .status {
-  height: 20px;
-  vertical-align: top;
-  font-size: inherit;
-  font-weight: inherit;
-}
 .prop-actions {
   display: flex;
   flex-wrap: wrap;
