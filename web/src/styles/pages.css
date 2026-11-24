@@ -1272,6 +1272,34 @@ td.finding-cell {
 .diff-main.is-nowrap > tbody > tr > .diff-code {
   white-space: pre;
 }
+/* Unified and unwrapped, a line's numbers stay at the box's left edge while its code scrolls under them. */
+.diff-main.is-nowrap.is-unified > tbody > tr > .diff-no {
+  position: sticky;
+  padding-right: 8px;
+  z-index: 1;
+  background: var(--raised);
+}
+.diff-main.is-nowrap.is-unified > tbody > tr > .diff-no:nth-child(1) {
+  left: 0;
+}
+.diff-main.is-nowrap.is-unified > tbody > tr > .diff-no:nth-child(2) {
+  left: 56px;
+}
+/* A table's own borders stay put; the hairline that parts numbers from code moves with them. */
+.diff-main.is-nowrap.is-unified > tbody > tr > .diff-no:nth-child(2)::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  border-right: 0.5px solid var(--hair);
+}
+.diff-main.is-nowrap.is-unified > tbody > .diff-add > .diff-no {
+  background: color-mix(in srgb, var(--green) 10%, var(--raised));
+}
+.diff-main.is-nowrap.is-unified > tbody > .diff-del > .diff-no {
+  background: color-mix(in srgb, var(--red) 10%, var(--raised));
+}
 .diff-empty {
   background: var(--fill);
 }
@@ -1330,7 +1358,9 @@ td.finding-cell {
 }
 .diff-bar {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
+  gap: 16px;
 }
 .diff-hunk td {
   padding: 4px 16px;
