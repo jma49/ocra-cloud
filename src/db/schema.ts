@@ -487,7 +487,8 @@ export const findings = sqliteTable(
     redacted: integer("redacted", { mode: "boolean" }).notNull().default(false),
     truncated: integer("truncated", { mode: "boolean" }).notNull().default(false),
     createdAt: createdAt(),
-    // What the account decided about the finding in the console; after
+    // What the account decided about the finding in the console, or what
+    // its platform said of one still open (FINDING_STATUSES); after
     // createdAt, in the order the migration added them (insertReview names
     // every column in this order).
     status: text("status", { enum: FINDING_STATUSES }).notNull().default("open"),
