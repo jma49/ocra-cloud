@@ -6,6 +6,8 @@ import type { CodePlatformKind } from "../../../src/shared/index.js";
 import { api, type Me, why } from "../api.js";
 import { useCached, useRead } from "../cache.js";
 import { ago, count, num } from "../format.js";
+import { useListCursor } from "../list-cursor.js";
+import { usePageCommands } from "../page-commands.js";
 import { PlatformMark } from "../platform-mark.js";
 import { PLATFORM_NAME } from "../platform-names.js";
 import { Link } from "../router.js";
@@ -103,16 +105,21 @@ function NameField(props: { repo: Repo; current: string; done: (saved: boolean) 
   );
 }
 
-function RepoName(props: { repo: Repo; known: Known | null; saved: () => void }) {
-  const [editing, setEditing] = useState(false);
+function RepoName(props: {
+  repo: Repo;
+  known: Known | null;
+  editing: boolean;
+  edit: (on: boolean) => void;
+  saved: () => void;
+}) {
   const { repo, known } = props;
-  if (editing)
+  if (props.editing)
     return (
       <NameField
         repo={repo}
         current={known?.name ?? ""}
         done={(saved) => {
-          setEditing(false);
+          props.edit(false);
           if (saved) props.saved();
         }}
       />
@@ -133,7 +140,7 @@ function RepoName(props: { repo: Repo; known: Known | null; saved: () => void })
         variant="outline"
         size="sm"
         aria-label={`${known ? "Rename" : "Name"} ${known?.name ?? repo.repo}`}
-        onClick={() => setEditing(true)}
+        onClick={() => props.edit(true)}
       >
         {known ? "Rename" : "Name it"}
       </Button>
@@ -283,6 +290,28 @@ export function Repositories(props: { me: Me }) {
   );
   const platforms = useRead<PlatformRepos>("/platforms/repos");
   useSyncNames(data?.repositories, platforms.data, reload);
+  const list = useRef<HTMLTableSectionElement>(null);
+  const rows = data?.repositories ?? [];
+  const cursor = useListCursor(rows.length, list);
+  const [editing, setEditing] = useState<string | null>(null);
+  const row = rows[cursor.current];
+  usePageCommands(
+    "These repositories",
+    row
+      ? [
+          { label: "Next repository", key: "j", run: () => cursor.move(1) },
+          { label: "Previous repository", key: "k", run: () => cursor.move(-1) },
+          {
+            label: row.name === null ? "Name the repository" : "Rename the repository",
+            key: "e",
+            run: () => {
+              cursor.show();
+              setEditing(row.repoHash);
+            },
+          },
+        ]
+      : [],
+  );
   return (
     <>
       <PageHead
@@ -336,14 +365,19 @@ export function Repositories(props: { me: Me }) {
                   <th className="hide-narrow">Last review</th>
                 </tr>
               </thead>
-              <tbody>
-                {data.repositories.map((r) => (
-                  <tr key={r.repoHash}>
+              <tbody ref={list}>
+                {data.repositories.map((r, i) => (
+                  <tr
+                    key={r.repoHash}
+                    data-row={i}
+                    className={cursor.shown && i === cursor.current ? "is-current" : undefined}
+                  >
                     <td className="text">
                       <RepoName
-                        key={r.name ?? ""}
                         repo={r}
                         known={knownAs(r, platforms.data?.platforms ?? [])}
+                        editing={editing === r.repoHash}
+                        edit={(on) => setEditing(on ? r.repoHash : null)}
                         saved={reload}
                       />
                     </td>
