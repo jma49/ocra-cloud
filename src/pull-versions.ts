@@ -31,6 +31,21 @@ async function keptOf(c: Context<AppEnv>, platform: CodePlatform, repo: string, 
   return enrolled ? c.var.data.pullVersions.of(enrolled.id, number) : [];
 }
 
+/** The heads ocra kept and the platform lists for the pull request, to number at its head. */
+export async function versionSources(
+  c: Context<AppEnv>,
+  platform: CodePlatform,
+  token: string,
+  repo: string,
+  number: number,
+) {
+  const [listed, kept] = await Promise.all([
+    platform.versions.list(token, repo, number),
+    keptOf(c, platform, repo, number),
+  ]);
+  return { kept, listed };
+}
+
 pullVersions.get("/versions", requireSession(["web"]), perMinute("platform"), async (c) => {
   const ref = listQuery.safeParse(c.req.query());
   if (!ref.success) return apiError(c, "not_found");
@@ -38,10 +53,9 @@ pullVersions.get("/versions", requireSession(["web"]), perMinute("platform"), as
   if ("refusal" in reached) return reached.refusal;
   const { platform, token } = reached;
   const { repo, number } = ref.data;
-  const [pull, listed, kept] = await Promise.all([
+  const [pull, { kept, listed }] = await Promise.all([
     platform.changes.changes(token, repo, number, 0),
-    platform.versions.list(token, repo, number),
-    keptOf(c, platform, repo, number),
+    versionSources(c, platform, token, repo, number),
   ]);
   if (!pull) return apiError(c, "not_found");
   const head = pull.head.toLowerCase();

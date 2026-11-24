@@ -7,7 +7,13 @@ import { boundedBytes, platformRead } from "./http.js";
 
 /** `rebased` when `since` is no ancestor of the head: a force push rewrote what was seen. */
 export type SinceDiff =
-  | { state: "changes"; files: PatchedFile[]; truncated: boolean }
+  | {
+      state: "changes";
+      files: PatchedFile[];
+      truncated: boolean;
+      /** Commits from `since` to the head; null when the platform did not say (a tree compare). */
+      commits: number | null;
+    }
   | { state: "rebased" };
 
 /** The head the user's latest submitted review of the pull request was of. */
