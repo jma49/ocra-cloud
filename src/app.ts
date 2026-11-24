@@ -46,6 +46,7 @@ import type { BotTokens } from "./platforms/bot.js";
 import { preferences } from "./preferences.js";
 import { pullBatch } from "./pull-batch.js";
 import { pullCi } from "./pull-ci.js";
+import { pullCiExplain } from "./pull-ci-explain.js";
 import { pullDescription } from "./pull-description.js";
 import { pullEdits } from "./pull-edits.js";
 import type { PullsHub } from "./pull-events/hub.js";
@@ -183,6 +184,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
   app.route("/pulls", pullBatch);
   app.route("/pulls", pullStack);
   app.route("/pulls", pullCi);
+  app.route("/pulls", pullCiExplain);
   app.route("/pulls", pullThreads);
   app.route("/pulls", pullEdits);
   app.route("/pulls", reviewers);

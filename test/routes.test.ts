@@ -126,6 +126,7 @@ const ACCESS: Record<string, Access> = {
   "GET /api/pulls/ci": "web",
   "GET /api/pulls/ci/log": "web",
   "POST /api/pulls/ci/rerun": "web",
+  "POST /api/pulls/ci/explain": "web",
   "PATCH /api/merge-checks/repos/:id": "web",
   "GET /api/merge-checks/repos/:id/checks": "web",
   "POST /api/merge-checks/repos/:id/checks": "web",
