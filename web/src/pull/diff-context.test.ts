@@ -26,6 +26,30 @@ describe("gaps", () => {
       { key: 2, from: 52, to: null, delta: -2 },
     ]);
   });
+
+  it("reads a side with no lines as starting after the line its hunk names", () => {
+    // Three lines added after old line 10: old 10 is new 10, old 11 is new 14.
+    expect(gapsOf(parsePatch("@@ -10,0 +11,3 @@\n+a\n+b\n+c"))).toEqual([
+      { key: 0, from: 1, to: 10, delta: 0 },
+      { key: 1, from: 14, to: null, delta: -3 },
+    ]);
+    // Old lines 10-12 removed after new line 9: new 9 is old 9, new 10 is old 13.
+    expect(gapsOf(parsePatch("@@ -10,3 +9,0 @@\n-a\n-b\n-c"))).toEqual([
+      { key: 0, from: 1, to: 9, delta: 0 },
+      { key: 1, from: 10, to: null, delta: 3 },
+    ]);
+  });
+
+  it("leaves no lines out before the only hunk of a new or deleted file", () => {
+    expect(gapsOf(parsePatch("@@ -0,0 +1,2 @@\n+a\n+b"))).toEqual([
+      { key: 0, from: 1, to: 0, delta: 0 },
+      { key: 1, from: 3, to: null, delta: -2 },
+    ]);
+    expect(gapsOf(parsePatch("@@ -1,2 +0,0 @@\n-a\n-b"))).toEqual([
+      { key: 0, from: 1, to: 0, delta: 0 },
+      { key: 1, from: 1, to: null, delta: 2 },
+    ]);
+  });
 });
 
 describe("revealing", () => {
