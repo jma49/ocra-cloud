@@ -199,6 +199,10 @@ function PullTalk(props: { r: Row }) {
   );
 }
 
+/** Whether someone else wrote any of the rows; when none, the list drops its author column. */
+export const othersWrote = (rows: readonly Row[], self: string | undefined) =>
+  rows.some((r) => r.author !== null && r.author !== self);
+
 /** Names the columns once over the list; it takes the rows' own column classes, so it lines up with them at every width. */
 export function ColumnHead() {
   return (

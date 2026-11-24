@@ -13,7 +13,7 @@ import { inboxCommands } from "../inbox/commands.js";
 import { useHeldOrder } from "../inbox/hold-order.js";
 import { KeyHints } from "../inbox/key-hints.js";
 import { rememberQueue } from "../inbox/queue.js";
-import { ColumnHead, PullRow } from "../inbox/row.js";
+import { ColumnHead, othersWrote, PullRow } from "../inbox/row.js";
 import { SectionMenu } from "../inbox/section-menu.js";
 import {
   type Filters,
@@ -101,6 +101,10 @@ export function Inbox(props: { me?: Me }) {
     cursor.reset();
   };
   const filtering = Boolean(filters.text || filters.repo);
+  const othersAuthor = othersWrote(
+    sections.flatMap((s) => s.rows),
+    props.me?.login,
+  );
   const dismissOffer = () => {
     forgetSharedView();
     setOffered(null);
@@ -223,7 +227,11 @@ export function Inbox(props: { me?: Me }) {
           </EmptyState>
         </div>
       ) : (
-        <div ref={list} className="inbox-sections card">
+        <div
+          ref={list}
+          className="inbox-sections card"
+          data-own-only={othersAuthor ? undefined : ""}
+        >
           <ColumnHead />
           {sections.map((s, place) => (
             <Section
