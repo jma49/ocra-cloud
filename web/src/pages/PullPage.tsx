@@ -43,7 +43,7 @@ import { ReviewBox } from "../pull/review-box.js";
 import { ReviewNowBox } from "../pull/review-now-box.js";
 import { ReviewersPanel } from "../pull/reviewers.js";
 import { StackPanel } from "../pull/stack.js";
-import { nextStep, PullStatus } from "../pull/status.js";
+import { conflicts, nextStep, PullStatus } from "../pull/status.js";
 import { ThreadsPanel } from "../pull/threads.js";
 import { UpdateBranch } from "../pull/update-branch.js";
 import { useViewed } from "../pull/viewed.js";
@@ -269,6 +269,7 @@ export function PullPage(props: {
                   data={data}
                   pull={ref}
                   ready={step === "merge"}
+                  conflicts={conflicts(readiness)}
                   onDone={(o) => done("Merge", o)}
                 />
               )

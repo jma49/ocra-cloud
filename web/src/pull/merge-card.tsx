@@ -18,6 +18,8 @@ export function MergeCard(props: {
   pull: { platform: CodePlatformKind; repo: string; number: number };
   /** Whether it can merge now, as far as its readiness says. */
   ready: boolean;
+  /** Whether it conflicts with its base: merge now waits until that is resolved. */
+  conflicts: boolean;
   onDone: (o: PullActionOutcome) => void;
 }) {
   const { data, pull, ready } = props;
@@ -38,7 +40,14 @@ export function MergeCard(props: {
           </option>
         ))}
       </select>
-      <MergeNow data={data} pull={pull} method={method} primary={ready} onDone={props.onDone} />
+      <MergeNow
+        data={data}
+        pull={pull}
+        method={method}
+        primary={ready}
+        conflicts={props.conflicts}
+        onDone={props.onDone}
+      />
       <MergeWhenReady pull={pull} head={data.head} method={method} label={label} />
     </section>
   );
