@@ -1,6 +1,7 @@
 import fixture from "@open-cr-agent/cloud-contract/fixtures/events.json" with { type: "json" };
 import { beforeEach, describe, expect, it } from "vitest";
 import { setSharing } from "../src/db/accounts.js";
+import { scoped } from "../src/db/scoped.js";
 import type {
   AuditPage,
   LiveCommentView,
@@ -92,6 +93,46 @@ describe("relaying a run", () => {
       json: { run, events },
     });
     expect(web.status).toBe(403);
+  });
+
+  it("names a run by its pull request's title, to its owner only, once the repository is enrolled", async () => {
+    const o = await owner();
+    const id = idOf((await o.relay(events.slice(0, 3))).watch);
+    const data = scoped(db, o.web.account.id);
+    const reviewRepoId = await data.insert("reviewRepos", {
+      platform: "github",
+      host: "github.com",
+      platformRepoId: "7",
+      fullName: "octo/web",
+    });
+    const seenAt = new Date();
+    await data.pullFlows.record({
+      reviewRepoId,
+      number: 7,
+      title: "Retry the upload",
+      author: "octo",
+      draft: false,
+      size: 4,
+      seenAt,
+    });
+    await data.pullFlows.record({
+      reviewRepoId,
+      number: 8,
+      title: "Another one",
+      author: "octo",
+      draft: false,
+      size: 4,
+      seenAt,
+    });
+    const get = as(o.web.auth);
+    const view = (await (await get("GET", `/api/live/${id}`)).json()) as { run: LiveRunView };
+    expect(view.run.title).toBe("Retry the upload");
+    const list = (await (await get("GET", "/api/live")).json()) as { runs: LiveRunView[] };
+    expect(list.runs.map((r) => r.title)).toEqual(["Retry the upload"]);
+    const guest = as((await signIn(2, "mona")).auth);
+    await get("POST", `/api/live/${id}/people`, { login: "mona", role: "watch" });
+    const seen = (await (await guest("GET", `/api/live/${id}`)).json()) as { run: LiveRunView };
+    expect(seen.run.title).toBeNull();
   });
 
   it("ends a run once: a late batch does not reopen it", async () => {

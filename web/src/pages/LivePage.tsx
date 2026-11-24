@@ -146,7 +146,7 @@ export function LivePage(props: { id: string }) {
       <section className="live-main" aria-label="Findings">
         <div className="review-title">
           <span className="mono subtle">{headline(r)}</span>
-          <h1>{progress.target || r.target || "Review"}</h1>
+          <h1>{r.title || progress.target || r.target || "Review"}</h1>
         </div>
         <div className="review-tabs">
           <span className="quiet-label">

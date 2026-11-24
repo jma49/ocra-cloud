@@ -23,6 +23,8 @@ export type LiveRunView = {
   owner: string;
   access: LiveAccess;
   target: string;
+  /** The pull request's title, where the owner's enrolled repository told it. */
+  title: string | null;
   source: ReviewSource;
   /** The repository's name as the account knows it, or the pull request's path. */
   repo: string | null;

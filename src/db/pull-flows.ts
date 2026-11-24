@@ -33,6 +33,11 @@ export type FlowReview = {
   submittedAt: Date;
 };
 
+/** A pull request by where it lives: its platform's host, owner/repo and number. */
+export type PullRef = { host: string; fullName: string; number: number };
+
+export const pullKey = (p: PullRef) => `${p.host}/${p.fullName}#${p.number}`;
+
 const MAX_TITLE = 256;
 const MAX_LOGIN = 255;
 
@@ -115,6 +120,27 @@ export function accountPullFlows(db: Db, accountId: string) {
         firstReviewAt: review.submittedAt,
         firstApprovalAt: review.approved ? review.submittedAt : null,
       });
+    },
+
+    /** The titles of those of the pull requests the account enrolled, by `pullKey`. */
+    async titles(pulls: readonly PullRef[]): Promise<Map<string, string>> {
+      if (pulls.length === 0) return new Map();
+      const r = reviewRepos;
+      const rows = await db
+        .select({ host: r.host, fullName: r.fullName, number: t.number, title: t.title })
+        .from(t)
+        .innerJoin(r, and(eq(r.id, t.reviewRepoId), eq(r.accountId, accountId)))
+        .where(
+          and(
+            eq(t.accountId, accountId),
+            or(
+              ...pulls.map((p) =>
+                and(eq(r.host, p.host), eq(r.fullName, p.fullName), eq(t.number, p.number)),
+              ),
+            ),
+          ),
+        );
+      return new Map(rows.map((row) => [pullKey(row), row.title]));
     },
 
     /** The pull requests that had an event since, newest first, up to cap. */

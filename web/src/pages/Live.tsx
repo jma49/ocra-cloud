@@ -79,7 +79,7 @@ function Runs(props: {
                 <Link className="list-row" to={`/live/${r.id}`}>
                   <span className={`badge ${state.cls}`}>{state.label}</span>
                   <span className="grow stack-tight">
-                    <span className="strong">{r.target || "Review"}</span>
+                    <span className="strong">{r.title || r.target || "Review"}</span>
                     <span className="subtle small">
                       {[r.repo, r.prNumber ? `#${r.prNumber}` : null, sourceLabel(r.source)]
                         .filter(Boolean)

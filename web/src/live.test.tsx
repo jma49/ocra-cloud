@@ -65,6 +65,7 @@ const run: LiveRunView = {
   owner: "octo",
   access: "owner",
   target: "pull request #7",
+  title: null,
   source: "github",
   repo: "octo/web",
   prNumber: 7,
@@ -173,6 +174,16 @@ describe("the live page", () => {
     expect(FakeSource.last?.url).toBe("/api/live/lr1/stream?k=abc");
     expect(screen.queryByRole("button", { name: /Share/ })).toBeNull();
     expect(screen.queryByLabelText("Comment on this run")).toBeNull();
+  });
+
+  it("heads the run with its pull request's title when the server knows it", async () => {
+    serve({ title: "Retry the upload" });
+    render(<LivePage id="lr1" />);
+    await screen.findByText("No findings yet");
+    act(() => {
+      for (const e of events) (FakeSource.last as FakeSource).emit("review", e);
+    });
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Retry the upload");
   });
 
   it("says when a run is not shared with the viewer", async () => {
