@@ -4,6 +4,7 @@ import CircleMinus from "lucide-react/icons/circle-minus";
 import CircleX from "lucide-react/icons/circle-x";
 import RotateCw from "lucide-react/icons/rotate-cw";
 import { useState } from "react";
+import { Status } from "@/components/status";
 import { Button } from "@/components/ui/button";
 import type {
   CiJobState,
@@ -129,10 +130,10 @@ export function CiBox(props: { pull: Pull; head: string }) {
   const passed = jobs.filter((j) => j.state === "passed").length;
   const standing =
     failed.length > 0
-      ? { text: `${failed.length} failed`, tone: "badge badge-err" }
+      ? { text: `${failed.length} failed`, tone: "err" as const }
       : running.length > 0
-        ? { text: "Running", tone: "badge" }
-        : { text: "Passing", tone: "badge badge-ok" };
+        ? { text: "Running", tone: "run" as const }
+        : { text: "Passing", tone: "ok" as const };
   const other = rest.length - passed - running.length;
   const others = [
     passed > 0 && `${passed} passed`,
@@ -143,7 +144,7 @@ export function CiBox(props: { pull: Pull; head: string }) {
     <section className="card card-pad stack ci-box" aria-label="CI">
       <div className="row-gap checks-head">
         <h2 className="card-title grow">CI</h2>
-        <span className={standing.tone}>{standing.text}</span>
+        <Status tone={standing.tone}>{standing.text}</Status>
       </div>
       <Tally
         label={`${passed} of ${jobs.length} passed`}

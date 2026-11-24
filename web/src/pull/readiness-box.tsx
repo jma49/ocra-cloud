@@ -1,5 +1,6 @@
 import Clock from "lucide-react/icons/clock";
 import type { ReactNode } from "react";
+import { Status } from "@/components/status";
 import type {
   CodeOwnerGroupView,
   PullReadinessView,
@@ -137,7 +138,7 @@ export function ReadinessBox(props: {
         <h2 className="card-title grow">Merge readiness</h2>
         {/* The page's head carries the standing; here it is said only when the head is silent. */}
         {data.ready === "unknown" ? (
-          <span className="badge">Nothing in the way</span>
+          <Status tone="quiet">Nothing in the way</Status>
         ) : (
           <span className="subtle small">
             {met.length} of {data.items.length} met

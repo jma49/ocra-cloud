@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Status } from "@/components/status";
 import { Button } from "@/components/ui/button";
 import type {
   CodePlatformKind,
@@ -78,7 +79,7 @@ export function ReviewersPanel(props: {
               <span className="subtle small">{s.reasons.map((r) => REASON[r]).join(", ")}</span>
             </div>
             {s.alreadyRequested ? (
-              <span className="badge">Asked</span>
+              <Status tone="quiet">Asked</Status>
             ) : (
               <Button
                 type="button"

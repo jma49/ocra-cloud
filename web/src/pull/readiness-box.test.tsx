@@ -86,7 +86,7 @@ it("stays calm when the rest cannot be read, and names owner groups and stale ap
     canUpdateBranch: false,
   });
   render(<Box />);
-  expect((await screen.findByText("Nothing in the way")).className).toBe("badge");
+  expect((await screen.findByText("Nothing in the way")).className).toBe("status status-quiet");
   expect(screen.getByText("approved by ada, 2 files")).toBeTruthy();
   expect(screen.getByText("cannot be read, 1 file")).toBeTruthy();
   expect(screen.getByText("Approved an earlier head: grace")).toBeTruthy();

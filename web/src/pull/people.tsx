@@ -1,5 +1,6 @@
 import X from "lucide-react/icons/x";
 import { useState } from "react";
+import { Status, type StatusTone } from "@/components/status";
 import { Button } from "@/components/ui/button";
 import type {
   CodePlatformKind,
@@ -20,12 +21,12 @@ import { PeoplePicker } from "./people-picker.js";
 type Ref = { platform: CodePlatformKind; repo: string; number: number };
 type List = "reviewers" | "assignees";
 
-const STATE: Record<ReviewerState, { text: string; tone: string }> = {
-  requested: { text: "Asked", tone: "badge" },
-  approved: { text: "Approved", tone: "badge badge-ok" },
-  changes_requested: { text: "Changes requested", tone: "badge badge-warn" },
-  commented: { text: "Commented", tone: "badge" },
-  dismissed: { text: "Dismissed", tone: "badge" },
+const STATE: Record<ReviewerState, { text: string; tone: StatusTone }> = {
+  requested: { text: "Asked", tone: "quiet" },
+  approved: { text: "Approved", tone: "ok" },
+  changes_requested: { text: "Changes requested", tone: "warn" },
+  commented: { text: "Commented", tone: "quiet" },
+  dismissed: { text: "Dismissed", tone: "quiet" },
 };
 
 const NOUN: Record<List, string> = { reviewers: "reviewer", assignees: "assignee" };
@@ -42,7 +43,7 @@ function Person(props: {
   return (
     <li>
       <span className="mono people-login">{props.login}</span>
-      {state && <span className={state.tone}>{state.text}</span>}
+      {state && <Status tone={state.tone}>{state.text}</Status>}
       {props.onRemove && (
         <button
           type="button"
