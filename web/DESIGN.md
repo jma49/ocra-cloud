@@ -21,7 +21,7 @@ Pages and components style only through the custom properties in `base.css`.
 - **Lines:** `--hair` between rows, `--hair2` under headers and around groups. Lines are 0.5 px.
 - **Fills:** `--fill` at rest and under a hovered row (a list row, a tree link, a settings link); `--fill2` for the selected row and for a hovered control (an icon button, a chip, a tile, a menu option). A fold's row has no fill of its own: its chevron darkens to `--t1` under the pointer. A `<summary>` that folds carries `.fold` and never the browser's marker.
 - **Status tones:** `--critical` for critical findings, errors and destructive actions, `--warning` for warnings; pages name these semantic tokens, not `--red` and `--amber`, which are the palette behind them. `--green` is ok, `--blue` running or informational. Use them on text and soft fills (badges, notes), never as large backgrounds. Each reads at 4.5:1 as text on its own badge fill (an 8% tint), on the panel, on a card and inside a selected row, in both themes **(test, `contrast.test.ts`)**.
-- **Chart series:** `--c1` to `--c6`, in order of use.
+- **Chart series:** `--c1` to `--c6`, in order of use. A chart over time draws its value lines only, never a line per date (`.over-time`).
 - **Radii (test, `styles.test.ts`):** `--r-tag` 4, `--r-chip` and `--r-tab` 6, `--r-ctl` 8 (controls, cards), `--r-sheet` 10 (panel, drawer). No stylesheet writes another corner; round ends (`99px` on a meter's track, `50%` on a dot) and a hairline's 1 or 2 px are shapes, not steps.
 - **coss ui names** (`--background`, `--popover`, `--accent`, `--destructive`, …) are aliases of the same tokens, declared in `base.css`; `styles/coss.css` maps them into Tailwind.
 

@@ -31,6 +31,10 @@
 .chart-card.wide {
   grid-column: span 2;
 }
+/* Strato draws a grid line per date and has no switch for it: a date's line starts at the top (y1 0) away from the left edge, a value's at the left (x1 0). */
+.chart-card.over-time line[y1="0"]:not([x1="0"]) {
+  display: none;
+}
 .chart-head {
   display: flex;
   align-items: baseline;
