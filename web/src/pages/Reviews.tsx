@@ -1,6 +1,5 @@
 import GitPullRequest from "lucide-react/icons/git-pull-request";
 import { useRef, useState } from "react";
-import { Status } from "@/components/status";
 import { Button } from "@/components/ui/button";
 import { api, type Review, type Reviews as ReviewsData, why } from "../api.js";
 import { useCached } from "../cache.js";
@@ -11,23 +10,9 @@ import { usePageCommands } from "../page-commands.js";
 import { Link, navigate } from "../router.js";
 import { StackTable } from "../stack-table.js";
 import { EmptyState, LoadError, Loading, PageHead, Seg, useAction } from "../ui.js";
+import { VerdictStatus } from "../verdict-status.js";
 
 const RANGES = [7, 30, 90].map(period);
-
-function Verdict(props: { r: Review }) {
-  const { verdict, complete } = props.r;
-  if (!complete)
-    return (
-      <Status tone="warn" title="Some files were not reviewed">
-        Incomplete
-      </Status>
-    );
-  if (verdict === "significant_concerns") return <Status tone="err">Significant concerns</Status>;
-  if (verdict === "minor_issues") return <Status tone="warn">Minor issues</Status>;
-  if (verdict === "approved_with_comments") return <Status tone="quiet">Comments</Status>;
-  if (verdict === "approved") return <Status tone="ok">Approved</Status>;
-  return <Status tone="quiet">–</Status>;
-}
 
 /** What a review was of, as its link: the pull request where it had one, then how it ran. */
 function ReviewOf(props: { r: Review }) {
@@ -228,7 +213,7 @@ export function Reviews(props: {
                       <ReviewOf r={r} />
                     </td>
                     <td>
-                      <Verdict r={r} />
+                      <VerdictStatus verdict={r.verdict} complete={r.complete} brief />
                     </td>
                     <td className="num">
                       <span className="cell-name" aria-hidden="true">

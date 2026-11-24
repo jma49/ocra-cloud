@@ -314,6 +314,33 @@ td.finding-cell {
   min-width: 0;
   overflow-wrap: anywhere;
 }
+.prop-pull,
+.prop-copy {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.prop-pull > .platform-mark {
+  flex: none;
+}
+.prop-pull a {
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+.prop-pull a:hover {
+  text-decoration: underline;
+}
+.prop-copy {
+  gap: 4px;
+  margin-block: -4px;
+}
+.prop-copy-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .prop-items {
   display: grid;
   gap: 6px;

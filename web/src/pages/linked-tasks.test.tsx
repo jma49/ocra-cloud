@@ -33,11 +33,9 @@ describe("a review's linked tasks", () => {
     expect(screen.getAllByRole("listitem")).toHaveLength(2);
   });
 
-  it("says none were linked when the review looked, and shows nothing when it did not", () => {
-    list([]);
-    expect(screen.getByText("None")).toBeTruthy();
+  it("takes no row when no task was linked, or the review did not look", () => {
+    expect(list([]).container.textContent).toBe("");
     cleanup();
-    const { container } = list(null);
-    expect(container.textContent).toBe("");
+    expect(list(null).container.textContent).toBe("");
   });
 });

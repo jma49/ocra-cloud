@@ -8,7 +8,7 @@ const TRACKER = { github: "GitHub", gitlab: "GitLab", jira: "Jira", tapd: "TAPD"
 // that did not fit the upload is left out.
 export function LinkedTasks(props: { tasks: readonly LinkedTaskView[] | null }) {
   const tasks = (props.tasks ?? []).filter((t) => t !== null);
-  if (props.tasks === null) return null;
+  if (tasks.length === 0) return null;
   return (
     <>
       <dt>Linked tasks</dt>

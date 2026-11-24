@@ -11,16 +11,19 @@ import type {
 } from "../../../src/shared/index.js";
 import { ApiError, api } from "../api.js";
 import { useCached } from "../cache.js";
+import { CopyButton } from "../copy-button.js";
 import { useFixes } from "../fixes/use-fixes.js";
-import { ago, count, sourceLabel, time, verdictLabel } from "../format.js";
+import { ago, count, sourceLabel, time } from "../format.js";
 import { type FocusedFinding, ImpactRail } from "../impact/rail.js";
 import { useImpact } from "../impact/use-impact.js";
 import { useListCursor } from "../list-cursor.js";
 import { usePageCommands } from "../page-commands.js";
+import { PlatformMark } from "../platform-mark.js";
 import { pullPath } from "../pull/path.js";
 import { ReviewChat } from "../review-chat/chat.js";
 import { Link } from "../router.js";
 import { EmptyState, LoadError, Loading, PageHead, Seg } from "../ui.js";
+import { VerdictStatus } from "../verdict-status.js";
 import { reviewCommands } from "./review-commands.js";
 import { type Finding, FindingEvent } from "./review-finding.js";
 import { LinkedTasks } from "./review-linked-tasks.js";
@@ -258,28 +261,41 @@ function pullOf(r: Review) {
 function Properties(props: { r: Review }) {
   const { r } = props;
   const pull = pullOf(r);
-  const verdict = !r.complete ? "Incomplete" : r.verdict ? verdictLabel(r.verdict) : "–";
   return (
     <div className="props">
       <dl className="prop-list">
         <dt>Verdict</dt>
-        <dd>{verdict}</dd>
+        <dd>
+          <VerdictStatus verdict={r.verdict} complete={r.complete} />
+        </dd>
         <dt>Findings</dt>
         <dd>
           <SeverityCounts r={r} />
         </dd>
-        <dt>Repository</dt>
-        <dd>{pull ? pull.repo : <span className="mono small">{r.repo}</span>}</dd>
-        {r.prRepository && r.prNumber && (
+        {pull ? (
           <>
-            <dt>{r.source === "gitlab" ? "Merge request" : "Pull request"}</dt>
-            <dd>
-              {pull ? (
-                <Link to={pullPath(pull.platform, pull.repo, pull.number)}>#{pull.number}</Link>
-              ) : (
-                `${r.prRepository}#${r.prNumber}`
-              )}
+            <dt>{pull.platform === "gitlab" ? "Merge request" : "Pull request"}</dt>
+            <dd className="prop-pull">
+              <PlatformMark platform={pull.platform} size={14} />
+              <Link to={pullPath(pull.platform, pull.repo, pull.number)}>
+                {pull.repo} <span className="subtle">#{pull.number}</span>
+              </Link>
             </dd>
+          </>
+        ) : (
+          <>
+            <dt>Repository</dt>
+            <dd>
+              <span className="mono small">{r.repo}</span>
+            </dd>
+            {r.prRepository && r.prNumber ? (
+              <>
+                <dt>{r.source === "gitlab" ? "Merge request" : "Pull request"}</dt>
+                <dd>{`${r.prRepository}#${r.prNumber}`}</dd>
+              </>
+            ) : null}
+            <dt>Source</dt>
+            <dd>{sourceLabel(r.source)}</dd>
           </>
         )}
         <LinkedTasks tasks={r.linkedTasks ?? null} />
@@ -305,12 +321,18 @@ function Properties(props: { r: Review }) {
             </dd>
           </>
         )}
-        <dt>Source</dt>
-        <dd>{sourceLabel(r.source)}</dd>
         <dt>Reviewed</dt>
-        <dd>{time(r.createdAt)}</dd>
+        <dd>
+          <time dateTime={r.createdAt}>{time(r.createdAt)}</time>
+          <span className="subtle"> · {ago(r.createdAt)}</span>
+        </dd>
         <dt>Run</dt>
-        <dd className="mono small muted">{r.runId}</dd>
+        <dd className="prop-copy">
+          <span className="mono small subtle prop-copy-text" title={r.runId}>
+            {r.runId}
+          </span>
+          <CopyButton text={r.runId} label="Copy run id" iconOnly />
+        </dd>
       </dl>
       <div className="prop-actions">
         <Button
