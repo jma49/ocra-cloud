@@ -300,17 +300,21 @@ td.finding-cell {
   position: static;
   max-height: calc(100vh - 380px);
 }
+/* Each row is one 28 px step, a copy button's height, so text and marks share a line with dt. */
 .prop-list {
   display: grid;
   grid-template-columns: 96px minmax(0, 1fr);
-  gap: 8px 12px;
+  gap: 0 12px;
   margin: 0;
+  line-height: 20px;
 }
 .prop-list dt {
+  padding-block: 4px;
   color: var(--t3);
 }
 .prop-list dd {
   margin: 0;
+  padding-block: 4px;
   min-width: 0;
   overflow-wrap: anywhere;
 }
@@ -318,7 +322,7 @@ td.finding-cell {
 .prop-copy {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 .prop-pull > .platform-mark {
   flex: none;
@@ -331,9 +335,9 @@ td.finding-cell {
 .prop-pull a:hover {
   text-decoration: underline;
 }
-.prop-copy {
+.prop-list dd.prop-copy {
   gap: 4px;
-  margin-block: -4px;
+  padding-block: 0;
 }
 .prop-copy-text {
   min-width: 0;
@@ -369,7 +373,10 @@ td.finding-cell {
   color: var(--warning);
 }
 .prop-list .status {
+  height: 20px;
+  vertical-align: top;
   font-size: inherit;
+  font-weight: inherit;
 }
 .prop-actions {
   display: flex;
