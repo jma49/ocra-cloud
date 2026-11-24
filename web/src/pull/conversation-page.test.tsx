@@ -3,8 +3,9 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { PullPage } from "../pages/PullPage.js";
 import { ToastProvider } from "../toast.js";
 
-// The conversation column and the file heads on a pull request's page: a
-// thread leads the diff to its line, and the column's state is kept.
+// The conversation column, the file heads and the file views on a pull
+// request's page: a thread leads the diff to its line, the column's state is
+// kept, and a view narrows the diffs as it does the tree.
 
 const HEAD = "a".repeat(40);
 const PATCH = [
@@ -175,4 +176,36 @@ it("opens folded where this browser left it folded", async () => {
   show();
   expect(await screen.findByRole("button", { name: /^Show conversation/ })).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Hide conversation" })).toBeNull();
+});
+
+const keepView = (path: string) =>
+  localStorage.setItem(
+    "ocra-pull-file-views",
+    JSON.stringify({ views: [{ name: "Picked", narrowing: { path } }], picked: "Picked" }),
+  );
+const diffs = () =>
+  [...document.querySelectorAll(".diff-file .diff-path")].map((e) => e.textContent);
+
+it("narrows the diffs to the picked view's files, and shows all to lead to a thread outside it", async () => {
+  keepView("*.py");
+  show();
+  await screen.findByText("1 file of 2");
+  expect(diffs()).toEqual(["src/old.py"]);
+  const aside = await column();
+  await waitFor(() => expect(aside.textContent).toContain("Return early."));
+  fireEvent.click(within(aside).getByText(/Return early\./));
+  await screen.findByRole("button", { name: "File view: All files" });
+  expect(diffs()).toEqual(["src/refund.ts", "src/old.py"]);
+  await waitFor(() =>
+    expect(scrolled.some((el) => el.textContent?.includes("if (amount > left) {"))).toBe(true),
+  );
+});
+
+it("says so in place of the diffs when the view keeps no file", async () => {
+  keepView("*.go");
+  show();
+  await screen.findByText("No changed file fits this view.");
+  expect(diffs()).toEqual([]);
+  fireEvent.click(screen.getByRole("button", { name: "Show all files" }));
+  await waitFor(() => expect(diffs()).toEqual(["src/refund.ts", "src/old.py"]));
 });
