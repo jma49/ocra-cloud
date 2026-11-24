@@ -69,7 +69,7 @@ export function AccountMenu(props: { me: Me; compact?: boolean; side?: "bottom" 
         aria-label={`Account: ${me.login}`}
       >
         <Avatar me={me} />
-        {!props.compact && <span className="small">{me.login}</span>}
+        <span className={props.compact ? "rail-label" : "small"}>{me.login}</span>
       </MenuTrigger>
       <MenuPopup className="account-menu" side={props.side ?? "bottom"} align="end" sideOffset={8}>
         <div className="menu-head">

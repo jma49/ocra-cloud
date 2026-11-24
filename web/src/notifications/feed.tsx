@@ -234,6 +234,7 @@ export function FeedBell(props: { tip: (label: string, control: ReactElement) =>
         >
           <Bell className="nav-icon" size={20} aria-hidden="true" />
           {unread > 0 && <span className="feed-dot" aria-hidden="true" />}
+          <span className="rail-label">Notifications</span>
         </button>,
       )}
       {open && <FeedDrawer onClose={() => setOpen(false)} onUnread={setUnread} />}

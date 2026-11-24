@@ -100,41 +100,105 @@
   min-height: 100vh;
   padding: 8px 8px 8px 0;
 }
-.rail {
+/* The rail keeps 56 px of the frame; under the pointer or the keyboard it opens over the page to name its places. */
+.rail-slot {
   position: sticky;
   top: 8px;
+  z-index: 30;
   align-self: flex-start;
-  height: calc(100vh - 16px);
   flex: none;
+  width: 56px;
+  height: calc(100vh - 16px);
+}
+.rail {
+  position: absolute;
+  inset: 0 auto 0 0;
   width: 56px;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   gap: 6px;
-  padding: 4px 0;
+  padding: 4px 12px;
+  overflow: hidden;
+  background: var(--ground);
+  border-radius: 0 var(--r-sheet) var(--r-sheet) 0;
+  transition:
+    width var(--d-move) var(--e-std),
+    box-shadow var(--d-move) var(--e-std);
   --glide-fill: var(--fill2);
   --glide-r: var(--r-ctl);
 }
-.rail-brand {
-  display: grid;
-  place-items: center;
-  width: 32px;
+@media (hover: hover) {
+  .rail:hover {
+    transition-delay: var(--d-fast);
+  }
+  .rail:is(:hover, :focus-within) {
+    width: 208px;
+    box-shadow: var(--float);
+  }
+}
+.rail-brand,
+.rail-link {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
   height: 32px;
+  padding: 0 6px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.rail-brand {
   margin-bottom: 8px;
   color: var(--t1);
+  font-weight: 600;
+  text-decoration: none;
 }
 .rail-link {
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
   border-radius: var(--r-ctl);
   color: var(--t2);
+  text-decoration: none;
   transition: background-color var(--d-fast) var(--e-std);
 }
 .rail-link.on {
   background: var(--raised);
   box-shadow: var(--shadow);
+}
+.rail-link.on,
+.rail-link:hover {
+  color: var(--t1);
+}
+/* The marks keep their size in a closed rail; a place's name and its keys appear once it is open, not while it widens over them. */
+.rail :is(.rail-brand, .rail-link, .avatar-btn) > :not(.rail-label) {
+  flex: none;
+}
+.rail :is(.rail-brand, .rail-link, .avatar-btn) > :is(.rail-label, .rail-key) {
+  opacity: 0;
+  transition: opacity var(--d-fast) var(--e-std);
+}
+.rail-key {
+  margin-left: auto;
+}
+.rail:is(:hover, :focus-within) :is(.rail-label, .rail-key) {
+  opacity: 1;
+}
+.rail .avatar-btn.compact {
+  width: auto;
+  overflow: hidden;
+  white-space: nowrap;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 0 4px;
+}
+/* The picture is 4 px wider than a place's icon, so its name starts where theirs do. */
+.rail .avatar-btn.compact .rail-label {
+  margin-left: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rail,
+  .rail :is(.rail-label, .rail-key) {
+    transition: none;
+  }
 }
 .rail-gap {
   flex: 1;
@@ -367,16 +431,25 @@
     flex-direction: column;
     padding: 0;
   }
-  .rail {
-    position: sticky;
+  .rail-slot {
     top: 0;
     z-index: 20;
+    width: 100%;
     height: auto;
+  }
+  .rail,
+  .rail:is(:hover, :focus-within) {
+    position: static;
     width: 100%;
     flex-direction: row;
+    align-items: center;
     padding: 8px 12px;
-    background: var(--ground);
     overflow-x: auto;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .rail :is(.rail-label, .rail-key) {
+    display: none;
   }
   .rail-brand {
     margin: 0 6px 0 0;
@@ -577,15 +650,15 @@
 /* The rail's bell: a dot while something is unread; the drawer has the count. */
 .feed-bell {
   position: relative;
-  padding: 0;
   border: 0;
   background: none;
   cursor: pointer;
 }
+/* On the bell's corner, where the rail's width leaves it. */
 .feed-dot {
   position: absolute;
   top: 4px;
-  right: 4px;
+  left: 22px;
   width: 6px;
   height: 6px;
   border-radius: 50%;
