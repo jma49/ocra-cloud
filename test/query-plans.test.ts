@@ -91,6 +91,7 @@ const TABLE: Record<string, string> = {
   reviewThreads: "review_threads",
   findingThreads: "finding_threads",
   pullPaths: "pull_paths",
+  pullVersions: "pull_versions",
   reviewRequests: "review_requests",
   reviewTeams: "review_teams",
   reviewTargets: "review_targets",
@@ -525,6 +526,17 @@ describe("the review flow", () => {
   });
 });
 
+describe("a pull request's versions", () => {
+  it("reads a pull request's kept heads through its index, never the whole table", async () => {
+    const seen: Captured[] = [];
+    await scoped(drizzle(recording(seen)), "acct").pullVersions.of("r1", 7);
+    expect(seen).toHaveLength(1);
+    const p = await plan(seen[0] as Captured);
+    expect(p).toMatch(/SEARCH pull_versions USING INDEX pull_versions_pull/);
+    expect(p).not.toMatch(/SCAN pull_versions/);
+  });
+});
+
 describe("what ocra changed", () => {
   it("reads reviews, findings, issues and pull requests through an index, never a whole table", async () => {
     const seen: Captured[] = [];
@@ -762,6 +774,7 @@ describe("retention", () => {
       "pull_paths",
       "pull_reviews",
       "pull_seen",
+      "pull_versions",
       "rate_windows",
       "release_drafts",
       "reply_jobs",

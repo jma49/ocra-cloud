@@ -116,11 +116,12 @@ export function Privacy() {
           opened, asked for review, reviewed and approved, and by whom), who started each review
           thread on them and when it was last replied to, who resolved the thread of an ocra finding
           and the newest reply written in it (redacted like a finding, and only while your findings
-          are kept), whom your rules assigned to review them, when you last saw each pull request in
-          the inbox, the daily counts and the audit log: 90 days, then deleted by a daily job. The
-          same job deletes the record of each auto review, answer to a comment and generated tests
-          or docs (which pull request and commit, how it ended) 90 days after it ended, and each
-          result of your pre-merge checks 90 days after it was last posted.
+          are kept), each head commit they were pushed to and when, whom your rules assigned to
+          review them, when you last saw each pull request in the inbox, the daily counts and the
+          audit log: 90 days, then deleted by a daily job. The same job deletes the record of each
+          auto review, answer to a comment and generated tests or docs (which pull request and
+          commit, how it ended) 90 days after it ended, and each result of your pre-merge checks 90
+          days after it was last posted.
         </li>
         <li>
           Expired sign-in codes, sessions and API tokens: deleted the day they expire. The day's

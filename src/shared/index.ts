@@ -38,6 +38,7 @@ export * from "./pull-findings.js";
 export * from "./pull-page.js";
 export * from "./pull-people.js";
 export * from "./pull-threads.js";
+export * from "./pull-versions.js";
 export * from "./pulls.js";
 export * from "./release-notes.js";
 export * from "./repo-config.js";
