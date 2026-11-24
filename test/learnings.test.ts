@@ -138,6 +138,38 @@ describe("listing a repository's learnings", () => {
     });
   });
 
+  it("names the paths that match no file at the commit, unless the tree came back cut short", async () => {
+    const tree =
+      (truncated: boolean, ...paths: string[]) =>
+      () =>
+        Response.json({
+          truncated,
+          tree: paths.map((path) => ({ path, type: "blob", mode: "100644", sha: BLOB })),
+        });
+    const read = async (files: () => Response) => {
+      platform(
+        {
+          ...githubHead,
+          [`GET ${DIR}`]: () => dir("close-pools.md"),
+          [`GET ${REPO}/git/trees/${HEAD}?recursive=1`]: files,
+        },
+        githubBlobs({ [POOLS]: { oid: BLOB, text: learningText() } }),
+      );
+      const a = await signInWithGithub();
+      return (
+        (await (
+          await a.send("/api/learnings?platform=github&repo=octo/api")
+        ).json()) as LearningsView
+      ).unmatchedPaths;
+    };
+    expect(await read(tree(false, "src/db/pool.ts"))).toEqual({});
+    expect(await read(tree(false, "src/storage/pool.ts", "README.md"))).toEqual({
+      "close-pools": ["src/db/**"],
+    });
+    expect(await read(tree(true, "README.md"))).toBeNull();
+    expect(await read(() => new Response(null, { status: 500 }))).toBeNull();
+  });
+
   it("says what the server does with the repository's declined findings, when it reviews it", async () => {
     platform({ ...githubHead, [`GET ${DIR}`]: () => dir() });
     const a = await signInWithGithub();
