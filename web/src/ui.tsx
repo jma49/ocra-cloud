@@ -165,6 +165,31 @@ export function usePoll(active: boolean, reload: () => void, ms: number) {
 }
 
 /**
+ * For a link that opens another tab whose page changes this one's data, as
+ * the platform's app install does: the answer marks the link followed, and
+ * `reload` runs once when this tab is back in view.
+ */
+export function useReloadOnReturn(reload: () => void): () => void {
+  const away = useRef(false);
+  useEffect(() => {
+    const back = () => {
+      if (!away.current || document.visibilityState !== "visible") return;
+      away.current = false;
+      reload();
+    };
+    document.addEventListener("visibilitychange", back);
+    window.addEventListener("focus", back);
+    return () => {
+      document.removeEventListener("visibilitychange", back);
+      window.removeEventListener("focus", back);
+    };
+  }, [reload]);
+  return useCallback(() => {
+    away.current = true;
+  }, []);
+}
+
+/**
  * A change the page asks for (a delete, a save): run() resolves to the
  * result, or undefined when it failed, and error holds why until the next run.
  */

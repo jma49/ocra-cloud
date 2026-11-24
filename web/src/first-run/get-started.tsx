@@ -7,7 +7,7 @@ import { useRead } from "../cache.js";
 import { DoneGlyph } from "../glyphs.js";
 import { Link } from "../router.js";
 import { anyProvider } from "../site.js";
-import { useLoad, useProviders } from "../ui.js";
+import { useLoad, useProviders, useReloadOnReturn } from "../ui.js";
 import { currentStep, type SetupFacts, type SetupStep, setupSteps } from "./steps.js";
 
 type Listed = { platforms: SetupFacts["platforms"] };
@@ -38,7 +38,9 @@ function readHidden(login: string): boolean {
 /** What a new account still has to do before its pull requests get reviewed, one step at a time. */
 export function GetStarted(props: { me: Me; hideable?: boolean }) {
   const hosted = props.me.autoReview;
-  const listed = useRead<Listed>("/platforms/repos").data;
+  const platforms = useRead<Listed>("/platforms/repos");
+  const leaving = useReloadOnReturn(platforms.reload);
+  const listed = platforms.data;
   // A server that does not review answers not_found: nothing is enrolled there.
   const enrolled = useRead<{ repos: unknown[] }>("/auto-review/repos");
   const sessions = useRead<{ sessions: Session[] }>("/sessions").data;
@@ -110,7 +112,7 @@ export function GetStarted(props: { me: Me; hideable?: boolean }) {
                 </div>
               )}
             </div>
-            {s === now && s.to && s.label && <StepAction step={s} />}
+            {s === now && s.to && s.label && <StepAction step={s} onLeave={leaving} />}
             {s.done && <span className="sr-only">Done</span>}
           </li>
         ))}
@@ -119,11 +121,15 @@ export function GetStarted(props: { me: Me; hideable?: boolean }) {
   );
 }
 
-function StepAction(props: { step: SetupStep }) {
+function StepAction(props: { step: SetupStep; onLeave: () => void }) {
   const { to = "", label, external } = props.step;
   if (external)
     return (
-      <Button size="sm" render={<a href={to} target="_blank" rel="noopener noreferrer" />}>
+      <Button
+        size="sm"
+        render={<a href={to} target="_blank" rel="noopener noreferrer" />}
+        onClick={props.onLeave}
+      >
         {label}
       </Button>
     );
