@@ -53,7 +53,7 @@ export function daily(reviews: Review[], days: number, now = Date.now()): Daily 
 }
 
 /** Below this many decided findings, a rate per reviewer is noise: say so instead of drawing it. */
-export const FEW_DECIDED = 5;
+const FEW_DECIDED = 5;
 
 export type Acceptance = { reviewer: string; rate: number; decided: number };
 
