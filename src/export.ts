@@ -60,6 +60,7 @@ export const EXPORTED = {
   reviewThreads: "reviewThreads",
   findingThreads: "findingThreads",
   pullPaths: "pullPaths",
+  pullVersions: "pullVersions",
   reviewRequests: "reviewRequests",
   reviewTeams: "reviewTeams",
   reviewTargets: "reviewTargets",
