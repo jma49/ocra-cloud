@@ -15,7 +15,7 @@ import {
   settleRestack,
 } from "../stack-merge/restack-work.js";
 import type { AppEnv } from "../types.js";
-import { isAnswered, settleAnswered } from "./answers.js";
+import { isAnswered, MAX_RUN_DETAIL, settleAnswered } from "./answers.js";
 import {
   ANSWERED_KINDS,
   type Assignment,
@@ -59,6 +59,7 @@ const jobRef = {
 };
 
 // An answered kind settles with its answer, at /settle-answer.
+const detail = z.string().min(1).max(MAX_RUN_DETAIL).optional();
 const outcome = z.object({
   kind: z.enum(WORK_KINDS).exclude(ANSWERED_KINDS),
   id: z.string().min(1).max(100),
@@ -72,8 +73,8 @@ const answeredOutcome = z.object({
   ...jobRef,
   // Read with the kind's own schema by its settler (./answers.ts).
   ran: z.union([
-    z.object({ answer: z.unknown().refine((a) => a !== undefined) }),
-    z.object({ failure: z.enum(RUN_FAILURES) }),
+    z.object({ answer: z.unknown().refine((a) => a !== undefined), detail }),
+    z.object({ failure: z.enum(RUN_FAILURES), detail }),
   ]),
 });
 
@@ -152,7 +153,10 @@ export function runnerApi(access: RunnerAccess) {
   route.post("/settle-answer", jsonBody(answeredOutcome), async (c) => {
     const { ran, ...job } = c.req.valid("json");
     const source = { db: c.var.db, dailyCalls: config(c.env).gatewayDailyCalls };
-    const answered = "failure" in ran ? { failure: ran.failure } : { answer: ran.answer };
+    const answered = {
+      ...("failure" in ran ? { failure: ran.failure } : { answer: ran.answer }),
+      ...(ran.detail ? { detail: ran.detail } : {}),
+    };
     // Recorded only while the job is still this attempt's, under its own account.
     await settleAnswered(source, job, answered, new Date());
     return c.json({ ok: true });

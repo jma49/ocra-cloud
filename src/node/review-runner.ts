@@ -18,6 +18,7 @@ import type { BotCredential } from "../platforms/bot.js";
 import { githubHost } from "../platforms/github-host.js";
 import { baseEnv, cloneAsBot, type Exec, spawnExec } from "./checkout.js";
 import { keepReviewImpact, type ReviewGraphs, writeReviewGraph } from "./review-graph.js";
+import { runDetail } from "./run-detail.js";
 
 // The machine's half of a hosted job (ADR-0046, 4): clones the repository's
 // default branch into a new directory and runs the released CLI there on
@@ -42,6 +43,8 @@ class RunFailed extends Error {
     readonly reason: RunFailure,
     /** What the command exited with; null when it was killed at the lease. */
     readonly code?: number | null,
+    /** The end of what it wrote to stderr (./run-detail.ts). */
+    readonly detail: string | null = null,
   ) {
     super(reason);
   }
@@ -76,13 +79,17 @@ export async function runAnswered(
   stop?: AbortSignal,
 ): Promise<Answered> {
   const ran = await runCli(machine, work, now, stop);
-  if ("failure" in ran) return ran;
+  const detail = ran.detail ? { detail: ran.detail } : {};
+  if ("failure" in ran) return { failure: ran.failure, ...detail };
+  // A run can answer and still have gone wrong, a fix whose model call failed among them.
+  if (ran.detail)
+    console.log(JSON.stringify({ level: "info", event: "run_stderr", job: work.id, ...detail }));
   const line = ran.stdout?.trim().split("\n").at(-1) ?? "";
   try {
-    return { answer: JSON.parse(line) };
+    return { answer: JSON.parse(line), ...detail };
   } catch {
     logError("run_answer_unreadable", { job: work.id, kind: work.kind });
-    return { failure: "review_failed" };
+    return { failure: "review_failed", ...detail };
   }
 }
 
@@ -91,18 +98,19 @@ async function runCli(
   work: Assignment,
   now: Date,
   stop: AbortSignal | undefined,
-): Promise<{ failure: RunFailure } | { stdout: string | undefined }> {
+): Promise<({ failure: RunFailure } | { stdout: string | undefined }) & { detail: string | null }> {
   const lease = AbortSignal.timeout(Math.max(work.leaseUntil.getTime() - now.getTime(), 0));
   const signal = stop ? AbortSignal.any([lease, stop]) : lease;
   try {
-    return { stdout: await inCheckout(machine, work, signal) };
+    return await inCheckout(machine, work, signal);
   } catch (e) {
     if (!(e instanceof RunFailed)) {
       logError("review_run_failed", { job: work.id, error: errorName(e) });
-      return { failure: "review_failed" };
+      return { failure: "review_failed", detail: null };
     }
-    logError("review_run_failed", { job: work.id, reason: e.reason, code: e.code ?? null });
-    return { failure: e.reason };
+    const { reason, code, detail } = e;
+    logError("review_run_failed", { job: work.id, reason, code: code ?? null, stderr: detail });
+    return { failure: reason, detail };
   }
 }
 
@@ -144,13 +152,13 @@ async function runNextOf(runner: ReviewRunner, kind: AnsweredKind): Promise<bool
 
 /**
  * Clones the repository and runs the CLI there, signed in and posting as
- * the bot; what an answered kind's run printed.
+ * the bot; what an answered kind's run printed, and the end of its stderr.
  */
 async function inCheckout(
   machine: Machine,
   work: Assignment,
   signal: AbortSignal,
-): Promise<string | undefined> {
+): Promise<{ stdout: string | undefined; detail: string | null }> {
   const exec = machine.exec ?? spawnExec;
   const { repo, bot } = work;
   const dir = await mkdtemp(join(tmpdir(), "ocra-review-"));
@@ -200,15 +208,17 @@ async function inCheckout(
         cwd: checkout,
         env: { ...baseEnv(home), OCRA_CLOUD_URL: work.cloudUrl, ...botEnv(repo, bot) },
         signal,
+        stderr: true,
         ...(answered ? { stdout: true as const, stdoutLimit: MAX_ANSWER } : {}),
       },
     );
+    const detail = runDetail(ran.stderr);
     if (ran.code !== null && work.settled.includes(ran.code))
-      throw new RunFailed("not_committed", ran.code);
+      throw new RunFailed("not_committed", ran.code, detail);
     if (ran.code === null || !work.ok.includes(ran.code))
-      throw new RunFailed("review_failed", ran.code);
+      throw new RunFailed("review_failed", ran.code, detail);
     if (kept && graph) await keepReviewImpact(kept, work, { checkout, home }, graph);
-    return ran.stdout;
+    return { stdout: ran.stdout, detail };
   } finally {
     await rm(dir, { recursive: true, force: true }).catch(() => {});
   }

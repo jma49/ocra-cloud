@@ -118,8 +118,8 @@ const answer = (over: Record<string, unknown> = {}) => ({
 
 type Seen = { args: string[]; input?: unknown; stdout?: true; limit?: number | undefined };
 
-/** The machine: git clones, the CLI prints `printed` and exits with code. */
-function fakeExec(printed: string, code = 0) {
+/** The machine: git clones, the CLI prints `printed` (and `errors` on stderr) and exits with code. */
+function fakeExec(printed: string, code = 0, errors?: string) {
   const seen: Seen = { args: [] };
   const exec: Exec = async (command, args, options) => {
     if (command === "git") {
@@ -131,7 +131,11 @@ function fakeExec(printed: string, code = 0) {
     seen.input = JSON.parse(await readFile(file, "utf8"));
     if (options.stdout) seen.stdout = true;
     seen.limit = options.stdoutLimit;
-    return { code, ...(options.stdout ? { stdout: printed } : {}) };
+    return {
+      code,
+      ...(options.stdout ? { stdout: printed } : {}),
+      ...(options.stderr && errors !== undefined ? { stderr: errors } : {}),
+    };
   };
   return { exec, seen };
 }
@@ -314,6 +318,25 @@ describe("a fix's run", () => {
     expect((await stored())?.fixReplacement).toBeNull();
   });
 
+  it("logs the end of a run's stderr, redacted, on the machine and the server", async () => {
+    await ask({ finding: findingId });
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    const infos = vi.spyOn(console, "log").mockImplementation(() => {});
+    const secret = "ghp_abcdefghijklmnopqrstuvwxyz0123456789AB";
+    const stderr = `${"x\n".repeat(50)}\x1b[31mone\x1b[0m\ntwo\nrequest failed with ${secret}\n`;
+    await runFix(fakeExec("", 2, stderr).exec);
+    const detail = "one\ntwo\nrequest failed with [redacted]";
+    expect(errors).toHaveBeenCalledWith(
+      expect.objectContaining({ event: "review_run_failed", code: 2, stderr: detail }),
+    );
+    expect(infos).toHaveBeenCalledWith(
+      expect.objectContaining({ event: "answered_run_detail", kind: "fix", detail }),
+    );
+    const logged = JSON.stringify([...errors.mock.calls, ...infos.mock.calls]);
+    expect(logged).not.toContain(secret);
+    expect((await jobs())[0]).toMatchObject({ state: "queued", error: "review_failed" });
+  });
+
   it("can be asked again once it failed", async () => {
     await ask({ finding: findingId });
     const [job] = await jobs();
@@ -389,10 +412,12 @@ describe("a remote runner", () => {
       assignment: { attempts: number };
     };
     const second = { ...ref, attempts: again.assignment.attempts };
+    const long = { ...second, kind: "fix", ran: { answer: answer(), detail: "x".repeat(603) } };
+    expect((await asRunner("settle-answer", long)).status).toBe(400);
     const settled = await asRunner("settle-answer", {
       ...second,
       kind: "fix",
-      ran: { answer: answer() },
+      ran: { answer: answer(), detail: "warning: slow" },
     });
     expect(settled.status).toBe(200);
     expect((await jobs())[0]).toMatchObject({ state: "done", outcome: "proposed" });
