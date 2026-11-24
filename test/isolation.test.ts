@@ -57,6 +57,7 @@ const changes = {
   reviewTargets: { mergeDays: 3 },
   replyJobs: { state: "done" as const },
   reviewWalkthroughs: { overview: "changed" },
+  reviewTraces: { createdAt: new Date(0) },
   generateJobs: { state: "done" as const },
   restackJobs: { state: "done" as const },
   fixJobs: { state: "done" as const },
@@ -175,6 +176,7 @@ describe.each(withIds)("%s", (name) => {
       [
         "findings",
         "reviewWalkthroughs",
+        "reviewTraces",
         "reviewChatMessages",
         "findingIssues",
         "fixJobs",

@@ -199,6 +199,7 @@ const ACCESS: Record<string, Access> = {
   "POST /api/reviews": "web+cli",
   "GET /api/reviews/:id": "web",
   "GET /api/reviews/:id/export": "web",
+  "GET /api/reviews/:id/trace": "web",
   "GET /api/reviews": "web",
   "DELETE /api/reviews/:id": "web",
   "GET /api/reviews/:id/chat": "web",

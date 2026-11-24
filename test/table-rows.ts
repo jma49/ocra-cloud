@@ -322,6 +322,18 @@ export const rows = {
     overview: "o",
     groups: [{ title: "g", files: ["a.ts"], note: "n" }],
   }),
+  reviewTraces: (id: string) => ({
+    id,
+    reviewId: "review-of-a",
+    trace: {
+      startedAt: "2026-11-24T08:00:00.000Z",
+      ms: 1,
+      stages: [],
+      tasks: [],
+      calls: [],
+      findings: [],
+    },
+  }),
   automationRules: (id: string) => ({
     id,
     name: `rule ${id}`,

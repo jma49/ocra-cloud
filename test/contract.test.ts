@@ -105,6 +105,8 @@ describe("the CLI's real upload", () => {
       })),
     );
     expect(stored.some((f) => Array.isArray(f.evidence))).toBe(true);
+    const trace = await call(`/api/reviews/${answer.id}/trace`, { auth: web.auth });
+    expect(await trace.json()).toEqual({ trace: body.trace });
   });
 });
 

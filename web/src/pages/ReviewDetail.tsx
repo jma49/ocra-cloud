@@ -28,6 +28,7 @@ import { VerdictStatus } from "../verdict-status.js";
 import { reviewCommands } from "./review-commands.js";
 import { type Finding, FindingEvent } from "./review-finding.js";
 import { LinkedTasks } from "./review-linked-tasks.js";
+import { ReviewTrace } from "./review-trace.js";
 import { Walkthrough } from "./review-walkthrough.js";
 
 // One review and, when the account shares findings, its findings (ADR-0028):
@@ -54,6 +55,8 @@ type Detail = {
   };
   findings: Finding[];
   walkthrough: ReviewWalkthroughView | null;
+  /** Whether the review kept its trace (ADR-0081 of the engine). */
+  traced?: boolean;
 };
 type Review = Detail["review"];
 
@@ -179,6 +182,7 @@ export function ReviewDetail(props: { id: string; graphs: boolean }) {
           <h1>{titleOf(r)}</h1>
         </div>
         {data.walkthrough && <Walkthrough w={data.walkthrough} />}
+        {data.traced && <ReviewTrace id={r.id} runId={r.runId} />}
         <ReviewChat reviewId={r.id} />
         <div className="review-tabs">
           <span className="quiet-label">

@@ -87,13 +87,15 @@ account.put(
 );
 
 /**
- * Deletes every finding the account stored. Walkthroughs are kept with the
- * findings and go with them, and so do the "Ask ocra" conversations, whose
- * answers quote them, and the replies kept from the findings' threads.
+ * Deletes every finding the account stored. Walkthroughs and traces are
+ * kept with the findings and go with them, and so do the "Ask ocra"
+ * conversations, whose answers quote them, and the replies kept from the
+ * findings' threads.
  */
 async function deleteFindings(data: Scoped): Promise<number> {
   const deleted = await data.removeWhere("findings", {});
   await data.removeWhere("reviewWalkthroughs", {});
+  await data.removeWhere("reviewTraces", {});
   await data.removeWhere("reviewChatMessages", {});
   await data.removeWhere("pullChatMessages", {});
   await data.findingThreads.forgetReasons();
