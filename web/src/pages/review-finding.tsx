@@ -11,6 +11,7 @@ import {
   type Verification,
 } from "../../../src/shared/index.js";
 import { api } from "../api.js";
+import { FindingStanding } from "../finding-status.js";
 import { FindingText } from "../finding-text.js";
 import { FixDiff } from "../fixes/fix-diff.js";
 import { CommitFixNote } from "../fixes/fix-proposal.js";
@@ -90,7 +91,7 @@ function Standing(props: { f: Finding; committed: boolean }) {
   const { f } = props;
   if (f.status === "fixed" || props.committed) return <Status tone="ok">Fixed</Status>;
   if (f.status === "dismissed") return <Status tone="quiet">Dismissed</Status>;
-  if (f.status === "merged") return <Status tone="quiet">Merged unaddressed</Status>;
+  if (f.status === "merged") return <FindingStanding status="merged" />;
   const thread = f.platformDismissal;
   if (thread?.state === "resolved") {
     return <Status tone="quiet">Thread resolved{thread.by && ` by ${thread.by}`}</Status>;

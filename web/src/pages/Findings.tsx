@@ -11,6 +11,7 @@ import type {
 import { api, why } from "../api.js";
 import { useCached } from "../cache.js";
 import { DISMISS_REASONS, reasonLabel } from "../dismiss-reasons.js";
+import { FINDING_STATUS_NAME, FindingStanding } from "../finding-status.js";
 import { ago } from "../format.js";
 import { useListCursor } from "../list-cursor.js";
 import { usePageCommands } from "../page-commands.js";
@@ -222,7 +223,10 @@ export function Findings(props: {
   );
 
   const counts = data?.statuses;
-  const label = (s: FindingStatus, name: string) => (counts ? `${name} (${counts[s]})` : name);
+  const option = (s: FindingStatus) => ({
+    value: s,
+    label: counts ? `${FINDING_STATUS_NAME[s]} (${counts[s]})` : FINDING_STATUS_NAME[s],
+  });
 
   return (
     <>
@@ -237,11 +241,11 @@ export function Findings(props: {
             value={filters.status}
             onChange={(status) => set({ status })}
             options={[
-              { value: "open", label: label("open", "Open") },
-              { value: "fixed", label: label("fixed", "Fixed") },
-              { value: "dismissed", label: label("dismissed", "Dismissed") },
-              { value: "addressed", label: label("addressed", "Addressed") },
-              { value: "merged", label: label("merged", "Merged unaddressed") },
+              option("open"),
+              option("fixed"),
+              option("dismissed"),
+              option("addressed"),
+              option("merged"),
               { value: "all", label: "All" },
             ]}
           />
@@ -427,7 +431,7 @@ export function Findings(props: {
                       {f.prNumber !== null && <span className="subtle"> #{f.prNumber}</span>}
                     </td>
                     <td>
-                      {f.status}
+                      <FindingStanding status={f.status} />
                       {f.reason && <div className="muted small">{reasonLabel(f.reason)}</div>}
                       {f.note && <div className="subtle small">{f.note}</div>}
                     </td>
