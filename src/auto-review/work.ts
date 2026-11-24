@@ -30,6 +30,7 @@ import {
 import { spendOf } from "../spend.js";
 import { nextUtcDay, utcDay } from "../time.js";
 import { depthRun } from "./depths.js";
+import { unlabelJob } from "./fix-label.js";
 import { readHostedConfig, tightenedBy, underServer } from "./hosted-config.js";
 import { mendInput } from "./mend-round.js";
 
@@ -309,6 +310,7 @@ export async function assign(
   const mend = kind === "mend" ? await mendInput(data, claimed.id, repo) : undefined;
   if (typeof mend === "string") {
     await data.mends.skip(claimed.id, claimed.attempts, mend, now());
+    await unlabelJob(source, claimed.accountId, claimed.id);
     return "refused";
   }
   const answered = mend ?? (command.answered && (await command.answered(data)));

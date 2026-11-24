@@ -1754,6 +1754,10 @@ export const mendJobs = sqliteTable(
     conflictItems: text("conflict_items", { mode: "json" }).$type<
       (Omit<MendConflictView, "regions"> & Partial<Pick<MendConflictView, "regions">>)[]
     >(),
+    /** `@ocra stop` came during a round: the loop runs none after it until it is asked again. */
+    stop: integer("stop", { mode: "boolean" }).notNull().default(false),
+    /** The bot put the fixing label on the pull request, which it takes off once no round waits or runs. */
+    labeled: integer("labeled", { mode: "boolean" }).notNull().default(false),
     finishedAt: integer("finished_at", { mode: "timestamp_ms" }),
     createdAt: createdAt(),
   },

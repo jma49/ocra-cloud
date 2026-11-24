@@ -27,6 +27,8 @@ export const COMMENT_COMMANDS = [
   "pause",
   "resume",
   "resolve",
+  "fix",
+  "stop",
   "generate_tests",
   "generate_docstrings",
   "help",

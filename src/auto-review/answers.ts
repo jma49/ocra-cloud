@@ -1,4 +1,5 @@
 import { redactField } from "@open-cr-agent/cloud-contract";
+import { unlabelJob } from "./fix-label.js";
 import { settleFixAnswer } from "./fix-work.js";
 import { settleMendAnswer } from "./mend-work.js";
 import {
@@ -36,9 +37,12 @@ const SETTLERS: Record<AnsweredKind, Settler> = { fix: settleFixAnswer, mend: se
 export const isAnswered = (kind: string): kind is AnsweredKind =>
   (ANSWERED_KINDS as readonly string[]).includes(kind);
 
-/** Records how the answered job's run went, only while it is still this attempt's. */
-export function settleAnswered(
-  source: Pick<WorkSource, "db" | "dailyCalls">,
+/**
+ * Records how the answered job's run went, only while it is still this
+ * attempt's; a fix loop left idle loses its label where the platforms are given.
+ */
+export async function settleAnswered(
+  source: Pick<WorkSource, "db" | "dailyCalls"> & Partial<Pick<WorkSource, "platforms" | "bots">>,
   ref: WorkRef & { kind: AnsweredKind },
   ran: Answered,
   now: Date,
@@ -54,6 +58,7 @@ export function settleAnswered(
       detail,
     });
   }
-  if ("failure" in ran) return settle(source, ref, ran.failure, now);
-  return SETTLERS[ref.kind](source, ref, ran.answer, now);
+  if ("failure" in ran) await settle(source, ref, ran.failure, now);
+  else await SETTLERS[ref.kind](source, ref, ran.answer, now);
+  if (ref.kind === "mend") await unlabelJob(source, ref.accountId, ref.id);
 }

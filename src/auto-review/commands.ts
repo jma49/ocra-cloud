@@ -10,6 +10,7 @@ import { platformsOf } from "../platforms/registry.js";
 import { findingStarting } from "../platforms/threads.js";
 import type { CommentCommand } from "../shared/index.js";
 import type { AppEnv } from "../types.js";
+import { fix, stop } from "./fix-commands.js";
 import type { AutoReviewService } from "./routes.js";
 
 // A comment with a line that is only `@ocra <command>` is a command, read
@@ -29,6 +30,8 @@ const WORDS: Record<string, CommentCommand> = {
   pause: "pause",
   resume: "resume",
   resolve: "resolve",
+  fix: "fix",
+  stop: "stop",
   help: "help",
   "generate tests": "generate_tests",
   "generate docstrings": "generate_docstrings",
@@ -58,6 +61,8 @@ const HELP = [
   "- `@ocra pause`: stop reviewing this pull request as it gains commits",
   "- `@ocra resume`: review it as it gains commits again",
   "- `@ocra resolve`: resolve ocra's open review threads",
+  "- `@ocra fix`: commit fixes for the open findings, where the repository lets ocra commit",
+  "- `@ocra stop`: stop fixing; a fix under way is the last",
   "- `@ocra generate tests` or `@ocra generate docstrings`: commit them to the branch",
   "- `@ocra help`: this list",
   "",
@@ -102,7 +107,7 @@ export async function takeCommand(
   return 1;
 }
 
-type Run = {
+export type Run = {
   data: Scoped;
   service: AutoReviewService;
   platform: CodePlatform;
@@ -121,9 +126,9 @@ async function runCommand(run: Run, command: Command): Promise<"done" | "refused
   return ok && sent === "done" ? "done" : "failed";
 }
 
-type Answer = { ok: boolean; text: string };
+export type Answer = { ok: boolean; text: string };
 
-const short = (head: string) => `\`${head.slice(0, 7)}\``;
+export const short = (head: string) => `\`${head.slice(0, 7)}\``;
 
 async function perform(run: Run, { command, number }: Command): Promise<Answer> {
   const { data, repo } = run;
@@ -148,15 +153,19 @@ async function perform(run: Run, { command, number }: Command): Promise<Answer> 
       return review(run, number);
     case "resolve":
       return resolve(run, number);
+    case "fix":
+      return fix(run, number);
+    case "stop":
+      return stop(run, number);
     case "generate_tests":
     case "generate_docstrings":
       return generate(run, number, command === "generate_tests" ? "tests" : "docstrings");
   }
 }
 
-const UNREAD: Answer = { ok: false, text: "ocra could not read this pull request's head." };
+export const UNREAD: Answer = { ok: false, text: "ocra could not read this pull request's head." };
 
-async function headOf({ platform, bot, repo }: Run, number: number) {
+export async function headOf({ platform, bot, repo }: Run, number: number) {
   const facts = await platform.mergeStatus.facts(bot.token, repo.fullName, number);
   return facts && COMMIT_ID.test(facts.head) ? facts.head : null;
 }

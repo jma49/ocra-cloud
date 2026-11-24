@@ -152,7 +152,12 @@ export function runnerApi(access: RunnerAccess) {
 
   route.post("/settle-answer", jsonBody(answeredOutcome), async (c) => {
     const { ran, ...job } = c.req.valid("json");
-    const source = { db: c.var.db, dailyCalls: config(c.env).gatewayDailyCalls };
+    const source = {
+      db: c.var.db,
+      dailyCalls: config(c.env).gatewayDailyCalls,
+      platforms: platformsOf(c.env, c.req.url),
+      bots: access.bots,
+    };
     const answered = {
       ...("failure" in ran ? { failure: ran.failure } : { answer: ran.answer }),
       ...(ran.detail ? { detail: ran.detail } : {}),

@@ -5,7 +5,7 @@ import type {
   MendOutcome,
   MendState,
 } from "@open-cr-agent/cloud-contract";
-import { and, asc, eq, inArray, isNull, lte, or, type SQL, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, lte, notInArray, or, type SQL, sql } from "drizzle-orm";
 import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
 import type { MendConflictRegion } from "../shared/mend.js";
 import { changedRows, type Db, first } from "./client.js";
@@ -72,6 +72,8 @@ export function accountMendJobs(db: Db, accountId: string) {
         target: [j.reviewRepoId, j.number],
         set: {
           again: sql`CASE WHEN ${j.state} = 'running' THEN 1 ELSE 0 END`,
+          // Asked again after `@ocra stop`: the loop runs again.
+          stop: false,
           ...asks,
           state: idle(j.state, sql`'queued'`),
           attempts: idle(j.attempts, sql`0`),
@@ -82,6 +84,10 @@ export function accountMendJobs(db: Db, accountId: string) {
         setWhere: own,
       });
   };
+
+  /** Puts off the findings that still wait: none is worked on, and each may be asked for again. */
+  const putOff = (jobId: string, now: Date) =>
+    db.update(i).set({ outcome: "deferred", finishedAt: now }).where(waiting(jobId));
 
   const jobOf = (reviewRepoId: string, number: number) =>
     db
@@ -215,6 +221,69 @@ export function accountMendJobs(db: Db, accountId: string) {
       await queue(pull.reviewRepoId, pull.number, at, { conflicts: true, suggest });
       return "queued";
     },
+    /**
+     * Stops the pull request's loop (`@ocra stop`): a round that waits ends
+     * now and its findings are put off (`stopped`); a round under way
+     * finishes and commits what it fixed, and none runs after it
+     * (`stopping`); `idle` when none waits or runs. Asking again runs it.
+     */
+    async stop(
+      reviewRepoId: string,
+      number: number,
+      now: Date,
+    ): Promise<"stopped" | "stopping" | "idle"> {
+      const job = await jobOf(reviewRepoId, number);
+      if (!job) return "idle";
+      const ended = await db
+        .update(j)
+        .set({
+          state: "done",
+          again: false,
+          checks: false,
+          conflicts: false,
+          suggest: false,
+          stop: false,
+          notBefore: null,
+          error: "stopped",
+          finishedAt: now,
+        })
+        .where(and(own, eq(j.id, job.id), eq(j.state, "queued")));
+      if (changedRows(ended) > 0) {
+        await putOff(job.id, now);
+        return "stopped";
+      }
+      const running = await db
+        .update(j)
+        .set({ stop: true, again: false })
+        .where(and(own, eq(j.id, job.id), eq(j.state, "running")));
+      return changedRows(running) > 0 ? "stopping" : "idle";
+    },
+    /** Notes that the bot labeled the pull request while its loop runs. */
+    async labeled(reviewRepoId: string, number: number) {
+      await db
+        .update(j)
+        .set({ labeled: true })
+        .where(and(own, eq(j.reviewRepoId, reviewRepoId), eq(j.number, number)));
+    },
+    /**
+     * Whether the bot's label is to come off the pull request now: once,
+     * when it was put on and no round of the loop waits or runs.
+     */
+    async unlabel(reviewRepoId: string, number: number): Promise<boolean> {
+      const taken = await db
+        .update(j)
+        .set({ labeled: false })
+        .where(
+          and(
+            own,
+            eq(j.reviewRepoId, reviewRepoId),
+            eq(j.number, number),
+            eq(j.labeled, true),
+            notInArray(j.state, ["queued", "running"]),
+          ),
+        );
+      return changedRows(taken) > 0;
+    },
     /** The pull request's loop and the findings asked of it, oldest first. */
     async forPull(reviewRepoId: string, number: number) {
       const job = await jobOf(reviewRepoId, number);
@@ -312,11 +381,12 @@ export function accountMendJobs(db: Db, accountId: string) {
       return fixed;
     },
     /**
-     * Ends a round that ran nothing (the level changed, nothing waited)
-     * with `note`, only while it is still the run that claimed it.
+     * Ends a round that ran nothing (the level changed, nothing waited, it
+     * was stopped) with `note`, only while it is still the run that claimed
+     * it; a stopped loop's findings that wait are put off.
      */
     async skip(id: string, attempts: number, note: string, now: Date) {
-      await db
+      const ended = await db
         .update(j)
         .set({
           state: "done",
@@ -324,11 +394,13 @@ export function accountMendJobs(db: Db, accountId: string) {
           checks: false,
           conflicts: false,
           suggest: false,
+          stop: false,
           error: note,
           leaseUntil: null,
           finishedAt: now,
         })
         .where(claimedBy(id, attempts));
+      if (note === "stopped" && changedRows(ended) > 0) await putOff(id, now);
     },
     /** Queues it again at retryAt, or gives it up with the error when retryAt is null. */
     async release(id: string, attempts: number, error: string, retryAt: Date | null, now: Date) {
