@@ -118,4 +118,35 @@ describe("the notification centre", () => {
     await press("Try again");
     expect(await screen.findByRole("link", { name: /Mira asked/ })).toBeTruthy();
   });
+
+  it("shows notices in a row about the same pull request as one, and opens them as one", async () => {
+    const ci = { title: "CI failed on your pull request", subtitle: "feat(web): calmer charts" };
+    const { posted } = serve([
+      notice({ id: "a", ...ci }),
+      notice({ id: "b", ...ci }),
+      notice({ id: "c", title: "ocra reviewed octo/api#7", read: true }),
+    ]);
+    bell();
+    await press("Notifications");
+    const links = await screen.findAllByRole("link");
+    expect(links).toHaveLength(2);
+    expect(links[0]?.textContent).toContain("2 times");
+    expect(links[0]?.textContent).toContain("feat(web): calmer charts");
+    await act(async () => void fireEvent.click(links[0] as HTMLElement));
+    expect(posted).toEqual([{ ids: ["a", "b"] }]);
+  });
+
+  it("hides read notices while Unread only is ticked, and remembers it", async () => {
+    serve([notice({ id: "a" }), notice({ id: "b", title: "Already seen", read: true, pull: 8 })]);
+    bell();
+    await press("Notifications");
+    await screen.findByRole("link", { name: /Already seen/ });
+    await act(
+      async () => void fireEvent.click(screen.getByRole("checkbox", { name: "Unread only" })),
+    );
+    expect(screen.queryByRole("link", { name: /Already seen/ })).toBeNull();
+    expect(screen.getByRole("link", { name: /Mira asked/ })).toBeTruthy();
+    expect(localStorage.getItem("ocra.feed-unread-only")).toBe("1");
+    localStorage.removeItem("ocra.feed-unread-only");
+  });
 });
