@@ -30,7 +30,6 @@ export const underLine = (f: PullFindingView) => ({
 
 export function FindingNote(props: {
   finding: PullFindingView;
-  review: string;
   onDecided: (decided: boolean) => void;
 }) {
   const { finding: f } = props;
@@ -40,7 +39,7 @@ export function FindingNote(props: {
         <Flag size={16} aria-hidden="true" />
         <SeverityBadge severity={f.severity} />
         <span className="fix-proposal-title strong">{f.title}</span>
-        <Link to={`/reviews/${props.review}`}>Open in the review</Link>
+        <Link to={`/reviews/${f.review}`}>Open in the review</Link>
       </div>
       <div className="finding-note-body">
         <Markdown text={f.body} />

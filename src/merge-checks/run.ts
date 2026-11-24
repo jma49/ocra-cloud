@@ -2,6 +2,7 @@ import { sha256Hex } from "../crypto.js";
 import type { Row, Scoped } from "../db/scoped.js";
 import type { PostedStatus, PullFacts } from "../platforms/merge-status.js";
 import { type CodePlatform, repoIdentity } from "../platforms/platform.js";
+import { openAtHead } from "../pull-open-findings.js";
 import {
   type MergeChecksReportView,
   pullPath,
@@ -48,7 +49,7 @@ export async function headReview(
   number: number,
   head: string,
 ): Promise<HeadReview> {
-  const [review] = await data.listNewest("reviews", 1, {
+  const { review, open } = await openAtHead(data, {
     prRepository: repoIdentity(platform, repo.fullName),
     prNumber: number,
     prHeadSha: head,
@@ -58,14 +59,13 @@ export async function headReview(
     linkedTasks: review.linkedTasks ?? undefined,
     mergeChecks: review.mergeChecks ?? undefined,
   };
+  // An earlier review of the head keeps its open findings when a later one reports none.
+  const critical = open.filter((f) => f.severity === "critical").length;
   const shared = await data.count("findings", { reviewId: review.id });
-  if (shared === 0) return { unresolvedCritical: review.critical, ...uploaded };
-  const open = await data.count("findings", {
-    reviewId: review.id,
-    severity: "critical",
-    status: "open",
-  });
-  return { unresolvedCritical: open, ...uploaded };
+  return {
+    unresolvedCritical: shared === 0 ? Math.max(critical, review.critical) : critical,
+    ...uploaded,
+  };
 }
 
 export type PullEvaluation =

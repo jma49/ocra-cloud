@@ -22,6 +22,7 @@ const file = {
 };
 const finding = (over: Partial<PullFindingView>): PullFindingView => ({
   id: "f1",
+  review: "r1",
   severity: "warning",
   title: "Logs the amount",
   body: "The amount is `personal data`.",

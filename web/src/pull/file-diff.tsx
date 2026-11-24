@@ -71,11 +71,7 @@ export function FileDiff(props: {
         findingsAt.get(i)?.map((f) => (
           <tr key={f.id} className="diff-note">
             <td colSpan={3}>
-              <FindingNote
-                finding={f}
-                review={review}
-                onDecided={(d) => props.onDecided(f.id, d)}
-              />
+              <FindingNote finding={f} onDecided={(d) => props.onDecided(f.id, d)} />
             </td>
           </tr>
         ))}
