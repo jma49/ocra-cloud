@@ -75,6 +75,7 @@ it("gives a file without lines no counts in its head", () => {
   render(
     <FileDiff
       file={{ ...file, path: "logo.png", additions: 0, deletions: 0, patch: null }}
+      layout="unified"
       viewed={false}
       onViewed={() => undefined}
       pending={[]}

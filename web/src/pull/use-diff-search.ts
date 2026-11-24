@@ -3,6 +3,7 @@ import type { PullFilesView } from "../../../src/shared/index.js";
 import { parsePatch } from "./diff.js";
 import { findInDiffs, rangesByFile } from "./diff-search.js";
 import type { WordRange } from "./diff-words.js";
+import { treeOrder } from "./file-tree.js";
 
 type File = PullFilesView["files"][number];
 
@@ -23,9 +24,12 @@ export function useDiffSearch(files: readonly File[]) {
   const [at, setAt] = useState(0);
   const [step, setStep] = useState(0);
   const field = useRef<HTMLInputElement>(null);
+  // Matches step in the order the diffs are drawn: the file tree's.
   const parsed = useMemo(
     () =>
-      open ? files.map((f) => ({ path: f.path, lines: f.patch ? parsePatch(f.patch) : [] })) : [],
+      open
+        ? treeOrder(files).map((f) => ({ path: f.path, lines: f.patch ? parsePatch(f.patch) : [] }))
+        : [],
     [files, open],
   );
   const matches = useMemo(() => findInDiffs(parsed, query), [parsed, query]);

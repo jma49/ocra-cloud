@@ -1264,8 +1264,9 @@ td.finding-cell {
 /* Find in the diffs: a bar that stays under the page's head while the reader steps through matches. */
 .diff-search {
   position: sticky;
-  top: var(--pull-clear, 72px);
-  z-index: 2;
+  /* Where a file's head sticks; while the find is open the heads stick under it. */
+  top: calc(var(--pull-clear, 72px) - 12px);
+  z-index: 3;
   display: flex;
   align-items: center;
   gap: 8px;
