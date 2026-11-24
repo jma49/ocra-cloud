@@ -15,7 +15,7 @@ type Reason = NonNullable<FixJobView["reason"]>;
 
 const NO_FIX: Record<Reason, string> = {
   declined: "ocra saw no safe change that fixes this.",
-  failed: "the fixer's call failed.",
+  failed: "ocra's call to the model did not go through.",
   stale: "the code is no longer as the review read it.",
   unchanged: "the fix it wrote changed nothing.",
   unsafe: "the fix it wrote did not pass the safety check.",
@@ -33,6 +33,10 @@ function noFix(job: FixJobView): string | null {
   }
   return `No fix: ${job.reason ? NO_FIX[job.reason] : "ocra gave no reason."}`;
 }
+
+/** A request that can be asked again: its run failed, or the fixer's call to the model did. */
+const retriable = (job: FixJobView) =>
+  job.state === "failed" || (job.state === "done" && job.reason === "failed");
 
 const refused = (e: unknown) =>
   e instanceof ApiError && e.code === "daily_limit"
@@ -71,8 +75,9 @@ export function FixWithOcra(props: { finding: PullFindingView }) {
       </span>
     );
   }
-  const said = job && noFix(job);
-  if (said) {
+  const again = job !== undefined && retriable(job);
+  const said = job && (job.state === "failed" ? "The fix run failed." : noFix(job));
+  if (said && !again) {
     return (
       <span className="subtle small" role="status">
         {said}
@@ -83,16 +88,16 @@ export function FixWithOcra(props: { finding: PullFindingView }) {
     <>
       <Button size="sm" variant="outline" disabled={ask.busy} onClick={() => void ask.run()}>
         <Wrench size={14} aria-hidden="true" />
-        {job?.state === "failed" ? "Try the fix again" : "Fix with ocra"}
+        {again ? "Try the fix again" : "Fix with ocra"}
       </Button>
       {ask.error != null ? (
         <span className="error small" role="alert">
           {refused(ask.error)}
         </span>
       ) : (
-        job?.state === "failed" && (
+        said && (
           <span className="error small" role="status">
-            The fix run failed.
+            {said}
           </span>
         )
       )}
