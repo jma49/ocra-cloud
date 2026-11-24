@@ -1,7 +1,7 @@
 import { reviewUploadSchema } from "@open-cr-agent/cloud-contract";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
-import { recordGithubClose } from "../src/auto-review/closes.js";
+import { recordGithubClose, recordGitlabClose } from "../src/auto-review/closes.js";
 import { accounts, findings } from "../src/db/schema.js";
 import { scoped } from "../src/db/scoped.js";
 import { parseFindings } from "../src/findings.js";
@@ -130,6 +130,31 @@ describe("a merged pull request", () => {
     await thread("resolved", "2026-11-02T12:00:00Z");
     expect(await closed(true)).toBe(true);
     expect((await data.findingsOf(stored.id)).map((f) => f.status)).toEqual(["open"]);
+  });
+
+  it("makes a merged GitLab merge request's open findings merged", async () => {
+    const { data } = await enrolled();
+    const id = await data.insert("reviewRepos", {
+      platform: "gitlab",
+      host: "gitlab.test",
+      platformRepoId: "9",
+      fullName: "Group/API",
+    });
+    const repo = await data.get("reviewRepos", id);
+    if (!repo) throw new Error("not enrolled");
+    const open = await seed("https://gitlab.test/group/api", 3, { fingerprint: FP });
+    const hook = (state: "merged" | "closed") => ({
+      object_attributes: {
+        iid: 3,
+        action: state === "merged" ? "merge" : "close",
+        state,
+        title: "T",
+      },
+    });
+    expect(await recordGitlabClose(db, repo, "https://gitlab.test", hook("closed"))).toBe(true);
+    expect((await data.get("findings", open.id))?.status).toBe("open");
+    expect(await recordGitlabClose(db, repo, "https://gitlab.test", hook("merged"))).toBe(true);
+    expect((await data.get("findings", open.id))?.status).toBe("merged");
   });
 
   it("leaves a closed pull request's findings open: it may be reopened", async () => {
