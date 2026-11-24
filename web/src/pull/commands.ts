@@ -52,6 +52,8 @@ export function pullCommands(page: {
   toggleViewed: (path: string) => void;
   /** Draws the diffs the other way, unified or split; undefined where only one fits. */
   switchLayout?: { to: "unified" | "split"; run: () => void } | undefined;
+  /** Leaves whitespace-only changes out of the diffs, or puts them back. */
+  whitespace?: { hidden: boolean; toggle: () => void } | undefined;
   /** The pull requests beside this one in the inbox it was opened from. */
   beside: Beside | null;
   /** Says, briefly, that a key found nothing to go to. */
@@ -100,6 +102,15 @@ export function pullCommands(page: {
           {
             label: page.switchLayout.to === "split" ? "Show diffs split" : "Show diffs unified",
             run: page.switchLayout.run,
+          },
+        ]
+      : []),
+    ...(page.whitespace
+      ? [
+          {
+            label: page.whitespace.hidden ? "Show whitespace changes" : "Hide whitespace changes",
+            key: "w",
+            run: page.whitespace.toggle,
           },
         ]
       : []),

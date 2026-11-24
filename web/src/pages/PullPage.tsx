@@ -24,7 +24,7 @@ import { MERGE_ID, pullCommands } from "../pull/commands.js";
 import { CompactBar } from "../pull/compact-bar.js";
 import { DescriptionBox } from "../pull/description-box.js";
 import { DiffBar } from "../pull/diff-bar.js";
-import { useDiffLayout, useDiffWrap } from "../pull/diff-layout.js";
+import { useDiffLayout, useDiffWhitespace, useDiffWrap, useHeld } from "../pull/diff-layout.js";
 import { DraftToggle } from "../pull/draft-toggle.js";
 import { EarlierFindings, useEarlierFindings } from "../pull/earlier-findings.js";
 import { FileDiff } from "../pull/file-diff.js";
@@ -78,17 +78,21 @@ export function PullPage(props: {
   const number = Number(props.number);
   const ref = { platform, repo: props.repo, number };
   const query = new URLSearchParams({ platform, repo: props.repo, number: props.number });
+  const whitespace = useDiffWhitespace();
+  const filter = whitespace.hidden ? "&whitespace=ignore" : "";
   // A diff can be large: the last one shown is kept for this tab only.
-  const { data, error, reload, stale } = useRead<PullFilesView>(`/pulls/files?${query}`, {
-    memoryOnly: true,
-  });
+  const read = useRead<PullFilesView>(`/pulls/files?${query}${filter}`, { memoryOnly: true });
+  const { error, reload, stale } = read;
+  // The diff drawn, and how it was asked for: the last one stays while the other way is read.
+  const drawn = useHeld(read.data && { data: read.data, filter }, query.toString());
+  const data = drawn?.data;
   // Opening the page marks the pull request read as of what it read now (not the copy shown
   // while it reads); the inbox shows it unread otherwise.
   const committed = useHeadMoved(data?.head, reload);
   const { repo } = props;
   const updatedAt = stale ? undefined : data?.updatedAt;
   const head = data?.head;
-  const since = useSince(query.toString());
+  const since = useSince(query.toString(), filter);
   const compared = since.ready;
   useEffect(() => {
     // The comparison reads the last visit's mark, so it goes first.
@@ -167,6 +171,7 @@ export function PullPage(props: {
       switchLayout: layout.narrow
         ? undefined
         : { to: otherLayout, run: () => layout.pick(otherLayout) },
+      whitespace: { hidden: whitespace.hidden, toggle: () => whitespace.pick(!whitespace.hidden) },
       beside,
       say: (text) => toast(text),
     }),
@@ -350,12 +355,13 @@ export function PullPage(props: {
         </aside>
         <div className="pull-main">
           <SearchBar search={search} />
-          <DiffBar layout={layout} wrap={wrap} />
+          <DiffBar layout={layout} wrap={wrap} whitespace={whitespace} />
           <SinceBar since={since} />
           <FixJobsOf query={query.toString()} onProposed={fixProposed}>
             {shown.map((f) => (
               <FileDiff
-                key={`${since.picked ?? ""}:${f.path}`}
+                key={`${since.picked ?? ""}:${drawn?.filter}:${f.path}`}
+                hideWhitespace={drawn?.filter !== ""}
                 layout={layout.drawn}
                 wrap={wrap.drawn}
                 found={search.found.get(f.path)}

@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 import type { DiffLayout } from "./diff-rows.js";
 
 // How this browser draws diffs, kept between visits. A phone has no room for
@@ -6,6 +6,7 @@ import type { DiffLayout } from "./diff-rows.js";
 
 const KEY = "ocra-diff-layout";
 const WRAP_KEY = "ocra-diff-wrap";
+const WHITESPACE_KEY = "ocra-diff-whitespace";
 const NARROW = "(max-width: 760px)";
 
 function read(): DiffLayout {
@@ -56,4 +57,29 @@ export function useDiffWrap(narrow: boolean) {
     } catch {}
   };
   return { picked, drawn: narrow || picked, pick };
+}
+
+/** Whether diffs leave out changes of whitespace alone; they show them unless told otherwise. */
+export function useDiffWhitespace() {
+  const [hidden, setHidden] = useState(() => {
+    try {
+      return localStorage.getItem(WHITESPACE_KEY) === "hide";
+    } catch {
+      return false;
+    }
+  });
+  const pick = (hide: boolean) => {
+    setHidden(hide);
+    try {
+      localStorage.setItem(WHITESPACE_KEY, hide ? "hide" : "show");
+    } catch {}
+  };
+  return { hidden, pick };
+}
+
+/** The last value `scope` had, so a diff asked for again another way stays drawn until the new one is in. */
+export function useHeld<T>(value: T | undefined, scope: string): T | undefined {
+  const held = useRef<{ scope: string; value: T } | null>(null);
+  if (value !== undefined) held.current = { scope, value };
+  return value ?? (held.current?.scope === scope ? held.current.value : undefined);
 }
