@@ -15,7 +15,7 @@ const KEY = "ocra.theme";
 const system = () => matchMedia("(prefers-color-scheme: dark)");
 const listeners = new Set<() => void>();
 
-export function themeChoice(): ThemeChoice {
+function themeChoice(): ThemeChoice {
   try {
     const kept = localStorage.getItem(KEY);
     return kept === "light" || kept === "dark" ? kept : "system";
