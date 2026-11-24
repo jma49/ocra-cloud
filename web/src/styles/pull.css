@@ -510,3 +510,103 @@
   padding: 8px 12px;
   border-top: 0.5px solid var(--hair);
 }
+/* The conversation column: a third column beside the diff above 1100 px, under the diff below it. */
+.pull-frame.has-convo {
+  grid-template-columns: 264px minmax(0, 1fr) 280px;
+}
+.pull-frame:not(.has-convo) {
+  grid-template-columns: 264px minmax(0, 1fr) auto;
+}
+.pull-convo {
+  position: sticky;
+  top: var(--pull-clear, 72px);
+  max-height: calc(100vh - var(--pull-clear, 72px) - 16px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* Room for focus rings inside the scroll box. */
+  padding: 2px;
+  margin: -2px;
+  display: grid;
+  align-content: start;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+.convo-list {
+  display: grid;
+  gap: 2px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.convo-item {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--r-tab);
+  background: transparent;
+  color: var(--t1);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.convo-item:hover {
+  background: var(--fill);
+}
+.convo-where {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.convo-path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.convo-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+/* A file head's language, its comments and its menu: after the counts, before and after Viewed. */
+.diff-language,
+.diff-comments,
+.diff-menu {
+  flex: none;
+  white-space: nowrap;
+}
+.diff-comments {
+  margin-right: 4px;
+}
+.diff-menu {
+  margin-right: 8px;
+}
+@media (max-width: 1100px) {
+  .pull-frame.has-convo,
+  .pull-frame:not(.has-convo) {
+    grid-template-columns: 264px minmax(0, 1fr);
+  }
+  .pull-convo {
+    grid-column: 1 / -1;
+    position: static;
+    max-height: none;
+    overflow: visible;
+  }
+}
+@media (max-width: 900px) {
+  .pull-frame.has-convo,
+  .pull-frame:not(.has-convo) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 560px) {
+  .diff-language {
+    display: none;
+  }
+}

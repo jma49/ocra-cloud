@@ -56,14 +56,20 @@ function laidOver(t: ReviewThreadView, steps: Step[]): ReviewThreadView {
   return { ...t, resolved, comments: [...t.comments, ...sending] };
 }
 
+/** The pull request's review threads, read once for the page: the panel and the conversation column share it. */
+export function usePullThreads(pull: Pull) {
+  const query = new URLSearchParams({ ...pull, number: String(pull.number) });
+  return useRead<PullThreadsView>(`/pulls/threads?${query}`);
+}
+
 export function ThreadsPanel(props: {
   pull: Pull;
+  read: ReturnType<typeof usePullThreads>;
   onDone: (o: PullActionOutcome) => void;
   /** A thread was resolved, reopened or answered: what merge readiness counts may have moved. */
   onMoved?: () => void;
 }) {
-  const query = new URLSearchParams({ ...props.pull, number: String(props.pull.number) });
-  const { data, error, reload } = useRead<PullThreadsView>(`/pulls/threads?${query}`);
+  const { data, error, reload } = props.read;
   const toast = useToast();
   const batch = useBatch();
   const [own, setOwn] = useState<string[]>([]);

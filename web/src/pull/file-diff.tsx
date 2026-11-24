@@ -17,6 +17,8 @@ import { DiffRowView, type LineLook } from "./diff-row.js";
 import { chunksOf, type DiffLayout, type DiffRow, linesOfRow, rowsOf } from "./diff-rows.js";
 import { type WordRange, wordChanges } from "./diff-words.js";
 import { FileTypeIcon } from "./file-icon.js";
+import { languageName } from "./file-language.js";
+import { FileComments, FileMenu } from "./file-menu.js";
 import { underLine } from "./findings.js";
 import { FOLD_LABEL, foldReason } from "./generated.js";
 import { type CodeRun, highlightDiff } from "./highlight.js";
@@ -34,8 +36,8 @@ import type { SearchFocus } from "./use-diff-search.js";
 type File = PullFilesView["files"][number];
 
 const STATUS: Record<File["status"], string> = {
-  added: "Added",
-  removed: "Removed",
+  added: "Created",
+  removed: "Deleted",
   modified: "",
   renamed: "Renamed",
 };
@@ -85,6 +87,10 @@ export function FileDiff(props: {
   focus?: SearchFocus | null | undefined;
   /** Whether the diff leaves out changes of whitespace alone, so some lines are not in it. */
   hideWhitespace?: boolean;
+  /** The comments on the file in its review threads and ocra's findings, and a way to the first. */
+  comments?: { count: number; open: () => void } | undefined;
+  /** The file at the head on the platform; null or left out where none can be linked. */
+  atHead?: string | null | undefined;
 }) {
   const { file, layout } = props;
   const parsed = useMemo(() => (file.patch ? parsePatch(file.patch) : []), [file.patch]);
@@ -207,6 +213,7 @@ export function FileDiff(props: {
     file.additions + file.deletions > 0 &&
     !parsed.some((l) => l.kind === "add" || l.kind === "del");
   const { dir, name } = splitPath(file.path);
+  const language = languageName(file.path);
   // A Markdown file at the head can also be read as the page it makes; the diff stays the default.
   const page = isMarkdown(file.path) && file.status !== "removed" ? props.context : undefined;
   const rowNotes = (row: DiffRow) =>
@@ -251,6 +258,7 @@ export function FileDiff(props: {
           </span>
           {STATUS[file.status] && <span className="badge">{STATUS[file.status]}</span>}
           {reason && <span className="badge">{FOLD_LABEL[reason]}</span>}
+          {language && <span className="subtle small diff-language">{language}</span>}
           {/* A file without lines (an image, a binary) has no counts to show. */}
           {file.additions + file.deletions > 0 && (
             <span className="diff-count">
@@ -259,6 +267,13 @@ export function FileDiff(props: {
             </span>
           )}
         </button>
+        {props.comments && (
+          <FileComments
+            path={file.path}
+            count={props.comments.count}
+            onOpen={props.comments.open}
+          />
+        )}
         {page && (
           <span className="diff-view">
             <Seg
@@ -290,6 +305,14 @@ export function FileDiff(props: {
           )}
           Viewed
         </label>
+        <FileMenu
+          path={file.path}
+          atHead={props.atHead ?? null}
+          viewed={props.viewed}
+          onViewed={props.onViewed}
+          folded={folded}
+          onFold={setFolded}
+        />
       </div>
       {!folded &&
         (page && view === "rendered" ? (
