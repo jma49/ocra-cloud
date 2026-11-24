@@ -1548,15 +1548,19 @@ td.finding-cell {
 .diff-bar {
   flex: none;
   display: flex;
-  align-items: center;
-  gap: 4px;
   margin-left: auto;
 }
-.diff-bar-rule {
-  width: 0.5px;
-  height: 16px;
-  margin: 0 4px;
-  background: var(--hair2);
+/* How diffs are drawn, in one menu: the layout, then what is shown, a setting's key at its row's end. */
+.diff-settings {
+  min-width: 200px;
+}
+.diff-settings-item > span:last-child {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.diff-settings-key {
+  margin-left: auto;
 }
 .diff-hunk td {
   padding: 4px 16px;
