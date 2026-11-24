@@ -1,6 +1,11 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import type { FixJobView, PullFindingView } from "../../../src/shared/index.js";
+import type {
+  FixJobView,
+  MendItemView,
+  PullFindingView,
+  PullMendView,
+} from "../../../src/shared/index.js";
 import { FixJobsOf } from "./fix-jobs.js";
 import { FixWithOcra } from "./fix-with-ocra.js";
 
@@ -36,13 +41,47 @@ const job = (over: Partial<FixJobView>): FixJobView => ({
   ...over,
 });
 
-/** Answers the pull request's requests in turn (the last one stays), and takes a new one unless `refuse`. */
-function serve(reads: FixJobView[][], opts: { enrolled?: boolean; refuse?: boolean } = {}) {
+const NO_LOOP: PullMendView = { level: "propose", loop: null, items: [] };
+
+const item = (over: Partial<MendItemView>): MendItemView => ({
+  finding: "f1",
+  outcome: null,
+  reason: null,
+  commit: null,
+  requestedAt: "2026-11-23T10:00:00.000Z",
+  finishedAt: null,
+  ...over,
+});
+
+const looping = (items: MendItemView[], state: "queued" | "running" | "done" = "done") =>
+  ({
+    level: "commit",
+    loop: { state, outcome: null, error: null, finishedAt: null },
+    items,
+  }) satisfies PullMendView;
+
+/**
+ * Answers the pull request's requests in turn (the last one stays), and its
+ * loop's reads the same way; takes a new request unless `refuse`.
+ */
+function serve(
+  reads: FixJobView[][],
+  opts: { enrolled?: boolean; refuse?: boolean; loop?: PullMendView[] } = {},
+) {
   const asked: unknown[] = [];
   let read = 0;
+  let turn = 0;
+  const loops = opts.loop ?? [NO_LOOP];
   vi.stubGlobal(
     "fetch",
-    vi.fn(async (_url: string, init?: RequestInit) => {
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.startsWith("/api/auto-review/mends")) {
+        if (init?.method !== "POST")
+          return Response.json(loops[Math.min(turn++, loops.length - 1)]);
+        if (opts.refuse) return Response.json({ error: "daily_limit" }, { status: 429 });
+        asked.push({ loop: JSON.parse(String(init.body)) });
+        return Response.json({ outcome: "queued", mend: loops.at(-1) });
+      }
       if (init?.method === "POST") {
         if (opts.refuse) return Response.json({ error: "daily_limit" }, { status: 429 });
         asked.push(JSON.parse(String(init.body)));
@@ -54,6 +93,12 @@ function serve(reads: FixJobView[][], opts: { enrolled?: boolean; refuse?: boole
   );
   return asked;
 }
+
+/** Lets the effects of what was just drawn run (the poll's timer among them), then passes the time. */
+const later = async (ms: number) => {
+  await act(async () => {});
+  vi.advanceTimersByTime(ms);
+};
 
 const show = (f: PullFindingView, onProposed = () => undefined) =>
   render(
@@ -80,7 +125,7 @@ it("offers no fix outside an enrolled repository, for an unsure finding, or one 
   serve([[]]);
   show(finding({ lowConfidence: true }));
   show(finding({ hasFix: true }));
-  await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+  await waitFor(() => expect(fetch).toHaveBeenCalledTimes(4));
   expect(screen.queryByRole("button")).toBeNull();
 });
 
@@ -124,7 +169,7 @@ it("tells the page when a request it watched comes back with a fix, not for one 
   show(finding(), proposed);
   expect(await screen.findByText("Writing a fix")).toBeTruthy();
   expect(proposed).not.toHaveBeenCalled();
-  vi.advanceTimersByTime(5_000);
+  await later(5_000);
   expect(await screen.findByText("Fix proposed")).toBeTruthy();
   expect(proposed).toHaveBeenCalledTimes(1);
   vi.useRealTimers();
@@ -134,4 +179,46 @@ it("tells the page when a request it watched comes back with a fix, not for one 
   show(finding(), again);
   expect(await screen.findByText("Fix proposed")).toBeTruthy();
   expect(again).not.toHaveBeenCalled();
+});
+
+it("asks the pull request's loop where ocra commits its fixes, and follows the finding to its commit", async () => {
+  vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+  const fixed = vi.fn();
+  const asked = serve([[]], {
+    loop: [
+      looping([]),
+      looping([item({})], "queued"),
+      looping([item({})], "running"),
+      looping([item({ outcome: "fixed", commit: "abcdef0123456789" })]),
+    ],
+  });
+  show(finding(), fixed);
+  fireEvent.click(await screen.findByRole("button", { name: "Fix with ocra" }));
+  expect(await screen.findByText("Fix queued")).toBeTruthy();
+  expect(asked).toEqual([{ loop: { findings: ["f1"] } }]);
+  await later(5_000);
+  expect(await screen.findByText("Fixing")).toBeTruthy();
+  expect(fixed).not.toHaveBeenCalled();
+  await later(5_000);
+  expect((await screen.findByText(/^Fixed/)).textContent).toBe("Fixed abcdef0");
+  expect(fixed).toHaveBeenCalledTimes(1);
+  vi.useRealTimers();
+});
+
+it("says why the loop committed no fix, and offers again only what another round may fix", async () => {
+  serve([[]], { loop: [looping([item({ outcome: "needs_human", reason: "protected" })])] });
+  show(finding());
+  expect(
+    await screen.findByText(
+      "No fix: it needs a file ocra does not edit. This one is for a person.",
+    ),
+  ).toBeTruthy();
+  expect(screen.queryByRole("button")).toBeNull();
+  cleanup();
+  serve([[]], { loop: [looping([item({ outcome: "rejected", reason: "unresolved" })])] });
+  show(finding());
+  expect(await screen.findByRole("button", { name: "Try the fix again" })).toBeTruthy();
+  expect(
+    screen.getByText("No fix: the fix it wrote did not pass ocra's check of it."),
+  ).toBeTruthy();
 });
