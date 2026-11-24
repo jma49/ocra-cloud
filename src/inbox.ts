@@ -14,7 +14,7 @@ import { apiError, jsonBody, queryDays, queryLimit } from "./http.js";
 import { perMinute } from "./rate.js";
 import { repoNames } from "./repositories.js";
 import { requireSession } from "./session.js";
-import { DISMISS_REASONS, FINDING_STATUSES } from "./shared/index.js";
+import { DECISION_STATUSES, DISMISS_REASONS, FINDING_STATUSES } from "./shared/index.js";
 import { DAY } from "./time.js";
 import type { AppEnv } from "./types.js";
 
@@ -46,7 +46,7 @@ const filterSchema = z.object({
 const decideSchema = z
   .object({
     ids: z.array(z.string().min(1).max(64)).min(1).max(MAX_DECIDE),
-    status: z.enum(FINDING_STATUSES),
+    status: z.enum(DECISION_STATUSES),
     reason: z.enum(DISMISS_REASONS).optional(),
     note: z.string().max(MAX_FIELD).optional(),
     // Dismissed findings only: also remember each one for its repository.

@@ -3,6 +3,7 @@ import { Status } from "@/components/status";
 import { Button } from "@/components/ui/button";
 import {
   type FindingIssueView,
+  type FindingStatus,
   type FixProposalView,
   type PlatformDismissal,
   replacementLines,
@@ -42,7 +43,7 @@ export type Finding = {
   code: string | null;
   redacted: boolean;
   truncated: boolean;
-  status: "open" | "fixed" | "dismissed";
+  status: FindingStatus;
   /** The lines the fix replaces at the reviewed head, and what with; null without one. */
   fix: { startLine: number; endLine: number; replacement: string } | null;
   /** The issue opened from it in the reviewed repository; null before one is. */
@@ -181,6 +182,10 @@ export function FindingEvent(props: {
             </Button>
           )}
           {(f.status === "fixed" || fixed === "done") && <Status tone="ok">Fixed</Status>}
+          {f.status === "addressed" && fixed !== "done" && <Status tone="ok">Addressed</Status>}
+          {f.status === "merged" && fixed !== "done" && (
+            <Status tone="quiet">Merged unaddressed</Status>
+          )}
           {props.canFix && <FindingIssue findingId={f.id} issue={f.issue} />}
         </div>
         <CommitFixNote state={fixed} />

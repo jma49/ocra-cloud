@@ -504,8 +504,9 @@ export const findings = sqliteTable(
     // How it became fixed, set in the write that fixes it; null while not
     // fixed, and on one fixed before this column was added.
     fixedVia: text("fixed_via", { enum: FIXED_VIA }),
-    // When the user resolved its comment's thread from the console; cleared
-    // when they reopen it. A resolved thread says neither fixed nor dismissed.
+    // When a person resolved its comment's thread, from the console or on the
+    // platform; cleared when they reopen it. A resolved thread says neither
+    // fixed nor dismissed: an open finding becomes addressed (FINDING_STATUSES).
     threadResolvedAt: integer("thread_resolved_at", { mode: "timestamp_ms" }),
     // Kept by --ultra though the judge would drop it: `ocra fix` asks no fix
     // for it. False on a finding uploaded before this column was added.

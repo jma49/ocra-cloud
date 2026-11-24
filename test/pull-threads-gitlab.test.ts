@@ -251,7 +251,7 @@ describe("what a GitLab discussion's actions record of ocra's findings", () => {
     const { id, data } = await seeded();
     const res = await post(a, "/api/pulls/resolve-thread", { ...lab, thread: d1, resolved: true });
     expect(await res.json()).toEqual({ outcome: "done" });
-    expect(await data.get("findings", id)).toMatchObject({ status: "open" });
+    expect(await data.get("findings", id)).toMatchObject({ status: "addressed" });
     expect((await data.get("findings", id))?.threadResolvedAt).toBeInstanceOf(Date);
   });
 });

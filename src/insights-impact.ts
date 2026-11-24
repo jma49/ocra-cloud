@@ -40,6 +40,8 @@ const empty = (sharing: boolean): ImpactCounts => ({
         fixed: 0,
         fixedVia: { applied: 0, suggestion: 0, manual: 0, rereview: 0, unknown: 0 },
         dismissed: 0,
+        addressed: 0,
+        merged: 0,
         open: 0,
         issueOpened: 0,
         threadResolved: 0,
