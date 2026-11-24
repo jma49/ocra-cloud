@@ -842,9 +842,35 @@ td.finding-cell {
   font-weight: 600;
 }
 /* The columns after the title keep their width whatever a row holds, so they line up down the list. */
+.pull-talk {
+  flex: none;
+  width: 72px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--t3);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+/* ocra's mark as its picture: the eyes on an ink disc, the size of an author's. */
+.ocra-mark {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--t1);
+  color: var(--bg);
+}
+.pull-threads {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
 .pull-ref {
   flex: none;
-  width: 208px;
+  width: 184px;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -959,8 +985,12 @@ td.finding-cell {
     display: none;
   }
   .pull-ref,
-  .pull-review {
+  .pull-review,
+  .pull-talk {
     width: auto;
+  }
+  .pull-talk:empty {
+    display: none;
   }
 }
 /* On a phone a row takes two lines: the whole title, then what it is and when. */

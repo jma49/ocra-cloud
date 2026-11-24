@@ -164,6 +164,38 @@ describe("the pull request inbox", () => {
     expect(old.platforms[0]?.pulls.map((p) => [p.number, p.checks])).toEqual([[1, "failing"]]);
   });
 
+  it("counts a pull's review threads and the resolved ones, and none where it has none", async () => {
+    githubFake({
+      extra: graphql((q) => ({
+        data: {
+          review: { issueCount: 0, nodes: [] },
+          authored: {
+            issueCount: 2,
+            nodes: q.includes("reviewThreads")
+              ? [
+                  node(1, {
+                    reviewThreads: {
+                      totalCount: 3,
+                      nodes: [{ isResolved: true }, { isResolved: false }, { isResolved: true }],
+                    },
+                  }),
+                  node(2, { reviewThreads: { totalCount: 0, nodes: [] } }),
+                ]
+              : [node(1), node(2)],
+          },
+          assigned: { issueCount: 0, nodes: [] },
+          merged: { issueCount: 0, nodes: [] },
+        },
+      })),
+    });
+    const a = await signInWithGithub();
+    const listed = (await (await a.send("/api/platforms/pulls")).json()) as Listed;
+    expect(listed.platforms[0]?.pulls.map((p) => [p.number, p.threads])).toEqual([
+      [2, undefined],
+      [1, { resolved: 2, total: 3 }],
+    ]);
+  });
+
   it("says when GitHub refused, and more when a section holds more than it read", async () => {
     githubFake({
       extra: graphql(() => ({

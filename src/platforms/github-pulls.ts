@@ -22,9 +22,12 @@ type List = (typeof LISTS)[number];
 const query = (list: List, checks: boolean, queue: boolean) => `query($q: String!, $n: Int!) {
   ${list}: search(query: $q, type: ISSUE, first: $n) { issueCount nodes { ...P } }
 }
-${pullFragment(checks, queue)}`;
+${pullFragment(checks, queue, true)}`;
 
-export const pullFragment = (checks: boolean, queue = false) => `fragment P on PullRequest {
+/** Review threads read per pull to count the resolved ones; past it, the resolved count is of the first this many. */
+const THREADS_READ = 100;
+
+export const pullFragment = (checks: boolean, queue = false, threads = false) => `fragment P on PullRequest {
   id number title url isDraft state createdAt updatedAt mergedAt additions deletions reviewDecision
   headRefOid headRefName baseRefName isCrossRepository
   author { login avatarUrl }
@@ -32,6 +35,7 @@ export const pullFragment = (checks: boolean, queue = false) => `fragment P on P
   labels(first: ${MAX_LABELS}) { nodes { name } }
   ${checks ? "commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }" : ""}
   ${queue ? "mergeQueueEntry { state }" : ""}
+  ${threads ? `reviewThreads(first: ${THREADS_READ}) { totalCount nodes { isResolved } }` : ""}
 }`;
 
 export type PullNode = {
@@ -56,6 +60,7 @@ export type PullNode = {
   labels?: { nodes: ({ name: string } | null)[] } | null;
   commits?: { nodes: { commit: { statusCheckRollup: { state: string } | null } }[] };
   mergeQueueEntry?: { state: string } | null;
+  reviewThreads?: { totalCount: number; nodes: ({ isResolved: boolean } | null)[] } | null;
 };
 type Search = { issueCount: number; nodes: (PullNode | null)[] };
 type Answer = { data?: Partial<Record<List, Search>>; errors?: unknown[] };
@@ -76,6 +81,12 @@ export const REVIEW: Record<string, PullReview> = {
 export function pullNodeItem(n: PullNode): ListedPull {
   const rollup = n.commits?.nodes[0]?.commit.statusCheckRollup?.state;
   const queued = n.mergeQueueEntry ? queueStateOf(n.mergeQueueEntry.state) : undefined;
+  const threads = n.reviewThreads?.totalCount
+    ? {
+        resolved: n.reviewThreads.nodes.filter((t) => t?.isResolved).length,
+        total: n.reviewThreads.totalCount,
+      }
+    : undefined;
   return {
     id: n.id ?? `${n.repository.nameWithOwner}#${n.number}`,
     number: n.number,
@@ -100,6 +111,7 @@ export function pullNodeItem(n: PullNode): ListedPull {
         ? { head: n.headRefName, base: n.baseRefName }
         : null,
     ...(queued ? { queued } : {}),
+    ...(threads ? { threads } : {}),
   };
 }
 
