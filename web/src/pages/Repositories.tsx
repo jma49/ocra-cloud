@@ -89,6 +89,9 @@ function NameField(props: { repo: Repo; current: string; done: (saved: boolean) 
         // biome-ignore lint/a11y/noAutofocus: the field opens on the user's click.
         autoFocus
         onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") props.done(false);
+        }}
       />
       <Button type="submit" variant="outline" size="sm" disabled={save.busy}>
         {draft.trim() ? "Save" : "Clear"}
