@@ -23,7 +23,7 @@ import { MERGE_ID, pullCommands } from "../pull/commands.js";
 import { CompactBar } from "../pull/compact-bar.js";
 import { DescriptionBox } from "../pull/description-box.js";
 import { DiffBar } from "../pull/diff-bar.js";
-import { useDiffLayout } from "../pull/diff-layout.js";
+import { useDiffLayout, useDiffWrap } from "../pull/diff-layout.js";
 import { DraftToggle } from "../pull/draft-toggle.js";
 import { FileDiff } from "../pull/file-diff.js";
 import { FileList } from "../pull/file-list.js";
@@ -151,6 +151,7 @@ export function PullPage(props: {
   const beside = useBeside(pullPath(platform, props.repo, number));
   const viewed = useViewed(ref, data, (o) => said("Viewed", o));
   const layout = useDiffLayout();
+  const wrap = useDiffWrap(layout.narrow);
   const otherLayout = layout.picked === "split" ? "unified" : "split";
   const search = useDiffSearch(sinceFiles(since) ?? data?.files ?? NO_FILES);
   usePageCommands(
@@ -338,13 +339,14 @@ export function PullPage(props: {
         </aside>
         <div className="pull-main">
           <SearchBar search={search} />
-          <DiffBar layout={layout} />
+          <DiffBar layout={layout} wrap={wrap} />
           <SinceBar since={since} />
           <FixJobsOf query={query.toString()} onProposed={fixProposed}>
             {shown.map((f) => (
               <FileDiff
                 key={`${since.picked ?? ""}:${f.path}`}
                 layout={layout.drawn}
+                wrap={wrap.drawn}
                 found={search.found.get(f.path)}
                 focus={search.focus?.path === f.path ? search.focus : null}
                 context={{ pull: ref, head: data.head }}
