@@ -30,7 +30,7 @@ const STEP: Record<StackStepOutcome, string> = {
 /** What a merge waits on, or why it stopped, as the end of a sentence. */
 const REASON: Record<StackMergeReason, string> = {
   waiting_checks: "waiting for its checks",
-  waiting_platform: "waiting until the platform allows the merge (approvals, rules)",
+  waiting_platform: "waiting until the platform allows the merge",
   updating: "bringing its branch up to date with the trunk",
   checks_failed: "a check failed",
   conflicts: "it conflicts with the trunk",
