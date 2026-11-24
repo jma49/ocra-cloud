@@ -26,7 +26,7 @@ const NO_FIX: Record<Reason, string> = {
 };
 
 /** Why a finished request left no fix, in a sentence; nothing for one that left one. */
-export function noFix(job: FixJobView): string | null {
+function noFix(job: FixJobView): string | null {
   if (job.state !== "done" || job.outcome === "proposed") return null;
   if (job.outcome === "head_moved") {
     return "No fix: the pull request has newer commits than the review. Review it again first.";
