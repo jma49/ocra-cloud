@@ -26,6 +26,7 @@ import UserRound from "lucide-react/icons/user-round";
 import {
   type ReactElement,
   type ReactNode,
+  type RefObject,
   useEffect,
   useRef,
   useState,
@@ -137,10 +138,25 @@ function RailLink(props: {
   );
 }
 
+/** A link clicked with the pointer gives up focus, so the rail closes once the pointer leaves; the keyboard keeps it open. */
+function useReleaseOnClick(nav: RefObject<HTMLElement | null>) {
+  useEffect(() => {
+    const el = nav.current;
+    if (!el) return;
+    const release = (e: MouseEvent) => {
+      const link = e.target instanceof Element ? e.target.closest("a") : null;
+      if (e.detail > 0 && link && el.contains(link)) link.blur();
+    };
+    el.addEventListener("click", release);
+    return () => el.removeEventListener("click", release);
+  }, [nav]);
+}
+
 function Rail(props: { me: Me; place: Place | undefined }) {
   const row = useRailRow();
   const nav = useRef<HTMLElement>(null);
   useHoverGlide(nav, ".rail-link");
+  useReleaseOnClick(nav);
   return (
     <TooltipProvider delay={300}>
       <div className="rail-slot">
