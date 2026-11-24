@@ -77,6 +77,7 @@ function runJob(run: CheckRun): PullCiJob {
     failedStep: null,
     failureReason: null,
     hasLog: true,
+    mend: null,
     rerunnable: isActions(run) && state !== "pending",
   };
 }
@@ -95,6 +96,7 @@ function statusJob(s: Status): PullCiJob {
     failedStep: null,
     failureReason: null,
     hasLog: false,
+    mend: null,
     rerunnable: false,
   };
 }

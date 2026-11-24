@@ -63,6 +63,7 @@ function jobOf(job: Job): PullCiJob {
     failedStep: null,
     failureReason: job.status === "failed" ? (job.failure_reason ?? null) : null,
     hasLog: job.started_at !== null,
+    mend: null,
     rerunnable: SETTLED.has(state),
   };
 }
