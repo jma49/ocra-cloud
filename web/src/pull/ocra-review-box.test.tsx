@@ -16,7 +16,7 @@ const review = (current: boolean, complete = true) => ({
 it("says where ocra's review stands, and leads into it", () => {
   render(<OcraReviewBox review={review(true)} open={2} />);
   expect(screen.getByText("2 open findings on the diff below.")).toBeTruthy();
-  expect(screen.getByText("Reviewed").className).toContain("badge-ok");
+  expect(screen.getByText("Reviewed").className).toBe("status status-ok");
   expect(screen.getByText(/ocra reviewed this head/)).toBeTruthy();
   expect(screen.getByRole("link", { name: "Open the review" }).getAttribute("href")).toBe(
     "/reviews/r1",
@@ -49,7 +49,7 @@ it("leaves the wording to the server's runner where there is one", () => {
 
 it("never calls a review that left files unreviewed a review of the head", () => {
   render(<OcraReviewBox review={review(true, false)} />);
-  expect(screen.getByText("Incomplete").className).toBe("badge badge-warn");
+  expect(screen.getByText("Incomplete").className).toBe("status status-warn");
   expect(screen.queryByText("Reviewed")).toBeNull();
   expect(screen.getByText(/left files unreviewed, so it is not a pass/)).toBeTruthy();
   expect(screen.queryByText(/ocra reviewed this head/)).toBeNull();

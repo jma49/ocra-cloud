@@ -1,3 +1,4 @@
+import { Status, type StatusTone } from "@/components/status";
 import type {
   MergeCheckResultView,
   MergeChecksConclusion,
@@ -13,11 +14,11 @@ import { Tally } from "./tally.js";
 // The repository's pre-merge checks on this head, evaluated live: what
 // passed, what blocks the merge, what only warns.
 
-const CONCLUSION: Record<MergeChecksConclusion, { text: string; tone: string }> = {
-  success: { text: "All checks pass", tone: "badge badge-ok" },
-  neutral: { text: "Warnings", tone: "badge badge-warn" },
-  failure: { text: "Blocked", tone: "badge badge-err" },
-  pending: { text: "Waiting for the review", tone: "badge" },
+const CONCLUSION: Record<MergeChecksConclusion, { text: string; tone: StatusTone }> = {
+  success: { text: "All checks pass", tone: "ok" },
+  neutral: { text: "Warnings", tone: "warn" },
+  failure: { text: "Blocked", tone: "err" },
+  pending: { text: "Waiting for the review", tone: "quiet" },
 };
 
 type Pull = { platform: string; repo: string; number: number };
@@ -57,7 +58,7 @@ export function ChecksBox(props: { pull: Pull; head: string }) {
     <section className="card card-pad stack" aria-label="Pre-merge checks">
       <div className="row-gap checks-head">
         <h2 className="card-title grow">Pre-merge checks</h2>
-        <span className={c.tone}>{c.text}</span>
+        <Status tone={c.tone}>{c.text}</Status>
       </div>
       <Tally
         label={`${passed} of ${report.results.length} passed`}

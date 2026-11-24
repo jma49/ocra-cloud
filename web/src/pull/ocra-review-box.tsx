@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Status } from "@/components/status";
 import type { PullDescriptionDraftView } from "../../../src/shared/index.js";
 import { ago, count } from "../format.js";
 import { Link } from "../router.js";
@@ -20,15 +21,15 @@ export function OcraReviewBox(props: {
   if (review === undefined) return null;
   const unfinished = review?.current === true && !review.complete;
   const standing = !review?.current
-    ? { text: "Out of date", tone: "badge" }
+    ? { text: "Out of date", tone: "quiet" as const }
     : unfinished
-      ? { text: "Incomplete", tone: "badge badge-warn" }
-      : { text: "Reviewed", tone: "badge badge-ok" };
+      ? { text: "Incomplete", tone: "warn" as const }
+      : { text: "Reviewed", tone: "ok" as const };
   return (
     <section className="card card-pad stack" aria-label="ocra review">
       <div className="row-gap checks-head">
         <h2 className="card-title grow">ocra review</h2>
-        {review && <span className={standing.tone}>{standing.text}</span>}
+        {review && <Status tone={standing.tone}>{standing.text}</Status>}
       </div>
       {review && unfinished && (
         <span className="subtle small">
