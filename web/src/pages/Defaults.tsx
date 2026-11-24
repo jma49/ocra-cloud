@@ -1,4 +1,5 @@
 import History from "lucide-react/icons/history";
+import RotateCw from "lucide-react/icons/rotate-cw";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { formatModelId, parseModelId } from "../../../src/shared/index.js";
@@ -7,6 +8,7 @@ import { ApiError, api, why } from "../api.js";
 import { useRead } from "../cache.js";
 import { CopyButton } from "../copy-button.js";
 import { ago } from "../format.js";
+import { IconButton } from "../icon-button.js";
 import { type Prefs, PrefsPending, type Settings, usePrefs } from "../prefs.js";
 import { useToast } from "../toast.js";
 import { CodeBlock, EmptyState, PageHead, useLoad } from "../ui.js";
@@ -175,7 +177,7 @@ export function Defaults() {
       <div className="card">
         <div className="card-head">
           <h2>.ocra/config.json</h2>
-          <CopyButton text={config} size="sm" />
+          <CopyButton text={config} label="Copy .ocra/config.json" iconOnly />
         </div>
         <CodeBlock label=".ocra/config.json">{config}</CodeBlock>
       </div>
@@ -183,7 +185,7 @@ export function Defaults() {
         <div className="section card">
           <div className="card-head">
             <h2>.ocra/rules.json</h2>
-            <CopyButton text={rules} size="sm" />
+            <CopyButton text={rules} label="Copy .ocra/rules.json" iconOnly />
           </div>
           <CodeBlock label=".ocra/rules.json">{rules}</CodeBlock>
         </div>
@@ -245,9 +247,7 @@ export function Defaults() {
       <div className="section card">
         <div className="card-head">
           <h2>History</h2>
-          <Button type="button" variant="outline" size="sm" onClick={reloadVersions}>
-            Refresh
-          </Button>
+          <IconButton label="Refresh" icon={RotateCw} onClick={reloadVersions} />
         </div>
         {versions && versions.versions.length === 0 && (
           <EmptyState icon={History} title="No saved versions yet">

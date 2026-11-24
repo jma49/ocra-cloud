@@ -1,3 +1,4 @@
+import RotateCw from "lucide-react/icons/rotate-cw";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import type {
@@ -13,6 +14,7 @@ import { useRead } from "../cache.js";
 import { CopyButton } from "../copy-button.js";
 import { Drawer } from "../drawer.js";
 import { ago } from "../format.js";
+import { IconButton } from "../icon-button.js";
 import { WEBHOOK_DOCS } from "../site.js";
 import { ActionError, LoadError, Loading, useAction } from "../ui.js";
 
@@ -81,7 +83,7 @@ export function SecretOnce(props: { secret: string; what: string }) {
       <span className="small">{props.what}, shown only now:</span>
       <div className="token-secret">
         <code className="mono">{props.secret}</code>
-        <CopyButton text={props.secret} size="sm" said="Secret copied" />
+        <CopyButton text={props.secret} label="Copy secret" said="Secret copied" iconOnly />
       </div>
     </div>
   );
@@ -148,9 +150,7 @@ export function DeliveriesDrawer(props: { channel: NotifyChannelView; onClose: (
       <section className="stack-tight channel-deliveries" aria-label="Recent deliveries">
         <div className="row-gap channel-deliveries-head">
           <div className="strong grow">Recent deliveries</div>
-          <Button type="button" variant="outline" size="sm" disabled={loading} onClick={reload}>
-            Refresh
-          </Button>
+          <IconButton label="Refresh" icon={RotateCw} disabled={loading} onClick={reload} />
         </div>
         {error && !data ? (
           <LoadError what="the deliveries" error={error} retry={reload} inCard />

@@ -54,7 +54,7 @@ export function ApiTokens() {
           </p>
           <div className="token-secret">
             <code className="mono">{made.secret}</code>
-            <CopyButton text={made.secret} size="sm" said="Token copied" />
+            <CopyButton text={made.secret} label="Copy token" said="Token copied" iconOnly />
             <Button type="button" variant="outline" size="sm" onClick={() => setMade(null)}>
               Done
             </Button>
