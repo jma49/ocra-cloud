@@ -15,6 +15,10 @@ type LearningProposal = {
   head: string;
   author: string | null;
   createdAt: string;
+  /** The platform merges it once what the branch requires is met. */
+  autoMerge: boolean;
+  /** Who it asks to review it. */
+  reviewers: string[];
 };
 
 export interface RepoLearnings {

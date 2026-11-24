@@ -21,10 +21,12 @@ export function accountFixJobs(db: Db, accountId: string) {
   const own = eq(j.accountId, accountId);
   return {
     /**
-     * Queues a fix of the finding at head, or queues again one that failed,
+     * Queues a fix of the finding at head, or queues again one that failed
+     * or whose fixer call did (the engine's reason "failed": the model was
+     * not reached or did not answer, which another try may get past),
      * counted against the account's `cap` a day; a request already queued,
-     * running or answered is left as it is and not counted. Whether it
-     * queued; "limited" when the day's requests are used up.
+     * running or answered otherwise is left as it is and not counted.
+     * Whether it queued; "limited" when the day's requests are used up.
      */
     async request(
       job: { reviewRepoId: string; number: number; findingId: string; head: string },
@@ -47,7 +49,7 @@ export function accountFixJobs(db: Db, accountId: string) {
             reason: null,
             finishedAt: null,
           },
-          setWhere: eq(j.state, "failed"),
+          setWhere: sql`${j.state} = 'failed' or (${j.state} = 'done' and ${j.reason} = 'failed')`,
         })
         .returning({ id: j.id });
       if (queued.length > 0) return true;

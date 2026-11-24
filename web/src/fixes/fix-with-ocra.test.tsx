@@ -97,6 +97,17 @@ it("says why a finished request left no fix, and offers a failed one again", asy
   expect(screen.queryByText("runner_gone")).toBeNull();
 });
 
+it("offers a request again when the fixer's call to the model failed", async () => {
+  const asked = serve([[job({ state: "done", outcome: "rejected", reason: "failed" })], [job({})]]);
+  show(finding());
+  expect(
+    await screen.findByText("No fix: ocra's call to the model did not go through."),
+  ).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Try the fix again" }));
+  expect(await screen.findByText("Fix queued")).toBeTruthy();
+  expect(asked).toEqual([{ finding: "f1" }]);
+});
+
 it("says the day's fixes are used up when the server refuses one", async () => {
   serve([[]], { refuse: true });
   show(finding());

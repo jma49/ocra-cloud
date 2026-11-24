@@ -11,6 +11,9 @@ type Pull = {
   html_url: string;
   created_at: string;
   user: { login: string } | null;
+  auto_merge?: unknown;
+  requested_reviewers?: { login: string }[];
+  requested_teams?: { slug: string }[];
   head: { ref: string; sha: string; repo: { full_name: string } | null };
 };
 
@@ -63,6 +66,11 @@ export function githubLearnings(host: GithubHost): RepoLearnings {
           head: p.head.sha,
           author: p.user?.login ?? null,
           createdAt: p.created_at,
+          autoMerge: p.auto_merge != null,
+          reviewers: [
+            ...(p.requested_reviewers ?? []).map((r) => r.login),
+            ...(p.requested_teams ?? []).map((t) => t.slug),
+          ],
         })),
       };
     },
