@@ -95,7 +95,13 @@ export async function recordGithubRequest(
   return true;
 }
 
-const gitlabUser = z.object({ id: z.number(), username: z.string().optional() });
+const gitlabUser = z.object({
+  id: z.number(),
+  username: z.string().optional(),
+  // GitLab 18.6 and later: the reviewer's state, and whether this hook asks them again.
+  state: z.string().optional(),
+  re_requested: z.boolean().optional(),
+});
 
 const gitlabEvent = z.object({
   object_attributes: z.object({
@@ -104,6 +110,7 @@ const gitlabEvent = z.object({
     state: z.string().optional(),
     author_id: z.number().optional(),
     created_at: z.string().nullish(),
+    updated_at: z.string().nullish(),
     reviewer_ids: z.array(z.number()).optional(),
   }),
   user: gitlabUser.optional(),
@@ -122,6 +129,29 @@ const gitlabEvent = z.object({
 
 const APPROVALS = new Set(["approved", "approval"]);
 const UNAPPROVALS = new Set(["unapproved", "unapproval"]);
+
+type GitlabUser = z.infer<typeof gitlabUser>;
+type ReviewerChange = {
+  previous?: GitlabUser[] | null | undefined;
+  current?: GitlabUser[] | null | undefined;
+};
+
+/**
+ * The reviewers the hook asks again (GitLab's "re-request review"), each
+ * with whether they had answered since they were asked: then their answer
+ * ended a round of review, as a review does on GitHub.
+ */
+export function gitlabReasked(
+  changes: { reviewers?: ReviewerChange | undefined } | undefined,
+): { id: number; answered: boolean }[] {
+  const before = new Map((changes?.reviewers?.previous ?? []).map((u) => [u.id, u.state]));
+  return (changes?.reviewers?.current ?? [])
+    .filter((u) => u.re_requested === true && before.has(u.id))
+    .map((u) => {
+      const state = before.get(u.id);
+      return { id: u.id, answered: state !== undefined && state !== "unreviewed" };
+    });
+}
 
 /** Whether the hook shows its merge request open: one closed or merged waits for nobody. */
 export const gitlabOpen = (state: string | undefined) => state === undefined || state === "opened";
@@ -163,6 +193,15 @@ export async function recordGitlabRequests(
     at,
   });
   for (const id of asked) await requests.asked(of(id));
+  // Asked again after answering, a reviewer's round ended just before the
+  // time GitLab wrote for the ask, which a redelivery repeats.
+  const askedAt = Date.parse(a.updated_at ?? "");
+  const reasked = gitlabReasked(changes);
+  for (const r of reasked) {
+    if (r.answered && Number.isFinite(askedAt))
+      await requests.done({ ...of(r.id), at: new Date(askedAt - 1) });
+    await requests.asked({ ...of(r.id), at: Number.isFinite(askedAt) ? new Date(askedAt) : now });
+  }
   for (const id of removed) await requests.done(of(id));
   // An approval by a member of a group the approval rules asked ends that group's ask.
   if (approved)
@@ -174,5 +213,5 @@ export async function recordGitlabRequests(
     a.action && UNAPPROVALS.has(a.action) && user && gitlabOpen(a.state) ? user.id : null;
   const reopened = unapproved !== null && current.includes(unapproved);
   if (reopened) await requests.reopened(of(unapproved));
-  return asked.length + removed.length + (reopened ? 1 : 0);
+  return asked.length + reasked.length + removed.length + (reopened ? 1 : 0);
 }
