@@ -516,6 +516,11 @@ export const findings = sqliteTable(
     lowConfidence: integer("low_confidence", { mode: "boolean" }).notNull().default(false),
     // What the reviewer read to reach it, one redacted fact per entry; null when none was sent.
     evidence: text("evidence", { mode: "json" }).$type<string[]>(),
+    // The 👍 and 👎 people gave its comment on the platform, as last read
+    // (src/finding-reactions.ts), and when; 0 and null before any read.
+    thumbsUp: integer("thumbs_up").notNull().default(0),
+    thumbsDown: integer("thumbs_down").notNull().default(0),
+    reactionsReadAt: integer("reactions_read_at", { mode: "timestamp_ms" }),
   },
   // review_id: a review's delete cascades here (by the user or retention).
   // findings_account_status_created leads with account_id, so it also
@@ -1325,6 +1330,12 @@ export const findingThreads = sqliteTable(
     reasonTruncated: integer("reason_truncated", { mode: "boolean" }).notNull().default(false),
     seenAt: integer("seen_at", { mode: "timestamp_ms" }).notNull(),
     createdAt: createdAt(),
+    // The platform's id of ocra's comment that starts the thread, which its
+    // reactions are read by: GitHub's review comment id (the thread key),
+    // GitLab's note id. Null on a GitLab thread kept before it was.
+    commentId: text("comment_id"),
+    // When its comment's reactions were last read: reads are spaced by it.
+    reactionsAt: integer("reactions_at", { mode: "timestamp_ms" }),
   },
   (t) => [
     uniqueIndex("finding_threads_thread").on(t.reviewRepoId, t.threadKey),

@@ -11,6 +11,7 @@ import { gitlabLearnings } from "./gitlab-learnings.js";
 import { gitlabMergeStatus } from "./gitlab-merge-status.js";
 import { gitlabPulls } from "./gitlab-pulls.js";
 import { gitlabQueue } from "./gitlab-queue.js";
+import { gitlabReactions } from "./gitlab-reactions.js";
 import { gitlabReadiness } from "./gitlab-readiness.js";
 import { gitlabReconcile } from "./gitlab-reconcile.js";
 import { gitlabReleases } from "./gitlab-releases.js";
@@ -84,6 +85,7 @@ export function gitlab(client: GitlabClient, redirectUri: string): CodePlatform 
     reviewers: gitlabReviewers(client.url),
     roster: gitlabRoster(client.url),
     threads: gitlabThreads(client.url),
+    reactions: gitlabReactions(client.url),
     edits: gitlabEdits(client.url),
     issues: gitlabIssues(client.url),
     releases: gitlabReleases(client.url),

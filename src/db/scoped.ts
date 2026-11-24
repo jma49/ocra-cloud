@@ -397,7 +397,7 @@ export function scoped(db: Db, accountId: string) {
           je."lineEnd", je."title", je."body", je."suggestion", je."code", je."redacted",
           je."truncated", ${now.getTime()}, 'open', NULL, NULL, NULL, je."position",
           je."fixStartLine", je."fixEndLine", je."fixReplacement", NULL, NULL,
-          je."lowConfidence", je."evidence"
+          je."lowConfidence", je."evidence", 0, 0, NULL
         FROM ${jsonRecords(db, rows, FINDING_FIELDS)}
         WHERE EXISTS (SELECT 1 FROM reviews WHERE id = ${review.id} AND account_id = ${accountId})
           AND ${findingsCounted(accountId, now, limits.findingsDays)} + ${list.length} <= ${limits.maxFindings}`);

@@ -1,7 +1,8 @@
-import { and, eq, isNotNull, or, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import type { ThreadDismissalState } from "../shared/index.js";
 import { changedRows, type Db } from "./client.js";
-import { findings, findingThreads, reviews } from "./schema.js";
+import { jsonRecords } from "./dialect.js";
+import { closedPulls, findings, findingThreads, reviews } from "./schema.js";
 
 // The threads ocra's comments of findings started on an enrolled
 // repository's pull requests, and what people did to them on the platform
@@ -21,6 +22,21 @@ export type FindingThreadStart = {
   threadKey: string;
   fingerprint: string;
   starterId: string;
+  /** The platform's id of the comment, when the event names it. */
+  commentId?: string | undefined;
+};
+
+/** Which of a repository's finding threads are due a read of their comment's reactions. */
+export type ReactionsDue = {
+  /** The repository as a review's prRepository names it. */
+  repository: string;
+  /** Pull requests whose threads are read: open ones, or the one whose page loads. */
+  numbers: readonly number[];
+  /** Also the threads of its pull requests merged since (closed_pulls). */
+  mergedSince?: Date | undefined;
+  /** Threads read since are not due. */
+  readBefore: Date;
+  limit: number;
 };
 
 type OnThread = { reviewRepoId: string; threadKey: string };
@@ -55,12 +71,25 @@ export function accountFindingThreads(db: Db, accountId: string) {
       eq(t.threadKey, on.threadKey),
     );
   return {
-    /** Keeps the thread's start; one already on record stays as it is. */
+    /** Keeps the thread's start; one already on record stays as it is, its comment's id filled in. */
     async start(s: FindingThreadStart, now = new Date()): Promise<void> {
+      const { commentId, ...start } = s;
+      const values = { id: crypto.randomUUID(), accountId, ...start, seenAt: now };
+      if (!commentId) {
+        await db
+          .insert(t)
+          .values(values)
+          .onConflictDoNothing({ target: [t.reviewRepoId, t.threadKey] });
+        return;
+      }
       await db
         .insert(t)
-        .values({ id: crypto.randomUUID(), accountId, ...s, seenAt: now })
-        .onConflictDoNothing({ target: [t.reviewRepoId, t.threadKey] });
+        .values({ ...values, commentId })
+        .onConflictDoUpdate({
+          target: [t.reviewRepoId, t.threadKey],
+          set: { commentId },
+          setWhere: isNull(t.commentId),
+        });
     },
 
     /** The thread on record: who started it, of which finding, and what it says now. */
@@ -72,11 +101,67 @@ export function accountFindingThreads(db: Db, accountId: string) {
           repository: t.repository,
           number: t.number,
           fingerprint: t.fingerprint,
+          commentId: t.commentId,
         })
         .from(t)
         .where(thread(on))
         .limit(1);
       return row ?? null;
+    },
+
+    /** The threads due a read of their comment's reactions, those read longest ago first. */
+    reactionsDue(due: ReactionsDue) {
+      if (due.numbers.length === 0 && !due.mergedSince) return Promise.resolve([]);
+      const c = closedPulls;
+      const merged = due.mergedSince
+        ? sql`EXISTS (SELECT 1 FROM ${c} WHERE ${c.accountId} = ${accountId}
+            AND ${c.reviewRepoId} = ${t.reviewRepoId} AND ${c.number} = ${t.number}
+            AND ${eq(c.merged, true)} AND ${gte(c.closedAt, due.mergedSince)})`
+        : undefined;
+      return db
+        .select({
+          threadKey: t.threadKey,
+          commentId: sql<string>`${t.commentId}`,
+          number: t.number,
+          fingerprint: t.fingerprint,
+        })
+        .from(t)
+        .where(
+          and(
+            eq(t.accountId, accountId),
+            eq(t.repository, due.repository.toLowerCase()),
+            isNotNull(t.commentId),
+            or(isNull(t.reactionsAt), lt(t.reactionsAt, due.readBefore)),
+            or(
+              due.numbers.length > 0
+                ? sql`${t.number} IN (SELECT je.n FROM ${jsonRecords(
+                    db,
+                    JSON.stringify(due.numbers.map((n) => ({ n }))),
+                    { n: "bigint" },
+                  )})`
+                : undefined,
+              merged,
+            ),
+          ),
+        )
+        .orderBy(asc(sql`coalesce(${t.reactionsAt}, 0)`), asc(t.id))
+        .limit(due.limit);
+    },
+
+    /** Records that these threads' reactions were read at `at`. */
+    async reactionsRead(repository: string, threadKeys: readonly string[], at: Date) {
+      if (threadKeys.length === 0) return;
+      await db
+        .update(t)
+        .set({ reactionsAt: at })
+        .where(
+          and(
+            eq(t.accountId, accountId),
+            eq(t.repository, repository.toLowerCase()),
+            inArray(t.threadKey, [...threadKeys]),
+            or(isNull(t.reactionsAt), lt(t.reactionsAt, at)),
+          ),
+        );
     },
 
     /** Records that a person resolved the thread or opened it again; whether it changed. */
