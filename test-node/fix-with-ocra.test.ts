@@ -326,6 +326,28 @@ describe("a fix's run", () => {
       job: { id: job?.id, state: "queued", error: null },
     });
   });
+
+  it("can be asked again when the fixer's call failed, not after another answer without a fix", async () => {
+    await ask({ finding: findingId });
+    const [job] = await jobs();
+    const answered = (reason: "syntax" | "failed") =>
+      scoped(s.host.db, accountId).update("fixJobs", job?.id ?? "", {
+        state: "done",
+        outcome: "rejected",
+        reason,
+        finishedAt: new Date(),
+      });
+    await answered("syntax");
+    expect(await (await ask({ finding: findingId })).json()).toMatchObject({
+      outcome: "requested",
+      job: { state: "done", reason: "syntax" },
+    });
+    await answered("failed");
+    expect(await (await ask({ finding: findingId })).json()).toMatchObject({
+      outcome: "queued",
+      job: { id: job?.id, state: "queued", outcome: null, reason: null, finishedAt: null },
+    });
+  });
 });
 
 describe("a remote runner", () => {
