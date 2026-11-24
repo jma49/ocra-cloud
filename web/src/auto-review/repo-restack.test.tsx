@@ -20,6 +20,7 @@ const job = (over: Partial<RestackJobView>): RestackJobView => ({
   onto: "main",
   from: "aaaaaaa1111",
   to: "bbbbbbb2222",
+  askedBy: null,
   state: "done",
   outcome: "restacked",
   reason: null,

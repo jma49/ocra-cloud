@@ -29,7 +29,7 @@ const app = createApp({
   }),
 });
 
-async function ask(a: Session, path: string, init: RequestInit = {}) {
+export async function ask(a: Session, path: string, init: RequestInit = {}) {
   const ctx = createExecutionContext();
   const headers = { cookie: a.cookie, origin: ORIGIN, ...init.headers };
   const res = await app.fetch(new Request(ORIGIN + path, { ...init, headers }), env, ctx);

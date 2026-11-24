@@ -81,8 +81,27 @@ const job = (repo: Repo, head: string, upstream: string): RestackAssignment => (
   leaseUntil: new Date(Date.now() + 60_000),
   repo: { platform: "github", url: repo.url, fullName: "octo/api" },
   bot: { token: "ghs_bot", login: "ocra-review[bot]" },
-  restack: { branch: "step-2", head, onto: { branch: "main", commit: null }, upstream },
+  restack: {
+    branch: "step-2",
+    head,
+    onto: { branch: "main", commit: null },
+    upstream,
+    fork: false,
+  },
 });
+
+/** One asked for by hand: step-2 onto step-1 as it is now, with no old head of step-1 recorded. */
+const asked = (repo: Repo, head: string, parentHead: string): RestackAssignment => {
+  const base = job(repo, head, parentHead);
+  return {
+    ...base,
+    restack: {
+      ...base.restack,
+      onto: { branch: "step-1", commit: parentHead },
+      fork: true,
+    },
+  };
+};
 
 const remoteHead = (repo: Repo, branch: string) => git(repo.bare, "rev-parse", branch);
 
@@ -168,5 +187,51 @@ describe("a restack's run", () => {
     const gone = { ...job(repo, repo.child, repo.parent) };
     gone.repo = { ...gone.repo, fullName: "octo/missing" };
     expect(await runRestack(exec, gone)).toEqual({ failure: "clone_failed" });
+  });
+});
+
+describe("a restack asked for by hand", () => {
+  it("rebases the layer onto the new head of the one below, dropping what they share", async () => {
+    const repo = await stacked();
+    git(repo.work, "checkout", "--quiet", "step-1");
+    const moved = await repo.commit({ "e.txt": "five\n" }, "parent, more");
+    git(repo.work, "push", "--quiet", "origin", "step-1");
+    const ran = await runRestack(spawnExec, asked(repo, repo.child, moved));
+    expect(ran).toMatchObject({ outcome: "restacked" });
+    const pushed = "head" in ran ? ran.head : "";
+    expect(remoteHead(repo, "step-2")).toBe(pushed);
+    expect(git(repo.bare, "rev-list", `${moved}..step-2`).split("\n")).toEqual([pushed]);
+    expect(git(repo.bare, "rev-parse", "step-2^")).toBe(moved);
+  });
+
+  it("drops the parent's old commits when the parent was rewritten to the same change", async () => {
+    const repo = await stacked();
+    git(repo.work, "checkout", "--quiet", "step-1");
+    git(repo.work, "commit", "--quiet", "--amend", "--message", "parent, reworded");
+    const rewritten = git(repo.work, "rev-parse", "HEAD");
+    git(repo.work, "push", "--quiet", "--force", "origin", "step-1");
+    const ran = await runRestack(spawnExec, asked(repo, repo.child, rewritten));
+    expect(ran).toMatchObject({ outcome: "restacked" });
+    expect(git(repo.bare, "rev-list", `${rewritten}..step-2`).split("\n")).toHaveLength(1);
+  });
+
+  it("has nothing to do when the layer already holds the head below it", async () => {
+    const repo = await stacked();
+    expect(await runRestack(spawnExec, asked(repo, repo.child, repo.parent))).toEqual({
+      outcome: "skipped",
+      reason: "up_to_date",
+    });
+    expect(remoteHead(repo, "step-2")).toBe(repo.child);
+  });
+
+  it("pushes nothing on a conflict", async () => {
+    const repo = await stacked();
+    git(repo.work, "checkout", "--quiet", "step-2");
+    const child = await repo.commit({ "b.txt": "two, the child's\n" }, "child edits b");
+    git(repo.work, "checkout", "--quiet", "step-1");
+    const moved = await repo.commit({ "b.txt": "two, the parent's\n" }, "parent edits b");
+    git(repo.work, "push", "--quiet", "origin", "step-1", "step-2");
+    expect(await runRestack(spawnExec, asked(repo, child, moved))).toEqual({ outcome: "conflict" });
+    expect(remoteHead(repo, "step-2")).toBe(child);
   });
 });
