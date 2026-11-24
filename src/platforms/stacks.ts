@@ -36,6 +36,18 @@ export interface PullStacks {
   /** The open pull requests whose base is `branch`, their heads in the repository itself. */
   children(token: string, fullName: string, branch: string): Promise<OpenPull[] | null>;
   standing(token: string, fullName: string, number: number): Promise<LayerStanding | null>;
+  /**
+   * The latest pull request merged from `head` into `base` at or after `since`, its head in the
+   * repository, from one call listing `head`'s newest MERGED_FROM_PAGE; null when none merged so,
+   * when one from `head` is still open (the branch lives on), or when unreached.
+   */
+  mergedFrom(
+    token: string,
+    fullName: string,
+    head: string,
+    base: string,
+    since: Date,
+  ): Promise<number | null>;
   /** For each pair, how many of `base`'s commits `head` lacks; null where it could not be read. */
   behind(token: string, fullName: string, pairs: readonly BranchPair[]): Promise<(number | null)[]>;
   /** Sets a pull request's base branch. */
@@ -48,6 +60,24 @@ export interface PullStacks {
 }
 
 export const MAX_STACK = 20;
+
+/** Pull requests from one head branch `mergedFrom` reads, newest first: a branch is seldom reused. */
+export const MERGED_FROM_PAGE = 20;
+
+/** A listed pull request from a head branch, as `mergedFrom` weighs it. */
+export type FromHead = { number: number; open: boolean; base: string; mergedAt: string | null };
+
+/** The latest of `listed` merged into `base` at or after `since`, unless one is still open. */
+export function latestMerged(listed: readonly FromHead[], base: string, since: Date) {
+  if (listed.some((p) => p.open)) return null;
+  let latest: { number: number; at: number } | null = null;
+  for (const p of listed) {
+    const at = p.mergedAt ? Date.parse(p.mergedAt) : Number.NaN;
+    if (p.base !== base || !(at >= since.getTime())) continue;
+    if (!latest || at > latest.at) latest = { number: p.number, at };
+  }
+  return latest?.number ?? null;
+}
 
 export type Stack = { trunk: string; pulls: Omit<StackedPull, "behind">[] };
 
