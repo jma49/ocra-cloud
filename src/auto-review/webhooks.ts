@@ -33,9 +33,10 @@ import type { AutoReviewService } from "./routes.js";
 // description is edited; its later events run the automation rules on it
 // (src/automations/pull-events.ts). GitLab's note hook, on the same
 // address, queues answers (./replies.ts); its merge request and pipeline
-// hooks also move
-// the intents armed to merge when ready (src/merge-when-ready/), and a
-// failed merge request pipeline tells its author (src/notify/ci-hooks.ts).
+// hooks also move the intents armed to merge when ready
+// (src/merge-when-ready/) and the stacks (a merge, or a move off a branch
+// merged lately, src/stack-merge/hooks.ts), and a failed merge request
+// pipeline tells its author (src/notify/ci-hooks.ts).
 // A GitHub pull request event naming the repository by a new path renames
 // it (./lifecycle.ts); a GitLab hook's path is not trusted for that (its
 // secret proves the project's id only), the daily reconciliation reads it.
