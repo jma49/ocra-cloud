@@ -13,6 +13,7 @@ import { z } from "zod";
 import { accountSalt } from "./db/accounts.js";
 import { apiError, jsonBody } from "./http.js";
 import { learningFile, parseLearning } from "./learning-file.js";
+import { unmatchedPaths } from "./learning-paths.js";
 import { COMMIT_ID } from "./platforms/contents.js";
 import { type FileChange, type FileRead, proposalBranch } from "./platforms/files.js";
 import { type CodePlatform, repoHashOf } from "./platforms/platform.js";
@@ -174,13 +175,16 @@ learningsRoute.get("/", requireSession(["web"]), perMinute("platform"), async (c
   const after = query.data.after;
   const rest = after === undefined ? named : named.filter((e) => e.id > after);
   const page = rest.slice(0, LEARNINGS_PAGE);
-  const reads = await platform.files.read(
-    token,
-    head,
-    head.commit,
-    page.map((e) => e.path),
-    MAX_LEARNING_BYTES,
-  );
+  const [reads, tree] = await Promise.all([
+    platform.files.read(
+      token,
+      head,
+      head.commit,
+      page.map((e) => e.path),
+      MAX_LEARNING_BYTES,
+    ),
+    platform.contents.tree(token, head, head.commit),
+  ]);
   if (!reads) return apiError(c, "upstream_unreachable");
   const { learnings, invalid } = viewsOf(reads);
   const usage = await usageOf(
@@ -209,6 +213,7 @@ learningsRoute.get("/", requireSession(["web"]), perMinute("platform"), async (c
     total: named.length,
     usage,
     usageDays: USAGE_DAYS,
+    unmatchedPaths: unmatchedPaths(learnings, tree),
     next: rest.length > page.length ? (page.at(-1)?.id ?? null) : null,
     declined: await declinedOf(c, platform, head.fullName),
   } satisfies LearningsView);

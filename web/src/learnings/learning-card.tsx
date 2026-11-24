@@ -20,13 +20,37 @@ function used(u: LearningUsageView, days: number) {
   return `used in ${u.reviews} review${u.reviews === 1 ? "" : "s"}${last}`;
 }
 
+/** Why paths that match no file matter: what can still give the learning to a review. */
+function unmatchedNote(l: LearningView, gone: readonly string[], branch: string) {
+  const list = gone.map((p, i) => (
+    <span key={p}>
+      {i > 0 && ", "}
+      <span className="mono">{p}</span>
+    </span>
+  ));
+  const rest =
+    gone.length < l.paths.length
+      ? "Its other paths still apply."
+      : l.keywords.length > 0 || l.symbols.length > 0
+        ? "Reviews give it only by its symbols and keywords until its paths are edited."
+        : "Reviews no longer give it until its paths are edited.";
+  return (
+    <p className="small m-0">
+      No file on {branch} matches {list}. {rest}
+    </p>
+  );
+}
+
 export function LearningCard(props: {
   learning: LearningView;
   /** The reviews given this learning over the last `days`; absent where nothing counts them. */
   usage?: { of: LearningUsageView; days: number } | undefined;
+  /** Its paths that match no file on `branch`; absent when all match or nothing was checked. */
+  unmatched?: { paths: readonly string[]; branch: string } | undefined;
   actions?: ReactNode;
 }) {
   const l = props.learning;
+  const gone = props.unmatched?.paths ?? [];
   const [open, setOpen] = useState(false);
   const text = useId();
   return (
@@ -41,6 +65,16 @@ export function LearningCard(props: {
         >
           <span className="strong">
             {l.title} {l.critical && <span className="badge badge-err">Critical</span>}
+            {gone.length > 0 && (
+              <>
+                {" "}
+                <span className="badge badge-warn">
+                  {gone.length < l.paths.length
+                    ? "Some paths match no file"
+                    : "Paths match no file"}
+                </span>
+              </>
+            )}
           </span>
           <span className="subtle small">
             <span className="mono">{l.id}</span>
@@ -54,6 +88,7 @@ export function LearningCard(props: {
         {props.actions}
       </div>
       <div className="learning-text" id={text} hidden={!open}>
+        {props.unmatched && gone.length > 0 && unmatchedNote(l, gone, props.unmatched.branch)}
         <Markdown text={l.body} />
         {(l.symbols.length > 0 || l.keywords.length > 0) && (
           <p className="subtle small m-0">

@@ -74,6 +74,7 @@ function serve(answer: { outcome: string; pull: unknown }) {
         total: 2,
         usage: { "refund-cap": { reviews: 4, lastUsedAt: new Date().toISOString() } },
         usageDays: 90,
+        unmatchedPaths: { "refund-cap": ["src/refunds/**"] },
         next: null,
       });
     }),
@@ -149,6 +150,23 @@ describe("the Learnings page", () => {
     await screen.findByText("Refunds never exceed what was captured");
     await act(async () => void fireEvent.click(screen.getByRole("button", { name: "Delete" })));
     expect(screen.getByText(/changed since this page read it/)).toBeTruthy();
+  });
+
+  it("marks a learning whose paths match no file, and says what still gives it to reviews", async () => {
+    serve({ outcome: "done", pull: null });
+    render(<Learnings />);
+    await screen.findByText("Refunds never exceed what was captured");
+    expect(screen.getByText("Paths match no file")).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole("button", { name: /^Refunds never exceed what was captured/ }),
+    );
+    expect(
+      screen.getByText(
+        /Reviews give it only by its symbols and keywords until its paths are edited/,
+      ).textContent,
+    ).toBe(
+      "No file on main matches src/refunds/**. Reviews give it only by its symbols and keywords until its paths are edited.",
+    );
   });
 
   it("names a new learning's file after its title", () => {

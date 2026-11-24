@@ -26,6 +26,11 @@ import { ActionError, LoadError, Loading, PageHead, useAction, useLoad } from ".
 
 const NEVER_USED = { reviews: 0, lastUsedAt: null };
 
+function unmatchedOf(view: LearningsView | undefined, id: string) {
+  const paths = view?.unmatchedPaths?.[id];
+  return paths && { paths, branch: view.branch };
+}
+
 export function Learnings() {
   const choice = useRepoChoice("/learnings");
   return (
@@ -110,6 +115,7 @@ function RepoLearnings(props: { at: RepoChoice }) {
                 key={l.id}
                 learning={l}
                 usage={usage && { of: usage.of[l.id] ?? NEVER_USED, days: usage.days }}
+                unmatched={unmatchedOf(page.data, l.id)}
                 actions={
                   <span className="row-actions">
                     <button

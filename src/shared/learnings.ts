@@ -47,6 +47,11 @@ export type LearningsView = {
   /** Per learning of this page: the repository's reviews given it in the last usageDays. */
   usage: Record<string, LearningUsageView>;
   usageDays: number;
+  /**
+   * Per learning of this page, its paths that match no file at the commit:
+   * reviews no longer give it by path. null when the files could not all be listed.
+   */
+  unmatchedPaths: Record<string, string[]> | null;
   /** The `after` of the next page; null on the last. */
   next: string | null;
   /** How the findings people decline become learnings here; null unless the server reviews the repository. */
