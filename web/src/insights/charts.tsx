@@ -18,9 +18,17 @@ const tone = (name: string) =>
   getComputedStyle(document.documentElement).getPropertyValue(`--${name}`).trim();
 const line = (name: string, datapoints: Point[]) => ({ name, datapoints });
 
-function Chart(props: { title: string; sub: string; wide?: boolean; children: ReactNode }) {
+function Chart(props: {
+  title: string;
+  sub: string;
+  wide?: boolean;
+  /** Over time: its value lines only, no line per date (the library draws both). */
+  time?: boolean;
+  children: ReactNode;
+}) {
+  const kind = `${props.wide ? " wide" : ""}${props.time ? " over-time" : ""}`;
   return (
-    <section className={`card chart-card${props.wide ? " wide" : ""}`} aria-label={props.title}>
+    <section className={`card chart-card${kind}`} aria-label={props.title}>
       <div className="chart-head">
         <h2>{props.title}</h2>
         <span className="subtle">{props.sub}</span>
@@ -45,7 +53,7 @@ export default function Charts(props: ChartsProps) {
   return (
     <AppRoot key={isDark() ? "dark" : "light"}>
       <div className="charts">
-        <Chart title="Findings by severity" sub="per day" wide>
+        <Chart title="Findings by severity" sub="per day" wide time>
           {flat(daily.critical) && flat(daily.warning) && flat(daily.suggestion) ? (
             <EmptyNote>No findings in this period</EmptyNote>
           ) : (
@@ -84,7 +92,7 @@ export default function Charts(props: ChartsProps) {
             </CategoricalBarChart>
           )}
         </Chart>
-        <Chart title="Spend" sub="USD per day" wide>
+        <Chart title="Spend" sub="USD per day" wide time>
           {flat(daily.spend) ? (
             <EmptyNote>Nothing spent in this period</EmptyNote>
           ) : (
@@ -98,7 +106,7 @@ export default function Charts(props: ChartsProps) {
             </TimeseriesChart>
           )}
         </Chart>
-        <Chart title="Review time" sub="seconds, p50 and p95">
+        <Chart title="Review time" sub="seconds, p50 and p95" time>
           {daily.p50.length === 0 ? (
             <EmptyNote>No reviews in this period</EmptyNote>
           ) : (
