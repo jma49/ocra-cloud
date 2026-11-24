@@ -1,3 +1,7 @@
+import BookOpenText from "lucide-react/icons/book-open-text";
+import Circle from "lucide-react/icons/circle";
+import CircleCheck from "lucide-react/icons/circle-check";
+import Code from "lucide-react/icons/code";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import type {
   FixProposalView,
@@ -261,8 +265,8 @@ export function FileDiff(props: {
               label={`Show ${name} as`}
               value={view}
               options={[
-                { value: "diff", label: "Diff" },
-                { value: "rendered", label: "Rendered" },
+                { value: "diff", label: "Diff", icon: Code },
+                { value: "rendered", label: "Rendered", icon: BookOpenText },
               ]}
               onChange={(v) => {
                 setView(v);
@@ -271,13 +275,19 @@ export function FileDiff(props: {
             />
           </span>
         )}
-        <label className="check small diff-viewed">
+        <label className={`diff-viewed${props.viewed ? " is-viewed" : ""}`}>
           <input
             type="checkbox"
+            className="diff-viewed-box"
             aria-label={`Viewed ${file.path}`}
             checked={props.viewed}
             onChange={(e) => props.onViewed(e.target.checked)}
           />
+          {props.viewed ? (
+            <CircleCheck size={14} aria-hidden="true" />
+          ) : (
+            <Circle size={14} aria-hidden="true" />
+          )}
           Viewed
         </label>
       </div>

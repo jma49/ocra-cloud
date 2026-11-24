@@ -361,8 +361,10 @@ export function PullPage(props: {
         </aside>
         <div className="pull-main">
           <SearchBar search={search} />
-          <DiffBar layout={layout} wrap={wrap} whitespace={whitespace} />
-          <SinceBar since={since} versions={versions} />
+          <div className="diff-toolbar">
+            <SinceBar since={since} versions={versions} />
+            <DiffBar layout={layout} wrap={wrap} whitespace={whitespace} />
+          </div>
           <FixJobsOf query={query.toString()} onProposed={fixProposed}>
             {shown.map((f) => (
               <FileDiff

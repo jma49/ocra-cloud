@@ -1,3 +1,4 @@
+import type { LucideIcon } from "lucide-react";
 import MapPinOff from "lucide-react/icons/map-pin-off";
 import TriangleAlert from "lucide-react/icons/triangle-alert";
 import {
@@ -13,6 +14,7 @@ import {
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Tooltip, TooltipPopup, TooltipTrigger } from "@/components/ui/tooltip";
 import type { SignInMethod } from "../../src/shared/index.js";
 import { api, type Day, needsSignIn, type ProviderInfo, why } from "./api.js";
 import { compact } from "./format.js";
@@ -61,7 +63,8 @@ export function PageHead(props: {
 /** One choice of a few, as toggle buttons (not tabs: no panels follow). */
 export function Seg<T extends string | number>(props: {
   value: T;
-  options: { value: T; label: string }[];
+  /** With an icon, an option shows only it, its label as its name and in a tooltip. */
+  options: { value: T; label: string; icon?: LucideIcon }[];
   onChange: (v: T) => void;
   label: string;
 }) {
@@ -79,11 +82,26 @@ export function Seg<T extends string | number>(props: {
         if (picked) props.onChange(picked.value);
       }}
     >
-      {props.options.map((o) => (
-        <ToggleGroupItem key={String(o.value)} value={String(o.value)}>
-          {o.label}
-        </ToggleGroupItem>
-      ))}
+      {props.options.map((o) => {
+        if (!o.icon) {
+          return (
+            <ToggleGroupItem key={String(o.value)} value={String(o.value)}>
+              {o.label}
+            </ToggleGroupItem>
+          );
+        }
+        const Icon = o.icon;
+        return (
+          <Tooltip key={String(o.value)}>
+            <TooltipTrigger
+              render={<ToggleGroupItem value={String(o.value)} aria-label={o.label} />}
+            >
+              <Icon size={14} aria-hidden="true" />
+            </TooltipTrigger>
+            <TooltipPopup>{o.label}</TooltipPopup>
+          </Tooltip>
+        );
+      })}
     </ToggleGroup>
   );
 }

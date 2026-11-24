@@ -1268,17 +1268,42 @@ td.finding-cell {
   padding: 24px;
   overflow-wrap: anywhere;
 }
+/* Viewed: a quiet control like the view's icons, its box out of sight, a ring that fills with a check once viewed. */
 .diff-viewed {
+  position: relative;
   flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--ctl-h);
   margin-right: 8px;
-  padding: 4px 8px;
-  border-radius: var(--r-tab);
+  padding: 0 8px;
+  border-radius: var(--r-ctl);
   white-space: nowrap;
-  color: var(--t2);
+  font-size: var(--text-sm);
+  color: var(--t3);
   cursor: pointer;
 }
 .diff-viewed:hover {
-  background: var(--fill);
+  background: var(--fill2);
+  color: var(--t1);
+}
+.diff-viewed.is-viewed {
+  color: var(--t2);
+}
+.diff-viewed.is-viewed svg {
+  color: var(--green);
+}
+.diff-viewed-box {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.diff-viewed:has(.diff-viewed-box:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
 }
 .diff-head {
   display: flex;
@@ -1508,11 +1533,30 @@ td.finding-cell {
   background: color-mix(in srgb, var(--blue) 40%, transparent);
   box-shadow: 0 0 0 1px var(--blue);
 }
+/* One line over the diffs: which changes are shown on the left, how they are drawn on the right. */
+.diff-toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px 16px;
+  flex-wrap: wrap;
+}
+.diff-toolbar > section {
+  flex: 1 1 auto;
+  min-width: 0;
+}
 .diff-bar {
+  flex: none;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 16px;
+  gap: 4px;
+  margin-left: auto;
+}
+.diff-bar-rule {
+  width: 0.5px;
+  height: 16px;
+  margin: 0 4px;
+  background: var(--hair2);
 }
 .diff-hunk td {
   padding: 4px 16px;

@@ -73,11 +73,13 @@ function Bar() {
 
 it("remembers the choice in this browser", () => {
   const { unmount } = render(<Bar />);
-  fireEvent.click(screen.getByLabelText("Hide whitespace"));
+  fireEvent.click(screen.getByRole("button", { name: "Hide whitespace" }));
   expect(localStorage.getItem("ocra-diff-whitespace")).toBe("hide");
   unmount();
   render(<Bar />);
-  expect((screen.getByLabelText("Hide whitespace") as HTMLInputElement).checked).toBe(true);
+  expect(screen.getByRole("button", { name: "Hide whitespace" }).getAttribute("aria-pressed")).toBe(
+    "true",
+  );
 });
 
 it("toggles on w from the page's keys", () => {

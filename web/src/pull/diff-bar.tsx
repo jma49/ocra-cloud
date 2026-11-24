@@ -1,10 +1,15 @@
+import Columns2 from "lucide-react/icons/columns-2";
+import Pilcrow from "lucide-react/icons/pilcrow";
+import Rows2 from "lucide-react/icons/rows-2";
+import WrapText from "lucide-react/icons/wrap-text";
 import { Seg } from "../ui.js";
+import { ViewToggle } from "../view-toggle.js";
 import type { useDiffLayout, useDiffWhitespace, useDiffWrap } from "./diff-layout.js";
 
 /**
- * Over the diffs: whether whitespace-only changes are left out, whether long
- * lines wrap, and whether diffs are unified or side by side. A phone wraps
- * and draws them unified.
+ * Beside the changes shown: whether whitespace-only changes are left out,
+ * whether long lines wrap, and whether diffs are unified or side by side,
+ * each an icon named in its tooltip. A phone wraps and draws them unified.
  */
 export function DiffBar(props: {
   layout: ReturnType<typeof useDiffLayout>;
@@ -14,30 +19,27 @@ export function DiffBar(props: {
   const { layout, wrap, whitespace } = props;
   return (
     <div className="diff-bar">
-      <label className="check small">
-        <input
-          type="checkbox"
-          checked={whitespace.hidden}
-          onChange={(e) => whitespace.pick(e.target.checked)}
-        />
-        Hide whitespace
-      </label>
+      <ViewToggle
+        label="Hide whitespace"
+        icon={Pilcrow}
+        pressed={whitespace.hidden}
+        onChange={whitespace.pick}
+      />
       {!layout.narrow && (
         <>
-          <label className="check small">
-            <input
-              type="checkbox"
-              checked={wrap.picked}
-              onChange={(e) => wrap.pick(e.target.checked)}
-            />
-            Wrap lines
-          </label>
+          <ViewToggle
+            label="Wrap lines"
+            icon={WrapText}
+            pressed={wrap.picked}
+            onChange={wrap.pick}
+          />
+          <span className="diff-bar-rule" aria-hidden="true" />
           <Seg
             label="Diff layout"
             value={layout.picked}
             options={[
-              { value: "unified", label: "Unified" },
-              { value: "split", label: "Split" },
+              { value: "unified", label: "Unified", icon: Rows2 },
+              { value: "split", label: "Split", icon: Columns2 },
             ]}
             onChange={layout.pick}
           />
