@@ -2,6 +2,7 @@ import { outcomeOf } from "./actions.js";
 import { githubHeaders, githubRepoPath } from "./github-changes.js";
 import type { GithubGraphql, GithubHost } from "./github-host.js";
 import { CHECKS, REVIEW } from "./github-pulls.js";
+import { type Context, runOf } from "./github-readiness.js";
 import { platformCall, platformSend } from "./http.js";
 import {
   type BranchPair,
@@ -29,11 +30,20 @@ const query = (
   }
 }`;
 
+/** The head's checks with whether the base branch requires each, as merge readiness reads them. */
+const REQUIRED_ROLLUP = `commits(last: 1) { nodes { commit { statusCheckRollup { state
+  contexts(first: 100) { pageInfo { hasNextPage } nodes {
+    __typename
+    ... on CheckRun { name status conclusion isRequired(pullRequestNumber: $number) }
+    ... on StatusContext { context state isRequired(pullRequestNumber: $number) }
+  } }
+} } } }`;
+
 const STANDING = (checks: boolean) => `query($owner: String!, $name: String!, $number: Int!) {
   repository(owner: $owner, name: $name) {
     pullRequest(number: $number) {
       state headRefOid headRefName baseRefName mergeStateStatus mergeCommit { oid }
-      ${checks ? ROLLUP : ""}
+      ${checks ? REQUIRED_ROLLUP : ""}
     }
   }
 }`;
@@ -53,7 +63,16 @@ type BehindAnswer = {
 };
 
 type Rollup = {
-  commits?: { nodes: { commit: { statusCheckRollup: { state: string } | null } }[] };
+  commits?: {
+    nodes: {
+      commit: {
+        statusCheckRollup: {
+          state: string;
+          contexts?: { pageInfo: { hasNextPage: boolean }; nodes: Context[] };
+        } | null;
+      };
+    }[];
+  };
 };
 type Node = Rollup & {
   number: number;
@@ -112,10 +131,28 @@ const openPull = (n: Node): OpenPull => {
 /** UNSTABLE is a failing check that is not required: GitHub merges it. */
 const MERGEABLE = new Set(["CLEAN", "HAS_HOOKS", "UNSTABLE"]);
 
+/**
+ * The head's required checks as one state, as merge readiness counts them: a
+ * failing check the base branch does not require blocks nothing. Null when
+ * not every check was read, so only the rollup is left to go by.
+ */
+function requiredChecks(layer: Layer): "failing" | "pending" | "passing" | null {
+  const contexts = layer.commits?.nodes[0]?.commit.statusCheckRollup?.contexts;
+  if (!contexts || contexts.pageInfo.hasNextPage) return null;
+  const runs = contexts.nodes.flatMap((n) => (n ? [runOf(n)] : [])).filter((r) => r.required);
+  if (runs.some((r) => r.state === "failed")) return "failing";
+  return runs.some((r) => r.state === "pending") ? "pending" : "passing";
+}
+
 function blockerOf(layer: Layer): LayerStanding["blocker"] {
   if (MERGEABLE.has(layer.mergeStateStatus)) return null;
   if (layer.mergeStateStatus === "BEHIND") return "behind";
   if (layer.mergeStateStatus === "DIRTY") return "conflicts";
+  const required = requiredChecks(layer);
+  if (required === "failing") return "checks_failed";
+  if (required === "pending") return "checks_pending";
+  // Its required checks passed: what holds it is the platform's (a review, a state still being worked out).
+  if (required === "passing") return "waiting";
   const checks = CHECKS[rollupOf(layer) ?? ""];
   if (checks === "failing") return "checks_failed";
   if (checks === "pending") return "checks_pending";

@@ -38,6 +38,23 @@ beforeEach(resetDb);
 afterEach(() => vi.restoreAllMocks());
 
 describe("a stack merge under required checks", () => {
+  it("goes past a failing check the trunk does not require, and stops on one it does", async () => {
+    const lint = { name: "lint", conclusion: "FAILURE" as const, required: false };
+    const test = { name: "test", conclusion: "SUCCESS" as const, required: true };
+    const fake = github([
+      layer(1, "main"),
+      layer(2, "step-1", { mergeState: "BLOCKED", checks: "FAILURE", runs: [lint, test] }),
+      layer(3, "step-2"),
+    ]);
+    const { answer, data } = await start(3);
+    expect(answer.job).toMatchObject({ step: 1, state: "waiting", reason: "waiting_platform" });
+
+    Object.assign(fake.pulls.get(2) ?? {}, { runs: [lint, { ...test, conclusion: "FAILURE" }] });
+    await moveStackMerges(runner(), await enroll(data), "octo/api", { head: sha(2) });
+    const job = await data.stackMerges.byId(answer.job?.id ?? "");
+    expect(job).toMatchObject({ step: 1, state: "failed", reason: "checks_failed" });
+  });
+
   it("merges the bottom at once, then each layer once its checks pass, all three in the end", async () => {
     const fake = github([
       layer(1, "main"),

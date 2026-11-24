@@ -25,8 +25,26 @@ export type Fake = {
   state: "OPEN" | "MERGED" | "CLOSED";
   mergeState: string;
   checks: "SUCCESS" | "PENDING" | "FAILURE" | null;
+  /** The head's check runs, each with whether the base branch requires it. */
+  runs?: { name: string; conclusion: "SUCCESS" | "FAILURE" | null; required: boolean }[];
 };
 export type Sent = { method: string; url: string; body: unknown };
+
+const rollup = (p: Fake) => ({
+  state: p.checks,
+  ...(p.runs && {
+    contexts: {
+      pageInfo: { hasNextPage: false },
+      nodes: p.runs.map((r) => ({
+        __typename: "CheckRun",
+        name: r.name,
+        status: r.conclusion ? "COMPLETED" : "IN_PROGRESS",
+        conclusion: r.conclusion,
+        isRequired: r.required,
+      })),
+    },
+  }),
+});
 
 /** A GitHub repository whose pull requests move as the writes sent to it say. */
 export function github(pulls: Fake[], options: { refuseRetarget?: boolean } = {}) {
@@ -48,7 +66,7 @@ export function github(pulls: Fake[], options: { refuseRetarget?: boolean } = {}
     state: p.state,
     mergeStateStatus: p.mergeState,
     mergeCommit: p.state === "MERGED" ? { oid: mergeOf(p.number) } : null,
-    commits: { nodes: [{ commit: { statusCheckRollup: p.checks ? { state: p.checks } : null } }] },
+    commits: { nodes: [{ commit: { statusCheckRollup: p.checks ? rollup(p) : null } }] },
   });
   const rest = (p: Fake) => ({
     number: p.number,

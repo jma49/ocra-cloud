@@ -24,7 +24,7 @@ import {
 const OWNER_FILES = CODEOWNERS_PATHS.github;
 
 type Blob = { byteSize: number; isBinary: boolean | null; text: string | null } | null;
-type Context =
+export type Context =
   | {
       __typename: "CheckRun";
       name: string;
@@ -141,7 +141,7 @@ const DECISION = {
 
 const PASSED_CONCLUSIONS = new Set(["SUCCESS", "NEUTRAL", "SKIPPED"]);
 
-function runOf(node: NonNullable<Context>): CheckRun {
+export function runOf(node: NonNullable<Context>): CheckRun {
   if (node.__typename === "CheckRun") {
     const state =
       node.status !== "COMPLETED"
