@@ -8,8 +8,11 @@ import type { CodePlatformKind } from "../shared/index.js";
 // ocra bot into a directory of the job's own, with an environment that
 // holds nothing of this machine but its network settings.
 
-/** `stdout` only when asked for: what the command wrote, cut at MAX_STDOUT or `stdoutLimit`. */
-type ExecResult = { code: number | null; stdout?: string };
+/**
+ * `stdout` only when asked for: what the command wrote, cut at MAX_STDOUT or
+ * `stdoutLimit`. `stderr` only when asked for: the last MAX_STDERR characters.
+ */
+type ExecResult = { code: number | null; stdout?: string; stderr?: string };
 /** Runs a command to its end; aborting the signal kills it with its children. */
 export type Exec = (
   command: string,
@@ -20,11 +23,14 @@ export type Exec = (
     signal: AbortSignal;
     stdout?: true;
     stdoutLimit?: number;
+    stderr?: true;
   },
 ) => Promise<ExecResult>;
 
 /** What a command's output is read for is a line or two: an object id. */
 const MAX_STDOUT = 4096;
+/** Its errors are read for why it failed: the end is enough. */
+const MAX_STDERR = 4096;
 
 type Repo = { platform: CodePlatformKind; url: string; fullName: string };
 
@@ -116,7 +122,7 @@ export const spawnExec: Exec = (command, args, options) =>
       cwd: options.cwd,
       // The Worker's typing of process.env names its bindings; a child gets none of them.
       env: options.env as unknown as NodeJS.ProcessEnv,
-      stdio: ["ignore", options.stdout ? "pipe" : "ignore", "ignore"],
+      stdio: ["ignore", options.stdout ? "pipe" : "ignore", options.stderr ? "pipe" : "ignore"],
       detached: true,
     });
     let stdout = "";
@@ -124,6 +130,11 @@ export const spawnExec: Exec = (command, args, options) =>
     child.stdout?.setEncoding("utf8");
     child.stdout?.on("data", (chunk: string) => {
       if (stdout.length < limit) stdout = (stdout + chunk).slice(0, limit);
+    });
+    let stderr = "";
+    child.stderr?.setEncoding("utf8");
+    child.stderr?.on("data", (chunk: string) => {
+      stderr = (stderr + chunk).slice(-MAX_STDERR);
     });
     const kill = () => {
       if (child.pid) {
@@ -135,8 +146,12 @@ export const spawnExec: Exec = (command, args, options) =>
     options.signal.addEventListener("abort", kill, { once: true });
     child.once("error", reject);
     // With its output read, it is done once that is all read too.
-    child.once(options.stdout ? "close" : "exit", (code: number | null) => {
+    child.once(options.stdout || options.stderr ? "close" : "exit", (code: number | null) => {
       options.signal.removeEventListener("abort", kill);
-      resolve(options.stdout ? { code, stdout } : { code });
+      resolve({
+        code,
+        ...(options.stdout ? { stdout } : {}),
+        ...(options.stderr ? { stderr } : {}),
+      });
     });
   });

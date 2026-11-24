@@ -1,3 +1,4 @@
+import { redactField } from "@open-cr-agent/cloud-contract";
 import { settleFixAnswer } from "./fix-work.js";
 import { settleMendAnswer } from "./mend-work.js";
 import {
@@ -14,8 +15,14 @@ import {
 // and the server checks it with the kind's own schema here. A kind is added
 // to ANSWERED_KINDS (./work.ts) and given its settler below.
 
-/** How an answered run ended: the last line it printed, parsed as JSON, or the failure to retry. */
-export type Answered = { answer: unknown } | { failure: RunFailure };
+/**
+ * How an answered run ended: the last line it printed, parsed as JSON, or
+ * the failure to retry; with `detail`, the end of what it wrote to stderr.
+ */
+export type Answered = ({ answer: unknown } | { failure: RunFailure }) & { detail?: string };
+
+/** The most of a run's stderr a runner sends, redacted on the machine (src/node/run-detail.ts). */
+export const MAX_RUN_DETAIL = 602;
 
 type Settler = (
   source: Pick<WorkSource, "db" | "dailyCalls">,
@@ -36,6 +43,17 @@ export function settleAnswered(
   ran: Answered,
   now: Date,
 ): Promise<void> {
+  // Redacted again here: a remote runner's text is not trusted to have been.
+  if (ran.detail) {
+    const detail = redactField(ran.detail, MAX_RUN_DETAIL).text;
+    console.log({
+      level: "info",
+      event: "answered_run_detail",
+      job: ref.id,
+      kind: ref.kind,
+      detail,
+    });
+  }
   if ("failure" in ran) return settle(source, ref, ran.failure, now);
   return SETTLERS[ref.kind](source, ref, ran.answer, now);
 }
