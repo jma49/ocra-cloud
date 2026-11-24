@@ -1,7 +1,9 @@
 import { RISK_TIERS, reviewUploadSchema, VERDICTS } from "@open-cr-agent/cloud-contract";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { scoped } from "../src/db/scoped.js";
 import { exportFinding, reviewRow } from "../src/reviews.js";
-import { call, resetDb, signIn, signInCli } from "./helpers.js";
+import { DAY, utcDay } from "../src/time.js";
+import { call, db, resetDb, signIn, signInCli } from "./helpers.js";
 
 beforeEach(resetDb);
 afterEach(() => vi.restoreAllMocks());
@@ -99,6 +101,32 @@ describe("review uploads", () => {
       prNumber: null,
       prHeadSha: null,
     });
+  });
+
+  it("give all the account spent on each UTC day of the period, reviews and the rest", async () => {
+    const cli = await signInCli(1, "octo");
+    const web = await signIn(1, "octo");
+    const other = await signIn(2, "other");
+    await call("/api/reviews", {
+      method: "POST",
+      auth: cli.auth,
+      json: upload({ usage: { inputTokens: 1, outputTokens: 1, costUsd: 1.25 } }),
+    });
+    const otherSpend = (accountId: string, usd: number, at: Date) =>
+      scoped(db, accountId).insert("usageCounters", {
+        kind: "other_spend",
+        day: utcDay(at),
+        n: usd * 1_000_000,
+      });
+    await otherSpend(web.account.id, 0.5, new Date());
+    await otherSpend(web.account.id, 4, new Date(Date.now() - 9 * DAY));
+    await otherSpend(other.account.id, 7, new Date());
+    const list = (await (await call("/api/reviews?days=7", { auth: web.auth })).json()) as {
+      summary: { costUsd: number };
+      spend: unknown;
+    };
+    expect(list.summary.costUsd).toBe(1.25);
+    expect(list.spend).toEqual([{ day: utcDay(new Date()), usd: 1.75 }]);
   });
 
   it("each account sees only its own reviews", async () => {

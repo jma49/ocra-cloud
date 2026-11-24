@@ -25,9 +25,11 @@ import {
   countCall,
   countFindingsOf,
   countOne,
+  countOtherSpend,
   countSpendOf,
   type DailyKind,
   findingsCounted,
+  spendByDay,
   spent,
   uncountOne,
 } from "./counters.js";
@@ -531,6 +533,11 @@ export function scoped(db: Db, accountId: string) {
     search: accountSearch(db, accountId),
     /** What this account's reviews cost on now's UTC day and in its calendar month. */
     spent: (now = new Date()) => spent(db, accountId, now),
+    /** Counts what a fix run, fix-loop round or console model call cost; the spend limits do not. */
+    countOtherSpend: (costUsd: number, now = new Date()) =>
+      countOtherSpend(db, accountId, costUsd, now),
+    /** All this account spent on each UTC day from firstDay on, reviews and the rest. */
+    spendByDay: (firstDay: string) => spendByDay(db, accountId, firstDay),
     /** The findings of one of this account's reviews. */
     findingsOf(reviewId: string): Promise<Row<"findings">[]> {
       const f = accountTables.findings;

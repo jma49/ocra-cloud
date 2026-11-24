@@ -94,7 +94,7 @@ describe("Insights", () => {
           });
         }
         if (url.startsWith("/api/reviews")) {
-          return Response.json({ days: 30, summary, reviewers: {}, reviews: [] });
+          return Response.json({ days: 30, summary, spend: [], reviewers: {}, reviews: [] });
         }
         return Response.json({ error: "internal" }, { status: 500 });
       }),
@@ -163,7 +163,7 @@ describe("Insights", () => {
           });
         }
         if (url.startsWith("/api/reviews")) {
-          return Response.json({ days: 30, summary, reviewers: {}, reviews: [] });
+          return Response.json({ days: 30, summary, spend: [], reviewers: {}, reviews: [] });
         }
         return Response.json({ error: "internal" }, { status: 500 });
       }),
@@ -178,5 +178,59 @@ describe("Insights", () => {
     expect(text).toContain("The tables count the 8 of the 17 findings that were shared");
     expect(text).toContain("1 fixed on a later review");
     expect(text).not.toContain("1 finding fixed");
+  });
+
+  it("gives as Spend all the account spent in the period, and says what that counts", async () => {
+    const summary = {
+      reviews: 2,
+      repositories: 1,
+      findings: 0,
+      critical: 0,
+      blocking: 0,
+      incomplete: 0,
+      fixed: 0,
+      dismissed: 0,
+      tokensIn: 0,
+      tokensOut: 0,
+      costUsd: 0.4,
+    };
+    const spend = [
+      { day: "2026-11-20", usd: 1.15 },
+      { day: "2026-11-21", usd: 2.35 },
+    ];
+    const none = { total: 0, open: 0, fixed: 0, dismissed: 0, reacted: 0 };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url.startsWith("/api/findings/insights")) {
+          return Response.json({
+            days: 30,
+            total: { ...none, acceptanceRate: null, thumbsUpRate: null, downvoteRate: null },
+            byReviewer: [],
+            bySeverity: [],
+            byCategory: [],
+            byVerification: [],
+            byRule: [],
+            otherRules: null,
+            dismissReasons: [],
+          });
+        }
+        if (url.startsWith("/api/reviews")) {
+          return Response.json({ days: 30, summary, spend, reviewers: {}, reviews: [] });
+        }
+        return Response.json({ error: "internal" }, { status: 500 });
+      }),
+    );
+    Object.defineProperty(document, "fonts", {
+      value: { ready: Promise.resolve() },
+      configurable: true,
+    });
+    render(<Insights runner={false} platforms={["github"]} />);
+    const stat = (await screen.findByText("Spend")).closest(".stat");
+    expect(stat?.textContent).toContain("$3.50");
+    expect(stat?.textContent).toContain("$0.20 a review");
+    expect(
+      screen.getByText(/^Spend is the cost reviews uploaded to ocra Cloud reported/),
+    ).toBeTruthy();
   });
 });

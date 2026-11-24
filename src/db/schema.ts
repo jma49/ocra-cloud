@@ -631,7 +631,10 @@ export const accountMemory = sqliteTable(
 
 // What an account used on a UTC day, counted as it happens, so a cap is
 // checked by reading a row or a few instead of counting the account's
-// records (audit C1). Kept RETENTION_DAYS, like the records.
+// records (audit C1). Kept RETENTION_DAYS, like the records. For spend,
+// millionths of a US dollar: "spend" is what reviews reported, which the
+// spend limits count; "other_spend" what fix runs, fix-loop rounds and the
+// console's own model calls cost, which only Insights counts.
 export const usageCounters = sqliteTable(
   "usage_counters",
   {
@@ -647,6 +650,7 @@ export const usageCounters = sqliteTable(
         "report_sends",
         "spend",
         "fix_requests",
+        "other_spend",
       ],
     }).notNull(),
     /** The UTC date, YYYY-MM-DD. */

@@ -131,7 +131,10 @@ export function Insights(props: { runner: boolean; platforms: readonly CodePlatf
     api<Insights>(`/findings/insights?days=${days}`),
   );
   const runs = useCached(`/reviews?days=${days}`, () => api<Reviews>(`/reviews?days=${days}`));
-  const series = useMemo(() => runs.data && daily(runs.data.reviews, days), [runs.data, days]);
+  const series = useMemo(
+    () => runs.data && daily(runs.data.reviews, runs.data.spend, days),
+    [runs.data, days],
+  );
   const error = quality.error ?? runs.error;
   const reload = () => {
     quality.reload();
@@ -169,6 +172,12 @@ export function Insights(props: { runner: boolean; platforms: readonly CodePlatf
       ) : (
         <>
           <Kpis runs={runs.data} quality={data} />
+          <p className="muted small">
+            Spend is the cost reviews uploaded to ocra Cloud reported, plus what ocra Cloud's fixes,
+            fix-loop rounds, Ask ocra answers and CI explanations cost at listed prices. Not
+            included: replies, learnings, generated tests and docs, runs that uploaded nothing,
+            unpriced models and any other use of the same key.
+          </p>
           {runs.data.reviews.length < runs.data.summary.reviews && (
             <p className="muted small">
               The charts show the newest {num(runs.data.reviews.length)} of{" "}
@@ -261,6 +270,7 @@ function Kpis(props: { runs: Reviews; quality: Insights }) {
   const times = props.runs.reviews.map((r) => r.durationMs / 1000).sort((a, b) => a - b);
   const median = quantile(times, 0.5);
   const t = props.quality.total;
+  const spent = props.runs.spend.reduce((sum, d) => sum + d.usd, 0);
   return (
     <div className="stats stats-6">
       <div className="card stat">
@@ -293,7 +303,7 @@ function Kpis(props: { runs: Reviews; quality: Insights }) {
       </div>
       <div className="card stat">
         <div className="stat-label">Spend</div>
-        <div className="stat-value">{usd(s.costUsd)}</div>
+        <div className="stat-value">{usd(spent)}</div>
         <div className="stat-note">
           {s.reviews ? `${usd(s.costUsd / s.reviews)} a review` : "–"}
         </div>
