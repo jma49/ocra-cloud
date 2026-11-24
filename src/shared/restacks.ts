@@ -52,9 +52,14 @@ export type AutoReviewRestackView = { restack: boolean };
 /**
  * GET /api/pulls/restack: whether a restack of the pull request can be asked
  * for (its repository is one ocra reviews, with restacks on), and its newest
- * one, a merge's or one asked for.
+ * one, a merge's or one asked for. `enrolled` without `offered` is a
+ * repository ocra reviews with restacks switched off.
  */
-export type PullRestackView = { offered: boolean; job: RestackJobView | null };
+export type PullRestackView = {
+  enrolled: boolean;
+  offered: boolean;
+  job: RestackJobView | null;
+};
 
 /**
  * What POST /api/pulls/restack answers: `queued`, with the job; `running`
