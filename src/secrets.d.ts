@@ -25,6 +25,8 @@ interface __BaseEnv_Env {
   SIGN_IN_ALLOW?: string;
   /** Days the daily retention keeps an account's records, 30 to 3650; 90 when unset, as the hosted data policy says. */
   RETENTION_DAYS?: string;
+  /** Who may read GET /api/admin/instance, as github:<numeric user id> and oidc:<subject> entries; nobody when unset. */
+  INSTANCE_ADMINS?: string;
   /** A self-hosted server's own model endpoints, as JSON (docs/self-hosting.md); may hold their keys. */
   MODEL_ENDPOINTS?: string;
   /** off: forward to MODEL_ENDPOINTS only, never to the built-in public providers. */

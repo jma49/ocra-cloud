@@ -67,6 +67,20 @@ export async function githubIdOf(db: Db, accountId: string): Promise<number | nu
   return row ? Number(row.subject) : null;
 }
 
+/** Whether the account signs in as one of `listed`: by the identity's immutable subject, never its login. */
+export async function hasIdentity(
+  db: Db,
+  accountId: string,
+  listed: readonly Identity[],
+): Promise<boolean> {
+  if (listed.length === 0) return false;
+  const rows = await db
+    .select({ provider: identities.provider, subject: identities.subject })
+    .from(identities)
+    .where(eq(identities.accountId, accountId));
+  return rows.some((r) => listed.some((l) => l.provider === r.provider && l.subject === r.subject));
+}
+
 /** The login an account goes by, as its sessions show it. */
 export async function loginOf(db: Db, accountId: string): Promise<string | null> {
   const row = await db
