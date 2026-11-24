@@ -177,6 +177,8 @@ const acted = (
   fixed: 0,
   fixedVia: { applied: 0, suggestion: 0, manual: 0, rereview: 0, unknown: 0, ...via },
   dismissed: 0,
+  addressed: 0,
+  merged: 0,
   open: 0,
   issueOpened: 0,
   threadResolved: 0,
@@ -428,7 +430,7 @@ describe("what ocra changed", () => {
     const { body } = await view(mona.me.auth);
     expect(body.total.actedOn).toEqual(
       acted(
-        { fixed: 5, open: 1, threadResolved: 1 },
+        { fixed: 5, addressed: 1, threadResolved: 1 },
         { applied: 1, suggestion: 1, manual: 1, rereview: 1, unknown: 1 },
       ),
     );

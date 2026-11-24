@@ -151,7 +151,7 @@ function ImpactBody(props: { data: Impact }) {
       </div>
       <p className="card-pad subtle small m-0">
         {t.actedOn
-          ? `In the console: ${num(t.actedOn.fixed)} marked fixed${how(t.actedOn.fixedVia)}, ${num(t.actedOn.dismissed)} dismissed, ${num(t.actedOn.open)} open, ${count(t.actedOn.issueOpened, "issue")} opened from a finding, ${count(t.actedOn.threadResolved, "thread")} resolved.`
+          ? `In the console: ${num(t.actedOn.fixed)} marked fixed${how(t.actedOn.fixedVia)}, ${num(t.actedOn.dismissed)} dismissed, ${num(t.actedOn.addressed)} addressed on the platform, ${num(t.actedOn.merged)} merged unaddressed, ${num(t.actedOn.open)} open, ${count(t.actedOn.issueOpened, "issue")} opened from a finding, ${count(t.actedOn.threadResolved, "thread")} resolved.`
           : "Share findings in Settings to count what was marked fixed or dismissed in the console."}
       </p>
       {data.repos.length > 1 && (

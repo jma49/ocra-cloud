@@ -3,6 +3,7 @@ import { Status } from "@/components/status";
 import { Button } from "@/components/ui/button";
 import {
   type FindingIssueView,
+  type FindingStatus,
   type FixProposalView,
   type PlatformDismissal,
   replacementLines,
@@ -42,7 +43,7 @@ export type Finding = {
   code: string | null;
   redacted: boolean;
   truncated: boolean;
-  status: "open" | "fixed" | "dismissed";
+  status: FindingStatus;
   /** The lines the fix replaces at the reviewed head, and what with; null without one. */
   fix: { startLine: number; endLine: number; replacement: string } | null;
   /** The issue opened from it in the reviewed repository; null before one is. */
@@ -82,14 +83,17 @@ export function PlatformThread(props: { d: PlatformDismissal }) {
   );
 }
 
-/** Where the finding stands: fixed, dismissed, or its thread resolved on the platform. */
+/** Where the finding stands: fixed, dismissed, its thread resolved, or merged unaddressed. */
 function Standing(props: { f: Finding; committed: boolean }) {
   const { f } = props;
   if (f.status === "fixed" || props.committed) return <Status tone="ok">Fixed</Status>;
   if (f.status === "dismissed") return <Status tone="quiet">Dismissed</Status>;
+  if (f.status === "merged") return <Status tone="quiet">Merged unaddressed</Status>;
   const thread = f.platformDismissal;
-  if (thread?.state !== "resolved") return null;
-  return <Status tone="quiet">Thread resolved{thread.by && ` by ${thread.by}`}</Status>;
+  if (thread?.state === "resolved") {
+    return <Status tone="quiet">Thread resolved{thread.by && ` by ${thread.by}`}</Status>;
+  }
+  return f.status === "addressed" ? <Status tone="quiet">Thread resolved</Status> : null;
 }
 
 export function FindingEvent(props: {

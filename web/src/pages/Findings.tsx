@@ -2,6 +2,7 @@ import Flag from "lucide-react/icons/flag";
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type {
+  DecisionStatus,
   DismissReason,
   FindingStatus,
   Severity,
@@ -76,7 +77,7 @@ const lines = (f: Listed) =>
       ? `:${f.lineStart}-${f.lineEnd}`
       : `:${f.lineStart}`;
 
-type Decision = { status: FindingStatus; reason?: DismissReason; note?: string };
+type Decision = { status: DecisionStatus; reason?: DismissReason; note?: string };
 
 export function decided(page: Page, ids: Set<string>, shown: StatusFilter, d: Decision): Page {
   const statuses = { ...page.statuses };
@@ -101,7 +102,7 @@ export function decided(page: Page, ids: Set<string>, shown: StatusFilter, d: De
   return { ...page, findings, statuses };
 }
 
-const STATUS_DONE: Record<FindingStatus, string> = {
+const STATUS_DONE: Record<DecisionStatus, string> = {
   open: "reopened",
   fixed: "marked fixed",
   dismissed: "dismissed",
@@ -166,7 +167,7 @@ export function Findings(props: {
     });
   const allOn = rows.length > 0 && rows.every((r) => selected.has(r.id));
 
-  const apply = async (status: FindingStatus, ids = [...selected]) => {
+  const apply = async (status: DecisionStatus, ids = [...selected]) => {
     if (ids.length === 0) return;
     const body =
       status === "dismissed"
@@ -239,6 +240,8 @@ export function Findings(props: {
               { value: "open", label: label("open", "Open") },
               { value: "fixed", label: label("fixed", "Fixed") },
               { value: "dismissed", label: label("dismissed", "Dismissed") },
+              { value: "addressed", label: label("addressed", "Addressed") },
+              { value: "merged", label: label("merged", "Merged unaddressed") },
               { value: "all", label: "All" },
             ]}
           />
