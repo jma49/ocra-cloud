@@ -23,15 +23,47 @@ const POLL_MS = 60_000;
 const unreadText = (unread: number) =>
   unread >= FEED_UNREAD_CAP ? `${FEED_UNREAD_CAP - 1}+ unread` : count(unread, "unread", "unread");
 
-function Notice(props: { item: FeedItemView; open: (item: FeedItemView) => void }) {
-  const { item } = props;
+/** Notices in a row that say the same of the same pull request, as one with how many it holds. */
+type Run = { item: FeedItemView; ids: string[] };
+
+function runsOf(items: readonly FeedItemView[]): Run[] {
+  const runs: Run[] = [];
+  for (const item of items) {
+    const last = runs.at(-1);
+    const same =
+      last &&
+      item.pull != null &&
+      last.item.pull === item.pull &&
+      last.item.repo === item.repo &&
+      last.item.title === item.title &&
+      last.item.subtitle === item.subtitle;
+    if (same) {
+      last.ids.push(item.id);
+      if (!item.read && last.item.read) last.item = { ...last.item, read: false };
+    } else runs.push({ item, ids: [item.id] });
+  }
+  return runs;
+}
+
+const UNREAD_ONLY = "ocra.feed-unread-only";
+const readUnreadOnly = () => {
+  try {
+    return localStorage.getItem(UNREAD_ONLY) === "1";
+  } catch {
+    return false;
+  }
+};
+
+function Notice(props: { run: Run; open: (run: Run) => void }) {
+  const { item } = props.run;
+  const times = props.run.ids.length;
   const where = [item.repo, item.pull != null && `#${item.pull}`].filter(Boolean).join(" ");
   return (
     <li>
       <Link
         to={item.link}
         className={item.read ? "feed-item" : "feed-item unread"}
-        onClick={() => props.open(item)}
+        onClick={() => props.open(props.run)}
       >
         <span className="feed-title">
           {!item.read && <span className="sr-only">Unread: </span>}
@@ -40,6 +72,7 @@ function Notice(props: { item: FeedItemView; open: (item: FeedItemView) => void 
         {item.subtitle && <span className="feed-subtitle">{item.subtitle}</span>}
         <span className="feed-meta subtle small">
           {where && <span className="mono">{where}</span>}
+          {times > 1 && <span>{times} times</span>}
           <time dateTime={item.at} title={time(item.at)}>
             {since(item.at)}
           </time>
@@ -54,6 +87,13 @@ function FeedDrawer(props: { onClose: () => void; onUnread: (unread: number) => 
   const [items, setItems] = useState<FeedItemView[]>();
   const [next, setNext] = useState<string>();
   const [unread, setUnread] = useState(0);
+  const [unreadOnly, setUnreadOnly] = useState(readUnreadOnly);
+  const pickUnreadOnly = (on: boolean) => {
+    setUnreadOnly(on);
+    try {
+      localStorage.setItem(UNREAD_ONLY, on ? "1" : "0");
+    } catch {}
+  };
   const tell = useCallback(
     (n: number) => {
       setUnread(n);
@@ -81,10 +121,11 @@ function FeedDrawer(props: { onClose: () => void; onUnread: (unread: number) => 
     void load();
   }, [load]);
 
-  const open = (item: FeedItemView) => {
-    if (!item.read) void read.run({ ids: [item.id] });
+  const open = (run: Run) => {
+    if (!run.item.read) void read.run({ ids: run.ids });
     props.onClose();
   };
+  const runs = runsOf((items ?? []).filter((i) => !unreadOnly || !i.read));
   const readAll = async () => {
     const newest = items?.[0];
     if (!newest || !(await read.run({ before: newest.at }))) return;
@@ -102,11 +143,21 @@ function FeedDrawer(props: { onClose: () => void; onUnread: (unread: number) => 
       }
       onClose={props.onClose}
       foot={
-        unread > 0 && (
-          <Button type="button" variant="outline" disabled={read.busy} onClick={readAll}>
-            Mark all read
-          </Button>
-        )
+        <>
+          <label className="check small grow">
+            <input
+              type="checkbox"
+              checked={unreadOnly}
+              onChange={(e) => pickUnreadOnly(e.target.checked)}
+            />
+            Unread only
+          </label>
+          {unread > 0 && (
+            <Button type="button" variant="outline" disabled={read.busy} onClick={readAll}>
+              Mark all read
+            </Button>
+          )}
+        </>
       }
     >
       {read.error != null && <ActionError what="mark them read" error={read.error} />}
@@ -116,6 +167,8 @@ function FeedDrawer(props: { onClose: () => void; onUnread: (unread: number) => 
         ) : (
           <Loading what="notifications" rows={5} inCard />
         )
+      ) : items.length > 0 && runs.length === 0 ? (
+        <EmptyNote>Nothing unread.</EmptyNote>
       ) : items.length === 0 ? (
         <EmptyNote>
           Nothing yet. Review requests, comments, mentions and finished reviews show here, and stay
@@ -124,8 +177,8 @@ function FeedDrawer(props: { onClose: () => void; onUnread: (unread: number) => 
       ) : (
         <>
           <ul className="feed-list">
-            {items.map((item) => (
-              <Notice key={item.id} item={item} open={open} />
+            {runs.map((run) => (
+              <Notice key={run.item.id} run={run} open={open} />
             ))}
           </ul>
           {page.error != null && <ActionError what="load more" error={page.error} />}

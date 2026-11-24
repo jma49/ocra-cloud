@@ -94,3 +94,12 @@ it("starts an opened pull request's reads with /me, not after its files", async 
     ),
   );
 });
+
+it("starts the inbox's reads with /me, the console's first page", async () => {
+  await load(() => Response.json(me));
+  await screen.findByRole("heading", { name: "Usage", level: 1 });
+  const asked = await load(undefined, "/");
+  await waitFor(() =>
+    expect(asked).toEqual(expect.arrayContaining(["/me", "/platforms/pulls", "/pull-views"])),
+  );
+});

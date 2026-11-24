@@ -77,10 +77,17 @@ export type Route = {
 };
 
 const keysAndProviders = [loadKeys, loadProviders] as const;
+const INBOX_READS = ["/platforms/pulls", "/pull-views"] as const;
 const graphsKept = (me: Me) => me.codeGraphs !== "off";
 
 const ROUTES: readonly Route[] = [
-  { path: "/", place: "inbox", tab: "Inbox", page: (me) => <Inbox me={me} /> },
+  {
+    path: "/",
+    place: "inbox",
+    tab: "Inbox",
+    reads: () => INBOX_READS,
+    page: (me) => <Inbox me={me} />,
+  },
   // The inbox's address before it was the console's first page.
   { path: "/pulls", place: "inbox", page: (me) => <Inbox me={me} /> },
   {
