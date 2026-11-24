@@ -27,6 +27,7 @@ import { FileList } from "../pull/file-list.js";
 import { treeOrder } from "../pull/file-tree.js";
 import { usePullFindings } from "../pull/findings.js";
 import { GenerateBox } from "../pull/generate-box.js";
+import { useHeadMoved } from "../pull/head-moved.js";
 import { JumpToCode } from "../pull/jump-to-code.js";
 import { LabelsBox } from "../pull/labels-box.js";
 import { MergeCard } from "../pull/merge-card.js";
@@ -73,6 +74,7 @@ export function PullPage(props: {
   });
   // Opening the page marks the pull request read as of what it read now (not the copy shown
   // while it reads); the inbox shows it unread otherwise.
+  const committed = useHeadMoved(data?.head, reload);
   const { repo } = props;
   const updatedAt = stale ? undefined : data?.updatedAt;
   const head = data?.head;
@@ -150,8 +152,9 @@ export function PullPage(props: {
     if (outcome === "done" && what === "Review") setPending([]);
     // A resolved thread, a review or a draft switch changes what merge readiness counts.
     if (outcome === "done") setReadinessRev((n) => n + 1);
-    // A committed fix moved the head, and a merge settled the pull request: what the page read is out of date.
-    if (outcome === "done" && (what === "Fix" || what === "Merge")) reload();
+    // A committed fix moves the head, and a merge settled the pull request: what the page read is out of date.
+    if (outcome === "done" && what === "Fix") committed();
+    if (outcome === "done" && what === "Merge") reload();
   };
   const settled = data.state === "merged" || data.state === "closed";
   const refresh = () => {
@@ -166,7 +169,7 @@ export function PullPage(props: {
     queues ? queue.data?.entry === null : data.mergeMethods.length > 0,
   );
   return (
-    <PullBatch pull={ref} head={data.head} onCommitted={reload}>
+    <PullBatch pull={ref} head={data.head} onCommitted={committed}>
       <p className="pull-where">
         <PlatformMark platform={platform} size={14} />
         {data.url ? (
