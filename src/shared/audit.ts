@@ -77,6 +77,10 @@ export type AuditDetails = {
   "pull.mend_committed": Pull & { head: string; commit: string; fixed: number; merged: number };
   "pull.reviewers_changed": Pull & People;
   "pull.assignees_changed": Pull & People;
+  /** The label names asked to be added and removed. */
+  "pull.labels_changed": Pull & People;
+  "pull.marked_draft": Pull;
+  "pull.marked_ready": Pull;
   "pull.branch_updated": Pull & { head: string };
   /** Which of the title and the description changed, never their text. */
   "pull.details_edited": Pull & { fields: string[] };
@@ -165,6 +169,9 @@ export const AUDIT_FIELDS: { readonly [K in AuditKind]: readonly (keyof AuditDet
   "pull.mend_committed": ["pull", "head", "commit", "fixed", "merged"],
   "pull.reviewers_changed": ["pull", "added", "removed"],
   "pull.assignees_changed": ["pull", "added", "removed"],
+  "pull.labels_changed": ["pull", "added", "removed"],
+  "pull.marked_draft": ["pull"],
+  "pull.marked_ready": ["pull"],
   "pull.branch_updated": ["pull", "head"],
   "pull.details_edited": ["pull", "fields"],
   "pull.closed": ["pull"],

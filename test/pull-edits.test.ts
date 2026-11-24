@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { PullDraftView, PullLabelsView } from "../src/shared/index.js";
+import type { AuditPage, PullDraftView, PullLabelsView } from "../src/shared/index.js";
 import { resetDb } from "./helpers.js";
 import { connectGitlab, GITLAB, githubFake, signInWithGithub } from "./platform-fakes.js";
 
@@ -41,6 +41,14 @@ const post = (a: Awaited<ReturnType<typeof signInWithGithub>>, path: string, bod
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
+
+const AUDITED = ["pull.labels_changed", "pull.marked_draft", "pull.marked_ready"];
+const audited = async (a: Awaited<ReturnType<typeof signInWithGithub>>) => {
+  const log = (await (await a.send("/api/audit")).json()) as AuditPage;
+  return log.events
+    .filter((e) => AUDITED.includes(e.kind))
+    .map((e) => ({ kind: e.kind, ...e.detail }));
+};
 
 async function onGitlab() {
   const a = await signInWithGithub();
@@ -160,6 +168,10 @@ describe("draft and ready for review", () => {
       ["markPullRequestReadyForReview", { id: "PR_7" }],
       ["convertPullRequestToDraft", { id: "PR_7" }],
     ]);
+    expect(await audited(a)).toEqual([
+      { kind: "pull.marked_draft", pull: "octo/api#7" },
+      { kind: "pull.marked_ready", pull: "octo/api#7" },
+    ]);
   });
 
   it("sends nothing for a GitHub pull request already so, and refuses a closed one", async () => {
@@ -180,6 +192,7 @@ describe("draft and ready for review", () => {
       outcome: "refused",
     });
     expect(sent).toEqual([]);
+    expect(await audited(a)).toEqual([]);
   });
 
   it("sets a GitLab merge request's draft state through its title's prefix", async () => {
@@ -203,6 +216,10 @@ describe("draft and ready for review", () => {
     expect(sent.map((s) => s.body)).toEqual([
       { title: "Faster cache" },
       { title: "Draft: Faster cache" },
+    ]);
+    expect(await audited(a)).toEqual([
+      { kind: "pull.marked_draft", pull: "Group/Sub/Project#3" },
+      { kind: "pull.marked_ready", pull: "Group/Sub/Project#3" },
     ]);
   });
 });
@@ -259,6 +276,14 @@ describe("a pull request's labels", () => {
       ["POST", `${REPO}/issues/7/labels`, { labels: ["ready"] }],
       ["DELETE", `${REPO}/issues/7/labels/Needs%20Review`, {}],
     ]);
+    expect(await audited(a)).toEqual([
+      {
+        kind: "pull.labels_changed",
+        pull: "octo/api#7",
+        added: ["ready"],
+        removed: ["needs review", "absent"],
+      },
+    ]);
   });
 
   it("answers GitHub's refusal to add as one, and removes nothing after it", async () => {
@@ -270,6 +295,7 @@ describe("a pull request's labels", () => {
     const res = await post(a, "/api/pulls/labels", { ...hub, add: ["x"], remove: ["bug"] });
     expect(await res.json()).toEqual({ outcome: "refused" });
     expect(sent.map((s) => s.method)).toEqual(["POST"]);
+    expect(await audited(a)).toEqual([]);
   });
 
   it("lists and changes a GitLab merge request's labels in one update", async () => {
@@ -293,6 +319,14 @@ describe("a pull request's labels", () => {
     });
     expect(await res.json()).toEqual({ outcome: "done" });
     expect(sent.map((s) => s.body)).toEqual([{ add_labels: "ready,p1", remove_labels: "backend" }]);
+    expect(await audited(a)).toEqual([
+      {
+        kind: "pull.labels_changed",
+        pull: "Group/Sub/Project#3",
+        added: ["ready", "p1"],
+        removed: ["backend"],
+      },
+    ]);
   });
 
   it("refuses unsent an edit with nothing to change, a label twice, or a comma", async () => {

@@ -21,7 +21,8 @@ import type { AppEnv } from "./types.js";
 
 // A pull request's labels and draft state on its page, read live as the
 // signed-in user and changed as them, and its branch brought up to date
-// with its base as them. Nothing read or sent is kept but the audit entry.
+// with its base as them. Nothing read or sent is kept but the audit entry,
+// which names the labels, never the pull request's text.
 
 export const pullEdits = new Hono<AppEnv>();
 
@@ -78,6 +79,13 @@ pullEdits.post(
     const { platform, token } = reached;
     const outcome = await platform.edits.editLabels(token, edit.repo, edit.number, edit);
     if (!outcome) return apiError(c, "upstream_unreachable");
+    if (outcome === "done") {
+      await audit(c.var.data, "pull.labels_changed", {
+        pull: `${edit.repo}#${edit.number}`,
+        added: edit.add,
+        removed: edit.remove,
+      });
+    }
     return c.json(answer(outcome));
   },
 );
@@ -105,7 +113,11 @@ pullEdits.post(
     const { platform, token } = reached;
     const outcome = await platform.edits.setDraft(token, edit.repo, edit.number, edit.draft);
     if (!outcome) return apiError(c, "upstream_unreachable");
-    return c.json(answer(outcome));
+    if (outcome === "done") {
+      const kind = edit.draft ? "pull.marked_draft" : "pull.marked_ready";
+      await audit(c.var.data, kind, { pull: `${edit.repo}#${edit.number}` });
+    }
+    return c.json(answer(outcome === "unchanged" ? "done" : outcome));
   },
 );
 
