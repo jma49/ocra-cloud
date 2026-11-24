@@ -41,6 +41,8 @@ export function Chat<M extends ReviewChatMessageView>(props: {
   about?: ReactNode;
   /** What a kept question was asked about, shown with it. */
   labelOf?: (m: M) => string | null;
+  /** Drawn open with no fold of its own, its field taking focus once read, as in a drawer. */
+  bare?: boolean;
 }) {
   const path = props.read;
   const [view, setView] = useState<(Omit<ReviewChatView, "messages"> & { messages: M[] }) | null>(
@@ -53,6 +55,7 @@ export function Chat<M extends ReviewChatMessageView>(props: {
   const [pending, setPending] = useState<Pending | null>(null);
   const [error, setError] = useState<unknown>(null);
   const log = useRef<HTMLDivElement>(null);
+  const field = useRef<HTMLTextAreaElement>(null);
 
   const load = () => {
     setLoadError(null);
@@ -71,6 +74,11 @@ export function Chat<M extends ReviewChatMessageView>(props: {
   useEffect(() => {
     log.current?.scrollTo({ top: log.current.scrollHeight });
   }, [shown, open]);
+
+  const read = view !== null;
+  useEffect(() => {
+    if (props.bare && read) field.current?.focus({ preventScroll: true });
+  }, [props.bare, read]);
 
   async function ask(text = question) {
     const message = text.trim();
@@ -112,6 +120,114 @@ export function Chat<M extends ReviewChatMessageView>(props: {
   };
 
   const asking = model ?? view?.model ?? null;
+  const intro = `Questions about ${props.subject}, answered by your model`;
+  const body =
+    loadError !== null ? (
+      <LoadError what="the conversation" error={loadError} retry={load} />
+    ) : (
+      view && (
+        <div className={props.bare ? "chat-body chat-bare" : "chat-body"}>
+          {props.bare && <p className="subtle small m-0">{intro}</p>}
+          {!view.sharing && (
+            <p className="muted small m-0">
+              This account does not share findings, so answers come from the review's counts and the
+              pull request's diff alone.
+            </p>
+          )}
+          {messages.length === 0 && !pending ? (
+            view.model && (
+              <ul className="chat-starters" aria-label="Suggested questions">
+                {STARTERS.map((s) => (
+                  <li key={s}>
+                    <button type="button" className="chat-starter" onClick={() => ask(s)}>
+                      <MessageSquare size={14} aria-hidden="true" />
+                      {s}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )
+          ) : (
+            <div className="chat-log" ref={log} role="log" aria-label="Conversation">
+              {messages.map((m) => (
+                <Message
+                  key={m.id}
+                  from={m.role}
+                  text={m.text}
+                  label={props.labelOf?.(m) ?? null}
+                />
+              ))}
+              {pending && (
+                <>
+                  <Message from="user" text={pending.question} />
+                  <Message
+                    from="assistant"
+                    text={pending.answer}
+                    streamingSince={pending.askedAt}
+                  />
+                </>
+              )}
+            </div>
+          )}
+          {!view.model && <NoModel />}
+          {error !== null && <Refusal error={error} limit={view.limit} onClear={clear} />}
+          {props.about}
+          <div className={`chat-composer${view.model ? "" : " is-off"}`}>
+            <textarea
+              ref={field}
+              aria-label={`Question about ${props.subject}`}
+              rows={2}
+              maxLength={MAX_QUESTION}
+              placeholder="Ask about a finding or the change"
+              value={question}
+              disabled={!view.model}
+              onChange={(e) => setQuestion(e.target.value)}
+              onKeyDown={onKey}
+            />
+            <div className="chat-tools">
+              {view.models.length > 1 ? (
+                <select
+                  className="chat-model"
+                  aria-label="Model to ask"
+                  value={asking ?? ""}
+                  disabled={!!pending}
+                  onChange={(e) => setModel(e.target.value)}
+                >
+                  {view.models.map((m) => (
+                    <option key={m} value={m}>
+                      {modelName(m)}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                asking && <span className="subtle small">{modelName(asking)}</span>
+              )}
+              <span className="grow" />
+              <span className="chat-hint subtle small" aria-hidden="true">
+                Enter to send, Shift+Enter for a new line
+              </span>
+              {messages.length > 0 && (
+                <IconButton
+                  label="Clear conversation"
+                  icon={Eraser}
+                  disabled={!!pending}
+                  onClick={clear}
+                />
+              )}
+              <Button
+                size="sm"
+                loading={!!pending}
+                disabled={!question.trim() || !view.model}
+                onClick={() => ask()}
+              >
+                Ask
+              </Button>
+            </div>
+          </div>
+        </div>
+      )
+    );
+  if (props.bare) return body;
   return (
     <details
       className="card chat"
@@ -122,114 +238,10 @@ export function Chat<M extends ReviewChatMessageView>(props: {
         <span className="fold" aria-hidden="true" />
         <h2 className="walkthrough-title">Ask ocra</h2>
         <span className="walkthrough-meta subtle small">
-          {messages.length > 0
-            ? count(messages.length, "message")
-            : `Questions about ${props.subject}, answered by your model`}
+          {messages.length > 0 ? count(messages.length, "message") : intro}
         </span>
       </summary>
-      {loadError !== null ? (
-        <LoadError what="the conversation" error={loadError} retry={load} />
-      ) : (
-        view && (
-          <div className="chat-body">
-            {!view.sharing && (
-              <p className="muted small m-0">
-                This account does not share findings, so answers come from the review's counts and
-                the pull request's diff alone.
-              </p>
-            )}
-            {messages.length === 0 && !pending ? (
-              view.model && (
-                <ul className="chat-starters" aria-label="Suggested questions">
-                  {STARTERS.map((s) => (
-                    <li key={s}>
-                      <button type="button" className="chat-starter" onClick={() => ask(s)}>
-                        <MessageSquare size={14} aria-hidden="true" />
-                        {s}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )
-            ) : (
-              <div className="chat-log" ref={log} role="log" aria-label="Conversation">
-                {messages.map((m) => (
-                  <Message
-                    key={m.id}
-                    from={m.role}
-                    text={m.text}
-                    label={props.labelOf?.(m) ?? null}
-                  />
-                ))}
-                {pending && (
-                  <>
-                    <Message from="user" text={pending.question} />
-                    <Message
-                      from="assistant"
-                      text={pending.answer}
-                      streamingSince={pending.askedAt}
-                    />
-                  </>
-                )}
-              </div>
-            )}
-            {!view.model && <NoModel />}
-            {error !== null && <Refusal error={error} limit={view.limit} onClear={clear} />}
-            {props.about}
-            <div className={`chat-composer${view.model ? "" : " is-off"}`}>
-              <textarea
-                aria-label={`Question about ${props.subject}`}
-                rows={2}
-                maxLength={MAX_QUESTION}
-                placeholder="Ask about a finding or the change"
-                value={question}
-                disabled={!view.model}
-                onChange={(e) => setQuestion(e.target.value)}
-                onKeyDown={onKey}
-              />
-              <div className="chat-tools">
-                {view.models.length > 1 ? (
-                  <select
-                    className="chat-model"
-                    aria-label="Model to ask"
-                    value={asking ?? ""}
-                    disabled={!!pending}
-                    onChange={(e) => setModel(e.target.value)}
-                  >
-                    {view.models.map((m) => (
-                      <option key={m} value={m}>
-                        {modelName(m)}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  asking && <span className="subtle small">{modelName(asking)}</span>
-                )}
-                <span className="grow" />
-                <span className="chat-hint subtle small" aria-hidden="true">
-                  Enter to send, Shift+Enter for a new line
-                </span>
-                {messages.length > 0 && (
-                  <IconButton
-                    label="Clear conversation"
-                    icon={Eraser}
-                    disabled={!!pending}
-                    onClick={clear}
-                  />
-                )}
-                <Button
-                  size="sm"
-                  loading={!!pending}
-                  disabled={!question.trim() || !view.model}
-                  onClick={() => ask()}
-                >
-                  Ask
-                </Button>
-              </div>
-            </div>
-          </div>
-        )
-      )}
+      {body}
     </details>
   );
 }

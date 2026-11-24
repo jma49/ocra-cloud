@@ -103,7 +103,7 @@ function RailTip(props: { label: string; keys?: string | undefined; children: Re
       <TooltipTrigger render={props.children} />
       <TooltipPopup side={row ? "bottom" : "right"} sideOffset={8}>
         {props.label}
-        {props.keys && <KeyCaps keys={props.keys} className="rail-tip-key" />}
+        {props.keys && <KeyCaps keys={props.keys} className="tip-key" />}
       </TooltipPopup>
     </Tooltip>
   );

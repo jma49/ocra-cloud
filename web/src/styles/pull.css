@@ -63,6 +63,7 @@
 .pull-bar-status {
   flex: none;
   display: inline-flex;
+  align-items: center;
   gap: 16px;
 }
 @keyframes bar-in {
@@ -170,6 +171,71 @@
 }
 .pull-size {
   font-variant-numeric: tabular-nums;
+}
+/* The reviewers on the head's line: up to three marks, each cut clear of the one
+   before it so the gap shows whatever is behind, a ring in a verdict's tone,
+   then how many more. A 24 px line keeps its height around the control. */
+.reviewer-stack {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--ctl-h);
+  margin: calc((24px - var(--ctl-h)) / 2) -4px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: var(--r-ctl);
+  background: none;
+  color: var(--t2);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.reviewer-stack:hover {
+  background: var(--fill2);
+  color: var(--t1);
+}
+.pull-bar .reviewer-stack {
+  height: var(--ctl-h-lg);
+  margin-block: 0;
+}
+.reviewer-marks {
+  display: inline-flex;
+}
+.reviewer-mark {
+  position: relative;
+  display: inline-flex;
+  border-radius: 50%;
+}
+.reviewer-mark + .reviewer-mark {
+  margin-left: -6px;
+  mask-image: radial-gradient(circle at -4px 50%, transparent 12px, var(--panel) 12.5px);
+}
+.reviewer-mark:is(.is-ok, .is-warn)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 2px var(--green);
+}
+.reviewer-mark.is-warn::after {
+  box-shadow: inset 0 0 0 2px var(--warning);
+}
+.reviewer-tip {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.reviewer-tip li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.reviewer-tip-state {
+  color: var(--t3);
 }
 .pull-head .note,
 .pull-head .error {

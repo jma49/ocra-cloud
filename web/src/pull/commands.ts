@@ -5,6 +5,8 @@ import type { PageCommand } from "../page-commands.js";
 import { navigate } from "../router.js";
 
 export const MERGE_ID = "merge";
+/** The key that opens Ask ocra about the pull request. */
+export const ASK_KEY = "q";
 
 /** The file whose top is the first below the window's reading line, or the last above it. */
 function fileBeside(code: HTMLElement | null, step: 1 | -1): Element | undefined {
@@ -48,6 +50,8 @@ export function pullCommands(page: {
   data: PullFilesView | undefined;
   code: RefObject<HTMLElement | null>;
   review: () => void;
+  /** Opens Ask ocra about the pull request. */
+  ask?: () => void;
   /** Ticks or unticks a file as viewed, by its path. */
   toggleViewed: (path: string) => void;
   /** Opens or folds the conversation column beside the diff. */
@@ -78,6 +82,7 @@ export function pullCommands(page: {
   };
   return [
     ...(data.verdicts.length > 0 ? [{ label: "Review changes", key: "r", run: page.review }] : []),
+    ...(page.ask ? [{ label: "Ask ocra a question", key: ASK_KEY, run: page.ask }] : []),
     { label: "Jump to code", key: "c", run: () => to(code.current) },
     { label: "Next file", key: "j", run: () => to(fileBeside(code.current, 1)) },
     { label: "Previous file", key: "k", run: () => to(fileBeside(code.current, -1)) },
