@@ -161,5 +161,9 @@ describe("the repositories list's keys", () => {
       "octo/web",
     );
     expect(screen.queryByRole("textbox", { name: "Name of octo/api" })).toBeNull();
+
+    fireEvent.keyDown(screen.getByRole("textbox", { name: "Name of octo/web" }), { key: "Escape" });
+    expect(screen.queryByRole("textbox")).toBeNull();
+    expect(screen.getByRole("button", { name: "Rename octo/web" })).toBeTruthy();
   });
 });
