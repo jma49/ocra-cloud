@@ -10,6 +10,7 @@ import { ago } from "../format.js";
 import { usePullsChanged } from "../inbox/changes.js";
 import { useCollapsed } from "../inbox/collapsed.js";
 import { inboxCommands } from "../inbox/commands.js";
+import { useHeldOrder } from "../inbox/hold-order.js";
 import { KeyHints } from "../inbox/key-hints.js";
 import { rememberQueue } from "../inbox/queue.js";
 import { PullRow } from "../inbox/row.js";
@@ -60,9 +61,9 @@ export function Inbox(props: { me?: Me }) {
   const list = useRef<HTMLDivElement>(null);
 
   const rows = useMemo(() => (data ? rowsOf(data) : []), [data]);
-  const sections = useMemo(
-    () => inboxSections(rows, filters, views.views),
-    [rows, filters, views.views],
+  const sections = useHeldOrder(
+    useMemo(() => inboxSections(rows, filters, views.views), [rows, filters, views.views]),
+    list,
   );
   const visible = sections.flatMap((s) => (collapsed.has(s.key) ? [] : s.rows));
   const cursor = useListCursor(visible.length, list, true);
