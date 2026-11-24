@@ -19,7 +19,7 @@ export async function fix(run: Run, number: number): Promise<Answer> {
   if (repo.mend !== "commit") {
     return {
       ok: true,
-      text: "ocra does not commit fixes to this repository: an admin turns that on in its settings on ocra Cloud.",
+      text: `ocra does not commit fixes to this repository yet: an admin turns on its Fixes on [Auto review](${run.consoleUrl}/auto-review), and \`@ocra fix\` then commits them.`,
     };
   }
   const head = await headOf(run, number);

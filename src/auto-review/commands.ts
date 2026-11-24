@@ -99,7 +99,8 @@ export async function takeCommand(
     const outcome = await withCallLimit(MAX_CALLS, async () => {
       const bot = platform && (await c.var.bots?.forRepo(repo));
       if (!platform || !bot) return "failed" as const;
-      return runCommand({ data, service, platform, bot, repo }, command);
+      const consoleUrl = c.env.PUBLIC_URL ?? new URL(c.req.url).origin;
+      return runCommand({ data, service, platform, bot, repo, consoleUrl }, command);
     }).catch(() => "failed" as const);
     await data.commands.settle(id, outcome, new Date());
   };
@@ -113,6 +114,8 @@ export type Run = {
   platform: CodePlatform;
   bot: BotCredential;
   repo: ReviewRepo;
+  /** The console's address, for an answer that points to a setting. */
+  consoleUrl: string;
 };
 
 async function runCommand(run: Run, command: Command): Promise<"done" | "refused" | "failed"> {
