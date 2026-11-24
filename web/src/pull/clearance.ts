@@ -3,17 +3,18 @@ import { useEffect } from "react";
 const CLEAR = "--pull-clear";
 
 /**
- * How far below the window's top a scrolled-to part must stop to clear the
- * page's sticky head, whose height follows its title's lines.
+ * How far below the window's top a scrolled-to part must stop to clear what
+ * stays in view over it: the line that stands for the head, or on a phone,
+ * where there is none, the page bar.
  */
 export function useClearance(head: HTMLElement | null): void {
   useEffect(() => {
     if (!head) return;
     const root = document.documentElement;
     const measure = () => {
-      // A narrow window lets the head scroll away: then only the page bar stays.
+      const style = getComputedStyle(head);
       const stays =
-        getComputedStyle(head).position === "sticky"
+        style.position === "sticky" && style.display !== "none"
           ? head
           : document.querySelector<HTMLElement>(".pagebar");
       const bottom = stays ? stuckBottom(stays) : 0;
