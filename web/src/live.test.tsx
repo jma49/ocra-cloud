@@ -190,6 +190,9 @@ describe("the live page", () => {
     const task = within(await screen.findByRole("list", { name: "Tasks" })).getByRole("listitem");
     expect(task.textContent).toBe("security2 filesRunning");
     expect(within(screen.getByRole("region", { name: "Stages" })).getByText(/\ds$/)).toBeTruthy();
+    const steps = within(screen.getByRole("list", { name: "Stages" })).getAllByRole("listitem");
+    expect(steps).toHaveLength(8);
+    expect(steps.filter((li) => li.getAttribute("aria-current") === "step")).toHaveLength(1);
     act(() => {
       for (const e of events.slice(0, until("task.finished"))) source.emit("review", e);
     });
