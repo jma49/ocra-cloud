@@ -39,9 +39,7 @@ export async function settleMendAnswer(
     now,
   );
   await data.remove("sessions", ref.id).catch(() => {});
-  if (!fixed) return;
-  await data.countOtherSpend(result.usage.costUsd, now);
-  if (!result.commitSha) return;
+  if (!fixed || !result.commitSha) return;
   try {
     await data.findingOutcomes.markFixed(fixed, "applied");
     const job = await data.get("mendJobs", ref.id);

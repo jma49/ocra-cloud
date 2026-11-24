@@ -1,4 +1,4 @@
-import { type AnyColumn, and, eq, gt, gte, inArray, type SQL, sql } from "drizzle-orm";
+import { type AnyColumn, and, eq, gt, gte, type SQL, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 import { DEFAULT_RETENTION_DAYS } from "../config.js";
 import { DEFAULT_SPEND_LIMITS, dailyCallCeiling, LIMIT_OFF } from "../shared/index.js";
@@ -119,48 +119,6 @@ export function countSpendOf(
       target: [c.accountId, c.kind, c.day],
       set: { n: sql`${c.n} + excluded.n` },
     });
-}
-
-/**
- * Adds what a fix run, a fix-loop round or a console model call cost to the
- * account's other spend for now's day, which the spend limits do not count.
- */
-export async function countOtherSpend(
-  db: Db,
-  accountId: string,
-  costUsd: number,
-  now: Date,
-): Promise<void> {
-  const micro = Math.round(costUsd * MICRO_USD);
-  if (!(micro > 0) || !Number.isSafeInteger(micro)) return;
-  await db
-    .insert(c)
-    .values({ accountId, kind: "other_spend", day: utcDay(now), n: micro })
-    .onConflictDoUpdate({
-      target: [c.accountId, c.kind, c.day],
-      set: { n: sql`${c.n} + excluded.n` },
-    });
-}
-
-/** All the account spent on each UTC day from firstDay on, in dollars; a day with nothing spent is left out. */
-export async function spendByDay(
-  db: Db,
-  accountId: string,
-  firstDay: string,
-): Promise<{ day: string; usd: number }[]> {
-  const rows = await db
-    .select({ day: c.day, n: sql<number>`sum(${c.n})` })
-    .from(c)
-    .where(
-      and(
-        eq(c.accountId, accountId),
-        inArray(c.kind, ["spend", "other_spend"]),
-        gte(c.day, firstDay),
-      ),
-    )
-    .groupBy(c.day)
-    .orderBy(c.day);
-  return rows.map((r) => ({ day: r.day, usd: Number(r.n) / MICRO_USD }));
 }
 
 /** What the account's reviews cost on now's UTC day and in its calendar month, in dollars. */

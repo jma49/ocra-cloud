@@ -25,11 +25,9 @@ import {
   countCall,
   countFindingsOf,
   countOne,
-  countOtherSpend,
   countSpendOf,
   type DailyKind,
   findingsCounted,
-  spendByDay,
   spent,
   uncountOne,
 } from "./counters.js";
@@ -53,6 +51,7 @@ import {
 } from "./inbox.js";
 import { accountLearnJobs } from "./learn-jobs.js";
 import { learningUsage } from "./learning-usage.js";
+import { ledger, spendByDay } from "./ledger.js";
 import { accountLive } from "./live.js";
 import { accountMendJobs } from "./mend-jobs.js";
 import { accountMergeChecks } from "./merge-checks.js";
@@ -533,11 +532,10 @@ export function scoped(db: Db, accountId: string) {
     search: accountSearch(db, accountId),
     /** What this account's reviews cost on now's UTC day and in its calendar month. */
     spent: (now = new Date()) => spent(db, accountId, now),
-    /** Counts what a fix run, fix-loop round or console model call cost; the spend limits do not. */
-    countOtherSpend: (costUsd: number, now = new Date()) =>
-      countOtherSpend(db, accountId, costUsd, now),
-    /** All this account spent on each UTC day from firstDay on, reviews and the rest. */
-    spendByDay: (firstDay: string) => spendByDay(db, accountId, firstDay),
+    /** What this account's model calls cost on each UTC day from a time on, and how many were unpriced. */
+    spendByDay: (from: Date) => spendByDay(db, accountId, from),
+    /** What this account's model calls used and cost from a time up to another, by UTC day and model. */
+    ledger: (from: Date, to: Date) => ledger(db, accountId, from, to),
     /** The findings of one of this account's reviews. */
     findingsOf(reviewId: string): Promise<Row<"findings">[]> {
       const f = accountTables.findings;

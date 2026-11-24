@@ -80,6 +80,24 @@ export type Usage = {
   models: { model: string; provider: string; calls: number; tokensIn: number; tokensOut: number }[];
   calls: Call[];
 };
+/** One model's calls on one UTC day; input is the prompt's tokens neither read from nor written to the cache. */
+export type LedgerRow = {
+  day: string;
+  provider: string;
+  model: string;
+  calls: number;
+  failed: number;
+  input: number;
+  cacheWrite5m: number;
+  cacheWrite1h: number;
+  cacheRead: number;
+  output: number;
+  costUsd: number;
+  /** Calls that used tokens of a model without a price, which costUsd leaves out. */
+  unpriced: number;
+};
+/** A calendar month's calls by UTC day and model, and the months that can be shown, newest first. */
+export type Ledger = { month: string; months: string[]; rows: LedgerRow[] };
 export type Session = {
   id: string;
   kind: "web" | "cli";
@@ -301,8 +319,10 @@ export type Reviews = {
     tokensOut: number;
     costUsd: number;
   };
-  /** All the account spent on each of the period's UTC days, reviews and the rest; days with none left out. */
+  /** What the account's model calls through ocra Cloud cost on each of the period's UTC days; days with none left out. */
   spend: { day: string; usd: number }[];
+  /** The period's calls on models without a price, which spend leaves out. */
+  unpricedCalls: number;
   reviewers: Record<
     string,
     ReviewerCounts & { findingsTotal: number; acceptanceRate: number | null }

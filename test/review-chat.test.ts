@@ -200,12 +200,16 @@ describe("asking about a review", () => {
     expect(sent[0]?.body).toMatchObject({ model: "claude-x", stream: true, max_tokens: 2048 });
     expect(typeof sent[0]?.body.system).toBe("string");
     const [recorded] = await scoped(db, a.id).list("gatewayCalls");
-    expect(recorded).toMatchObject({ provider: "anthropic", tokensIn: 50, tokensOut: 9 });
-    // An unpriced model costs nothing that could be counted.
-    expect(await scoped(db, a.id).find("usageCounters", { kind: "other_spend" })).toEqual([]);
+    // A model without a price is recorded as unpriced, not as free.
+    expect(recorded).toMatchObject({
+      provider: "anthropic",
+      tokensIn: 50,
+      tokensOut: 9,
+      costMicroUsd: null,
+    });
   });
 
-  it("counts what the answer cost at its model's listed price as the account's spend", async () => {
+  it("records what the answer cost at its model's list price, outside the spend limits", async () => {
     const { auth, account: a } = await account(["ocra-anthropic/claude-sonnet-5-5"]);
     model(() =>
       sse(
@@ -223,9 +227,7 @@ describe("asking about a review", () => {
     await events(await ask(id, auth, { message: "How would I fix it?" }));
     const data = scoped(db, a.id);
     // 40,000 tokens in at $2 a million and 2,000 out at $10.
-    expect(await data.find("usageCounters", { kind: "other_spend" })).toMatchObject([
-      { n: 100_000 },
-    ]);
+    expect(await data.list("gatewayCalls")).toMatchObject([{ costMicroUsd: 100_000 }]);
     expect((await data.spent()).todayUsd).toBe(0);
   });
 

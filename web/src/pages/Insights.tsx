@@ -169,10 +169,12 @@ export function Insights(props: { runner: boolean; platforms: readonly CodePlatf
         <>
           <Kpis runs={runs.data} quality={data} days={days} />
           <p className="muted small">
-            Spend is the cost reviews uploaded to ocra Cloud reported, plus what ocra Cloud's fixes,
-            fix-loop rounds, Ask ocra answers and CI explanations cost at listed prices. Not
-            included: replies, learnings, generated tests and docs, runs that uploaded nothing,
-            unpriced models and any other use of the same key.
+            Spend is what every model call made with your keys through ocra Cloud cost at list
+            prices, from the provider's own token counts: reviews, replies, learnings, fixes, Ask
+            ocra and failed calls alike. Calls the CLI makes with a key of its own are not included.
+            {runs.data.unpricedCalls > 0 &&
+              ` ${count(runs.data.unpricedCalls, "call")} on models without a price are not counted.`}{" "}
+            <Link to="/usage">See it by day and model</Link>.
           </p>
           {runs.data.reviews.length < runs.data.summary.reviews && (
             <p className="muted small">

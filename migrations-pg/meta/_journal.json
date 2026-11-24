@@ -589,6 +589,13 @@
       "when": 1795517513119,
       "tag": "0083_server_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 84,
+      "version": "7",
+      "when": 1795520686089,
+      "tag": "0084_gateway_call_cost",
+      "breakpoints": true
     }
   ]
 }

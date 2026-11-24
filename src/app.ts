@@ -76,6 +76,7 @@ import { reviewers } from "./reviewers.js";
 import { reviews } from "./reviews.js";
 import { searchRoute } from "./search.js";
 import { sessions } from "./sessions.js";
+import { ledgerRoute } from "./spend-ledger.js";
 import { restackAsk } from "./stack-merge/restack-ask.js";
 import { stackMerge } from "./stack-merge/routes.js";
 import type { AppBindings, AppEnv } from "./types.js";
@@ -161,6 +162,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
   // each route): this file only composes them.
   app.route("/me", meRoute(host.graphs?.policy ?? "off", host.autoReview !== undefined));
   app.route("/usage", usage);
+  app.route("/ledger", ledgerRoute);
   app.route("/sessions", sessions);
   app.route("/tokens", apiTokensRoute);
   app.route("/export", exportRoute);
