@@ -27,7 +27,11 @@ ${pullFragment(checks, queue, true)}`;
 /** Review threads read per pull to count the resolved ones; past it, the resolved count is of the first this many. */
 const THREADS_READ = 100;
 
-export const pullFragment = (checks: boolean, queue = false, threads = false) => `fragment P on PullRequest {
+export const pullFragment = (
+  checks: boolean,
+  queue = false,
+  threads = false,
+) => `fragment P on PullRequest {
   id number title url isDraft state createdAt updatedAt mergedAt additions deletions reviewDecision
   headRefOid headRefName baseRefName isCrossRepository
   author { login avatarUrl }
