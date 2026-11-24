@@ -45,7 +45,7 @@ const job = (over: Partial<RestackJobView>): RestackJobView => ({
 
 /** The panel of #2, two commits behind #1, with what the server says of its restacks. */
 function show(restack: { offered: boolean; job: RestackJobView | null }, answer?: unknown) {
-  const state = { ...restack };
+  const state = { enrolled: true, ...restack };
   const sent: unknown[] = [];
   const onMerged = vi.fn();
   vi.stubGlobal(
@@ -85,6 +85,9 @@ describe("a layer behind the one it is stacked on", () => {
     await screen.findByText(/This branch lacks 2 commits of #1/);
     expect(screen.getByRole("button", { name: "Update branch" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Restack" })).toBeNull();
+    // Not a dead end: the page says where restacking is turned on.
+    const link = await screen.findByRole("link", { name: "Turn it on in Auto review" });
+    expect(link.getAttribute("href")).toBe("/auto-review");
   });
 
   it("asks ocra for a restack with the heads the page read, and says it is queued", async () => {

@@ -41,7 +41,7 @@ describe("a restack asked for on the pull request's page", () => {
 
   it("is not offered, and not queued, until the repository turns restacks on", async () => {
     const { a } = await stacked();
-    expect(await read(a)).toEqual({ offered: false, job: null });
+    expect(await read(a)).toEqual({ enrolled: true, offered: false, job: null });
     expect((await request(a, HEADS)).status).toBe(404);
     expect((await history(a)).jobs).toEqual([]);
   });
