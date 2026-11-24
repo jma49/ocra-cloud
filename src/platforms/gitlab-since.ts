@@ -6,7 +6,7 @@ import { compareCall, type PullSince, type SinceDiff } from "./since.js";
 /** The newest notes read for the user's own, and the newest diff versions. */
 const PER_PAGE = 100;
 
-type Compare = { diffs?: GitlabDiff[]; compare_timeout?: boolean };
+type Compare = { diffs?: GitlabDiff[]; commits?: unknown[]; compare_timeout?: boolean };
 type Note = {
   author: { id: number } | null;
   system: boolean;
@@ -38,7 +38,8 @@ export async function straightDiff(
   const diffs = compare.diffs ?? [];
   const files = await Promise.all(diffs.slice(0, MAX_CHANGED_FILES).map((d) => patchedDiff(d, to)));
   const truncated = compare.compare_timeout === true || diffs.length > MAX_CHANGED_FILES;
-  return { state: "changes", ...withinBudget({ files, truncated }) };
+  const commits = Array.isArray(compare.commits) ? compare.commits.length : null;
+  return { state: "changes", commits, ...withinBudget({ files, truncated }) };
 }
 
 const repositoryUrl = (origin: string, fullName: string) =>

@@ -9,6 +9,7 @@ const COMPARE_FILES = 300;
 type Compare = {
   status: "ahead" | "behind" | "diverged" | "identical";
   files?: GithubFile[];
+  total_commits?: number;
 };
 
 const QUERY = `query($owner: String!, $name: String!, $number: Int!) {
@@ -44,6 +45,7 @@ export function githubSince(host: GithubHost, post: GithubGraphql): PullSince {
       const listed = (compare.files ?? []).slice(0, MAX_CHANGED_FILES);
       return {
         state: "changes",
+        commits: typeof compare.total_commits === "number" ? compare.total_commits : null,
         ...withinBudget({
           files: listed.map(patchedFile),
           truncated: listed.length >= COMPARE_FILES,

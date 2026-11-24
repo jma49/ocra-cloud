@@ -55,6 +55,7 @@ import { pullFixes } from "./pull-fixes.js";
 import { pullLines } from "./pull-lines.js";
 import { pullPage } from "./pull-page.js";
 import { pullPeople } from "./pull-people.js";
+import { pullReviewChanges } from "./pull-review-changes.js";
 import { pullSeenRoute } from "./pull-seen.js";
 import { pullSince } from "./pull-since.js";
 import { pullStack } from "./pull-stack.js";
@@ -192,6 +193,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
   app.route("/pulls", pullSince);
   app.route("/pulls", pullLines);
   app.route("/pulls", pullVersions);
+  app.route("/pulls", pullReviewChanges);
   app.route("/learnings", learningsRoute);
   app.route("/repo-config", repoConfigRoute);
   app.route("/release-notes", releaseNotesRoute);

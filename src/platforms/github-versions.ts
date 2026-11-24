@@ -143,6 +143,7 @@ export function githubVersions(host: GithubHost, post: GithubGraphql): PullVersi
       files.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
       return {
         state: "changes",
+        commits: null,
         files: files.slice(0, MAX_CHANGED_FILES),
         truncated: old.truncated || now.truncated || files.length > MAX_CHANGED_FILES,
       };

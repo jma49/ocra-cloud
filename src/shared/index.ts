@@ -39,6 +39,7 @@ export * from "./pull-edits.js";
 export * from "./pull-findings.js";
 export * from "./pull-page.js";
 export * from "./pull-people.js";
+export * from "./pull-review-changes.js";
 export * from "./pull-threads.js";
 export * from "./pull-versions.js";
 export * from "./pulls.js";
