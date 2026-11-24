@@ -210,6 +210,10 @@
   z-index: 2;
   background: var(--raised);
 }
+/* The find's bar is an icon button high with 4px above and below it. */
+.pull-main:has(> .diff-search) .diff-head-row {
+  top: calc(var(--pull-clear, 72px) - 12px + var(--ctl-h) + 8px);
+}
 .pull-part-head {
   display: flex;
   align-items: center;

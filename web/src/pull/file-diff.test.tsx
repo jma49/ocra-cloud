@@ -51,6 +51,7 @@ const show = (
       findings={[]}
       review={null}
       fixes={[]}
+      onDecided={() => undefined}
       onFixDone={() => undefined}
     />,
   );
@@ -151,6 +152,7 @@ it("leaves an added file without gaps to open", () => {
       findings={[]}
       review={null}
       fixes={[]}
+      onDecided={() => undefined}
       onFixDone={() => undefined}
     />,
   );
@@ -172,6 +174,7 @@ it("marks what a find found, opens a folded file to its match and scrolls to it"
       findings={[]}
       review={null}
       fixes={[]}
+      onDecided={() => undefined}
       onFixDone={() => undefined}
       found={
         new Map([
