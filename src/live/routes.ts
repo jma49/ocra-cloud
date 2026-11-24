@@ -9,7 +9,7 @@ import { z } from "zod";
 import { audit } from "../audit.js";
 import { loginOf } from "../db/accounts.js";
 import { accountByLogin, type LiveDoor, liveAccess, sharedWithMe } from "../db/live-access.js";
-import { scoped } from "../db/scoped.js";
+import { type Row, type Scoped, scoped } from "../db/scoped.js";
 import { keepsFindings } from "../findings-kept.js";
 import { apiError, jsonBody } from "../http.js";
 import { perMinute } from "../rate.js";
@@ -24,7 +24,7 @@ import {
 import type { AppEnv } from "../types.js";
 import { linkCheck, linkUrl, newNonce } from "./link.js";
 import { liveStream, readerSeq } from "./stream.js";
-import { liveCommentDto, liveRunDto } from "./views.js";
+import { liveCommentDto, liveRunDto, type OwnerNames, pullOf } from "./views.js";
 
 // Reviews watched while they run, and shared (ADR-0056): the CLI's batches
 // come in at POST /api/live; the rest is the console's.
@@ -32,6 +32,13 @@ import { liveCommentDto, liveRunDto } from "./views.js";
 export const liveRoute = new Hono<AppEnv>();
 
 const MAX_RUNS = 50;
+
+/** The owner's names for the runs' repositories and titles for their pull requests. */
+async function ownerNames(data: Scoped, runs: readonly Row<"liveRuns">[]): Promise<OwnerNames> {
+  const pulls = runs.flatMap((r) => pullOf(r) ?? []);
+  const [repos, titles] = await Promise.all([repoNames(data), data.pullFlows.titles(pulls)]);
+  return { repos, titles };
+}
 const MAX_COMMENTS = 500;
 const PAGE = 1_000;
 
@@ -73,11 +80,11 @@ liveRoute.post(
 
 liveRoute.get("/", requireSession(), async (c) => {
   const me = c.var.session.account;
-  const [own, names, shared] = await Promise.all([
+  const [own, shared] = await Promise.all([
     c.var.data.live.runs(MAX_RUNS),
-    repoNames(c.var.data),
     sharedWithMe(c.var.db, me.id, MAX_RUNS),
   ]);
+  const names = await ownerNames(c.var.data, own);
   return c.json({
     runs: own.map((r) => liveRunDto(r, me.login, "owner", names)),
     shared: shared.map((s) => liveRunDto(s.run, s.owner, s.role)),
@@ -116,9 +123,8 @@ liveRoute.get("/:id", requireSession(), async (c) => {
   const run = await owner.live.run(door.id);
   if (!run) return apiError(c, "not_found");
   const isOwner = door.access === "owner";
-  // The repository's name is the owner's to give; others see only a pull request's path.
   const [login, names] = isOwner
-    ? [c.var.session.account.login, await repoNames(c.var.data)]
+    ? [c.var.session.account.login, await ownerNames(c.var.data, [run])]
     : [(await loginOf(c.var.db, door.ownerId)) ?? "", undefined];
   return c.json({
     run: liveRunDto(run, login, door.access, names),
