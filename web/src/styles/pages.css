@@ -568,7 +568,22 @@ td.finding-cell {
     inset 0 -0.5px 0 var(--hair2),
     inset 0 0.5px 0 var(--hair);
 }
-.inbox-group:first-child .inbox-group-head {
+/* The column names: the rows' own widths, the title's start past the unread mark and the check. */
+.inbox-cols {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 32px;
+  padding: 0 16px 0 calc(32px + 16px + 12px);
+  color: var(--t3);
+  font-size: var(--text-xs);
+  box-shadow: inset 0 -0.5px 0 var(--hair2);
+}
+.inbox-cols > span {
+  color: inherit;
+  font-weight: 400;
+}
+:is(.inbox-group:first-child, .inbox-cols + .inbox-group) .inbox-group-head {
   box-shadow: inset 0 -0.5px 0 var(--hair2);
 }
 .section-toggle {
@@ -833,13 +848,18 @@ td.finding-cell {
   .pull-author-login {
     display: none;
   }
+  /* The mark alone, in a column of its own width, so the times still line up. */
   .pull-author {
-    width: auto;
+    width: 18px;
+  }
+  .inbox-cols .pull-author {
+    visibility: hidden;
   }
 }
 @media (max-width: 900px) {
   .pull-owner,
-  .pull-author {
+  .pull-author,
+  .inbox-cols {
     display: none;
   }
   .pull-ref,
@@ -1115,6 +1135,16 @@ td.finding-cell {
 }
 .diff-head-row:has(.diff-head[aria-expanded="false"]) {
   border-bottom: 0;
+}
+/* Diff or Rendered, for a Markdown file: beside Viewed, at the same small size. */
+.diff-view {
+  flex: none;
+  margin-right: 8px;
+}
+.diff-rendered {
+  max-width: 76ch;
+  padding: 24px;
+  overflow-wrap: anywhere;
 }
 .diff-viewed {
   flex: none;

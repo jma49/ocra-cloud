@@ -74,34 +74,34 @@
   font-weight: 500;
   background: var(--fill);
 }
-/* Read as a document: a pull request's description. */
-.pull-description .md {
+/* Read as a document: a pull request's description, and a Markdown file drawn as its page. */
+:is(.pull-description, .diff-rendered) .md {
   gap: 12px;
   font-size: var(--text-md);
   line-height: 1.65;
 }
-.pull-description .md h3 {
+:is(.pull-description, .diff-rendered) .md h3 {
   margin-top: 12px;
   font-size: var(--text-xl);
   line-height: 26px;
   letter-spacing: -0.01em;
 }
-.pull-description .md h4 {
+:is(.pull-description, .diff-rendered) .md h4 {
   margin-top: 8px;
   font-size: var(--text-lg);
   line-height: 24px;
 }
-.pull-description .md :is(h5, h6) {
+:is(.pull-description, .diff-rendered) .md :is(h5, h6) {
   font-size: var(--text-md);
 }
-.pull-description .md > :first-child {
+:is(.pull-description, .diff-rendered) .md > :first-child {
   margin-top: 0;
 }
-.pull-description .md :is(ul, ol) {
+:is(.pull-description, .diff-rendered) .md :is(ul, ol) {
   gap: 6px;
   padding-left: 24px;
 }
-.pull-description .md code {
+:is(.pull-description, .diff-rendered) .md code {
   font-size: var(--text-base);
 }
 /* Text a person wrote on the platform (`web/src/platform-markdown.tsx`): its HTML as the platform allows it. */

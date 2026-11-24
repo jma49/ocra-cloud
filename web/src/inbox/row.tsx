@@ -152,6 +152,20 @@ function PullLink(props: {
   );
 }
 
+/** Names the columns once over the list; it takes the rows' own column classes, so it lines up with them at every width. */
+export function ColumnHead() {
+  return (
+    <div className="inbox-cols" aria-hidden="true">
+      <span className="pull-title">Pull request</span>
+      <span className="pull-ref">Repository</span>
+      <span className="pull-review">Status</span>
+      <span className="pull-diff">Size</span>
+      <span className="pull-author">Author</span>
+      <span className="pull-time">Updated</span>
+    </div>
+  );
+}
+
 /** The owner gives way first when the row narrows; the repository's own name stays. */
 function RepoName(props: { repo: string }) {
   const cut = props.repo.lastIndexOf("/") + 1;
