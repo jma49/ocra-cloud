@@ -531,10 +531,13 @@
   padding-left: 12px;
   overflow: hidden;
   color: var(--fg-muted);
-  font: 400 var(--text-xs) var(--mono);
+  font: 400 var(--text-sm) var(--font);
   line-height: 16px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.command-hint.mono {
+  font-family: var(--mono);
 }
 .command-note {
   margin: 0;

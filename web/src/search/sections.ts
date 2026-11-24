@@ -35,6 +35,7 @@ export function resultSections(view: SearchResultsView): CommandSection[] {
       items: (view.findings ?? []).map((f) => ({
         label: f.title,
         hint: f.line === null ? f.file : `${f.file}:${f.line}`,
+        literal: true,
         to: f.to,
         within: "Findings",
       })),
