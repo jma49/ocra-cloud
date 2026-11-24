@@ -5,6 +5,7 @@ import type { RepoAccess } from "./access.js";
 import type { PullActions } from "./actions.js";
 import type { PullAutoMerge } from "./auto-merge.js";
 import type { PullDiffs } from "./changes.js";
+import type { PullCi } from "./ci.js";
 import type { RepoContents } from "./contents.js";
 import type { PullCycles } from "./cycles.js";
 import type { PullEdits } from "./edits.js";
@@ -99,6 +100,7 @@ export interface CodePlatform {
   readonly learnings: RepoLearnings;
   readonly files: RepoFiles;
   readonly mergeStatus: PullMergeStatus;
+  readonly ci: PullCi;
   readonly readiness: PullReadiness;
   readonly reviewers: PullReviewers;
   readonly roster: PullRoster;

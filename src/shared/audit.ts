@@ -78,6 +78,8 @@ export type AuditDetails = {
   "pull.reviewers_changed": Pull & People;
   "pull.assignees_changed": Pull & People;
   "pull.branch_updated": Pull & { head: string };
+  /** Failed CI jobs of the head run again: `rerun` GitHub workflow runs or GitLab jobs. */
+  "pull.checks_rerun": Pull & { head: string; rerun: number };
   "merge_when_ready.armed": Pull & {
     mode: string;
     method: string;
@@ -160,6 +162,7 @@ export const AUDIT_FIELDS: { readonly [K in AuditKind]: readonly (keyof AuditDet
   "pull.reviewers_changed": ["pull", "added", "removed"],
   "pull.assignees_changed": ["pull", "added", "removed"],
   "pull.branch_updated": ["pull", "head"],
+  "pull.checks_rerun": ["pull", "head", "rerun"],
   "merge_when_ready.armed": ["pull", "mode", "method", "head", "keepOnPush"],
   "merge_when_ready.cancelled": ["pull", "mode", "method", "head", "reason"],
   "merge_when_ready.merged": ["pull", "mode", "method", "head", "reason"],

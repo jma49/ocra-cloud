@@ -2,6 +2,7 @@ import { githubAccess } from "./access.js";
 import { githubActions } from "./github-actions.js";
 import { githubAutoMerge } from "./github-auto-merge.js";
 import { githubChanges } from "./github-changes.js";
+import { githubCi } from "./github-ci.js";
 import { githubContents } from "./github-contents.js";
 import { githubCycles } from "./github-cycles.js";
 import { githubEdits } from "./github-edits.js";
@@ -96,6 +97,7 @@ export function github(client: GithubClient): CodePlatform {
     learnings: githubLearnings(host),
     files: githubFiles(host, post),
     mergeStatus: githubMergeStatus(host),
+    ci: githubCi(host),
     readiness: githubReadiness(host, post),
     reviewers: githubReviewers(host, post),
     roster: githubRoster(host, actions),
