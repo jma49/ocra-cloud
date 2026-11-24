@@ -1,4 +1,5 @@
 import type {
+  FixFailureCause,
   MendItemOutcome,
   MendItemReason,
   MendOutcome,
@@ -33,6 +34,7 @@ type RoundItem = {
   fingerprint: string;
   outcome: MendItemOutcome;
   reason: MendItemReason | null;
+  cause: FixFailureCause | null;
 };
 
 /** How a round ended, as `ocra mend --json` printed it. */
@@ -112,7 +114,14 @@ export function accountMendJobs(db: Db, accountId: string) {
         .values(counted.map((f) => ({ id: crypto.randomUUID(), accountId, jobId: job.id, ...f })))
         .onConflictDoUpdate({
           target: [i.accountId, i.findingId],
-          set: { outcome: null, reason: null, commitSha: null, finishedAt: null, createdAt: now },
+          set: {
+            outcome: null,
+            reason: null,
+            cause: null,
+            commitSha: null,
+            finishedAt: null,
+            createdAt: now,
+          },
           setWhere: inArray(i.outcome, RETRIABLE),
         })
         .returning({ id: i.id });
@@ -182,6 +191,7 @@ export function accountMendJobs(db: Db, accountId: string) {
           .set({
             outcome: item.outcome,
             reason: item.reason,
+            cause: item.cause,
             commitSha: item.outcome === "fixed" ? round.commitSha : null,
             finishedAt: now,
           })

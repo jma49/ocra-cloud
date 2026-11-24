@@ -49,6 +49,7 @@ const itemView = (i: Row<"mendItems">) =>
     finding: i.findingId,
     outcome: i.outcome,
     reason: i.reason,
+    cause: i.cause,
     commit: i.commitSha,
     requestedAt: i.createdAt.toISOString(),
     finishedAt: i.finishedAt?.toISOString() ?? null,

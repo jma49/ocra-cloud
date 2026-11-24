@@ -27,6 +27,26 @@ const NO_FIX: Record<Reason, string> = {
   not_candidate: "this finding is not one ocra writes a fix for.",
 };
 
+type Cause = NonNullable<FixJobView["cause"]>;
+
+/** What failed in the fixer's call, in place of the plain "did not go through". */
+const FAILED: Record<Cause, string> = {
+  timeout: "the model took too long to answer.",
+  quota: "the model's quota or rate limit is used up.",
+  refused: "the model's endpoint refused the request. Check the key and the model's name.",
+  unavailable: "the model's endpoint could not be reached.",
+  invalid_output: "the model's answer was not in the form ocra asked for.",
+  unknown: NO_FIX.failed,
+};
+
+/** A reason in words, with what failed where the run said. */
+const said = <R extends string>(
+  words: Record<R, string>,
+  reason: R | null,
+  cause: Cause | null,
+): string =>
+  reason === "failed" && cause ? FAILED[cause] : reason ? words[reason] : "ocra gave no reason.";
+
 type MendReason = NonNullable<MendItemView["reason"]>;
 
 const NOT_MENDED: Record<MendReason, string> = {
@@ -49,7 +69,7 @@ const CLOSED: ReadonlySet<MendItemView["outcome"]> = new Set(["needs_human", "go
 
 /** Why the loop committed no fix for it, in a sentence. */
 const notMended = (item: MendItemView) =>
-  `No fix: ${item.reason ? NOT_MENDED[item.reason] : "ocra gave no reason."}${
+  `No fix: ${said(NOT_MENDED, item.reason, item.cause)}${
     item.outcome === "needs_human" ? " This one is for a person." : ""
   }`;
 
@@ -59,7 +79,7 @@ function noFix(job: FixJobView): string | null {
   if (job.outcome === "head_moved") {
     return "No fix: the pull request has newer commits than the review. Review it again first.";
   }
-  return `No fix: ${job.reason ? NO_FIX[job.reason] : "ocra gave no reason."}`;
+  return `No fix: ${said(NO_FIX, job.reason, job.cause)}`;
 }
 
 /** A request that can be asked again: its run failed, or the fixer's call to the model did. */

@@ -1,4 +1,5 @@
 import {
+  FIX_FAILURE_CAUSES,
   FIX_OUTCOMES,
   FIX_REASONS,
   GENERATE_KINDS,
@@ -1537,6 +1538,8 @@ export const fixJobs = sqliteTable(
     state: text("state", { enum: REVIEW_JOB_STATES }).notNull().default("queued"),
     outcome: text("outcome", { enum: FIX_OUTCOMES }),
     reason: text("reason", { enum: FIX_REASONS }),
+    /** What failed, of a fixer call that did: set only with the reason `failed`. */
+    cause: text("cause", { enum: FIX_FAILURE_CAUSES }),
     attempts: integer("attempts").notNull().default(0),
     notBefore: integer("not_before", { mode: "timestamp_ms" }),
     leaseUntil: integer("lease_until", { mode: "timestamp_ms" }),
@@ -1685,6 +1688,7 @@ export const mendItems = sqliteTable(
     fingerprint: text("fingerprint").notNull(),
     outcome: text("outcome", { enum: MEND_ITEM_OUTCOMES }),
     reason: text("reason", { enum: MEND_ITEM_REASONS }),
+    cause: text("cause", { enum: FIX_FAILURE_CAUSES }),
     commitSha: text("commit_sha"),
     finishedAt: integer("finished_at", { mode: "timestamp_ms" }),
     createdAt: createdAt(),

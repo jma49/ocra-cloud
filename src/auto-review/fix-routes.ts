@@ -44,6 +44,7 @@ const jobView = (j: Row<"fixJobs">) =>
     state: j.state === "superseded" ? "failed" : j.state,
     outcome: j.outcome,
     reason: j.reason,
+    cause: j.cause,
     error: j.error,
     createdAt: j.createdAt.toISOString(),
     finishedAt: j.finishedAt?.toISOString() ?? null,
