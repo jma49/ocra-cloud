@@ -1,6 +1,6 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, expect, it } from "vitest";
-import { ColumnHead, PullRow } from "./row.js";
+import { ColumnHead, othersWrote, PullRow } from "./row.js";
 import type { Row } from "./sections.js";
 
 afterEach(cleanup);
@@ -159,4 +159,10 @@ it("shows ocra's mark once ocra reviewed it, and its review threads resolved of 
     />,
   );
   expect(bare.container.querySelector(".pull-talk")?.childElementCount).toBe(0);
+});
+
+it("keeps the author column only when someone else wrote a row", () => {
+  expect(othersWrote([row({ author: "me" }), row({ author: "me" })], "me")).toBe(false);
+  expect(othersWrote([row({ author: "me" }), row({ author: "ada" })], "me")).toBe(true);
+  expect(othersWrote([row({ author: null })], "me")).toBe(false);
 });
