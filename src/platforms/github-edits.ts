@@ -118,7 +118,7 @@ export function githubEdits(
       const found = await pull(token, fullName, number);
       if (!found) return null;
       if (stateOf(found) !== "open") return "refused";
-      if ((found.draft === true) === draft) return "done";
+      if ((found.draft === true) === draft) return "unchanged";
       const answer = await post(token)<Mutated>({
         query: draft ? TO_DRAFT : READY,
         variables: { id: found.node_id },

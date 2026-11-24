@@ -33,6 +33,18 @@ suite("an audit event's line", () => {
     expect(
       line({ kind: "merge_when_ready.failed", detail: { pull: "octo/api#7", reason: "conflict" } }),
     ).toBe("Merge when ready failed on octo/api#7: conflict");
+    expect(
+      line({
+        kind: "pull.labels_changed",
+        detail: { pull: "octo/api#7", added: ["bug"], removed: ["wip", "p2"] },
+      }),
+    ).toBe("Changed the labels of octo/api#7: added bug; removed wip, p2");
+    expect(line({ kind: "pull.marked_draft", detail: { pull: "octo/api#7" } })).toBe(
+      "Made octo/api#7 a draft",
+    );
+    expect(line({ kind: "pull.marked_ready", detail: { pull: "octo/api#7" } })).toBe(
+      "Marked octo/api#7 ready for review",
+    );
   });
 
   it("reads without a field an older event did not keep", () => {

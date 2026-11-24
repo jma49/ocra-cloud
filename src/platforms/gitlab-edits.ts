@@ -109,7 +109,7 @@ export function gitlabEdits(origin: string): PullEdits {
       const mr = await read(token, fullName, number);
       if (!mr) return null;
       if (mr.state !== "opened") return "refused";
-      if ((mr.draft === true) === draft) return "done";
+      if ((mr.draft === true) === draft) return "unchanged";
       const title = stripDraft(mr.title);
       return update(token, fullName, number, { title: draft ? `Draft: ${title}` : title });
     },

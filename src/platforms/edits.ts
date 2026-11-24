@@ -34,13 +34,13 @@ export interface PullEdits {
     edit: LabelEdit,
   ): Promise<PullActionOutcome | null>;
   draft(token: string, fullName: string, number: number): Promise<DraftState | null>;
-  /** `refused`, unsent, for a pull request that is not open; `done`, unsent, when it already is so. */
+  /** `refused`, unsent, for a pull request that is not open; `unchanged`, unsent, when it already is so. */
   setDraft(
     token: string,
     fullName: string,
     number: number,
     draft: boolean,
-  ): Promise<PullActionOutcome | null>;
+  ): Promise<PullActionOutcome | "unchanged" | null>;
   /** Changes the title and description only while each still reads its `from`; `stale`, unsent, otherwise. */
   editDetails(
     token: string,
