@@ -1,5 +1,5 @@
 import ChevronDown from "lucide-react/icons/chevron-down";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Status } from "@/components/status";
 import { Button } from "@/components/ui/button";
 import { Menu, MenuPopup, MenuTrigger } from "@/components/ui/menu";
@@ -35,7 +35,12 @@ const POLL_MS = 10_000;
 
 type Pull = { platform: string; repo: string; number: number };
 
-export function ReviewNowBox(props: { pull: Pull; head: string }) {
+export function ReviewNowBox(props: {
+  pull: Pull;
+  head: string;
+  /** Once a review this card watched finishes: what the page shows of the review is out of date. */
+  onReviewed?: () => void;
+}) {
   const query = new URLSearchParams({
     platform: props.pull.platform,
     repo: props.pull.repo,
@@ -60,6 +65,15 @@ export function ReviewNowBox(props: { pull: Pull; head: string }) {
   usePoll(active, reload, POLL_MS);
   const ofHead = job?.head === props.head ? job : null;
   const reviewed = ofHead?.state === "done";
+  const watched = useRef(false);
+  const { onReviewed } = props;
+  useEffect(() => {
+    if (active) watched.current = true;
+    else if (watched.current) {
+      watched.current = false;
+      onReviewed?.();
+    }
+  }, [active, onReviewed]);
   const send = async () => {
     if (await ask.run(reviewed)) reload();
   };
