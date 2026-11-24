@@ -1,4 +1,4 @@
-import { type KeyboardEvent, useEffect, useRef, useState } from "react";
+import { type KeyboardEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { ReviewChatMessageView, ReviewChatView } from "../../../src/shared/index.js";
 import { api } from "../api.js";
@@ -8,9 +8,9 @@ import { LoadError } from "../ui.js";
 import { modelName, NoModel, Refusal } from "./refusal.js";
 import { askReview } from "./stream.js";
 
-// "Ask ocra" about this review: questions answered by the account's own
-// model from what the review stored and the pull request's diff, the answer
-// drawn as it streams.
+// "Ask ocra" about this review or pull request: questions answered by the
+// account's own model from what the review stored and the pull request's
+// diff, the answer drawn as it streams.
 
 const MAX_QUESTION = 4_000;
 const STARTERS = [
@@ -23,7 +23,25 @@ type Pending = { question: string; answer: string; askedAt: number };
 
 export function ReviewChat(props: { reviewId: string }) {
   const path = `/reviews/${encodeURIComponent(props.reviewId)}/chat`;
-  const [view, setView] = useState<ReviewChatView | null>(null);
+  return <Chat read={path} ask={path} subject="this review" />;
+}
+
+export function Chat<M extends ReviewChatMessageView>(props: {
+  /** Where the conversation is read and cleared. */
+  read: string;
+  /** Where a question is sent, with `extra` in its body. */
+  ask: string;
+  extra?: Record<string, unknown>;
+  subject: string;
+  /** What a question is about, chosen above the box. */
+  about?: ReactNode;
+  /** What a kept question was asked about, shown with it. */
+  labelOf?: (m: M) => string | null;
+}) {
+  const path = props.read;
+  const [view, setView] = useState<(Omit<ReviewChatView, "messages"> & { messages: M[] }) | null>(
+    null,
+  );
   const [loadError, setLoadError] = useState<unknown>(null);
   const [open, setOpen] = useState(false);
   const [question, setQuestion] = useState("");
@@ -34,7 +52,9 @@ export function ReviewChat(props: { reviewId: string }) {
 
   const load = () => {
     setLoadError(null);
-    api<ReviewChatView>(path).then((v) => {
+    api<Omit<ReviewChatView, "messages"> & { messages: M[] }>(path).then((v) => {
+      // Drawn only from a whole conversation: a box beside the page's other reads stays empty otherwise.
+      if (!Array.isArray(v?.messages) || !Array.isArray(v.models)) return;
       setView(v);
       if (v.messages.length > 0) setOpen(true);
     }, setLoadError);
@@ -54,10 +74,13 @@ export function ReviewChat(props: { reviewId: string }) {
     setError(null);
     setPending({ question: message, answer: "", askedAt: Date.now() });
     try {
-      const answer = await askReview(path, { message, ...(model ? { model } : {}) }, (piece) =>
+      const body = { ...props.extra, message, ...(model ? { model } : {}) };
+      const answer = await askReview<M>(props.ask, body, (piece) =>
         setPending((p) => p && { ...p, answer: p.answer + piece }),
       );
-      setView((v) => v && { ...v, messages: [...v.messages, asked(message), answer] });
+      // The thread is read again for the question as kept, with what it was about.
+      setView((v) => v && { ...v, messages: [...v.messages, asked(message) as M, answer] });
+      if (props.labelOf) load();
       setQuestion("");
     } catch (e) {
       // The question stays in the box, to send again once what refused it is lifted.
@@ -105,7 +128,7 @@ export function ReviewChat(props: { reviewId: string }) {
             {!view.sharing && (
               <p className="muted small m-0">
                 This account does not share findings, so answers come from the review's counts and
-                the pull request alone.
+                the pull request's diff alone.
               </p>
             )}
             {messages.length === 0 && !pending ? (
@@ -121,7 +144,12 @@ export function ReviewChat(props: { reviewId: string }) {
             ) : (
               <div className="chat-log" ref={log} role="log" aria-label="Conversation">
                 {messages.map((m) => (
-                  <Message key={m.id} from={m.role} text={m.text} />
+                  <Message
+                    key={m.id}
+                    from={m.role}
+                    text={m.text}
+                    label={props.labelOf?.(m) ?? null}
+                  />
                 ))}
                 {pending && (
                   <>
@@ -138,8 +166,9 @@ export function ReviewChat(props: { reviewId: string }) {
             {!view.model && <NoModel />}
             {error !== null && <Refusal error={error} limit={view.limit} onClear={clear} />}
             <div className="chat-ask">
+              {props.about}
               <textarea
-                aria-label="Question about this review"
+                aria-label={`Question about ${props.subject}`}
                 className="input"
                 rows={2}
                 maxLength={MAX_QUESTION}
@@ -191,9 +220,17 @@ export function ReviewChat(props: { reviewId: string }) {
 function Message(props: {
   from: ReviewChatMessageView["role"];
   text: string;
+  label?: string | null;
   streamingSince?: number;
 }) {
-  if (props.from === "user") return <p className="chat-question pre-wrap">{props.text}</p>;
+  if (props.from === "user") {
+    return (
+      <p className="chat-question pre-wrap">
+        {props.label && <span className="subtle small mono">{props.label}: </span>}
+        {props.text}
+      </p>
+    );
+  }
   const streaming = props.streamingSince !== undefined;
   if (streaming && props.text === "") {
     return (

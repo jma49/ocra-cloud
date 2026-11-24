@@ -81,6 +81,7 @@ export const mergeIntents = pg(sqlite.mergeIntents);
 export const stackMerges = pg(sqlite.stackMerges);
 export const stackMergeLayers = pg(sqlite.stackMergeLayers);
 export const reviewChatMessages = pg(sqlite.reviewChatMessages);
+export const pullChatMessages = pg(sqlite.pullChatMessages);
 export const liveRuns = pg(sqlite.liveRuns);
 export const liveEvents = pg(sqlite.liveEvents);
 export const liveGrants = pg(sqlite.liveGrants);
