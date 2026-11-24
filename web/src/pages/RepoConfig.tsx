@@ -8,6 +8,7 @@ import {
   type RepoConfigFile,
   type RepoConfigIssue,
   type RepoConfigView,
+  RULES_MARKDOWN_MAX_CHARS,
 } from "../../../src/shared/index.js";
 import { ApiError, api, why } from "../api.js";
 import { useRead } from "../cache.js";
@@ -17,14 +18,26 @@ import { type RepoChoice, useRepoChoice } from "../repo-choice.js";
 import { LoadError, Loading, PageHead, Seg, useAction } from "../ui.js";
 
 // A repository's committed review configuration, read live from its default
-// branch as the user and edited as JSON. A change is checked by the server
-// against the engine's schema first, then committed by the user: on a new
-// branch opened as a pull request unless they ask otherwise.
+// branch as the user and edited as JSON, or the rules as Markdown. A change
+// is checked by the server as the engine reads the file first, then
+// committed by the user: on a new branch opened as a pull request unless
+// they ask otherwise.
 
 const FILES: { value: RepoConfigFile; label: string }[] = [
   { value: "config", label: "Config" },
-  { value: "rules", label: "Rules" },
+  { value: "rulesMarkdown", label: "Rules" },
+  { value: "rules", label: "Rules JSON" },
 ];
+
+const prose = (file: RepoConfigFile) => file === "rulesMarkdown";
+
+const RULES_EXAMPLE = `## Every file
+
+Money is integer cents; flag any float arithmetic on amounts.
+
+## services/billing/
+
+Every handler checks the caller's account before it reads a row.`;
 
 export function RepoConfig() {
   const choice = useRepoChoice("/review-config");
@@ -58,7 +71,34 @@ function FileEditor(props: { at: RepoChoice; file: RepoConfigFile }) {
 }
 
 const starter = (view: RepoConfigView) =>
-  view.schema ? `${JSON.stringify({ $schema: view.schema }, null, 2)}\n` : "{}\n";
+  prose(view.file)
+    ? ""
+    : view.schema
+      ? `${JSON.stringify({ $schema: view.schema }, null, 2)}\n`
+      : "{}\n";
+
+/** What reviews say about the Markdown rules, and how much of the engine's limit they use. */
+function RulesNote(props: { text: string }) {
+  const used = props.text.length;
+  const over = used > RULES_MARKDOWN_MAX_CHARS;
+  return (
+    <>
+      <p className="subtle small m-0">
+        Rules in plain language. A section under a heading that names a path, such as{" "}
+        <code className="mono">## services/billing/</code>, applies to files there; any other
+        section applies to every file. Reviews read this file from the default branch, so a pull
+        request cannot change the rules it is reviewed by.
+      </p>
+      <p
+        className={over ? "error small m-0" : "subtle small m-0"}
+        role={over ? "status" : undefined}
+      >
+        {used.toLocaleString("en-US")} of {RULES_MARKDOWN_MAX_CHARS.toLocaleString("en-US")}{" "}
+        characters{over ? ": a review refuses a longer file." : ""}
+      </p>
+    </>
+  );
+}
 
 /** Why the text is not JSON, or null when it is. */
 function notJson(text: string): string | null {
@@ -157,7 +197,11 @@ function Editor(props: { view: RepoConfigView; at: RepoChoice; reload: () => voi
       }),
     }),
   );
-  const broken = notJson(text);
+  const broken = prose(view.file)
+    ? text.length > RULES_MARKDOWN_MAX_CHARS
+      ? "too long"
+      : null
+    : notJson(text);
   const edited = text !== (view.text ?? "");
   // The server names an issue by its path into the request: `text`, then the path in the file.
   const refusal = save.error instanceof ApiError ? save.error : null;
@@ -201,6 +245,7 @@ function Editor(props: { view: RepoConfigView; at: RepoChoice; reload: () => voi
             </p>
           )}
           {view.file === "config" && <HostedNote branch={view.branch} />}
+          {prose(view.file) && <RulesNote text={text} />}
           {!edited && (
             <>
               <Issues issues={view.errors} more={view.moreErrors} />
@@ -210,12 +255,13 @@ function Editor(props: { view: RepoConfigView; at: RepoChoice; reload: () => voi
           <textarea
             className="input mono"
             aria-label={`Contents of ${view.path}`}
-            spellCheck={false}
+            spellCheck={prose(view.file)}
+            placeholder={prose(view.file) ? RULES_EXAMPLE : undefined}
             rows={Math.min(32, Math.max(12, text.split("\n").length + 1))}
             value={text}
             onChange={(e) => setText(e.target.value)}
           />
-          {broken && edited && (
+          {broken && edited && !prose(view.file) && (
             <p className="error small m-0" role="status">
               Not JSON yet: {broken}.
             </p>

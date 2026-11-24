@@ -20,7 +20,7 @@ import {
 import type { AppEnv } from "./types.js";
 
 // A repository's committed review configuration (.ocra/config.json, and its
-// rules in .ocra/rules.json), managed from the console as the signed-in
+// rules in .ocra/rules.md and .ocra/rules.json), managed from the console as the signed-in
 // user: read live at the default branch, and an edit committed as the user
 // on a new branch opened as a pull request (or, when asked, on the default
 // branch), refused before it is sent when the engine would not read it.
