@@ -20,6 +20,10 @@ export const NOTHING_REVEALED: Revealed = { known: new Map(), total: null, shown
 /** A gap still partly hidden, as a row of the diff shows it. */
 export type OpenGap = { gap: Gap; hidden: number | null };
 
+/** The number of a side's first line: a side with no lines names the line before where they would be. */
+const firstOf = (start: string | undefined, count: string | undefined) =>
+  Number(start ?? 1) + (count === "0" ? 1 : 0);
+
 /** The gaps of a parsed diff: before each hunk, and after the last one. Gap keys are hunk ordinals. */
 export function gapsOf(lines: readonly DiffLine[]): Gap[] {
   const gaps: Gap[] = [];
@@ -28,9 +32,9 @@ export function gapsOf(lines: readonly DiffLine[]): Gap[] {
   let hunk = 0;
   for (const line of lines) {
     if (line.kind === "hunk") {
-      const m = /^@@ -(\d+)(?:,\d+)? \+(\d+)/.exec(line.text);
-      const oldStart = Number(m?.[1] ?? 1);
-      const newStart = Number(m?.[2] ?? 1);
+      const m = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))?/.exec(line.text);
+      const oldStart = firstOf(m?.[1], m?.[2]);
+      const newStart = firstOf(m?.[3], m?.[4]);
       gaps.push({ key: hunk++, from: nextNew, to: newStart - 1, delta: oldStart - newStart });
       nextNew = newStart;
       nextOld = oldStart;
