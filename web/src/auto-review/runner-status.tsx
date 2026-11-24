@@ -24,7 +24,7 @@ export function RunnerStatus() {
         const online = Date.now() - new Date(r.lastSeenAt).getTime() < ONLINE_WITHIN_MS;
         return (
           <li key={r.name}>
-            <span className="mono">{r.name}</span>{" "}
+            <span className="strong">{r.name}</span>{" "}
             <span className={`badge ${online ? "badge-ok" : "badge-err"}`}>
               {online ? "Online" : "Offline"}
             </span>{" "}

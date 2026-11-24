@@ -1,3 +1,5 @@
+import Pencil from "lucide-react/icons/pencil";
+import Trash2 from "lucide-react/icons/trash-2";
 import Zap from "lucide-react/icons/zap";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -164,18 +166,27 @@ export function Automations(props: { me: Me }) {
                   <div className="subtle small">{ruleSummary(r, names)}</div>
                 </div>
                 {!r.runsHere && <span className="badge hide-narrow">Self-hosted actions</span>}
-                <Button type="button" variant="outline" size="sm" onClick={() => setEditing(r.id)}>
-                  Edit
-                </Button>
-                <Button
-                  type="button"
-                  variant="destructive-outline"
-                  size="sm"
-                  disabled={remove.busy}
-                  onClick={() => after(remove.run(r.id))}
-                >
-                  Remove
-                </Button>
+                <span className="row-actions">
+                  <button
+                    type="button"
+                    className="icon-btn row-action"
+                    aria-label="Edit"
+                    title="Edit"
+                    onClick={() => setEditing(r.id)}
+                  >
+                    <Pencil size={14} aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    className="icon-btn row-action is-danger"
+                    aria-label="Remove"
+                    title="Remove"
+                    disabled={remove.busy}
+                    onClick={() => after(remove.run(r.id))}
+                  >
+                    <Trash2 size={14} aria-hidden="true" />
+                  </button>
+                </span>
               </div>
             ))}
           </div>

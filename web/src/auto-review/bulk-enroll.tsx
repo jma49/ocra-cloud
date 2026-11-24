@@ -144,7 +144,7 @@ export function BulkEnroll(props: {
           </div>
           <fieldset className="enroll-list" aria-label={`${name} ${words.many} to add`}>
             {offered.map((name) => (
-              <label key={name} className="check mono">
+              <label key={name} className="check">
                 <input type="checkbox" checked={picked.has(name)} onChange={() => toggle(name)} />
                 {name}
               </label>

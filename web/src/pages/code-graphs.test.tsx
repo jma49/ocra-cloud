@@ -47,8 +47,7 @@ describe("the code graphs page", () => {
     render(<CodeGraphs policy="keep" platforms={["github", "gitlab"]} />);
     await screen.findByText("Built");
     expect(screen.getAllByText("aaaaaaa")).toHaveLength(2);
-    expect(screen.getAllByText("1,200")).toHaveLength(2);
-    expect(screen.getAllByText("2.3 MB")).toHaveLength(2);
+    expect(screen.getAllByText(/^1,200 files · 2\.3 MB/)).toHaveLength(2);
     expect(screen.getByText("Failed")).toBeTruthy();
     expect(screen.getByText(/no longer connected to the platform/)).toBeTruthy();
   });
