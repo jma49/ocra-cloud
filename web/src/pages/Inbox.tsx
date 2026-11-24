@@ -251,6 +251,7 @@ export function Inbox(props: { me?: Me }) {
                       i={i}
                       current={i === cursor.current}
                       run={stackRun(s.rows, at)}
+                      self={props.me?.login}
                       onOpen={() => marks.opened(r)}
                       onMark={(read) => marks.mark([r], read)}
                     />

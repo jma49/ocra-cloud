@@ -94,3 +94,21 @@ it("names the team a review was asked of when it reached the user through one", 
     "core",
   );
 });
+
+it("leaves out a side of the size that is zero and the viewer's own name", () => {
+  cleanup();
+  render(
+    <PullRow
+      r={row({ additions: 3, deletions: 0, author: "ada" })}
+      i={0}
+      current={false}
+      run={null}
+      self="ada"
+      onOpen={() => undefined}
+      onMark={() => undefined}
+    />,
+  );
+  expect(document.querySelector(".pull-diff")?.textContent).toBe("+3");
+  expect(document.querySelector(".pull-author")?.textContent).toBe("");
+  expect(document.querySelector(".pull-owner")?.textContent).toBe("octo/");
+});

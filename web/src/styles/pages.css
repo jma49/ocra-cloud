@@ -767,7 +767,6 @@ td.finding-cell {
   flex: none;
   width: 136px;
   display: flex;
-  justify-content: flex-end;
 }
 .pull-diff {
   flex: none;
@@ -839,7 +838,7 @@ td.finding-cell {
   }
 }
 @media (max-width: 900px) {
-  .pull-repo,
+  .pull-owner,
   .pull-author {
     display: none;
   }

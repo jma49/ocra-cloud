@@ -39,6 +39,8 @@ export function PullRow(props: {
   current: boolean;
   /** Set when the rows beside it are of its stack: the rail that joins them. */
   run: { first: boolean; last: boolean } | null;
+  /** The signed-in user: their own pull requests do not repeat their name. */
+  self?: string | undefined;
   onOpen: () => void;
   onMark: (read: boolean) => void;
 }) {
@@ -77,6 +79,7 @@ function PullLink(props: {
   onClick: (e: MouseEvent) => void;
   review: Standing | null;
   when: string;
+  self?: string | undefined;
 }) {
   const { r, to, onClick, review, when, current } = props;
   const intent = useIntent(to);
@@ -122,18 +125,20 @@ function PullLink(props: {
         </span>
       )}
       <span className="pull-ref" title={`${r.repo} #${r.number}`}>
-        <span className="pull-repo">{r.repo}</span> <span className="pull-num">#{r.number}</span>
+        <RepoName repo={r.repo} /> <span className="pull-num">#{r.number}</span>
       </span>
       <span className="pull-review">
         {review && <span className={review.tone}>{review.label}</span>}
       </span>
       {r.additions !== null && r.deletions !== null && (
         <span className="pull-diff mono">
-          <span className="add">+{r.additions}</span> <span className="del">−{r.deletions}</span>
+          {r.additions > 0 && <span className="add">+{r.additions}</span>}
+          {r.additions > 0 && r.deletions > 0 && " "}
+          {r.deletions > 0 && <span className="del">−{r.deletions}</span>}
         </span>
       )}
       <span className="pull-author">
-        {r.author && (
+        {r.author && r.author !== props.self && (
           <>
             <PersonMark login={r.author} avatar={r.authorAvatar} size={18} />
             <span className="pull-author-login">{r.author}</span>
@@ -144,5 +149,16 @@ function PullLink(props: {
         {since(when)}
       </time>
     </a>
+  );
+}
+
+/** The owner gives way first when the row narrows; the repository's own name stays. */
+function RepoName(props: { repo: string }) {
+  const cut = props.repo.lastIndexOf("/") + 1;
+  return (
+    <span className="pull-repo">
+      <span className="pull-owner">{props.repo.slice(0, cut)}</span>
+      {props.repo.slice(cut)}
+    </span>
   );
 }
