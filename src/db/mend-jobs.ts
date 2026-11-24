@@ -7,6 +7,7 @@ import type {
 } from "@open-cr-agent/cloud-contract";
 import { and, asc, eq, inArray, isNull, lte, or, type SQL, sql } from "drizzle-orm";
 import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
+import type { MendConflictRegion } from "../shared/mend.js";
 import { changedRows, type Db, first } from "./client.js";
 import { countOne, mayStart, uncountOne } from "./counters.js";
 import { recoverLapsed } from "./job-recovery.js";
@@ -34,6 +35,7 @@ type RoundItem = {
   fingerprint: string;
   check?: string | null;
   conflict?: string | null;
+  regions?: readonly MendConflictRegion[];
   outcome: MendItemOutcome;
   reason: MendItemReason | null;
   cause: FixFailureCause | null;
@@ -59,7 +61,7 @@ export function accountMendJobs(db: Db, accountId: string) {
     reviewRepoId: string,
     number: number,
     at: Date,
-    asks: { checks?: true; conflicts?: true } = {},
+    asks: { checks?: true; conflicts?: true; suggest?: boolean } = {},
   ) => {
     const idle = (column: SQLiteColumn, value: SQL): SQL =>
       sql`CASE WHEN ${j.state} = 'running' THEN ${column} ELSE ${value} END`;
@@ -181,6 +183,7 @@ export function accountMendJobs(db: Db, accountId: string) {
      */
     async askConflicts(
       pull: { reviewRepoId: string; number: number },
+      suggest: boolean,
       cap: number,
       at: Date,
       now: Date,
@@ -209,7 +212,7 @@ export function accountMendJobs(db: Db, accountId: string) {
           .where(and(own, eq(j.id, first.id)));
         return "limited";
       }
-      await queue(pull.reviewRepoId, pull.number, at, { conflicts: true });
+      await queue(pull.reviewRepoId, pull.number, at, { conflicts: true, suggest });
       return "queued";
     },
     /** The pull request's loop and the findings asked of it, oldest first. */
@@ -259,11 +262,14 @@ export function accountMendJobs(db: Db, accountId: string) {
           // Asked again during the round: the next one reads the checks anew.
           checks: sql`CASE WHEN ${j.again} THEN ${j.checks} ELSE 0 END`,
           conflicts: sql`CASE WHEN ${j.again} THEN ${j.conflicts} ELSE 0 END`,
+          suggest: sql`CASE WHEN ${j.again} THEN ${j.suggest} ELSE 0 END`,
           checkItems: round.items.flatMap(({ check, outcome, reason, cause }) =>
             check ? [{ check, outcome, reason, cause }] : [],
           ),
-          conflictItems: round.items.flatMap(({ conflict, outcome, reason, cause }) =>
-            conflict ? [{ path: conflict, outcome, reason, cause }] : [],
+          conflictItems: round.items.flatMap(({ conflict, outcome, reason, cause, regions }) =>
+            conflict
+              ? [{ path: conflict, outcome, reason, cause, regions: [...(regions ?? [])] }]
+              : [],
           ),
           error: null,
           leaseUntil: null,
@@ -317,6 +323,7 @@ export function accountMendJobs(db: Db, accountId: string) {
           again: false,
           checks: false,
           conflicts: false,
+          suggest: false,
           error: note,
           leaseUntil: null,
           finishedAt: now,
@@ -343,6 +350,8 @@ export type ClaimedMend = {
   reviewRepoId: string;
   number: number;
   attempts: number;
+  /** The round only proposes a resolution of the conflicts (`--level propose`). */
+  suggest: boolean;
   leaseUntil: Date;
 };
 
@@ -380,6 +389,7 @@ export async function claimMend(
       reviewRepoId: j.reviewRepoId,
       number: j.number,
       attempts: j.attempts,
+      suggest: j.suggest,
     });
   return claimed ? { ...claimed, leaseUntil } : undefined;
 }

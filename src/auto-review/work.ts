@@ -245,10 +245,17 @@ async function claim(
         claimed,
         command: {
           // A round of the pull request's fix loop (./mend-round.ts gives it its input).
-          args: (pull) => ["mend", ...pull, "--level", "commit", "--json"],
+          args: (pull) => [
+            "mend",
+            ...pull,
+            "--level",
+            claimed.suggest ? "propose" : "commit",
+            "--json",
+          ],
           // 3: the head moved under the round, or the bot cannot write to the branch; the answer says which.
           ok: [0, 3],
-          access: "commit",
+          // A suggestion writes nothing, so its token needs no push.
+          access: claimed.suggest ? "review" : "commit",
         },
       }
     );

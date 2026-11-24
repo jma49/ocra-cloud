@@ -1695,8 +1695,15 @@ export const mendJobs = sqliteTable(
     checkItems: text("check_items", { mode: "json" }).$type<MendCheckView[]>(),
     /** A person asked for the pull request's merge conflicts: they wait for the next round. */
     conflicts: integer("conflicts", { mode: "boolean" }).notNull().default(false),
-    /** What the last round did with each conflicted file it was given. */
-    conflictItems: text("conflict_items", { mode: "json" }).$type<MendConflictView[]>(),
+    /**
+     * The conflicts were asked of a repository that does not let ocra merge
+     * its base branch: the round proposes a resolution and writes nothing.
+     */
+    suggest: integer("suggest", { mode: "boolean" }).notNull().default(false),
+    /** What the last round did with each conflicted file it was given; rounds before regions were kept have none. */
+    conflictItems: text("conflict_items", { mode: "json" }).$type<
+      (Omit<MendConflictView, "regions"> & Partial<Pick<MendConflictView, "regions">>)[]
+    >(),
     finishedAt: integer("finished_at", { mode: "timestamp_ms" }),
     createdAt: createdAt(),
   },

@@ -49,6 +49,7 @@ const NO_LOOP: PullMendView = {
   checks: [],
   conflicts: [],
   resolves: false,
+  suggests: false,
 };
 
 const item = (over: Partial<MendItemView>): MendItemView => ({
@@ -70,6 +71,7 @@ const looping = (items: MendItemView[], state: "queued" | "running" | "done" = "
     checks: [],
     conflicts: [],
     resolves: false,
+    suggests: false,
   }) satisfies PullMendView;
 
 /**

@@ -298,7 +298,9 @@ export function describe(e: AuditEventView): string {
     case "pull.mend_requested":
       return `Asked ocra to fix ${counted(e.detail.findings, "finding")} on ${named(e.detail.pull, "a pull request")}`;
     case "pull.mend_conflicts_requested":
-      return `Asked ocra to resolve the merge conflicts of ${named(e.detail.pull, "a pull request")}`;
+      return e.detail.suggest
+        ? `Asked ocra to suggest how to resolve the merge conflicts of ${named(e.detail.pull, "a pull request")}`
+        : `Asked ocra to resolve the merge conflicts of ${named(e.detail.pull, "a pull request")}`;
     case "pull.mend_committed":
       return (e.detail.merged ?? 0) > 0
         ? `ocra merged the base branch into ${named(e.detail.pull, "a pull request")} and resolved conflicts in ${counted(e.detail.merged, "file")}${noted(e.detail.commit?.slice(0, 7))}`

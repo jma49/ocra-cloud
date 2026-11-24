@@ -62,6 +62,7 @@ const itemView = (i: Row<"mendItems">) =>
 
 async function pullView(data: Scoped, repo: Row<"reviewRepos">, number: number) {
   const found = await data.mends.forPull(repo.id, number);
+  const resolves = repo.mend === "commit" && repo.mendConflicts;
   return {
     level: repo.mend,
     loop: found
@@ -75,8 +76,9 @@ async function pullView(data: Scoped, repo: Row<"reviewRepos">, number: number) 
       : null,
     items: (found?.items ?? []).map(itemView),
     checks: found?.job.checkItems ?? [],
-    conflicts: found?.job.conflictItems ?? [],
-    resolves: repo.mend === "commit" && repo.mendConflicts,
+    conflicts: (found?.job.conflictItems ?? []).map((c) => ({ ...c, regions: c.regions ?? [] })),
+    resolves,
+    suggests: !resolves,
   } satisfies PullMendView;
 }
 
@@ -189,10 +191,11 @@ export function mendRoute(service: AutoReviewService) {
           outcome,
           mend: await pullView(data, repo, ref.number),
         } satisfies MendRequestView);
-      if (repo.mend !== "commit" || !repo.mendConflicts) return answer("not_enabled");
       const now = new Date();
+      const suggest = repo.mend !== "commit" || !repo.mendConflicts;
       const asked = await data.mends.askConflicts(
         { reviewRepoId: repo.id, number: ref.number },
+        suggest,
         MAX_DAILY_FIX_REQUESTS,
         new Date(now.getTime() + MEND_DEBOUNCE_MS),
         now,
@@ -203,6 +206,7 @@ export function mendRoute(service: AutoReviewService) {
       if (asked === "queued") {
         await audit(data, "pull.mend_conflicts_requested", {
           pull: `${repo.fullName}#${ref.number}`,
+          suggest,
         });
         service.kick();
       }
@@ -222,6 +226,7 @@ export function mendRoute(service: AutoReviewService) {
         checks: [],
         conflicts: [],
         resolves: false,
+        suggests: false,
       } satisfies PullMendView);
     return c.json(await pullView(c.var.data, repo, ref.data.number));
   });

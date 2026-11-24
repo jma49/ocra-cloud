@@ -358,19 +358,57 @@ describe("asking ocra to resolve a pull request's conflicts", () => {
     items: [{ ...item("c0ffee0123456789", "fixed"), conflict: "src/db.ts", edits: [] }],
   });
 
-  it("is refused where the repository does not let ocra merge its base branch", async () => {
+  const suggested = round({
+    outcome: "proposed",
+    commitSha: null,
+    mergeParent: C3,
+    items: [
+      {
+        ...item("c0ffee0123456789", "proposed"),
+        conflict: "src/db.ts",
+        edits: [],
+        resolved: "a\nb\n",
+        regions: [{ line: 1, ours: "a", theirs: "b", resolved: "a\nb" }],
+      },
+    ],
+  });
+
+  it("only suggests a resolution where the repository does not let ocra merge its base branch", async () => {
     await setLevel("commit");
-    expect(await view()).toMatchObject({ resolves: false });
-    expect(await (await resolve()).json()).toMatchObject({ outcome: "not_enabled" });
-    expect(await loop()).toBeUndefined();
-    await setLevel("commit", t.auth, false, true);
+    await ask([t.second]);
+    expect(await view()).toMatchObject({ resolves: false, suggests: true });
+    expect(await (await resolve()).json()).toMatchObject({ outcome: "queued" });
+    const audited = await data().list("auditEvents");
+    expect(audited.find((e) => e.kind === "pull.mend_conflicts_requested")?.detail).toMatchObject({
+      suggest: true,
+    });
+    const { exec, seen } = fakeExec(JSON.stringify(suggested));
+    expect(await runRound(exec)).toBe(true);
+    expect(seen.args.slice(seen.args.indexOf("--level"), seen.args.indexOf("--level") + 2)).toEqual(
+      ["--level", "propose"],
+    );
+    expect(seen.args).toContain("--conflicts");
+    expect(seen.findings).toBeUndefined();
+    // The finding asked before waits for a round that commits.
+    expect(await loop()).toMatchObject({ state: "queued", outcome: "proposed", suggest: false });
+    expect(await view()).toMatchObject({
+      items: [{ finding: t.second, outcome: null }],
+      conflicts: [
+        {
+          path: "src/db.ts",
+          outcome: "proposed",
+          regions: [{ line: 1, ours: "a", theirs: "b", resolved: "a\nb" }],
+        },
+      ],
+    });
+    expect(await data().list("notificationFeed")).toEqual([]);
     expect((await resolve((await t.s.signIn(2)).auth)).status).toBe(404);
     expect((await resolve(t.auth, { ...PULL, repo: "Octo/Other" })).status).toBe(404);
   });
 
   it("queues one round for the conflicts alone, once while it waits, and asks again after it", async () => {
     await setLevel("commit", t.auth, false, true);
-    expect(await view()).toMatchObject({ resolves: true });
+    expect(await view()).toMatchObject({ resolves: true, suggests: false });
     expect(await (await resolve()).json()).toMatchObject({ outcome: "queued" });
     expect(await (await resolve()).json()).toMatchObject({ outcome: "requested" });
     const counted = (await data().list("usageCounters")).filter((c) => c.kind === "fix_requests");

@@ -1,0 +1,1 @@
+ALTER TABLE "mend_jobs" ADD COLUMN "suggest" bigint DEFAULT 0 NOT NULL;
