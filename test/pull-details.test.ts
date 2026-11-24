@@ -102,6 +102,18 @@ describe("editing a GitHub pull request's title and description", () => {
     expect(await audited(a)).toEqual([]);
   });
 
+  it("sends and audits nothing when every field already reads as asked", async () => {
+    const sent = platform({ [`GET ${PULL}`]: () => githubPull() });
+    const a = await signInWithGithub();
+    const same = { from: "Fix the cache", to: "Fix the cache" };
+    expect(await answer(await post(a, "details", { ...hub, title: same }))).toEqual({
+      status: 200,
+      body: { outcome: "done" },
+    });
+    expect(sent).toEqual([]);
+    expect(await audited(a)).toEqual([]);
+  });
+
   it("answers GitHub's 404 as not_found and its 403 and 422 as refused", async () => {
     let status = 422;
     platform({
