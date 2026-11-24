@@ -25,6 +25,7 @@ function serve(
   asked = job({ state: "queued" }),
   callsToday = 0,
   spentTodayUsd = 0,
+  live: { id: string } | null = null,
 ) {
   const sent: unknown[] = [];
   let current = first;
@@ -49,11 +50,11 @@ function serve(
       if (init?.method === "POST") {
         sent.push(JSON.parse(String(init.body)));
         current = asked;
-        return Response.json({ job: asked, depth: "standard" });
+        return Response.json({ job: asked, depth: "standard", live: null });
       }
       return current === "not_enrolled"
         ? Response.json({ error: "not_found" }, { status: 404 })
-        : Response.json({ job: current, depth: "standard" });
+        : Response.json({ job: current, depth: "standard", live });
     }),
   );
   return sent;
@@ -114,6 +115,18 @@ describe("the AI review card on a pull request", () => {
     expect(screen.getByText(/Reviews cost \$10\.40 today, of a \$10\.00 limit\./)).toBeTruthy();
     expect(screen.getByText(/or once you raise it/)).toBeTruthy();
     expect(button("Review now").disabled).toBe(false);
+  });
+
+  it("links a running review to where it can be watched, when it is relayed", async () => {
+    serve(job({ state: "running" }), undefined, 0, 0, { id: "lr1" });
+    render(<ReviewNowBox pull={pull} head={HEAD} />);
+    const link = (await screen.findByRole("link", { name: "Watch it live" })) as HTMLAnchorElement;
+    expect(link.getAttribute("href")).toBe("/live/lr1");
+    cleanup();
+    serve(job({ state: "running" }));
+    render(<ReviewNowBox pull={pull} head={HEAD} />);
+    expect(await screen.findByText(/ocra is reviewing this head/)).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Watch it live" })).toBeNull();
   });
 
   it("says nothing of the limit while calls are left", async () => {

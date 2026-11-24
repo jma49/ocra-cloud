@@ -113,6 +113,11 @@ export function ReviewNowBox(props: {
             ? `The last review here was of ${job.head.slice(0, 7)}, before the newest commits.`
             : "ocra has not reviewed this pull request on this server."}
       </span>
+      {ofHead?.state === "running" && data.live && (
+        <Link to={`/live/${data.live.id}`} className="status-link">
+          Watch it live
+        </Link>
+      )}
       {limit && (
         <span className="small" role="status">
           <Status tone="warn">{limit.badge}</Status> {limit.why} A review asked now waits and starts{" "}
