@@ -8,6 +8,7 @@ import {
   retryReconcile,
 } from "./db/reconcile.js";
 import { type Scoped, scoped } from "./db/scoped.js";
+import { reconcileReactions } from "./finding-reactions.js";
 import { errorName, logError } from "./log.js";
 import type { BotTokens } from "./platforms/bot.js";
 import { accessToken } from "./platforms/links.js";
@@ -27,7 +28,10 @@ import type { AppBindings } from "./types.js";
 // into its flow, and the open ones changed lately get their asks of a
 // review and their reviews (./reconcile-reviews.ts). Both listings also
 // fill the inbox's index of pull requests (./pull-index/reconcile.ts),
-// with no call of their own. Every write is one the webhooks make too,
+// with no call of their own; the reactions on ocra's comments of findings
+// of open and lately merged ones are read last (./finding-reactions.ts),
+// and the budget running out among them does not give the repository back.
+// Every write is one the webhooks make too,
 // merged in the statement (closes and flows keep what a webhook recorded),
 // so the two never undo each other. Run hourly, it reads
 // each repository once a UTC day (the claim, src/db/reconcile.ts), a few per
@@ -203,6 +207,16 @@ async function reconcileRepo(
     now,
   });
   if (reviewed === "spent") return { state: "cut" };
+  // Reactions read stand when the budget runs out among them; the next day's run reads the rest.
+  await reconcileReactions({
+    data,
+    platform,
+    token,
+    fullName: repo.fullName,
+    open: open.pulls.map((p) => p.number),
+    calls,
+    now,
+  });
   return { state: "done", closes: fill.closes, flows: fill.flows, reviews: reviewed };
 }
 

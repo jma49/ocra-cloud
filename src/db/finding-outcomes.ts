@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull, ne, type SQL, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, lte, ne, or, type SQL, sql } from "drizzle-orm";
 import type { FixedVia } from "../shared/index.js";
 import { changedRows, type Db } from "./client.js";
 import { jsonTexts } from "./dialect.js";
@@ -8,7 +8,8 @@ import { findings, reviews } from "./schema.js";
 // suggestion committed from the console, its comment's thread resolved or
 // reopened (from the console or on the platform), a later review of the
 // pull request seeing it fixed, and the pull request merging with it still
-// open. Each write compares and sets in one statement, so a finding is
+// open, and the 👍 and 👎 on its comment as last read. Each write compares
+// and sets in one statement, so a finding is
 // marked fixed, and its source recorded, once, and a decision the account
 // made is never overwritten by a thread or a merge. Reached only through
 // scoped().
@@ -144,6 +145,32 @@ async function markMerged(db: Db, accountId: string, pull: OnPull, at: Date): Pr
   return changedRows(result);
 }
 
+/** The 👍 and 👎 on a comment, as the platform counted them. */
+export type ReactionCounts = { up: number; down: number };
+
+/**
+ * Records the reactions on the comment of the pull request's finding with
+ * this fingerprint, as read at `at`: a read older than the one kept changes nothing.
+ */
+async function recordReactions(
+  db: Db,
+  accountId: string,
+  pull: OnPull & { fingerprint: string },
+  counts: ReactionCounts,
+  at: Date,
+): Promise<number> {
+  const result = await db
+    .update(f)
+    .set({ thumbsUp: counts.up, thumbsDown: counts.down, reactionsReadAt: at })
+    .where(
+      and(
+        onPull(db, accountId, { ...pull, fingerprints: [pull.fingerprint] }),
+        or(isNull(f.reactionsReadAt), lte(f.reactionsReadAt, at)),
+      ),
+    );
+  return changedRows(result);
+}
+
 export function accountFindingOutcomes(db: Db, accountId: string) {
   return {
     markFixed: (ids: readonly string[], via: FixedVia) => markFixed(db, accountId, ids, via),
@@ -153,5 +180,7 @@ export function accountFindingOutcomes(db: Db, accountId: string) {
     markThreadResolved: (pull: FindingsOnPull, resolved: boolean, at?: Date) =>
       markThreadResolved(db, accountId, pull, resolved, at),
     markMerged: (pull: OnPull, at: Date) => markMerged(db, accountId, pull, at),
+    recordReactions: (pull: OnPull & { fingerprint: string }, counts: ReactionCounts, at: Date) =>
+      recordReactions(db, accountId, pull, counts, at),
   };
 }

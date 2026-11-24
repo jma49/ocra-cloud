@@ -73,7 +73,7 @@ describe("the CLI's real upload", () => {
       fixed: body.outcomes.fixed,
       dismissed: body.outcomes.dismissed,
     });
-    // The console's decision about each finding, and its issue, are the cloud's own, not uploaded.
+    // The console's decision about each finding, its issue and its comment's reactions are the cloud's own, not uploaded.
     const stored = detail.findings.map(
       ({
         id: _id,
@@ -84,6 +84,9 @@ describe("the CLI's real upload", () => {
         decidedAt: _d,
         fixedVia: _v,
         threadResolvedAt: _t,
+        thumbsUp: _up,
+        thumbsDown: _down,
+        reactionsReadAt: _ra,
         issue: _i,
         platformDismissal: _p,
         ...f
