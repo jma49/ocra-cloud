@@ -104,6 +104,9 @@ export const KIND_GROUPS: { label: string; kinds: [AuditKind, string][] }[] = [
       ["pull.reviewers_changed", "Reviewers changed"],
       ["pull.assignees_changed", "Assignees changed"],
       ["pull.branch_updated", "Branch updated"],
+      ["pull.details_edited", "Title or description edited"],
+      ["pull.closed", "Closed"],
+      ["pull.reopened", "Reopened"],
       ["pull.checks_rerun", "CI run again"],
       ["merge_when_ready.armed", "Merge when ready set"],
       ["merge_when_ready.cancelled", "Merge when ready cancelled"],
@@ -148,6 +151,9 @@ const counted = (n: number | undefined, one: string, many = `${one}s`) =>
 const checked = (check: string | undefined) =>
   noted(check && (KEY_CHECK[check] ?? check), ": ", "");
 const listed = (keys: string[] | undefined) => (keys?.length ? `: ${keys.join(", ")}` : "");
+const edited = (fields: string[] = []) =>
+  fields.map((f) => (f === "body" ? "description" : f)).join(" and ") || "details";
+
 const people = (d: { added?: string[]; removed?: string[] }) => {
   const parts = [
     d.added?.length ? `added ${d.added.join(", ")}` : "",
@@ -309,6 +315,12 @@ export function describe(e: AuditEventView): string {
       return `Changed the assignees of ${named(e.detail.pull, "a pull request")}${people(e.detail)}`;
     case "pull.branch_updated":
       return `Updated the branch of ${named(e.detail.pull, "a pull request")} from its base`;
+    case "pull.details_edited":
+      return `Edited the ${edited(e.detail.fields)} of ${named(e.detail.pull, "a pull request")}`;
+    case "pull.closed":
+      return `Closed ${named(e.detail.pull, "a pull request")}`;
+    case "pull.reopened":
+      return `Reopened ${named(e.detail.pull, "a pull request")}`;
     case "pull.checks_rerun":
       return `Ran the failed CI of ${named(e.detail.pull, "a pull request")} again`;
     case "merge_when_ready.armed":

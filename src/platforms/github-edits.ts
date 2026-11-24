@@ -1,6 +1,13 @@
 import { MAX_REPO_LABELS } from "../shared/index.js";
 import { outcomeOf, type PullActions } from "./actions.js";
-import { forbiddenUnlessLimited, labelColor, type PullEdits, sameLabel } from "./edits.js";
+import {
+  editOutcome,
+  forbiddenUnlessLimited,
+  labelColor,
+  type PullEdits,
+  plannedDetails,
+  sameLabel,
+} from "./edits.js";
 import { githubHeaders, githubRepoPath } from "./github-changes.js";
 import type { GithubGraphql, GithubHost } from "./github-host.js";
 import { platformCall, platformSend } from "./http.js";
@@ -12,6 +19,8 @@ import { platformCall, platformSend } from "./http.js";
 type Label = { name: string; color?: string | null; description?: string | null };
 type Pull = {
   node_id: string;
+  title?: string;
+  body?: string | null;
   draft?: boolean;
   state: string;
   merged_at: string | null;
@@ -48,6 +57,23 @@ export function githubEdits(
   };
   const pull = (token: string, fullName: string, number: number) =>
     get<Pull>(token, `${repo(fullName)}/pulls/${number}`);
+  // A read whose 404 is told apart from an unreachable platform, for a write that follows it.
+  const pullOrMissing = async (token: string, fullName: string, number: number) => {
+    const read = await platformSend<Pull>(`${repo(fullName)}/pulls/${number}`, {
+      headers: githubHeaders(token),
+    });
+    if (read?.status === 200 && read.body) return { found: read.body } as const;
+    const outcome = editOutcome(read);
+    return { outcome: outcome === "done" ? null : outcome } as const;
+  };
+  const patch = async (token: string, fullName: string, number: number, body: unknown) =>
+    editOutcome(
+      await platformSend(`${repo(fullName)}/pulls/${number}`, {
+        method: "PATCH",
+        headers: { ...githubHeaders(token), "content-type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    );
   return {
     async labels(token, fullName, number) {
       const [on, all] = await Promise.all([
@@ -99,6 +125,24 @@ export function githubEdits(
       });
       if (!answer) return null;
       return answer.errors?.length ? "refused" : "done";
+    },
+    async editDetails(token, fullName, number, edit) {
+      // GitHub has no guard on an edit: what it replaces is read just before.
+      const read = await pullOrMissing(token, fullName, number);
+      if (!("found" in read)) return read.outcome;
+      const now = { title: read.found.title ?? "", body: read.found.body ?? "" };
+      const send = plannedDetails(now, edit);
+      if (send === "stale") return "stale";
+      if (send.length === 0) return "unchanged";
+      return patch(token, fullName, number, Object.fromEntries(send.map((f) => [f, edit[f]?.to])));
+    },
+    async setOpenness(token, fullName, number, state) {
+      const read = await pullOrMissing(token, fullName, number);
+      if (!("found" in read)) return read.outcome;
+      const now = stateOf(read.found);
+      if (now === "merged") return "refused";
+      if (now === state) return "unchanged";
+      return patch(token, fullName, number, { state });
     },
     async updateBranch(token, fullName, number, head) {
       const found = await pull(token, fullName, number);

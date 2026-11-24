@@ -44,6 +44,7 @@ import { PullFailed, PullLoading } from "../pull/opening.js";
 import { DONE, type Done, OUTCOME } from "../pull/outcome.js";
 import { pullPath } from "../pull/path.js";
 import { PeopleCard } from "../pull/people.js";
+import { EditTitle, OpenClose } from "../pull/pull-details.js";
 import { QueueBox } from "../pull/queue-box.js";
 import { ReadinessBox, useReadiness } from "../pull/readiness-box.js";
 import { ReviewBox } from "../pull/review-box.js";
@@ -192,7 +193,7 @@ export function PullPage(props: {
     if (outcome === "done") setReadinessRev((n) => n + 1);
     // A committed fix moves the head, and a merge settled the pull request: what the page read is out of date.
     if (outcome === "done" && what === "Fix") committed();
-    if (outcome === "done" && what === "Merge") reload();
+    if (outcome === "done" && (what === "Merge" || what === "Title" || what === "State")) reload();
   };
   const settled = data.state === "merged" || data.state === "closed";
   const refresh = () => {
@@ -225,6 +226,16 @@ export function PullPage(props: {
       )}
       {!settled && step === "merge" && (
         <Button render={<a href={`#${MERGE_ID}`} />}>{queues ? "Queue" : "Merge"}</Button>
+      )}
+      {!settled && data.title !== null && (
+        <EditTitle pull={ref} title={data.title} onDone={(o) => done("Title", o)} />
+      )}
+      {data.state !== "merged" && (
+        <OpenClose
+          pull={ref}
+          state={data.state === "closed" ? "closed" : "open"}
+          onDone={(o) => done("State", o)}
+        />
       )}
     </>
   );
