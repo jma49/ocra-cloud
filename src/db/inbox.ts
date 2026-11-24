@@ -157,7 +157,8 @@ export async function rememberFindings(
 /**
  * The account's findings since a time, counted per status in SQL, grouped
  * by reviewer, severity, category, verification and dismissal reason: what
- * the inbox's decisions say about each part of the review.
+ * the inbox's decisions, and the reactions on ocra's comments, say about
+ * each part of the review.
  */
 export async function findingInsights(db: Db, accountId: string, since: Date) {
   const f = findings;
@@ -167,6 +168,13 @@ export async function findingInsights(db: Db, accountId: string, since: Date) {
     open: countWhere(sql`${f.status} = 'open'`),
     fixed: countWhere(sql`${f.status} = 'fixed'`),
     dismissed: countWhere(sql`${f.status} = 'dismissed'`),
+    addressed: countWhere(sql`${f.status} = 'addressed'`),
+    merged: countWhere(sql`${f.status} = 'merged'`),
+    // A positive signal: fixed, or given a 👍; one finding counts once.
+    accepted: countWhere(sql`(${f.status} = 'fixed' OR ${f.thumbsUp} > 0)`),
+    thumbsUp: countWhere(sql`${f.thumbsUp} > 0`),
+    thumbsDown: countWhere(sql`${f.thumbsDown} > 0`),
+    reacted: countWhere(sql`(${f.thumbsUp} > 0 OR ${f.thumbsDown} > 0)`),
   };
   const by = (key: SQL<string | null> | typeof f.reviewer, limit = 50) =>
     db

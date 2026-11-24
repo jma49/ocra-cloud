@@ -14,6 +14,7 @@ import type { RepoLearnings } from "./learnings.js";
 import type { PullMergeStatus } from "./merge-status.js";
 import type { ListedPull, PullListing, PullSearch, TeamAsk } from "./pulls.js";
 import type { MergeQueue } from "./queue.js";
+import type { CommentReactions } from "./reactions.js";
 import type { PullReadiness } from "./readiness.js";
 import type { RepoReconcile } from "./reconcile.js";
 import type { RepoReleases } from "./releases.js";
@@ -103,6 +104,7 @@ export interface CodePlatform {
   readonly reviewers: PullReviewers;
   readonly roster: PullRoster;
   readonly threads: PullThreads;
+  readonly reactions: CommentReactions;
   readonly edits: PullEdits;
   readonly issues: RepoIssues;
   readonly releases: RepoReleases;

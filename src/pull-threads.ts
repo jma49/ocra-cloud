@@ -1,5 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
+import { defer } from "./defer.js";
+import { readPageReactions } from "./finding-reactions.js";
 import { apiError, jsonBody } from "./http.js";
 import type { CodePlatform } from "./platforms/platform.js";
 import {
@@ -26,7 +28,9 @@ import type { AppEnv } from "./types.js";
 
 // A pull request's review threads, read live as the signed-in user, and
 // their suggestions applied, threads resolved and replied to as them. Only the web
-// session acts, as on the rest of the pull request's page.
+// session acts, as on the rest of the pull request's page. A listing also
+// reads, after it answers, the reactions on ocra's comments of findings
+// not read lately (./finding-reactions.ts).
 
 export const pullThreads = new Hono<AppEnv>();
 
@@ -109,6 +113,7 @@ pullThreads.get("/threads", requireSession(["web"]), perMinute("platform"), asyn
   const { platform, token } = reached;
   const listing = await platform.threads.list(token, ref.data.repo, ref.data.number);
   if (!listing) return apiError(c, "upstream_unreachable");
+  defer(c, readPageReactions(c.var.data, platform, token, ref.data));
   return c.json({
     head: listing.head,
     threads: listing.threads.map(threadDto),
