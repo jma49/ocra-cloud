@@ -100,7 +100,7 @@ pullVersions.get("/versions/compare", requireSession(["web"]), perMinute("platfo
     compare: changed ? (rewritten ? "trees" : "history") : null,
     // GitHub's trees name each file's blob, not its lines.
     lines: !(rewritten && platform.kind === "github"),
-    files: (changed?.files ?? []).map(fileView),
+    files: (changed?.files ?? []).map((f) => fileView(f)),
     truncated: changed?.truncated ?? false,
   } satisfies PullVersionCompareView);
 });

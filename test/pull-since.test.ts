@@ -76,6 +76,21 @@ async function markSeen(send: (p: string, i?: RequestInit) => Promise<Response>,
 const since = (query = "") => `/api/pulls/since?platform=github&repo=octo/api&number=7${query}`;
 
 describe("changes since the last review on GitHub", () => {
+  it("leaves out whitespace-only changes when asked", async () => {
+    platform({
+      [`GET ${REPO}/pulls/7`]: () => Response.json(pull),
+      "POST https://api.github.com/graphql": reviewOf(REVIEWED),
+      [`GET ${REPO}/compare/${REVIEWED}...${HEAD}`]: () =>
+        Response.json({
+          status: "ahead",
+          files: [{ ...changedFile, patch: "@@ -1 +1,2 @@\n-a\n+ a \n+c" }],
+        }),
+    });
+    const a = await signInWithGithub();
+    const view = (await (await a.send(since("&whitespace=ignore"))).json()) as PullSinceView;
+    expect(view.files.map((f) => f.patch)).toEqual(["@@ -1,1 +1,2 @@\n  a \n+c"]);
+  });
+
   it("compares from the reviewed head by default, and offers the read mark's too", async () => {
     const asked = platform({
       [`GET ${REPO}/pulls/7`]: () => Response.json(pull),

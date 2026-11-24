@@ -1,6 +1,7 @@
 import { type Context, Hono } from "hono";
 import { z } from "zod";
 import { audit } from "./audit.js";
+import { ignoreWhitespace } from "./diff-whitespace.js";
 import { apiError, jsonBody } from "./http.js";
 import { fixMessage, repoFilePath } from "./platforms/fix.js";
 import { accessToken } from "./platforms/links.js";
@@ -67,7 +68,13 @@ export const pullRef = {
 export const sha = z.string().regex(/^[0-9a-f]{40}([0-9a-f]{24})?$/);
 const text = z.string().max(MAX_BODY);
 
-const filesQuery = z.object(pullRef);
+/** `whitespace=ignore` leaves out changes of whitespace alone, as `git diff -w`. */
+export const whitespace = { whitespace: z.literal("ignore").optional() };
+const filesQuery = z.object({ ...pullRef, ...whitespace });
+
+/** A file's diff as asked: whitespace-only changes left out when the query says so. */
+export const patchAsAsked = (patch: string | null, ws: "ignore" | undefined) =>
+  patch !== null && ws === "ignore" ? ignoreWhitespace(patch) : patch;
 const commentBody = z.object({ ...pullRef, body: text.min(1) });
 /** A line or range comment, which may carry a suggestion for the new lines it is on. */
 const lineComment = z
@@ -192,7 +199,7 @@ pullPage.get("/files", requireSession(["web"]), perMinute("platform"), async (c)
       status: f.status,
       additions: f.additions,
       deletions: f.deletions,
-      patch: f.patch,
+      patch: patchAsAsked(f.patch, ref.data.whitespace),
       viewed: viewed.get(f.path) ?? null,
     })),
     truncated: patches.truncated,
