@@ -42,6 +42,7 @@ import { FeedBell } from "./notifications/feed.js";
 import { Link } from "./router.js";
 import { type Place, placeHome, placeTabs, type Route, settingsGroups } from "./routes.js";
 import { GO_TO, useGlobalKeys } from "./shortcuts/global-keys.js";
+import { KeyCaps } from "./shortcuts/keys.js";
 import { ShortcutsDrawer } from "./shortcuts/shortcuts-drawer.js";
 import { DOCS } from "./site.js";
 import { chooseTheme, THEMES, type ThemeChoice, useThemeChoice } from "./theme.js";
@@ -93,21 +94,34 @@ function useRailRow(): boolean {
 }
 
 /** Names an icon-only rail control beside it, on hover and on keyboard focus. */
-function RailTip(props: { label: string; children: ReactElement }) {
+function RailTip(props: { label: string; keys?: string | undefined; children: ReactElement }) {
   const row = useRailRow();
   return (
     <Tooltip>
       <TooltipTrigger render={props.children} />
       <TooltipPopup side={row ? "bottom" : "right"} sideOffset={8}>
         {props.label}
+        {props.keys && <KeyCaps keys={props.keys} className="rail-tip-key" />}
       </TooltipPopup>
     </Tooltip>
   );
 }
 
-function RailLink(props: { to: string; label: string; on: boolean; icon: LucideIcon }) {
+/** The "g" chord that goes to a place, as the shortcuts panel writes it. */
+const goKeys = (place: Place) => {
+  const go = GO_TO.find((g) => g.place === place);
+  return go ? `g ${go.key}` : undefined;
+};
+
+function RailLink(props: {
+  to: string;
+  label: string;
+  on: boolean;
+  icon: LucideIcon;
+  keys: string | undefined;
+}) {
   return (
-    <RailTip label={props.label}>
+    <RailTip label={props.label} keys={props.keys}>
       <Link
         to={props.to}
         className={`rail-link${props.on ? " on" : ""}`}
@@ -137,6 +151,7 @@ function Rail(props: { me: Me; place: Place | undefined }) {
             label={p.label}
             on={props.place === p.id}
             icon={p.icon}
+            keys={goKeys(p.id)}
           />
         ))}
         <span className="rail-gap" />
@@ -157,6 +172,7 @@ function Rail(props: { me: Me; place: Place | undefined }) {
           label="Settings"
           on={props.place === "settings"}
           icon={Settings}
+          keys={goKeys("settings")}
         />
         <AccountMenu me={props.me} compact side={row ? "bottom" : "right"} />
       </nav>
