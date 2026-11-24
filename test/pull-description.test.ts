@@ -9,7 +9,6 @@ import { reviewRow } from "../src/reviews.js";
 import {
   DESCRIPTION_END,
   DESCRIPTION_START,
-  MAX_DESCRIPTION_CHARS,
   type PullDescriptionDraftView,
 } from "../src/shared/index.js";
 import { parseWalkthrough } from "../src/walkthrough.js";
@@ -18,8 +17,8 @@ import { db, resetDb, signIn } from "./helpers.js";
 import { connectGitlab, GITLAB, githubFake, signInWithGithub } from "./platform-fakes.js";
 
 // "Write the PR description": a draft from ocra's stored review of the pull
-// request, its own section between markers so the user's text is kept, and
-// the user's edit saved to the platform as them, only on the head drafted on.
+// request, its own section between markers so the user's text is kept.
+// Saving it is POST /api/pulls/details (./pull-details.test.ts).
 
 beforeEach(resetDb);
 afterEach(() => vi.restoreAllMocks());
@@ -122,15 +121,7 @@ const draftOf = async (a: Signed, query: string) => {
   return (await res.json()) as PullDescriptionDraftView;
 };
 
-const save = (a: Signed, body: Record<string, unknown>) =>
-  a.send("/api/pulls/description", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
-
 const GITHUB_QUERY = "platform=github&repo=octo/api&number=7";
-const ref = { platform: "github", repo: "octo/api", number: 7 };
 
 /** The draft's own section, markers included. */
 const sectionOf = (draft: string | null) => {
@@ -241,53 +232,12 @@ describe("a draft description on GitHub", () => {
   });
 });
 
-describe("saving a description on GitHub", () => {
-  it("edits the pull request's body as the user on the head drafted on", async () => {
-    const sent = platform({
-      [`GET ${PULL}`]: githubPull("x"),
-      [`PATCH ${PULL}`]: () => Response.json({}),
-    });
-    const a = await signInWithGithub();
-    const res = await save(a, { ...ref, head: HEAD, body: "Edited." });
-    expect(await res.json()).toEqual({ outcome: "done" });
-    expect(sent).toEqual([{ method: "PATCH", url: PULL, body: { body: "Edited." } }]);
-  });
-
-  it("sends nothing once the pull request moved", async () => {
-    const sent = platform({ [`GET ${PULL}`]: githubPull("x", OLD) });
-    const a = await signInWithGithub();
-    const res = await save(a, { ...ref, head: HEAD, body: "Edited." });
-    expect(await res.json()).toEqual({ outcome: "head_moved" });
-    expect(sent).toEqual([]);
-  });
-
-  it("refuses a body longer than the platform takes, unsent", async () => {
-    const sent = platform({ [`GET ${PULL}`]: githubPull("x") });
-    const a = await signInWithGithub();
-    const body = "x".repeat(MAX_DESCRIPTION_CHARS + 1);
-    const res = await save(a, { ...ref, head: HEAD, body });
-    expect(res.status).toBe(400);
-    expect(sent).toEqual([]);
-  });
-
-  it("answers the platform's refusal as one", async () => {
-    platform({
-      [`GET ${PULL}`]: githubPull("x"),
-      [`PATCH ${PULL}`]: () => new Response(null, { status: 403 }),
-    });
-    const a = await signInWithGithub();
-    const res = await save(a, { ...ref, head: HEAD, body: "Edited." });
-    expect(await res.json()).toEqual({ outcome: "refused" });
-  });
-});
-
 describe("a description on GitLab", () => {
   const gitlabMr =
     (description: string | null, sha = HEAD) =>
     () =>
       Response.json({ sha, description });
   const query = `platform=gitlab&repo=${encodeURIComponent("Group/Sub/Project")}&number=3`;
-  const mrRef = { platform: "gitlab", repo: "Group/Sub/Project", number: 3 };
 
   it("drafts from the merge request's review, keeping the user's text around ocra's section", async () => {
     const before = `Mine.\n\n${DESCRIPTION_START}\nold\n${DESCRIPTION_END}`;
@@ -314,23 +264,6 @@ describe("a description on GitLab", () => {
       number: 3,
     });
     expect((await draftOf(a, query)).draft).toBeNull();
-  });
-
-  it("puts the description as the user, and sends nothing once the merge request moved", async () => {
-    let sha = HEAD;
-    const sent = platform({
-      [`GET ${MR}`]: () => gitlabMr("x", sha)(),
-      [`PUT ${MR}`]: () => Response.json({}),
-    });
-    const a = await signInWithGithub();
-    await (await connectGitlab(a))("code=c&state=STATE");
-    const done = await save(a, { ...mrRef, head: HEAD, body: "Edited." });
-    expect(await done.json()).toEqual({ outcome: "done" });
-    expect(sent).toEqual([{ method: "PUT", url: MR, body: { description: "Edited." } }]);
-    sha = OLD;
-    const moved = await save(a, { ...mrRef, head: HEAD, body: "Again." });
-    expect(await moved.json()).toEqual({ outcome: "head_moved" });
-    expect(sent).toHaveLength(1);
   });
 });
 

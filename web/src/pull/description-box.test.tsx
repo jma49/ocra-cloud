@@ -55,7 +55,7 @@ describe("the description on a pull request", () => {
     expect(screen.queryByRole("button")).toBeNull();
   });
 
-  it("opens ocra's draft, and saves the edited text on the head it was read at", async () => {
+  it("opens ocra's draft, and saves the edited text with the description it was read from", async () => {
     const sent = saves();
     const done = vi.fn();
     render(<DescriptionBox pull={pull} view={reviewed} editable onDone={done} />);
@@ -64,10 +64,24 @@ describe("the description on a pull request", () => {
     expect(screen.getByText(/the current head/)).toBeTruthy();
     fireEvent.change(edit(), { target: { value: "Edited." } });
     await act(async () => void fireEvent.click(screen.getByText("Save description")));
-    expect(sent).toEqual([{ ...pull, head: HEAD, body: "Edited." }]);
+    expect(sent).toEqual([{ ...pull, body: { from: reviewed.body, to: "Edited." } }]);
     expect(done).toHaveBeenCalledWith("done");
     expect(screen.queryByLabelText("Pull request description")).toBeNull();
     expect(screen.getByRole("button", { name: "Draft with ocra" })).toBeTruthy();
+  });
+
+  it("says a description someone changed since was not overwritten, and keeps the edit", async () => {
+    const fetch = vi.fn(async (_url: string) => Response.json({ error: "stale" }, { status: 409 }));
+    vi.stubGlobal("fetch", fetch);
+    const done = vi.fn();
+    render(<DescriptionBox pull={pull} view={reviewed} editable onDone={done} />);
+    fireEvent.click(screen.getByRole("button", { name: "Draft with ocra" }));
+    fireEvent.change(edit(), { target: { value: "Edited." } });
+    await act(async () => void fireEvent.click(screen.getByText("Save description")));
+    expect(fetch.mock.calls[0]?.[0]).toBe("/api/pulls/details");
+    expect(screen.getByRole("alert").textContent).toContain("someone changed it");
+    expect(edit().value).toBe("Edited.");
+    expect(done).not.toHaveBeenCalled();
   });
 
   it("keeps an unsaved draft when the drawer closes, and starts over on request", () => {

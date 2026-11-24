@@ -5,7 +5,7 @@ import {
   type PullActionOutcome,
   type PullDescriptionDraftView,
 } from "../../../src/shared/index.js";
-import { api, why } from "../api.js";
+import { ApiError, api, why } from "../api.js";
 import { Drawer } from "../drawer.js";
 import { num } from "../format.js";
 import { PlatformMarkdown } from "../platform-markdown.js";
@@ -14,9 +14,12 @@ import { useAction } from "../ui.js";
 // The pull request's description, read where the diff is, and "Draft with
 // ocra": a draft from ocra's review of it, edited here and saved to the
 // platform as the user. Only ocra's section of the description is
-// redrafted; the rest is the user's text.
+// redrafted; the rest is the user's text. A description someone changed
+// since the page read it is refused rather than overwritten.
 
 type Pull = { platform: string; repo: string; number: number };
+
+const STALE = "someone changed it since this page loaded; reload to see their description";
 
 /** A description's markers and notes to tools are not for its reader. */
 const readable = (body: string) => body.replace(/<!--[\s\S]*?-->/g, "").trim();
@@ -36,9 +39,9 @@ export function DescriptionBox(props: {
   const [open, setOpen] = useState(false);
   const text = edited ?? start;
   const save = useAction(() =>
-    api<{ outcome: PullActionOutcome }>("/pulls/description", {
+    api<{ outcome: PullActionOutcome }>("/pulls/details", {
       method: "POST",
-      body: JSON.stringify({ ...props.pull, head: view?.head, body: text }),
+      body: JSON.stringify({ ...props.pull, body: { from: view?.body ?? "", to: text } }),
     }),
   );
   const submit = async (e: FormEvent) => {
@@ -50,6 +53,7 @@ export function DescriptionBox(props: {
     props.onDone(r.outcome);
   };
   if (!view) return null;
+  const stale = save.error instanceof ApiError && save.error.code === "stale";
   const body = readable(view.body);
   const tooLong = text.length > MAX_DESCRIPTION_CHARS;
   return (
@@ -120,7 +124,7 @@ export function DescriptionBox(props: {
           />
           {save.error !== null && (
             <p className="error" role="alert">
-              Could not save the description: {why(save.error)}.
+              Could not save the description: {stale ? STALE : why(save.error)}.
             </p>
           )}
         </Drawer>
