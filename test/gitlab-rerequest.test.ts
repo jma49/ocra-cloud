@@ -144,6 +144,17 @@ describe("a GitLab reviewer asked again", () => {
     expect(posted).toHaveLength(1);
   });
 
+  it("is not told of a reviewer state change GitLab does not mark as an ask", async () => {
+    const posted = slack();
+    const { deliver } = await setUp();
+    await deliver(added);
+    const answered = hook(AGAIN, {
+      reviewers: { previous: [reviewer("unreviewed")], current: [reviewer("reviewed")] },
+    });
+    expect(await deliver(answered)).toBe(0);
+    expect(posted).toHaveLength(1);
+  });
+
   it("waits again from GitLab's time for the ask, so the reminder starts over", async () => {
     slack();
     const { data, deliver } = await setUp();
