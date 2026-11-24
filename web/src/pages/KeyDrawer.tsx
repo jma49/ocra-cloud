@@ -26,15 +26,18 @@ const GROUPS: { id: ProviderInfo["group"]; label: string }[] = [
   { id: "Platforms", label: "Inference platforms" },
 ];
 
-export function formats(p: ProviderInfo): string {
+function formats(p: ProviderInfo): string {
   return [
     p.paths.some((x) => x.includes("chat/completions") || x.includes("responses")) && "OpenAI",
     p.paths.some((x) => x.includes("messages")) && "Anthropic",
     p.paths.some((x) => x.includes("generateContent")) && "Gemini",
   ]
     .filter(Boolean)
-    .join(" · ");
+    .join(", ");
 }
+
+/** Where a provider's calls go: what tells two endpoints of one provider apart. */
+export const hostOf = (p: ProviderInfo) => new URL(p.base).host;
 
 export function AddKeyDrawer(props: {
   providers: ProviderInfo[];
@@ -130,7 +133,7 @@ export function AddKeyDrawer(props: {
                       <span>
                         <div className="t-name">{x.label}</div>
                         <div className="t-sub">
-                          {props.configured.has(x.name) ? "Configured" : formats(x)}
+                          {props.configured.has(x.name) ? "Configured" : hostOf(x)}
                         </div>
                       </span>
                     </button>
@@ -163,7 +166,7 @@ export function AddKeyDrawer(props: {
             <ProviderLogo name={p.name} label={p.label} size={36} />
             <div className="grow">
               <div className="semibold">{p.label}</div>
-              <div className="subtle small mono">{new URL(p.base).host}</div>
+              <div className="subtle small">{hostOf(p)}</div>
             </div>
             {!props.initial && (
               <Button
@@ -209,7 +212,9 @@ export function AddKeyDrawer(props: {
                 </div>
               ))}
             </div>
-            <span className="hint">Formats: {formats(p)}.</span>
+            <span className="hint">
+              API {formats(p).includes(",") ? "formats" : "format"}: {formats(p)}
+            </span>
           </div>
           {result && <CheckNote check={result} label={p.label} />}
           {error !== null &&
@@ -235,11 +240,7 @@ function PickList(props: {
         <button key={x.name} type="button" className="pick" onClick={() => props.onPick(x.name)}>
           <ProviderLogo name={x.name} label={x.label} size={24} />
           <span className="grow">{x.label}</span>
-          {props.configured.has(x.name) ? (
-            <span className="badge badge-ok">Configured</span>
-          ) : (
-            <span className="subtle small">{formats(x)}</span>
-          )}
+          {props.configured.has(x.name) && <span className="badge badge-ok">Configured</span>}
         </button>
       ))}
     </div>
