@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import type {
   DecisionStatus,
   DismissReason,
+  FindingRule,
   FindingStatus,
   Severity,
   Verification,
@@ -12,6 +13,7 @@ import { api, why } from "../api.js";
 import { useCached } from "../cache.js";
 import { DISMISS_REASONS, reasonLabel } from "../dismiss-reasons.js";
 import { FindingReactions } from "../finding-reactions.js";
+import { RuleFilter, ruleName } from "../finding-rule-filter.js";
 import { FINDING_STATUS_NAME, FindingStanding } from "../finding-status.js";
 import { ago } from "../format.js";
 import { useListCursor } from "../list-cursor.js";
@@ -49,6 +51,7 @@ type Listed = {
   decidedAt: string | null;
   thumbsUp: number;
   thumbsDown: number;
+  rule: FindingRule;
   createdAt: string;
 };
 type Page = { findings: Listed[]; next: string | null; statuses: Record<FindingStatus, number> };
@@ -59,6 +62,8 @@ type Filters = {
   severity: Severity | "";
   verification: Verification | "none" | "";
   repo: string;
+  /** "<kind>:<id>", "none" or "" for any. */
+  rule: string;
 };
 
 const SEV_CLASS = { critical: "badge-err", warning: "badge-warn", suggestion: "" } as const;
@@ -69,6 +74,7 @@ function query(f: Filters, after?: string): string {
   if (f.severity) q.set("severity", f.severity);
   if (f.verification) q.set("verification", f.verification);
   if (f.repo) q.set("repo", f.repo);
+  if (f.rule) q.set("rule", f.rule);
   if (after) q.set("after", after);
   const s = q.toString();
   return s ? `?${s}` : "";
@@ -112,9 +118,14 @@ const STATUS_DONE: Record<DecisionStatus, string> = {
   dismissed: "dismissed",
 };
 
-/** Who found it, in what category and how it was checked; a category the reviewer is named after once. */
+/** Who found it, in what category, how it was checked and the rule it names; a category the reviewer is named after once. */
 const notes = (f: Listed) =>
-  [f.reviewer, f.category === f.reviewer ? null : f.category, f.verification]
+  [
+    f.reviewer,
+    f.category === f.reviewer ? null : f.category,
+    f.verification,
+    f.rule && ruleName(f.rule),
+  ]
     .filter(Boolean)
     .join(" · ");
 
@@ -130,6 +141,7 @@ export function Findings(props: {
     severity: "",
     verification: "",
     repo: "",
+    rule: "",
   });
   const path = `/findings${query(filters)}`;
   const { data, error, reload, change } = useCached(path, () => api<Page>(path));
@@ -294,6 +306,11 @@ export function Findings(props: {
               ))}
             </select>
           </label>
+          <RuleFilter
+            value={filters.rule}
+            rules={rows.map((r) => r.rule)}
+            onChange={(rule) => set({ rule })}
+          />
         </div>
 
         {selected.size > 0 && (

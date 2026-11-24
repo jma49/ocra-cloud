@@ -85,6 +85,11 @@ describe("Insights", () => {
             bySeverity: [row("warning", 0, 0, 0)],
             byCategory: [],
             byVerification: [],
+            byRule: [
+              { ...row("rule:no-raw-sql", 0, 0, 0), rule: { kind: "rule", id: "no-raw-sql" } },
+              { ...row(null, 0, 0, 0), rule: null },
+            ],
+            otherRules: { ...total, rules: 2 },
             dismissReasons: [],
           });
         }
@@ -106,6 +111,9 @@ describe("Insights", () => {
     expect(within(tests).getAllByText("–")).toHaveLength(2);
     expect(screen.getByText(/· 75% upvoted/)).toBeTruthy();
     expect(screen.getByRole("row", { name: /^Warning/ })).toBeTruthy();
+    expect(screen.getByRole("row", { name: /^no-raw-sql \(rule\)/ })).toBeTruthy();
+    expect(screen.getByRole("row", { name: /^No rule named/ })).toBeTruthy();
+    expect(screen.getByText("And 2 more rules, with 10 findings: 67% accepted.")).toBeTruthy();
   });
 
   it("says which findings the tables count where the reviews reported more than were shared", async () => {
@@ -149,6 +157,8 @@ describe("Insights", () => {
             bySeverity: [],
             byCategory: [],
             byVerification: [],
+            byRule: [],
+            otherRules: null,
             dismissReasons: [],
           });
         }

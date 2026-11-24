@@ -127,6 +127,8 @@ const FINDING_FIELDS = {
   fixReplacement: "text",
   lowConfidence: "bigint",
   evidence: "text",
+  ruleKind: "text",
+  ruleId: "text",
 } as const;
 
 /** Where a page of rows ends: the last row's primary key, column by column. */
@@ -399,7 +401,7 @@ export function scoped(db: Db, accountId: string) {
           je."lineEnd", je."title", je."body", je."suggestion", je."code", je."redacted",
           je."truncated", ${now.getTime()}, 'open', NULL, NULL, NULL, je."position",
           je."fixStartLine", je."fixEndLine", je."fixReplacement", NULL, NULL,
-          je."lowConfidence", je."evidence", 0, 0, NULL
+          je."lowConfidence", je."evidence", 0, 0, NULL, je."ruleKind", je."ruleId"
         FROM ${jsonRecords(db, rows, FINDING_FIELDS)}
         WHERE EXISTS (SELECT 1 FROM reviews WHERE id = ${review.id} AND account_id = ${accountId})
           AND ${findingsCounted(accountId, now, limits.findingsDays)} + ${list.length} <= ${limits.maxFindings}`);
@@ -464,7 +466,8 @@ export function scoped(db: Db, accountId: string) {
     decide(ids: readonly string[], decision: Decision): Promise<number> {
       return decide(db, accountId, ids, decision);
     },
-    findingInsights: (since: Date) => findingInsights(db, accountId, since),
+    findingInsights: (since: Date, ruleRows: number) =>
+      findingInsights(db, accountId, since, ruleRows),
     rememberFindings(ids: readonly string[], reason: string, cap: number) {
       return rememberFindings(db, accountId, ids, reason, cap);
     },
