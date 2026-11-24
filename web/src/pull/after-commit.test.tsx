@@ -80,9 +80,14 @@ it("reads the pull request again until a committed fix moves its head", async ()
   );
   const commit = await screen.findByRole("button", { name: "Commit fix" }, { timeout: 3000 });
   await act(async () => void fireEvent.click(commit));
+  // The fix's box can go before the new head's diff is drawn: wait for both.
   await waitFor(
-    () => expect(screen.queryByRole("region", { name: "ocra's fix: Clamp the amount" })).toBeNull(),
+    () => {
+      expect(screen.queryByRole("region", { name: "ocra's fix: Clamp the amount" })).toBeNull();
+      expect(document.querySelector(".diff-file")?.textContent).toContain(
+        "+log(Math.max(amount, 0));",
+      );
+    },
     { timeout: 5000 },
   );
-  expect(document.querySelector(".diff-file")?.textContent).toContain("+log(Math.max(amount, 0));");
 });
