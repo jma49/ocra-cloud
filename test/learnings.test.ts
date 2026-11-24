@@ -370,6 +370,9 @@ describe("a repository's learning proposals on GitHub", () => {
       html_url: `https://github.com/octo/api/pull/${number}`,
       created_at: "2026-11-20T00:00:00Z",
       user: { login: "octo" },
+      auto_merge: number === 5 ? { merge_method: "squash" } : null,
+      requested_reviewers: [{ login: "lena" }],
+      requested_teams: [{ slug: "core" }],
       head: { ref, sha: PR_HEAD, repo: { full_name: repo } },
     });
     platform(
@@ -415,6 +418,8 @@ describe("a repository's learning proposals on GitHub", () => {
       branch: "ocra/learnings-20261120000000",
       head: PR_HEAD,
       author: "octo",
+      autoMerge: true,
+      reviewers: ["lena", "core"],
       removed: ["old"],
       invalid: [],
     });

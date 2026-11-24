@@ -13,6 +13,8 @@ type MergeRequest = {
   source_branch: string;
   source_project_id: number;
   author: { username: string } | null;
+  merge_when_pipeline_succeeds?: boolean;
+  reviewers?: { username: string }[];
 };
 
 const PER_PAGE = 100;
@@ -75,6 +77,8 @@ export function gitlabLearnings(origin: string): RepoLearnings {
           head: m.sha,
           author: m.author?.username ?? null,
           createdAt: m.created_at,
+          autoMerge: m.merge_when_pipeline_succeeds === true,
+          reviewers: (m.reviewers ?? []).map((r) => r.username),
         })),
       };
     },
