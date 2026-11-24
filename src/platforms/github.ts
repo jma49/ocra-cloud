@@ -13,6 +13,7 @@ import { githubLearnings } from "./github-learnings.js";
 import { githubMergeStatus } from "./github-merge-status.js";
 import { githubPulls } from "./github-pulls.js";
 import { githubQueue } from "./github-queue.js";
+import { githubReactions } from "./github-reactions.js";
 import { githubReadiness } from "./github-readiness.js";
 import { githubReconcile } from "./github-reconcile.js";
 import { githubReleases } from "./github-releases.js";
@@ -104,6 +105,7 @@ export function github(client: GithubClient): CodePlatform {
     reviewers: githubReviewers(host, post),
     roster: githubRoster(host, actions),
     threads: githubThreads(post, actions),
+    reactions: githubReactions(host),
     edits: githubEdits(host, post, actions),
     issues: githubIssues(host),
     releases: githubReleases(host),

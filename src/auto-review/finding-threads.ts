@@ -3,9 +3,11 @@ import { z } from "zod";
 import type { Db } from "../db/client.js";
 import { reviewRepoFor } from "../db/review-jobs.js";
 import { type Row, type Scoped, scoped } from "../db/scoped.js";
+import { recordThreadReactions } from "../finding-reactions.js";
 import { isBot, user } from "../notify/comment-hooks.js";
 import { type StartOf, timeOf } from "../notify/thread-hooks.js";
 import { repoIdentity } from "../platforms/platform.js";
+import type { Reactions } from "../platforms/reactions.js";
 import { isBotLogin } from "../platforms/reviewers.js";
 import { findingStarting } from "../platforms/threads.js";
 import { MAX_DISMISSAL_REASON_CHARS, type ThreadDismissalState } from "../shared/index.js";
@@ -26,7 +28,10 @@ import { MAX_DISMISSAL_REASON_CHARS, type ThreadDismissalState } from "../shared
 // decides whose words count, unless the repository switched that off. A
 // person's resolution, or reopening, moves the thread's finding on that
 // pull request too (src/db/finding-outcomes.ts): resolved, an open finding
-// is addressed; reopened, it is open again.
+// is addressed; reopened, it is open again. The reactions on the thread's
+// comment are recorded on its finding too (../finding-reactions.ts): from
+// GitHub's thread event, which carries them, and on GitLab read once when
+// a person writes in the thread.
 
 type Repo = Row<"reviewRepos">;
 type Person = { id: string; login: string };
@@ -86,6 +91,7 @@ const githubComment = z.object({
   user,
   created_at: z.string().nullish(),
   in_reply_to_id: z.number().nullish(),
+  reactions: z.object({ "+1": z.number().int().min(0), "-1": z.number().int().min(0) }).nullish(),
 });
 
 const githubCommented = z.object({
@@ -141,6 +147,7 @@ export async function recordGithubFindingThread(
         threadKey,
         fingerprint: finding,
         starterId: String(first.user.id),
+        commentId: String(first.id),
       },
       now,
     );
@@ -162,6 +169,11 @@ export async function recordGithubFindingThread(
     now,
   );
   if (moved) await moveFinding(data, on, changed.action, at);
+  const thread = first.reactions ? await data.findingThreads.find(on) : null;
+  if (thread && first.reactions) {
+    const counts = { up: first.reactions["+1"], down: first.reactions["-1"] };
+    await recordThreadReactions(data, { ...thread, threadKey }, counts, at);
+  }
   const said = changed.thread.comments
     .slice(1)
     .filter((c) => !isBot(c.user) && c.user.id !== first.user.id);
@@ -212,7 +224,8 @@ export function onceEach(startOf: StartOf): StartOf & { asked: StartOf } {
  * Keeps what a GitLab note hook says of a finding's discussion: its start,
  * a person's reply, and, read from the discussion, whether it is resolved.
  * `startOf` reads a discussion on record; one that is not on record is
- * taken only from an answer `startOf.asked` already has.
+ * taken only from an answer `startOf.asked` already has. `reactions` reads
+ * the 👍 and 👎 on the discussion's first note once a person writes in it.
  */
 export async function keepGitlabFindingThread(
   db: Db,
@@ -221,24 +234,25 @@ export async function keepGitlabFindingThread(
   body: unknown,
   startOf?: ReturnType<typeof onceEach>,
   now = new Date(),
+  reactions?: (number: number, noteId: string) => Promise<Reactions | null>,
 ): Promise<void> {
   const parsed = gitlabNote.safeParse(body);
   if (!parsed.success || parsed.data.object_attributes.system) return;
   const { user: u, object_attributes: n, merge_request: mr } = parsed.data;
   const data = scoped(db, repo.accountId);
   const on = { reviewRepoId: repo.id, threadKey: n.discussion_id };
-  const start = async (fingerprint: string, starterId: string) => {
+  const start = async (fingerprint: string, starterId: string, commentId: string) => {
     const repository = identityOf(platformUrl, repo);
     if (!repository) return false;
     await data.findingThreads.start(
-      { ...on, repository, number: mr.iid, fingerprint, starterId },
+      { ...on, repository, number: mr.iid, fingerprint, starterId, commentId },
       now,
     );
     return true;
   };
   const finding = findingStarting(n.note);
   if (finding) {
-    await start(finding, String(u.id));
+    await start(finding, String(u.id), String(n.id));
     return;
   }
   if (u.bot || isBotLogin(u.username)) return;
@@ -246,7 +260,12 @@ export async function keepGitlabFindingThread(
   const first = thread
     ? await startOf?.(mr.iid, n.discussion_id)
     : await startOf?.asked(mr.iid, n.discussion_id);
-  if (!thread && first?.finding && !first.system && (await start(first.finding, first.authorId))) {
+  if (
+    !thread &&
+    first?.finding &&
+    !first.system &&
+    (await start(first.finding, first.authorId, first.noteId))
+  ) {
     thread = await data.findingThreads.find(on);
   }
   if (!thread) return;
@@ -257,6 +276,10 @@ export async function keepGitlabFindingThread(
     body: n.note,
   });
   await queueLearning(data, repo, mr.iid, now);
+  const noteId = first?.noteId ?? thread.commentId;
+  const counts = reactions && noteId ? await reactions(mr.iid, noteId) : null;
+  if (counts)
+    await recordThreadReactions(data, { ...thread, threadKey: n.discussion_id }, counts, now);
   const resolved = first?.resolved;
   if (!resolved) return;
   if (resolved.resolved) {

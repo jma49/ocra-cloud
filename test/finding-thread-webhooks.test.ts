@@ -39,10 +39,10 @@ const commented = (comment: unknown) => ({
   comment,
   repository,
 });
-const changed = (action: string, at: string) => ({
+const changed = (action: string, at: string, root: Record<string, unknown> = first) => ({
   action,
   pull_request: { number: 7, updated_at: at },
-  thread: { node_id: "T1", comments: [first, answer] },
+  thread: { node_id: "T1", comments: [root, answer] },
   sender: rita,
   repository,
 });
@@ -84,11 +84,12 @@ async function setUp() {
     fullName: "octo/api",
   });
   const { reviewId } = await seed("https://github.com/octo/api", 7, { fingerprint: FP });
-  return async () => {
+  const found = async () => {
     const res = await call(`/api/reviews/${reviewId}`, { auth: me.auth });
     const { findings } = (await res.json()) as { findings: Record<string, unknown>[] };
-    return findings[0]?.platformDismissal;
+    return findings[0];
   };
+  return Object.assign(async () => (await found())?.platformDismissal, { found });
 }
 
 describe("the App's deliveries about a finding's thread", () => {
@@ -129,6 +130,32 @@ describe("the App's deliveries about a finding's thread", () => {
       by: "rita",
       at: "2026-11-02T13:00:00.000Z",
       reason: "Not a bug here: the lock is reentrant.",
+    });
+  });
+
+  it("keeps the 👍 and 👎 its thread's event carries on the finding, a late older one changing nothing", async () => {
+    const { found } = await setUp();
+    const reacted = (up: number, down: number) => ({
+      ...first,
+      reactions: { url: "https://api.github.com/x", total_count: up + down, "+1": up, "-1": down },
+    });
+    await deliver(
+      "pull_request_review_thread",
+      changed("resolved", "2026-11-02T12:00:00Z", reacted(2, 1)),
+    );
+    expect(await found()).toMatchObject({ thumbsUp: 2, thumbsDown: 1 });
+    await deliver(
+      "pull_request_review_thread",
+      changed("unresolved", "2026-11-02T13:00:00Z", reacted(3, 0)),
+    );
+    await deliver(
+      "pull_request_review_thread",
+      changed("resolved", "2026-11-02T12:00:00Z", reacted(2, 1)),
+    );
+    expect(await found()).toMatchObject({
+      thumbsUp: 3,
+      thumbsDown: 0,
+      reactionsReadAt: "2026-11-02T13:00:00.000Z",
     });
   });
 });

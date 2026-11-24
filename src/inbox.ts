@@ -14,7 +14,13 @@ import { apiError, jsonBody, queryDays, queryLimit } from "./http.js";
 import { perMinute } from "./rate.js";
 import { repoNames } from "./repositories.js";
 import { requireSession } from "./session.js";
-import { DECISION_STATUSES, DISMISS_REASONS, FINDING_STATUSES } from "./shared/index.js";
+import {
+  DECISION_STATUSES,
+  DISMISS_REASONS,
+  FINDING_STATUSES,
+  type FindingInsightRow,
+  type FindingInsightsView,
+} from "./shared/index.js";
 import { DAY } from "./time.js";
 import type { AppEnv } from "./types.js";
 
@@ -115,6 +121,9 @@ inbox.get("/", requireSession(), async (c) => {
       reason: f.reason,
       note: f.note,
       decidedAt: f.decidedAt,
+      thumbsUp: f.thumbsUp,
+      thumbsDown: f.thumbsDown,
+      reactionsReadAt: f.reactionsReadAt,
       createdAt: f.createdAt,
     })),
     next: next ? cursorOf(next) : null,
@@ -156,27 +165,46 @@ inbox.post(
   },
 );
 
-type Tally = { total: number; open: number; fixed: number; dismissed: number };
-/** fixed / (fixed + dismissed): of the findings someone decided on, how many were right; null before any. */
+type Tally = Omit<FindingInsightRow, "key" | "acceptanceRate" | "thumbsUpRate" | "downvoteRate">;
+const share = (part: number, whole: number) => (whole > 0 ? part / whole : null);
+/**
+ * acceptanceRate: of the findings someone decided on, how many were fixed;
+ * the 👍 and 👎 rates: of the findings whose comment people reacted to.
+ */
 const withRate = <T extends Tally>(t: T) => ({
   ...t,
-  acceptanceRate: t.fixed + t.dismissed > 0 ? t.fixed / (t.fixed + t.dismissed) : null,
+  acceptanceRate: share(t.fixed, t.fixed + t.dismissed),
+  thumbsUpRate: share(t.thumbsUp, t.reacted),
+  downvoteRate: share(t.thumbsDown, t.reacted),
 });
+const NONE: Tally = {
+  total: 0,
+  open: 0,
+  fixed: 0,
+  dismissed: 0,
+  addressed: 0,
+  merged: 0,
+  accepted: 0,
+  thumbsUp: 0,
+  thumbsDown: 0,
+  reacted: 0,
+};
 
 // What the account's decisions say about its reviews: acceptance per
 // reviewer, severity, category and verification, and why findings were
-// dismissed. Only shared findings count; the rest never reach the cloud.
+// dismissed, and the 👍 and 👎 on ocra's comments (./finding-reactions.ts).
+// Only shared findings count; the rest never reach the cloud.
 inbox.get("/insights", requireSession(), async (c) => {
   const days = queryDays(c, 30);
   const i = await c.var.data.findingInsights(new Date(Date.now() - days * DAY));
   const rows = (list: (Tally & { key: string | null })[]) => list.map(withRate);
   return c.json({
     days,
-    total: withRate(i.all ?? { total: 0, open: 0, fixed: 0, dismissed: 0 }),
+    total: withRate(i.all ?? NONE),
     byReviewer: rows(i.reviewer),
     bySeverity: rows(i.severity),
     byCategory: rows(i.category),
     byVerification: rows(i.verification),
     dismissReasons: i.reasons,
-  });
+  } satisfies FindingInsightsView);
 });

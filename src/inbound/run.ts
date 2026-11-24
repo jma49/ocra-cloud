@@ -19,7 +19,7 @@ import type { MergeRunner } from "../merge-when-ready/advance.js";
 import { moveGithubIntents, moveIntents, type PullSignal } from "../merge-when-ready/hooks.js";
 import { type CiFailure, tellCiFailed, tellGithubCi } from "../notify/ci-hooks.js";
 import type { Mailer } from "../notify/email.js";
-import { gitlabStartOf } from "../notify/gitlab-starts.js";
+import { gitlabReactionsOf, gitlabStartOf } from "../notify/gitlab-starts.js";
 import type { Outbox } from "../notify/notify.js";
 import { tellGithubHook, tellGitlabHook, tellGitlabNote } from "../notify/pull-hooks.js";
 import type { WebhookPost } from "../notify/webhooks.js";
@@ -155,7 +155,10 @@ async function runStep(
     const startOf = onceEach(gitlabStartOf(reader, repo));
     await tellGitlabNote(db, out, repo, body, startOf);
     const lab = reader.platforms.find((p) => p.kind === "gitlab" && p.host === repo.host);
-    if (lab) await keepGitlabFindingThread(db, repo, lab.url, body, startOf);
+    if (lab) {
+      const reactions = gitlabReactionsOf(reader, repo);
+      await keepGitlabFindingThread(db, repo, lab.url, body, startOf, new Date(), reactions);
+    }
   } else {
     await tellGitlabHook(db, out, repo, body, reader);
   }
