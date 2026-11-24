@@ -222,6 +222,12 @@ function Behind(props: {
         )}
       </span>
       {at.offered ? <RestackHere at={at} /> : props.mergeIn}
+      {at.switchedOff && (
+        <span className="subtle small pull-stack-restack-off">
+          ocra can restack it from here once restacking is on for this repository.{" "}
+          <Link to="/auto-review">Turn it on in Auto review</Link>
+        </span>
+      )}
     </div>
   );
 }

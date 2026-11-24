@@ -26,6 +26,7 @@ const askBody = z.object({ ...pullRef, head: sha, parentHead: sha });
 
 const view = (repo: Row<"reviewRepos"> | undefined, job: Row<"restackJobs"> | undefined) =>
   ({
+    enrolled: repo !== undefined,
     offered: repo?.restack === true,
     job: job ? restackJobView(job) : null,
   }) satisfies PullRestackView;

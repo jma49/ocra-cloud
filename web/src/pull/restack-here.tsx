@@ -67,7 +67,14 @@ export function useRestackHere(pull: Ref, head: string, parentHead: string, onDo
     if (was.current && job?.state === "done" && job.outcome === "restacked") onDone();
     was.current = active(job);
   }, [job, onDone]);
-  return { offered: data?.offered === true, job, answer, ask };
+  return {
+    offered: data?.offered === true,
+    /** A repository ocra reviews with restacks off: the page says where to turn them on. */
+    switchedOff: data?.enrolled === true && !data.offered,
+    job,
+    answer,
+    ask,
+  };
 }
 
 export function RestackHere(props: { at: ReturnType<typeof useRestackHere> }) {
