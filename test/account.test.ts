@@ -9,6 +9,14 @@ beforeEach(resetDb);
 afterEach(() => vi.restoreAllMocks());
 
 describe("usage", () => {
+  it("clamps a zero day window to one day but defaults a blank window", async () => {
+    const me = await signIn(1, "me");
+    const usage = async (days: string) =>
+      (await (await call(`/api/usage?days=${days}`, { auth: me.auth })).json()) as { days: number };
+    expect((await usage("0")).days).toBe(1);
+    expect((await usage("")).days).toBe(14);
+  });
+
   it("sums calls by day and by model for the caller only", async () => {
     const me = await signIn(1, "me");
     const other = await signIn(2, "other");
