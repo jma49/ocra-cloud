@@ -197,7 +197,7 @@ export function Demo(props: { signedIn?: boolean }) {
               <span>{verdictLabel(progress.ending.verdict)}</span>
             )}
           </div>
-          <LiveStages progress={progress} ended={ended} />
+          <LiveStages progress={progress} ended={ended} replayAt={seenEvents.at(-1)?.at} />
           <LiveTasks progress={progress} ended={ended} />
           <dl className="prop-list">
             {progress.costUsd > 0 && (

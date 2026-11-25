@@ -1,5 +1,6 @@
 import type { Stage } from "@open-cr-agent/cloud-contract";
 import { Elapsed } from "../elapsed.js";
+import { elapsed } from "../format.js";
 import type { LiveProgress } from "./fold.js";
 
 // Where a live run is: its stages, in the engine's order.
@@ -18,7 +19,11 @@ const STAGE_NAMES: Record<Stage, string> = {
 const STAGES = Object.keys(STAGE_NAMES) as Stage[];
 
 /** The stages as one bar of eight steps, named in their tooltips, and under it the one that runs now, or how the run went through them. */
-export function LiveStages(props: { progress: LiveProgress; ended: boolean }) {
+export function LiveStages(props: {
+  progress: LiveProgress;
+  ended: boolean;
+  replayAt?: string | undefined;
+}) {
   const { stage, stageAt, stages } = props.progress;
   const states = STAGES.map((s) => {
     if (stage === s && !props.ended) return "running";
@@ -28,6 +33,7 @@ export function LiveStages(props: { progress: LiveProgress; ended: boolean }) {
   const ran = states.filter((s) => s === "completed").length;
   const skipped = STAGES.filter((_, i) => states[i] === "skipped").map((s) => STAGE_NAMES[s]);
   const current = !props.ended && stage ? stage : null;
+  const stageStart = stageAt ? Date.parse(stageAt) : undefined;
   return (
     <section className="live-group" aria-label="Stages">
       <h2 className="live-group-head">
@@ -54,7 +60,12 @@ export function LiveStages(props: { progress: LiveProgress; ended: boolean }) {
         {current ? (
           <>
             <span className="shimmer-text">{STAGE_NAMES[current]}</span>
-            {stageAt && <Elapsed since={Date.parse(stageAt)} />}
+            {stageStart !== undefined &&
+              (props.replayAt === undefined ? (
+                <Elapsed since={stageStart} />
+              ) : (
+                <span className="elapsed">{elapsed(Date.parse(props.replayAt) - stageStart)}</span>
+              ))}
           </>
         ) : props.ended ? (
           <span className="subtle">
