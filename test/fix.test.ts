@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   fixEach,
-  fixedFile,
   fixMessage,
   fromBase64,
+  type LineFix,
   linesAt,
   MAX_FIX_FILE_BYTES,
   toBase64,
@@ -13,8 +13,12 @@ import { replacementLines } from "../src/shared/index.js";
 const encode = (text: string) => new TextEncoder().encode(text);
 const decode = (bytes: Uint8Array | undefined) =>
   bytes === undefined ? undefined : new TextDecoder().decode(bytes);
+const applyAll = (bytes: Uint8Array, fixes: LineFix | readonly LineFix[]) => {
+  const each = fixEach(bytes, [fixes].flat());
+  return each.skipped.every((s) => s === null) ? each.content : undefined;
+};
 const fixed = (text: string, startLine: number, endLine: number, replacement: string) =>
-  decode(fixedFile(encode(text), { startLine, endLine, replacement }));
+  decode(applyAll(encode(text), { startLine, endLine, replacement }));
 
 describe("a fix applied to a file", () => {
   it("replaces its lines, with more or fewer lines than it had", () => {
@@ -30,7 +34,7 @@ describe("a fix applied to a file", () => {
   it("keeps the file's line endings and byte order mark", () => {
     const bom = [0xef, 0xbb, 0xbf];
     const file = new Uint8Array([...bom, ...encode("a\r\nb\r\n")]);
-    const out = fixedFile(file, { startLine: 1, endLine: 1, replacement: "x\ny" });
+    const out = applyAll(file, { startLine: 1, endLine: 1, replacement: "x\ny" });
     expect(out).toEqual(new Uint8Array([...bom, ...encode("x\r\ny\r\nb\r\n")]));
   });
 
@@ -38,10 +42,10 @@ describe("a fix applied to a file", () => {
     expect(fixed("a\nb\n", 3, 3, "c")).toBeUndefined();
     expect(fixed("a\nb\n", 2, 1, "c")).toBeUndefined();
     expect(
-      fixedFile(new Uint8Array([0xff, 0xfe, 0x00]), { startLine: 1, endLine: 1, replacement: "" }),
+      applyAll(new Uint8Array([0xff, 0xfe, 0x00]), { startLine: 1, endLine: 1, replacement: "" }),
     ).toBeUndefined();
     const big = new Uint8Array(MAX_FIX_FILE_BYTES + 1).fill(0x61);
-    expect(fixedFile(big, { startLine: 1, endLine: 1, replacement: "" })).toBeUndefined();
+    expect(applyAll(big, { startLine: 1, endLine: 1, replacement: "" })).toBeUndefined();
   });
 });
 

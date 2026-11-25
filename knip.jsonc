@@ -12,8 +12,6 @@
     "scripts/*.{ts,mjs}"
   ],
   "ignoreDependencies": [
-    // cloudflare:test and cloudflare:workers are runtime modules, not packages.
-    "cloudflare",
     // Imported from CSS, which knip does not read.
     "@fontsource-variable/geist",
     "@fontsource-variable/jetbrains-mono",
