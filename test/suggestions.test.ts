@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fixedFile } from "../src/platforms/fix.js";
+import { fixEach, type LineFix } from "../src/platforms/fix.js";
 import {
   githubSuggestions,
   newSideTail,
@@ -13,6 +13,10 @@ import {
 const encode = (text: string) => new TextEncoder().encode(text);
 const decode = (bytes: Uint8Array | undefined) =>
   bytes === undefined ? undefined : new TextDecoder().decode(bytes);
+const applyAll = (bytes: Uint8Array, fixes: LineFix | readonly LineFix[]) => {
+  const each = fixEach(bytes, [fixes].flat());
+  return each.skipped.every((s) => s === null) ? each.content : undefined;
+};
 
 describe("writing a suggestion", () => {
   it("puts GitHub's block after the comment, and GitLab's with the lines above it", () => {
@@ -58,7 +62,7 @@ describe("reading GitHub suggestions", () => {
 
 describe("several fixes of one file", () => {
   it("applies them together, from the bottom up", () => {
-    const out = fixedFile(encode("a\nb\nc\nd\n"), [
+    const out = applyAll(encode("a\nb\nc\nd\n"), [
       { startLine: 1, endLine: 1, replacement: "A\nA2" },
       { startLine: 3, endLine: 4, replacement: "" },
     ]);
@@ -70,13 +74,13 @@ describe("several fixes of one file", () => {
       { startLine: 1, endLine: 2, replacement: "x" },
       { startLine: 2, endLine: 3, replacement: "y" },
     ];
-    expect(fixedFile(encode("a\nb\nc\n"), fixes)).toBeUndefined();
+    expect(applyAll(encode("a\nb\nc\n"), fixes)).toBeUndefined();
   });
 
   it("refuses a fix whose lines changed since it was written", () => {
     const file = encode("a\r\nb\r\n");
     const fix = { startLine: 2, endLine: 2, replacement: "B" };
-    expect(decode(fixedFile(file, { ...fix, expected: ["b\r"] }))).toBe("a\r\nB\r\n");
-    expect(fixedFile(file, { ...fix, expected: ["c"] })).toBeUndefined();
+    expect(decode(applyAll(file, { ...fix, expected: ["b\r"] }))).toBe("a\r\nB\r\n");
+    expect(applyAll(file, { ...fix, expected: ["c"] })).toBeUndefined();
   });
 });

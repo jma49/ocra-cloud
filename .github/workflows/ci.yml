@@ -92,12 +92,12 @@ jobs:
           # shellcheck disable=SC2086
           npx vitest run $ARGS
 
-  # Conventional Commits and no AI attribution, with the engine's own checks
+  # Conventional Commits, with the engine's own check
   # (AGENTS.md, Working with agents). Pinned by commit, so a push to the
   # engine's main cannot change what runs here; Dependabot bumps the pin.
   commits:
     if: github.event_name == 'pull_request'
-    uses: ocrahq/Open-CR-Agent/.github/workflows/commits.yml@a9c8b91f456ceef4b93806332c293ffb0adf2261 # main after v0.6.0 (job.workflow_sha)
+    uses: ocrahq/Open-CR-Agent/.github/workflows/commits.yml@5e21d4f2227e5d14f517e7bac7f5e5384c24d184 # engine attribution policy (job.workflow_sha)
 
   # CI's time budgets (the engine's docs/ci.md): fails the run when a job
   # set up or ran longer than its ceiling in .github/ci-budgets.json.
