@@ -1,4 +1,5 @@
 import { type Context, Hono } from "hono";
+import { routePath } from "hono/route";
 import { account } from "./account.js";
 import { adminRoute } from "./admin.js";
 import { apiTokensRoute } from "./api-tokens.js";
@@ -256,7 +257,7 @@ export function createApp<E extends AppBindings>(host: Host<E>) {
       // Cloudflare's id of the request, to find it again; random elsewhere.
       requestId: c.req.header("cf-ray") ?? crypto.randomUUID(),
       method: c.req.method,
-      route: c.req.routePath,
+      route: routePath(c),
       error: errorName(err),
     });
     return apiError(c, "internal");
