@@ -1,5 +1,5 @@
 import CircleDot from "lucide-react/icons/circle-dot";
-import { type FormEvent, useState } from "react";
+import { type SubmitEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   type FindingIssueAnswer,
@@ -61,7 +61,7 @@ export function FindingIssue(props: { findingId: string; issue: FindingIssueView
       body: JSON.stringify({ title, body }),
     }),
   );
-  const submit = async (e: FormEvent) => {
+  const submit = async (e: SubmitEvent) => {
     e.preventDefault();
     setNote("");
     const r = await send.run();

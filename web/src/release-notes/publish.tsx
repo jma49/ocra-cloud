@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from "react";
+import { type SubmitEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   type HeldReleaseDraftView,
@@ -45,7 +45,7 @@ export function PublishDraft(props: { notes: ReleaseNotesView; body: string }) {
       } satisfies ReleasePublishRequest),
     }),
   );
-  const submit = async (e: FormEvent) => {
+  const submit = async (e: SubmitEvent) => {
     e.preventDefault();
     setAnswer(null);
     const a = await save.run();

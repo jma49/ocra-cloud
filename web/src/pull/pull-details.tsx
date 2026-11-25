@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from "react";
+import { type SubmitEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   MAX_TITLE_CHARS,
@@ -32,7 +32,7 @@ export function EditTitle(props: {
   const save = useAction(() =>
     send("/pulls/details", { ...props.pull, title: { from: props.title, to: text } }),
   );
-  const submit = async (e: FormEvent) => {
+  const submit = async (e: SubmitEvent) => {
     e.preventDefault();
     const r = await save.run();
     if (!r) return;

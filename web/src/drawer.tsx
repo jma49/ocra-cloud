@@ -1,4 +1,4 @@
-import { type FormEvent, type ReactNode, type RefObject, useEffect, useRef } from "react";
+import { type ReactNode, type RefObject, type SubmitEvent, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { CloseGlyph } from "./glyphs.js";
 
@@ -45,7 +45,7 @@ export function Drawer(props: {
   /** The heading, when it says more than the accessible name. */
   heading?: ReactNode;
   onClose: () => void;
-  onSubmit?: (e: FormEvent) => void;
+  onSubmit?: (e: SubmitEvent) => void;
   foot?: ReactNode;
   children: ReactNode;
 }) {

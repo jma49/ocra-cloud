@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from "react";
+import { type SubmitEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   type NotifyChannelView,
@@ -73,7 +73,7 @@ export function RemindersDrawer(props: {
       if (!next.delete(event)) next.add(event);
       return next;
     });
-  const submit = async (e: FormEvent) => {
+  const submit = async (e: SubmitEvent) => {
     e.preventDefault();
     setBusy(true);
     setError(null);

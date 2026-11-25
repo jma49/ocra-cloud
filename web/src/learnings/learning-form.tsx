@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from "react";
+import { type SubmitEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import type {
@@ -68,7 +68,7 @@ export function LearningForm(props: {
       }),
     }),
   );
-  const submit = async (e: FormEvent) => {
+  const submit = async (e: SubmitEvent) => {
     e.preventDefault();
     const change = await save.run();
     if (change) props.done(change);

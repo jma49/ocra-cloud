@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from "react";
+import { type SubmitEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { AutoReviewRepoView, RepoAccessTokenView } from "../../../src/shared/index.js";
 import { ApiError, api, why } from "../api.js";
@@ -26,7 +26,7 @@ export function AccessToken(props: { r: AutoReviewRepoView; onChanged: () => voi
     api<RepoAccessTokenView>(path, { method: "PUT", body: JSON.stringify({ token }) }),
   );
   const clear = useAction(() => api<RepoAccessTokenView>(path, { method: "DELETE" }));
-  const submit = async (e: FormEvent) => {
+  const submit = async (e: SubmitEvent) => {
     e.preventDefault();
     if ((await save.run()) === undefined) return;
     setToken("");

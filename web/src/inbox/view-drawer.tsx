@@ -1,4 +1,4 @@
-import { type FormEvent, type ReactNode, useState } from "react";
+import { type ReactNode, type SubmitEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { PullFilters, PullRole } from "../../../src/shared/index.js";
 import { why } from "../api.js";
@@ -88,7 +88,7 @@ export function ViewDrawer(props: {
       setError(e);
     }
   };
-  const submit = (e: FormEvent) => {
+  const submit = (e: SubmitEvent) => {
     e.preventDefault();
     void run(() => props.onSave(draft()));
   };

@@ -1,5 +1,5 @@
 import FileJson from "lucide-react/icons/file-json";
-import { type FormEvent, useState } from "react";
+import { type SubmitEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   HOSTED_CONFIG_KEYS,
@@ -210,7 +210,7 @@ function Editor(props: { view: RepoConfigView; at: RepoChoice; reload: () => voi
     path: i.path.slice(1),
     message: i.message,
   }));
-  const submit = async (e: FormEvent) => {
+  const submit = async (e: SubmitEvent) => {
     e.preventDefault();
     const done = await save.run();
     if (!done) return;

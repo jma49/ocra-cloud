@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from "react";
+import { type SubmitEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   MERGE_CHECK_KINDS,
@@ -44,7 +44,7 @@ export function AddCheck(props: { repoId: string; onAdded: () => void }) {
       body: JSON.stringify({ kind, mode, settings: settings() }),
     }),
   );
-  const submit = async (e: FormEvent) => {
+  const submit = async (e: SubmitEvent) => {
     e.preventDefault();
     if ((await add.run()) === undefined) return;
     setA("");

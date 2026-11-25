@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from "react";
+import { type SubmitEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type {
   CodePlatformKind,
@@ -48,7 +48,7 @@ export function ReviewBox(props: {
       }),
     }),
   );
-  const submit = async (e: FormEvent) => {
+  const submit = async (e: SubmitEvent) => {
     e.preventDefault();
     const r = await send.run();
     if (!r) return;

@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from "react";
+import { type SubmitEvent, useState } from "react";
 import {
   Autocomplete,
   AutocompleteEmpty,
@@ -63,7 +63,7 @@ export function AddRepo(props: {
       body: JSON.stringify({ platform, fullName: fullName.trim() }),
     }),
   );
-  const submit = async (e: FormEvent) => {
+  const submit = async (e: SubmitEvent) => {
     e.preventDefault();
     const a = await add.run();
     if (!a) return;
