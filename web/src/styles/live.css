@@ -9,32 +9,13 @@
 .demo-head {
   display: grid;
   gap: 12px;
-  padding: 16px;
-  border: 1px solid var(--hair);
-  border-radius: var(--r-card);
-  background: var(--raised);
+  padding-bottom: 16px;
 }
 .demo-head-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-}
-.demo-head-copy {
-  display: grid;
-  gap: 6px;
-}
-.demo-kicker {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-.demo-controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
   gap: 12px;
 }
 .demo-tabs {
@@ -119,24 +100,18 @@
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 6px;
+  border-top: 1px solid var(--hair);
   max-height: 360px;
   overflow-y: auto;
 }
 .demo-ev {
   display: flex;
   align-items: baseline;
-  gap: 8px;
-  padding: 6px 8px;
-  border: 1px solid transparent;
-  border-radius: var(--r-chip);
-  background: var(--fill);
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--hair);
   font-size: var(--text-sm);
   animation: demo-ev-in var(--d-fast) var(--e-enter);
-}
-.demo-ev:first-child {
-  border-color: var(--hair2);
-  background: var(--raised);
 }
 @keyframes demo-ev-in {
   from {
@@ -151,9 +126,8 @@
 .demo-ev-tag {
   flex: none;
   min-width: 56px;
-  font-size: var(--text-2xs);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-size: var(--text-xs);
+  font-weight: 500;
   color: var(--t3);
 }
 .demo-ev.is-confirm .demo-ev-tag,
@@ -168,6 +142,9 @@
   min-width: 0;
   color: var(--t2);
   overflow-wrap: anywhere;
+}
+.demo-ev:first-child .demo-ev-text {
+  color: var(--t1);
 }
 .demo-cta {
   display: grid;
