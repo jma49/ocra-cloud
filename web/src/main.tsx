@@ -19,6 +19,7 @@ import { ErrorBoundary, Loading, NotFound } from "./ui.js";
 import "./styles.css";
 
 const Privacy = lazy(() => import("./pages/Privacy.js").then((m) => ({ default: m.Privacy })));
+const Demo = lazy(() => import("./pages/Demo.js").then((m) => ({ default: m.Demo })));
 const Setup = lazy(() => import("./setup/Setup.js").then((m) => ({ default: m.Setup })));
 
 /** A self-hosted server nobody can sign in to yet opens on its settings page; elsewhere /api/setup is missing. */
@@ -68,9 +69,22 @@ function App() {
   const setupNeeded = useSetupNeeded(me === null);
   const found = matchRoute(path, me ?? undefined);
   useEffect(() => {
-    setPageTitle(me ? found?.route.tab : undefined);
-  }, [found?.route, me]);
+    setPageTitle(path === "/demo" ? "Live demo" : me ? found?.route.tab : undefined);
+  }, [found?.route, me, path]);
 
+  if (path === "/demo") {
+    return (
+      <>
+        <TopBar me={me ?? null} />
+        <main className="content solo demo-solo">
+          <Suspense fallback={<Loading what="the live demo" />}>
+            <Demo signedIn={Boolean(me)} />
+          </Suspense>
+        </main>
+        <Footer />
+      </>
+    );
+  }
   if (path === "/privacy") {
     return (
       <>
