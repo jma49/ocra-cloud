@@ -9,9 +9,9 @@ import { Reviews } from "./pages/Reviews.js";
 import { Rules } from "./pages/Rules.js";
 import { Sessions } from "./pages/Sessions.js";
 import { PrefsProvider } from "./prefs.js";
-import { pageFor } from "./routes.js";
+import { matchRoute } from "./routes.js";
 import { ToastProvider } from "./toast.js";
-import { ErrorBoundary, forgetProviders, Loading } from "./ui.js";
+import { ErrorBoundary, forgetProviders, Loading, NotFound } from "./ui.js";
 
 // Honest states: a failure says what failed and why, loading is not "empty",
 // and a bad address or a throwing page does not blank the console.
@@ -272,16 +272,21 @@ const Boom = () => {
   throw new Error("boom");
 };
 
+const renderRoute = (path: string) => {
+  const found = matchRoute(path, me);
+  return found ? found.route.page(me, found.params) : <NotFound />;
+};
+
 describe("addresses and crashes", () => {
   it("a malformed review id is a 404 page, not a crash", () => {
     fakeApi(never);
-    render(pageFor("/reviews/%E0", me));
+    render(renderRoute("/reviews/%E0"));
     screen.getByText("Page not found");
   });
 
   it("an unknown path is a 404 page, not the overview", () => {
     fakeApi(never);
-    render(pageFor("/no-such-page", me));
+    render(renderRoute("/no-such-page"));
     screen.getByText("Page not found");
     expect(screen.queryByText("Requests today")).toBeNull();
   });
