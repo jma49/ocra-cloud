@@ -26,39 +26,46 @@ const NOOP_ACTIONS = {
   remove: async () => false,
 };
 
-function eventLine(e: LiveEventView): { tag: string; text: string } {
+function eventLine(e: LiveEventView): { tag: string; label: string; text: string } {
   switch (e.kind) {
     case "started":
-      return { tag: "start", text: e.data.target };
+      return { tag: "start", label: "Start", text: e.data.target };
     case "stage":
       return {
         tag: e.data.stage,
-        text: e.data.files ? `${e.data.files.length} files selected` : `stage → ${e.data.stage}`,
+        label: e.data.stage.charAt(0).toUpperCase() + e.data.stage.slice(1),
+        text: e.data.files ? `${e.data.files.length} files selected` : `Stage ${e.data.stage}`,
       };
     case "task.started":
-      return { tag: "task", text: `${e.data.reviewer} (${e.data.files.length} files)` };
+      return {
+        tag: "task",
+        label: "Task",
+        text: `${e.data.reviewer} (${e.data.files.length} files)`,
+      };
     case "task.finished":
-      return { tag: "done", text: `${e.data.taskId} · ${e.data.status}` };
+      return { tag: "done", label: "Done", text: `${e.data.taskId} · ${e.data.status}` };
     case "file.finished":
-      return { tag: "file", text: `${e.data.path} · ${e.data.status}` };
+      return { tag: "file", label: "File", text: `${e.data.path} · ${e.data.status}` };
     case "finding":
-      if (e.data.dropped) return { tag: "drop", text: `Refuted: ${e.data.title}` };
-      if (e.data.settled) return { tag: "confirm", text: `Confirmed: ${e.data.title}` };
-      return { tag: "claim", text: `Checking: ${e.data.title}` };
+      if (e.data.dropped) return { tag: "drop", label: "Refuted", text: e.data.title };
+      if (e.data.settled) return { tag: "confirm", label: "Confirm", text: e.data.title };
+      return { tag: "claim", label: "Check", text: e.data.title };
     case "warning":
-      return { tag: "gate", text: e.data.message };
+      return { tag: "gate", label: "Gate", text: e.data.message };
     case "usage":
       return {
         tag: "usage",
+        label: "Usage",
         text: `${e.data.inputTokens.toLocaleString()} in · ${usd(e.data.costUsd)}`,
       };
     case "finished":
       return {
         tag: "verdict",
+        label: "Verdict",
         text: `${verdictLabel(e.data.verdict)} · ${usd(e.data.usage.costUsd)}`,
       };
     case "failed":
-      return { tag: "failed", text: e.data.reason };
+      return { tag: "failed", label: "Failed", text: e.data.reason };
   }
 }
 
@@ -105,78 +112,68 @@ export function Demo(props: { signedIn?: boolean }) {
     <div className="demo-shell">
       <header className="demo-head">
         <div className="demo-head-row">
-          <div className="demo-head-copy">
-            <div className="demo-kicker">
-              <Status tone={ended ? "ok" : "run"}>
-                {ended ? "Replay finished" : "Live replay"}
-              </Status>
-              <span className="subtle small">Recorded example runs · no account required</span>
-            </div>
-            <p className="subtle m-0">{scenario.summary}</p>
+          <div className="demo-tabs" role="tablist" aria-label="Sample pull requests">
+            {DEMO_SCENARIOS.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                role="tab"
+                aria-selected={s.id === scenario.id}
+                className={`demo-tab${s.id === scenario.id ? " is-active" : ""}`}
+                onClick={() => selectScenario(s.id)}
+              >
+                {s.tab}
+              </button>
+            ))}
           </div>
-          <div className="demo-controls">
-            <div className="demo-tabs" role="tablist" aria-label="Sample pull requests">
-              {DEMO_SCENARIOS.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={s.id === scenario.id}
-                  className={`demo-tab${s.id === scenario.id ? " is-active" : ""}`}
-                  onClick={() => selectScenario(s.id)}
-                >
-                  {s.tab}
-                </button>
-              ))}
-            </div>
-            <div className="demo-actions">
-              {ended ? (
+          <div className="demo-actions">
+            {ended ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setCursor(1);
+                  setPlaying(true);
+                }}
+              >
+                <RotateCcw size={14} aria-hidden="true" /> Replay
+              </Button>
+            ) : (
+              <>
+                <Button type="button" variant="outline" onClick={() => setPlaying((p) => !p)}>
+                  {playing ? (
+                    <>
+                      <Pause size={14} aria-hidden="true" /> Pause
+                    </>
+                  ) : (
+                    <>
+                      <Play size={14} aria-hidden="true" /> Resume
+                    </>
+                  )}
+                </Button>
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => {
-                    setCursor(1);
-                    setPlaying(true);
+                    setCursor(scenario.events.length);
+                    setPlaying(false);
                   }}
                 >
-                  <RotateCcw size={14} aria-hidden="true" /> Replay
+                  <FastForward size={14} aria-hidden="true" /> Skip
                 </Button>
-              ) : (
-                <>
-                  <Button type="button" variant="outline" onClick={() => setPlaying((p) => !p)}>
-                    {playing ? (
-                      <>
-                        <Pause size={14} aria-hidden="true" /> Pause
-                      </>
-                    ) : (
-                      <>
-                        <Play size={14} aria-hidden="true" /> Resume
-                      </>
-                    )}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setCursor(scenario.events.length);
-                      setPlaying(false);
-                    }}
-                  >
-                    <FastForward size={14} aria-hidden="true" /> Skip
-                  </Button>
-                </>
-              )}
-              <Button
-                type="button"
-                variant="ghost"
-                aria-label="Toggle playback speed"
-                onClick={() => setFast((f) => !f)}
-              >
-                {fast ? "2×" : "1×"}
-              </Button>
-            </div>
+              </>
+            )}
+            <Button
+              type="button"
+              variant="ghost"
+              aria-label="Toggle playback speed"
+              onClick={() => setFast((f) => !f)}
+            >
+              {fast ? "2×" : "1×"}
+            </Button>
           </div>
         </div>
+        <p className="subtle small m-0">{scenario.summary}</p>
         <div
           className="demo-bar"
           role="progressbar"
@@ -288,7 +285,7 @@ export function Demo(props: { signedIn?: boolean }) {
               const line = eventLine(e);
               return (
                 <li key={e.seq} className={`demo-ev is-${line.tag}`}>
-                  <span className="demo-ev-tag mono">{line.tag}</span>
+                  <span className="demo-ev-tag">{line.label}</span>
                   <span className="demo-ev-text">{line.text}</span>
                 </li>
               );

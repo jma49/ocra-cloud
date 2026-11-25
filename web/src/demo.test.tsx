@@ -27,7 +27,7 @@ describe("Demo page", () => {
   it("replays, skips to the final finding, and switches scenarios", () => {
     render(<Demo />);
     fireEvent.click(screen.getByRole("button", { name: /Skip/i }));
-    expect(screen.getByText("Every session is treated as expired")).toBeTruthy();
+    expect(screen.getAllByText("Every session is treated as expired").length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByRole("tab", { name: /Quiet pass/i }));
     fireEvent.click(screen.getByRole("button", { name: /Skip/i }));
