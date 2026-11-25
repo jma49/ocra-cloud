@@ -415,16 +415,6 @@
   color: var(--t3);
   font-size: var(--text-sm);
 }
-.section-title {
-  font-size: var(--text-base);
-  font-weight: 600;
-  margin-bottom: 8px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-}
 
 /* Phone: the rail turns into a row along the top, the panel fills the width. */
 @media (max-width: 760px) {
