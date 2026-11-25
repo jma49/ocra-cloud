@@ -15,7 +15,7 @@ Read the private handoff (`../ocra-internal/handoff.md`) and [ADR-0024](https://
 
 ## Git and handoff
 
-- Work on a branch `<type>/<short-kebab-description>` in its own worktree; open a pull request; merge by rebase once CI is green. `main` is not protected (private repository on the Free plan), so this is on you.
+- Work on a branch `<type>/<short-kebab-description>` in its own worktree; open a pull request; merge by rebase once CI is green. Do not push directly to `main`.
 - CI's `commits` job checks [Conventional Commits](https://www.conventionalcommits.org/) with the engine's commitlint config. As in the engine, AI authors, `Co-authored-by` trailers and tool footers are allowed.
 - Run `npm run verify` before pushing and read its exit code.
 - CI follows the engine's [`docs/ci.md`](https://github.com/ocrahq/Open-CR-Agent/blob/main/docs/ci.md) (targets, budgets, the rules that outrank speed): a job that sets up or runs longer than its ceiling in `.github/ci-budgets.json` fails the run.
