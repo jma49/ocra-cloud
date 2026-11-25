@@ -298,7 +298,7 @@ export function Demo(props: { signedIn?: boolean }) {
               Free during early access. Bring your own model key for GitHub or GitLab.
             </p>
             <Button render={<Link to="/" />}>
-              {props.signedIn ? "Open your inbox" : "Sign in with GitHub"}
+              {props.signedIn ? "Open your inbox" : "Sign in"}
             </Button>
           </div>
         </aside>
