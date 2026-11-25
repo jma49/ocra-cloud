@@ -53,6 +53,14 @@ describe("Demo page", () => {
     expect(stageTime()).toBe("0s");
   });
 
+  it("links signed-out visitors to sign-in without naming a provider", () => {
+    const { rerender } = render(<Demo />);
+    expect(screen.queryByRole("link", { name: "Sign in" })?.getAttribute("href")).toBe("/");
+
+    rerender(<Demo signedIn />);
+    expect(screen.getByRole("link", { name: "Open your inbox" }).getAttribute("href")).toBe("/");
+  });
+
   it("replays, skips to the final finding, and switches scenarios", () => {
     render(<Demo />);
     fireEvent.click(screen.getByRole("button", { name: /Skip/i }));
