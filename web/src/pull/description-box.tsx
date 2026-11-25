@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from "react";
+import { type SubmitEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   MAX_DESCRIPTION_CHARS,
@@ -44,7 +44,7 @@ export function DescriptionBox(props: {
       body: JSON.stringify({ ...props.pull, body: { from: view?.body ?? "", to: text } }),
     }),
   );
-  const submit = async (e: FormEvent) => {
+  const submit = async (e: SubmitEvent) => {
     e.preventDefault();
     const r = await save.run();
     if (!r) return;

@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from "react";
+import { type SubmitEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import type { LiveRole, LiveShareView } from "../../../src/shared/index.js";
@@ -33,7 +33,7 @@ export function ShareDrawer(props: {
     onChange(next);
     return next;
   });
-  const add = async (e: FormEvent) => {
+  const add = async (e: SubmitEvent) => {
     e.preventDefault();
     if (await send.run("/people", "POST", { login: login.trim(), role })) setLogin("");
   };

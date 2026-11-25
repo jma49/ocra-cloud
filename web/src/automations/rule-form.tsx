@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from "react";
+import { type SubmitEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   type AssignReviewers,
@@ -138,7 +138,7 @@ export function RuleForm(props: {
       }),
     }),
   );
-  const submit = async (e: FormEvent) => {
+  const submit = async (e: SubmitEvent) => {
     e.preventDefault();
     if ((await save.run()) !== undefined) props.done(true);
   };

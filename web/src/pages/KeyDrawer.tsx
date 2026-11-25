@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from "react";
+import { type SubmitEvent, useState } from "react";
 import { Status } from "@/components/status";
 import { Button } from "@/components/ui/button";
 import { ApiError, api, type KeyCheck, type ProviderInfo } from "../api.js";
@@ -56,7 +56,7 @@ export function AddKeyDrawer(props: {
   const byName = new Map(props.providers.map((p) => [p.name, p]));
   const p = chosen ? byName.get(chosen) : undefined;
 
-  const save = async (e: FormEvent) => {
+  const save = async (e: SubmitEvent) => {
     e.preventDefault();
     if (!p) return;
     setBusy(true);

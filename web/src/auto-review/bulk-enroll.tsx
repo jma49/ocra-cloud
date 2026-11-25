@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from "react";
+import { type SubmitEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   type AutoReviewRepoView,
@@ -91,7 +91,7 @@ export function BulkEnroll(props: {
     if (!next.delete(name)) next.add(name);
     setPicked(next);
   };
-  const submit = async (e: FormEvent) => {
+  const submit = async (e: SubmitEvent) => {
     e.preventDefault();
     if ((await enroll.run()) !== undefined) setPicked(new Set());
   };

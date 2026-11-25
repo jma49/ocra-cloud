@@ -62,7 +62,7 @@ export function StepForm(props: {
       }),
     );
 
-  const onSave = async (e: React.FormEvent) => {
+  const onSave = async (e: React.SubmitEvent) => {
     e.preventDefault();
     const next = await save.run();
     if (!next) return;

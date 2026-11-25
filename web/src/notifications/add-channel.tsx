@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from "react";
+import { type SubmitEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   NOTIFY_KINDS,
@@ -97,7 +97,7 @@ export function AddChannel(props: {
       }),
     }),
   );
-  const submit = async (e: FormEvent) => {
+  const submit = async (e: SubmitEvent) => {
     e.preventDefault();
     const added = await add.run();
     if (added === undefined) return;

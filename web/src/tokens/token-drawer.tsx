@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from "react";
+import { type SubmitEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   API_TOKEN_NAME_MAX,
@@ -41,7 +41,7 @@ export function TokenDrawer(props: { done: (made?: ApiTokenCreated) => void }) {
       } satisfies ApiTokenDraft),
     }),
   );
-  const submit = async (e: FormEvent) => {
+  const submit = async (e: SubmitEvent) => {
     e.preventDefault();
     const made = await make.run();
     if (made !== undefined) props.done(made);

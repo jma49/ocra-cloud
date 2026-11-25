@@ -1,6 +1,6 @@
 import ChevronDown from "lucide-react/icons/chevron-down";
 import ListFilter from "lucide-react/icons/list-filter";
-import { type FormEvent, type Ref, useRef, useState } from "react";
+import { type Ref, type SubmitEvent, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Menu,
@@ -192,7 +192,7 @@ function FilterMenu(props: { views: FileViews }) {
 
 function NameView(props: { onSave: (name: string) => void; onClose: () => void }) {
   const [name, setName] = useState("");
-  const submit = (e: FormEvent) => {
+  const submit = (e: SubmitEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
     props.onSave(name);

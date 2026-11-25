@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from "react";
+import { type SubmitEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   AUTOMATION_TRIGGERS,
@@ -61,7 +61,7 @@ export function DryRun(props: { queued: boolean; repos: Choice[] | null }) {
       body: JSON.stringify({ trigger, pull: pull() }),
     }),
   );
-  const submit = async (e: FormEvent) => {
+  const submit = async (e: SubmitEvent) => {
     e.preventDefault();
     const r = await run.run();
     if (r) setTried(r);

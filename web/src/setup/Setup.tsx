@@ -106,7 +106,7 @@ function Unlock(props: { onOpen: () => void }) {
   const open = useAction((typed: string) =>
     api("/setup/unlock", { method: "POST", body: JSON.stringify({ code: typed }) }),
   );
-  const submit = async (e: React.FormEvent) => {
+  const submit = async (e: React.SubmitEvent) => {
     e.preventDefault();
     if ((await open.run(code)) !== undefined) props.onOpen();
   };

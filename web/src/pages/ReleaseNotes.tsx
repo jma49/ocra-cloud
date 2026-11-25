@@ -1,5 +1,5 @@
 import GitMerge from "lucide-react/icons/git-merge";
-import { type FormEvent, useState } from "react";
+import { type SubmitEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   type CodePlatformKind,
@@ -50,7 +50,7 @@ export function ReleaseNotes() {
     });
     return api<ReleaseNotesView>(`/release-notes?${query}`);
   });
-  const submit = async (e: FormEvent) => {
+  const submit = async (e: SubmitEvent) => {
     e.preventDefault();
     const made = await draft.run(range);
     if (!made) return;

@@ -1,5 +1,5 @@
 import Trash2 from "lucide-react/icons/trash-2";
-import { type FormEvent, useState } from "react";
+import { type SubmitEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { LiveCommentView } from "../../../src/shared/index.js";
 import { MAX_LIVE_COMMENT } from "../../../src/shared/index.js";
@@ -67,7 +67,7 @@ export function CommentThread(props: {
 function CommentForm(props: { placeholder: string; onSend: (body: string) => Promise<unknown> }) {
   const [body, setBody] = useState("");
   const [state, setState] = useState<"" | "sending" | string>("");
-  const send = async (e: FormEvent) => {
+  const send = async (e: SubmitEvent) => {
     e.preventDefault();
     const text = body.trim();
     if (!text) return;

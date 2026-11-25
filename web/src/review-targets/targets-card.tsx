@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from "react";
+import { type SubmitEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   MAX_FIRST_REVIEW_HOURS,
@@ -38,7 +38,7 @@ function TargetsForm(props: {
   const [hours, setHours] = useState(shown(props.value.firstReviewHours));
   const [days, setDays] = useState(shown(props.value.mergeDays));
   const save = useAction(props.save);
-  const submit = (e: FormEvent) => {
+  const submit = (e: SubmitEvent) => {
     e.preventDefault();
     save.run({ firstReviewHours: parsed(hours), mergeDays: parsed(days) });
   };

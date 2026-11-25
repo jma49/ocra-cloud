@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useState } from "react";
+import { type SubmitEvent, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   type NotifyTimeZoneView,
@@ -126,7 +126,7 @@ export function ReportEditor(props: {
       }),
     }),
   );
-  const submit = async (e: FormEvent) => {
+  const submit = async (e: SubmitEvent) => {
     e.preventDefault();
     if ((await save.run()) !== undefined) props.done(true);
   };

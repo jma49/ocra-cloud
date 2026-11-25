@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useState } from "react";
+import { type SubmitEvent, useEffect, useState } from "react";
 import { Status } from "@/components/status";
 import { Button } from "@/components/ui/button";
 import { ApiError, api } from "../api.js";
@@ -57,7 +57,7 @@ export function Device() {
     }
   };
 
-  const submit = (e: FormEvent) => {
+  const submit = (e: SubmitEvent) => {
     e.preventDefault();
     void lookup(code);
   };
