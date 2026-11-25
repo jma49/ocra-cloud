@@ -1,3 +1,4 @@
+import { Tabs } from "@base-ui/react/tabs";
 import CircleCheck from "lucide-react/icons/circle-check";
 import FastForward from "lucide-react/icons/fast-forward";
 import Pause from "lucide-react/icons/pause";
@@ -109,23 +110,23 @@ export function Demo(props: { signedIn?: boolean }) {
   const pct = Math.round((cursor / Math.max(1, scenario.events.length)) * 100);
 
   return (
-    <div className="demo-shell">
+    <Tabs.Root className="demo-shell" value={scenario.id} onValueChange={selectScenario}>
       <header className="demo-head">
         <div className="demo-head-row">
-          <div className="demo-tabs" role="tablist" aria-label="Sample pull requests">
+          <Tabs.List className="demo-tabs" aria-label="Sample pull requests" activateOnFocus>
             {DEMO_SCENARIOS.map((s) => (
-              <button
+              <Tabs.Tab
                 key={s.id}
-                type="button"
-                role="tab"
-                aria-selected={s.id === scenario.id}
+                value={s.id}
                 className={`demo-tab${s.id === scenario.id ? " is-active" : ""}`}
-                onClick={() => selectScenario(s.id)}
+                onClick={() => {
+                  if (s.id === scenario.id) selectScenario(s.id);
+                }}
               >
                 {s.tab}
-              </button>
+              </Tabs.Tab>
             ))}
-          </div>
+          </Tabs.List>
           <div className="demo-actions">
             {ended ? (
               <Button
@@ -189,7 +190,7 @@ export function Demo(props: { signedIn?: boolean }) {
         </div>
       </header>
 
-      <div className="demo-frame">
+      <Tabs.Panel className="demo-frame" value={scenario.id}>
         <aside className="live-side" aria-label="Progress">
           <div className="live-state">
             <Status tone={ended ? "ok" : "run"}>{ended ? "Finished" : "Running"}</Status>
@@ -301,7 +302,7 @@ export function Demo(props: { signedIn?: boolean }) {
             </Button>
           </div>
         </aside>
-      </div>
-    </div>
+      </Tabs.Panel>
+    </Tabs.Root>
   );
 }
