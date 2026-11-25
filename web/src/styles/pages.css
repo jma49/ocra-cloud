@@ -57,10 +57,6 @@
 .stats.stats-3 {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
-.stat-value.stat-word {
-  font-size: var(--text-xl);
-  line-height: 24px;
-}
 
 /* A list row whose content wraps and aligns to the top (Agents, Rules). */
 .list-row.row-top {

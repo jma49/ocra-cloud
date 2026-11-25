@@ -34,7 +34,6 @@
 
   /* What the components name. */
   --bg: var(--panel);
-  --page: var(--panel);
   --stock: var(--raised);
   --bg-subtle: color-mix(in srgb, var(--black) 2.5%, var(--panel));
   --fg: var(--t1);
@@ -44,7 +43,6 @@
   --border-strong: rgb(0 0 0 / 0.16);
   --tint: var(--fill2);
   --primary: var(--ink);
-  --primary-soft: var(--fill2);
   --on-primary: var(--white);
   --button: var(--ink);
   --on-button: var(--white);
