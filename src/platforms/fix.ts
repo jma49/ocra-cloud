@@ -99,18 +99,6 @@ export function fixEach(
   return { content, skipped };
 }
 
-/**
- * The file with the fixes in its own line endings, or undefined when it is not
- * UTF-8 text, is too large, has no such lines, or the fixes overlap.
- */
-export function fixedFile(
-  bytes: Uint8Array,
-  fixes: LineFix | readonly LineFix[],
-): Uint8Array | undefined {
-  const each = fixEach(bytes, [fixes].flat());
-  return each.skipped.every((s) => s === null) ? each.content : undefined;
-}
-
 // A diff shows a CRLF file's lines with their CR; the file is split on CRLF.
 const sameLines = (a: readonly string[], b: readonly string[]) =>
   a.length === b.length &&
