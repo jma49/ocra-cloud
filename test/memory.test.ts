@@ -108,6 +108,8 @@ describe("listing account memory (#96)", () => {
     // A limit past the bound, below 1 or not a number keeps to 1..500.
     expect((await list("?limit=100000")).entries).toHaveLength(500);
     expect((await list("?limit=-3")).entries).toHaveLength(1);
+    expect((await list("?limit=0")).entries).toHaveLength(1);
+    expect((await list("?limit=0.5")).entries).toHaveLength(1);
     expect((await list("?limit=many")).entries).toHaveLength(500);
   });
 });

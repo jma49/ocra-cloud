@@ -83,9 +83,14 @@ export function signedBody<S extends z.ZodType>(
   };
 }
 
+function boundedQuery(raw: string | undefined, fallback: number, max: number): number {
+  const value = Number(raw?.trim() || fallback);
+  return Math.min(Math.max(Number.isNaN(value) ? fallback : Math.trunc(value), 1), max);
+}
+
 /** The `limit` query, clamped to 1..`max`; `max` when it is missing or not a number. */
 export function queryLimit(c: Context, max: number): number {
-  return Math.min(Math.max(Math.trunc(Number(c.req.query("limit") ?? max)) || max, 1), max);
+  return boundedQuery(c.req.query("limit"), max, max);
 }
 
 /**
@@ -94,7 +99,6 @@ export function queryLimit(c: Context, max: number): number {
  * number.
  */
 export function queryDays(c: Context<AppEnv>, fallback: number, max = Infinity): number {
-  const v = c.req.query("days");
   const most = Math.min(max, config(c.env).retentionDays);
-  return Math.min(Math.max(Math.trunc(Number(v ?? fallback)) || fallback, 1), most);
+  return boundedQuery(c.req.query("days"), fallback, most);
 }
