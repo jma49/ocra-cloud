@@ -6,7 +6,7 @@ import { isLazyPage, lazyPage } from "./lazy-page.js";
 import { Inbox } from "./pages/Inbox.js";
 import { pullReads } from "./pull/reads.js";
 import { loadAhead } from "./stale-build.js";
-import { loadProviders, NotFound } from "./ui.js";
+import { loadProviders } from "./ui.js";
 
 // Every page but the inbox, the first one, loads on demand: hovering a link
 // to it (or the browser's idle time) loads its code before the click.
@@ -363,11 +363,6 @@ export function matchRoute(path: string, me?: Me): { route: Route; params: strin
     if (fits) return me && route.shown && !route.shown(me) ? undefined : { route, params };
   }
   return undefined;
-}
-
-export function pageFor(path: string, me: Me): ReactNode {
-  const found = matchRoute(path, me);
-  return found ? found.route.page(me, found.params) : <NotFound />;
 }
 
 /**
