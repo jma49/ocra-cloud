@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DEMO_SCENARIOS } from "./demo/scenarios.js";
 import { emptyProgress, fold } from "./live/fold.js";
@@ -51,6 +51,30 @@ describe("Demo page", () => {
     expect(stageTime()).toBeUndefined();
     act(() => void vi.advanceTimersByTime(550));
     expect(stageTime()).toBe("0s");
+  });
+
+  it("moves focus and selection with the tablist keys", async () => {
+    render(<Demo />);
+    const first = screen.getByRole("tab", { name: /Critical bug/ });
+    const second = screen.getByRole("tab", { name: /Hostile fork/ });
+    const last = screen.getByRole("tab", { name: /Quiet pass/ });
+    expect(first.tabIndex).toBe(0);
+    expect(second.tabIndex).toBe(-1);
+    act(() => first.focus());
+
+    fireEvent.keyDown(first, { key: "ArrowRight" });
+    await waitFor(() => expect(document.activeElement).toBe(second));
+    expect(second.getAttribute("aria-selected")).toBe("true");
+    expect(first.tabIndex).toBe(-1);
+    expect(second.tabIndex).toBe(0);
+
+    fireEvent.keyDown(second, { key: "End" });
+    await waitFor(() => expect(document.activeElement).toBe(last));
+    fireEvent.keyDown(last, { key: "Home" });
+    await waitFor(() => expect(document.activeElement).toBe(first));
+    fireEvent.keyDown(first, { key: "ArrowLeft" });
+    await waitFor(() => expect(document.activeElement).toBe(last));
+    expect(last.getAttribute("aria-selected")).toBe("true");
   });
 
   it("replays, skips to the final finding, and switches scenarios", () => {
