@@ -1,3 +1,197 @@
+/* Public live demo replay (/demo). */
+.content.solo.demo-solo {
+  max-width: 1280px;
+}
+.demo-shell {
+  display: grid;
+  gap: 24px;
+}
+.demo-head {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--hair);
+  border-radius: var(--r-card);
+  background: var(--raised);
+}
+.demo-head-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.demo-head-copy {
+  display: grid;
+  gap: 6px;
+}
+.demo-kicker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.demo-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.demo-tabs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--hair);
+  border-radius: var(--r-ctl);
+  background: var(--fill);
+}
+.demo-tab {
+  border: 0;
+  padding: 4px 12px;
+  border-radius: var(--r-tab);
+  background: transparent;
+  color: var(--t2);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition:
+    background-color var(--d-fast) var(--e-std),
+    color var(--d-fast) var(--e-std);
+}
+.demo-tab:hover {
+  color: var(--t1);
+}
+.demo-tab.is-active {
+  background: var(--raised);
+  color: var(--t1);
+  font-weight: 500;
+  box-shadow: var(--shadow);
+}
+.demo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.demo-bar {
+  height: 2px;
+  border-radius: 99px;
+  background: var(--hair);
+  overflow: hidden;
+}
+.demo-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+  background: var(--t1);
+  transition:
+    width var(--d-move) var(--e-std),
+    background-color var(--d-fast) var(--e-std);
+}
+.demo-bar-fill.is-done {
+  background: var(--green);
+}
+.demo-frame {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr) 300px;
+  gap: 32px;
+  align-items: start;
+}
+.demo-stream-panel {
+  position: sticky;
+  top: 72px;
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.demo-stream-panel h2 {
+  margin: 0;
+  font-size: var(--text-base);
+}
+.demo-stream-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.demo-stream {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+.demo-ev {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--r-chip);
+  background: var(--fill);
+  font-size: var(--text-sm);
+  animation: demo-ev-in var(--d-fast) var(--e-enter);
+}
+.demo-ev:first-child {
+  border-color: var(--hair2);
+  background: var(--raised);
+}
+@keyframes demo-ev-in {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.demo-ev-tag {
+  flex: none;
+  min-width: 56px;
+  font-size: var(--text-2xs);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--t3);
+}
+.demo-ev.is-confirm .demo-ev-tag,
+.demo-ev.is-verdict .demo-ev-tag {
+  color: var(--green);
+}
+.demo-ev.is-gate .demo-ev-tag,
+.demo-ev.is-drop .demo-ev-tag {
+  color: var(--amber);
+}
+.demo-ev-text {
+  min-width: 0;
+  color: var(--t2);
+  overflow-wrap: anywhere;
+}
+.demo-cta {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+@media (max-width: 1100px) {
+  .demo-frame {
+    grid-template-columns: 280px minmax(0, 1fr);
+  }
+  .demo-stream-panel {
+    position: static;
+    grid-column: 2;
+  }
+}
+@media (max-width: 900px) {
+  .demo-frame {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .demo-stream-panel {
+    grid-column: auto;
+  }
+}
+
 /* A live run: properties, stages and reviewers on the left as on a finished
    review's page; findings, then the discussion, on the right. The left
    column goes above at 900 px. */
