@@ -8,7 +8,7 @@ import { runStale } from "./automations/stale.js";
 import { config } from "./config.js";
 import { type CronJob, type CronJobName, runScheduled } from "./cron-calls.js";
 import { pruneGraphBuilds } from "./db/graphs.js";
-import { recoverJobs } from "./db/job-recovery.js";
+import { recoverJobs, recoverLapsedJobs } from "./db/job-recovery.js";
 import { enforceRetention } from "./db/retention.js";
 import { remoteGraphs } from "./graph/remote.js";
 import { retryInbound } from "./inbound/run.js";
@@ -65,6 +65,7 @@ export default {
       ctx.waitUntil(recoverJobs(db));
       ctx.waitUntil(pruneGraphBuilds(db, graphs !== undefined));
     } else {
+      ctx.waitUntil(recoverLapsedJobs(db));
       const bots = "bots" in remote ? remote.bots : undefined;
       const platforms = platformsOf(env, env.PUBLIC_URL || "https://localhost");
       jobs.deliveries = (calls) =>

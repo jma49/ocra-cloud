@@ -7,7 +7,7 @@ import { reviewRunners } from "./schema.js";
 const t = reviewRunners;
 
 /** A runner asks every few seconds; its row is written again only once this old. */
-const SEEN_EVERY_MS = 60_000;
+export const SEEN_EVERY_MS = 60_000;
 /** A runner silent this long is no longer shown: a renamed or retired machine, one row each. */
 const FORGOTTEN_AFTER_MS = 7 * 24 * 60 * 60_000;
 

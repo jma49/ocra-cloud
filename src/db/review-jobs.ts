@@ -240,6 +240,7 @@ export async function claimJob(
   now: Date,
   leaseMs: number,
   dailyCalls: number,
+  recover = true,
 ): Promise<ClaimedJob | undefined> {
   const j = reviewJobs;
   const due = and(eq(j.state, "queued"), or(isNull(j.notBefore), lte(j.notBefore, now)));
@@ -247,7 +248,7 @@ export async function claimJob(
     AND r.number = ${j.number} AND r.state = 'running' AND r.lease_until > ${now.getTime()})`;
   // A run that died keeps its row running until its lease lapses: queued again here, or failed
   // once it has used its attempts.
-  await recoverLapsed(db, j, now);
+  if (recover) await recoverLapsed(db, j, now);
   const waiting = await db
     .select({ reviewRepoId: j.reviewRepoId, number: j.number })
     .from(j)

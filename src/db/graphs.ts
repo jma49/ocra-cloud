@@ -292,6 +292,7 @@ export async function claimBuild(
   db: Db,
   now: Date,
   leaseMs: number,
+  recover = true,
 ): Promise<ClaimedBuild | undefined> {
   const b = graphBuilds;
   const due = and(eq(b.state, "queued"), or(isNull(b.notBefore), lte(b.notBefore, now)));
@@ -299,7 +300,7 @@ export async function claimBuild(
     AND r.state = 'running' AND r.lease_until > ${now.getTime()})`;
   const lapsed = and(eq(b.state, "running"), lt(b.leaseUntil, now));
   // A run that died keeps its row running until its lease lapses: queued again here.
-  await db.update(b).set({ state: "queued", leaseUntil: null }).where(lapsed);
+  if (recover) await db.update(b).set({ state: "queued", leaseUntil: null }).where(lapsed);
   const waiting = await db
     .select({ graphRepoId: b.graphRepoId })
     .from(b)

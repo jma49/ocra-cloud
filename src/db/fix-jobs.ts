@@ -153,9 +153,10 @@ export async function claimFix(
   now: Date,
   leaseMs: number,
   dailyCalls: number,
+  recover = true,
 ): Promise<ClaimedFix | undefined> {
   const j = fixJobs;
-  await recoverLapsed(db, j, now);
+  if (recover) await recoverLapsed(db, j, now);
   const due = await db
     .select({ id: j.id })
     .from(j)

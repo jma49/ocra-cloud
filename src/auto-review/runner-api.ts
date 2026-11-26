@@ -2,7 +2,8 @@ import { Hono, type MiddlewareHandler } from "hono";
 import { z } from "zod";
 import { config } from "../config.js";
 import { sameText, sha256Hex } from "../crypto.js";
-import { runnerSeen } from "../db/review-runners.js";
+import { type ClaimKind, pendingWork } from "../db/job-recovery.js";
+import { runnerSeen, SEEN_EVERY_MS } from "../db/review-runners.js";
 import type { GraphService } from "../graph/routes.js";
 import { assignBuild, type GraphAssignment, graphRunnerApi } from "../graph/runner-api.js";
 import { apiError, jsonBody } from "../http.js";
@@ -37,6 +38,17 @@ export type RunnerAccess = { token: string; bots: BotTokens; graphs?: GraphServi
 
 /** Jobs refused in a row (a repository or bot gone) before a claim answers none. */
 const MAX_REFUSED = 3;
+/** How often a warm isolate probes for lapsed leases; leases are 10 to 45 minutes. */
+const RECOVER_EVERY_MS = 60_000;
+/** Runners remembered in this isolate's runnerSeen throttle. */
+const MAX_TRACKED_RUNNERS = 100;
+
+let throttleEpoch = 0;
+
+/** Clears the per-isolate runnerSeen and lapsed-check throttles (tests). */
+export function resetRunnerThrottle(): void {
+  throttleEpoch++;
+}
 
 const hello = z.object({
   name: z.string().min(1).max(100),
@@ -102,10 +114,54 @@ const proven = (token: string): MiddlewareHandler<AppEnv> => {
 
 export function runnerApi(access: RunnerAccess) {
   const route = new Hono<AppEnv>().use(proven(access.token));
+  let localEpoch = throttleEpoch;
+  const seen = new Map<string, { version: string; at: number }>();
+  const lastLapsedCheck = new Map<ClaimKind, number>();
+
+  const syncEpoch = () => {
+    if (localEpoch === throttleEpoch) return;
+    seen.clear();
+    lastLapsedCheck.clear();
+    localEpoch = throttleEpoch;
+  };
 
   route.post("/claim", jsonBody(hello), async (c) => {
     const { name, version, graphs, restack, answers } = c.req.valid("json");
-    await runnerSeen(c.var.db, name, version, new Date());
+    const { success } = await c.env.ACCOUNT_CALLS.limit({ key: `runner:${name}` });
+    if (!success) {
+      c.header("retry-after", "60");
+      return apiError(c, "slow_down", {}, 429);
+    }
+    syncEpoch();
+    const now = new Date();
+    const nowMs = now.getTime();
+    const last = seen.get(name);
+    if (!last || last.version !== version || nowMs < last.at || nowMs - last.at >= SEEN_EVERY_MS) {
+      await runnerSeen(c.var.db, name, version, now);
+      if (seen.size >= MAX_TRACKED_RUNNERS && !seen.has(name)) {
+        const oldest = seen.keys().next().value;
+        if (oldest !== undefined) seen.delete(oldest);
+      }
+      seen.set(name, { version, at: nowMs });
+    }
+    const workKinds = WORK_KINDS.filter((kind) => !isAnswered(kind) || answers?.includes(kind));
+    const wantsGraphs = Boolean(graphs && access.graphs?.remote);
+    const probeKinds: ClaimKind[] = [
+      ...workKinds,
+      ...(restack ? (["restack"] as const) : []),
+      ...(wantsGraphs ? (["graph"] as const) : []),
+    ];
+    const lapsedKinds = new Set(
+      probeKinds.filter((kind) => {
+        const at = lastLapsedCheck.get(kind);
+        return at === undefined || nowMs < at || nowMs - at >= RECOVER_EVERY_MS;
+      }),
+    );
+    const pending = await pendingWork(c.var.db, probeKinds, now, lapsedKinds);
+    for (const kind of lapsedKinds) lastLapsedCheck.set(kind, nowMs);
+    if (pending.queued.size === 0 && pending.lapsed.size === 0) {
+      return c.json({ assignment: null });
+    }
     const source = {
       db: c.var.db,
       platforms: platformsOf(c.env, c.req.url),
@@ -114,24 +170,33 @@ export function runnerApi(access: RunnerAccess) {
       dailyCalls: config(c.env).gatewayDailyCalls,
       ...(graphs && access.graphs ? { graphs: access.graphs } : {}),
     };
-    for (const kind of WORK_KINDS) {
-      if (isAnswered(kind) && !answers?.includes(kind)) continue;
+    for (const kind of workKinds) {
+      if (!pending.queued.has(kind) && !pending.lapsed.has(kind)) continue;
       for (let refused = 0; refused < MAX_REFUSED; refused++) {
-        const work = await assign(source, kind);
+        const work = await assign(
+          { ...source, recover: refused === 0 && pending.lapsed.has(kind) },
+          kind,
+        );
         if (!work) break;
         if (work !== "refused") return c.json({ assignment: work satisfies Assignment });
       }
     }
-    if (restack) {
+    if (restack && (pending.queued.has("restack") || pending.lapsed.has("restack"))) {
       for (let refused = 0; refused < MAX_REFUSED; refused++) {
-        const work = await assignRestack(source);
+        const work = await assignRestack({
+          ...source,
+          recover: refused === 0 && pending.lapsed.has("restack"),
+        });
         if (!work) break;
         if (work !== "refused") {
           return c.json({ assignment: null, restack: work satisfies RestackAssignment });
         }
       }
     }
-    const graph = graphs && access.graphs?.remote ? await assignBuild(source) : undefined;
+    const graph =
+      wantsGraphs && (pending.queued.has("graph") || pending.lapsed.has("graph"))
+        ? await assignBuild({ ...source, recover: pending.lapsed.has("graph") })
+        : undefined;
     return c.json({
       assignment: null,
       ...(graph ? { graph: graph satisfies GraphAssignment } : {}),

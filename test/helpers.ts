@@ -1,6 +1,7 @@
 import { createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import { drizzle } from "drizzle-orm/d1";
+import { resetRunnerThrottle } from "../src/auto-review/runner-api.js";
 import { githubIdentity, upsertAccount } from "../src/db/accounts.js";
 import * as schema from "../src/db/schema.js";
 import app from "../src/index.js";
@@ -57,6 +58,7 @@ export async function call(
 
 export async function resetDb(): Promise<void> {
   forgetPlatformAnswers();
+  resetRunnerThrottle();
   await db.delete(schema.accounts);
 }
 

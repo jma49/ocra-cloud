@@ -103,10 +103,11 @@ export async function claimLearn(
   now: Date,
   leaseMs: number,
   dailyCalls: number,
+  recover = true,
 ): Promise<ClaimedLearn | undefined> {
   // A run that died keeps its row running until its lease lapses: queued again here, or failed
   // once it has used its attempts.
-  await recoverLapsed(db, j, now);
+  if (recover) await recoverLapsed(db, j, now);
   const due = await db
     .select({ id: j.id })
     .from(j)
