@@ -191,4 +191,71 @@ describe("a remote runner", () => {
       runners: [{ name: "mini", version: "0.12.0" }],
     });
   });
+
+  it("backs off exponentially between empty polls and resets once work arrives", async () => {
+    const waits: number[] = [];
+    const realSetTimeout = globalThis.setTimeout;
+    vi.spyOn(globalThis, "setTimeout").mockImplementation(((
+      cb: (...args: unknown[]) => void,
+      ms?: number,
+    ) => {
+      if (typeof ms === "number" && ms >= 1_000 && ms <= 4_000) {
+        waits.push(ms);
+        queueMicrotask(() => cb());
+        return 0 as unknown as ReturnType<typeof setTimeout>;
+      }
+      return realSetTimeout(cb, ms);
+    }) as typeof setTimeout);
+    const stop = new AbortController();
+    let polls = 0;
+    await runRunner(
+      {
+        server: ORIGIN,
+        token: TOKEN,
+        ...hello,
+        exec: async (command, args) => {
+          if (command === "git") {
+            await mkdir(join(args.at(-1) ?? "", ".git"), { recursive: true });
+          }
+          return { code: 0 };
+        },
+        cli: "/opt/ocra/main.js",
+        pollMs: 1_000,
+        maxPollMs: 4_000,
+        fetch: async (input) => {
+          const url = String(input);
+          if (url.endsWith("/settle")) return Response.json({ ok: true });
+          if (url.endsWith("/claim")) {
+            polls++;
+            // Polls 1..4 empty (1s -> 2s -> 4s -> 4s capped), poll 5 returns work
+            // (resets idle wait back to 1s), poll 6 empty (1s), poll 7 stops.
+            if (polls === 5) {
+              return Response.json({
+                assignment: {
+                  kind: "review",
+                  id: "job-1",
+                  accountId,
+                  attempts: 1,
+                  leaseUntil: new Date(Date.now() + 60_000).toISOString(),
+                  repo: { platform: "github", url: "https://github.com", fullName: "Octo/API" },
+                  bot: { token: "ghs_bot" },
+                  cloudUrl: ORIGIN,
+                  credentials: { server: ORIGIN, login: "user-1" },
+                  uploadSalt: "a".repeat(64),
+                  args: ["review"],
+                  config: {},
+                  ok: [0],
+                  settled: [],
+                },
+              });
+            }
+            if (polls === 7) stop.abort();
+          }
+          return Response.json({ assignment: null });
+        },
+      },
+      stop.signal,
+    );
+    expect(waits).toEqual([1_000, 2_000, 4_000, 4_000, 1_000]);
+  });
 });

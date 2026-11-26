@@ -51,6 +51,7 @@ export type RestackSource = {
   db: Db;
   platforms: readonly CodePlatform[];
   bots: BotTokens;
+  recover?: boolean;
   now?: () => Date;
 };
 
@@ -65,7 +66,7 @@ export async function assignRestack(
   source: RestackSource,
 ): Promise<RestackAssignment | "refused" | undefined> {
   const now = source.now ?? (() => new Date());
-  const job = await claimRestack(source.db, now(), RESTACK_LEASE_MS);
+  const job = await claimRestack(source.db, now(), RESTACK_LEASE_MS, source.recover);
   if (!job) return undefined;
   const ref = { id: job.id, accountId: job.accountId, attempts: job.attempts };
   const data = scoped(source.db, job.accountId);

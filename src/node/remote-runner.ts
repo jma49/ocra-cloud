@@ -34,14 +34,18 @@ export type RunnerOptions = Omit<Machine, "keptGraphs"> & {
   /** How the console names this runner. */
   name: string;
   version: string;
-  /** How long it waits before asking again when there was no job. */
+  /** How long it waits before asking again right after work; doubles up to maxPollMs when idle. */
   pollMs?: number;
+  /** Longest wait between empty polls; defaults to 60 s (or pollMs when longer). */
+  maxPollMs?: number;
   fetch?: typeof fetch;
 };
 
-// A job waits half of this on average before it starts; an empty answer
-// costs the server a few indexed lookups.
+// A job starts within a few seconds while work is arriving; when idle, the
+// wait doubles up to MAX_IDLE_MS so quiet hours spend few requests while
+// staying well inside RUNNER_STALE_MS (5 minutes).
 const POLL_MS = 5_000;
+const MAX_IDLE_MS = 60_000;
 /** A server that cannot be reached is asked again later, up to this far apart. */
 const MAX_BACKOFF_MS = 5 * 60_000;
 const CALL_TIMEOUT_MS = 60_000;
@@ -150,6 +154,8 @@ export async function runRunner(options: RunnerOptions, stop: AbortSignal): Prom
   const graphs = serverGraphs(options.server, options.token, options.fetch);
   const machine = { ...options, graphs, keptGraphs: graphs };
   const pollMs = options.pollMs ?? POLL_MS;
+  const maxIdleMs = Math.max(pollMs, options.maxPollMs ?? Math.min(MAX_IDLE_MS, pollMs * 12));
+  let idleWait = pollMs;
   let backoff = pollMs;
   while (!stop.aborted) {
     try {
@@ -168,11 +174,19 @@ export async function runRunner(options: RunnerOptions, stop: AbortSignal): Prom
       );
       backoff = pollMs;
       if (!work) {
-        if (restack) await runRestackJob(options, restack satisfies RestackAssignment, call, stop);
-        else if (!graph) await sleep(pollMs, stop);
-        else await buildGraph(machine, graph satisfies GraphAssignment, stop);
+        if (restack) {
+          idleWait = pollMs;
+          await runRestackJob(options, restack satisfies RestackAssignment, call, stop);
+        } else if (graph) {
+          idleWait = pollMs;
+          await buildGraph(machine, graph satisfies GraphAssignment, stop);
+        } else {
+          await sleep(idleWait, stop);
+          idleWait = Math.min(idleWait * 2, maxIdleMs);
+        }
         continue;
       }
+      idleWait = pollMs;
       const { kind, id, accountId, attempts } = work;
       console.log(JSON.stringify({ level: "info", event: "runner_job_started", kind, job: id }));
       let failure: (typeof RUN_FAILURES)[number] | null;
@@ -188,6 +202,7 @@ export async function runRunner(options: RunnerOptions, stop: AbortSignal): Prom
         JSON.stringify({ level: "info", event: "runner_job_ended", kind, job: id, failure }),
       );
     } catch (e) {
+      idleWait = pollMs;
       logError("runner_failed", { error: errorName(e), retryInMs: backoff });
       await sleep(backoff, stop);
       backoff = Math.min(backoff * 2, MAX_BACKOFF_MS);

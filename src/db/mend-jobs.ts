@@ -433,8 +433,9 @@ export async function claimMend(
   now: Date,
   leaseMs: number,
   dailyCalls: number,
+  recover = true,
 ): Promise<ClaimedMend | undefined> {
-  await recoverLapsed(db, j, now);
+  if (recover) await recoverLapsed(db, j, now);
   const due = await db
     .select({ id: j.id })
     .from(j)

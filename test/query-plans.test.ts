@@ -2,10 +2,12 @@ import { createExecutionContext, waitOnExecutionContext } from "cloudflare:test"
 import { env } from "cloudflare:workers";
 import { drizzle } from "drizzle-orm/d1";
 import { describe, expect, it, vi } from "vitest";
+import { createApp } from "../src/app.js";
+import { remoteReviews } from "../src/auto-review/remote.js";
 import { apiTokenByHash } from "../src/db/api-tokens.js";
 import { accountsWithRules } from "../src/db/automations.js";
 import { claimInboundRetry } from "../src/db/inbound-events.js";
-import { recoverJobs } from "../src/db/job-recovery.js";
+import { CLAIM_KINDS, pendingWork, recoverJobs } from "../src/db/job-recovery.js";
 import { enforceRetention } from "../src/db/retention.js";
 import { accountTables } from "../src/db/schema.js";
 import { scoped } from "../src/db/scoped.js";
@@ -831,5 +833,63 @@ describe("retention", () => {
       expect(p, table).toMatch(new RegExp(`SEARCH ${table} USING (COVERING )?INDEX`));
       expect(p, table).not.toMatch(/\bSCAN\b/);
     }
+  });
+});
+
+describe("runner claims", () => {
+  it("probe every queue in one indexed statement and run one statement per warm empty claim", async () => {
+    const seen: Captured[] = [];
+    await pendingWork(drizzle(recording(seen)), CLAIM_KINDS, new Date(), true);
+    expect(seen).toHaveLength(1);
+    const probePlan = await plan(seen[0] as Captured);
+    for (const table of [
+      "review_jobs",
+      "reply_jobs",
+      "generate_jobs",
+      "learn_jobs",
+      "fix_jobs",
+      "mend_jobs",
+      "restack_jobs",
+      "graph_builds",
+    ]) {
+      expect(probePlan).toMatch(new RegExp(`SEARCH ${table} USING INDEX ${table}_state`));
+    }
+    expect(probePlan).not.toMatch(/\bSCAN (?!CONSTANT ROW)/);
+
+    await resetDb();
+    const token = "runner-token-of-at-least-32-characters";
+    const runnerApp = createApp({
+      openDb: (bindings: typeof env) => drizzle(bindings.DB),
+      clientAddress: () => "203.0.113.9",
+      ...remoteReviews({ GITLAB_BOT_TOKEN: "glpat-bot", RUNNER_TOKEN: token }),
+    });
+    const send = async () => {
+      const statements: Captured[] = [];
+      const ctx = createExecutionContext();
+      const res = await runnerApp.fetch(
+        request("/api/runner/claim", {
+          method: "POST",
+          headers: { authorization: `Bearer ${token}` },
+          json: {
+            name: "mini",
+            version: "0.25.0",
+            graphs: true,
+            restack: true,
+            answers: ["fix", "mend"],
+          },
+        }),
+        { ...env, DB: recording(statements) },
+        ctx,
+      );
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ assignment: null });
+      await waitOnExecutionContext(ctx);
+      return statements;
+    };
+    // First poll writes runnerSeen + probes queues (2 statements); warm empty poll only probes (1).
+    expect(await send()).toHaveLength(2);
+    const warm = await send();
+    expect(warm).toHaveLength(1);
+    expect(await plan(warm[0] as Captured)).not.toMatch(/\bSCAN (?!CONSTANT ROW)/);
   });
 });

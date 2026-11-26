@@ -130,9 +130,10 @@ export async function claimRestack(
   db: Db,
   now: Date,
   leaseMs: number,
+  recover = true,
 ): Promise<ClaimedRestack | undefined> {
   const j = restackJobs;
-  await recoverLapsed(db, j, now);
+  if (recover) await recoverLapsed(db, j, now);
   // A restack makes no model call: the daily limit on an account's calls does not hold it.
   const due = await db
     .select({ id: j.id })

@@ -35,6 +35,7 @@ export type BuildSource = {
   db: Db;
   platforms: readonly CodePlatform[];
   bots: BotTokens;
+  recover?: boolean;
   now?: Date;
 };
 
@@ -81,7 +82,12 @@ async function enrolledOrKept(data: Scoped, repo: Row<"graphRepos">) {
 export async function assignBuild(source: BuildSource): Promise<GraphAssignment | undefined> {
   for (let refused = 0; refused < MAX_REFUSED; refused++) {
     const now = source.now ?? new Date();
-    const build = await claimBuild(source.db, now, BUILD_LEASE_MS);
+    const build = await claimBuild(
+      source.db,
+      now,
+      BUILD_LEASE_MS,
+      refused === 0 ? source.recover : false,
+    );
     if (!build) return undefined;
     const data = scoped(source.db, build.accountId);
     const repo = await data.get("graphRepos", build.graphRepoId);

@@ -140,6 +140,8 @@ export type WorkSource = {
   graphs?: GraphService;
   /** A review's lease, when not the default. */
   leaseMs?: number;
+  /** Whether to scan for lapsed leases before claiming; true by default. */
+  recover?: boolean;
   now?: () => Date;
 };
 
@@ -173,8 +175,9 @@ async function claim(
   kind: WorkKind,
   now: Date,
 ): Promise<{ claimed: ClaimedWork; command: Command } | undefined> {
+  const { db, dailyCalls, recover } = source;
   if (kind === "review") {
-    const claimed = await claimJob(source.db, now, source.leaseMs ?? LEASE_MS, source.dailyCalls);
+    const claimed = await claimJob(db, now, source.leaseMs ?? LEASE_MS, dailyCalls, recover);
     return (
       claimed && {
         claimed,
@@ -189,7 +192,7 @@ async function claim(
     );
   }
   if (kind === "reply") {
-    const claimed = await claimReply(source.db, now, REPLY_LEASE_MS, source.dailyCalls);
+    const claimed = await claimReply(db, now, REPLY_LEASE_MS, dailyCalls, recover);
     return (
       claimed && {
         claimed,
@@ -207,7 +210,7 @@ async function claim(
     );
   }
   if (kind === "generate") {
-    const claimed = await claimGenerate(source.db, now, GENERATE_LEASE_MS, source.dailyCalls);
+    const claimed = await claimGenerate(db, now, GENERATE_LEASE_MS, dailyCalls, recover);
     return (
       claimed && {
         claimed,
@@ -222,7 +225,7 @@ async function claim(
     );
   }
   if (kind === "fix") {
-    const claimed = await claimFix(source.db, now, FIX_LEASE_MS, source.dailyCalls);
+    const claimed = await claimFix(db, now, FIX_LEASE_MS, dailyCalls, recover);
     return (
       claimed && {
         claimed,
@@ -240,7 +243,7 @@ async function claim(
     );
   }
   if (kind === "mend") {
-    const claimed = await claimMend(source.db, now, MEND_LEASE_MS, source.dailyCalls);
+    const claimed = await claimMend(db, now, MEND_LEASE_MS, dailyCalls, recover);
     return (
       claimed && {
         claimed,
@@ -261,7 +264,7 @@ async function claim(
       }
     );
   }
-  const claimed = await claimLearn(source.db, now, LEARN_LEASE_MS, source.dailyCalls);
+  const claimed = await claimLearn(db, now, LEARN_LEASE_MS, dailyCalls, recover);
   return (
     claimed && {
       claimed,
