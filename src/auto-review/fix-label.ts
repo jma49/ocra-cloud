@@ -4,7 +4,7 @@ import type { CodePlatform } from "../platforms/platform.js";
 import type { WorkSource } from "./work.js";
 
 // The label a pull request carries while its fix loop works for `@ocra fix`
-// (./fix-commands.ts): put on when the command queues a round, and taken off
+// (./commands.ts): put on when the command queues a round, and taken off
 // once no round waits or runs, so whoever opens it sees that ocra is fixing.
 
 export const FIXING_LABEL = "ocra: fixing";
