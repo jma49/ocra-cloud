@@ -7,6 +7,7 @@ import {
   type Sealed,
 } from "../crypto.js";
 import type { BotRepo } from "./bot.js";
+import { gitlabHeaders } from "./gitlab-changes.js";
 import { isBotLogin, LOGIN } from "./reviewers.js";
 
 // An enrolled GitLab project's own access token: a project or group access
@@ -57,7 +58,7 @@ async function call(url: string, token: string): Promise<Answer | null> {
     const res = await outboundFetch(url, {
       redirect: "manual",
       signal: AbortSignal.timeout(10_000),
-      headers: { authorization: `Bearer ${token}`, accept: "application/json" },
+      headers: gitlabHeaders(token),
     });
     if (!res.ok) {
       await res.body?.cancel().catch(() => {});

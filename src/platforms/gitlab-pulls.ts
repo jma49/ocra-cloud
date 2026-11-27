@@ -1,4 +1,5 @@
 import { avatarOf } from "./changes.js";
+import { gitlabHeaders } from "./gitlab-changes.js";
 import { platformCall } from "./http.js";
 import {
   type ListedPull,
@@ -87,7 +88,7 @@ export async function gitlabPulls(
 ): Promise<PullListing | null> {
   const get = <T>(path: string) =>
     platformCall<T>(`${baseUrl}/api/v4${path}`, {
-      headers: { authorization: `Bearer ${token}`, accept: "application/json" },
+      headers: gitlabHeaders(token),
     });
   const me = await get<{ id: number }>("/user");
   if (!me) return null;

@@ -5,6 +5,7 @@ import {
   type MergedPull,
   type PullCycles,
 } from "./cycles.js";
+import { gitlabHeaders } from "./gitlab-changes.js";
 import { type MergeRequest, repoOf } from "./gitlab-pulls.js";
 import { platformCall } from "./http.js";
 
@@ -20,7 +21,7 @@ export function gitlabCycles(baseUrl: string): PullCycles {
     async merged(token, scope: CycleScope, since) {
       const get = <T>(path: string) =>
         platformCall<T>(`${baseUrl}/api/v4${path}`, {
-          headers: { authorization: `Bearer ${token}`, accept: "application/json" },
+          headers: gitlabHeaders(token),
         });
       const query = `state=merged&updated_after=${encodeURIComponent(since.toISOString())}&order_by=updated_at&per_page=${MAX_CYCLE_PULLS}`;
       const list = await get<MergeRequest[]>(
