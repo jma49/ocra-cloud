@@ -4,14 +4,10 @@ import type { Row } from "../db/scoped.js";
 import { apiError, jsonBody } from "../http.js";
 import { accessToken } from "../platforms/links.js";
 import { platformsOf } from "../platforms/registry.js";
+import { pullRef } from "../pull-ref.js";
 import { perMinute } from "../rate.js";
 import { requireSession } from "../session.js";
-import {
-  CODE_PLATFORMS,
-  type MergeCheckView,
-  type PullChecksView,
-  type RepoChecksView,
-} from "../shared/index.js";
+import type { MergeCheckView, PullChecksView, RepoChecksView } from "../shared/index.js";
 import type { AppEnv } from "../types.js";
 import { checksOf, evaluatePull, MAX_CHECKS } from "./run.js";
 import { addCheckBody, changeCheckBody, settingsOf } from "./settings.js";
@@ -115,23 +111,7 @@ mergeChecksRoute.delete("/repos/:id/checks/:check", async (c) => {
   return c.json({ removed: check ? await c.var.data.remove("mergeChecks", check.id) : false });
 });
 
-const SEGMENT = /^(?!\.{1,2}$)[\w.-]+$/;
-
-const pullQuery = z.object({
-  platform: z.enum(CODE_PLATFORMS),
-  repo: z
-    .string()
-    .max(255)
-    .refine((n) => {
-      const parts = n.split("/");
-      return parts.length >= 2 && parts.every((p) => SEGMENT.test(p));
-    }),
-  number: z.coerce
-    .number()
-    .int()
-    .min(1)
-    .max(2 ** 31 - 1),
-});
+const pullQuery = z.object(pullRef);
 
 pullChecksRoute.get("/", perMinute("platform"), async (c) => {
   const ref = pullQuery.safeParse(c.req.query());

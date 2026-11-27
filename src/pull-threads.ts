@@ -11,7 +11,8 @@ import {
   type Thread,
   type ThreadAction,
 } from "./platforms/threads.js";
-import { byKind, pullRef, reach, sha } from "./pull-page.js";
+import { byKind, reach } from "./pull-page.js";
+import { pullRef, sha } from "./pull-ref.js";
 import { perMinute } from "./rate.js";
 import { identityOf } from "./review-pull.js";
 import { requireSession } from "./session.js";

@@ -1,14 +1,13 @@
 import type { Context } from "hono";
-import { z } from "zod";
+import type { z } from "zod";
 import { apiError } from "./http.js";
 import { COMMIT_ID } from "./platforms/contents.js";
 import type { CodePlatform } from "./platforms/platform.js";
-import { reach, repoName } from "./pull-page.js";
-import { CODE_PLATFORMS } from "./shared/index.js";
+import { reach } from "./pull-page.js";
+import type { repoRef } from "./pull-ref.js";
 import type { AppEnv } from "./types.js";
 
 /** A repository the console names: its platform and its path there. */
-export const repoRef = { platform: z.enum(CODE_PLATFORMS), repo: repoName };
 type RepoRef = z.output<z.ZodObject<typeof repoRef>>;
 
 /** The platform, the token and the repository's default branch head, or the refusal. */

@@ -3,7 +3,8 @@ import { z } from "zod";
 import { audit } from "./audit.js";
 import { apiError, jsonBody } from "./http.js";
 import type { EditOutcome } from "./platforms/edits.js";
-import { byKind, pullRef, reach } from "./pull-page.js";
+import { byKind, reach } from "./pull-page.js";
+import { pullRef } from "./pull-ref.js";
 import { perMinute } from "./rate.js";
 import { requireSession } from "./session.js";
 import {

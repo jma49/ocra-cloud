@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import type { SeenMark, SeenPull } from "./db/pull-seen.js";
 import { jsonBody } from "./http.js";
-import { pullRef, sha } from "./pull-page.js";
+import { pullRef, sha } from "./pull-ref.js";
 import { perMinute } from "./rate.js";
 import { requireSession } from "./session.js";
 import { MAX_SEEN_BULK, type PullSeenBulkRequest, type PullSeenMark } from "./shared/index.js";

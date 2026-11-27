@@ -13,6 +13,23 @@ const pull = (identity: string) => {
 };
 
 describe("the platform a reviewed pull request is on", () => {
+  it("validates the normalized URL path separately from the scheme and port", () => {
+    expect(repoOfIdentity("https://Example.com:443/old/../Group/Project?q=1")).toEqual({
+      host: "example.com",
+      repo: "Group/Project",
+    });
+    for (const identity of [
+      "Group/Project",
+      "http://example.com/Group/Project",
+      "https://example.com:8443/Group/Project",
+      "https://example.com/Group//Project",
+      "https://example.com/Group%2FProject",
+      `https://example.com/g/${"p".repeat(254)}`,
+    ]) {
+      expect(repoOfIdentity(identity)).toBeNull();
+    }
+  });
+
   it("is the one on its host, with the repository's path there", () => {
     const on = pullOnPlatform(
       [hub, lab("https://gitlab.example.com")],

@@ -6,7 +6,8 @@ import { apiError, jsonBody } from "../http.js";
 import { publicOutbox } from "../notify/notify.js";
 import type { CodePlatform } from "../platforms/platform.js";
 import { platformsOf } from "../platforms/registry.js";
-import { byKind, mergeMethodsOf, methodNotAllowed, pullRef, reach, sha } from "../pull-page.js";
+import { byKind, mergeMethodsOf, methodNotAllowed, reach } from "../pull-page.js";
+import { pullRef, sha } from "../pull-ref.js";
 import { perMinute } from "../rate.js";
 import { requireSession } from "../session.js";
 import {

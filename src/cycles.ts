@@ -4,15 +4,10 @@ import { apiError, queryDays } from "./http.js";
 import { MAX_CYCLE_PULLS, type MergedPull } from "./platforms/cycles.js";
 import { accessToken } from "./platforms/links.js";
 import { platformsOf } from "./platforms/registry.js";
+import { repoRef } from "./pull-ref.js";
 import { perMinute } from "./rate.js";
 import { requireSession } from "./session.js";
-import {
-  CODE_PLATFORMS,
-  type CyclePull,
-  type CycleView,
-  quantile,
-  type Spread,
-} from "./shared/index.js";
+import { type CyclePull, type CycleView, quantile, type Spread } from "./shared/index.js";
 import { DAY } from "./time.js";
 import type { AppEnv } from "./types.js";
 
@@ -23,13 +18,7 @@ import type { AppEnv } from "./types.js";
 export const cycles = new Hono<AppEnv>();
 
 const MAX_DAYS = 90;
-const SEGMENT = /^(?!\.{1,2}$)[\w.-]+$/;
-/** A repository's full name, owner/name or a GitLab group path. */
-export const repoName = z
-  .string()
-  .max(255)
-  .refine((n) => n.split("/").length >= 2 && n.split("/").every((p) => SEGMENT.test(p)));
-const query = z.object({ platform: z.enum(CODE_PLATFORMS), repo: repoName.optional() });
+const query = z.object(repoRef).partial({ repo: true });
 
 export const spread = (values: readonly number[]): Spread => {
   const sorted = [...values].sort((a, b) => a - b);
