@@ -1,8 +1,8 @@
 import type { CallBudget } from "../calls.js";
-import { quantile } from "../cycles.js";
 import type { Db } from "../db/client.js";
 import { type ReportSchedule, reportAccounts } from "../db/reports.js";
 import { scoped } from "../db/scoped.js";
+import { quantile } from "../shared/index.js";
 import { DAY, HOUR, MINUTE, utcDay, utcDayStart } from "../time.js";
 import { type Message, plain } from "./channels.js";
 import { forAccounts, type Merges, mergedLines, periodWhens, plural } from "./digest.js";

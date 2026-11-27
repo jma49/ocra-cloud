@@ -1,3 +1,4 @@
+import { quantile } from "../../../src/shared/index.js";
 import type { Review, Reviews } from "../api.js";
 
 // Daily series for the insights charts: findings by severity and review
@@ -18,12 +19,6 @@ export type Daily = {
 export const flat = (points: Point[]) => points.every((p) => p.value === 0);
 
 const DAY = 86_400_000;
-
-/** The value at quantile q (0..1) of sorted numbers, nearest rank. */
-export function quantile(sorted: number[], q: number): number | null {
-  if (sorted.length === 0) return null;
-  return sorted[Math.min(sorted.length - 1, Math.ceil(q * sorted.length) - 1)] ?? null;
-}
 
 /** One point per UTC day of the last `days` days, ending today; review time in seconds, only on days with reviews. */
 export function daily(

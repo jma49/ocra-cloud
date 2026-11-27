@@ -1,15 +1,15 @@
 import type { CallBudget } from "../calls.js";
-import { quantile } from "../cycles.js";
 import { keepsStored } from "../db/accounts.js";
 import type { Db } from "../db/client.js";
 import { enabledReports, type RepoScope } from "../db/scheduled-reports.js";
 import { type Row, type Scoped, scoped } from "../db/scoped.js";
 import { errorName, logError } from "../log.js";
 import { repoIdentity } from "../platforms/platform.js";
-import type {
-  ReportSection,
-  ScheduledReportPreview,
-  ScheduledReportTiming,
+import {
+  quantile,
+  type ReportSection,
+  type ScheduledReportPreview,
+  type ScheduledReportTiming,
 } from "../shared/index.js";
 import { DAY } from "../time.js";
 import { type Message, plain } from "./channels.js";

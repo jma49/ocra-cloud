@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Review } from "../api.js";
-import { acceptanceChart, daily, flat, quantile } from "./series.js";
+import { acceptanceChart, daily, flat } from "./series.js";
 
 const DAY = 86_400_000;
 const now = Date.UTC(2026, 10, 21, 15);
@@ -16,12 +16,6 @@ const review = (daysAgo: number, over: Partial<Review> = {}): Review =>
   }) as Review;
 
 describe("the insights series", () => {
-  it("take the nearest-rank quantile", () => {
-    expect(quantile([], 0.5)).toBeNull();
-    expect(quantile([1, 2, 3, 4], 0.5)).toBe(2);
-    expect(quantile([1, 2, 3, 4], 0.95)).toBe(4);
-  });
-
   it("sum each day's findings, oldest day first, and leave out what is older", () => {
     const d = daily(
       [

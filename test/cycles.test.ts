@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { quantile } from "../src/cycles.js";
 import { firstOther } from "../src/platforms/cycles.js";
-import type { CycleView } from "../src/shared/index.js";
+import { type CycleView, quantile } from "../src/shared/index.js";
 import { resetDb } from "./helpers.js";
 import { connectGitlab, GITLAB, githubFake, signInWithGithub } from "./platform-fakes.js";
 
@@ -26,11 +25,18 @@ describe("the first review", () => {
     expect(firstOther("octo", at(10), acts)).toBe(at(3));
     expect(firstOther("octo", at(2), acts)).toBeNull();
   });
+});
 
-  it("is summarised by nearest rank", () => {
-    expect(quantile([], 0.5)).toBeNull();
-    expect(quantile([1, 2, 3, 4], 0.5)).toBe(2);
-    expect(quantile([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 0.9)).toBe(9);
+describe("nearest-rank quantiles", () => {
+  const ten = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+  it.each([
+    { sorted: [], q: 0.5, expected: null },
+    { sorted: [0], q: 0.95, expected: 0 },
+    { sorted: [1, 2, 3, 4], q: 0.5, expected: 2 },
+    { sorted: ten, q: 0.9, expected: 9 },
+    { sorted: ten, q: 0.95, expected: 10 },
+  ])("selects $expected at $q from $sorted", ({ sorted, q, expected }) => {
+    expect(quantile(sorted, q)).toBe(expected);
   });
 });
 

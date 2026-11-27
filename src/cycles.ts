@@ -6,7 +6,13 @@ import { accessToken } from "./platforms/links.js";
 import { platformsOf } from "./platforms/registry.js";
 import { perMinute } from "./rate.js";
 import { requireSession } from "./session.js";
-import { CODE_PLATFORMS, type CyclePull, type CycleView, type Spread } from "./shared/index.js";
+import {
+  CODE_PLATFORMS,
+  type CyclePull,
+  type CycleView,
+  quantile,
+  type Spread,
+} from "./shared/index.js";
 import { DAY } from "./time.js";
 import type { AppEnv } from "./types.js";
 
@@ -24,12 +30,6 @@ export const repoName = z
   .max(255)
   .refine((n) => n.split("/").length >= 2 && n.split("/").every((p) => SEGMENT.test(p)));
 const query = z.object({ platform: z.enum(CODE_PLATFORMS), repo: repoName.optional() });
-
-/** The value at fraction q of the sorted values, nearest rank. */
-export function quantile(sorted: readonly number[], q: number): number | null {
-  if (sorted.length === 0) return null;
-  return sorted[Math.min(sorted.length - 1, Math.ceil(q * sorted.length) - 1)] ?? null;
-}
 
 export const spread = (values: readonly number[]): Spread => {
   const sorted = [...values].sort((a, b) => a - b);
