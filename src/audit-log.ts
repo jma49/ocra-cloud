@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { auditEventDto } from "./audit.js";
-import type { AuditCursor } from "./db/audit-events.js";
 import { apiError, queryLimit } from "./http.js";
+import { encodePageCursor, optionalPageCursor } from "./page-cursor.js";
 import { requireSession } from "./session.js";
 import { AUDIT_KINDS, type AuditKind, type AuditPage } from "./shared/index.js";
 import type { AppEnv } from "./types.js";
@@ -23,19 +23,9 @@ const querySchema = z.object({
   // Milliseconds since the epoch; since is inclusive, until exclusive.
   since: millis.optional(),
   until: millis.optional(),
-  after: z
-    .string()
-    .regex(/^\d{1,15}_[\w-]{1,64}$/)
-    .optional(),
+  after: optionalPageCursor,
   limit: z.string().optional(),
 });
-
-const cursorOf = (c: AuditCursor) => `${c.createdAt.getTime()}_${c.id}`;
-function parseCursor(raw: string | undefined): AuditCursor | undefined {
-  if (!raw) return undefined;
-  const at = raw.indexOf("_");
-  return { createdAt: new Date(Number(raw.slice(0, at))), id: raw.slice(at + 1) };
-}
 
 auditLog.get("/", requireSession(["web"]), async (c) => {
   const parsed = querySchema.safeParse(c.req.query());
@@ -48,10 +38,10 @@ auditLog.get("/", requireSession(["web"]), async (c) => {
   const { rows, next } = await c.var.data.audit.page(
     { kind: q.kind, since: q.since, until: q.until },
     queryLimit(c, PAGE),
-    parseCursor(q.after),
+    q.after,
   );
   return c.json({
     events: rows.flatMap((r) => auditEventDto(r) ?? []),
-    next: next ? cursorOf(next) : null,
+    next: next ? encodePageCursor(next) : null,
   } satisfies AuditPage);
 });

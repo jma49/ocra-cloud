@@ -11,9 +11,10 @@ import {
 } from "@open-cr-agent/cloud-contract";
 import { Hono } from "hono";
 import { z } from "zod";
-import type { Decision, InboxCursor } from "./db/inbox.js";
+import type { Decision } from "./db/inbox.js";
 import { ruleOf } from "./findings.js";
 import { apiError, jsonBody, queryDays, queryLimit } from "./http.js";
+import { encodePageCursor, optionalPageCursor } from "./page-cursor.js";
 import { perMinute } from "./rate.js";
 import { repoNames } from "./repositories.js";
 import { requireSession } from "./session.js";
@@ -66,10 +67,7 @@ const filterSchema = z.object({
         ),
     ])
     .optional(),
-  after: z
-    .string()
-    .regex(/^\d{1,15}_[\w-]{1,64}$/)
-    .optional(),
+  after: optionalPageCursor,
 });
 
 const decideSchema = z
@@ -90,13 +88,6 @@ const decideSchema = z
     path: ["remember"],
   });
 
-const cursorOf = (c: InboxCursor) => `${c.createdAt.getTime()}_${c.id}`;
-function parseCursor(raw: string | undefined): InboxCursor | undefined {
-  if (!raw) return undefined;
-  const at = raw.indexOf("_");
-  return { createdAt: new Date(Number(raw.slice(0, at))), id: raw.slice(at + 1) };
-}
-
 inbox.get("/", requireSession(), async (c) => {
   const parsed = filterSchema.safeParse(c.req.query());
   if (!parsed.success) {
@@ -116,7 +107,7 @@ inbox.get("/", requireSession(), async (c) => {
         rule: q.rule,
       },
       queryLimit(c, PAGE),
-      parseCursor(q.after),
+      q.after,
     ),
     c.var.data.findingStatusCounts(),
     repoNames(c.var.data),
@@ -151,7 +142,7 @@ inbox.get("/", requireSession(), async (c) => {
       rule: ruleOf(f),
       createdAt: f.createdAt,
     })),
-    next: next ? cursorOf(next) : null,
+    next: next ? encodePageCursor(next) : null,
     statuses,
   });
 });

@@ -12,6 +12,7 @@ import {
   type SQL,
   sql,
 } from "drizzle-orm";
+import type { PageCursor } from "../page-cursor.js";
 import { changedRows, type Db, first } from "./client.js";
 import { countWhere, jsonTexts, randomId } from "./dialect.js";
 import { accountMemory, findings, reviews } from "./schema.js";
@@ -31,8 +32,6 @@ export type InboxFilter = {
   /** null matches the findings that named no rule. */
   rule?: { kind: NonNullable<Finding["ruleKind"]>; id: string } | null | undefined;
 };
-/** The last listed row's (created_at, id): the next page starts after it. */
-export type InboxCursor = { createdAt: Date; id: string };
 /** A decision about findings: reopening clears what dismissing set. */
 export type Decision = Pick<Finding, "status" | "reason" | "note" | "decidedAt">;
 
@@ -41,7 +40,7 @@ export async function inbox(
   accountId: string,
   filter: InboxFilter,
   limit: number,
-  after?: InboxCursor,
+  after?: PageCursor,
 ) {
   const f = findings;
   const r = reviews;

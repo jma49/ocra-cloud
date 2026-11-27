@@ -1,4 +1,5 @@
 import { and, count, desc, eq, inArray, isNull, lt, lte, or } from "drizzle-orm";
+import type { PageCursor } from "../page-cursor.js";
 import { FEED_UNREAD_CAP, type FeedKind } from "../shared/index.js";
 import { changedRows, type Db, first } from "./client.js";
 import { notificationFeed } from "./schema.js";
@@ -17,9 +18,6 @@ export type FeedNotice = {
   createdAt?: Date;
 };
 
-/** The last listed notice's (created_at, id): the next page starts after it. */
-export type FeedCursor = { createdAt: Date; id: string };
-
 export function accountNotificationFeed(db: Db, accountId: string) {
   const t = notificationFeed;
   const own = eq(t.accountId, accountId);
@@ -34,7 +32,7 @@ export function accountNotificationFeed(db: Db, accountId: string) {
         .onConflictDoNothing({ target: [t.accountId, t.eventKey] });
     },
 
-    async page(limit: number, before?: FeedCursor) {
+    async page(limit: number, before?: PageCursor) {
       const rows = await db
         .select()
         .from(t)

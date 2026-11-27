@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import type { FeedCursor } from "../db/notification-feed.js";
 import type { Row } from "../db/scoped.js";
 import { apiError, jsonBody, queryLimit } from "../http.js";
+import { encodePageCursor, optionalPageCursor } from "../page-cursor.js";
 import { requireSession } from "../session.js";
 import {
   FEED_PAGE,
@@ -18,14 +18,6 @@ import type { AppEnv } from "../types.js";
 
 export const feedRoute = new Hono<AppEnv>().use(requireSession(["web"]));
 
-const CURSOR = /^(\d{1,15})_([\w-]{1,64})$/;
-
-const cursorOf = (c: FeedCursor) => `${c.createdAt.getTime()}_${c.id}`;
-function parseCursor(raw: string): FeedCursor | null {
-  const m = CURSOR.exec(raw);
-  return m ? { createdAt: new Date(Number(m[1])), id: m[2] as string } : null;
-}
-
 const feedItemDto = (r: Row<"notificationFeed">): FeedItemView => ({
   id: r.id,
   kind: r.kind,
@@ -39,20 +31,19 @@ const feedItemDto = (r: Row<"notificationFeed">): FeedItemView => ({
 });
 
 feedRoute.get("/", async (c) => {
-  const raw = c.req.query("before");
-  const before = raw === undefined ? undefined : parseCursor(raw);
-  if (before === null) {
+  const before = optionalPageCursor.safeParse(c.req.query("before"));
+  if (!before.success) {
     return apiError(c, "invalid_body", { issues: [{ path: ["before"], message: "not a cursor" }] });
   }
   const feed = c.var.data.feed;
   const [{ rows, next }, unread] = await Promise.all([
-    feed.page(queryLimit(c, FEED_PAGE), before),
+    feed.page(queryLimit(c, FEED_PAGE), before.data),
     feed.unread(),
   ]);
   return c.json({
     items: rows.map(feedItemDto),
     unread,
-    ...(next ? { next: cursorOf(next) } : {}),
+    ...(next ? { next: encodePageCursor(next) } : {}),
   } satisfies FeedPageView);
 });
 
