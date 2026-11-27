@@ -53,6 +53,14 @@ describe("the shared domain module", () => {
     expect(include.filter((p) => p.startsWith("../"))).toEqual(["../src/shared"]);
   });
 
+  it("keeps notifications independent of the cycle-time HTTP route", () => {
+    expect(
+      imports(worker).filter(
+        ([from, to]) => from.startsWith("src/notify/") && to === "src/cycles.js",
+      ),
+    ).toEqual([]);
+  });
+
   it("imports only itself and the contract", () => {
     expect(Object.keys(shared).length).toBeGreaterThan(3);
     const outside = imports(shared).filter(([, to]) => !to.startsWith("src/shared/"));

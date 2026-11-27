@@ -20,6 +20,12 @@ export type CyclePull = {
 /** Median and 90th percentile, null over no pull requests. */
 export type Spread = { median: number | null; p90: number | null };
 
+/** The value at fraction q of the sorted values, nearest rank. */
+export function quantile(sorted: readonly number[], q: number): number | null {
+  if (sorted.length === 0) return null;
+  return sorted[Math.min(sorted.length - 1, Math.ceil(q * sorted.length) - 1)] ?? null;
+}
+
 export type CycleView = {
   platform: CodePlatformKind;
   repo: string | null;

@@ -6,6 +6,7 @@ import {
   type FindingInsightRow,
   type FindingInsightsView,
   MAX_RULE_ROWS,
+  quantile,
 } from "../../../src/shared/index.js";
 import { api, type Reviews } from "../api.js";
 import { useCached } from "../cache.js";
@@ -16,7 +17,7 @@ import { Cycle } from "../insights/cycle.js";
 import { FlowSection } from "../insights/flow.js";
 import { ImpactSection } from "../insights/impact.js";
 import { ReviewLoadSection } from "../insights/reviewers.js";
-import { daily, quantile } from "../insights/series.js";
+import { daily } from "../insights/series.js";
 import { Link } from "../router.js";
 import { EmptyState, LoadError, Loading, PageHead, Seg, Stat } from "../ui.js";
 
