@@ -14,6 +14,7 @@ import {
 } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 import { getTableConfig, type SQLiteColumn } from "drizzle-orm/sqlite-core";
+import type { PageCursor } from "../page-cursor.js";
 import { accountApiTokens } from "./api-tokens.js";
 import { accountAuditEvents } from "./audit-events.js";
 import { accountAutoEnroll } from "./auto-enroll.js";
@@ -44,7 +45,6 @@ import {
   decide,
   findingInsights,
   findingStatusCounts,
-  type InboxCursor,
   type InboxFilter,
   inbox,
   rememberFindings,
@@ -460,7 +460,7 @@ export function scoped(db: Db, accountId: string) {
       };
     },
     /** The account's findings across its reviews (./inbox.ts). */
-    inbox(filter: InboxFilter, limit: number, after?: InboxCursor) {
+    inbox(filter: InboxFilter, limit: number, after?: PageCursor) {
       return inbox(db, accountId, filter, limit, after);
     },
     findingStatusCounts: () => findingStatusCounts(db, accountId),

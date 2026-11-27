@@ -94,16 +94,20 @@ describe("the audit log", () => {
     await seed(
       a.account.id,
       [5_000, 4_000, 4_000, 4_000, 3_000].map((at) => ({ kind: "key.deleted", at })),
+      "log_a-",
     );
-    const seen: string[] = [];
-    let after = "";
-    for (let pages = 0; pages < 5; pages++) {
-      const page = await read(a.auth, `?limit=2${after ? `&after=${after}` : ""}`);
-      seen.push(...page.events.map((e) => e.id));
-      if (!page.next) break;
-      after = page.next;
-    }
-    expect(seen).toEqual(["e000", "e003", "e002", "e001", "e004"]);
+    const first = await read(a.auth, "?limit=2");
+    expect(first.next).toBe("4000_log_a-003");
+    const second = await read(a.auth, "?limit=2&after=0004000_log_a-003");
+    const last = await read(a.auth, `?limit=2&after=${second.next}`);
+    expect(last.next).toBeNull();
+    expect([...first.events, ...second.events, ...last.events].map((e) => e.id)).toEqual([
+      "log_a-000",
+      "log_a-003",
+      "log_a-002",
+      "log_a-001",
+      "log_a-004",
+    ]);
   });
 
   it("filters by kind and by a time range, since inclusive and until exclusive", async () => {

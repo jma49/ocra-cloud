@@ -1,4 +1,5 @@
 import { and, desc, eq, gte, lt, or, type SQL } from "drizzle-orm";
+import type { PageCursor } from "../page-cursor.js";
 import type { AuditKind } from "../shared/index.js";
 import type { Db } from "./client.js";
 import { auditEvents } from "./schema.js";
@@ -12,13 +13,11 @@ export type AuditFilter = {
   since?: Date | undefined;
   until?: Date | undefined;
 };
-/** The last listed row's (created_at, id): the next page starts after it. */
-export type AuditCursor = { createdAt: Date; id: string };
 
 export function accountAuditEvents(db: Db, accountId: string) {
   const t = auditEvents;
   return {
-    async page(filter: AuditFilter, limit: number, after?: AuditCursor) {
+    async page(filter: AuditFilter, limit: number, after?: PageCursor) {
       const conditions: (SQL | undefined)[] = [
         eq(t.accountId, accountId),
         filter.kind ? eq(t.kind, filter.kind) : undefined,
