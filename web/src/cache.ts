@@ -127,8 +127,9 @@ export function useCached<T>(
     });
     loadRef.current().then(
       (data) => {
+        if (!mine()) return;
         keep(key, data, memoryOnly);
-        if (mine()) setState({ key, data, at: Date.now(), error: null, stale: false });
+        setState({ key, data, at: Date.now(), error: null, stale: false });
       },
       (error) => {
         if (mine()) setState((s) => ({ ...s, error, stale: false }));
