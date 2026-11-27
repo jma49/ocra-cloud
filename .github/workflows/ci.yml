@@ -40,6 +40,9 @@ jobs:
       # token needed); web/dist is its assets directory.
       - if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: npx wrangler deploy --dry-run --outdir /tmp/bundle
+      - name: Build the remote runner
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: npm run build:runner && test -s dist/runner.mjs
 
   # The vitest projects (vitest.config.ts) side by side, the Worker's in four
   # shards (three left the fuller one at its ceiling on a slow runner) and
