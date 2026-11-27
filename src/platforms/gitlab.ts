@@ -1,7 +1,7 @@
 import { gitlabAccess } from "./access.js";
 import { gitlabActions } from "./gitlab-actions.js";
 import { gitlabAutoMerge } from "./gitlab-auto-merge.js";
-import { gitlabChanges } from "./gitlab-changes.js";
+import { gitlabChanges, gitlabHeaders } from "./gitlab-changes.js";
 import { gitlabCi } from "./gitlab-ci.js";
 import { gitlabContents } from "./gitlab-contents.js";
 import { gitlabCycles } from "./gitlab-cycles.js";
@@ -49,7 +49,7 @@ export const gitlabToken = (client: GitlabClient, grant: Record<string, string>)
 /** The id of the user the token is of; null when GitLab does not say. */
 export async function gitlabUser(url: string, token: string): Promise<LinkedUser | null> {
   const user = await platformCall<{ id?: unknown; username?: unknown }>(`${url}/api/v4/user`, {
-    headers: { authorization: `Bearer ${token}`, accept: "application/json" },
+    headers: gitlabHeaders(token),
   });
   if (typeof user?.id !== "number" || !Number.isSafeInteger(user.id)) return null;
   const login =
@@ -100,7 +100,7 @@ export function gitlab(client: GitlabClient, redirectUri: string): CodePlatform 
       for (let page = 1; page <= MAX_PAGES; page++) {
         const projects = await platformCall<Project[]>(
           `${client.url}/api/v4/projects?membership=true&simple=true&per_page=100&page=${page}&order_by=last_activity_at`,
-          { headers: { authorization: `Bearer ${token}`, accept: "application/json" } },
+          { headers: gitlabHeaders(token) },
         );
         if (!projects) return page === 1 ? null : { repositories, more: true };
         for (const p of projects) {

@@ -1,3 +1,4 @@
+import { gitlabHeaders } from "./gitlab-changes.js";
 import { type MergeRequest, mergeRequestItem } from "./gitlab-pulls.js";
 import { platformCall, platformSend } from "./http.js";
 import type { ListedPull, PullSearch } from "./pulls.js";
@@ -13,7 +14,7 @@ export async function gitlabSearch(
   search: PullSearch,
   limit: number,
 ): Promise<ListedPull[] | null> {
-  const headers = { authorization: `Bearer ${token}`, accept: "application/json" };
+  const headers = gitlabHeaders(token);
   if (!("text" in search) && search.repo !== null) {
     const path = `/projects/${encodeURIComponent(search.repo)}/merge_requests/${search.number}`;
     const answer = await platformSend<MergeRequest>(`${baseUrl}/api/v4${path}`, { headers });

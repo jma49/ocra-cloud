@@ -1,4 +1,5 @@
 import type { RepoContents, TreeEntry } from "./contents.js";
+import { gitlabHeaders } from "./gitlab-changes.js";
 import { boundedBytes, platformCall, platformRead } from "./http.js";
 
 type Project = { id: number; path_with_namespace: string; default_branch?: string | null };
@@ -12,22 +13,16 @@ const REGULAR = new Set(["100644", "100755"]);
 
 export function gitlabContents(origin: string): RepoContents {
   const api = `${origin}/api/v4`;
-  const headers = (token: string) => ({
-    authorization: `Bearer ${token}`,
-    accept: "application/json",
-  });
   return {
     async head(token, fullName) {
       const project = await platformCall<Project>(
         `${api}/projects/${encodeURIComponent(fullName)}`,
-        {
-          headers: headers(token),
-        },
+        { headers: gitlabHeaders(token) },
       );
       if (!project?.default_branch) return null;
       const branch = await platformCall<Branch>(
         `${api}/projects/${project.id}/repository/branches/${encodeURIComponent(project.default_branch)}`,
-        { headers: headers(token) },
+        { headers: gitlabHeaders(token) },
       );
       if (!branch) return null;
       return {
@@ -44,7 +39,7 @@ export function gitlabContents(origin: string): RepoContents {
       for (let page = 0; next && page < MAX_TREE_PAGES; page++) {
         const answer: { nodes: Node[]; next: string | null } | null = await platformRead(
           next,
-          { headers: headers(token) },
+          { headers: gitlabHeaders(token) },
           async (res) => ({ nodes: (await res.json()) as Node[], next: nextLink(res, origin) }),
           signal,
         );
@@ -60,7 +55,7 @@ export function gitlabContents(origin: string): RepoContents {
     async blob(token, repo, blobId, maxBytes, signal) {
       const bytes = await platformRead(
         `${api}/projects/${encodeURIComponent(repo.platformRepoId)}/repository/blobs/${blobId}/raw`,
-        { headers: headers(token) },
+        { headers: gitlabHeaders(token) },
         (res) => boundedBytes(res, maxBytes),
         signal,
       );
