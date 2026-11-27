@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Findings } from "./pages/Findings.js";
 import { ToastProvider } from "./toast.js";
@@ -35,7 +35,73 @@ const row = {
   createdAt: "2026-11-23T00:00:00.000Z",
 };
 
+function pendingResponse() {
+  let send!: (response: Response) => void;
+  const promise = new Promise<Response>((resolve) => {
+    send = resolve;
+  });
+  return { promise, send };
+}
+
 describe("the findings list", () => {
+  it.each(["accepted", "refused"] as const)(
+    "keeps the %s decision's result on a revisit even if a pre-edit read finishes late",
+    async (outcome) => {
+      const page = (finding = row, fixed = 0) =>
+        Response.json({
+          findings: [finding],
+          next: null,
+          statuses: { open: 1, fixed, dismissed: 0, addressed: 0, merged: 0 },
+        });
+      const late = pendingResponse();
+      const decision = pendingResponse();
+      const revisit = pendingResponse();
+      const read = vi
+        .fn(() => revisit.promise)
+        .mockResolvedValueOnce(page())
+        .mockReturnValueOnce(late.promise);
+      const accepted = outcome === "accepted";
+      const confirmed = "Another open finding";
+      if (accepted) read.mockResolvedValueOnce(page({ ...row, id: "f2", title: confirmed }, 1));
+      const write = vi.fn((_body: unknown) => decision.promise);
+      vi.stubGlobal("fetch", (url: string, init: RequestInit) => {
+        if (url === "/api/findings?status=open" && (init.method ?? "GET") === "GET") return read();
+        if (url === "/api/findings/decide" && init.method === "POST") {
+          return write(JSON.parse(String(init.body)));
+        }
+        throw new Error(`Unexpected request: ${init.method ?? "GET"} ${url}`);
+      });
+
+      const first = render(<Findings />);
+      await screen.findByText(row.title);
+      first.unmount();
+      const editing = render(<Findings />);
+      fireEvent.click(screen.getByLabelText(`Select ${row.title}`));
+      fireEvent.click(screen.getByRole("button", { name: "Mark fixed" }));
+      expect(write).toHaveBeenCalledWith({ ids: [row.id], status: "fixed" });
+      expect(screen.getByText("No open findings")).toBeTruthy();
+
+      await act(async () =>
+        decision.send(
+          accepted
+            ? Response.json({ changed: 1, remembered: 0 })
+            : Response.json({ error: "internal" }, { status: 500 }),
+        ),
+      );
+      const settled = accepted ? confirmed : row.title;
+      expect(screen.getByText(settled)).toBeTruthy();
+      await act(async () => late.send(page({ ...row, title: "Pre-edit response" })));
+      expect(screen.getByText(settled)).toBeTruthy();
+      editing.unmount();
+
+      render(<Findings />);
+      expect(screen.getByText(settled)).toBeTruthy();
+      expect(screen.getByText(accepted ? "Fixed (1)" : "Fixed (0)")).toBeTruthy();
+      await act(async () => revisit.send(page({ ...row, title: "Read on revisit" })));
+      expect(screen.getByText("Read on revisit")).toBeTruthy();
+    },
+  );
+
   it("names a category the reviewer is named after once, and the pull request it came from", async () => {
     vi.stubGlobal(
       "fetch",
