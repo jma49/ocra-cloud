@@ -4,11 +4,11 @@ import { audit } from "./audit.js";
 import { apiError, jsonBody } from "./http.js";
 import { LOGIN } from "./platforms/reviewers.js";
 import { type PeopleEdit, sameLogin } from "./platforms/roster.js";
-import { byKind, pullRef, reach, repoName } from "./pull-page.js";
+import { byKind, reach } from "./pull-page.js";
+import { pullRef, repoRef } from "./pull-ref.js";
 import { perMinute } from "./rate.js";
 import { requireSession } from "./session.js";
 import {
-  CODE_PLATFORMS,
   MAX_PEOPLE_CANDIDATES,
   MAX_PEOPLE_EDITS,
   MAX_PEOPLE_PREFIX,
@@ -51,8 +51,7 @@ const peopleBody = z
 
 const refQuery = z.object(pullRef);
 const candidatesQuery = z.object({
-  platform: z.enum(CODE_PLATFORMS),
-  repo: repoName,
+  ...repoRef,
   prefix: prefix.default(""),
 });
 

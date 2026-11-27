@@ -5,7 +5,8 @@ import type { Scoped } from "./db/scoped.js";
 import { apiError, jsonBody } from "./http.js";
 import { shownLog } from "./platforms/ci-log.js";
 import type { CodePlatform } from "./platforms/platform.js";
-import { byKind, pullRef, reach, sha } from "./pull-page.js";
+import { byKind, reach } from "./pull-page.js";
+import { pullRef, sha } from "./pull-ref.js";
 import { perMinute } from "./rate.js";
 import { requireSession } from "./session.js";
 import type {

@@ -1,10 +1,11 @@
 import { type Context, Hono } from "hono";
-import { repoName, spread } from "./cycles.js";
+import { spread } from "./cycles.js";
 import { keepsFindings } from "./findings-kept.js";
 import { weekStart } from "./flow.js";
 import { apiError, queryDays } from "./http.js";
 import { repoIdentity } from "./platforms/platform.js";
 import { platformsOf } from "./platforms/registry.js";
+import { repoName } from "./pull-ref.js";
 import { requireSession } from "./session.js";
 import type { FlowSpread, ImpactCounts, InsightsImpactView } from "./shared/index.js";
 import { DAY } from "./time.js";

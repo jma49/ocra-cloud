@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { apiError, jsonBody } from "./http.js";
 import { proposalBranch } from "./platforms/files.js";
+import { repoRef } from "./pull-ref.js";
 import { perMinute } from "./rate.js";
 import {
   checkRepoConfig,
@@ -10,7 +11,7 @@ import {
   schemaIdOf,
   textOf,
 } from "./repo-config-file.js";
-import { reachRepo, repoRef } from "./repo-head.js";
+import { reachRepo } from "./repo-head.js";
 import { requireSession } from "./session.js";
 import {
   REPO_CONFIG_FILES,

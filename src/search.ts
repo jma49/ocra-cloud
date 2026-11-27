@@ -5,7 +5,7 @@ import { accessToken } from "./platforms/links.js";
 import type { CodePlatform } from "./platforms/platform.js";
 import { type ListedPull, MAX_SEARCHED, type PullSearch } from "./platforms/pulls.js";
 import { platformsOf } from "./platforms/registry.js";
-import { repoName } from "./pull-page.js";
+import { repoName } from "./pull-ref.js";
 import { perMinute } from "./rate.js";
 import { repoOfIdentity } from "./review-pull.js";
 import { requireSession } from "./session.js";

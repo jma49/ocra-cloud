@@ -17,8 +17,9 @@ import { unmatchedPaths } from "./learning-paths.js";
 import { COMMIT_ID } from "./platforms/contents.js";
 import { type FileChange, type FileRead, proposalBranch } from "./platforms/files.js";
 import { type CodePlatform, repoHashOf } from "./platforms/platform.js";
+import { repoRef } from "./pull-ref.js";
 import { perMinute } from "./rate.js";
-import { reachRepo, repoRef } from "./repo-head.js";
+import { reachRepo } from "./repo-head.js";
 import { requireSession } from "./session.js";
 import type {
   DeclinedLearningView,

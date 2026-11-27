@@ -3,7 +3,8 @@ import { z } from "zod";
 import { apiError } from "./http.js";
 import type { PatchedFile } from "./platforms/changes.js";
 import type { SinceDiff } from "./platforms/since.js";
-import { byKind, changesAsAsked, pullRef, reach, sha, whitespace } from "./pull-page.js";
+import { byKind, changesAsAsked, reach, whitespace } from "./pull-page.js";
+import { pullRef, sha } from "./pull-ref.js";
 import { perMinute } from "./rate.js";
 import { requireSession } from "./session.js";
 import type {

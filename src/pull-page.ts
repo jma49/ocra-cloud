@@ -15,13 +15,13 @@ import {
   suggestionLineCount,
   withSuggestion,
 } from "./platforms/suggestions.js";
+import { pullRef, sha } from "./pull-ref.js";
 import { markViewed, viewedOf } from "./pull-viewed.js";
 import { perMinute } from "./rate.js";
 import { pullOfReview, pullOnPlatform } from "./review-pull.js";
 import { fixOf } from "./reviews.js";
 import { requireSession } from "./session.js";
 import {
-  CODE_PLATFORMS,
   MAX_VIEWED_PATHS,
   MERGE_METHODS,
   type MergeMethod,
@@ -46,27 +46,6 @@ const MAX_BODY = 65_536;
 const MAX_LINE_COMMENTS = 50;
 /** A review's request: its note and line comments together. */
 const MAX_REVIEW_BYTES = 1024 * 1024;
-const SEGMENT = /^(?!\.{1,2}$)[\w.-]+$/;
-
-/** `owner/repo` or `group/subgroup/repo`, each part a plain name. */
-export const repoName = z
-  .string()
-  .max(255)
-  .refine((n) => {
-    const parts = n.split("/");
-    return parts.length >= 2 && parts.every((p) => SEGMENT.test(p));
-  }, "not a repository path");
-
-export const pullRef = {
-  platform: z.enum(CODE_PLATFORMS),
-  repo: repoName,
-  number: z.coerce
-    .number()
-    .int()
-    .min(1)
-    .max(2 ** 31 - 1),
-};
-export const sha = z.string().regex(/^[0-9a-f]{40}([0-9a-f]{24})?$/);
 const text = z.string().max(MAX_BODY);
 
 /** `whitespace=ignore` leaves out changes of whitespace alone, as `git diff -w`. */

@@ -1,10 +1,10 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { config } from "./config.js";
-import { repoName } from "./cycles.js";
 import { DEFAULT_SCOPE, type OpenPull } from "./db/review-targets.js";
 import type { Row, Scoped } from "./db/scoped.js";
 import { apiError, jsonBody } from "./http.js";
+import { repoName } from "./pull-ref.js";
 import { perMinute } from "./rate.js";
 import { requireSession } from "./session.js";
 import {

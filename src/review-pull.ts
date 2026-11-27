@@ -1,10 +1,9 @@
 import type { Row } from "./db/scoped.js";
 import { type CodePlatform, repoIdentity } from "./platforms/platform.js";
+import { repoName } from "./pull-ref.js";
 
 // The pull request a PR-mode review was of (ADR-0038), read back from what
 // the CLI uploaded: checked part by part before anything acts on it.
-
-const SEGMENT = /^(?!\.{1,2}$)[\w.-]+$/;
 
 export type ReviewPull = { host: string; repo: string; number: number; head: string };
 
@@ -26,9 +25,7 @@ export function repoOfIdentity(identity: string): { host: string; repo: string }
     return null;
   }
   const repo = url.pathname.slice(1);
-  const parts = repo.split("/");
-  if (url.protocol !== "https:" || url.port || parts.length < 2 || repo.length > 255) return null;
-  if (!parts.every((p) => SEGMENT.test(p))) return null;
+  if (url.protocol !== "https:" || url.port || !repoName.safeParse(repo).success) return null;
   return { host: url.hostname, repo };
 }
 

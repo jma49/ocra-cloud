@@ -2,10 +2,10 @@ import { type Context, Hono } from "hono";
 import { z } from "zod";
 import { apiError, jsonBody } from "./http.js";
 import { reach } from "./pull-page.js";
+import { repoRef } from "./pull-ref.js";
 import { identityOf } from "./pull-verdicts.js";
 import { perMinute } from "./rate.js";
 import { pullView, releaseNotes } from "./release-notes-draft.js";
-import { repoRef } from "./repo-head.js";
 import { requireSession } from "./session.js";
 import {
   type HeldReleaseDraftView,

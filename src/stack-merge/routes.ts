@@ -6,7 +6,8 @@ import { apiError, jsonBody } from "../http.js";
 import { outboxOf } from "../notify/notify.js";
 import { platformsOf } from "../platforms/registry.js";
 import { MAX_STACK, stackOf } from "../platforms/stacks.js";
-import { byKind, mergeMethodsOf, methodNotAllowed, pullRef, reach, sha } from "../pull-page.js";
+import { byKind, mergeMethodsOf, methodNotAllowed, reach } from "../pull-page.js";
+import { pullRef, sha } from "../pull-ref.js";
 import { perMinute } from "../rate.js";
 import { requireSession } from "../session.js";
 import {
