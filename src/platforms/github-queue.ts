@@ -1,12 +1,6 @@
-import {
-  MAX_QUEUE_AHEAD,
-  type MergeQueueView,
-  type PullActionOutcome,
-  type QueueState,
-} from "../shared/index.js";
-import { githubHeaders } from "./github-changes.js";
+import { MAX_QUEUE_AHEAD, type MergeQueueView, type QueueState } from "../shared/index.js";
 import type { GithubHost } from "./github-host.js";
-import { platformSend } from "./http.js";
+import { githubMergeGraphql } from "./github-merge-graphql.js";
 import type { MergeQueue } from "./queue.js";
 
 type EntryState = "QUEUED" | "AWAITING_CHECKS" | "MERGEABLE" | "LOCKED" | "UNMERGEABLE";
@@ -55,7 +49,6 @@ type Standing = {
   } | null;
   timelineItems: { nodes: (Removal | null)[] };
 };
-type Answer<T> = { data?: T | null; errors?: { type?: string }[] };
 type InRepository<T> = { repository: { pullRequest: T | null } | null };
 
 const PULL = `query($owner: String!, $name: String!, $number: Int!) {
@@ -129,21 +122,8 @@ function viewOf(p: Standing): MergeQueueView {
   };
 }
 
-/** A mutation's answer: GraphQL refuses with 200 and errors, a lack of permission as FORBIDDEN. */
-function outcomeOfMutation(sent: { status: number; body: Answer<unknown> | null } | null) {
-  if (!sent || sent.status >= 500) return null;
-  const errors = sent.body?.errors ?? [];
-  if (sent.status >= 400 || errors.some((e) => e.type === "FORBIDDEN")) return "refused";
-  return errors.length > 0 ? "not_mergeable" : "done";
-}
-
 export function githubQueue(host: GithubHost): MergeQueue {
-  const ask = <T>(token: string, query: string, variables: Record<string, unknown>) =>
-    platformSend<Answer<T>>(host.graphql, {
-      method: "POST",
-      headers: { ...githubHeaders(token), "content-type": "application/json" },
-      body: JSON.stringify({ query, variables }),
-    });
+  const graphql = githubMergeGraphql(host);
   /** `refused` when GitHub answered the query with errors and no pull request, not when it was unreached. */
   const read = async <T>(
     query: string,
@@ -152,7 +132,11 @@ export function githubQueue(host: GithubHost): MergeQueue {
     variables: { number: number; ahead?: number },
   ) => {
     const [owner, name] = fullName.split("/");
-    const sent = await ask<InRepository<T>>(token, query, { owner, name, ...variables });
+    const sent = await graphql.request<InRepository<T>>(token, query, {
+      owner,
+      name,
+      ...variables,
+    });
     const found = sent?.status === 200 ? (sent.body?.data?.repository?.pullRequest ?? null) : null;
     return { pull: found, refused: !found && (sent?.body?.errors?.length ?? 0) > 0 };
   };
@@ -184,18 +168,18 @@ export function githubQueue(host: GithubHost): MergeQueue {
         removed: null,
       };
     },
-    async enqueue(token, fullName, number, head): Promise<PullActionOutcome | null> {
+    async enqueue(token, fullName, number, head) {
       const p = await pull(token, fullName, number);
       if (!p) return null;
       if (p.headRefOid !== head) return "head_moved";
       if (!p.mergeQueue) return "refused";
-      return outcomeOfMutation(await ask(token, ENQUEUE, { id: p.id, head }));
+      return graphql.mutate(token, ENQUEUE, { id: p.id, head });
     },
-    async dequeue(token, fullName, number): Promise<PullActionOutcome | null> {
+    async dequeue(token, fullName, number) {
       const p = await pull(token, fullName, number);
       if (!p) return null;
       if (!p.mergeQueueEntry) return "done";
-      return outcomeOfMutation(await ask(token, DEQUEUE, { id: p.id }));
+      return graphql.mutate(token, DEQUEUE, { id: p.id });
     },
   };
 }

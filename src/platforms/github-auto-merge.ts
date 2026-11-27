@@ -1,8 +1,7 @@
-import type { MergeMethod, PullActionOutcome } from "../shared/index.js";
+import type { MergeMethod } from "../shared/index.js";
 import type { PullAutoMerge } from "./auto-merge.js";
-import { githubHeaders } from "./github-changes.js";
 import type { GithubHost } from "./github-host.js";
-import { platformSend } from "./http.js";
+import { githubMergeGraphql } from "./github-merge-graphql.js";
 
 // GitHub's auto-merge (a repository setting, "Allow auto-merge") through
 // GraphQL. It waits on the branch's required checks and reviews only: the
@@ -34,7 +33,6 @@ type Pull = {
   mergeStateStatus: MergeState;
   autoMergeRequest: { mergeMethod: string } | null;
 };
-type Answer<T> = { data?: T | null; errors?: { type?: string }[] };
 type Read = { repository: { autoMergeAllowed: boolean; pullRequest: Pull | null } | null };
 
 const PULL = `query($owner: String!, $name: String!, $number: Int!) {
@@ -52,23 +50,11 @@ const DISABLE = `mutation($id: ID!) {
   disablePullRequestAutoMerge(input: { pullRequestId: $id }) { clientMutationId }
 }`;
 
-function outcomeOfMutation(sent: { status: number; body: Answer<unknown> | null } | null) {
-  if (!sent || sent.status >= 500) return null;
-  const errors = sent.body?.errors ?? [];
-  if (sent.status >= 400 || errors.some((e) => e.type === "FORBIDDEN")) return "refused";
-  return errors.length > 0 ? "not_mergeable" : "done";
-}
-
 export function githubAutoMerge(host: GithubHost): PullAutoMerge {
-  const ask = <T>(token: string, query: string, variables: Record<string, unknown>) =>
-    platformSend<Answer<T>>(host.graphql, {
-      method: "POST",
-      headers: { ...githubHeaders(token), "content-type": "application/json" },
-      body: JSON.stringify({ query, variables }),
-    });
+  const graphql = githubMergeGraphql(host);
   const read = async (token: string, fullName: string, number: number) => {
     const [owner, name] = fullName.split("/");
-    const sent = await ask<Read>(token, PULL, { owner, name, number });
+    const sent = await graphql.request<Read>(token, PULL, { owner, name, number });
     if (sent?.status !== 200) return null;
     const repo = sent.body?.data?.repository;
     const pull = repo?.pullRequest;
@@ -83,15 +69,17 @@ export function githubAutoMerge(host: GithubHost): PullAutoMerge {
       if (!r.allowed) return "unavailable";
       // GitHub refuses to arm a pull request it would merge now.
       if (MERGEABLE.has(r.pull.mergeStateStatus)) return "ready";
-      return outcomeOfMutation(
-        await ask(token, ENABLE, { id: r.pull.id, method: METHOD[merge.method], head: merge.head }),
-      );
+      return graphql.mutate(token, ENABLE, {
+        id: r.pull.id,
+        method: METHOD[merge.method],
+        head: merge.head,
+      });
     },
-    async disable(token, fullName, number): Promise<PullActionOutcome | null> {
+    async disable(token, fullName, number) {
       const r = await read(token, fullName, number);
       if (!r) return null;
       if (!r.pull.autoMergeRequest) return "done";
-      return outcomeOfMutation(await ask(token, DISABLE, { id: r.pull.id }));
+      return graphql.mutate(token, DISABLE, { id: r.pull.id });
     },
     async readiness(token, fullName, number) {
       const r = await read(token, fullName, number);
