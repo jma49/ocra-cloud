@@ -1,16 +1,19 @@
 import type { Context } from "hono";
+import { audit } from "../audit.js";
 import { withCallLimit } from "../calls.js";
 import type { ReviewRepo } from "../db/review-jobs.js";
 import { type Scoped, scoped } from "../db/scoped.js";
 import { defer } from "../defer.js";
 import type { BotCredential } from "../platforms/bot.js";
 import { COMMIT_ID } from "../platforms/contents.js";
-import type { CodePlatform } from "../platforms/platform.js";
+import { type CodePlatform, repoIdentity } from "../platforms/platform.js";
 import { platformsOf } from "../platforms/registry.js";
 import { findingStarting } from "../platforms/threads.js";
-import type { CommentCommand } from "../shared/index.js";
+import { openAtHead } from "../pull-open-findings.js";
+import { type CommentCommand, MAX_DAILY_FIX_REQUESTS, MAX_MEND_REQUEST } from "../shared/index.js";
 import type { AppEnv } from "../types.js";
-import { fix, stop } from "./fix-commands.js";
+import { FIXING_LABEL, unlabelIdle } from "./fix-label.js";
+import { MEND_DEBOUNCE_MS } from "./mend-round.js";
 import type { AutoReviewService } from "./routes.js";
 
 // A comment with a line that is only `@ocra <command>` is a command, read
@@ -108,7 +111,7 @@ export async function takeCommand(
   return 1;
 }
 
-export type Run = {
+type Run = {
   data: Scoped;
   service: AutoReviewService;
   platform: CodePlatform;
@@ -129,9 +132,9 @@ async function runCommand(run: Run, command: Command): Promise<"done" | "refused
   return ok && sent === "done" ? "done" : "failed";
 }
 
-export type Answer = { ok: boolean; text: string };
+type Answer = { ok: boolean; text: string };
 
-export const short = (head: string) => `\`${head.slice(0, 7)}\``;
+const short = (head: string) => `\`${head.slice(0, 7)}\``;
 
 async function perform(run: Run, { command, number }: Command): Promise<Answer> {
   const { data, repo } = run;
@@ -166,9 +169,9 @@ async function perform(run: Run, { command, number }: Command): Promise<Answer> 
   }
 }
 
-export const UNREAD: Answer = { ok: false, text: "ocra could not read this pull request's head." };
+const UNREAD: Answer = { ok: false, text: "ocra could not read this pull request's head." };
 
-export async function headOf({ platform, bot, repo }: Run, number: number) {
+async function headOf({ platform, bot, repo }: Run, number: number) {
   const facts = await platform.mergeStatus.facts(bot.token, repo.fullName, number);
   return facts && COMMIT_ID.test(facts.head) ? facts.head : null;
 }
@@ -218,4 +221,83 @@ async function resolve({ platform, bot, repo }: Run, number: number): Promise<An
       ? "ocra has no open threads on this pull request."
       : `Resolved ${resolved} of ocra's open threads.${left > 0 ? ` ${left} still open: \`@ocra resolve\` again for the rest.` : ""}`;
   return { ok: left === 0 || resolved > 0, text };
+}
+
+const STOP_HINT = "`@ocra stop` stops it.";
+
+/** Asks the loop to fix the open findings of the head that the judge kept. */
+async function fix(run: Run, number: number): Promise<Answer> {
+  const { data, platform, bot, repo } = run;
+  if (repo.mend !== "commit") {
+    return {
+      ok: true,
+      text: `ocra does not commit fixes to this repository yet: an admin turns on its Fixes on [Auto review](${run.consoleUrl}/auto-review), and \`@ocra fix\` then commits them.`,
+    };
+  }
+  const head = await headOf(run, number);
+  if (!head) return UNREAD;
+  const { open } = await openAtHead(data, {
+    prRepository: repoIdentity(platform, repo.fullName),
+    prNumber: number,
+    prHeadSha: head,
+  });
+  const kept = open.filter((f) => !f.lowConfidence);
+  if (kept.length === 0) {
+    return { ok: true, text: `ocra has no open findings on ${short(head)} to fix.` };
+  }
+  const now = new Date();
+  const { queued, limited } = await data.mends.request(
+    { reviewRepoId: repo.id, number },
+    kept.slice(0, MAX_MEND_REQUEST).map((f) => ({ findingId: f.id, fingerprint: f.fingerprint })),
+    MAX_DAILY_FIX_REQUESTS,
+    new Date(now.getTime() + MEND_DEBOUNCE_MS),
+    now,
+  );
+  if (queued === 0) {
+    return limited
+      ? { ok: false, text: "ocra has used today's fixes for this account; ask again tomorrow." }
+      : { ok: true, text: `Fixes for the open findings on ${short(head)} were asked for already.` };
+  }
+  await audit(data, "pull.mend_requested", {
+    pull: `${repo.fullName}#${number}`,
+    findings: queued,
+  });
+  run.service.kick();
+  const labeled = await platform.actions.addLabels(bot.token, repo.fullName, number, [
+    FIXING_LABEL,
+  ]);
+  if (labeled === "done") await data.mends.labeled(repo.id, number);
+  const left = kept.length - MAX_MEND_REQUEST;
+  const more = limited
+    ? " Today's fixes ran out before the rest."
+    : left > 0
+      ? ` ${left} more wait for another \`@ocra fix\`.`
+      : "";
+  return {
+    ok: true,
+    text: `Fixing ${queued} open ${queued === 1 ? "finding" : "findings"} on ${short(head)}: ocra commits the fixes to the branch, each commit with a note on how to undo it.${more} ${STOP_HINT}`,
+  };
+}
+
+/** Stops the loop: a round that waits does not run, one under way is the last. */
+async function stop(run: Run, number: number): Promise<Answer> {
+  const { data, platform, bot, repo } = run;
+  const stopped = await data.mends.stop(repo.id, number, new Date());
+  if (stopped === "stopped") {
+    await unlabelIdle(data, {
+      platform,
+      token: bot.token,
+      fullName: repo.fullName,
+      reviewRepoId: repo.id,
+      number,
+    });
+  }
+  const text = {
+    stopped:
+      "Stopped: ocra runs no more fix rounds on this pull request. `@ocra fix` starts them again.",
+    stopping:
+      "Stopping: the round under way finishes and commits what it fixed, and ocra runs none after it. `@ocra fix` starts them again.",
+    idle: "ocra is not fixing this pull request.",
+  }[stopped];
+  return { ok: true, text };
 }

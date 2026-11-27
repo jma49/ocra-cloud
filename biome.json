@@ -15,6 +15,6 @@
   "css": { "parser": { "tailwindDirectives": true } },
   "markdown": { "formatter": { "enabled": false } },
   "yaml": { "formatter": { "enabled": false } },
-  "linter": { "rules": { "preset": "recommended" } },
+  "linter": { "rules": { "preset": "recommended", "suspicious": { "noImportCycles": "error" } } },
   "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true }
 }
