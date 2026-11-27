@@ -110,4 +110,4 @@ jobs:
     permissions:
       actions: read
       contents: read
-    uses: ocrahq/Open-CR-Agent/.github/workflows/budget.yml@5599abf963643e506001239b0389895f474f8225 # main after v0.18.0 (job.workflow_sha)
+    uses: ocrahq/Open-CR-Agent/.github/workflows/budget.yml@cde3c437c7412206eb0699a623ce517b7e2e73e0 # preserve job timings across partial reruns
